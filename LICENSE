@@ -18,22 +18,24 @@ thereto. This includes, but is not limited to, the “Cluster Software” (see
 provides the data replication, failover, scalability and general management of
 the servers.
 
+1.4 “The Company” means Hybrid Logic, Ltd.
+
 2. GRANT AND USE RIGHTS FOR SOFTWARE
 
 2.1 License Grant. The Software is licensed, not sold. Subject to the terms of
-this EULA, Hybrid Logic, Ltd. grants you a non-exclusive, non-transferable
-license, without rights to sublicense, to use the Software in the country where
-you are invoiced in accordance with the Documentation and the Hybrid Logic,
-Ltd. license model (per CPU socket) for which you have paid the applicable
-license fees. You may allow third party consultants or contractors to access
-and use the Software on your behalf solely for your internal business
-operations, provided, they are bound by an agreement with you protecting Hybrid
-Logic, Ltd.’s intellectual property with terms no less stringent than this EULA
-and you ensure that such third party use of the Software complies with the
-terms of this EULA. If you upgrade or exchange the Software from a previous
-validly licensed version, you must cease use of the prior version of that
-Software. You agree to provide written certification of destruction of the
-previous version of the Software upon Hybrid Logic, Ltd.’s request.
+this EULA, The Company grants you a non-exclusive, non-transferable license,
+without rights to sublicense, to use the Software in the country where you are
+invoiced in accordance with the Documentation and license model (per CPU
+socket) for which you have paid the applicable license fees. You may allow
+third party consultants or contractors to access and use the Software on your
+behalf solely for your internal business operations, provided, they are bound
+by an agreement with you protecting The Company's intellectual property with
+terms no less stringent than this EULA and you ensure that such third party use
+of the Software complies with the terms of this EULA. If you upgrade or
+exchange the Software from a previous validly licensed version, you must cease
+use of the prior version of that Software. You agree to provide written
+certification of destruction of the previous version of the Software upon The
+Company’s request.
 
 2.2 Restrictions. Except as expressly permitted by this EULA or by applicable
 law, You may not (i) sell, lease, assign, license, sublicense, distribute or
@@ -52,12 +54,11 @@ the Software; (v) modify or create derivative works based upon the Software; or
 to circumvent, enable, modify or provide access, permissions or rights which
 violate the technical restrictions in the Software. If you wish to exercise any
 rights to reverse engineer to ensure interoperability in accordance with
-applicable law, you must first provide Hybrid Logic, Ltd. with written notice
-and all reasonably requested information to support@hybridcluster.com within 30
-days and permit Hybrid Logic, Ltd. to assess your claim and, at Hybrid Logic,
-Ltd.’s sole discretion, to make an offer to provide alternatives that reduce
-any adverse impact on Hybrid Logic, Ltd.’s intellectual property or other
-rights.
+applicable law, you must first provide The Company with written notice and all
+reasonably requested information to support@hybridcluster.com within 30 days
+and permit The Company to assess your claim and, at The Company’s sole
+discretion, to make an offer to provide alternatives that reduce any adverse
+impact on The Company’s intellectual property or other rights.
 
 2.3 Third-party Software. You are responsible for separately obtaining and
 complying with any licenses necessary to operate third-party software,
@@ -66,49 +67,48 @@ you to run.
 
 3. TITLE
 
-Hybrid Logic, Ltd. retains all right, title, and interest in and to the
-Software and all related intellectual property rights. Hybrid Logic,
-Ltd. retains all rights not expressly granted to you in this EULA.
+The Company retains all right, title, and interest in and to the Software and
+all related intellectual property rights. The Company retains all rights not
+expressly granted to you in this EULA.
 
 4. SUPPORT AND SUBSCRIPTION SERVICES
 
-Hybrid Logic, Ltd. does not provide any support or subscription services for
-the Software under this EULA. You have no rights to any updates, upgrades or
-extensions or enhancements to the Software developed by Hybrid Logic,
-Ltd. unless you separately purchase Hybrid Logic, Ltd. support or subscription
-services. These support or subscription services are subject to Hybrid Logic,
-Ltd.’s then-current Support and Subscription Contract Terms and Conditions.
+The Company does not provide any support or subscription services for the
+Software under this EULA. You have no rights to any updates, upgrades or
+extensions or enhancements to the Software developed by The Company unless you
+separately purchase The Company support or subscription services. These support
+or subscription services are subject to The Company’s then-current Support and
+Subscription Contract Terms and Conditions.
 
 5. TERMINATION
 
-Hybrid Logic, Ltd. may terminate this EULA immediately upon notice if you fail
-to comply with any term of this EULA. In the event of termination, you must
-remove and destroy all copies of the Software, including all backup copies, you
-own, possess or control. Any obligations to pay fees incurred prior to
-termination and Sections 1, 2, 3, 6, and 7 of this EULA shall survive
-termination for any reason.
+The Company may terminate this EULA immediately upon notice if you fail to
+comply with any term of this EULA. In the event of termination, you must remove
+and destroy all copies of the Software, including all backup copies, you own,
+possess or control. Any obligations to pay fees incurred prior to termination
+and Sections 1, 2, 3, 6, and 7 of this EULA shall survive termination for any
+reason.
 
 6. LIMITED WARRANTY AND LIMITATION OF LIABILITY
 
-TO THE MAXIMUM EXTENT MANDATED BY LAW, HYBRID LOGIC AND ITS LICENSORS PROVIDE
+TO THE MAXIMUM EXTENT MANDATED BY LAW, THE COMPANY AND ITS LICENSORS PROVIDE
 THE SOFTWARE WITHOUT ANY WARRANTIES OF ANY KIND, EXPRESS, IMPLIED, STATUTORY,
 OR IN ANY OTHER PROVISION OF THIS EULA OR COMMUNICATION WITH YOU, AND HYBRID
 LOGIC, LTD. AND ITS LICENSORS SPECIFICALLY DISCLAIM ANY IMPLIED WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
 
 6.2 LIMITATION OF LIABILITY. TO THE MAXIMUM EXTENT MANDATED BY LAW, IN NO EVENT
-WILL HYBRID LOGIC AND ITS LICENSORS BE LIABLE FOR ANY LOST PROFITS OR BUSINESS
+WILL THE COMPANY AND ITS LICENSORS BE LIABLE FOR ANY LOST PROFITS OR BUSINESS
 OPPORTUNITIES, LOSS OF USE, BUSINESS INTERRUPTION, LOSS OF DATA, OR ANY OTHER
 INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES UNDER ANY THEORY OF
 LIABILITY, WHETHER BASED IN CONTRACT, TORT, NEGLIGENCE, PRODUCT LIABILITY, OR
 OTHERWISE. BECAUSE SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION
 OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, THE PRECEDING LIMITATION
-MAY NOT APPLY TO YOU. HYBRID LOGIC, LTD.’S AND ITS LICENSORS’ LIABILITY UNDER
-THIS EULA WILL NOT, IN ANY EVENT, EXCEED THE LICENSE FEES YOU PAID FOR THE
-SOFTWARE, IF ANY. THE FOREGOING LIMITATIONS SHALL APPLY REGARDLESS OF WHETHER
-HYBRID LOGIC, LTD. OR ITS LICENSORS HAVE BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES AND REGARDLESS OF WHETHER ANY REMEDY FAILS OF ITS ESSENTIAL
-PURPOSE.
+MAY NOT APPLY TO YOU. THE COMPANY’S AND ITS LICENSORS’ LIABILITY UNDER THIS
+EULA WILL NOT, IN ANY EVENT, EXCEED THE LICENSE FEES YOU PAID FOR THE SOFTWARE,
+IF ANY. THE FOREGOING LIMITATIONS SHALL APPLY REGARDLESS OF WHETHER THE COMPANY
+OR ITS LICENSORS HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND
+REGARDLESS OF WHETHER ANY REMEDY FAILS OF ITS ESSENTIAL PURPOSE.
 
 7. GENERAL
 
