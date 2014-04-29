@@ -5,7 +5,8 @@ Contributing to Flocker
 Steps to Contribute Code
 ========================
 
-    1. Pick an issue in the tracker (TODO: Set up a FogBugz account).
+    1. Pick the next issue in `the tracker <https://www.pivotaltracker.com/n/projects/1069998>`_.
+       Click the ``Start`` button on the issue in `the tracker`_.
 
     2. Create a branch from master with a name including a few descriptive words and ending with the issue number.
 
@@ -13,7 +14,11 @@ Steps to Contribute Code
 
     4. Use the continuous integration system to verify the test suite is passing (TODO: Set up continuous integration; automate this step).
 
-    5. Submit the issue/branch for review (TODO: Determine the FogBugz/github workflow for this).
+    5. Submit the issue/branch for review.
+       Create a pull request on GitHub for the branch.
+       Link to the issue in the tracker.
+       Create a reciprocal link on the issue in `the tracker`_.
+       Click the ``Deliver`` button on the issue in `the tracker`_.
 
     6. Address any points raised by the reviewer.
        If requested, go back to step 5.
@@ -23,7 +28,7 @@ Steps to Contribute Code
 Steps to Contribute Reviews
 ===========================
 
-    1. Pick an issue that has been submitted for review (TODO: Determine FogBugz/github workflow for this).
+    1. Pick an issue in `the tracker`_ that has been submitted for review.
 
     2. Use the continuous integration system to verify the test suite is passing (TODO: Set up continuous integration; automate this step).
 
@@ -35,7 +40,10 @@ Steps to Contribute Reviews
 
     6. Leave comments on the github PR page about any of these areas where you find problems.
 
-    7. Leave a comment on the github PR page explicitly approving or rejecting the change (TOD: Determine the Fogbugz part of the workflow for this).
+    7. Leave a comment on the github PR page explicitly approving or rejecting the change.
+       If you accept the PR and no final changes are required then use the GitHub merge button to merge the branch.
+       If you accept the PR (whether you merge it or not) click the ``Accept`` button on the issue in `the tracker`_.
+       If you do not accept the PR click the ``Reject`` button on the issue in `the tracker`_.
 
 Requirements for Contributions
 ==============================
