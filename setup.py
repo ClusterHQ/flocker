@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 #
-# Generate a Flocker package that canbe deployed onto cluster nodes.
+# Generate a Flocker package that can be deployed onto cluster nodes.
 #
 
 import os.path
