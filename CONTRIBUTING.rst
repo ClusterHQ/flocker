@@ -56,7 +56,7 @@ Requirements for Contributions
       Practice test-driven development to ensure all code has test coverage.
 
     * All code must have documentation.
-      Modules, functions, classes, and methods must be documented (even if they are private).
+      Modules, functions, classes, and methods must be documented (even if they are private or nested).
       Function parameters and object attributes must be documented (even if they are private).
 
     * All user-facing tools must have documentation.
