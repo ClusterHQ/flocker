@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 
+# Editor artifacts
+*~
+
 # C extensions
 *.so
 
