@@ -23,7 +23,7 @@ Flocker depends on many services from the base system but there are a few in par
 Hosts
 =====
 
-Flocker requires two hosts.
+Flocker requires two hosts running the base system.
 The *master* host mounts the user filesystem read-write, runs the user system, exposes itself to the Internet, etc.
 It also replicates the user filesystem to the *slave* host.
 The slave host accepts updates of that filesystem and otherwise stands by until an incident interferes with the master host's ability to provide service.
