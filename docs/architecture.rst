@@ -113,7 +113,9 @@ The mechanism for exposing fast failover to users is to publish address records 
 Users who select the master host's address from DNS get direct access to user system network services.
 Users who select the slave host's address from DNS have all of their traffic proxied to the master host.
 Responsibility for configuring and hosting these DNS records is beyond the scope of Flocker.
+When one of the hosts has failed and well-behaved client software selects that host's address from DNS, the client software will try again with the other address.
 
 The master host needs to expose the user system to the network as if the user system were a ¨normal¨, non-Flocker system (or as close to this as possible).
+The slave host needs to perform the proxying described above.
 
 Both the master and the slave hosts need to expose information about their internal state for debugging and general informational purposes.
