@@ -46,6 +46,16 @@ The Flocker service is responsible for reading this configuration *and* for writ
 (more explicitly, neither users nor system administrators nor third-party software is allowed to read or write configuration directly).
 
 
+User System
+===========
+
+The user filesystem consists of a complete (user-space) operating system installation.
+Flocker is agnostic to the particular distribution of Linux installed on the user filesystem.
+The user filesystem is used to boot the user system using LXC (via Docker ???).
+Flocker is responsible for managing the lifetime of the user system.
+This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
+
+
 Filesystem Change Notification
 ==============================
 
