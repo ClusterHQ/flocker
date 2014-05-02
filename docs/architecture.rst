@@ -21,18 +21,18 @@ Hosts
 =====
 
 Flocker requires two hosts.
-The *master* host mounts the user filesystem, runs the user system, exposes itself to the Internet, etc.
+The *master* host mounts the user filesystem read-write, runs the user system, exposes itself to the Internet, etc.
 It also replicates the user filesystem to the *slave* host.
 The slave host accepts updates of that filesystem and otherwise stands by until an incident interferes with the master host's ability to provide service.
 Then the slave host is promoted to be the master host.
 It starts the user system using the most up-to-date replica of the user filesystem that it has.
-If the original master host returns to service it is demoted to be the slave host.
+If the original master host returns to service it is demoted to be the slave host and the system continues just as it was before but with the host roles reversed.
 
 
 Configuration
 =============
 
-Flocker requires a small amount of externally supplied configuration.
+Flocker requires a small amount of configuration, mostly likely externally supplied (for example, by the installer).
 
   * credentials for administrator access
   * the internet addresses of the master and slave hosts
@@ -50,10 +50,12 @@ It can react to that by snapshotting the filesystem and replicating the snapshot
 
 A bad approximation of filesystem change notification is a time-based service.
 This generates a change notification in a loop at a fixed interval.
+For expediency this will probably be the initial change notification mechanism.
 
 A later improved service may be based on ``blktrace`` or a custom kernel module.
 
 Change notifications are consumed by the Flocker service and feed into the snapshotting system.
+
 
 Filesystem Snapshotting
 =======================
@@ -69,6 +71,8 @@ They are taken frequently to minimize the chance that any particular change will
 Snapshots are fast and cheap but they are not free.
 As new snapshots are created it eventually becomes necessary to destroy some older snapshots.
 Decisions about which snapshots to destroy need to take into considerations of the replication system described below.
+There may also be security considerations which call for extra snapshots to be retained
+(for example, if the master host is taken over and the filesystem changed undesirable, it may be beneficial for the slave host to still have some older snapshots taken prior to the breakin).
 
 
 Snapshot Replication
