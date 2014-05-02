@@ -138,3 +138,17 @@ The master host needs to expose the user system to the network as if the user sy
 The slave host needs to perform the proxying described above.
 
 Both the master and the slave hosts need to expose information about their internal state for debugging and general informational purposes.
+
+
+Failover
+========
+
+When the master host becomes incapable of providing service (eg, because it loses power, because it suffers a hardware failure, because it loses network connectivity, etc) the user system is ¨failed over¨ to the slave host.
+The slave host becomes the new master host at this point.
+
+Flocker initially takes a very simplistic approach to determining which the master host has become incapable of providing service.
+During normal operation the master host and the slave host exchange messages frequently.
+In addition to these normal, data-carrying, operational messages there may also be ¨heartbeat¨ messages.
+These are used to ensure that each host always has a very recently received message from the other.
+When one of the hosts fails the other will soon notice that no messages have been received recently.
+This is the trigger for considering the other host to have failed.
