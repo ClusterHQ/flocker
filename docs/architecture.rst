@@ -109,6 +109,11 @@ It also needs this information to decide which snapshots to use as the start of 
 For failover to be accomplished, either the master host or the slave host or both need to determine that the master host has become incapable of providing service.
 After a failover has taken place, it is also necessary for the old master to learn that it has become the new slave.
 
+The mechanism for exposing fast failover to users is to publish address records pointing at both the master and slave hosts in DNS.
+Users who select the master host's address from DNS get direct access to user system network services.
+Users who select the slave host's address from DNS have all of their traffic proxied to the master host.
+Responsibility for configuring and hosting these DNS records is beyond the scope of Flocker.
+
 The master host needs to expose the user system to the network as if the user system were a ¨normal¨, non-Flocker system (or as close to this as possible).
 
 Both the master and the slave hosts need to expose information about their internal state for debugging and general informational purposes.
