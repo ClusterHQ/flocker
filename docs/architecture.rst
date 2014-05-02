@@ -109,6 +109,15 @@ This limitation requires the master host and the slave host to communicate so th
 The best snapshot to select is the newest snapshot on the slave host (an older snapshot may require sending redundant data).
 Therefore the master host tries hard to keep a copy of that snapshot.
 
+Failover recovery may involve recovering from divergence in the user filesystem.
+Because changes to the user filesystem are quickly snapshotted, user filesystem divergence quickly leads to snapshot divergence.
+Snapshot divergence prevents further snapshot replication from taking place.
+Resolving this condition involves getting rid of some snapshots.
+Depending on the extent of the divergence this step may require manual intervention from an administrator.
+For sufficiently small divergences (amounting to only a handful of changes) the system may automatically resolve the divergence in favor of the newer version of the user filesystem.
+Any time this happens the losing version of the user filesystem will have its unique data saved.
+This may be referred to as ¨stashing¨.
+
 
 Network Communication
 =====================
