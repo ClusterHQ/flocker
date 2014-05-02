@@ -5,25 +5,27 @@ Flocker is a suite of software that runs on top of an existing operating system.
 The operating system may be running directly on hardware (¨bare metal¨) or in a virtualized environment.
 Throughout this documentation this operating system is referred to as the ¨base system¨.
 
-Flocker manages a guest operating system (presently limited to a Linux distribution) using a ¨container¨ technology (chroot, LXC, Docker, etc).
+Flocker manages one guest operating system (presently limited to a Linux distribution) using a ¨container¨ technology (chroot, LXC, Docker, etc).
 Throughout this documentation this operating system is referred to as the ¨user system¨.
+All persistent state associated with the user system is the single filesystem associated with it.
+This is referred to as the ¨user filesystem¨.
 
 Flocker depends on many services from the base system but there are a few in particularly that it depends on to a much greater degree.
 
-  * It depends on ZFS to be able to cheaply snapshot, replicate, and roll-back the user system's filesystem.
+  * It depends on ZFS to be able to cheaply snapshot, replicate, and roll-back the user filesystem.
   * It depends on the container technology to isolate the base system and the user system from each other.
-  * It depends on the ability to get timely, cheap notification that a change has been made to the user system's filesystem.
+  * It depends on the ability to get timely, cheap notification that a change has been made to the user filesystem.
 
 
 Hosts
 =====
 
 Flocker requires two hosts.
-The *master* host mounts the user system's filesystem, runs the user system, exposes itself to the Internet, etc.
-It also replicates the user system's filesystem to the *slave* host.
+The *master* host mounts the user filesystem, runs the user system, exposes itself to the Internet, etc.
+It also replicates the user filesystem to the *slave* host.
 The slave host accepts updates of that filesystem and otherwise stands by until an incident interferes with the master host's ability to provide service.
 Then the slave host is promoted to be the master host.
-It starts the user system using the most up-to-date replica of the user system's filesystem that it has.
+It starts the user system using the most up-to-date replica of the user filesystem that it has.
 If the original master host returns to service it is demoted to be the slave host.
 
 
@@ -57,7 +59,7 @@ Filesystem Snapshotting
 =======================
 
 The user system uses ZFS as its filesystem to allow the fast, cheap creation of snapshots.
-User data on the user system's filesystem is not guaranteed to be in a consistent state in each snapshot.
+User data on the user filesystem is not guaranteed to be in a consistent state in each snapshot.
 However, the inconsistencies are the same as can be expected from a system crash (eg due to power failure).
 Many applications (not MySQL with MyISAM tables) can be expected to be robust against this circumstance already.
 
@@ -72,7 +74,7 @@ Decisions about which snapshots to destroy need to take into considerations of t
 Snapshot Replication
 ====================
 
-For failover to the slave host to be possible, the slave host must have a copy of the user system's filesystem.
+For failover to the slave host to be possible, the slave host must have a copy of the user filesystem.
 The slave host is continuously provided with an up-to-date copy of the filesystem by the master host.
 This is accomplished by repeatedly copying snapshots from the master host to the slave host.
 
