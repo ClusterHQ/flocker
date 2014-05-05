@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+from subprocess import call
+from sys import exit
+
+if __name__ == "__main__":
+    exit(call([
+        "sphinx-build",
+        "-b", "html",
+        ".", "_build/html",
+        ]))
