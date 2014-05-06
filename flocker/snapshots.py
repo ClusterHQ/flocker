@@ -4,6 +4,37 @@ Drive the snapshotting of a filesystem, based on change events from elsewhere.
 
 from __future__ import absolute_import
 
+from twisted.python.constants import Names, NamedConstant
+
+
+class _Inputs(Names):
+    """
+    Inputs to the ChangeSnapshotter state machine.
+    """
+    FILESYSTEM_CHANGED = NamedConstant()
+    SNAPSHOT_SUCCEEDED = NamedConstant()
+    SNAPSHOT_FAILED = NamedConstant()
+
+
+
+class _Outputs(Names):
+    """
+    Outputs from the ChangeSnapshotter state machine.
+    """
+    START_SNAPSHOT = NamedConstant()
+
+
+
+class _States(Names):
+    """
+    States of the ChangeSnapshotter state machine.
+    """
+    IDLE = NamedConstant()
+    SNAPSHOTTING = NamedConstant()
+    #: The filesystem changed *after* the snapshot was started:
+    SNAPSHOTTING_DIRTY = NamedConstant()
+
+
 
 class ChangeSnapshotter(object):
     """
@@ -49,7 +80,7 @@ class ChangeSnapshotter(object):
         """
 
 
-    def changeHappened(self):
+    def filesystemChanged(self):
         """
         Notification from some external entity that the filesystem has changed.
         """
