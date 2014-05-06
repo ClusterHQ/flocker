@@ -43,6 +43,10 @@ setup(
         "flocker": ["version"],
         },
 
+    install_requires=[
+        "Twisted == 13.2.0"
+        ],
+
     extras_require={
         # This extra allows you to build the documentation for Flocker.
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
