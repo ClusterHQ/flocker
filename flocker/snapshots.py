@@ -2,6 +2,8 @@
 Snapshotting of a filesystem.
 """
 
+from __future__ import absolute_import
+
 from zope.interface import Interface
 
 
@@ -13,11 +15,11 @@ class IFilesystemSnapshots(Interface):
         """
         Create a snapshot of the filesystem.
 
-        @param name: The name of the snapshot.
-        @type name: L{bytes}
+        :param name: The name of the snapshot.
+        :type name: :py:class:`bytes`
 
-        @return: L{Deferred} that fires on snapshot creation, or errbacks if
-            snapshotting failed. The L{Deferred} should support cancellation
+        :return: Deferred that fires on snapshot creation, or errbacks if
+            snapshotting failed. The Deferred should support cancellation
             if at all possible.
         """
 
@@ -26,7 +28,7 @@ class IFilesystemSnapshots(Interface):
         """
         Return all the filesystem's snapshots.
 
-        @return: L{Deferred} that fires with a L{list} of L{bytes} (snapshot
+        :return: Deferred that fires with a ``list`` of ``bytes`` (snapshot
             names). This will likely be improved in later iterations.
         """
 
@@ -58,13 +60,23 @@ class ChangeSnapshotter(object):
     output_START_SNAPSHOT should create the snapshot, and add a 10 second timeout to the Deferred.
 
     (As a second pass we probably want to wait 1 second between snapshots.)
+
+    Potential reasons for failure:
+    - Disk is full. (Another set of inputs and states? open a story.)
+    - Snapshotting took too long so it was cancelled.
     """
     def __init__(self, name, clock, fsSnapshots):
         """
-        @param name: The name of the current node, to be used in snapshot names.
-        @type name: L{bytes}
+        :param name: The name of the current node, to be used in snapshot names.
+        :type name: bytes
 
-        @param clock: A L{IReactorTime} provider.
+        :param clock: A IReactorTime provider.
 
-        @param fsSnapshots: A L{IFilesystemSnapshots} provider.
+        :param fsSnapshots: A IFilesystemSnapshots provider.
+        """
+
+
+    def changeHappened(self):
+        """
+        Notification from some external entity that the filesystem has changed.
         """
