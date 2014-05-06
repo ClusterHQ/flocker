@@ -1,5 +1,5 @@
 """
-Snapshotting of a filesystem.
+Drive the snapshotting of a filesystem, based on change events from elsewhere.
 """
 
 from __future__ import absolute_import
