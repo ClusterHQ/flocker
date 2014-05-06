@@ -1,4 +1,4 @@
-from fabric.api import task, sudo, put, env
+from fabric.api import task, sudo, put, env, get
 from pipes import quote as shellQuote
 from twisted.python.util import sibpath
 
@@ -22,6 +22,10 @@ def bootstrap():
     """
     sudo('apt-get --quiet update')
     installPackages([b'python2.7', b'python2.7-dev', b'python-virtualenv', b'git'])
+    installPackages([b'dh-virtualenv', b'debhelper'])
+
+    # SSH Known hosts (particularly github)
+    put(sibpath(__file__, 'known_hosts'), '/etc/ssh/ssh_known_hosts', use_sudo=True, mode=0o644)
 
 
 @task
@@ -31,8 +35,13 @@ def installBuildslave(password):
     """
     bootstrap()
     sudo('useradd --base-dir /srv --user-group --create-home --system --shell /bin/bash buildslave')
+    sudo('mkdir /srv/buildslave/.ssh', user='buildslave')
     sudo('virtualenv /srv/buildslave/venv', user='buildslave')
-    sudo('/srv/buildslave/venv/bin/pip install buildbot-slave')
-    sudo('/srv/buildslave/venv/bin/buildslave create-slave /srv/buildslave/slave build.hybridcluster.net flocker-buildslave-1 %s' % (shellQuote(password),))
+    sudo('/srv/buildslave/venv/bin/pip install buildbot-slave',
+         user='buildslave')
+    sudo('/srv/buildslave/venv/bin/buildslave create-slave /srv/buildslave/slave build.hybridcluster.net flocker-buildslave-1 %s' % (shellQuote(password),),
+         user='buildslave')
+    sudo("ssh-keygen -t ecdsa -b 521 -N '' -f /srv/buildslave/.ssh/id_ecdsa", user='buildslave')
+    get("/srv/buildslave/.ssh/id_ecdsa.pub", 'flocker-buildslave-1.pub')
     put(sibpath(__file__, 'slave.conf'), '/etc/init/slave.conf', use_sudo=True)
     sudo('start slave')
