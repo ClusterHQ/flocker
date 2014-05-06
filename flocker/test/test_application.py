@@ -5,7 +5,7 @@ Tests for L{flocker.application} and L{twistd} support.
 from __future__ import absolute_import
 
 from twisted.trial.unittest import TestCase
-from twisted.application.service import IServiceMaker
+from twisted.application.service import IServiceMaker, IServiceCollection
 from twisted.plugin import getPlugins
 from zope.interface.verify import verifyObject
 
@@ -57,3 +57,15 @@ class FlockerServiceMakerTests(TestCase):
         maker = FlockerServiceMaker()
         service = maker.makeService(maker.options())
         self.assertIsInstance(service, FlockerService)
+
+
+
+class FlockerServiceTests(TestCase):
+    """
+    Tests for L{FlockerService}.
+    """
+    def test_interface(self):
+        """
+        L{FlockerService} implements L{IServiceCollection}.
+        """
+        self.assertTrue(verifyObject(IServiceCollection, FlockerService()))

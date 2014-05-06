@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 from zope.interface import implementer
 
-from twisted.application.service import IServiceMaker
+from twisted.application.service import IServiceMaker, MultiService
 from twisted.plugin import IPlugin
 from twisted.python.usage import Options
 
@@ -19,7 +19,7 @@ class FlockerOptions(Options):
 
 
 
-class FlockerService(object):
+class FlockerService(MultiService):
     """
     The main service for Flocker which runs all other services.
     """
