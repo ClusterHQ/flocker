@@ -59,11 +59,13 @@ class ChangeSnapshotter(object):
 
     output_START_SNAPSHOT should create the snapshot, and add a 10 second timeout to the Deferred.
 
-    (As a second pass we probably want to wait 1 second between snapshots.)
+    As a second pass we probably want to wait 1 second between snapshots:
+    https://www.pivotaltracker.com/n/projects/1069998/stories/70790540
 
-    Potential reasons for failure:
-    - Disk is full. (Another set of inputs and states? open a story.)
-    - Snapshotting took too long so it was cancelled.
+    Obvious reasons for snapshot failing:
+    * Disk is full. This will be handled by
+      https://www.pivotaltracker.com/n/projects/1069998/stories/70790286
+    * Snapshotting took too long so it was cancelled.
     """
     def __init__(self, name, clock, fsSnapshots):
         """
