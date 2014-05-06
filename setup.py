@@ -43,6 +43,8 @@ setup(
         "flocker": ["version"],
         },
 
+    install_requires=["machinist", "zope.interface"],
+
     extras_require={
         # This extra allows you to build the documentation for Flocker.
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
