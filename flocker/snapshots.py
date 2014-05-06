@@ -17,7 +17,8 @@ class IFilesystemSnapshots(Interface):
         @type name: L{bytes}
 
         @return: L{Deferred} that fires on snapshot creation, or errbacks if
-            snapshotting failed.
+            snapshotting failed. The L{Deferred} should support cancellation
+            if at all possible.
         """
 
 
@@ -41,16 +42,20 @@ class ChangeSnapshotter(object):
        snapshots).
     3. Snapshots are named using the current time and the node they were
        created on.
+    4. Snapshots are expected to run very quickly, so if a snapshot take
+       more than 10 seconds it should be cancelled.
 
-    This suggests the following state machine, (input, state) -> new_state:
+    This suggests the following state machine, (input, state) -> outputs, new_state:
 
-    (FILESYSTEM_CHANGE, IDLE) -> SNAPSHOTTING
-    (FILESYSTEM_CHANGE, SNAPSHOTTING) -> SNAPSHOTTING_DIRTY
-    (FILESYSTEM_CHANGE, SNAPSHOTTING_DIRTY) -> SNAPSHOTTING_DIRTY
+    (FILESYSTEM_CHANGE, IDLE) -> [START_SNAPSHOT], SNAPSHOTTING
+    (FILESYSTEM_CHANGE, SNAPSHOTTING) -> [], SNAPSHOTTING_DIRTY
+    (FILESYSTEM_CHANGE, SNAPSHOTTING_DIRTY) -> [], SNAPSHOTTING_DIRTY
     (SNAPSHOT_SUCCESS, SNAPSHOTTING) -> IDLE
-    (SNAPSHOT_SUCCESS, SNAPSHOTTING_DIRTY) -> SNAPSHOTTING
-    (SNAPSHOT_FAILURE, SNAPSHOTTING) -> SNAPSHOTTING
-    (SNAPSHOT_FAILURE, SNAPSHOTTING_DIRTY) -> SNAPSHOTTING
+    (SNAPSHOT_SUCCESS, SNAPSHOTTING_DIRTY) -> [START_SNAPSHOT], SNAPSHOTTING
+    (SNAPSHOT_FAILURE, SNAPSHOTTING) -> [START_SNAPSHOT], SNAPSHOTTING
+    (SNAPSHOT_FAILURE, SNAPSHOTTING_DIRTY) -> [START_SNAPSHOT], SNAPSHOTTING
+
+    output_START_SNAPSHOT should create the snapshot, and add a 10 second timeout to the Deferred.
 
     (As a second pass we probably want to wait 1 second between snapshots.)
     """
