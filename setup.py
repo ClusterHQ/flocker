@@ -43,7 +43,11 @@ setup(
         "flocker": ["version"],
         },
 
-    install_requires=["machinist", "zope.interface"],
+    install_requires=[
+        "machinist",
+        "zope.interface",
+        "Twisted == 13.2.0"
+        ],
 
     extras_require={
         # This extra allows you to build the documentation for Flocker.
