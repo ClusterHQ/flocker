@@ -46,6 +46,7 @@ setup(
     install_requires=[
         "machinist",
         "zope.interface",
+        "pytz",
         "Twisted == 13.2.0"
         ],
 
