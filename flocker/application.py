@@ -29,7 +29,7 @@ class FlockerService(MultiService):
 @implementer(IServiceMaker, IPlugin)
 class FlockerServiceMaker(object):
     """
-    I{twistd} plugin that creates a L{FlockerService}.
+    ``twistd`` plugin that creates a :class:`FlockerService`.
     """
     tapname = "flocker"
     description = "The Flocker application."
