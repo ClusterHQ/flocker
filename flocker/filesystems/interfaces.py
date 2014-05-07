@@ -15,7 +15,7 @@ class IFilesystemSnapshots(Interface):
         Create a snapshot of the filesystem.
 
         :param name: The name of the snapshot.
-        :type name: :py:class:`bytes`
+        :type name: :py:class:`flocker.snapshots.SnapshotName`
 
         :return: Deferred that fires on snapshot creation, or errbacks if
             snapshotting failed. The Deferred should support cancellation
@@ -27,6 +27,7 @@ class IFilesystemSnapshots(Interface):
         """
         Return all the filesystem's snapshots.
 
-        :return: Deferred that fires with a ``list`` of ``bytes`` (snapshot
-            names). This will likely be improved in later iterations.
+        :return: Deferred that fires with a ``list`` of
+            :py:class:`flocker.snapshots.SnapshotName`. This will likely be
+            improved in later iterations.
         """

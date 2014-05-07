@@ -4,7 +4,24 @@ Drive the snapshotting of a filesystem, based on change events from elsewhere.
 
 from __future__ import absolute_import
 
+from collections import namedtuple
+from datetime import datetime
+
+from pytz import UTC
+
 from twisted.python.constants import Names, NamedConstant
+
+
+
+class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
+    """
+    A name of a snapshot.
+
+    :attr timestamp: The time when the snapshot was created, a :class:`datetime`.
+
+    :attr node: The name of the node creating the snapshot, as ``bytes``.
+    """
+
 
 
 class _Inputs(Names):

@@ -6,11 +6,14 @@ instance as its first argument and returns some object to be used in a test.
 """
 from __future__ import absolute_import
 
+from datetime import datetime
+
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
 from ..filesystems.interfaces import IFilesystemSnapshots
+from ..snapshots import SnapshotName
 
 
 
@@ -41,9 +44,11 @@ def makeIFilesystemSnapshotsTests(fixture):
             ``list()``.
             """
             fsSnapshots = fixture(self)
-            d = fsSnapshots.create(b"first")
-            d.addCallback(lambda _: fsSnapshots.create(b"second"))
+            first = SnapshotName(datetime.now(), b"first")
+            second = SnapshotName(datetime.now(), b"second")
+            d = fsSnapshots.create(first)
+            d.addCallback(lambda _: fsSnapshots.create(second))
             d.addCallback(lambda _: fsSnapshots.list())
-            d.addCallback(self.assertEqual, [b"first", b"second"])
+            d.addCallback(self.assertEqual, [first, second])
             return d
     return IFilesystemSnapshotsTests
