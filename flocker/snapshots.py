@@ -11,6 +11,9 @@ from pytz import UTC
 
 from twisted.python.constants import Names, NamedConstant
 
+from machinist import (
+    TransitionTable, MethodSuffixOutputer, constructFiniteStateMachine)
+
 
 
 class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
@@ -29,8 +32,8 @@ class _Inputs(Names):
     Inputs to the ChangeSnapshotter state machine.
     """
     FILESYSTEM_CHANGED = NamedConstant()
-    SNAPSHOT_SUCCEEDED = NamedConstant()
-    SNAPSHOT_FAILED = NamedConstant()
+#    SNAPSHOT_SUCCEEDED = NamedConstant()
+#    SNAPSHOT_FAILED = NamedConstant()
 
 
 
@@ -49,7 +52,18 @@ class _States(Names):
     IDLE = NamedConstant()
     SNAPSHOTTING = NamedConstant()
     #: The filesystem changed *after* the snapshot was started:
-    SNAPSHOTTING_DIRTY = NamedConstant()
+#    SNAPSHOTTING_DIRTY = NamedConstant()
+
+
+
+_transitions = TransitionTable()
+_transitions = _transitions.addTransitions(
+    _States.IDLE, {
+        _Inputs.FILESYSTEM_CHANGED: ([_Outputs.START_SNAPSHOT],
+                                     _States.SNAPSHOTTING),
+        })
+_transitions = _transitions.addTransitions(
+    _States.SNAPSHOTTING, {})
 
 
 
@@ -95,9 +109,23 @@ class ChangeSnapshotter(object):
 
         :param fsSnapshots: A IFilesystemSnapshots provider.
         """
+        self._name = name
+        self._clock = clock
+        self._fsSnapshots = fsSnapshots
+        self._fsm = constructFiniteStateMachine(
+            inputs=_Inputs, outputs=_Outputs, states=_States, table=_transitions,
+            initial=_States.IDLE, richInputs={}, inputContext={},
+            world=MethodSuffixOutputer(self))
+
+
+    def output_START_SNAPSHOT(self):
+        name = SnapshotName(datetime.fromtimstap(self._clock.seconds(), UTC),
+                            self._name)
+        self._fsSnapshots.create(name)
 
 
     def filesystemChanged(self):
         """
         Notification from some external entity that the filesystem has changed.
         """
+        self._fsm.receive(_Inputs.FILESYSTEM_CHANGED)
