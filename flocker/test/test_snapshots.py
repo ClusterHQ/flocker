@@ -1,14 +1,80 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Tests for :module:`flocker.snapshots`.
 """
+
+from __future__ import absolute_import
+
+from datetime import datetime
+
+from pytz import UTC
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.task import Clock
+from twisted.internet.defer import Deferred
+
+from ..filesystems.memory import MemoryFilesystemSnapshots
+from ..snapshots import ChangeSnapshotter, SnapshotName
+
+
+# The filesystem's name:
+FILESYSTEM = b"test"
+
 
 
 class ChangeSnapshotterTests(SynchronousTestCase):
     """
-    Tests for ChangeSnapshotter.
+    Tests for ChangeSnapshotter state machine.
     """
-    # If ``filesystemChanged`` is called, a snapshot is taken immediately.
+    def setup(self, results):
+        """
+        Setup the objects for the test.
+
+        :param results: ``list`` of ``Deferred``, the results of snapshotting.
+        """
+        self.clock = Clock()
+        self.clock.advance(12345)
+        self.fsSnapshots = MemoryFilesystemSnapshots(results)
+        self.snapshotter = ChangeSnapshotter(FILESYSTEM, self.clock,
+                                             self.fsSnapshots)
+
+
+    def assertSnapshotsTaken(self, snapshotTimes):
+        """
+        Assert the created snapshots were those described by the given
+        parameters.
+
+        :param snapshotTimes: ``list`` of ``float`` describing seconds since
+            epoch when snapshots occurred.
+        """
+        self.assertEqual(
+            self.successResultOf(self.fsSnapshots.list()),
+            [SnapshotName(datetime.fromtimestamp(t, UTC), FILESYSTEM)
+             for t in snapshotTimes])
+
+
+    def test_idle(self):
+        """
+        If nothing happens no snapshots are taken.
+        """
+        self.setup([])
+        self.clock.advance(1000)
+        self.assertSnapshotsTaken([])
+
+
+    def test_changeCausesSnapshot(self):
+        """
+        If :meth:`ChangeSnapshotter.filesystemChanged` is called, a snapshot is
+        taken immediately.
+        """
+        d = Deferred()
+        self.setup([d])
+        self.snapshotter.filesystemChanged()
+        d.callback(None)
+        self.assertSnapshotsTaken([self.clock.seconds()])
+
+
     # If ``filesystemChanged`` is called once, after a snapshot succeeds no more snapshots are taken.
     # If snapshotting fails, it is retried until it succeeds.
     # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot is not started immediately.
