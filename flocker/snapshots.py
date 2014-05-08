@@ -127,7 +127,8 @@ class ChangeSnapshotter(object):
         name = SnapshotName(datetime.fromtimestamp(self._clock.seconds(), UTC),
                             self._name)
         created = self._fsSnapshots.create(name)
-        # XXX log errors
+        # XXX log errors!
+        # https://www.pivotaltracker.com/n/projects/1069998/stories/70956276
         created.addCallbacks(lambda _: self._fsm.receive(SNAPSHOT_SUCCEEDED()),
                              lambda _: self._fsm.receive(SNAPSHOT_FAILED()))
 
