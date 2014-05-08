@@ -1,9 +1,12 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Generic tests for filesystem APIs.
 
 A "fixture" is a 1-argument callable that takes a :class:`unittest.TestCase`
 instance as its first argument and returns some object to be used in a test.
 """
+
 from __future__ import absolute_import
 
 from datetime import datetime

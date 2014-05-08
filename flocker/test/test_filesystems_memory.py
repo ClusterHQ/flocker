@@ -1,5 +1,7 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
-Tests for :module:``flocker.filesystems.memory``.
+Tests for :module:`flocker.filesystems.memory`.
 """
 
 from __future__ import absolute_import

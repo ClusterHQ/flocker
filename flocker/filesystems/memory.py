@@ -1,6 +1,9 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 In-memory fake filesystem APIs, for use with unit tests.
 """
+
 from __future__ import absolute_import
 
 from zope.interface import implementer
