@@ -30,6 +30,8 @@ The slave host accepts updates of that filesystem and otherwise stands by until 
 Then the slave host is promoted to be the master host.
 It starts the user system using the most up-to-date replica of the user filesystem that it has.
 If the original master host returns to service it is demoted to be the slave host and the system continues just as it was before but with the host roles reversed.
+If the user filesystem has diverged on the master and slave hosts then a heuristic may be applied to select the best version to continue.
+This may result in the original master regaining the master role and the original slave being demoted back to a slave.
 
 
 Configuration
