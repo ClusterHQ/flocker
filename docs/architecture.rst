@@ -13,7 +13,7 @@ Throughout this documentation this operating system is referred to as the ¨user
 All persistent state associated with the user system is the single filesystem associated with it.
 This is referred to as the ¨user filesystem¨.
 
-Flocker depends on many services from the base system but there are a few in particularly that it depends on to a much greater degree.
+Flocker depends on many services from the base system but there are a few in particular that it depends on to a much greater degree.
 
   * It depends on ZFS to be able to cheaply snapshot, replicate, and roll-back the user filesystem.
   * It depends on the container technology to isolate the base system and the user system from each other.
