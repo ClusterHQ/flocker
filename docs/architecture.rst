@@ -157,7 +157,17 @@ The slave host becomes the new master host at this point.
 
 Flocker initially takes a very simplistic approach to determining which the master host has become incapable of providing service.
 During normal operation the master host and the slave host exchange messages frequently.
-In addition to these normal, data-carrying, operational messages there may also be ¨heartbeat¨ messages.
-These are used to ensure that each host always has a very recently received message from the other.
-When one of the hosts fails the other will soon notice that no messages have been received recently.
+In addition to these normal, data-carrying, operational messages there may also be a ¨status¨ protocol.
+This protocol exists to to ensure that each host always knows the operational status of the other.
+The operational status comprises a number of facts:
+
+  1. The capability to exchange simple network traffic with the other Flocker host.
+  2. Persistent storage availability (the disk is not full, the disk has not failed, reads on the disk are serviced in a reasonable window).
+
+This list may be expanded with other useful metrics for ¨capable of providing service¨ as they are determined.
+When one of the hosts fails the other will learn of this in one of two ways:
+
+  1. explicitly via the content of a ¨status¨ protocol message (¨my disk has failed¨)
+  2. implicitly via the lack of any messages (because the entire host has crashed, its network provider has suffered an outage, etc)
+
 This is the trigger for considering the other host to have failed.
