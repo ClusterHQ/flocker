@@ -25,3 +25,11 @@ However, as long as only one host is online the replication and failover feature
 
 Flocker is intentionally limited to at most a two host configuration
 (though a future service built on Flocker may expand this).
+
+Configuration
+=============
+
+The failover service has a couple additional configuration requirements above and beyond those mentioned in the common document:
+
+  * the internet addresses of the master and slave hosts
+  * credentials used to allow the master and slave hosts to securely communicate with each other

@@ -40,8 +40,6 @@ Configuration
 Flocker requires a small amount of configuration, mostly likely externally supplied (for example, by the installer).
 
   * credentials for administrator access
-  * the internet addresses of the master and slave hosts
-  * credentials used to allow the master and slave hosts to securely communicate with each other
 
 This information is kept in simple configuration file (for example, a a ``.ini``\ -style file) on the base system.
 The Flocker service is responsible for reading this configuration *and* for writing modifications to it
