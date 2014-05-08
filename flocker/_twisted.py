@@ -30,7 +30,7 @@ As such all code in this module was released under the following terms:
     Jonathan Jacobs
     Jonathan Lange
     Jonathan D. Simms
-    Jürgen Hermann
+    Jurgen Hermann
     Julian Berman
     Kevin Horn
     Kevin Turner
