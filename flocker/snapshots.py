@@ -29,6 +29,23 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
 
     :attr node: The name of the node creating the snapshot, as ``bytes``.
     """
+    def toBytes(self):
+        """
+        Encode the snapshot name into bytes.
+
+        :return: Bytes-encoded snapshot name.
+        """
+
+
+    @classmethod
+    def fromBytes(cls, name):
+        """
+        Decode an encoded snapshot name.
+
+        :param name: The output of :meth:`SnapshotName.toBytes`.
+
+        :return: A :class:`SnapshotName` instance decoded from the bytes.
+        """
 
 
 
