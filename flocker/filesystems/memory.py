@@ -14,7 +14,7 @@ from .interfaces import IFilesystemSnapshots
 
 
 @implementer(IFilesystemSnapshots)
-class MemoryFilesystemSnapshots(object):
+class CannedFilesystemSnapshots(object):
     """
     In-memory filesystem snapshotter.
     """

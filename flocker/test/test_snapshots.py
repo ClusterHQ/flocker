@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred, succeed
 
-from ..filesystems.memory import MemoryFilesystemSnapshots
+from ..filesystems.memory import CannedFilesystemSnapshots
 from ..snapshots import ChangeSnapshotter, SnapshotName
 
 
@@ -35,7 +35,7 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         """
         self.clock = Clock()
         self.clock.advance(12345)
-        self.fsSnapshots = MemoryFilesystemSnapshots(results)
+        self.fsSnapshots = CannedFilesystemSnapshots(results)
         self.snapshotter = ChangeSnapshotter(FILESYSTEM, self.clock,
                                              self.fsSnapshots)
 
