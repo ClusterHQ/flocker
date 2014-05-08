@@ -5,13 +5,13 @@ Operating System
 ================
 
 Flocker is a suite of software that runs on top of an existing operating system.
-The operating system may be running directly on hardware (¨bare metal¨) or in a virtualized environment.
-Throughout this documentation this operating system is referred to as the ¨base system¨.
+The operating system may be running directly on hardware (“bare metal”) or in a virtualized environment.
+Throughout this documentation this operating system is referred to as the “base system”.
 
-Flocker manages one guest operating system (presently limited to a Linux distribution) using a ¨container¨ technology (chroot, LXC, Docker, etc).
-Throughout this documentation this operating system is referred to as the ¨user system¨.
+Flocker manages one guest operating system (presently limited to a Linux distribution) using a “container” technology (chroot, LXC, Docker, etc).
+Throughout this documentation this operating system is referred to as the “user system”.
 All persistent state associated with the user system is the single filesystem associated with it.
-This is referred to as the ¨user filesystem¨.
+This is referred to as the “user filesystem”.
 
 Flocker depends on many services from the base system but there are a few in particular that it depends on to a much greater degree.
 
@@ -107,7 +107,7 @@ This is accomplished by repeatedly copying snapshots from the master host to the
 
 This is done using two features of ZFS:
 
-  * the feature allowing the changes between an earlier and a later snapshot to be extracted as a stream of bytes (the ¨replication stream¨)
+  * the feature allowing the changes between an earlier and a later snapshot to be extracted as a stream of bytes (the “replication stream”)
   * the feature allowing the replication stream to be loaded into a different system to recreate the later snapshot
 
 The replication system consumes events from the snapshotting system.
@@ -125,7 +125,7 @@ Resolving this condition involves getting rid of some snapshots.
 Depending on the extent of the divergence this step may require manual intervention from an administrator.
 For sufficiently small divergences (amounting to only a handful of changes) the system may automatically resolve the divergence in favor of the newer version of the user filesystem.
 Any time this happens the losing version of the user filesystem will have its unique data saved.
-This may be referred to as ¨stashing¨.
+This may be referred to as “stashing”.
 
 
 Network Communication
@@ -143,7 +143,7 @@ Users who select the slave host's address from DNS have all of their traffic pro
 Responsibility for configuring and hosting these DNS records is beyond the scope of Flocker.
 When one of the hosts has failed and well-behaved client software selects that host's address from DNS, the client software will try again with the other address.
 
-The master host needs to expose the user system to the network as if the user system were a ¨normal¨, non-Flocker system (or as close to this as possible).
+The master host needs to expose the user system to the network as if the user system were a “normal”, non-Flocker system (or as close to this as possible).
 The slave host needs to perform the proxying described above.
 
 Both the master and the slave hosts need to expose information about their internal state for debugging and general informational purposes.
@@ -152,22 +152,22 @@ Both the master and the slave hosts need to expose information about their inter
 Failover
 ========
 
-When the master host becomes incapable of providing service (eg, because it loses power, because it suffers a hardware failure, because it loses network connectivity, etc) the user system is ¨failed over¨ to the slave host.
+When the master host becomes incapable of providing service (eg, because it loses power, because it suffers a hardware failure, because it loses network connectivity, etc) the user system is “failed over” to the slave host.
 The slave host becomes the new master host at this point.
 
 Flocker initially takes a very simplistic approach to determining which the master host has become incapable of providing service.
 During normal operation the master host and the slave host exchange messages frequently.
-In addition to these normal, data-carrying, operational messages there may also be a ¨status¨ protocol.
+In addition to these normal, data-carrying, operational messages there may also be a “status” protocol.
 This protocol exists to to ensure that each host always knows the operational status of the other.
 The operational status comprises a number of facts:
 
   1. The capability to exchange simple network traffic with the other Flocker host.
   2. Persistent storage availability (the disk is not full, the disk has not failed, reads on the disk are serviced in a reasonable window).
 
-This list may be expanded with other useful metrics for ¨capable of providing service¨ as they are determined.
+This list may be expanded with other useful metrics for “capable of providing service” as they are determined.
 When one of the hosts fails the other will learn of this in one of two ways:
 
-  1. explicitly via the content of a ¨status¨ protocol message (¨my disk has failed¨)
+  1. explicitly via the content of a “status” protocol message (“my disk has failed”)
   2. implicitly via the lack of any messages (because the entire host has crashed, its network provider has suffered an outage, etc)
 
 This is the trigger for considering the other host to have failed.
