@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Drive the snapshotting of a filesystem, based on change events from elsewhere.
 """
@@ -14,6 +16,8 @@ from twisted.python.constants import Names, NamedConstant
 from machinist import (
     TransitionTable, MethodSuffixOutputer, constructFiniteStateMachine,
     trivialInput)
+
+from ._twisted import timeoutDeferred
 
 
 
@@ -127,6 +131,8 @@ class ChangeSnapshotter(object):
         name = SnapshotName(datetime.fromtimestamp(self._clock.seconds(), UTC),
                             self._name)
         created = self._fsSnapshots.create(name)
+        timeoutDeferred(self._clock, created, 10)
+
         # XXX log errors!
         # https://www.pivotaltracker.com/n/projects/1069998/stories/70956276
         created.addCallbacks(lambda _: self._fsm.receive(SNAPSHOT_SUCCEEDED()),

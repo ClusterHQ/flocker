@@ -169,4 +169,17 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         self.assertSnapshotsTaken([time - 1, time])
 
 
-    # If a snapshot takes longer than 10 seconds to finish it will fail.
+    def test_timeout(self):
+        """
+        If a snapshot takes longer than 10 seconds to finish it will fail.
+        """
+        tooLong, retry = Deferred(), succeed(None)
+        self.setup([tooLong, retry])
+        self.snapshotter.filesystemChanged()
+        self.clock.advance(9.9)
+        self.assertSnapshotsTaken([])
+        self.clock.advance(0.1)
+        # This will be easier to demonstrate once we have logging and can
+        # check for the cancelled deferred.
+        # https://www.pivotaltracker.com/n/projects/1069998/stories/70956276
+        self.assertSnapshotsTaken([self.clock.seconds()])
