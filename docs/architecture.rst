@@ -36,6 +36,9 @@ This may result in the original master regaining the master role and the origina
 While the original master host is compromised Flocker will allow the user system to continue operating using only one host.
 However, as long as only one host is online the replication and failover features of Flocker will not be operational.
 
+Flocker is intentionally limited to at most a two host configuration
+(though a future service built on Flocker may expand this).
+
 
 Configuration
 =============
