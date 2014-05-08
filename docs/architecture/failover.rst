@@ -7,6 +7,7 @@ It does this with two (broadly scoped) techniques:
   1. It replicates the user filesystem to a slave host.
   2. It detects service interruption for the master host and automatically fails over to the slave host.
 
+
 Host
 ====
 
@@ -26,6 +27,7 @@ However, as long as only one host is online the replication and failover feature
 Flocker is intentionally limited to at most a two host configuration
 (though a future service built on Flocker may expand this).
 
+
 Configuration
 =============
 
@@ -33,3 +35,13 @@ The failover service has a couple additional configuration requirements above an
 
   * the internet addresses of the master and slave hosts
   * credentials used to allow the master and slave hosts to securely communicate with each other
+
+
+Filesystem Snapshotting
+=======================
+
+The minimum feature-set of the failover service requires that the master keep a certain ZFS snapshot which it can use to construct a replication stream for later changes.
+The particular snapshot that is required is the newest snapshot which has previously been replicated to the slave host.
+(This may change if the "ZFS bookmark" functionality becomes usable.)
+However, there may be security considerations which call for extra snapshots to be retained.
+For example, if the master host is taken over and the filesystem changed undesirable, recovery may be eased if the slave host still has some snapshotss taken prior to the breakin.

@@ -101,8 +101,6 @@ They are taken frequently to minimize the chance that any particular change will
 Snapshots are fast and cheap but they are not free.
 As new snapshots are created it eventually becomes necessary to destroy some older snapshots.
 Decisions about which snapshots to destroy need to take into considerations of the replication system described below.
-There may also be security considerations which call for extra snapshots to be retained
-(for example, if the master host is taken over and the filesystem changed undesirable, it may be beneficial for the slave host to still have some older snapshots taken prior to the breakin).
 
 
 Snapshot Replication
