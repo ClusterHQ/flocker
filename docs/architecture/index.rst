@@ -7,4 +7,5 @@ Contents:
    :maxdepth: 1
 
    common
+   datavault
    failover
