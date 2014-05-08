@@ -12,7 +12,8 @@ from pytz import UTC
 from twisted.python.constants import Names, NamedConstant
 
 from machinist import (
-    TransitionTable, MethodSuffixOutputer, constructFiniteStateMachine)
+    TransitionTable, MethodSuffixOutputer, constructFiniteStateMachine,
+    trivialInput)
 
 
 
@@ -35,6 +36,7 @@ class _Inputs(Names):
 #    SNAPSHOT_SUCCEEDED = NamedConstant()
 #    SNAPSHOT_FAILED = NamedConstant()
 
+FILESYSTEM_CHANGED = trivialInput(_Inputs.FILESYSTEM_CHANGED)
 
 
 class _Outputs(Names):
@@ -114,12 +116,12 @@ class ChangeSnapshotter(object):
         self._fsSnapshots = fsSnapshots
         self._fsm = constructFiniteStateMachine(
             inputs=_Inputs, outputs=_Outputs, states=_States, table=_transitions,
-            initial=_States.IDLE, richInputs={}, inputContext={},
-            world=MethodSuffixOutputer(self))
+            initial=_States.IDLE, richInputs=[FILESYSTEM_CHANGED],
+            inputContext={}, world=MethodSuffixOutputer(self))
 
 
-    def output_START_SNAPSHOT(self):
-        name = SnapshotName(datetime.fromtimstap(self._clock.seconds(), UTC),
+    def output_START_SNAPSHOT(self, context):
+        name = SnapshotName(datetime.fromtimestamp(self._clock.seconds(), UTC),
                             self._name)
         self._fsSnapshots.create(name)
 
@@ -128,4 +130,4 @@ class ChangeSnapshotter(object):
         """
         Notification from some external entity that the filesystem has changed.
         """
-        self._fsm.receive(_Inputs.FILESYSTEM_CHANGED)
+        self._fsm.receive(FILESYSTEM_CHANGED())
