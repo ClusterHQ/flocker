@@ -12,7 +12,7 @@ from pytz import UTC
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.task import Clock
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, succeed
 
 from ..filesystems.memory import MemoryFilesystemSnapshots
 from ..snapshots import ChangeSnapshotter, SnapshotName
@@ -105,8 +105,68 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         self.assertSnapshotsTaken([self.clock.seconds()])
 
 
-    # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot is not started immediately.
-    # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot will be done when the first one succeeds.
-    # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot will be done when the first one fails.
-    # If ``filesystemChanged`` is called multiple times while a snapshot is in progress, only one additional snapshot will be done.
+    def test_dirtyFilesystemDuringSnapshot(self):
+        """
+        If ``filesystemChanged`` is called while a snapshot is in progress,
+        another snapshot is not started immediately.
+        """
+        d = Deferred()
+        self.setup([d, succeed(None)])
+        self.snapshotter.filesystemChanged()
+        # Snapshotting has started, and now another change happens:
+        self.snapshotter.filesystemChanged()
+        # Only one snapshot started though:
+        self.assertEqual(len(self.fsSnapshots._results), 1)
+
+
+    def test_dirtyFilesystemSchedulesSnapshotOnSuccess(self):
+        """
+        If ``filesystemChanged`` is called while a snapshot is in progress,
+        another snapshot will be done when the first one succeeds.
+        """
+        first, second = Deferred(), Deferred()
+        self.setup([first, second])
+        self.snapshotter.filesystemChanged()
+        # Snapshotting has started, and now another change happens:
+        self.snapshotter.filesystemChanged()
+        self.clock.advance(1)
+        first.callback(None)
+        second.callback(None)
+        time = self.clock.seconds()
+        self.assertSnapshotsTaken([time - 1, time])
+
+
+    def test_dirtyFilesystemSchedulesSnapshotOnFailure(self):
+        """
+        If ``filesystemChanged`` is called while a snapshot is in progress,
+        another snapshot will be done when the first one fails.
+        """
+        first, second = Deferred(), Deferred()
+        self.setup([first, second])
+        self.snapshotter.filesystemChanged()
+        # Snapshotting has started, and now another change happens:
+        self.snapshotter.filesystemChanged()
+        self.clock.advance(1)
+        first.errback(RuntimeError())
+        second.callback(None)
+        self.assertSnapshotsTaken([self.clock.seconds()])
+
+
+    def test_filesystemChangesMultipleTimes(self):
+        """
+        If ``filesystemChanged`` is called multiple times while a snapshot is in
+        progress, only one additional snapshot will be done.
+        """
+        first, second = Deferred(), Deferred()
+        self.setup([first, second])
+        self.snapshotter.filesystemChanged()
+        self.snapshotter.filesystemChanged()
+        self.snapshotter.filesystemChanged()
+        self.clock.advance(1)
+        first.callback(None)
+        second.callback(None)
+        time = self.clock.seconds()
+        self.assertSnapshotsTaken([time - 1, time])
+
+
     # If a snapshot takes longer than 10 seconds to finish it will fail.

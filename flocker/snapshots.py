@@ -57,7 +57,7 @@ class _States(Names):
     IDLE = NamedConstant()
     SNAPSHOTTING = NamedConstant()
     #: The filesystem changed *after* the snapshot was started:
-#    SNAPSHOTTING_DIRTY = NamedConstant()
+    SNAPSHOTTING_DIRTY = NamedConstant()
 
 
 
@@ -70,7 +70,14 @@ _transitions = _transitions.addTransitions(
         })
 _transitions = _transitions.addTransitions(
     _States.SNAPSHOTTING, {
+        _Inputs.FILESYSTEM_CHANGED: ([], _States.SNAPSHOTTING_DIRTY),
         _Inputs.SNAPSHOT_SUCCEEDED: ([], _States.IDLE),
+        _Inputs.SNAPSHOT_FAILED: _doSnapshot,
+    })
+_transitions = _transitions.addTransitions(
+    _States.SNAPSHOTTING_DIRTY, {
+        _Inputs.FILESYSTEM_CHANGED: ([], _States.SNAPSHOTTING_DIRTY),
+        _Inputs.SNAPSHOT_SUCCEEDED: _doSnapshot,
         _Inputs.SNAPSHOT_FAILED: _doSnapshot,
     })
 
@@ -88,18 +95,6 @@ class ChangeSnapshotter(object):
        created on.
     4. Snapshots are expected to run very quickly, so if a snapshot take
        more than 10 seconds it should be cancelled.
-
-    This suggests the following state machine, (input, state) -> outputs, new_state:
-
-    (FILESYSTEM_CHANGE, IDLE) -> [START_SNAPSHOT], SNAPSHOTTING
-    (FILESYSTEM_CHANGE, SNAPSHOTTING) -> [], SNAPSHOTTING_DIRTY
-    (FILESYSTEM_CHANGE, SNAPSHOTTING_DIRTY) -> [], SNAPSHOTTING_DIRTY
-    (SNAPSHOT_SUCCESS, SNAPSHOTTING) -> IDLE
-    (SNAPSHOT_SUCCESS, SNAPSHOTTING_DIRTY) -> [START_SNAPSHOT], SNAPSHOTTING
-    (SNAPSHOT_FAILURE, SNAPSHOTTING) -> [START_SNAPSHOT], SNAPSHOTTING
-    (SNAPSHOT_FAILURE, SNAPSHOTTING_DIRTY) -> [START_SNAPSHOT], SNAPSHOTTING
-
-    output_START_SNAPSHOT should create the snapshot, and add a 10 second timeout to the Deferred.
 
     As a second pass we probably want to wait 1 second between snapshots:
     https://www.pivotaltracker.com/n/projects/1069998/stories/70790540
