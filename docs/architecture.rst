@@ -63,6 +63,21 @@ Flocker is agnostic to the particular distribution of Linux installed on the use
 The user filesystem is used to boot the user system using LXC (via Docker ???).
 Flocker is responsible for managing the lifetime of the user system.
 This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
+Flocker is roughly as concerned with the particulars of the ``init`` process as is the Linux kernel (that is, not very).
+If the user system is a minimal PostgreSQL server with no other user-space services then the ``init`` process may simple be one that boots the PostgreSQL server.
+The details of how to boot the user system may well be left up to Docker.
+
+The specific storage strategy for the user filesystem may depend on the deployment environment.
+The ideal strategy is to have a ZFS storage pool which directly contains all of the host's physical block devices (ie, HDDs or SSDs).
+Using this strategy the base system's root filesystem and the user filesystem exist as normal ZFS filesystems in the ZFS storage pool.
+This *may* be difficult due to issues putting the base system's root filesystem onto a ZFS filesystem and limitations of various deployment environments.
+
+A similar strategy might be to partition one of the host's block devices and put the base system on one part and give the rest to a ZFS storage pool.
+This may also be difficult in practice due to limitations of various deployment environments.
+
+A simpler strategy is to create a large file on the base system's filesystem and use this as storage for a ZFS storage pool.
+This makes no unusual demands on the deployment environment.
+It does force all user filesystem I/O through multiple block and VFS interfaces which likely leads to poor performance.
 
 
 Filesystem Change Notification
