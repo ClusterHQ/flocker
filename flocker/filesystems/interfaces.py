@@ -1,6 +1,9 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Interfaces that filesystem APIs need to expose.
 """
+
 from __future__ import absolute_import
 
 from zope.interface import Interface
