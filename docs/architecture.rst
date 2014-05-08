@@ -43,9 +43,10 @@ Flocker requires a small amount of configuration, mostly likely externally suppl
   * the internet addresses of the master and slave hosts
   * credentials used to allow the master and slave hosts to securely communicate with each other
 
-This information is kept in a ``.ini``\ -style file on the base system.
+This information is kept in simple configuration file (for example, a a ``.ini``\ -style file) on the base system.
 The Flocker service is responsible for reading this configuration *and* for writing modifications to it
 (more explicitly, neither users nor system administrators nor third-party software is allowed to read or write configuration directly).
+Limiting direct access to the configuration simplifies the interface to Flocker and removes the need for certain kinds of configuration correctness checks.
 
 
 User System
