@@ -1,5 +1,5 @@
-Welcome to Flocker's documentation!
-===================================
+Flocker Architectural Overview
+==============================
 
 Contents:
 
