@@ -1,3 +1,14 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+"""
+Basic fabfile for configuring a buildslave for building flocker.
+
+To install a buildslave on a host, do::
+
+  fab -H $SUDO_USER@$HOSTNAME installBuildslave:$SLAVE_PASSWORD
+
+Then add flocker-buildslave-1.pub as a ssh-key to the appropriate github user.
+"""
+
 from fabric.api import task, sudo, put, env, get
 from pipes import quote as shellQuote
 from twisted.python.util import sibpath
