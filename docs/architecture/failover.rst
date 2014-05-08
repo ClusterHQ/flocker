@@ -8,8 +8,8 @@ It does this with two (broadly scoped) techniques:
   2. It detects service interruption for the master host and automatically fails over to the slave host.
 
 
-Host
-====
+Hosts
+=====
 
 During normal operation Flocker requires two hosts running the base system.
 The *master* host mounts the user filesystem read-write, runs the user system, exposes itself to the Internet, etc.
