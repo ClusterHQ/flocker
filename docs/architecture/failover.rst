@@ -45,3 +45,78 @@ The particular snapshot that is required is the newest snapshot which has previo
 (This may change if the "ZFS bookmark" functionality becomes usable.)
 However, there may be security considerations which call for extra snapshots to be retained.
 For example, if the master host is taken over and the filesystem changed undesirable, recovery may be eased if the slave host still has some snapshotss taken prior to the breakin.
+
+
+Snapshot Replication
+====================
+
+For failover to the slave host to be possible, the slave host must have a copy of the user filesystem.
+The slave host is continuously provided with an up-to-date copy of the filesystem by the master host.
+This is accomplished by repeatedly copying snapshots from the master host to the slave host.
+
+This is done using two features of ZFS:
+
+  * the feature allowing the changes between an earlier and a later snapshot to be extracted as a stream of bytes (the “replication stream”)
+  * the feature allowing the replication stream to be loaded into a different system to recreate the later snapshot
+
+The replication system consumes events from the snapshotting system.
+Any time a new snapshot is created on the master host it is replicated to the slave host as quickly as possible.
+
+This feature depends on the loading system (the slave host in this case) already having the earlier of the two snapshots in its system.
+This limitation requires the master host and the slave host to communicate so that a usable earlier snapshot can be selected.
+The best snapshot to select is the newest snapshot on the slave host (an older snapshot may require sending redundant data).
+Therefore the master host tries hard to keep a copy of that snapshot.
+
+Failover recovery may involve recovering from divergence in the user filesystem.
+Because changes to the user filesystem are quickly snapshotted, user filesystem divergence quickly leads to snapshot divergence.
+Snapshot divergence prevents further snapshot replication from taking place.
+Resolving this condition involves getting rid of some snapshots.
+Depending on the extent of the divergence this step may require manual intervention from an administrator.
+For sufficiently small divergences (amounting to only a handful of changes) the system may automatically resolve the divergence in favor of the newer version of the user filesystem.
+Any time this happens the losing version of the user filesystem will have its unique data saved.
+This may be referred to as “stashing”.
+
+
+Network Communication
+=====================
+
+For the master host to know which snapshots need to be replicated to the slave host, it needs to know which snapshots the slave host has.
+It also needs this information to decide which snapshots to use as the start of the replication stream.
+
+For failover to be accomplished, either the master host or the slave host or both need to determine that the master host has become incapable of providing service.
+After a failover has taken place, it is also necessary for the old master to learn that it has become the new slave.
+
+The mechanism for exposing fast failover to users is to publish address records pointing at both the master and slave hosts in DNS.
+Users who select the master host's address from DNS get direct access to user system network services.
+Users who select the slave host's address from DNS have all of their traffic proxied to the master host.
+Responsibility for configuring and hosting these DNS records is beyond the scope of Flocker.
+When one of the hosts has failed and well-behaved client software selects that host's address from DNS, the client software will try again with the other address.
+
+The master host needs to expose the user system to the network as if the user system were a “normal”, non-Flocker system (or as close to this as possible).
+The slave host needs to perform the proxying described above.
+
+Both the master and the slave hosts need to expose information about their internal state for debugging and general informational purposes.
+
+
+Failover
+========
+
+When the master host becomes incapable of providing service (eg, because it loses power, because it suffers a hardware failure, because it loses network connectivity, etc) the user system is “failed over” to the slave host.
+The slave host becomes the new master host at this point.
+
+Flocker initially takes a very simplistic approach to determining which the master host has become incapable of providing service.
+During normal operation the master host and the slave host exchange messages frequently.
+In addition to these normal, data-carrying, operational messages there may also be a “status” protocol.
+This protocol exists to to ensure that each host always knows the operational status of the other.
+The operational status comprises a number of facts:
+
+  1. The capability to exchange simple network traffic with the other Flocker host.
+  2. Persistent storage availability (the disk is not full, the disk has not failed, reads on the disk are serviced in a reasonable window).
+
+This list may be expanded with other useful metrics for “capable of providing service” as they are determined.
+When one of the hosts fails the other will learn of this in one of two ways:
+
+  1. explicitly via the content of a “status” protocol message (“my disk has failed”)
+  2. implicitly via the lack of any messages (because the entire host has crashed, its network provider has suffered an outage, etc)
+
+This is the trigger for considering the other host to have failed.
