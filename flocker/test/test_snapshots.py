@@ -75,8 +75,36 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         self.assertSnapshotsTaken([self.clock.seconds()])
 
 
-    # If ``filesystemChanged`` is called once, after a snapshot succeeds no more snapshots are taken.
-    # If snapshotting fails, it is retried until it succeeds.
+    def test_successReturnsToInitialState(self):
+        """
+        If the filesystem changed once, and a snapshot is succesfully taken, the
+        state machine returns to its initial state.
+        """
+        d = Deferred()
+        self.setup([d])
+        initialState = self.snapshotter._fsm.state
+        self.snapshotter.filesystemChanged()
+        d.callback(None)
+        self.assertEqual(initialState, self.snapshotter._fsm.state)
+
+
+    def test_retryOnFailure(self):
+        """
+        If snapshotting fails it is retried until it succeeds.
+        """
+        fail1, fail2, success = Deferred(), Deferred(), Deferred()
+        self.setup([fail1, fail2, success])
+        self.snapshotter.filesystemChanged()
+        self.clock.advance(1)
+        fail1.errback(RuntimeError())
+        self.clock.advance(1)
+        fail2.errback(RuntimeError())
+        success.callback(None)
+        # The successful snapshot is the one triggered by the second failure
+        # causing a retry:
+        self.assertSnapshotsTaken([self.clock.seconds()])
+
+
     # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot is not started immediately.
     # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot will be done when the first one succeeds.
     # If ``filesystemChanged`` is called while a snapshot is in progress, another snapshot will be done when the first one fails.

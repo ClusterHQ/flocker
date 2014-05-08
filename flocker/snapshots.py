@@ -33,10 +33,13 @@ class _Inputs(Names):
     Inputs to the ChangeSnapshotter state machine.
     """
     FILESYSTEM_CHANGED = NamedConstant()
-#    SNAPSHOT_SUCCEEDED = NamedConstant()
-#    SNAPSHOT_FAILED = NamedConstant()
+    SNAPSHOT_SUCCEEDED = NamedConstant()
+    SNAPSHOT_FAILED = NamedConstant()
 
 FILESYSTEM_CHANGED = trivialInput(_Inputs.FILESYSTEM_CHANGED)
+SNAPSHOT_SUCCEEDED = trivialInput(_Inputs.SNAPSHOT_SUCCEEDED)
+SNAPSHOT_FAILED = trivialInput(_Inputs.SNAPSHOT_FAILED)
+
 
 
 class _Outputs(Names):
@@ -58,14 +61,18 @@ class _States(Names):
 
 
 
+_doSnapshot = ([_Outputs.START_SNAPSHOT], _States.SNAPSHOTTING)
+
 _transitions = TransitionTable()
 _transitions = _transitions.addTransitions(
     _States.IDLE, {
-        _Inputs.FILESYSTEM_CHANGED: ([_Outputs.START_SNAPSHOT],
-                                     _States.SNAPSHOTTING),
+        _Inputs.FILESYSTEM_CHANGED: _doSnapshot,
         })
 _transitions = _transitions.addTransitions(
-    _States.SNAPSHOTTING, {})
+    _States.SNAPSHOTTING, {
+        _Inputs.SNAPSHOT_SUCCEEDED: ([], _States.IDLE),
+        _Inputs.SNAPSHOT_FAILED: _doSnapshot,
+    })
 
 
 
@@ -116,14 +123,18 @@ class ChangeSnapshotter(object):
         self._fsSnapshots = fsSnapshots
         self._fsm = constructFiniteStateMachine(
             inputs=_Inputs, outputs=_Outputs, states=_States, table=_transitions,
-            initial=_States.IDLE, richInputs=[FILESYSTEM_CHANGED],
+            initial=_States.IDLE,
+            richInputs=[FILESYSTEM_CHANGED, SNAPSHOT_SUCCEEDED, SNAPSHOT_FAILED],
             inputContext={}, world=MethodSuffixOutputer(self))
 
 
     def output_START_SNAPSHOT(self, context):
         name = SnapshotName(datetime.fromtimestamp(self._clock.seconds(), UTC),
                             self._name)
-        self._fsSnapshots.create(name)
+        created = self._fsSnapshots.create(name)
+        # XXX log errors
+        created.addCallbacks(lambda _: self._fsm.receive(SNAPSHOT_SUCCEEDED()),
+                             lambda _: self._fsm.receive(SNAPSHOT_FAILED()))
 
 
     def filesystemChanged(self):
