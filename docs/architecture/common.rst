@@ -1,5 +1,12 @@
-Flocker Failover Service
+Baseline Flocker Service
 ------------------------
+
+Ultimately Flocker may be a complete HybridCluster re-implementation.
+Initially Flocker will just do one of the things that HybridCluster does.
+By focusing on a very limited scope Flocker will do the thing that it does extremely well and be easier to build.
+
+Regardless of which area of the HybridCluster feature-set Flocker initially targets many pieces of its basic architecture will be the same.
+This document covers some of those pieces.
 
 Operating System
 ================
