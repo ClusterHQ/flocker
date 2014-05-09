@@ -93,7 +93,7 @@ class Filesystem(namedtuple("Filesystem", "pool")):
 
 
 
-#@implementer(IFilesystemSnapshots)
+@implementer(IFilesystemSnapshots)
 class ZFSSnapshots(object):
     def __init__(self, reactor, filesystem):
         self._reactor = reactor
