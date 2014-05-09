@@ -15,6 +15,8 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
+from pytz import UTC
+
 from ..filesystems.interfaces import IFilesystemSnapshots
 from ..snapshots import SnapshotName
 
@@ -47,8 +49,8 @@ def makeIFilesystemSnapshotsTests(fixture):
             ``list()``.
             """
             fsSnapshots = fixture(self)
-            first = SnapshotName(datetime.now(), b"first")
-            second = SnapshotName(datetime.now(), b"second")
+            first = SnapshotName(datetime.now(UTC), b"first")
+            second = SnapshotName(datetime.now(UTC), b"second")
             d = fsSnapshots.create(first)
             d.addCallback(lambda _: fsSnapshots.create(second))
             d.addCallback(lambda _: fsSnapshots.list())

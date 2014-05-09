@@ -1,6 +1,9 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Interfaces that filesystem APIs need to expose.
 """
+
 from __future__ import absolute_import
 
 from zope.interface import Interface
@@ -28,6 +31,5 @@ class IFilesystemSnapshots(Interface):
         Return all the filesystem's snapshots.
 
         :return: Deferred that fires with a ``list`` of
-            :py:class:`flocker.snapshots.SnapshotName`. This will likely be
-            improved in later iterations.
+            :py:class:`flocker.snapshots.SnapshotName`.
         """

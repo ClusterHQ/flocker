@@ -28,6 +28,7 @@ def _logEliotMessage(data):
 
 
 # Ugly but convenient. There should be some better way to do this...
+# See https://twistedmatrix.com/trac/ticket/6939
 if sys.argv and os.path.basename(sys.argv[0]) == 'trial':
     from eliot import addDestination
     addDestination(_logEliotMessage)
