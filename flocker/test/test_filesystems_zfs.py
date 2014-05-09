@@ -1,0 +1,61 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+Unit tests for ZFS filesystem implementation.
+
+Further coverage is provided in
+:module:`flocker.functional.test_filesystems_zfs`.
+"""
+
+import os
+
+from twisted.trial.unittest import SynchronousTestCase
+
+from .utils import FakeProcessReactor
+
+from ..filesystems.zfs import zfsCommand
+
+
+class ZfsCommandTests(SynchronousTestCase):
+    """
+    Tests for :func:`zfsCommand`.
+    """
+    def test_call(self):
+        """
+        A ``zfs`` subprocess is launched with the given arguments.
+        """
+        reactor = FakeProcessReactor()
+        zfsCommand(reactor, [b"-H", b"lalala"])
+        arguments = reactor.processes[0]
+        self.assertEqual((arguments.executable, arguments.args, arguments.env),
+                         (b"zfs", [b"zfs", b"-H", b"lalala"], os.environ))
+
+
+    def test_normalExit(self):
+        """
+        If the subprocess exits with exit code 0, the bytes output by its stdout
+        are returned as the result of the ``Deferred`` returned from
+        ``zfsCommand``.
+        """
+
+
+    def test_errorExit(self):
+        """
+        If the subprocess exits with exit code 1, the ``Deferred`` returned from
+        ``zfsCommand`` errbacks with ``CommandFailed``.
+        """
+
+
+    def test_badArgumentsExit(self):
+        """
+        If the subprocess exits with exit code 2, the ``Deferred`` returned from
+        ``zfsCommand`` errbacks with ``BadArguments``.
+        """
+
+
+    def test_otherExit(self):
+        """
+        If the subprocess exits with exit code other than 0, 1 or 2, the
+        ``Deferred`` returned from ``zfsCommand`` errbacks with
+        ``ProcessExited``.
+        """

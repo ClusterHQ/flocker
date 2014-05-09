@@ -1,5 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
+"""
+Various utilities to help with unit testing.
+"""
+
 from __future__ import absolute_import
 
 from collections import namedtuple
