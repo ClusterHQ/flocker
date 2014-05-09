@@ -8,6 +8,9 @@ Further coverage is provided in
 """
 
 import os
+from datetime import datetime
+
+from pytz import UTC
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
@@ -15,7 +18,10 @@ from twisted.python.failure import Failure
 
 from .utils import FakeProcessReactor
 
-from ..filesystems.zfs import zfsCommand, CommandFailed, BadArguments
+from ..snapshots import SnapshotName
+from ..filesystems.zfs import (
+    zfsCommand, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
+    )
 
 
 class ZfsCommandTests(SynchronousTestCase):
@@ -96,6 +102,24 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
         pool and snapshot name.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+        snapshots.create(name)
+        arguments = reactor.processes[0]
+        self.assertEqual(arguments.args, [b"zfs", b"snapshot",
+                                          b"mypool@%s" % (name.toBytes(),)])
+
+
+    def test_createNoResultYet(self):
+        """
+        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does not
+        fire if the creation is unfinished.
+        """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
+        self.assertNoResult(d)
 
 
     def test_createResult(self):
@@ -103,6 +127,12 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
         when creation has finished.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), None)
 
 
     def test_list(self):

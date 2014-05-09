@@ -96,15 +96,15 @@ class Filesystem(namedtuple("Filesystem", "pool")):
 #@implementer(IFilesystemSnapshots)
 class ZFSSnapshots(object):
     def __init__(self, reactor, filesystem):
-        #self._reactor = reactor
-        #self._filesystem = filesystem
-        pass
+        self._reactor = reactor
+        self._filesystem = filesystem
 
 
     def create(self, name):
-        #encodedName = b"%s@%s" % (self._filesystem.pool, name.toBytes())
-        #return zfsCommand(self._reactor, [b"snapshot", encodedName])
-        pass
+        encodedName = b"%s@%s" % (self._filesystem.pool, name.toBytes())
+        d = zfsCommand(self._reactor, [b"snapshot", encodedName])
+        d.addCallback(lambda _: None)
+        return d
 
 
     def list(self):
