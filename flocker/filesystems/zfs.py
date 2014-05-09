@@ -108,6 +108,10 @@ class ZFSSnapshots(object):
 
 
     def list(self):
+        """
+        Snapshots whose names cannot be decoded are presumed not to be related
+        to Flocker, and therefore will not be included in the result.
+        """
         # d = zfsCommand(self._reactor, [b"-H", b"-r", b"-t", b"snapshot", b"-o",
         #                                b"name", b"-s", b"name",
         #                                self._filesystem.pool])

@@ -84,3 +84,53 @@ class ZfsCommandTests(SynchronousTestCase):
         exception = ProcessTerminated(99)
         processProtocol.processEnded(Failure(exception))
         self.assertEqual(self.failureResultOf(result).value, exception)
+
+
+
+class ZFSSnapshotsTests(SynchronousTestCase):
+    """
+    Unit tests for ``ZFSSnapshotsTests``.
+    """
+    def test_create(self):
+        """
+        ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
+        pool and snapshot name.
+        """
+
+
+    def test_createResult(self):
+        """
+        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
+        when creation has finished.
+        """
+
+
+    def test_list(self):
+        """
+        ``ZFSSnapshots.create()`` calls the ``zfs list`` command with the pool
+        name.
+        """
+
+
+    def test_listResult(self):
+        """
+        ``ZFSSnapshots.list`` parses out the snapshot names from the results of
+        the command.
+        """
+
+
+    def test_listResultIgnoresOtherPools(self):
+        """
+        ``ZFSSnapshots.list`` skips snapshots of other pools.
+
+        In particular, we are likely to see snapshot names of sub-pools in
+        the output.
+        """
+
+
+    def test_listIgnoresUndecodableSnapshots(self):
+        """
+        ``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
+
+        These are presumably snapshots not being managed by Flocker.
+        """
