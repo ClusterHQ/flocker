@@ -11,7 +11,9 @@ import os
 import tempfile
 import subprocess
 import uuid
+
 from twisted.internet import reactor
+from twisted.trial.unittest import SkipTest
 
 from ..test.filesystemtests import makeIFilesystemSnapshotsTests
 from ..filesystems.zfs import ZFSSnapshots, Filesystem
@@ -25,6 +27,9 @@ def createZFSPool(testCase):
 
     :return: A :class:`Filesystem` instance.
     """
+    if os.getuid() != 0:
+        raise SkipTest("Functional tests must run as root.")
+
     poolName = "testpool_%s" % (uuid.uuid4(),)
     poolPath = tempfile.mktemp()
     mountPath = tempfile.mktemp()
