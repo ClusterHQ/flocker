@@ -105,7 +105,10 @@ Snapshot Destruction
 ^^^^^^^^^^^^^^^^^^^^
 
 Snapshots are fast and cheap but they are not free.
-As new snapshots are created it eventually becomes necessary to destroy some older snapshots.
+The unique data referenced by a particular snapshot must be stored on disk as long as that snapshot exists.
+If snapshots are never destroyed and the user filesystem continues to change then eventually storage space will be exhausted.
+Additionally, the user interface challenges involved with presenting hundreds or thousands or tens of thousands of snapshots are substantial.
+Therefore, as new snapshots are created it eventually becomes necessary to destroy some older snapshots.
 Service-specific considerations will also influence decisions about which snapshots to destroy.
 See the service-specific documentation for details.
 
