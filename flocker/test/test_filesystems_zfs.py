@@ -15,7 +15,7 @@ from twisted.python.failure import Failure
 
 from .utils import FakeProcessReactor
 
-from ..filesystems.zfs import zfsCommand
+from ..filesystems.zfs import zfsCommand, CommandFailed, BadArguments
 
 
 class ZfsCommandTests(SynchronousTestCase):
@@ -53,6 +53,11 @@ class ZfsCommandTests(SynchronousTestCase):
         If the subprocess exits with exit code 1, the ``Deferred`` returned from
         ``zfsCommand`` errbacks with ``CommandFailed``.
         """
+        reactor = FakeProcessReactor()
+        result = zfsCommand(reactor, [b"-H", b"lalala"])
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.processEnded(Failure(ProcessTerminated(1)))
+        self.failureResultOf(result, CommandFailed)
 
 
     def test_badArgumentsExit(self):
@@ -60,6 +65,11 @@ class ZfsCommandTests(SynchronousTestCase):
         If the subprocess exits with exit code 2, the ``Deferred`` returned from
         ``zfsCommand`` errbacks with ``BadArguments``.
         """
+        reactor = FakeProcessReactor()
+        result = zfsCommand(reactor, [b"-H", b"lalala"])
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.processEnded(Failure(ProcessTerminated(2)))
+        self.failureResultOf(result, BadArguments)
 
 
     def test_otherExit(self):
@@ -68,3 +78,9 @@ class ZfsCommandTests(SynchronousTestCase):
         ``Deferred`` returned from ``zfsCommand`` errbacks with
         whatever error the process exited with.
         """
+        reactor = FakeProcessReactor()
+        result = zfsCommand(reactor, [b"-H", b"lalala"])
+        processProtocol = reactor.processes[0].processProtocol
+        exception = ProcessTerminated(99)
+        processProtocol.processEnded(Failure(exception))
+        self.assertEqual(self.failureResultOf(result).value, exception)

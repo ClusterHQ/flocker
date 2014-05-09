@@ -14,7 +14,7 @@ from zope.interface import implementer
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
-from twisted.internet.error import ConnectionDone
+from twisted.internet.error import ConnectionDone, ProcessTerminated
 
 from .interfaces import IFilesystemSnapshots
 from ..snapshots import SnapshotName
@@ -51,6 +51,12 @@ class _AccumulatingProtocol(Protocol):
     def connectionLost(self, reason):
         if reason.check(ConnectionDone):
             self._result.callback(self._data)
+        elif reason.check(ProcessTerminated) and reason.value.exitCode == 1:
+            self._result.errback(CommandFailed())
+        elif reason.check(ProcessTerminated) and reason.value.exitCode == 2:
+            self._result.errback(BadArguments())
+        else:
+            self._result.errback(reason)
         del self._result
 
 
