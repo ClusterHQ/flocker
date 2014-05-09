@@ -174,6 +174,19 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         In particular, we are likely to see snapshot names of sub-pools in
         the output.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+        name2 = SnapshotName(datetime.now(UTC), b"node2")
+
+        d = snapshots.list()
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.childDataReceived(
+            1, b"mypool/child@%s\n" % (name.toBytes(),))
+        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name2.toBytes(),))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), [name2])
 
 
     def test_listIgnoresUndecodableSnapshots(self):
@@ -182,3 +195,14 @@ class ZFSSnapshotsTests(SynchronousTestCase):
 
         These are presumably snapshots not being managed by Flocker.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+
+        d = snapshots.list()
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.childDataReceived(1, b"mypool@alalalalal\n")
+        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name.toBytes(),))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), [name])

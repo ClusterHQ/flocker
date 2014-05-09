@@ -119,7 +119,11 @@ class ZFSSnapshots(object):
             result = []
             for line in data.splitlines():
                 pool, encodedName = line.split(b'@', 1)
-                result.append(SnapshotName.fromBytes(encodedName))
+                if pool == self._filesystem.pool:
+                    try:
+                        result.append(SnapshotName.fromBytes(encodedName))
+                    except ValueError:
+                        pass
             return result
         d.addCallback(parseSnapshots)
         return d
