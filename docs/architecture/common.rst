@@ -41,7 +41,7 @@ Flocker requires a small amount of configuration, mostly likely externally suppl
 
   * credentials for administrator access
 
-This information is kept in a simple configuration file (for example, a a ``.ini``\ -style file) on the base system.
+This information is kept in a simple configuration file (for example, an ``.ini``\ -style file) on the base system.
 The Flocker service is responsible for reading this configuration *and* for writing modifications to it
 (more explicitly, neither users nor system administrators nor third-party software is allowed to read or write configuration directly).
 Limiting direct access to the configuration simplifies the interface to Flocker and removes the need for certain kinds of configuration correctness checks.
