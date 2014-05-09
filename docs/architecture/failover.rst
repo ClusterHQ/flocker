@@ -44,7 +44,7 @@ The minimum feature-set of the failover service requires that the master keep a 
 The particular snapshot that is required is the newest snapshot which has previously been replicated to the slave host.
 (This may change if the `ZFS bookmark <https://www.illumos.org/issues/4369>`_ functionality becomes usable.)
 However, there may be security considerations which call for extra snapshots to be retained.
-For example, if the master host is taken over and the filesystem changed undesirable, recovery may be eased if the slave host still has some snapshotss taken prior to the breakin.
+For example, if the master host is compromised and undesirable changes made to the filesystem, recovery may be eased if the slave host still has some snapshots taken prior to the breakin.
 
 
 Snapshot Replication
