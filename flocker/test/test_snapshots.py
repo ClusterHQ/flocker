@@ -208,8 +208,18 @@ class SnapshotNameTests(SynchronousTestCase):
         self.assertEqual(SnapshotName.fromBytes(name.toBytes()), name)
 
 
-    def test_fromBytesBadName(self):
+    def test_fromBytesNoSeparator(self):
         """
-        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for bad inputs.
+        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for bad inputs
+        missing a ``b_``.
         """
         self.assertRaises(ValueError, SnapshotName.fromBytes, b"garbage")
+
+
+    def test_fromBytesBadDate(self):
+        """
+        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for unparseable
+        dates.
+        """
+        self.assertRaises(ValueError, SnapshotName.fromBytes,
+                          b"2099-13-65T19:12:77.234236+00:00_name")
