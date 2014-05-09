@@ -52,7 +52,7 @@ User System
 
 The user filesystem consists of a complete (user-space) operating system installation.
 Flocker is agnostic to the particular distribution of Linux installed on the user filesystem.
-The user filesystem is used to boot the user system using LXC (via Docker ???).
+The user filesystem is used to boot the user system using LXC (probably using Docker - to be decided).
 Flocker is responsible for managing the lifetime of the user system.
 This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
 Flocker is roughly as concerned with the particulars of the ``init`` process as is the Linux kernel (that is, not very).
