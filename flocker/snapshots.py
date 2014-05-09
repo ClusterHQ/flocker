@@ -25,27 +25,39 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
     """
     A name of a snapshot.
 
-    :attr timestamp: The time when the snapshot was created, a :class:`datetime`.
+    :attr timestamp: The time when the snapshot was created, a
+        :class:`datetime` with UTC timezone.
 
     :attr node: The name of the node creating the snapshot, as ``bytes``.
     """
+    # We don't use isoformat() because it returns inconsistent results
+    # (it omits microseconds when they're 0).
+    _dateFormat = b"%Y-%m-%dT%H:%M:%S.%f"
+
+
     def toBytes(self):
         """
         Encode the snapshot name into bytes.
 
         :return: Bytes-encoded snapshot name.
         """
+        return b"%s+00:00_%s" % (self.timestamp.strftime(self._dateFormat),
+                                 self.node)
 
 
     @classmethod
-    def fromBytes(cls, name):
+    def fromBytes(cls, encoded):
         """
         Decode an encoded snapshot name.
 
-        :param name: The output of :meth:`SnapshotName.toBytes`.
+        :param encoded: The output of :meth:`SnapshotName.toBytes`.
 
         :return: A :class:`SnapshotName` instance decoded from the bytes.
         """
+        timestamp, node = encoded.split(b"+00:00_", 1)
+        timestamp = datetime.strptime(timestamp, cls._dateFormat).replace(
+            tzinfo=UTC)
+        return SnapshotName(timestamp, node)
 
 
 

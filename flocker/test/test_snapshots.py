@@ -183,3 +183,33 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         # check for the cancelled deferred.
         # https://www.pivotaltracker.com/n/projects/1069998/stories/70956276
         self.assertSnapshotsTaken([self.clock.seconds()])
+
+
+
+class SnapshotNameTests(SynchronousTestCase):
+    """
+    Tests for ``SnapshotName``.
+    """
+    def test_toBytes(self):
+        """
+        ``SnapshotName.toBytes()`` converts a ``SnapshotName`` to bytes.
+        """
+        dt = datetime(2014, 4, 30, 16, 23, 58, 123456, tzinfo=UTC)
+        name = SnapshotName(dt, b"the_host")
+        self.assertEqual(name.toBytes(), b"%s_the_host" % (dt.isoformat(),))
+
+
+    def test_fromBytes(self):
+        """
+        ``SnapshotName.fromBytes()`` converts the output of
+        ``SnapshotName.toBytes`` back into a ``SnapshotName``.
+        """
+        name = SnapshotName(datetime.now(UTC), b"ahost")
+        self.assertEqual(SnapshotName.fromBytes(name.toBytes()), name)
+
+
+    def test_fromBytesBadName(self):
+        """
+        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for bad inputs.
+        """
+        self.assertRaises(ValueError, SnapshotName.fromBytes, b"garbage")
