@@ -95,6 +95,7 @@ The user system uses ZFS as its filesystem to allow the fast, cheap creation of 
 User data on the user filesystem is not guaranteed to be in a consistent state in each snapshot.
 However, the inconsistencies are the same as can be expected from a system crash (eg due to power failure).
 Many applications (not MySQL with MyISAM tables) can be expected to be robust against this circumstance already.
+A future improvement which may be possible is to expose hooks to the user system to allow it to make itself consistent prior to the creation of snapshots.
 
 Snapshots are taken when there is reason to believe there have been changes to user data.
 They are taken frequently to minimize the chance that any particular change will be lost.
