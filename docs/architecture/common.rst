@@ -50,8 +50,9 @@ Limiting direct access to the configuration simplifies the interface to Flocker 
 User System
 ===========
 
-The user filesystem consists of a complete (user-space) operating system installation.
-Flocker is agnostic to the particular distribution of Linux installed on the user filesystem.
+Flocker is agnostic to the contents of the user filesystem.
+The user filesystem may contain a complete (user-space) operating system installation.
+On the other hand, it may contain only a minimal configuration for a single specific application.
 The user filesystem is used to boot the user system using LXC (probably using Docker - to be decided).
 Flocker is responsible for managing the lifetime of the user system.
 This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
