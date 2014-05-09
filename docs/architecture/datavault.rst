@@ -27,6 +27,7 @@ Small variations in the exact point in time are more likely to be relevant for m
 That is, a one hour difference in system state is more likely to be important for the system state sometime yesterday than it is sometime last year.
 Flocker destroys snapshots as necessary in a way which prefers to keep more recent snapshots than older snapshots.
 It does this without completely destroying all older snapshots so that the option to roll the system back to a state from a month or a year ago is still available.
+Or perhaps it uses some `more sophisticated technique <http://users.soe.ucsc.edu/%7Esbrandt/290S/efs.pdf>`_ to provide the desired user experience (to be decided).
 
 
 User Experience
