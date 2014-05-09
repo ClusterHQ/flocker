@@ -1,3 +1,5 @@
+:ref:`flocker-failover`
+
 Flocker Failover Service
 ------------------------
 
