@@ -196,7 +196,8 @@ class SnapshotNameTests(SynchronousTestCase):
         """
         dt = datetime(2014, 4, 30, 16, 23, 58, 123456, tzinfo=UTC)
         name = SnapshotName(dt, b"the_host")
-        self.assertEqual(name.toBytes(), b"%s_the_host" % (dt.isoformat(),))
+        # We use ISO format, only without the timezone:
+        self.assertEqual(name.toBytes(), b"%s_the_host" % (dt.isoformat()[:-6],))
 
 
     def test_fromBytes(self):
@@ -222,4 +223,4 @@ class SnapshotNameTests(SynchronousTestCase):
         dates.
         """
         self.assertRaises(ValueError, SnapshotName.fromBytes,
-                          b"2099-13-65T19:12:77.234236+00:00_name")
+                          b"2099-13-65T19:12:77.234236_name")
