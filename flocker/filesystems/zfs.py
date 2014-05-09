@@ -13,6 +13,8 @@ from zope.interface import implementer
 
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
+from twisted.internet.defer import Deferred
+from twisted.internet.error import ConnectionDone
 
 from .interfaces import IFilesystemSnapshots
 from ..snapshots import SnapshotName
@@ -32,6 +34,27 @@ class BadArguments(Exception):
 
 
 
+class _AccumulatingProtocol(Protocol):
+    """
+    Accumulate all received bytes.
+    """
+
+    def __init__(self):
+        self._result = Deferred()
+        self._data = b""
+
+
+    def dataReceived(self, data):
+        self._data += data
+
+
+    def connectionLost(self, reason):
+        if reason.check(ConnectionDone):
+            self._result.callback(self._data)
+        del self._result
+
+
+
 def zfsCommand(reactor, arguments):
     """
     Run the ``zfs`` command-line tool with the given arguments.
@@ -45,7 +68,9 @@ def zfsCommand(reactor, arguments):
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
     endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments, os.environ)
-    connectProtocol(endpoint, Protocol())
+    d = connectProtocol(endpoint, _AccumulatingProtocol())
+    d.addCallback(lambda protocol: protocol._result)
+    return d
 
 
 

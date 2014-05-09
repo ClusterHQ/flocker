@@ -10,6 +10,8 @@ Further coverage is provided in
 import os
 
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.internet.error import ProcessDone, ProcessTerminated
+from twisted.python.failure import Failure
 
 from .utils import FakeProcessReactor
 
@@ -37,6 +39,13 @@ class ZfsCommandTests(SynchronousTestCase):
         are returned as the result of the ``Deferred`` returned from
         ``zfsCommand``.
         """
+        reactor = FakeProcessReactor()
+        result = zfsCommand(reactor, [b"-H", b"lalala"])
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.childDataReceived(1, b"abc")
+        processProtocol.childDataReceived(1, b"def")
+        processProtocol.processEnded(Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(result), b"abcdef")
 
 
     def test_errorExit(self):
@@ -57,5 +66,5 @@ class ZfsCommandTests(SynchronousTestCase):
         """
         If the subprocess exits with exit code other than 0, 1 or 2, the
         ``Deferred`` returned from ``zfsCommand`` errbacks with
-        ``ProcessExited``.
+        whatever error the process exited with.
         """
