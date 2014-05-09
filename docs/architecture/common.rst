@@ -108,3 +108,11 @@ Snapshots are fast and cheap but they are not free.
 As new snapshots are created it eventually becomes necessary to destroy some older snapshots.
 Service-specific considerations will also influence decisions about which snapshots to destroy.
 See the service-specific documentation for details.
+
+
+User System Roll-back
+=====================
+
+The user filesystem can be returned to any earlier state for which a snapshot exists.
+Combined with a restart of the processes in the user system this is a “rollback”.
+(Details of how a restart is performed depends on whether we decode to use Docker and what hooks we want to expose to the user system.)
