@@ -56,7 +56,7 @@ The user filesystem is used to boot the user system using LXC (probably using Do
 Flocker is responsible for managing the lifetime of the user system.
 This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
 Flocker is roughly as concerned with the particulars of the ``init`` process as is the Linux kernel (that is, not very).
-If the user system is a minimal PostgreSQL server with no other user-space services then the ``init`` process may simple be one that boots the PostgreSQL server.
+If the user system is a minimal PostgreSQL server with no other user-space services then the ``init`` process may be one that boots the PostgreSQL server.
 The details of how to boot the user system may well be left up to Docker.
 
 The specific storage strategy for the user filesystem may depend on the deployment environment.
