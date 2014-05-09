@@ -99,6 +99,10 @@ Many applications (not MySQL with MyISAM tables) can be expected to be robust ag
 Snapshots are taken when there is reason to believe there have been changes to user data.
 They are taken frequently to minimize the chance that any particular change will be lost.
 
+
+Snapshot Destruction
+^^^^^^^^^^^^^^^^^^^^
+
 Snapshots are fast and cheap but they are not free.
 As new snapshots are created it eventually becomes necessary to destroy some older snapshots.
 Decisions about which snapshots to destroy need to take into considerations of the replication system described below.

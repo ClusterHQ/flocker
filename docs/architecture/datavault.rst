@@ -19,6 +19,10 @@ Flocker keeps as many snapshots of the user filesystem as possible.
 The utility of the Flocker service is the ability to roll the whole system back to an earlier state.
 The more choices the service can offer about which earlier state the more useful the service is.
 
+
+Snapshot Destruction
+^^^^^^^^^^^^^^^^^^^^
+
 Small variations in the exact point in time are more likely to be relevant for more recent system states.
 That is, a one hour difference in system state is more likely to be important for the system state sometime yesterday than it is sometime last year.
 Flocker destroys snapshots as necessary in a way which prefers to keep more recent snapshots than older snapshots.
