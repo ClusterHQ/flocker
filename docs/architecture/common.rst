@@ -69,7 +69,8 @@ This may also be difficult in practice due to limitations of various deployment 
 
 A simpler strategy is to create a large file on the base system's filesystem and use this as storage for a ZFS storage pool.
 This makes no unusual demands on the deployment environment.
-It does force all user filesystem I/O through multiple block and VFS interfaces which likely leads to poor performance.
+It does force all user filesystem I/O through multiple block and VFS interfaces which likely leads to poor performance
+(performance issues might be mitigated somewhat using ZFS's built-in compression features).
 
 
 Filesystem Change Notification
