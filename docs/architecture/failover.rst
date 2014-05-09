@@ -31,7 +31,7 @@ Flocker is intentionally limited to at most a two host configuration
 Configuration
 =============
 
-The failover service has a couple of additional configuration requirements above and beyond those mentioned in the common document:
+The failover service has a couple of configuration requirements additional to those mentioned in the common document:
 
   * the internet addresses of the master and slave hosts
   * credentials used to allow the master and slave hosts to securely communicate with each other
