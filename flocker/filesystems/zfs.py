@@ -112,12 +112,14 @@ class ZFSSnapshots(object):
         Snapshots whose names cannot be decoded are presumed not to be related
         to Flocker, and therefore will not be included in the result.
         """
-        # d = zfsCommand(self._reactor, [b"-H", b"-r", b"-t", b"snapshot", b"-o",
-        #                                b"name", b"-s", b"name",
-        #                                self._filesystem.pool])
-        # d.addCallback(lambda data:
-        #               [SnapshotName.fromBytes(line.split(b"@", 1)[1])
-        #                for line in data.splitlines()
-        #                if line.startswith(b"%s@" % (self._filesystem.pool))])
-        # return d
-        pass
+        d = zfsCommand(self._reactor,
+                       [b"list", b"-H", b"-r", b"-t", b"snapshot", b"-o",
+                        b"name", b"-s", b"name", self._filesystem.pool])
+        def parseSnapshots(data):
+            result = []
+            for line in data.splitlines():
+                pool, encodedName = line.split(b'@', 1)
+                result.append(SnapshotName.fromBytes(encodedName))
+            return result
+        d.addCallback(parseSnapshots)
+        return d

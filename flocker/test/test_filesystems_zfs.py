@@ -137,9 +137,15 @@ class ZFSSnapshotsTests(SynchronousTestCase):
 
     def test_list(self):
         """
-        ``ZFSSnapshots.create()`` calls the ``zfs list`` command with the pool
+        ``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
         name.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots.list()
+        self.assertEqual(reactor.processes[0].args,
+                         [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
+                          b"-o", b"name", b"-s", b"name", b"mypool"])
 
 
     def test_listResult(self):
@@ -147,6 +153,18 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         ``ZFSSnapshots.list`` parses out the snapshot names from the results of
         the command.
         """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+        name2 = SnapshotName(datetime.now(UTC), b"node2")
+
+        d = snapshots.list()
+        processProtocol = reactor.processes[0].processProtocol
+        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name.toBytes(),))
+        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name2.toBytes(),))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), [name, name2])
 
 
     def test_listResultIgnoresOtherPools(self):
