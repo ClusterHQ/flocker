@@ -43,7 +43,15 @@ setup(
         # This extra allows you to build the documentation for Flocker.
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
-        "dev": ["pyflakes==0.8.1", "versioneer==0.10"]
+        "dev": [
+            # pyflakes is pretty critical to have around to help point out
+            # obvious mistakes.
+            "pyflakes==0.8.1",
+
+            # versioneer is necessary in order to update (but *not* merely to
+            # use) the automatic versioning tools.
+            "versioneer==0.10",
+            ]
         },
 
     # Let versioneer hook into the various distutils commands so it can rewrite
