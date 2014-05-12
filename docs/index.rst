@@ -11,7 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   architecture
+   architecture/index
 
 
 Indices and tables
