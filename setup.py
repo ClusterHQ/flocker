@@ -35,14 +35,6 @@ setup(
         "flocker", "flocker.test",
         ],
 
-    # This defines extra non-source files that live in the source tree that
-    # need to be included as part of the package.
-    package_data={
-        # This is the canonical definition of the source form of the cluster
-        # version.
-        "flocker": ["version"],
-        },
-
     install_requires=[
         "Twisted == 13.2.0"
         ],
