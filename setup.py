@@ -3,21 +3,21 @@
 # Generate a Flocker package that can be deployed onto cluster nodes.
 #
 
-import os.path
-
 from setuptools import setup
 
-path = os.path.join(os.path.dirname(__file__), b"flocker/version")
-with open(path) as fObj:
-    version = fObj.read().strip()
-del path
+import versioneer
+versioneer.vcs = "git"
+versioneer.versionfile_source = "flocker/_version.py"
+versioneer.versionfile_build = "flocker/_version.py"
+versioneer.tag_prefix = ""
+versioneer.parentdir_prefix = "flocker-"
 
 setup(
     # This is the human-targetted name of the software being packaged.
     name="Flocker",
     # This is a string giving the version of the software being packaged.  For
     # simplicity it should be something boring like X.Y.Z.
-    version=version,
+    version=versioneer.get_version(),
     # This identifies the creators of this software.  This is left symbolic for
     # ease of maintenance.
     author="HybridCluster Team",
@@ -51,6 +51,10 @@ setup(
         # This extra allows you to build the documentation for Flocker.
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
-        "dev": ["pyflakes==0.8.1"]
+        "dev": ["pyflakes==0.8.1", "versioneer==0.10"]
         },
+
+    # Let versioneer hook into the various distutils commands so it can rewrite
+    # certain data at appropriate times.
+    cmdclass=versioneer.get_cmdclass(),
     )
