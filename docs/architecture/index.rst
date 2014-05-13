@@ -9,3 +9,5 @@ Contents:
    common
    datavault
    failover
+
+   volumemanager
