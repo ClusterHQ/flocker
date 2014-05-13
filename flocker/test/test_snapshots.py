@@ -183,3 +183,44 @@ class ChangeSnapshotterTests(SynchronousTestCase):
         # check for the cancelled deferred.
         # https://www.pivotaltracker.com/n/projects/1069998/stories/70956276
         self.assertSnapshotsTaken([self.clock.seconds()])
+
+
+
+class SnapshotNameTests(SynchronousTestCase):
+    """
+    Tests for ``SnapshotName``.
+    """
+    def test_toBytes(self):
+        """
+        ``SnapshotName.toBytes()`` converts a ``SnapshotName`` to bytes.
+        """
+        dt = datetime(2014, 4, 30, 16, 23, 58, 123456, tzinfo=UTC)
+        name = SnapshotName(dt, b"the_host")
+        # We use ISO format, only without the timezone:
+        self.assertEqual(name.toBytes(), b"%s_the_host" % (dt.isoformat()[:-6],))
+
+
+    def test_fromBytes(self):
+        """
+        ``SnapshotName.fromBytes()`` converts the output of
+        ``SnapshotName.toBytes`` back into a ``SnapshotName``.
+        """
+        name = SnapshotName(datetime.now(UTC), b"ahost")
+        self.assertEqual(SnapshotName.fromBytes(name.toBytes()), name)
+
+
+    def test_fromBytesNoSeparator(self):
+        """
+        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for bad inputs
+        missing a ``b_``.
+        """
+        self.assertRaises(ValueError, SnapshotName.fromBytes, b"garbage")
+
+
+    def test_fromBytesBadDate(self):
+        """
+        ``SnapshotName.fromBytes`` will raise a ``ValueError`` for unparseable
+        dates.
+        """
+        self.assertRaises(ValueError, SnapshotName.fromBytes,
+                          b"2099-13-65T19:12:77.234236_name")
