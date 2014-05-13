@@ -24,7 +24,6 @@ Snapshots have a name.
 Snapshots can store arbitrary user metadata.
 
 
-
 Minimal API
 ===========
 
@@ -48,15 +47,26 @@ For a particular volume, one can also operate on snapshots:
 Extended API
 ============
 
-This is more vague; have to deal with divergent histories, security, and networking efficiency.
-It should therefore be implemented a second phase.
+These are harder - have to deal with divergent histories, security, and networking efficiency.
+They should therefore perhaps be implemented a second phase.
+On the other hand they are where our system starts being more than just thin wrapper around ZFS.
 
 * Pull Snapshot: Allows one flocker daemon to get a copy of a snapshot from a different flocker daemon.
 * Push Snapshot: Allows one flocker daemon to send a copy of a snapshot to a different flocker daemon.
 
+Maybe nice to have:
+
+* Import: Create new volume from a tarball.
+* Export: Dump a volume to a tarball.
 
 
 Setup
 =====
 
 The Flocker daemon needs to be configured with a pool: either a file, a partition, or the name of an existing pre-configured ZFS pool.
+
+
+Backend
+=======
+
+We should try not to hard-code too much ZFSism, as we may add (or have contributed) btrfs support.
