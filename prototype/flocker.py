@@ -116,18 +116,13 @@ class Flocker(object):
         """
         Return list of all volumes.
         """
-        # XXX this lists all branches of all volumes - modify to list all
-        # volumes and reuse branch code in listBranches().
-        result = []
+        result = set()
         for branchName in self.mountRoot.listdir():
             if b"." not in branchName:
                 # Some junk, not something we're managing:
                 continue
             branch = FlockerBranch.fromDatasetName(branchName)
-            if branch.flockerName == self.flockerName:
-                result.append(b"%s/%s" % (branch.volume, branch.branch))
-            else:
-                result.append(b"/".join(branch))
+            result.add(branch.volume)
         return result
 
 
@@ -143,6 +138,25 @@ class Flocker(object):
         zfs(b"snapshot", snapshotName)
         zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
         self._exposeToDocker(newBranch)
+
+
+    def listBranches(self, volumeName):
+        """
+        Return list of all branches.
+        """
+        result = []
+        for branchName in self.mountRoot.listdir():
+            if b"." not in branchName:
+                # Some junk, not something we're managing:
+                continue
+            branch = FlockerBranch.fromDatasetName(branchName)
+            if branch.volume != volumeName:
+                continue
+            if branch.flockerName == self.flockerName:
+                result.append(b"%s/%s" % (branch.volume, branch.branch))
+            else:
+                result.append(b"/".join(branch))
+        return result
 
 
 
@@ -202,14 +216,15 @@ class BranchOptions(Options):
 
 class ListBranchesOptions(Options):
     """
-    List branches
+    List branches.
     """
     def parseArgs(self, name):
         self.name = name
 
 
     def run(self, flocker):
-        pass
+        for name in flocker.listBranches(self.name):
+            print name
 
 
 
