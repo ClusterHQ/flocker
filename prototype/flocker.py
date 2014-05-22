@@ -7,6 +7,8 @@ to be mounted at /<poolname>.
 For simplicity's sake not bothering with UUIDs, you need to make sure names
 don't conflict. Volume/branch/tag names should not contain "." because of
 hacky implementation details.
+
+Volumes will be exposed in docker containers in folder '/flocker'.
 """
 
 import subprocess
@@ -24,13 +26,30 @@ def zfs(*arguments):
 
 
 
+def docker(*arguments):
+    """
+    Run a 'docker' comand with given arguments, raise on non-0 exit code.
+    """
+    subprocess.check_call(["docker"] + list(arguments))
+
+
+
 class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
+    """
+    The canonical name of a flocker volume: <flocker instance>/<volume>/<branch>
+    """
+    def mountName(self):
+        """
+        The name of the mountpoint directory.
+        """
+        return b".".join([self.flockerName, self.volume, self.branch])
+
+
     def datasetName(self, poolName):
         """
         The name of the ZFS dataset for the branch.
         """
-        return poolName + b"/" + (
-            b".".join([self.flockerName, self.volume, self.branch]))
+        return poolName + b"/" + self.mountName()
 
 
     @classmethod
@@ -46,6 +65,9 @@ class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
         """
         Convert branch name (volume/branch or flocker/volume/branch) to
         FlockerBranch.
+
+        @param thisFlockerName: Name of flocker instance to use for 2-part
+           variant branch name, i.e. local branch name.
         """
         parts = branchName.split(b"/")
         if len(parts) == 2:
@@ -65,19 +87,37 @@ class Flocker(object):
         self.flockerName = poolName
 
 
+    def _exposeToDocker(self, branch):
+        """
+        Expose a branch to Docker.
+
+        @type branch: L{FlockerBranch}
+        """
+        mountPath = self.mountRoot.child(branch.mountName()).path
+        containerName = b"flocker--%s--%s" % (branch.volume, branch.branch)
+        docker(b"run",
+               b"--name", containerName,
+               b"-v", mountPath + b":/flocker:rw",
+               b"busybox", b"true")
+        print("You can access this volume by adding '--volumes-from %s' to "
+              "'docker run'" % (containerName,))
+
+
     def createVolume(self, volumeName):
         """
         Create a new volume with given name.
         """
-        trunk = FlockerBranch(
-            self.flockerName, volumeName, b"trunk").datasetName(self.poolName)
-        zfs(b"create", trunk)
+        trunk = FlockerBranch(self.flockerName, volumeName, b"trunk")
+        zfs(b"create", trunk.datasetName(self.poolName))
+        self._exposeToDocker(trunk)
 
 
     def listVolumes(self):
         """
         Return list of all volumes.
         """
+        # XXX this lists all branches of all volumes - modify to list all
+        # volumes and reuse branch code in listBranches().
         result = []
         for branchName in self.mountRoot.listdir():
             if b"." not in branchName:
@@ -92,12 +132,17 @@ class Flocker(object):
 
 
     def branchOffBranch(self, newBranch, fromBranch):
+        """
+        @type newBranch: L{FlockerBranch}
+        @type fromBranch: L{FlockerBranch}
+        """
         if newBranch.volume != fromBranch.volume:
             raise ValueError("Can't create branches across volumes")
         snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
                                    newBranch.branch)
         zfs(b"snapshot", snapshotName)
         zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
+        self._exposeToDocker(newBranch)
 
 
 
