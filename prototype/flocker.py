@@ -25,12 +25,12 @@ def zfs(*arguments):
 
 
 class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
-    @property
-    def datasetName(self):
+    def datasetName(self, poolName):
         """
         The name of the ZFS dataset for the branch.
         """
-        return b".".join([self.flockerName, self.volume, self.branch])
+        return poolName + b"/" + (
+            b".".join([self.flockerName, self.volume, self.branch]))
 
 
     @classmethod
@@ -39,6 +39,18 @@ class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
         Convert ZFS dataset name to FlockerBranch instance.
         """
         return cls(*datasetName.split(b"."))
+
+
+    @classmethod
+    def fromBranchName(cls, branchName, thisFlockerName):
+        """
+        Convert branch name (volume/branch or flocker/volume/branch) to
+        FlockerBranch.
+        """
+        parts = branchName.split(b"/")
+        if len(parts) == 2:
+            parts.insert(0, thisFlockerName)
+        return cls(*parts)
 
 
 
@@ -57,8 +69,9 @@ class Flocker(object):
         """
         Create a new volume with given name.
         """
-        trunk = FlockerBranch(self.flockerName, volumeName, b"trunk").datasetName
-        zfs(b"create", b"%s/%s" % (self.poolName, trunk))
+        trunk = FlockerBranch(
+            self.flockerName, volumeName, b"trunk").datasetName(self.poolName)
+        zfs(b"create", trunk)
 
 
     def listVolumes(self):
@@ -76,6 +89,15 @@ class Flocker(object):
             else:
                 result.append(b"/".join(branch))
         return result
+
+
+    def branchOffBranch(self, newBranch, fromBranch):
+        if newBranch.volume != fromBranch.volume:
+            raise ValueError("Can't create branches across volumes")
+        snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
+                                   newBranch.branch)
+        zfs(b"snapshot", snapshotName)
+        zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
 
 
 
@@ -106,12 +128,30 @@ class BranchOptions(Options):
     """
     Create a branch.
     """
-    def parseArgs(self, name):
-        self.name = name
+    optParameters = [
+        ["tag", None, None, "The tag to branch off of"],
+        ["branch", None, None, "The branch to branch off of"],
+    ]
+
+
+    def parseArgs(self, newBranchName):
+        self.newBranchName = newBranchName
+
+
+    def postOptions(self):
+        if self["tag"] is not None and self["branch"] is not None:
+            raise UsageError("Only one of 'tag' and 'branch' should be chosen")
 
 
     def run(self, flocker):
-        pass
+        if self["branch"] is not None:
+            fromBranch = FlockerBranch.fromBranchName(
+                self["branch"], flocker.flockerName)
+            destinationBranch = FlockerBranch.fromBranchName(
+                self.newBranchName, flocker.flockerName)
+            flocker.branchOffBranch(destinationBranch, fromBranch)
+        else:
+            raise NotImplementedError("tags don't work yet")
 
 
 
