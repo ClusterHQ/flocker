@@ -21,6 +21,8 @@ from twisted.python.filepath import FilePath
 def zfs(*arguments):
     """
     Run a 'zfs' command with given arguments, raise on non-0 exit code.
+
+    @return: stdout bytes.
     """
     subprocess.check_call(["zfs"] + list(arguments))
 
@@ -73,6 +75,19 @@ class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
         if len(parts) == 2:
             parts.insert(0, thisFlockerName)
         return cls(*parts)
+
+
+
+class FlockerTag(namedtuple("FlockerTag", "flockerName volume tag")):
+    """
+    The canonical name of a flocker tag: <tag>@<flocker instance>/<volume>
+    """
+    def snapshotName(self, branchName, poolName):
+        """
+        The name of the ZFS snapshot for the tag.
+        """
+        branch = FlockerBranch(self.flockerName, self.volume, branchName)
+        return branch.datasetName(poolName) + b"@flocker-tag-" + self.tag
 
 
 
@@ -140,9 +155,9 @@ class Flocker(object):
         self._exposeToDocker(newBranch)
 
 
-    def listBranches(self, volumeName):
+    def _branchesForVolume(self, volumeName):
         """
-        Return list of all branches.
+        Return list of all L{FlockerBranch} instances for given volume.
         """
         result = []
         for branchName in self.mountRoot.listdir():
@@ -152,10 +167,42 @@ class Flocker(object):
             branch = FlockerBranch.fromDatasetName(branchName)
             if branch.volume != volumeName:
                 continue
+            result.append(branch)
+        return result
+
+
+    def listBranches(self, volumeName):
+        """
+        Return list of all branch names for given volume.
+        """
+        result = []
+        for branch in self._branchesForVolumes(volumeName):
             if branch.flockerName == self.flockerName:
                 result.append(b"%s/%s" % (branch.volume, branch.branch))
             else:
                 result.append(b"/".join(branch))
+        return result
+
+
+    def createTag(self, branch, tagName):
+        """
+        Create a tag.
+        """
+        if branch.flockerName != self.flockerName:
+            raise ValueError("Can only tag local branches")
+        tag = FlockerTag(branch.flockerName, branch.volume, tagName)
+        zfs(b"snapshot", tag.snapshotName(branch.branch, self.poolName))
+
+
+    def listTags(self, volumeName):
+        """
+        Return list of all tags.
+        """
+        result = []
+        for branch in self._branchesForVolumes(volumeName):
+            for line in zfs(... list snapshots ...):
+                if istag:
+                    result.append(...)
         return result
 
 
@@ -232,12 +279,24 @@ class TagOptions(Options):
     """
     Create a tag.
     """
+    optParameters = [
+        ["branch", None, None, "The branch to tag off of"],
+    ]
+
+
     def parseArgs(self, name):
         self.name = name
 
 
+    def postOptions(self):
+        if self["branch"] is None:
+            raise UsageError("'branch' is required")
+
+
     def run(self, flocker):
-        pass
+        fromBranch = FlockerBranch.fromBranchName(
+            self["branch"], flocker.flockerName)
+        flocker.createTag(fromBranch, self.name)
 
 
 
@@ -250,7 +309,8 @@ class ListTagsOptions(Options):
 
 
     def run(self, flocker):
-        pass
+        for name in flocker.listTags(self.name):
+            print name
 
 
 
