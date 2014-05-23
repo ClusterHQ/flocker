@@ -24,7 +24,7 @@ def zfs(*arguments):
 
     @return: stdout bytes.
     """
-    subprocess.check_call(["zfs"] + list(arguments))
+    return subprocess.check_output(["zfs"] + list(arguments))
 
 
 
@@ -199,10 +199,14 @@ class Flocker(object):
         Return list of all tags.
         """
         result = []
-        for branch in self._branchesForVolumes(volumeName):
-            for line in zfs(... list snapshots ...):
-                if istag:
-                    result.append(...)
+        for branch in self._branchesForVolume(volumeName):
+            for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
+                            b"snapshot",
+                            branch.datasetName(self.poolName)).splitlines():
+                dataset, snapshotName = line.split(b"@")
+                if snapshotName.startswith(b"flocker-tag-"):
+                    tagName = snapshotName[len(b"flocker-tag-"):]
+                    result.append(tagName + b"@" + volumeName)
         return result
 
 
