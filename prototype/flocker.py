@@ -36,15 +36,55 @@ def docker(*arguments):
 
 
 
-class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
+class FlockerVolume(namedtuple("FlockerVolume", "flockerName name")):
+    """
+    The canonical name of a flocker volume.
+
+    @ivar flockerName: The name of the flocker instance from which the
+        volume originates, as L{bytes}.
+
+    @ivar name: The name of the volume, e.g. L{b"myvolume"}.
+    """
+    def publicName(self, thisFlockerName):
+        """
+        The command-line name of the volume.
+
+        @param thisFlockerName: Name of current flocker instance.
+        """
+        if thisFlockerName == self.flockerName:
+            return self.name
+        else:
+            return b"%s/%s" % (self.flockerName, self.name)
+
+
+    @classmethod
+    def fromPublicName(cls, name, thisFlockerName):
+        """
+        Parse output of L{publicName} into a L{FlockerVolume}.
+        """
+        if b"/" in name:
+            flockerName, volume = name.split(b"/")
+        else:
+            volume = name
+            flockerName = thisFlockerName
+        return FlockerVolume(flockerName, volume)
+
+
+
+class FlockerBranch(namedtuple("FlockerBranch", "volume name")):
     """
     The canonical name of a flocker volume: <flocker instance>/<volume>/<branch>
+
+    @type volume: L{FlockerVolume}
+
+    @ivar name: The branch subset of the full branch name, e.g. L{b"trunk"}.
+    @type name: L{bytes}
     """
     def mountName(self):
         """
         The name of the mountpoint directory.
         """
-        return b".".join([self.flockerName, self.volume, self.branch])
+        return b".".join([self.volume.flockerName, self.volume.name, self.name])
 
 
     def datasetName(self, poolName):
@@ -59,35 +99,50 @@ class FlockerBranch(namedtuple("FlockerBranch", "flockerName volume branch")):
         """
         Convert ZFS dataset name to FlockerBranch instance.
         """
-        return cls(*datasetName.split(b"."))
+        flockerName, volumeName, branchName = datasetName.split(b".")
+        volume = FlockerVolume(flockerName, volumeName)
+        return cls(volume, branchName)
+
+
+    def publicName(self, thisFlockerName):
+        """
+        The public (command-line) branch name.
+
+        @param thisFlockerName: Name of current flocker instance.
+        """
+        return b"%s/%s" % (self.volume.publicName(thisFlockerName), self.name)
 
 
     @classmethod
-    def fromBranchName(cls, branchName, thisFlockerName):
+    def fromPublicName(cls, branchName, thisFlockerName):
         """
-        Convert branch name (volume/branch or flocker/volume/branch) to
+        Convert public branch name (volume/branch or flocker/volume/branch) to
         FlockerBranch.
 
         @param thisFlockerName: Name of flocker instance to use for 2-part
            variant branch name, i.e. local branch name.
         """
-        parts = branchName.split(b"/")
-        if len(parts) == 2:
-            parts.insert(0, thisFlockerName)
-        return cls(*parts)
+        volumeName, branchName = branchName.rsplit(b"/")
+        return cls(FlockerVolume.fromPublicName(volumeName, thisFlockerName),
+                   branchName)
 
 
 
-class FlockerTag(namedtuple("FlockerTag", "flockerName volume tag")):
+class FlockerTag(namedtuple("FlockerTag", "volume name")):
     """
     The canonical name of a flocker tag: <tag>@<flocker instance>/<volume>
+
+    @type volume: L{FlockerVolume}
+
+    @ivar name: The tag subset of the full branch name, e.g. L{b"mytag"}.
+    @type name: L{bytes}
     """
     def snapshotName(self, branchName, poolName):
         """
         The name of the ZFS snapshot for the tag.
         """
-        branch = FlockerBranch(self.flockerName, self.volume, branchName)
-        return branch.datasetName(poolName) + b"@flocker-tag-" + self.tag
+        branch = FlockerBranch(self.volume, branchName)
+        return branch.datasetName(poolName) + b"@flocker-tag-" + self.name
 
 
     def publicName(self, thisFlockerName):
@@ -96,10 +151,7 @@ class FlockerTag(namedtuple("FlockerTag", "flockerName volume tag")):
 
         @param thisFlockerName: Name of current flocker instance.
         """
-        if thisFlockerName == self.flockerName:
-            return b"%s@%s" % (self.tag, self.volume)
-        else:
-            return b"%s@%s/%s" % (self.tag, self.flockerName, self.volume)
+        return b"%s@%s" % (self.name, self.volume.publicName(thisFlockerName))
 
 
     @classmethod
@@ -108,12 +160,8 @@ class FlockerTag(namedtuple("FlockerTag", "flockerName volume tag")):
         Parse output of L{publicName} into a L{FlockerTag}.
         """
         tag, volumeName = name.split(b"@")
-        if b"/" in volumeName:
-            flockerName, volume = volumeName.split(b"/")
-        else:
-            volume = volumeName
-            flockerName = thisFlockerName
-        return FlockerTag(flockerName, volume, tag)
+        return FlockerTag(
+            FlockerVolume.fromPublicName(volumeName, thisFlockerName), tag)
 
 
 
@@ -135,7 +183,7 @@ class Flocker(object):
         @type branch: L{FlockerBranch}
         """
         mountPath = self.mountRoot.child(branch.mountName()).path
-        containerName = b"flocker--%s--%s" % (branch.volume, branch.branch)
+        containerName = b"flocker--%s--%s" % (branch.volume.name, branch.name)
         docker(b"run",
                b"--name", containerName,
                b"-v", mountPath + b":/flocker:rw",
@@ -146,9 +194,10 @@ class Flocker(object):
 
     def createVolume(self, volumeName):
         """
-        Create a new volume with given name.
+        Create a new local volume with the given name, e.g. C{b"myvolume"}
         """
-        trunk = FlockerBranch(self.flockerName, volumeName, b"trunk")
+        trunk = FlockerBranch(FlockerVolume(self.flockerName, volumeName),
+                              b"trunk")
         zfs(b"create", trunk.datasetName(self.poolName))
         self._exposeToDocker(trunk)
 
@@ -163,7 +212,7 @@ class Flocker(object):
                 # Some junk, not something we're managing:
                 continue
             branch = FlockerBranch.fromDatasetName(branchName)
-            result.add(branch.volume)
+            result.add(branch.volume.publicName(self.flockerName))
         return result
 
 
@@ -183,8 +232,10 @@ class Flocker(object):
         """
         if newBranch.volume != fromBranch.volume:
             raise ValueError("Can't create branches across volumes")
+        if newBranch.volume.flockerName != self.flockerName:
+            raise ValueError("Can't create branches on remote volumes")
         snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
-                                   newBranch.branch)
+                                   newBranch.name)
         zfs(b"snapshot", snapshotName)
         self._createBranchFromSnapshotName(newBranch, snapshotName)
 
@@ -196,13 +247,15 @@ class Flocker(object):
         """
         if newBranch.volume != fromTag.volume:
             raise ValueError("Can't create branches across volumes")
+        if newBranch.volume.flockerName != self.flockerName:
+            raise ValueError("Can't create branches on remote volumes")
         snapshot = None
         for branch in self._branchesForVolume(fromTag.volume):
             for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
                             b"snapshot",
                             branch.datasetName(self.poolName)).splitlines():
                 dataset, snapshotName = line.split(b"@")
-                if snapshotName == b"flocker-tag-" + fromTag.tag:
+                if snapshotName == b"flocker-tag-" + fromTag.name:
                     snapshot = line
                     break
 
@@ -211,13 +264,11 @@ class Flocker(object):
         self._createBranchFromSnapshotName(newBranch, snapshot)
 
 
-    def _branchesForVolume(self, volumeName):
+    def _branchesForVolume(self, volume):
         """
         Return list of all L{FlockerBranch} instances for given volume.
 
-        XXX doesn't distinguish between remote and local volumes, so callers
-        are likely buggy if both exist. Solvable by having FlockerVolume
-        class to pass in, rather than string name.
+        @param volume: L{FlockerVolume}
         """
         result = []
         for branchName in self.mountRoot.listdir():
@@ -225,48 +276,43 @@ class Flocker(object):
                 # Some junk, not something we're managing:
                 continue
             branch = FlockerBranch.fromDatasetName(branchName)
-            if branch.volume != volumeName:
+            if branch.volume != volume:
                 continue
             result.append(branch)
         return result
 
 
-    def listBranches(self, volumeName):
+    def listBranches(self, volume):
         """
         Return list of all branch names for given volume.
         """
-        result = []
-        for branch in self._branchesForVolumes(volumeName):
-            if branch.flockerName == self.flockerName:
-                result.append(b"%s/%s" % (branch.volume, branch.branch))
-            else:
-                result.append(b"/".join(branch))
-        return result
+        return [branch.publicName(self.flockerName)
+                for branch in self._branchesForVolume(volume)]
 
 
     def createTag(self, branch, tagName):
         """
         Create a tag.
         """
-        if branch.flockerName != self.flockerName:
+        if branch.volume.flockerName != self.flockerName:
             raise ValueError("Can only tag local branches")
-        tag = FlockerTag(branch.flockerName, branch.volume, tagName)
-        zfs(b"snapshot", tag.snapshotName(branch.branch, self.poolName))
+        tag = FlockerTag(branch.volume, tagName)
+        zfs(b"snapshot", tag.snapshotName(branch.name, self.poolName))
 
 
-    def listTags(self, volumeName):
+    def listTags(self, volume):
         """
         Return list of all tags.
         """
         result = []
-        for branch in self._branchesForVolume(volumeName):
+        for branch in self._branchesForVolume(volume):
             for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
                             b"snapshot",
                             branch.datasetName(self.poolName)).splitlines():
                 dataset, snapshotName = line.split(b"@")
                 if snapshotName.startswith(b"flocker-tag-"):
-                    tag = FlockerTag(branch.flockerName, branch.volume,
-                                     snapshotName[len(b"flocker-tag-"):])
+                    tag = FlockerTag(
+                        branch.volume,  snapshotName[len(b"flocker-tag-"):])
                     result.append(tag.publicName(self.flockerName))
         return result
 
@@ -315,10 +361,10 @@ class BranchOptions(Options):
 
 
     def run(self, flocker):
-        destinationBranch = FlockerBranch.fromBranchName(
+        destinationBranch = FlockerBranch.fromPublicName(
             self.newBranchName, flocker.flockerName)
         if self["branch"] is not None:
-            fromBranch = FlockerBranch.fromBranchName(
+            fromBranch = FlockerBranch.fromPublicName(
                 self["branch"], flocker.flockerName)
             flocker.branchOffBranch(destinationBranch, fromBranch)
         else:
@@ -336,7 +382,8 @@ class ListBranchesOptions(Options):
 
 
     def run(self, flocker):
-        for name in flocker.listBranches(self.name):
+        volume = FlockerVolume.fromPublicName(self.name, flocker.flockerName)
+        for name in flocker.listBranches(volume):
             print name
 
 
@@ -360,7 +407,7 @@ class TagOptions(Options):
 
 
     def run(self, flocker):
-        fromBranch = FlockerBranch.fromBranchName(
+        fromBranch = FlockerBranch.fromPublicName(
             self["branch"], flocker.flockerName)
         flocker.createTag(fromBranch, self.name)
 
@@ -375,7 +422,8 @@ class ListTagsOptions(Options):
 
 
     def run(self, flocker):
-        for name in flocker.listTags(self.name):
+        volume = FlockerVolume.fromPublicName(self.name, flocker.flockerName)
+        for name in flocker.listTags(volume):
             print name
 
 
