@@ -11,6 +11,7 @@ hacky implementation details.
 Volumes will be exposed in docker containers in folder '/flocker'.
 """
 
+import time
 import subprocess
 from collections import namedtuple
 
@@ -122,7 +123,7 @@ class FlockerBranch(namedtuple("FlockerBranch", "volume name")):
         @param thisFlockerName: Name of flocker instance to use for 2-part
            variant branch name, i.e. local branch name.
         """
-        volumeName, branchName = branchName.rsplit(b"/")
+        volumeName, branchName = branchName.rsplit(b"/", 1)
         return cls(FlockerVolume.fromPublicName(volumeName, thisFlockerName),
                    branchName)
 
@@ -207,11 +208,7 @@ class Flocker(object):
         Return list of all volumes.
         """
         result = set()
-        for branchName in self.mountRoot.listdir():
-            if b"." not in branchName:
-                # Some junk, not something we're managing:
-                continue
-            branch = FlockerBranch.fromDatasetName(branchName)
+        for branch in self._allBranches():
             result.add(branch.volume.publicName(self.flockerName))
         return result
 
@@ -230,14 +227,26 @@ class Flocker(object):
         @type newBranch: L{FlockerBranch}
         @type fromBranch: L{FlockerBranch}
         """
-        if newBranch.volume != fromBranch.volume:
+        if newBranch.volume.name != fromBranch.volume.name:
             raise ValueError("Can't create branches across volumes")
         if newBranch.volume.flockerName != self.flockerName:
             raise ValueError("Can't create branches on remote volumes")
         snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
-                                   newBranch.name)
+                                   newBranch.mountName())
         zfs(b"snapshot", snapshotName)
         self._createBranchFromSnapshotName(newBranch, snapshotName)
+
+
+    def _snapshotsForBranch(self, branch):
+        """
+        Return list of ZFS snapshots for a branch, sorted by ascending creation
+        time.
+
+        @param branch: L{FlockerBranch}
+        """
+        return zfs(b"list", b"-H", b"-o", b"name", b"-r",
+                   b"-t", b"snapshot", "-s", "creation",
+                   branch.datasetName(self.poolName)).splitlines()
 
 
     def branchOffTag(self, newBranch, fromTag):
@@ -245,15 +254,13 @@ class Flocker(object):
         @type newBranch: L{FlockerBranch}
         @type fromTag: L{FlockerTag}
         """
-        if newBranch.volume != fromTag.volume:
+        if newBranch.volume.name != fromTag.volume.name:
             raise ValueError("Can't create branches across volumes")
         if newBranch.volume.flockerName != self.flockerName:
             raise ValueError("Can't create branches on remote volumes")
         snapshot = None
         for branch in self._branchesForVolume(fromTag.volume):
-            for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
-                            b"snapshot",
-                            branch.datasetName(self.poolName)).splitlines():
+            for line in self._snapshotsForBranch(branch):
                 dataset, snapshotName = line.split(b"@")
                 if snapshotName == b"flocker-tag-" + fromTag.name:
                     snapshot = line
@@ -264,22 +271,31 @@ class Flocker(object):
         self._createBranchFromSnapshotName(newBranch, snapshot)
 
 
+    def _allBranches(self):
+        """
+        Return list of all L{FlockerBranch} instances in this instance.
+        """
+        result = []
+        for dataset in zfs(b"list", b"-H", b"-o", "name", b"-d", b"1",
+                              self.poolName).splitlines():
+            if b"/" not in dataset:
+                continue
+            branchName = dataset.split(b"/", 1)[1]
+            if b"." not in branchName:
+                # Some junk, not something we're managing:
+                continue
+            branch = FlockerBranch.fromDatasetName(branchName)
+            result.append(branch)
+        return result
+
+
     def _branchesForVolume(self, volume):
         """
         Return list of all L{FlockerBranch} instances for given volume.
 
         @param volume: L{FlockerVolume}
         """
-        result = []
-        for branchName in self.mountRoot.listdir():
-            if b"." not in branchName:
-                # Some junk, not something we're managing:
-                continue
-            branch = FlockerBranch.fromDatasetName(branchName)
-            if branch.volume != volume:
-                continue
-            result.append(branch)
-        return result
+        return [b for b in self._allBranches() if b.volume == volume]
 
 
     def listBranches(self, volume):
@@ -306,15 +322,59 @@ class Flocker(object):
         """
         result = []
         for branch in self._branchesForVolume(volume):
-            for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
-                            b"snapshot",
-                            branch.datasetName(self.poolName)).splitlines():
+            for line in self._snapshotsForBranch(branch):
                 dataset, snapshotName = line.split(b"@")
                 if snapshotName.startswith(b"flocker-tag-"):
                     tag = FlockerTag(
                         branch.volume,  snapshotName[len(b"flocker-tag-"):])
                     result.append(tag.publicName(self.flockerName))
         return result
+
+
+    def pushBranch(self, destination, branch):
+        """
+        Push a branch to another Flocker instance.
+
+        @param destination: A L{Flocker} pointing at another pool.
+
+        @param branch: The L{FlockerBranch} to push.
+        """
+        if branch.volume.flockerName != self.flockerName:
+            raise ValueError("Can only push local branches")
+
+        originDataset = branch.datasetName(self.poolName)
+
+        # Create dataset on destination if it does not exist:
+        destinationDataset = branch.datasetName(destination.poolName)
+        destinationExists = branch in destination._branchesForVolume(
+            branch.volume)
+
+        # Find most recent snapshot that got sent:
+        mostRecent = None
+        if destinationExists:
+            destinationSnapshots = set([
+                snapshot.split(b'@')[1] for snapshot
+                in destination._snapshotsForBranch(branch)])
+            localSnapshots = self._snapshotsForBranch(branch)
+            for snapshot in reversed(localSnapshots):
+                snapshot = snapshot.split(b'@')[1]
+                if snapshot in destinationSnapshots:
+                    mostRecent = snapshot
+                    break
+
+        # Take a new snapshot:
+        snapshotName = b"%s" % (time.time(),)
+        newSnapshot = b"%s@%s" % (originDataset, snapshotName)
+        zfs(b"snapshot", newSnapshot)
+
+        # Send the difference between most recently pushed and new snapshot:
+        initial = b""
+        if mostRecent is not None:
+            initial = b"-i %s@%s" % (originDataset, mostRecent)
+        subprocess.check_call("zfs send %s %s | zfs recv %s@%s" %
+                              (initial, newSnapshot, destinationDataset, snapshotName),
+                              shell=True)
+        zfs(b"set", b"mountpoint=none", destinationDataset)
 
 
 
@@ -428,6 +488,28 @@ class ListTagsOptions(Options):
 
 
 
+class PushBranchOptions(Options):
+    """
+    Push a branch to another pool.
+    """
+    optParameters = [
+        ["destination", "d", None, "The destination pool for the branch"],
+    ]
+
+
+    def parseArgs(self, name):
+        self.name = name
+
+
+    def run(self, flocker):
+        if self["destination"] is None:
+            raise UsageError("'destination' is required")
+        destination = Flocker(self["destination"])
+        branch = FlockerBranch.fromPublicName(self.name, flocker.flockerName)
+        flocker.pushBranch(destination, branch)
+
+
+
 class FlockerOptions(Options):
     """
     Flocker volume manager.
@@ -444,8 +526,7 @@ class FlockerOptions(Options):
         #["delete-branch", None, DeleteBranchOptions, "Delete a branch"],
         ["tag", None, TagOptions, "Create a tag"],
         ["list-tags", None, ListTagsOptions, "List tags"],
-        #["send", None, SendOptions, "Like push, except writing to stdout"],
-        #["receive", None, ReceiveOptions, "Read in the output of send - bit like pull"],
+        ["push-branch", None, PushBranchOptions, "Push a branch to another pool"],
         ]
 
 
