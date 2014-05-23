@@ -344,7 +344,6 @@ class Flocker(object):
 
         originDataset = branch.datasetName(self.poolName)
 
-        # Create dataset on destination if it does not exist:
         destinationDataset = branch.datasetName(destination.poolName)
         destinationExists = branch in destination._branchesForVolume(
             branch.volume)
