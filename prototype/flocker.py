@@ -90,6 +90,32 @@ class FlockerTag(namedtuple("FlockerTag", "flockerName volume tag")):
         return branch.datasetName(poolName) + b"@flocker-tag-" + self.tag
 
 
+    def publicName(self, thisFlockerName):
+        """
+        The command-line name of the tag.
+
+        @param thisFlockerName: Name of current flocker instance.
+        """
+        if thisFlockerName == self.flockerName:
+            return b"%s@%s" % (self.tag, self.volume)
+        else:
+            return b"%s@%s/%s" % (self.tag, self.flockerName, self.volume)
+
+
+    @classmethod
+    def fromPublicName(cls, name, thisFlockerName):
+        """
+        Parse output of L{publicName} into a L{FlockerTag}.
+        """
+        tag, volumeName = name.split(b"@")
+        if b"/" in volumeName:
+            flockerName, volume = volumeName.split(b"/")
+        else:
+            volume = volumeName
+            flockerName = thisFlockerName
+        return FlockerTag(flockerName, volume, tag)
+
+
 
 class Flocker(object):
     """
@@ -141,6 +167,15 @@ class Flocker(object):
         return result
 
 
+    def _createBranchFromSnapshotName(self, newBranch, snapshotName):
+        """
+        @type newBranch: L{FlockerBranch}
+        @param snapshotName: L{bytes}, name of ZFS snapshot.
+        """
+        zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
+        self._exposeToDocker(newBranch)
+
+
     def branchOffBranch(self, newBranch, fromBranch):
         """
         @type newBranch: L{FlockerBranch}
@@ -151,13 +186,38 @@ class Flocker(object):
         snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
                                    newBranch.branch)
         zfs(b"snapshot", snapshotName)
-        zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
-        self._exposeToDocker(newBranch)
+        self._createBranchFromSnapshotName(newBranch, snapshotName)
+
+
+    def branchOffTag(self, newBranch, fromTag):
+        """
+        @type newBranch: L{FlockerBranch}
+        @type fromTag: L{FlockerTag}
+        """
+        if newBranch.volume != fromTag.volume:
+            raise ValueError("Can't create branches across volumes")
+        snapshot = None
+        for branch in self._branchesForVolume(fromTag.volume):
+            for line in zfs(b"list", b"-H", b"-o", b"name", b"-r", b"-t",
+                            b"snapshot",
+                            branch.datasetName(self.poolName)).splitlines():
+                dataset, snapshotName = line.split(b"@")
+                if snapshotName == b"flocker-tag-" + fromTag.tag:
+                    snapshot = line
+                    break
+
+        if snapshot is None:
+            raise ValueError("Can't find tag.")
+        self._createBranchFromSnapshotName(newBranch, snapshot)
 
 
     def _branchesForVolume(self, volumeName):
         """
         Return list of all L{FlockerBranch} instances for given volume.
+
+        XXX doesn't distinguish between remote and local volumes, so callers
+        are likely buggy if both exist. Solvable by having FlockerVolume
+        class to pass in, rather than string name.
         """
         result = []
         for branchName in self.mountRoot.listdir():
@@ -205,8 +265,9 @@ class Flocker(object):
                             branch.datasetName(self.poolName)).splitlines():
                 dataset, snapshotName = line.split(b"@")
                 if snapshotName.startswith(b"flocker-tag-"):
-                    tagName = snapshotName[len(b"flocker-tag-"):]
-                    result.append(tagName + b"@" + volumeName)
+                    tag = FlockerTag(branch.flockerName, branch.volume,
+                                     snapshotName[len(b"flocker-tag-"):])
+                    result.append(tag.publicName(self.flockerName))
         return result
 
 
@@ -254,14 +315,15 @@ class BranchOptions(Options):
 
 
     def run(self, flocker):
+        destinationBranch = FlockerBranch.fromBranchName(
+            self.newBranchName, flocker.flockerName)
         if self["branch"] is not None:
             fromBranch = FlockerBranch.fromBranchName(
                 self["branch"], flocker.flockerName)
-            destinationBranch = FlockerBranch.fromBranchName(
-                self.newBranchName, flocker.flockerName)
             flocker.branchOffBranch(destinationBranch, fromBranch)
         else:
-            raise NotImplementedError("tags don't work yet")
+            fromTag = FlockerTag.fromPublicName(self["tag"], flocker.flockerName)
+            flocker.branchOffTag(destinationBranch, fromTag)
 
 
 
