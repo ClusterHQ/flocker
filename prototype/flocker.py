@@ -209,8 +209,8 @@ class Flocker(object):
         """
         result = set()
         for branch in self._allBranches():
-            result.add(branch.volume.publicName(self.flockerName))
-        return result
+            result.add(branch.publicName(self.flockerName))
+        return sorted(result)
 
 
     def _createBranchFromSnapshotName(self, newBranch, snapshotName):
@@ -519,9 +519,9 @@ class FlockerOptions(Options):
 
     subCommands = [
         ["volume", None, CreateOptions, "Create a volume and its default trunk branch"],
-        ["list-volumes", None, ListVolumesOptions, "List volumes"],
+        ["list-all-branches", None, ListVolumesOptions, "List all branches"],
         ["branch", None, BranchOptions, "Create a branch"],
-        ["list-branches", None, ListBranchesOptions, "List branches"],
+        ["list-branches", None, ListBranchesOptions, "List branches for specific volume"],
         #["delete-branch", None, DeleteBranchOptions, "Delete a branch"],
         ["tag", None, TagOptions, "Create a tag"],
         ["list-tags", None, ListTagsOptions, "List tags"],
