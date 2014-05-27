@@ -11,6 +11,7 @@ hacky implementation details.
 Volumes will be exposed in docker containers in folder '/flocker'.
 """
 
+from datetime import datetime
 import time
 import subprocess
 from collections import namedtuple
@@ -203,14 +204,24 @@ class Flocker(object):
         self._exposeToDocker(trunk)
 
 
-    def listVolumes(self):
+    def listAllBranches(self):
         """
-        Return list of all volumes.
+        Return list of all branches.
         """
-        result = set()
+        result = []
         for branch in self._allBranches():
-            result.add(branch.publicName(self.flockerName))
-        return sorted(result)
+            name = branch.publicName(self.flockerName)
+            if branch.volume.flockerName != self.flockerName:
+                snapshots = self._snapshotsForBranch(branch)
+                times = []
+                for snapshot in snapshots:
+                    try:
+                        times.append(float(snapshot.split(b'@')[1]))
+                    except ValueError:
+                        continue
+                name += " (last pushed at %s)" % (datetime.utcfromtimestamp(max(times)).isoformat(),)
+            result.append(name)
+        return result
 
 
     def _createBranchFromSnapshotName(self, newBranch, snapshotName):
@@ -395,7 +406,7 @@ class ListVolumesOptions(Options):
     List volumes.
     """
     def run(self, flocker):
-        for name in flocker.listVolumes():
+        for name in flocker.listAllBranches():
             print name
 
 
