@@ -219,7 +219,7 @@ class Flocker(object):
                         times.append(float(snapshot.split(b'@')[1]))
                     except ValueError:
                         continue
-                name += " (last pushed at %s)" % (datetime.utcfromtimestamp(max(times)).isoformat(),)
+                name += " (last received at %s)" % (datetime.utcfromtimestamp(max(times)).isoformat(),)
             result.append(name)
         return result
 
@@ -242,9 +242,13 @@ class Flocker(object):
             raise ValueError("Can't create branches across volumes")
         if newBranch.volume.flockerName != self.flockerName:
             raise ValueError("Can't create branches on remote volumes")
-        snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
-                                   newBranch.mountName())
-        zfs(b"snapshot", snapshotName)
+        if fromBranch.volume.flockerName != self.flockerName:
+            # Remote branch, which means it should already have snapshots on it:
+            snapshotName = self._snapshotsForBranch(fromBranch)[-1]
+        else:
+            snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
+                                       newBranch.mountName())
+            zfs(b"snapshot", snapshotName)
         self._createBranchFromSnapshotName(newBranch, snapshotName)
 
 
