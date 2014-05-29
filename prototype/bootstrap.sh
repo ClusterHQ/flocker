@@ -1,23 +1,22 @@
 #!/bin/sh
 sudo /vagrant/root-bootstrap.sh
 
-# ZFS setup based on
-# http://www.firewing1.com/howtos/fedora-20/installing-zfs-and-setting-pool
-# until 0.6.3 is out:
+# ZFS setup, until RPMs are available for Fedora 20:
 cd ~
 git clone https://github.com/zfsonlinux/zfs.git
 git clone https://github.com/zfsonlinux/spl.git
 pushd spl
 ./configure
 make pkg
+sudo rpm -i *.noarch.rpm *.x86_64.rpm
 popd
 
 pushd zfs
 ./configure
 make pkg
+sudo rpm -i *.noarch.rpm *.x86_64.rpm
 popd
 
-sudo yum localinstall spl/spl-[version].$(uname -m).rpm spl/spl-dkms-[version].noarch.rpm zfs/zfs-[version].$(uname -m).rpm zfs/zfs-dkms-[version].noarch.rpm
 sudo systemctl enable zfs
 sudo systemctl start zfs
 

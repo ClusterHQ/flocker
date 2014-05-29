@@ -4,4 +4,6 @@
 yum groupinstall "Development tools"
 yum install kernel-headers kernel-devel zlib-devel libuuid-devel libselinux-devel rpmdevtools
 yum install autoconf automake rpm-devel libtool
-yum install gcc make perl
+yum install gcc make perl dkms
+yum install bc lsscsi mdadm
+
