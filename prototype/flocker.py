@@ -30,6 +30,17 @@ def zfs(*arguments):
 
 
 
+def sshzfs(hostname):
+    """
+    Return function like L{zfs} that uses ssh to talk to remote host.
+    """
+    def zfs(*arguments):
+        return subprocess.check_output(["ssh", "root@" + hostname, "zfs"]
+                                       + list(arguments))
+    return zfs
+
+
+
 def docker(*arguments):
     """
     Run a 'docker' comand with given arguments, raise on non-0 exit code.
@@ -171,11 +182,16 @@ class Flocker(object):
     """
     Flocker volume manager.
     """
-    def __init__(self, poolName):
+    def __init__(self, poolName, remoteHost=None):
         self.poolName = poolName
         self.mountRoot = FilePath(b"/").child(poolName)
         # Re-use pool name as name for this Flocker instance:
         self.flockerName = poolName
+        self.remoteHost = remoteHost
+        if remoteHost is None:
+            self._zfs = zfs
+        else:
+            self._zfs = sshzfs(remoteHost)
 
 
     def _exposeToDocker(self, branch):
@@ -200,7 +216,7 @@ class Flocker(object):
         """
         trunk = FlockerBranch(FlockerVolume(self.flockerName, volumeName),
                               b"trunk")
-        zfs(b"create", trunk.datasetName(self.poolName))
+        self._zfs(b"create", trunk.datasetName(self.poolName))
         self._exposeToDocker(trunk)
 
 
@@ -229,7 +245,7 @@ class Flocker(object):
         @type newBranch: L{FlockerBranch}
         @param snapshotName: L{bytes}, name of ZFS snapshot.
         """
-        zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
+        self._zfs(b"clone", snapshotName, newBranch.datasetName(self.poolName))
         self._exposeToDocker(newBranch)
 
 
@@ -248,7 +264,7 @@ class Flocker(object):
         else:
             snapshotName = b"%s@%s" % (fromBranch.datasetName(self.poolName),
                                        newBranch.mountName())
-            zfs(b"snapshot", snapshotName)
+            self._zfs(b"snapshot", snapshotName)
         self._createBranchFromSnapshotName(newBranch, snapshotName)
 
 
@@ -259,7 +275,7 @@ class Flocker(object):
 
         @param branch: L{FlockerBranch}
         """
-        return zfs(b"list", b"-H", b"-o", b"name", b"-r",
+        return self._zfs(b"list", b"-H", b"-o", b"name", b"-r",
                    b"-t", b"snapshot", "-s", "creation",
                    branch.datasetName(self.poolName)).splitlines()
 
@@ -291,7 +307,7 @@ class Flocker(object):
         Return list of all L{FlockerBranch} instances in this instance.
         """
         result = []
-        for dataset in zfs(b"list", b"-H", b"-o", "name", b"-d", b"1",
+        for dataset in self._zfs(b"list", b"-H", b"-o", "name", b"-d", b"1",
                               self.poolName).splitlines():
             if b"/" not in dataset:
                 continue
@@ -328,7 +344,7 @@ class Flocker(object):
         if branch.volume.flockerName != self.flockerName:
             raise ValueError("Can only tag local branches")
         tag = FlockerTag(branch.volume, tagName)
-        zfs(b"snapshot", tag.snapshotName(branch.name, self.poolName))
+        self._zfs(b"snapshot", tag.snapshotName(branch.name, self.poolName))
 
 
     def listTags(self, volume):
@@ -379,16 +395,21 @@ class Flocker(object):
         # Take a new snapshot:
         snapshotName = b"%s" % (time.time(),)
         newSnapshot = b"%s@%s" % (originDataset, snapshotName)
-        zfs(b"snapshot", newSnapshot)
+        self._zfs(b"snapshot", newSnapshot)
 
         # Send the difference between most recently pushed and new snapshot:
         initial = b""
         if mostRecent is not None:
             initial = b"-i %s@%s" % (originDataset, mostRecent)
-        subprocess.check_call("zfs send %s %s | zfs recv %s@%s" %
-                              (initial, newSnapshot, destinationDataset, snapshotName),
+        if destination.remoteHost is None:
+            maybeSSH = ""
+        else:
+            maybeSSH = "ssh root@" + destination.remoteHost
+        subprocess.check_call("zfs send %s %s | %s zfs recv %s@%s" %
+                              (initial, newSnapshot, maybeSSH,
+                               destinationDataset, snapshotName),
                               shell=True)
-        zfs(b"set", b"mountpoint=none", destinationDataset)
+        destination._zfs(b"set", b"mountpoint=none", destinationDataset)
 
 
 
@@ -518,7 +539,11 @@ class PushBranchOptions(Options):
     def run(self, flocker):
         if self["destination"] is None:
             raise UsageError("'destination' is required")
-        destination = Flocker(self["destination"])
+        destinationPool = self["destination"]
+        remoteHost = None
+        if ":" in destinationPool:
+            remoteHost, destinationPool = destinationPool.split(":")
+        destination = Flocker(destinationPool, remoteHost)
         branch = FlockerBranch.fromPublicName(self.name, flocker.flockerName)
         flocker.pushBranch(destination, branch)
 
