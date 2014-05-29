@@ -17,9 +17,6 @@ make pkg
 sudo rpm -i *.noarch.rpm *.x86_64.rpm
 popd
 
-sudo systemctl enable zfs
-sudo systemctl start zfs
-
 # Setup ZFS pool:
 sudo dd if=/dev/zero of=/root/zpool count=2000000
 sudo zpool create -m /zpool zpool /root/zpool
