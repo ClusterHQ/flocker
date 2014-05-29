@@ -18,5 +18,5 @@ sudo rpm -i *.noarch.rpm *.x86_64.rpm
 popd
 
 # Setup ZFS pool:
-sudo dd if=/dev/zero of=/root/zpool count=2000000
+sudo dd if=/dev/zero of=/root/zpool count=200000
 sudo zpool create -m /zpool zpool /root/zpool
