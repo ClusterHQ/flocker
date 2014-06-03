@@ -11,12 +11,15 @@ from twisted.application.service import Service
 
 
 class VolumeService(Service):
-    """Main service for volume management."""
+    """Main service for volume management.
+
+    :ivar unicode uuid: A unique identifier for this particular node's
+        volume manager.
+    """
 
     def __init__(self, config_path):
         """
-        :param config_path: :class:`FilePath`: instance pointing at the config
-            file.
+        :param FilePath config_path: Path to the volume manager config file.
         """
         self._config_path = config_path
 
