@@ -14,7 +14,7 @@ class VolumeService(Service):
     """Main service for volume management.
 
     :ivar unicode uuid: A unique identifier for this particular node's
-        volume manager.
+        volume manager. Only available once the service has started.
     """
 
     def __init__(self, config_path):
