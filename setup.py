@@ -36,6 +36,7 @@ setup(
         ],
 
     install_requires=[
+        "eliot == 0.3",
         "machinist == 0.1",
         "zope.interface == 4.0.5",
         # Pinning this isn't great in general, but we're only using UTC so meh:
