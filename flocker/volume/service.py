@@ -1,6 +1,4 @@
-"""
-Volume manager service, the main entry point that manages volumes.
-"""
+"""Volume manager service, the main entry point that manages volumes."""
 
 from __future__ import absolute_import
 

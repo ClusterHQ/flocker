@@ -1,6 +1,4 @@
-"""
-Tests for :module:`flocker.volume.service`.
-"""
+"""Tests for :module:`flocker.volume.service`."""
 
 from __future__ import absolute_import
 
