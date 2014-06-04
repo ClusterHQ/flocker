@@ -49,6 +49,10 @@ setup(
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
+            # pyflakes is pretty critical to have around to help point out
+            # obvious mistakes.
+            "pyflakes==0.8.1",
+
             # Run the test suite:
             "tox==1.7.1",
 
