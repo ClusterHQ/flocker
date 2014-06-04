@@ -4,7 +4,7 @@
 Unit tests for ZFS filesystem implementation.
 
 Further coverage is provided in
-:module:`flocker.functional.test_filesystems_zfs`.
+:module:`flocker.volume.functional.test_filesystems_zfs`.
 """
 
 import os
@@ -16,7 +16,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 
-from .utils import FakeProcessReactor
+from ...testtools import FakeProcessReactor
 
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (

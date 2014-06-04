@@ -4,7 +4,7 @@
 Functional tests for ZFS filesystem implementation.
 
 Further coverage is provided in
-:module:`flocker.test.test_filesystems_zfs`.
+:module:`flocker.volume.test.test_filesystems_zfs`.
 """
 
 import os
