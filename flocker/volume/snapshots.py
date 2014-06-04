@@ -17,7 +17,7 @@ from machinist import (
     TransitionTable, MethodSuffixOutputer, constructFiniteStateMachine,
     trivialInput)
 
-from ._twisted import timeoutDeferred
+from .._twisted import timeoutDeferred
 
 
 

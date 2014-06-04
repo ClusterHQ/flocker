@@ -11,7 +11,9 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import os.path
+from twisted.python.filepath import FilePath
+
+import sys
 
 # -- General configuration -----------------------------------------------------
 
@@ -43,10 +45,9 @@ copyright = u'2014, HybridCluster'
 # built documents.
 #
 # The short X.Y version.
-path = os.path.join(os.path.dirname(__file__), b"../flocker/version")
-with open(path) as fObj:
-    version = fObj.read().strip()
-del path
+sys.path.insert(0, FilePath(__file__).parent().parent().path)
+from flocker import __version__ as version
+del sys.path[0]
 
 # The full version, including alpha/beta/rc tags.
 release = version
