@@ -32,8 +32,16 @@ setup(
     # mentioned here.  These aren't recursive so each sub-package must also be
     # explicitly included.
     packages=[
-        "flocker", "flocker.test", "flocker.volume", "flocker.volume.test",
+        "flocker", "flocker.test",
+        "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
         ],
+
+    entry_points = {
+        # Command-line programs we want setuptools to install:
+        'console_scripts': [
+            'flocker-volume = flocker.volume.script:main',
+        ],
+    },
 
     install_requires=[
         "eliot == 0.3",
