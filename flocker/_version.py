@@ -50,7 +50,6 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False):
     return stdout
 
 
-import sys
 import re
 import os.path
 
