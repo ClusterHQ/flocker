@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 
 from os import environ
 
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
@@ -150,8 +151,9 @@ def create(reactor, ip, port):
     # In order to have the OUTPUT chain DNAT rule affect routing decisions, we
     # also need to tell the system to make routing decisions about traffic from
     # or to localhost.
-    with open(b"/proc/sys/net/ipv4/conf/default/route_localnet", "wt") as route_localnet:
-        route_localnet.write(b"1")
+    for path in FilePath(b"/proc/sys/net/ipv4/conf").children():
+        with path.child(b"route_localnet").open("wb") as route_localnet:
+            route_localnet.write(b"1")
 
     def run(command):
         finished = Deferred()
