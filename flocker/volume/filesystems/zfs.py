@@ -89,7 +89,7 @@ class ZFSSnapshots(object):
         self._filesystem = filesystem
 
     def create(self, name):
-        encodedName = b"%s@%s" % (self._filesystem.pool, name.toBytes())
+        encodedName = b"%s@%s" % (self._filesystem.pool, name.to_bytes())
         d = zfs_command(self._reactor, [b"snapshot", encodedName])
         d.addCallback(lambda _: None)
         return d
@@ -111,7 +111,7 @@ class ZFSSnapshots(object):
                 pool, encodedName = line.split(b'@', 1)
                 if pool == self._filesystem.pool:
                     try:
-                        result.append(SnapshotName.fromBytes(encodedName))
+                        result.append(SnapshotName.from_bytes(encodedName))
                     except ValueError:
                         pass
             return result

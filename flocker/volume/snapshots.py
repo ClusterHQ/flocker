@@ -37,7 +37,7 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
     _dateFormat = b"%Y-%m-%dT%H:%M:%S.%f"
 
 
-    def toBytes(self):
+    def to_bytes(self):
         """
         Encode the snapshot name into bytes.
 
@@ -48,7 +48,7 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
 
 
     @classmethod
-    def fromBytes(cls, encoded):
+    def from_bytes(cls, encoded):
         """
         Decode an encoded snapshot name.
 

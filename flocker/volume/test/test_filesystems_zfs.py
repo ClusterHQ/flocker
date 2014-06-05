@@ -95,7 +95,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         snapshots.create(name)
         arguments = reactor.processes[0]
         self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"mypool@%s" % (name.toBytes(),)])
+                                          b"mypool@%s" % (name.to_bytes(),)])
 
     def test_create_no_result_yet(self):
         """The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does
@@ -140,9 +140,9 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         d = snapshots.list()
         process_protocol = reactor.processes[0].processProtocol
         process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name.toBytes(),))
+            1, b"mypool@%s\n" % (name.to_bytes(),))
         process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name2.toBytes(),))
+            1, b"mypool@%s\n" % (name2.to_bytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name, name2])
@@ -161,9 +161,9 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         d = snapshots.list()
         process_protocol = reactor.processes[0].processProtocol
         process_protocol.childDataReceived(
-            1, b"mypool/child@%s\n" % (name.toBytes(),))
+            1, b"mypool/child@%s\n" % (name.to_bytes(),))
         process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name2.toBytes(),))
+            1, b"mypool@%s\n" % (name2.to_bytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name2])
@@ -181,7 +181,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         process_protocol = reactor.processes[0].processProtocol
         process_protocol.childDataReceived(1, b"mypool@alalalalal\n")
         process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name.toBytes(),))
+            1, b"mypool@%s\n" % (name.to_bytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name])
