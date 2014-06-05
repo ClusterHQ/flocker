@@ -46,7 +46,8 @@ def _main(reactor, *arguments):
     try:
         service.startService()
     except CreateConfigurationError as e:
-        sys.stderr.write("Writing the config file failed: " + str(e) + "\n")
+        sys.stderr.write(b"Writing config file %s failed: %s\n" % (
+            options["config"].path, e))
         sys.exit(1)
     return succeed(None)
 
