@@ -8,11 +8,12 @@ from __future__ import print_function
 
 from os import getuid
 from socket import socket
+from unittest import skipUnless
 
 from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress
 
-from twisted.trial.unittest import SkipTest, TestCase
+from twisted.trial.unittest import TestCase
 
 from .. import create
 
@@ -64,30 +65,30 @@ def is_environment_configured():
     return getuid() == 0
 
 
+ADDRESSES = [
+    IPAddress(address['addr'])
+    for name in interfaces()
+    for address in ifaddresses(name).get(AF_INET, [])
+]
+
+
 class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
     """
+    @skipUnless(
+        is_environment_configured(),
+        "Cannot test port forwarding without suitable test environment.")
+    @skipUnless(
+        len(ADDRESSES) >= 2,
+        "Cannot test proxying without at least two addresses.")
     def setUp(self):
         """
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        if not is_environment_configured():
-            raise SkipTest(
-                "Cannot test port forwarding without suitable test environment.")
-
-        self.addresses = [
-            IPAddress(address['addr'])
-            for name in interfaces()
-            for address in ifaddresses(name).get(AF_INET, [])
-        ]
-        if len(self.addresses) < 2:
-            raise SkipTest(
-                "Cannot test proxying without at least two addresses.")
-
-        self.serverAddress = self.addresses[0]
-        self.proxyAddress = self.addresses[1]
+        self.serverAddress = ADDRESSES[0]
+        self.proxyAddress = ADDRESSES[1]
 
 
         # This is the target of the proxy which will be created.
