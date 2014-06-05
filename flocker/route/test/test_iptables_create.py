@@ -17,15 +17,26 @@ from twisted.trial.unittest import SkipTest, TestCase
 from .. import create
 
 
-def connect_nonblocking(address, port):
+def connect_nonblocking(ip, port):
+    """
+    Attempt a TCP connection to the given address without blocking.
+    """
     client = socket()
     client.setblocking(False)
-    client.connect_ex((address.exploded, port))
+    client.connect_ex((ip.exploded, port))
     return client
 
 
 
 def testEnvironmentConfigured():
+    """
+    Determine whether it is possible to exercise the proxy setup functionality
+    in the current execution environment.
+
+    :return: :obj:`True` if the proxy setup functionality could work given the
+        underlying system and the privileges of this process, :obj:`False`
+        otherwise.
+    """
     # TODO: A nicer approach would be to create a new network namespace,
     # configure a couple interfaces with a couple addresses in it, and run the
     # test in the context of that network namespace.
@@ -58,6 +69,10 @@ class CreateTests(TestCase):
     Tests for the creation of new external routing rules.
     """
     def setUp(self):
+        """
+        Select some addresses between which to proxy and set up a server to act
+        as the target of the proxying.
+        """
         if not testEnvironmentConfigured():
             raise SkipTest(
                 "Cannot test port forwarding without suitable test environment.")
