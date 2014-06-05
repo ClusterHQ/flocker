@@ -48,7 +48,7 @@ def _main(reactor, *arguments):
     except CreateConfigurationError as e:
         sys.stderr.write(b"Writing config file %s failed: %s\n" % (
             options["config"].path, e))
-        sys.exit(1)
+        raise SystemExit(1)
     return succeed(None)
 
 
