@@ -9,10 +9,10 @@ from __future__ import unicode_literals
 
 from os import environ
 
-from twisted.internet.defer import Deferred, gatherResults
+from twisted.internet.defer import Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
-
+from twisted.internet.task import cooperate
 
 
 class Collector(Protocol):
@@ -161,5 +161,6 @@ def create(reactor, ip, port):
         connecting.addCallback(lambda ignored: finished)
         return connecting
 
-    configuring = gatherResults([run(prerouting), run(postrouting), run(output)])
-    return configuring
+    configuring = cooperate(run(command) for command in (prerouting, postrouting, output))
+    return configuring.whenDone()
+
