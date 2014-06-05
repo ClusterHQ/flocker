@@ -119,6 +119,9 @@ def create(ip, port):
 
     # The network stack only considers forwarding traffic when certain system
     # configuration is in place.
+    #
+    # https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt will
+    # explain the meaning of these in (very slightly) more detail.
     with open(b"/proc/sys/net/ipv4/conf/default/forwarding", "wt") as forwarding:
         forwarding.write(b"1")
 
