@@ -44,6 +44,8 @@ setup(
 
         "netifaces == 0.8",
         "ipaddr == 2.1.10",
+
+        "python-iptables == 0.3.0",
         ],
 
     extras_require={
