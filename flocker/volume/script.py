@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """The command-line ``flocker-volume`` tool."""
 
 import sys
@@ -7,12 +9,18 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import react
 from twisted.internet.defer import succeed
 
-from .service import VolumeService
+from .service import VolumeService, CreateConfigurationError
 from .. import __version__
 
 
 class FlockerVolumeOptions(Options):
-    """flocker-volume - volume management."""
+    """Command line options for ``flocker-volume`` volume management tool."""
+
+    longdesc = """flocker-volume allows you to manage volumes, filesystems
+    that can be attached to Docker containers.
+
+    At the moment no functionality has been implemented.
+    """
 
     optParameters = [
         ["config", None, b"/etc/flocker/volume.json",
@@ -23,6 +31,7 @@ class FlockerVolumeOptions(Options):
         self["config"] = FilePath(self["config"])
 
     def opt_version(self):
+        """Print the program's version and exit."""
         print(__version__)
         raise SystemExit(0)
 
@@ -34,7 +43,11 @@ def _main(reactor, *arguments):
     options = FlockerVolumeOptions()
     options.parseOptions(arguments)
     service = VolumeService(options["config"])
-    service.startService()
+    try:
+        service.startService()
+    except CreateConfigurationError as e:
+        sys.stderr.write("Writing the config file failed: " + str(e) + "\n")
+        sys.exit(1)
     return succeed(None)
 
 
