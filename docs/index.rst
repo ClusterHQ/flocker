@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    architecture/index
+   volume/index
 
 
 Indices and tables
