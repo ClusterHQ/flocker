@@ -53,7 +53,7 @@ def create(reactor, ip, port):
     # specified port so it looks like it is destined for the specified ip
     # instead of destined for "us".  This gets the packets delivered to the
     # right destination.
-    dnat = [
+    prerouting = [
         b"iptables",
 
         # All NAT stuff happens in the netfilter NAT table.
@@ -63,7 +63,7 @@ def create(reactor, ip, port):
         # happen "pre"-routing so that the normal routing rules on the machine
         # will use the re-written destination address and get the packet to
         # that new destination.
-        b"-A", "PREROUTING",
+        b"-A", b"PREROUTING",
 
         # Only re-route traffic with a destination port matching the one we
         # were told to manipulate.  It is also necessary to specify TCP (or
@@ -96,7 +96,7 @@ def create(reactor, ip, port):
     # looking up the external interface's address for every single packet.  But
     # it requires this code to know that address and it requires that if it
     # ever changes the rule gets updated.  So we'll just masquerade for now.
-    masquerade = [
+    postrouting = [
         b"iptables",
 
         # We're still in NAT-land.
@@ -118,7 +118,42 @@ def create(reactor, ip, port):
         b"-j", b"MASQUERADE",
     ]
 
-    def iptables(command):
+    # Secret level!!  Traffic that originates *on* the host bypasses the
+    # PREROUTING chain.  Instead, it passes through the OUTPUT chain.  If we
+    # want connections from localhost to the forwarded port to be affected then
+    # we need a rule in the OUTPUT chain to do the same kind of DNAT that we
+    # did in the PREROUTING chain.
+    output = [
+        b"iptables",
+
+        # Yep, still in NAT-land.
+        b"-t", b"nat",
+
+        # As mentioned, this rule is for the OUTPUT chain.
+        b"-A", b"OUTPUT",
+
+        # Matching exactly the same kinds of packets as the other two rules are
+        # matching.
+        b"--protocol", b"tcp",
+        b"--dport", unicode(port).encode("ascii"),
+
+        # Do the same DNAT as we did in the rule for the PREROUTING chain.
+        b"-j", b"DNAT",
+        b"--to-destination", unicode(ip).encode("ascii"),
+    ]
+
+    # The network stack only considers forwarding traffic when certain system
+    # configuration is in place.
+    with open(b"/proc/sys/net/ipv4/conf/default/forwarding", "wt") as forwarding:
+        forwarding.write(b"1")
+
+    # In order to have the OUTPUT chain DNAT rule affect routing decisions, we
+    # also need to tell the system to make routing decisions about traffic from
+    # or to localhost.
+    with open(b"/proc/sys/net/ipv4/conf/default/route_localnet", "wt") as route_localnet:
+        route_localnet.write(b"1")
+
+    def run(command):
         finished = Deferred()
         connecting = connectProtocol(
             ProcessEndpoint(reactor, command[0], command, env=environ),
@@ -126,5 +161,5 @@ def create(reactor, ip, port):
         connecting.addCallback(lambda ignored: finished)
         return connecting
 
-    configuring = gatherResults([iptables(dnat), iptables(masquerade)])
+    configuring = gatherResults([run(prerouting), run(postrouting), run(output)])
     return configuring
