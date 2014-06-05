@@ -13,7 +13,6 @@ from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress
 
 from twisted.trial.unittest import SkipTest, TestCase
-from twisted.internet import reactor
 
 from .. import create
 
@@ -104,7 +103,7 @@ class CreateTests(TestCase):
         """
         A connection attempt is forwarded to the specified destination address.
         """
-        creating = create(reactor, self.serverAddress, self.port)
+        creating = create(self.serverAddress, self.port)
         def created(ignored):
             client = connect_nonblocking(self.proxyAddress, self.port)
             accepted, client_address = self.server.accept()

@@ -12,7 +12,7 @@ from iptc import Chain, Rule, Table
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 
-def create(reactor, ip, port):
+def create(ip, port):
     """
     Create a new TCP proxy to `ip` on port `port`.
 
