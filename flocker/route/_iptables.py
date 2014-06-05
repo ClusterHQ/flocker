@@ -47,6 +47,12 @@ def create(ip, port):
     tcp = rule.create_match(b"tcp")
     tcp.dport = unicode(port).encode("ascii")
 
+    # And only re-route traffic directed at this host.  Traffic originating on
+    # this host directed at some random other host that happens to be on the
+    # same port should be left alone.
+    local = rule.create_match(b"addrtype")
+    local.dst_type = b"LOCAL"
+
     # If the filter matched, jump to the DNAT chain to handle doing the actual
     # packet mangling.  DNAT is a built-in chain that already knows how to do
     # this.
@@ -84,6 +90,9 @@ def create(ip, port):
     # earlier stage.  We might want to change the factoring of this code to
     # avoid the duplication - particularly in case we want to change the
     # specifics of the filter.
+    #
+    # This omits the LOCAL addrtype check because at this point the packet is
+    # definitely leaving this host.
     rule.protocol = b"tcp"
     tcp = rule.create_match(b"tcp")
     tcp.dport = unicode(port).encode("ascii")
@@ -105,11 +114,12 @@ def create(ip, port):
 
     rule = Rule()
 
-    # Matching exactly the same kinds of packets as the other two rules are
-    # matching.
+    # Matching the exact same kinds of packets as the PREROUTING rule matches.
     rule.protocol = b"tcp"
     tcp = rule.create_match(b"tcp")
     tcp.dport = unicode(port).encode("ascii")
+    local = rule.create_match(b"addrtype")
+    local.dst_type = b"LOCAL"
 
     # Do the same DNAT as we did in the rule for the PREROUTING chain.
     dnat = rule.create_target(b"DNAT")
