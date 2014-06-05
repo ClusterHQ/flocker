@@ -14,7 +14,13 @@ from .. import __version__
 
 
 class FlockerVolumeOptions(Options):
-    """flocker-volume - volume management."""
+    """Command line options for ``flocker-volume`` volume management tool."""
+
+    longdesc = """flocker-volume allows you to manage volumes, filesystems
+    that can be attached to Docker containers.
+
+    At the moment no functionality has been implemented.
+    """
 
     optParameters = [
         ["config", None, b"/etc/flocker/volume.json",
@@ -25,6 +31,7 @@ class FlockerVolumeOptions(Options):
         self["config"] = FilePath(self["config"])
 
     def opt_version(self):
+        """Print the program's version and exit."""
         print(__version__)
         raise SystemExit(0)
 
