@@ -119,6 +119,8 @@ class CreateTests(TestCase):
         """
         A connection attempt is forwarded to the specified destination address.
         """
+        # Note - we're leaking iptables rules into the system here.
+        # https://github.com/hybridlogic/flocker/issues/22
         creating = create(self.serverAddress, self.port)
         def created(ignored):
             client = connect_nonblocking(self.proxyAddress, self.port)
