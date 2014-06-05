@@ -1,7 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""
-Unit tests for ZFS filesystem implementation.
+"""Unit tests for ZFS filesystem implementation.
 
 Further coverage is provided in
 :module:`flocker.volume.functional.test_filesystems_zfs`.
@@ -20,87 +19,75 @@ from ...testtools import FakeProcessReactor
 
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
-    zfsCommand, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
+    zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     )
 
 
 class ZfsCommandTests(SynchronousTestCase):
     """
-    Tests for :func:`zfsCommand`.
+    Tests for :func:`zfs_command`.
     """
     def test_call(self):
-        """
-        A ``zfs`` subprocess is launched with the given arguments.
-        """
+        """A ``zfs`` subprocess is launched with the given arguments."""
         reactor = FakeProcessReactor()
-        zfsCommand(reactor, [b"-H", b"lalala"])
+        zfs_command(reactor, [b"-H", b"lalala"])
         arguments = reactor.processes[0]
         self.assertEqual((arguments.executable, arguments.args, arguments.env),
                          (b"zfs", [b"zfs", b"-H", b"lalala"], os.environ))
 
-
-    def test_normalExit(self):
-        """
-        If the subprocess exits with exit code 0, the bytes output by its stdout
-        are returned as the result of the ``Deferred`` returned from
-        ``zfsCommand``.
+    def test_normal_exit(self):
+        """If the subprocess exits with exit code 0, the bytes output by its
+        stdout are returned as the result of the ``Deferred`` returned from
+        ``zfs_command``.
         """
         reactor = FakeProcessReactor()
-        result = zfsCommand(reactor, [b"-H", b"lalala"])
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.childDataReceived(1, b"abc")
-        processProtocol.childDataReceived(1, b"def")
-        processProtocol.processEnded(Failure(ProcessDone(0)))
+        result = zfs_command(reactor, [b"-H", b"lalala"])
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(1, b"abc")
+        process_protocol.childDataReceived(1, b"def")
+        process_protocol.processEnded(Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(result), b"abcdef")
 
-
-    def test_errorExit(self):
-        """
-        If the subprocess exits with exit code 1, the ``Deferred`` returned from
-        ``zfsCommand`` errbacks with ``CommandFailed``.
+    def test_error_exit(self):
+        """If the subprocess exits with exit code 1, the ``Deferred`` returned
+        from ``zfs_command`` errbacks with ``CommandFailed``.
         """
         reactor = FakeProcessReactor()
-        result = zfsCommand(reactor, [b"-H", b"lalala"])
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.processEnded(Failure(ProcessTerminated(1)))
+        result = zfs_command(reactor, [b"-H", b"lalala"])
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.processEnded(Failure(ProcessTerminated(1)))
         self.failureResultOf(result, CommandFailed)
 
-
-    def test_badArgumentsExit(self):
-        """
-        If the subprocess exits with exit code 2, the ``Deferred`` returned from
-        ``zfsCommand`` errbacks with ``BadArguments``.
+    def test_bad_arguments_exit(self):
+        """If the subprocess exits with exit code 2, the ``Deferred`` returned
+        from ``zfs_command`` errbacks with ``BadArguments``.
         """
         reactor = FakeProcessReactor()
-        result = zfsCommand(reactor, [b"-H", b"lalala"])
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.processEnded(Failure(ProcessTerminated(2)))
+        result = zfs_command(reactor, [b"-H", b"lalala"])
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.processEnded(Failure(ProcessTerminated(2)))
         self.failureResultOf(result, BadArguments)
 
-
-    def test_otherExit(self):
+    def test_other_exit(self):
         """
         If the subprocess exits with exit code other than 0, 1 or 2, the
-        ``Deferred`` returned from ``zfsCommand`` errbacks with
+        ``Deferred`` returned from ``zfs_command`` errbacks with
         whatever error the process exited with.
         """
         reactor = FakeProcessReactor()
-        result = zfsCommand(reactor, [b"-H", b"lalala"])
-        processProtocol = reactor.processes[0].processProtocol
+        result = zfs_command(reactor, [b"-H", b"lalala"])
+        process_protocol = reactor.processes[0].processProtocol
         exception = ProcessTerminated(99)
-        processProtocol.processEnded(Failure(exception))
+        process_protocol.processEnded(Failure(exception))
         self.assertEqual(self.failureResultOf(result).value, exception)
 
 
-
 class ZFSSnapshotsTests(SynchronousTestCase):
-    """
-    Unit tests for ``ZFSSnapshotsTests``.
-    """
+    """Unit tests for ``ZFSSnapshotsTests``."""
+
     def test_create(self):
-        """
-        ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
-        pool and snapshot name.
+        """``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with
+        the pool and snapshot name.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
@@ -110,21 +97,17 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertEqual(arguments.args, [b"zfs", b"snapshot",
                                           b"mypool@%s" % (name.toBytes(),)])
 
-
-    def test_createNoResultYet(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does not
-        fire if the creation is unfinished.
+    def test_create_no_result_yet(self):
+        """The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does
+        not fire if the creation is unfinished.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
         d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
         self.assertNoResult(d)
 
-
-    def test_createResult(self):
-        """
-        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
+    def test_create_result(self):
+        """The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
         when creation has finished.
         """
         reactor = FakeProcessReactor()
@@ -134,10 +117,8 @@ class ZFSSnapshotsTests(SynchronousTestCase):
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), None)
 
-
     def test_list(self):
-        """
-        ``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
+        """``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
         name.
         """
         reactor = FakeProcessReactor()
@@ -147,11 +128,9 @@ class ZFSSnapshotsTests(SynchronousTestCase):
                          [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
                           b"-o", b"name", b"-s", b"name", b"mypool"])
 
-
-    def test_listResult(self):
-        """
-        ``ZFSSnapshots.list`` parses out the snapshot names from the results of
-        the command.
+    def test_list_result(self):
+        """``ZFSSnapshots.list`` parses out the snapshot names from the results
+        of the command.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
@@ -159,17 +138,17 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         name2 = SnapshotName(datetime.now(UTC), b"node2")
 
         d = snapshots.list()
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name.toBytes(),))
-        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name2.toBytes(),))
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(
+            1, b"mypool@%s\n" % (name.toBytes(),))
+        process_protocol.childDataReceived(
+            1, b"mypool@%s\n" % (name2.toBytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name, name2])
 
-
-    def test_listResultIgnoresOtherPools(self):
-        """
-        ``ZFSSnapshots.list`` skips snapshots of other pools.
+    def test_list_result_ignores_other_pools(self):
+        """``ZFSSnapshots.list`` skips snapshots of other pools.
 
         In particular, we are likely to see snapshot names of sub-pools in
         the output.
@@ -180,18 +159,17 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         name2 = SnapshotName(datetime.now(UTC), b"node2")
 
         d = snapshots.list()
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.childDataReceived(
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(
             1, b"mypool/child@%s\n" % (name.toBytes(),))
-        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name2.toBytes(),))
+        process_protocol.childDataReceived(
+            1, b"mypool@%s\n" % (name2.toBytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name2])
 
-
-    def test_listIgnoresUndecodableSnapshots(self):
-        """
-        ``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
+    def test_list_ignores_undecodable_snapshots(self):
+        """``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
 
         These are presumably snapshots not being managed by Flocker.
         """
@@ -200,9 +178,10 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         name = SnapshotName(datetime.now(UTC), b"node")
 
         d = snapshots.list()
-        processProtocol = reactor.processes[0].processProtocol
-        processProtocol.childDataReceived(1, b"mypool@alalalalal\n")
-        processProtocol.childDataReceived(1, b"mypool@%s\n" % (name.toBytes(),))
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(1, b"mypool@alalalalal\n")
+        process_protocol.childDataReceived(
+            1, b"mypool@%s\n" % (name.toBytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name])

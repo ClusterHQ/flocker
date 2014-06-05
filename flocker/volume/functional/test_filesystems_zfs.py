@@ -38,9 +38,9 @@ def createZFSPool(testCase):
     testCase.addCleanup(os.remove, poolPath)
     subprocess.check_call([b"zpool", b"create", b"-m", mountPath, poolName,
                            poolPath])
-    testCase.addCleanup(subprocess.check_call, [b"zpool", b"destroy", poolName])
+    testCase.addCleanup(subprocess.check_call,
+                        [b"zpool", b"destroy", poolName])
     return Filesystem(poolName)
-
 
 
 IFilesystemSnapshotsTests = makeIFilesystemSnapshotsTests(
