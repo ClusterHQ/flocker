@@ -39,6 +39,13 @@ class VolumeServiceTests(TestCase):
         config = json.loads(path.getContent())
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
 
+    def test_no_config_directory(self):
+        """The config file's parent directory is created if it does not exist."""
+        path = FilePath(self.mktemp()).child(b"config.json")
+        service = VolumeService(path)
+        service.startService()
+        self.assertTrue(path.exists())
+
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""
         path = self.mktemp()

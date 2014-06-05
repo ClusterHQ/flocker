@@ -24,6 +24,9 @@ class VolumeService(Service):
         self._config_path = config_path
 
     def startService(self):
+        parent = self._config_path.parent()
+        if not parent.exists():
+            parent.makedirs()
         if not self._config_path.exists():
             uuid = unicode(uuid4())
             self._config_path.setContent(json.dumps({u"uuid": uuid,
