@@ -10,7 +10,8 @@ from __future__ import unicode_literals
 from iptc import Chain, Rule, Table
 
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+
+
 
 def create(ip, port):
     """
@@ -19,8 +20,9 @@ def create(ip, port):
     :param ip: The destination to which to proxy.
     :type ip: ipaddr.IPAddress
 
-    :param port: The TCP port number on which to proxy.
-    :type port: int
+    :param int port: The TCP port number on which to proxy.
+
+    :return: None
     """
     # We don't want to mangle traffic coming *out* of the target container.
     # That container might be on this host or it might be somewhere else.  So
@@ -131,5 +133,3 @@ def create(ip, port):
     for path in FilePath(b"/proc/sys/net/ipv4/conf").children():
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
-
-    return succeed(None)

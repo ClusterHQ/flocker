@@ -121,10 +121,8 @@ class CreateTests(TestCase):
         """
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
-        creating = create(self.serverAddress, self.port)
-        def created(ignored):
-            client = connect_nonblocking(self.proxyAddress, self.port)
-            accepted, client_address = self.server.accept()
-            self.assertEqual(client.getsockname(), client_address)
-        creating.addCallback(created)
-        return creating
+        create(self.serverAddress, self.port)
+
+        client = connect_nonblocking(self.proxyAddress, self.port)
+        accepted, client_address = self.server.accept()
+        self.assertEqual(client.getsockname(), client_address)
