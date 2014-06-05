@@ -10,6 +10,10 @@ from uuid import uuid4
 from twisted.application.service import Service
 
 
+class CreateConfigurationError(Exception):
+    """Create the configuration file failed."""
+
+
 class VolumeService(Service):
     """Main service for volume management.
 
@@ -25,11 +29,14 @@ class VolumeService(Service):
 
     def startService(self):
         parent = self._config_path.parent()
-        if not parent.exists():
-            parent.makedirs()
-        if not self._config_path.exists():
-            uuid = unicode(uuid4())
-            self._config_path.setContent(json.dumps({u"uuid": uuid,
-                                                     u"version": 1}))
+        try:
+            if not parent.exists():
+                parent.makedirs()
+            if not self._config_path.exists():
+                uuid = unicode(uuid4())
+                self._config_path.setContent(json.dumps({u"uuid": uuid,
+                                                         u"version": 1}))
+        except OSError as e:
+            raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
         self.uuid = config[u"uuid"]

@@ -12,7 +12,7 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
 
-from ..service import VolumeService
+from ..service import VolumeService, CreateConfigurationError
 
 
 class VolumeServiceTests(TestCase):
@@ -45,6 +45,26 @@ class VolumeServiceTests(TestCase):
         service = VolumeService(path)
         service.startService()
         self.assertTrue(path.exists())
+
+    def test_config_makedirs_failed(self):
+        """If creating the config directory fails then CreateConfigurationError
+        is raised."""
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.chmod(0)
+        path = path.child(b"dir").child(b"config.json")
+        service = VolumeService(path)
+        self.assertRaises(CreateConfigurationError, service.startService)
+
+    def test_config_write_failed(self):
+        """If writing the config fails then CreateConfigurationError
+        is raised."""
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.chmod(0)
+        path = path.child(b"config.json")
+        service = VolumeService(path)
+        self.assertRaises(CreateConfigurationError, service.startService)
 
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""

@@ -9,7 +9,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import react
 from twisted.internet.defer import succeed
 
-from .service import VolumeService
+from .service import VolumeService, CreateConfigurationError
 from .. import __version__
 
 
@@ -43,7 +43,11 @@ def _main(reactor, *arguments):
     options = FlockerVolumeOptions()
     options.parseOptions(arguments)
     service = VolumeService(options["config"])
-    service.startService()
+    try:
+        service.startService()
+    except CreateConfigurationError as e:
+        sys.stderr.write("Writing the config file failed: " + str(e) + "\n")
+        sys.exit(1)
     return succeed(None)
 
 

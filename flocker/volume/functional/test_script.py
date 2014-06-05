@@ -2,7 +2,7 @@
 
 """Functional tests for the ``flocker-volume`` command line tool."""
 
-from subprocess import check_output
+from subprocess import check_output, Popen, PIPE
 import json
 import os
 
@@ -22,6 +22,21 @@ def run(*args):
     """
     return check_output([b"flocker-volume"] + list(args))
 
+def run_expecting_error(*args):
+    """Run ``flocker-volume`` with the given arguments.
+
+    :param args: Additional command line arguments as ``bytes``.
+
+    :return: The output of standard error.
+    :raises: If exit code is 0.
+    """
+    process = Popen([b"flocker-volume"] + list(args), stderr=PIPE)
+    result = process.stderr.read()
+    exit_code = process.wait()
+    if exit_code == 0:
+        raise AssertionError("flocker-volume exited with code 0.")
+    return result
+
 
 class FlockerVolumeTests(TestCase):
     """Tests for ``flocker-volume``."""
@@ -39,3 +54,15 @@ class FlockerVolumeTests(TestCase):
         path = FilePath(self.mktemp())
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
+
+    def test_no_permission(self):
+        """If the config file is not writeable a meaningful response is
+        written.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.chmod(0)
+        config = path.child(b"out.json")
+        result = run_expecting_error(b"--config", config.path)
+        self.assertEqual(result,
+                         b"Writing the config file failed: Permission denied\n")
