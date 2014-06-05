@@ -28,7 +28,7 @@ def connect_nonblocking(ip, port):
 
 
 
-def testEnvironmentConfigured():
+def is_environment_configured():
     """
     Determine whether it is possible to exercise the proxy setup functionality
     in the current execution environment.
@@ -73,7 +73,7 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        if not testEnvironmentConfigured():
+        if not is_environment_configured():
             raise SkipTest(
                 "Cannot test port forwarding without suitable test environment.")
 
