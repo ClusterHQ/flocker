@@ -126,3 +126,31 @@ class CreateTests(TestCase):
         client = connect_nonblocking(self.proxyAddress, self.port)
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
+
+
+    def test_client_to_server(self):
+        """
+        A proxied connection will deliver bytes from the client side to the
+        server side.
+        """
+        create(self.serverAddress, self.port)
+
+        client = connect_nonblocking(self.proxyAddress, self.port)
+        accepted, client_address = self.server.accept()
+
+        client.send(b"x")
+        self.assertEqual(b"x", accepted.recv())
+
+
+    def test_server_to_client(self):
+        """
+        A proxied connection will deliver bytes from the server side to the
+        client side.
+        """
+        create(self.serverAddress, self.port)
+
+        client = connect_nonblocking(self.proxyAddress, self.port)
+        accepted, client_address = self.server.accept()
+
+        accepted.send(b"x")
+        self.assertEqual(b"x", client.recv())
