@@ -139,7 +139,7 @@ class CreateTests(TestCase):
         accepted, client_address = self.server.accept()
 
         client.send(b"x")
-        self.assertEqual(b"x", accepted.recv())
+        self.assertEqual(b"x", accepted.recv(1))
 
 
     def test_server_to_client(self):
@@ -153,4 +153,4 @@ class CreateTests(TestCase):
         accepted, client_address = self.server.accept()
 
         accepted.send(b"x")
-        self.assertEqual(b"x", client.recv())
+        self.assertEqual(b"x", client.recv(1))
