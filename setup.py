@@ -40,7 +40,10 @@ setup(
         "zope.interface == 4.0.5",
         # Pinning this isn't great in general, but we're only using UTC so meh:
         "pytz == 2014.2",
-        "Twisted == 13.2.0"
+        "Twisted == 13.2.0",
+
+        "netifaces == 0.8",
+        "ipaddr == 2.1.10",
         ],
 
     extras_require={
