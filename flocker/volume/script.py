@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """The command-line ``flocker-volume`` tool."""
 
 import sys

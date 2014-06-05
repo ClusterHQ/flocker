@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """Tests for :module:`flocker.volume.service`."""
 
 from __future__ import absolute_import

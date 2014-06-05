@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """Functional tests for the ``flocker-volume`` command line tool."""
 
 from subprocess import check_output
@@ -33,7 +35,7 @@ class FlockerVolumeTests(TestCase):
         self.assertEqual(result, b"%s\n" % (__version__,))
 
     def test_config(self):
-        """``flocker-volume --config path`` creates a JSON file at that path."""
+        """``flocker-volume --config path`` writes a JSON file at that path."""
         path = FilePath(self.mktemp())
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))

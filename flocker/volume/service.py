@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """Volume manager service, the main entry point that manages volumes."""
 
 from __future__ import absolute_import
