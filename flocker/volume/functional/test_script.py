@@ -67,4 +67,5 @@ class FlockerVolumeTests(TestCase):
         config = path.child(b"out.json")
         result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
-                         b"Writing the config file failed: Permission denied\n")
+                         b"Writing config file %s failed: Permission denied\n"
+                         % (config.path,))
