@@ -194,14 +194,43 @@ class CreateTests(TestCase):
         self.addCleanup(run, b"ip link delete " + veth0)
 
         ops = [
+            # Create a new network namespace where we can assign a non-local
+            # address to use as the target of a connection attempt.
             b"ip netns add %(netns)s",
+
+            # Create a virtual ethernet pair so there is a network link between
+            # the host and the new network namespace.
             b"ip link add %(veth0)s type veth peer name %(veth1)s",
+
+            # Assign an address to the virtual ethernet interface that will
+            # remain on the host.  This will be our "gateway" into the network
+            # namespace.
             b"ip address add %(gateway)s dev %(veth0)s",
+
+            # Bring it up.
             b"ip link set dev %(veth0)s up",
+
+            # Put the other virtual ethernet interface into the network
+            # namespace.  Now it will only affect networking behavior for code
+            # running in that network namespace, not for code running directly
+            # on the host network (like the code in this test and whatever
+            # iptables rules we created).
             b"ip link set %(veth1)s netns %(netns)s",
-            b"ip netns exec %(netns)s ip link set dev %(veth1)s up",
+
+            # Assign to that virtual ethernet interface an address on the same
+            # (private, unused) network as the address we gave to the gateway
+            # interface.
             b"ip netns exec %(netns)s ip address add %(address)s dev %(veth1)s",
+
+            # And bring it up.
+            b"ip netns exec %(netns)s ip link set dev %(veth1)s up",
+
+            # Add a route into the network namespace via the virtual interface
+            # for traffic bound for addresses on that network.
             b"ip route add %(network)s dev %(veth0)s scope link",
+
+            # And add a reciprocal route so traffic generated inside the
+            # network namespace (like TCP RST packets) can get back to us.
             b"ip netns exec %(netns)s ip route add default dev %(veth1)s",
         ]
 
@@ -212,10 +241,15 @@ class CreateTests(TestCase):
         for op in ops:
             run(op % params)
 
+        # Create the proxy which we expect not to be invoked.
         create(self.serverAddress, self.port)
 
         client = socket()
         client.settimeout(1)
+
+        # Try to connect to an address hosted inside that network namespace.
+        # It should fail.  It should not be proxied to the server created in
+        # setUp.
         exception = self.assertRaises(
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
