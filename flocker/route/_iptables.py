@@ -18,7 +18,7 @@ def create(ip, port):
     Create a new TCP proxy to `ip` on port `port`.
 
     :param ip: The destination to which to proxy.
-    :type ip: ipaddr.IPAddress
+    :type ip: ipaddr.IPv4Address
 
     :param int port: The TCP port number on which to proxy.
 
