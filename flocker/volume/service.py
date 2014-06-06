@@ -73,5 +73,9 @@ class Volume(object):
     :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider where the volume's filesystem is stored.
     """
-    #def get_filesystem(self):
-    #    return self._pool.get(self)
+    def get_filesystem(self):
+        """Return the volume's filesystem.
+
+        :return: The ``IFilesystem`` provider for the volume.
+        """
+        return self._pool.get(self)

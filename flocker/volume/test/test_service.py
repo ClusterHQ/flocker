@@ -14,12 +14,13 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
 
-from ..service import VolumeService, CreateConfigurationError
+from ..service import VolumeService, CreateConfigurationError, Volume
+from ..filesystems.memory import FilesystemStoragePool
 
 
-class VolumeServiceTests(TestCase):
+class VolumeServiceStartupTests(TestCase):
     """
-    Tests for :class:`VolumeService`.
+    Tests for :class:`VolumeService` startup.
     """
     def test_interface(self):
         """:class:`VolumeService` implements :class:`IService`."""
@@ -78,3 +79,61 @@ class VolumeServiceTests(TestCase):
         service2 = VolumeService(FilePath(path))
         service2.startService()
         self.assertEqual(service.uuid, service2.uuid)
+
+
+class VolumeServiceAPITests(TestCase):
+    """Tests for the ``VolumeService`` API."""
+
+    def test_create_result(self):
+        """``create()`` returns a ``Deferred`` that fires with a ``Volume``."""
+
+    def test_create_filesystem(self):
+        """``create()`` creates the volume's filesystem."""
+
+    def test_create_mode(self):
+        """The created filesystem is readable/writable/executable by anyone.
+
+        A better alternative will be implemented in
+        https://github.com/hybridlogic/flocker/issues/34
+        """
+
+
+class VolumeTests(TestCase):
+    """Tests for ``Volume``."""
+
+    def test_equality(self):
+        """Volumes are equal if they have the same name, uuid and pool."""
+        pool = object()
+        v1 = Volume(uuid=u"123", name=u"456", _pool=pool)
+        v2 = Volume(uuid=u"123", name=u"456", _pool=pool)
+        self.assertTrue(v1 == v2)
+        self.assertFalse(v1 != v2)
+
+    def test_inequality_uuid(self):
+        """Volumes are unequal if they have different uuids."""
+        pool = object()
+        v1 = Volume(uuid=u"123", name=u"456", _pool=pool)
+        v2 = Volume(uuid=u"123zz", name=u"456", _pool=pool)
+        self.assertTrue(v1 != v2)
+        self.assertFalse(v1 == v2)
+
+    def test_inequality_name(self):
+        """Volumes are unequal if they have different names."""
+        pool = object()
+        v1 = Volume(uuid=u"123", name=u"456", _pool=pool)
+        v2 = Volume(uuid=u"123", name=u"456zz", _pool=pool)
+        self.assertTrue(v1 != v2)
+        self.assertFalse(v1 == v2)
+
+    def test_inequality_pool(self):
+        """Volumes are unequal if they have different pools."""
+        v1 = Volume(uuid=u"123", name=u"456", _pool=object())
+        v2 = Volume(uuid=u"123", name=u"456", _pool=object())
+        self.assertTrue(v1 != v2)
+        self.assertFalse(v1 == v2)
+
+    def test_get_filesystem(self):
+        """``Volume.get_filesystem`` returns the filesystem for the volume."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        volume = Volume(uuid=u"123", name=u"456", _pool=pool)
+        self.assertEqual(volume.get_filesystem(), pool.get(volume))
