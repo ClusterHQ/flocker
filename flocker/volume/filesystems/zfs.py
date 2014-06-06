@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 
-from characteristic import with_cmp
+from characteristic import with_cmp, with_repr
 
 from zope.interface import implementer
 
@@ -72,6 +72,7 @@ def zfs_command(reactor, arguments):
 
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
+@with_repr(["pool", "dataset"])
 class Filesystem(object):
     """A ZFS filesystem.
 
@@ -84,7 +85,7 @@ class Filesystem(object):
     :ivar dataset: The filesystem's dataset name, e.g. ``b"myfs"``, or
         ``None`` for the top-level filesystem.
 
-    :ivar twisted.python.filepath.FilePath mountpoint: Where the filesystem
+    :ivar twisted.python.filepath.FilePath _mountpoint: Where the filesystem
         is mounted.
     """
     def __init__(self, pool, dataset, mountpoint=None):
@@ -165,7 +166,8 @@ class StoragePool(object):
         :return: Dataset name as ``bytes``.
         """
         # Include trunk in case we decide to do branch model later on:
-        return b"%s.%s.trunk" % (volume.uuid, volume.name)
+        return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
+                                 volume.name.encode("ascii"))
 
     def create(self, volume):
         filesystem = self.get(volume)
@@ -180,4 +182,3 @@ class StoragePool(object):
         dataset = self._volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)
-
