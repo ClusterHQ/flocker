@@ -10,7 +10,7 @@ from unittest import skipIf
 
 from zope.interface.verify import verifyObject
 
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
 
@@ -43,7 +43,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
 
     def test_no_config_directory(self):
-        """The config file's parent directory is created if it does not exist."""
+        """The config file's parent directory is created if it doesn't exist."""
         path = FilePath(self.mktemp()).child(b"config.json")
         service = VolumeService(path)
         service.startService()
@@ -86,9 +86,21 @@ class VolumeServiceAPITests(TestCase):
 
     def test_create_result(self):
         """``create()`` returns a ``Deferred`` that fires with a ``Volume``."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        d = service.create(u"myvolume")
+        self.assertEqual(
+            self.successResultOf(d),
+            Volume(uuid=service.uuid, name=u"myvolume", _pool=pool))
 
     def test_create_filesystem(self):
         """``create()`` creates the volume's filesystem."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        self.assertTrue(pool.get(volume).get_mountpoint().isdir())
 
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
@@ -96,6 +108,12 @@ class VolumeServiceAPITests(TestCase):
         A better alternative will be implemented in
         https://github.com/hybridlogic/flocker/issues/34
         """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        self.assertEqual(pool.get(volume).get_mountpoint().getPermissions(),
+                         Permissions(0777))
 
 
 class VolumeTests(TestCase):

@@ -51,15 +51,17 @@ class VolumeService(Service):
     def create(self, name):
         """Create a new volume.
 
+        :param unicode name: The name of the volume.
+
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        #volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
-        #d = self._pool.create(volume)
-        #def created(filesystem):
-        #    filesystem.get_mountpoint().chmod(0777)
-        #    return volume
-        #d.addCallback(created)
-        #return d
+        volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
+        d = self._pool.create(volume)
+        def created(filesystem):
+            filesystem.get_mountpoint().chmod(0777)
+            return volume
+        d.addCallback(created)
+        return d
 
 
 @attributes(["uuid", "name", "_pool"])
