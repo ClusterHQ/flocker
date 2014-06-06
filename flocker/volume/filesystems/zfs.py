@@ -117,10 +117,10 @@ class ZFSSnapshots(object):
         def parse_snapshots(data):
             result = []
             for line in data.splitlines():
-                pool, encodedName = line.split(b'@', 1)
+                pool, encoded_name = line.split(b'@', 1)
                 if pool == self._filesystem.pool:
                     try:
-                        result.append(SnapshotName.from_bytes(encodedName))
+                        result.append(SnapshotName.from_bytes(encoded_name))
                     except ValueError:
                         pass
             return result
