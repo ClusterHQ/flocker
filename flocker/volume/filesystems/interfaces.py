@@ -53,3 +53,14 @@ class IStoragePool(Interface):
         :return: Deferred that fires on filesystem creation with a
             :class:`IFilesystem` provider, or errbacks if creation failed.
         """
+
+    def get(volume):
+        """Return a filesystem object for the given volume.
+
+        This presumes the volume exists.
+
+        :param volume: The volume whose filesystem is being retrieved.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: A :class:`IFilesystem` provider.
+        """
