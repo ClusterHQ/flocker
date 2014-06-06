@@ -6,14 +6,16 @@ Tests for :py:mod:`flocker.route._iptables`.
 
 from __future__ import print_function
 
-from os import getuid
-from socket import socket
+from errno import ECONNREFUSED
+from os import getuid, getpid
+from socket import error, socket
 from unittest import skipUnless
+from subprocess import check_output
 
 from netifaces import AF_INET, interfaces, ifaddresses
-from ipaddr import IPAddress
+from ipaddr import IPAddress, IPNetwork
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create
 
@@ -154,3 +156,66 @@ class CreateTests(TestCase):
 
         accepted.send(b"x")
         self.assertEqual(b"x", client.recv(1))
+
+
+    def test_remote_connections_unaffected(self):
+        """
+        A connection attempt to an IP not assigned to this host on the proxied
+        port is not proxied.
+        """
+        networks = {
+            IPNetwork("10.0.0.0/8"),
+            IPNetwork("172.16.0.0/12"),
+            IPNetwork("192.168.0.0/16")}
+
+        for address in ADDRESSES:
+            for network in networks:
+                if address in network:
+                    networks.remove(network)
+                    break
+        if not networks:
+            raise SkipTest("No private networks available")
+
+        network = next(iter(networks))
+        gateway = network[1]
+        address = network[2]
+
+        # Create a remote "host" that the test can reliably fail a connection
+        # attempt to.
+        pid = getpid()
+        veth0 = b"veth_" + hex(pid)
+        veth1 = b"veth1"
+        network_namespace = b"%s.%s" % (self.id(), getpid())
+
+        def run(cmd):
+            check_output(cmd.split())
+
+        self.addCleanup(run, b"ip netns delete " + network_namespace)
+        self.addCleanup(run, b"ip link delete " + veth0)
+
+        ops = [
+            b"ip netns add %(netns)s",
+            b"ip link add %(veth0)s type veth peer name %(veth1)s",
+            b"ip address add %(gateway)s dev %(veth0)s",
+            b"ip link set dev %(veth0)s up",
+            b"ip link set %(veth1)s netns %(netns)s",
+            b"ip netns exec %(netns)s ip link set dev %(veth1)s up",
+            b"ip netns exec %(netns)s ip address add %(address)s dev %(veth1)s",
+            b"ip route add %(network)s dev %(veth0)s scope link",
+            b"ip netns exec %(netns)s ip route add default dev %(veth1)s",
+        ]
+
+        params = dict(
+            netns=network_namespace, veth0=veth0, veth1=veth1,
+            address=address, gateway=gateway, network=network,
+            )
+        for op in ops:
+            run(op % params)
+
+        create(self.serverAddress, self.port)
+
+        client = socket()
+        client.settimeout(1)
+        exception = self.assertRaises(
+            error, client.connect, (str(address), self.port))
+        self.assertEqual(ECONNREFUSED, exception.errno)
