@@ -25,6 +25,7 @@ ADDRESSES = [
     for address in ifaddresses(name).get(AF_INET, [])
 ]
 
+
 def connect_nonblocking(ip, port):
     """
     Attempt a TCP connection to the given address without blocking.
@@ -33,6 +34,7 @@ def connect_nonblocking(ip, port):
     client.setblocking(False)
     client.connect_ex((ip.exploded, port))
     return client
+
 
 def is_environment_configured():
     """
@@ -68,6 +70,7 @@ def is_environment_configured():
     #
     # -exarkun
     return getuid() == 0
+
 
 class CreateTests(TestCase):
     """
@@ -208,7 +211,8 @@ class CreateTests(TestCase):
             # Assign to that virtual ethernet interface an address on the same
             # (private, unused) network as the address we gave to the gateway
             # interface.
-            b"ip netns exec %(netns)s ip address add %(address)s dev %(veth1)s",
+            b"ip netns exec %(netns)s ip address add %(address)s "
+            b"dev %(veth1)s",
 
             # And bring it up.
             b"ip netns exec %(netns)s ip link set dev %(veth1)s up",
