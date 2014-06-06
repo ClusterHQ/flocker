@@ -24,7 +24,7 @@ from ..filesystems.memory import (
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
-    lambda testCase: CannedFilesystemSnapshots(
+    lambda test_case: CannedFilesystemSnapshots(
         [succeed(None), succeed(None)]))):
     """``IFilesystemSnapshotsTests`` for in-memory filesystem."""
 
@@ -54,5 +54,5 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
 
 
 class IStoragePoolTests(make_istoragepool_tests(
-    lambda testCase: FilesystemStoragePool(FilePath(testCase.mktemp())))):
+    lambda test_case: FilesystemStoragePool(FilePath(test_case.mktemp())))):
     """``IStoragePoolTests`` for fake storage pool."""
