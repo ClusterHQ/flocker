@@ -89,13 +89,13 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        self.serverAddress = ADDRESSES[0]
-        self.proxyAddress = ADDRESSES[1]
+        self.server_ip = ADDRESSES[0]
+        self.proxy_ip = ADDRESSES[1]
 
 
         # This is the target of the proxy which will be created.
         self.server = socket()
-        self.server.bind((self.serverAddress.exploded, 0))
+        self.server.bind((self.server_ip.exploded, 0))
         self.server.listen(1)
 
         # This is used to accept connections over the local network stack.
@@ -112,7 +112,7 @@ class CreateTests(TestCase):
         """
         A connection attempt to the server created in ``setUp`` is successful.
         """
-        client = connect_nonblocking(self.serverAddress, self.port)
+        client = connect_nonblocking(self.server_ip, self.port)
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
@@ -123,9 +123,9 @@ class CreateTests(TestCase):
         """
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
-        create(self.serverAddress, self.port)
+        create(self.server_ip, self.port)
 
-        client = connect_nonblocking(self.proxyAddress, self.port)
+        client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
@@ -135,9 +135,9 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the client side to the
         server side.
         """
-        create(self.serverAddress, self.port)
+        create(self.server_ip, self.port)
 
-        client = connect_nonblocking(self.proxyAddress, self.port)
+        client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
 
         client.send(b"x")
@@ -149,9 +149,9 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the server side to the
         client side.
         """
-        create(self.serverAddress, self.port)
+        create(self.server_ip, self.port)
 
-        client = connect_nonblocking(self.proxyAddress, self.port)
+        client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
 
         accepted.send(b"x")
@@ -242,7 +242,7 @@ class CreateTests(TestCase):
             run(op % params)
 
         # Create the proxy which we expect not to be invoked.
-        create(self.serverAddress, self.port)
+        create(self.server_ip, self.port)
 
         client = socket()
         client.settimeout(1)
