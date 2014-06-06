@@ -7,9 +7,20 @@ Manipulate network routing behavior on a node using ``iptables``.
 
 from __future__ import unicode_literals
 
+from collections import namedtuple
+
 from iptc import Chain, Rule, Table
 
 from twisted.python.filepath import FilePath
+
+
+class _Proxy(namedtuple("_Proxy", "ip port")):
+    """
+    :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
+        directs traffic.
+
+    :ivar int port: The TCP port number on which this proxy operates.
+    """
 
 
 def create(ip, port):
@@ -143,3 +154,14 @@ def create(ip, port):
     for path in conf.children():
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
+
+    return _Proxy(ip, port)
+
+
+def enumerate_proxies():
+    """
+    Retrieve configured proxy information.
+
+    :return: A :py:class:`list` of objects describing all configured proxies.
+    """
+    return []

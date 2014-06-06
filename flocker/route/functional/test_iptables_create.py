@@ -17,7 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 
 from twisted.trial.unittest import SkipTest, TestCase
 
-from .. import create
+from .. import create, enumerate_proxies
 
 ADDRESSES = [
     IPAddress(address['addr'])
@@ -72,13 +72,16 @@ def is_environment_configured():
     return getuid() == 0
 
 
+_environment_skip = skipUnless(
+    is_environment_configured(),
+    "Cannot test port forwarding without suitable test environment.")
+
+
 class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
     """
-    @skipUnless(
-        is_environment_configured(),
-        "Cannot test port forwarding without suitable test environment.")
+    @_environment_skip
     @skipUnless(
         len(ADDRESSES) >= 2,
         "Cannot test proxying without at least two addresses.")
@@ -245,3 +248,42 @@ class CreateTests(TestCase):
         exception = self.assertRaises(
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
+
+
+    def test_proxy_object(self):
+        """
+        :py:func:`flocker.route.create` returns an object with attributes
+        describing the created proxy.
+        """
+        proxy = create(self.server_ip, self.port)
+        self.assertEqual(
+            (proxy.ip, proxy.port),
+            (self.server_ip, self.port))
+
+
+
+class EnumerateTests(TestCase):
+    """
+    Tests for the enumerate of Flocker-managed external routing rules.
+    """
+    @_environment_skip
+    def test_empty(self):
+        """
+        :py:func:`flocker.route.enumerate_proxies` returns an empty
+        :py:class:`list` when no proxies have been created.
+        """
+        self.assertEqual([], enumerate_proxies())
+
+
+    @_environment_skip
+    def test_a_proxy(self):
+        """
+        After :py:func:`flocker.route.create` is used to create a proxy,
+        :py:func:`flocker.route.enumerate_proxies` returns a :py:class:`list`
+        including an object describing that proxy.
+        """
+        ip = IPAddress("10.1.2.3")
+        port = 4567
+        proxy = create(ip, port)
+
+        self.assertEqual([proxy], enumerate_proxies())
