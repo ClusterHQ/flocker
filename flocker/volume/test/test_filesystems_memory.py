@@ -13,14 +13,15 @@ from pytz import UTC
 from twisted.internet.defer import succeed, fail
 from twisted.trial.unittest import SynchronousTestCase
 
-from .filesystemtests import makeIFilesystemSnapshotsTests
+from .filesystemtests import make_ifilesystemsnapshots_tests
 from ..snapshots import SnapshotName
 from ..filesystems.memory import CannedFilesystemSnapshots
 
 
-IFilesystemSnapshotsTests = makeIFilesystemSnapshotsTests(
-    lambda testCase: CannedFilesystemSnapshots([succeed(None), succeed(None)]))
-
+class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
+    lambda testCase: CannedFilesystemSnapshots(
+        [succeed(None), succeed(None)]))):
+    """``IFilesystemSnapshotsTests`` for in-memory filesystem."""
 
 
 class CannedFilesystemSnapshotsTests(SynchronousTestCase):
@@ -36,8 +37,7 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
         self.failureResultOf(snapshotter.create(name))
         self.assertEqual(self.successResultOf(snapshotter.list()), [])
 
-
-    def test_tooMany(self):
+    def test_too_many(self):
         """
         Creating more than the canned number of snapshots results in an error.
 

@@ -5,6 +5,8 @@
 from __future__ import absolute_import
 
 import json
+import os
+from unittest import skipIf
 
 from zope.interface.verify import verifyObject
 
@@ -46,6 +48,7 @@ class VolumeServiceTests(TestCase):
         service.startService()
         self.assertTrue(path.exists())
 
+    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -56,6 +59,7 @@ class VolumeServiceTests(TestCase):
         service = VolumeService(path)
         self.assertRaises(CreateConfigurationError, service.startService)
 
+    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
