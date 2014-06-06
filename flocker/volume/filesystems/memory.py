@@ -56,14 +56,11 @@ class FilesystemStoragePool(object):
         self._root = root
 
     def create(self, volume):
-        d = self.get(volume)
-        def gotFilesystem(filesystem):
-            filesystem.get_mountpoint().makedirs()
-            return filesystem
-        d.addCallback(gotFilesystem)
-        return d
+        filesystem = self.get(volume)
+        filesystem.get_mountpoint().makedirs()
+        return succeed(filesystem)
 
     def get(self, volume):
-        return succeed(DirectoryFilesystem(
+        return DirectoryFilesystem(
             mountpoint=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.encode("ascii")))))
+                volume.uuid.encode("ascii"), volume.name.encode("ascii"))))

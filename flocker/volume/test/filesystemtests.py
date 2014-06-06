@@ -131,12 +131,9 @@ def make_istoragepool_tests(fixture):
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
             def createdFilesystem(filesystem):
-                got = pool.get(volume)
-                def gotFilesystem(filesystem2):
-                    self.assertTrue(filesystem == filesystem2)
-                    self.assertFalse(filesystem != filesystem2)
-                got.addCallback(gotFilesystem)
-                return got
+                filesystem2 = pool.get(volume)
+                self.assertTrue(filesystem == filesystem2)
+                self.assertFalse(filesystem != filesystem2)
             d.addCallback(createdFilesystem)
             return d
 
