@@ -28,7 +28,7 @@ def create_zfs_pool(test_case):
     if os.getuid() != 0:
         raise SkipTest("Functional tests must run as root.")
 
-    pool_name = "testpool_%s" % (uuid.uuid4(),)
+    pool_name = b"testpool_%s" % (uuid.uuid4(),)
     pool_path = FilePath(test_case.mktemp())
     mount_path = FilePath(test_case.mktemp())
     with pool_path.open("wb") as f:
