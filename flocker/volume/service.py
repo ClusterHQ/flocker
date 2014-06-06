@@ -55,7 +55,10 @@ class VolumeService(Service):
         """
         #volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
         #d = self._pool.create(volume)
-        #d.addCallback(lambda _: volume)
+        #def created(filesystem):
+        #    filesystem.get_mountpoint().chmod(0777)
+        #    return volume
+        #d.addCallback(created)
         #return d
 
 
