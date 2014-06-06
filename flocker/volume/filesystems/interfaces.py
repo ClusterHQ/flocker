@@ -30,12 +30,22 @@ class IFilesystemSnapshots(Interface):
 
 
 class IFilesystem(Interface):
-    """A filesystem.
+    """A filesystem that is part of a pool."""
 
-    - Get the mountpoint as FilePath.
-    - Set the mountpoint to path, or None to unmount.
-    """
+    def get_mountpoint():
+        """Retrieve the filesystem mount point.
 
+        :return: The mountpoint as a ``FilePath``.
+        """
+
+    def set_mountpoint(path):
+        """Set a new mount point, or unmount the filesystem.
+
+        :param path: The mountpoint as a ``FilePath``, or ``None`` to
+            unmount the filesystem.
+
+        :return: A Deferred that fires when the mount point has been changed.
+        """
 
 
 class IStoragePool(Interface):
@@ -47,8 +57,8 @@ class IStoragePool(Interface):
         :param volume: The volume whose filesystem should be created.
         :type volume: XXX.
 
-        :return: Deferred that fires on filesystem creation with a XXX, or
-            errbacks if creation failed.
+        :return: Deferred that fires on filesystem creation with a
+            :class:`IFilesystem` provider, or errbacks if creation failed.
         """
 
     def get(volume):
@@ -57,6 +67,6 @@ class IStoragePool(Interface):
         :param volume: The volume whose filesystem is being retrieved.
         :type volume: XXX.
 
-        :return: Deferred that fires with filesystem XXX, or
-            errbacks with ``KeyError`` if the filesystem does not exit.
+        :return: Deferred that fires with a :class:`IFilesystem` provider,
+            or errbacks with ``KeyError`` if the filesystem does not exit.
         """
