@@ -33,14 +33,12 @@ def create_zfs_pool(test_case):
     mount_path = FilePath(test_case.mktemp())
     with pool_path.open("wb") as f:
         f.truncate(100 * 1024 * 1024)
-    subprocess.check_call([b"dd", b"if=/dev/zero", b"of=%s" % (pool_path.path),
-                           b"count=200000"])
     test_case.addCleanup(pool_path.remove)
     subprocess.check_call([b"zpool", b"create", b"-m", mount_path.path,
                            pool_name, pool_path.path])
     test_case.addCleanup(subprocess.check_call,
                         [b"zpool", b"destroy", pool_name])
-    return Filesystem(pool_name)
+    return Filesystem(pool_name, None)
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(

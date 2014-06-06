@@ -22,8 +22,27 @@ from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     )
 
+class FilesystemTests(SynchronousTestCase):
+    """
+    Tests for :class:`Filesystem`.
+    """
+    def test_name(self):
+        """
+        ``Filesystem.name`` returns the ZFS filesystem name, (``pool/dataset``).
+        """
+        filesystem = Filesystem(b"hpool", b"mydataset")
+        self.assertEqual(filesystem.name, b"hpool/mydataset")
 
-class ZfsCommandTests(SynchronousTestCase):
+
+    def test_root_name(self):
+        """Given dataset ``None``, ``Filesystem.name`` returns the ZFS
+        filesystem name which is just the pool name.
+        """
+        filesystem = Filesystem(b"hpool", None)
+        self.assertEqual(filesystem.name, b"hpool")
+
+
+class ZFSCommandTests(SynchronousTestCase):
     """
     Tests for :func:`zfs_command`.
     """
@@ -90,7 +109,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         the pool and snapshot name.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         name = SnapshotName(datetime.now(UTC), b"node")
         snapshots.create(name)
         arguments = reactor.processes[0]
@@ -102,7 +121,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         not fire if the creation is unfinished.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
         self.assertNoResult(d)
 
@@ -111,7 +130,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         when creation has finished.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
@@ -122,7 +141,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         name.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         snapshots.list()
         self.assertEqual(reactor.processes[0].args,
                          [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
@@ -133,7 +152,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         of the command.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         name = SnapshotName(datetime.now(UTC), b"node")
         name2 = SnapshotName(datetime.now(UTC), b"node2")
 
@@ -154,7 +173,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         the output.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         name = SnapshotName(datetime.now(UTC), b"node")
         name2 = SnapshotName(datetime.now(UTC), b"node2")
 
@@ -174,7 +193,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         These are presumably snapshots not being managed by Flocker.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
         name = SnapshotName(datetime.now(UTC), b"node")
 
         d = snapshots.list()

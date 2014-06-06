@@ -69,15 +69,24 @@ def zfs_command(reactor, arguments):
     return d
 
 
-class Filesystem(namedtuple("Filesystem", "pool")):
+class Filesystem(namedtuple("Filesystem", "pool dataset")):
     """A ZFS filesystem.
 
     For now the goal is simply not to pass bytes around when referring to a
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
 
-    :ivar pool: The filesystem's pool name, e.g. ``b"hpool/myfs"``.
+    :ivar pool: The filesystem's pool name, e.g. ``b"hpool"``.
+
+    :ivar dataset: The filesystem's dataset name, e.g. ``b"myfs"``, or
+        ``None`` for the top-level filesystem.
     """
+    @property
+    def name(self):
+        """The filesystem's full name, e.g. ``b"hpool/myfs"``."""
+        if self.dataset is None:
+            return self.pool
+        return b"%s/%s" % (self.pool, self.dataset)
 
 
 @implementer(IFilesystemSnapshots)
