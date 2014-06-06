@@ -5,7 +5,8 @@
 from __future__ import absolute_import
 
 import os
-from collections import namedtuple
+
+from characteristic import with_cmp
 
 from zope.interface import implementer
 
@@ -14,7 +15,7 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 
-from .interfaces import IFilesystemSnapshots
+from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
 from ..snapshots import SnapshotName
 
 
@@ -69,7 +70,9 @@ def zfs_command(reactor, arguments):
     return d
 
 
-class Filesystem(namedtuple("Filesystem", "pool dataset")):
+@implementer(IFilesystem)
+@with_cmp(["pool", "dataset"])
+class Filesystem(object):
     """A ZFS filesystem.
 
     For now the goal is simply not to pass bytes around when referring to a
@@ -80,13 +83,24 @@ class Filesystem(namedtuple("Filesystem", "pool dataset")):
 
     :ivar dataset: The filesystem's dataset name, e.g. ``b"myfs"``, or
         ``None`` for the top-level filesystem.
+
+    :ivar twisted.python.filepath.FilePath mountpoint: Where the filesystem
+        is mounted.
     """
+    def __init__(self, pool, dataset, mountpoint=None):
+        self.pool = pool
+        self.dataset = dataset
+        self._mountpoint = mountpoint
+
     @property
     def name(self):
         """The filesystem's full name, e.g. ``b"hpool/myfs"``."""
         if self.dataset is None:
             return self.pool
         return b"%s/%s" % (self.pool, self.dataset)
+
+    def get_mountpoint(self):
+        return self._mountpoint
 
 
 @implementer(IFilesystemSnapshots)
@@ -126,3 +140,44 @@ class ZFSSnapshots(object):
             return result
         d.addCallback(parse_snapshots)
         return d
+
+
+@implementer(IStoragePool)
+class StoragePool(object):
+    """A ZFS storage pool."""
+
+    def __init__(self, reactor, name, mount_root):
+        """
+        :param reactor: A ``IReactorProcess`` provider.
+        :param bytes name: The pool's name.
+        :param FilePath mount_root: Directory where filesystems should be
+            mounted.
+        """
+        self._reactor = reactor
+        self._name = name
+        self._mount_root = mount_root
+
+    def _volume_to_dataset(self, volume):
+        """Convert a volume to a dataset name.
+
+        :param flocker.volume.service.Volume volume: The volume.
+
+        :return: Dataset name as ``bytes``.
+        """
+        # Include trunk in case we decide to do branch model later on:
+        return b"%s.%s.trunk" % (volume.uuid, volume.name)
+
+    def create(self, volume):
+        filesystem = self.get(volume)
+        mount_path = filesystem.get_mountpoint().path
+        d = zfs_command(self._reactor,
+                        [b"create",  b"-o", b"mountpoint=" + mount_path,
+                         filesystem.name])
+        d.addCallback(lambda _: filesystem)
+        return d
+
+    def get(self, volume):
+        dataset = self._volume_to_dataset(volume)
+        mount_path = self._mount_root.child(dataset)
+        return Filesystem(self._name, dataset, mount_path)
+

@@ -14,8 +14,10 @@ from twisted.internet import reactor
 from twisted.trial.unittest import SkipTest
 from twisted.python.filepath import FilePath
 
-from ..test.filesystemtests import make_ifilesystemsnapshots_tests
-from ..filesystems.zfs import ZFSSnapshots, Filesystem
+from ..test.filesystemtests import (
+    make_ifilesystemsnapshots_tests, make_istoragepool_tests,
+    )
+from ..filesystems.zfs import ZFSSnapshots, Filesystem, StoragePool
 
 
 def create_zfs_pool(test_case):
@@ -23,7 +25,7 @@ def create_zfs_pool(test_case):
 
     :param test_case: A ``unittest.TestCase``.
 
-    :return: A :class:`Filesystem` instance.
+    :return: The pool's name as ``bytes``.
     """
     if os.getuid() != 0:
         raise SkipTest("Functional tests must run as root.")
@@ -38,9 +40,16 @@ def create_zfs_pool(test_case):
                            pool_name, pool_path.path])
     test_case.addCleanup(subprocess.check_call,
                         [b"zpool", b"destroy", pool_name])
-    return Filesystem(pool_name, None)
+    return pool_name
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
-        lambda test_case: ZFSSnapshots(reactor, create_zfs_pool(test_case)))):
+        lambda test_case: ZFSSnapshots(
+            reactor, Filesystem(create_zfs_pool(test_case), None)))):
     """``IFilesystemSnapshots`` tests for ZFS."""
+
+
+class IStoragePoolTests(make_istoragepool_tests(
+    lambda test_case: StoragePool(reactor, create_zfs_pool(test_case),
+                                  FilePath(test_case.mktemp())))):
+    """``IStoragePoolTests`` for ZFS storage pool."""
