@@ -19,6 +19,11 @@ from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create
 
+ADDRESSES = [
+    IPAddress(address['addr'])
+    for name in interfaces()
+    for address in ifaddresses(name).get(AF_INET, [])
+]
 
 def connect_nonblocking(ip, port):
     """
@@ -28,8 +33,6 @@ def connect_nonblocking(ip, port):
     client.setblocking(False)
     client.connect_ex((ip.exploded, port))
     return client
-
-
 
 def is_environment_configured():
     """
@@ -66,14 +69,6 @@ def is_environment_configured():
     # -exarkun
     return getuid() == 0
 
-
-ADDRESSES = [
-    IPAddress(address['addr'])
-    for name in interfaces()
-    for address in ifaddresses(name).get(AF_INET, [])
-]
-
-
 class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
@@ -92,7 +87,6 @@ class CreateTests(TestCase):
         self.server_ip = ADDRESSES[0]
         self.proxy_ip = ADDRESSES[1]
 
-
         # This is the target of the proxy which will be created.
         self.server = socket()
         self.server.bind((self.server_ip.exploded, 0))
@@ -104,9 +98,7 @@ class CreateTests(TestCase):
         # machine being so loaded the local network stack can't complete a TCP
         # handshake in under one second...).
         self.server.settimeout(1)
-
         self.port = self.server.getsockname()[1]
-
 
     def test_setup(self):
         """
@@ -115,7 +107,6 @@ class CreateTests(TestCase):
         client = connect_nonblocking(self.server_ip, self.port)
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
-
 
     def test_connection(self):
         """
@@ -128,7 +119,6 @@ class CreateTests(TestCase):
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
-
 
     def test_client_to_server(self):
         """
@@ -143,7 +133,6 @@ class CreateTests(TestCase):
         client.send(b"x")
         self.assertEqual(b"x", accepted.recv(1))
 
-
     def test_server_to_client(self):
         """
         A proxied connection will deliver bytes from the server side to the
@@ -156,7 +145,6 @@ class CreateTests(TestCase):
 
         accepted.send(b"x")
         self.assertEqual(b"x", client.recv(1))
-
 
     def test_remote_connections_unaffected(self):
         """

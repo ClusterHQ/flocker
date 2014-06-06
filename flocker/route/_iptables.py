@@ -12,7 +12,6 @@ from iptc import Chain, Rule, Table
 from twisted.python.filepath import FilePath
 
 
-
 def create(ip, port):
     """
     Create a new TCP proxy to `ip` on port `port`.
@@ -134,12 +133,13 @@ def create(ip, port):
     #
     # https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt will
     # explain the meaning of these in (very slightly) more detail.
-    with open(b"/proc/sys/net/ipv4/conf/default/forwarding", "wt") as forwarding:
+    conf = FilePath(b"/proc/sys/net/ipv4/conf")
+    with conf.descendant([b"default", b"forwarding"]).open("wb") as forwarding:
         forwarding.write(b"1")
 
     # In order to have the OUTPUT chain DNAT rule affect routing decisions, we
     # also need to tell the system to make routing decisions about traffic from
     # or to localhost.
-    for path in FilePath(b"/proc/sys/net/ipv4/conf").children():
+    for path in conf.children():
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
