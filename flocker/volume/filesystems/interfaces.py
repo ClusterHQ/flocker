@@ -38,24 +38,17 @@ class IFilesystem(Interface):
         :return: The mountpoint as a ``FilePath``.
         """
 
-    def set_mountpoint(path):
-        """Set a new mount point, or unmount the filesystem.
-
-        :param path: The mountpoint as a ``FilePath``, or ``None`` to
-            unmount the filesystem.
-
-        :return: A Deferred that fires when the mount point has been changed.
-        """
-
 
 class IStoragePool(Interface):
     """Pool of on-disk storage where filesystems are stored."""
 
     def create(volume):
-        """Create a new unmounted filesystem for the given volume.
+        """Create a new filesystem for the given volume.
+
+        By default new filesystems will be automounted.
 
         :param volume: The volume whose filesystem should be created.
-        :type volume: XXX.
+        :type volume: :class:`flocker.volume.service.Volume`
 
         :return: Deferred that fires on filesystem creation with a
             :class:`IFilesystem` provider, or errbacks if creation failed.
@@ -65,7 +58,7 @@ class IStoragePool(Interface):
         """Return a filesystem object for the given volume.
 
         :param volume: The volume whose filesystem is being retrieved.
-        :type volume: XXX.
+        :type volume: :class:`flocker.volume.service.Volume`
 
         :return: Deferred that fires with a :class:`IFilesystem` provider,
             or errbacks with ``KeyError`` if the filesystem does not exit.
