@@ -12,10 +12,15 @@ from pytz import UTC
 
 from twisted.internet.defer import succeed, fail
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
-from .filesystemtests import make_ifilesystemsnapshots_tests
+from .filesystemtests import (
+    make_ifilesystemsnapshots_tests, make_istoragepool_tests,
+    )
 from ..snapshots import SnapshotName
-from ..filesystems.memory import CannedFilesystemSnapshots
+from ..filesystems.memory import (
+    CannedFilesystemSnapshots, FilesystemStoragePool,
+    )
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
@@ -46,3 +51,8 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
         snapshotter = CannedFilesystemSnapshots([])
         name = SnapshotName(datetime.now(UTC), b"first")
         self.assertRaises(IndexError, snapshotter.create, name)
+
+
+class IStoragePoolTests(make_istoragepool_tests(
+    lambda testCase: FilesystemStoragePool(FilePath(testCase.mktemp())))):
+    """``IStoragePoolTests`` for fake storage pool."""

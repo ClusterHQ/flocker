@@ -38,6 +38,12 @@ class IFilesystem(Interface):
         :return: The mountpoint as a ``FilePath``.
         """
 
+    def __eq__(other):
+        """True if and only if underlying OS filesystem is the same."""
+
+    def __ne__(other):
+        """True if and only if underlying OS filesystem is different."""
+
 
 class IStoragePool(Interface):
     """Pool of on-disk storage where filesystems are stored."""
