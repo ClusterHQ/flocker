@@ -164,4 +164,37 @@ def enumerate_proxies():
 
     :return: A :py:class:`list` of objects describing all configured proxies.
     """
-    return []
+    nat = Table(Table.NAT)
+    prerouting = Chain(nat, b"PREROUTING")
+
+    proxies = []
+
+    for rule in prerouting.rules:
+        if rule.target.name == "DNAT":
+            ip = rule.target.parameters[b"to_destination"]
+            port = rule.matches[0].parameters[b"dport"]
+            proxies.append(_Proxy(ip, port))
+
+    return proxies
+
+
+import os
+def _get_saved_buf(self, ip):
+    if not self._module or not self._module.save:
+        return None
+    # redirect C stdout to a pipe and read back the output of m->save
+    stdout = os.dup(1)
+    try:
+        pipes = os.pipe()
+        os.dup2(pipes[1], 1)
+        self._xt.save(self._module, ip, self._ptr)
+        buf = os.read(pipes[0], 1024)
+        os.close(pipes[0])
+        os.close(pipes[1])
+        return buf
+    finally:
+        os.dup2(stdout, 1)
+        os.close(stdout)
+
+from iptc.ip4tc import IPTCModule
+IPTCModule._get_saved_buf = _get_saved_buf
