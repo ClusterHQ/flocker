@@ -11,7 +11,7 @@ in the container to connect to the host running the container and have their
 traffic forwarded into the container.  It also allows clients to contact any
 other cooperating node on TCP port 443.  Those nodes will act as a relay
 between the client and the correct node.  With a DNS configuration that
-includes addresses records for the website hostname for all cooperating nodes
+includes address records for the website hostname for all cooperating nodes
 this allows easy, transparent migration of containers between any of the
 cooperating nodes.
 """
