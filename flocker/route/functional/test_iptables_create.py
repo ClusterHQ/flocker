@@ -17,7 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 
 from twisted.trial.unittest import SkipTest, TestCase
 
-from .. import create
+from .. import create_proxy_to
 
 ADDRESSES = [
     IPAddress(address['addr'])
@@ -117,7 +117,7 @@ class CreateTests(TestCase):
         """
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -128,7 +128,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the client side to the
         server side.
         """
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -141,7 +141,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the server side to the
         client side.
         """
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -253,7 +253,7 @@ class CreateTests(TestCase):
             run(op % params)
 
         # Create the proxy which we expect not to be invoked.
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = socket()
         client.settimeout(1)

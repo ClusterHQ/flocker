@@ -16,6 +16,6 @@ this allows easy, transparent migration of containers between any of the
 cooperating nodes.
 """
 
-__all__ = ["create"]
+__all__ = ["create_proxy_to"]
 
-from ._iptables import create
+from ._iptables import create_proxy_to

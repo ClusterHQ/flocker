@@ -12,7 +12,7 @@ from iptc import Chain, Rule, Table
 from twisted.python.filepath import FilePath
 
 
-def create(ip, port):
+def create_proxy_to(ip, port):
     """
     Create a new TCP proxy to `ip` on port `port`.
 
