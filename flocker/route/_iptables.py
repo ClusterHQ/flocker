@@ -8,14 +8,15 @@ Manipulate network routing behavior on a node using ``iptables``.
 from __future__ import unicode_literals
 
 from collections import namedtuple
+from subprocess import check_output
 
-from iptc import Chain, Rule, Table
 from ipaddr import IPAddress
 
 from twisted.python.filepath import FilePath
 
+FLOCKER_COMMENT_MARKER = b"flocker"
 
-class _Proxy(namedtuple("_Proxy", "ip port")):
+class Proxy(namedtuple("Proxy", "ip port")):
     """
     :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
         directs traffic.
@@ -46,44 +47,39 @@ def create(ip, port):
     # instead of destined for "us".  This gets the packets delivered to the
     # right destination.
 
-    # All NAT stuff happens in the netfilter NAT table.
-    nat = Table(Table.NAT)
+    check_output([
+            b"iptables",
 
-    rule = Rule()
+            # All NAT stuff happens in the netfilter NAT table.
+            b"--table", b"nat",
 
-    # Only re-route traffic with a destination port matching the one we were
-    # told to manipulate.  It is also necessary to specify TCP (or UDP) here
-    # since that is the layer of the network stack that defines ports.
-    rule.protocol = b"tcp"
-    tcp = rule.create_match(b"tcp")
-    tcp.dport = unicode(port).encode("ascii")
+            # Destination NAT has to happen "pre"-routing so that the normal routing
+            # rules on the machine will use the re-written destination address and get
+            # the packet to that new destination.  Accomplish this by appending the
+            # rule to the PREROUTING chain.
+            b"--append", b"PREROUTING",
 
-    # And only re-route traffic directed at this host.  Traffic originating on
-    # this host directed at some random other host that happens to be on the
-    # same port should be left alone.
-    local = rule.create_match(b"addrtype")
-    local.dst_type = b"LOCAL"
+            # Only re-route traffic with a destination port matching the one we
+            # were told to manipulate.  It is also necessary to specify TCP (or
+            # UDP) here since that is the layer of the network stack that
+            # defines ports.
+            b"--protocol", b"tcp", b"--destination-port", unicode(port).encode("ascii"),
 
-    # Tag it as a flocker-created rule so we can recognize it later.
-    comment = rule.create_match(b"comment")
-    comment.comment = b"flocker"
+            # And only re-route traffic directed at this host.  Traffic
+            # originating on this host directed at some random other host that
+            # happens to be on the same port should be left alone.
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-    # If the filter matched, jump to the DNAT chain to handle doing the actual
-    # packet mangling.  DNAT is a built-in chain that already knows how to do
-    # this.
-    dnat = rule.create_target(b"DNAT")
+            # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
 
-    # Pass an argument to the DNAT chain so it knows how to mangle the packet -
-    # rewrite the destination IP of the address to the target we were told to
-    # use.
-    dnat.to_destination = unicode(ip).encode("ascii")
-
-    # Destination NAT has to happen "pre"-routing so that the normal routing
-    # rules on the machine will use the re-written destination address and get
-    # the packet to that new destination.  Accomplish this by appending the
-    # rule to the PREROUTING chain.
-    prerouting = Chain(nat, b"PREROUTING")
-    prerouting.append_rule(rule)
+            # If the filter matched, jump to the DNAT chain to handle doing the
+            # actual packet mangling.  DNAT is a built-in chain that already
+            # knows how to do this.  Pass an argument to the DNAT chain so it
+            # knows how to mangle the packet - rewrite the destination IP of
+            # the address to the target we were told to use.
+            b"--jump", b"DNAT", b"--to-destination", unicode(ip).encode("ascii"),
+    ])
 
     # Bonus round!  Having performed DNAT (changing the destination) during
     # prerouting we are now prepared to send the packet on somewhere else.  On
@@ -98,51 +94,53 @@ def create(ip, port):
     # looking up the external interface's address for every single packet.  But
     # it requires this code to know that address and it requires that if it
     # ever changes the rule gets updated.  So we'll just masquerade for now.
+    check_output([
+            b"iptables",
 
-    rule = Rule()
+            # All NAT stuff happens in the netfilter NAT table.
+            b"--table", b"nat",
 
-    # We'll stick to matching the same kinds of packets we matched in the
-    # earlier stage.  We might want to change the factoring of this code to
-    # avoid the duplication - particularly in case we want to change the
-    # specifics of the filter.
-    #
-    # This omits the LOCAL addrtype check because at this point the packet is
-    # definitely leaving this host.
-    rule.protocol = b"tcp"
-    tcp = rule.create_match(b"tcp")
-    tcp.dport = unicode(port).encode("ascii")
+            # As described above, this transformation happens after routing decisions
+            # have been made and the packet is on its way out of the system.
+            # Therefore, append the rule to the POSTROUTING chain.
+            b"--append", b"POSTROUTING",
 
-    # Do the masquerading.
-    rule.create_target(b"MASQUERADE")
+            # We'll stick to matching the same kinds of packets we matched in
+            # the earlier stage.  We might want to change the factoring of this
+            # code to avoid the duplication - particularly in case we want to
+            # change the specifics of the filter.
+            #
+            # This omits the LOCAL addrtype check, though, because at this
+            # point the packet is definitely leaving this host.
+            b"--protocol", b"tcp", b"--destination-port", unicode(port).encode("ascii"),
 
-    # As described above, this transformation happens after routing decisions
-    # have been made and the packet is on its way out of the system.
-    # Therefore, append the rule to the POSTROUTING chain.
-    postrouting = Chain(nat, b"POSTROUTING")
-    postrouting.append_rule(rule)
+            # Do the masquerading.
+            b"--jump", b"MASQUERADE",
+    ])
 
     # Secret level!!  Traffic that originates *on* the host bypasses the
     # PREROUTING chain.  Instead, it passes through the OUTPUT chain.  If we
     # want connections from localhost to the forwarded port to be affected then
     # we need a rule in the OUTPUT chain to do the same kind of DNAT that we
     # did in the PREROUTING chain.
+    check_output([
+            b"iptables",
 
-    rule = Rule()
+            # All NAT stuff happens in the netfilter NAT table.
+            b"--table", b"nat",
 
-    # Matching the exact same kinds of packets as the PREROUTING rule matches.
-    rule.protocol = b"tcp"
-    tcp = rule.create_match(b"tcp")
-    tcp.dport = unicode(port).encode("ascii")
-    local = rule.create_match(b"addrtype")
-    local.dst_type = b"LOCAL"
+            # As mentioned, this rule is for the OUTPUT chain.
+            b"--append", b"OUTPUT",
 
-    # Do the same DNAT as we did in the rule for the PREROUTING chain.
-    dnat = rule.create_target(b"DNAT")
-    dnat.to_destination = unicode(ip).encode("ascii")
+            # Matching the exact same kinds of packets as the PREROUTING rule
+            # matches.
+            b"--protocol", b"tcp",
+            b"--destination-port", unicode(port).encode("ascii"),
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-    # As mentioned, this rule is for the OUTPUT chain.
-    output = Chain(nat, b"OUTPUT")
-    output.append_rule(rule)
+            # Do the same DNAT as we did in the rule for the PREROUTING chain.
+            b"--jump", b"DNAT", b"--to-destination", unicode(ip).encode("ascii"),
+    ])
 
     # The network stack only considers forwarding traffic when certain system
     # configuration is in place.
@@ -160,7 +158,7 @@ def create(ip, port):
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
 
-    return _Proxy(ip, port)
+    return Proxy(ip, port)
 
 
 def enumerate_proxies():
@@ -169,50 +167,63 @@ def enumerate_proxies():
 
     :return: A :py:class:`list` of objects describing all configured proxies.
     """
-    def find_match(rule, name):
-        for match in rule.matches:
-            if match.name == name:
-                return match
-        return None
-
-    def comment(rule):
-        rule = find_match(rule, b"comment")
-        if rule is not None:
-            return rule.parameters[b"comment"]
-
-    nat = Table(Table.NAT)
-    nat.refresh()
-
-    prerouting = Chain(nat, b"PREROUTING")
-
     proxies = []
-
-    for rule in prerouting.rules:
-        if rule.target.name == "DNAT" and comment(rule) == b"flocker":
-            ip = IPAddress(rule.target.parameters[b"to_destination"])
-            port = int(find_match(rule, b"tcp").parameters[b"dport"])
-            proxies.append(_Proxy(ip, port))
+    for rule in get_flocker_rules():
+        proxies.append(Proxy(rule.to_destination, rule.destination_port))
 
     return proxies
 
 
-import os
-def _get_saved_buf(self, ip):
-    if not self._module or not self._module.save:
-        return None
-    # redirect C stdout to a pipe and read back the output of m->save
-    stdout = os.dup(1)
-    try:
-        pipes = os.pipe()
-        os.dup2(pipes[1], 1)
-        self._xt.save(self._module, ip, self._ptr)
-        buf = os.read(pipes[0], 1024)
-        os.close(pipes[0])
-        os.close(pipes[1])
-        return buf
-    finally:
-        os.dup2(stdout, 1)
-        os.close(stdout)
+def get_flocker_rules():
+    # Life is horrible.
+    # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
+    output = check_output([b"iptables-save"])
 
-from iptc.ip4tc import IPTCModule
-IPTCModule._get_saved_buf = _get_saved_buf
+    # Find the beginning of the NAT table
+    header = b"*nat\n"
+    begin = output.find(header) + len(header)
+
+    # Find the end of the NAT table
+    footer = b"COMMIT\n"
+    end = output.find(footer, begin)
+
+    # Slice it out.
+    nat = output[begin:end]
+
+    for line in nat.splitlines():
+        if line.startswith(b":"):
+            # Skip these lines describing a chain or the table overall.
+            continue
+
+        options = parse_iptables_options(line.split())
+
+        if options.comment == FLOCKER_COMMENT_MARKER:
+            yield options
+
+
+iptables_options = namedtuple("iptables_options", "comment destination_port to_destination")
+
+def parse_iptables_options(argv):
+    # -A PREROUTING -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL -m comment --comment flocker -j DNAT --to-destination 10.1.2.3
+    # -A OUTPUT -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL -j DNAT --to-destination 10.1.2.3
+    # -A POSTROUTING -p tcp -m tcp --dport 4567 -j MASQUERADE
+
+    comment = None
+    destination_port = None
+    to_destination = None
+
+    try:
+        destination_port_index = argv.index(b"--dport")
+        destination_port = int(argv[destination_port_index + 1])
+
+        to_destination_index = argv.index(b"--to-destination")
+        to_destination = IPAddress(argv[to_destination_index + 1])
+
+        # Find the comment last so that the other two attributes always have a
+        # value if the comment has a value.
+        comment_index = argv.index(b"--comment")
+        comment = argv[comment_index + 1]
+    except (IndexError, ValueError):
+        pass
+
+    return iptables_options(comment, destination_port, to_destination)
