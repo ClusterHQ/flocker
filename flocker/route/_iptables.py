@@ -81,8 +81,9 @@ def create_proxy_to(ip, port):
     # upon.  Doing SNAT here would be a little bit more efficient because the
     # kernel could avoid looking up the external interface's address for every
     # single packet.  But it requires this code to know that address and it
-    # requires that if it ever changes the rule gets updated.  So we'll just
-    # masquerade for now.
+    # requires that if it ever changes the rule gets updated and it may require
+    # some steps to do port allocation (not sure what they are yet).  So we'll
+    # just masquerade for now.
 
     rule = Rule()
 
