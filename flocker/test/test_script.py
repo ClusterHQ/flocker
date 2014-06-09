@@ -17,7 +17,7 @@ from ..script import flocker, volume
 from .. import __version__
 
 
-def assertHelp(testCase, command, arguments):
+def assertClickHelp(testCase, command, arguments):
     """
     Assert that help text is printed.
     """
@@ -25,9 +25,26 @@ def assertHelp(testCase, command, arguments):
     result = runner.invoke(command, arguments)
 
     testCase.assertEqual(
-        (0, u'Usage'),
-        (result.exit_code, result.output[:len(u'Usage')])
+        (None, 0, u'Usage'),
+        (result.exception, result.exit_code, result.output[:len(u'Usage')])
     )
+
+
+
+def assertClickOutput(testCase, result, expectedOutput, expectedStatus=0):
+    """
+    Assert that the expected output is printed and that no unexpected
+    exceptions were raised.
+
+    XXX: This is required because of the way click.testing.CliRunner
+    captures exceptions. See https://github.com/mitsuhiko/click/issues/136
+    """
+    testCase.assertEqual(
+        (None, expectedOutput, expectedStatus),
+        (result.exception, result.output, result.exit_code)
+    )
+
+
 
 
 
@@ -37,7 +54,7 @@ class CommonArgumentsTestsMixin(object):
         When run with a help argument, the flocker prints help text and exits
         with status 0.
         """
-        assertHelp(self, flocker, ['--help'])
+        assertClickHelp(self, flocker, ['--help'])
 
 
     def test_version(self):
@@ -47,9 +64,10 @@ class CommonArgumentsTestsMixin(object):
         """
         runner = CliRunner()
         result = runner.invoke(flocker, ['--version'])
-        self.assertEqual(
-            (0, u'flocker, version {version}\n'.format(version=__version__)),
-            (result.exit_code, result.output)
+        assertClickOutput(
+            self, result,
+            u'flocker, version {version}\n'.format(version=__version__),
+            0
         )
 
 
@@ -61,7 +79,7 @@ class FlockerTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         """
         When run without any arguments flocker prints help text.
         """
-        assertHelp(self, flocker, [])
+        assertClickHelp(self, flocker, [])
 
 
 
@@ -74,10 +92,7 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         """
         runner = CliRunner()
         result = runner.invoke(volume, [])
-        self.assertEqual(
-            (0, u'\n'),
-            (result.exit_code, result.output)
-        )
+        assertClickOutput(self, result, u'\n', 0)
 
 
     def test_noArguments(self):
@@ -86,24 +101,7 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         """
         runner = CliRunner()
         result = runner.invoke(volume, [])
-        self.assertEqual(
-            (0, u'\n'),
-            (result.exit_code, result.output)
-        )
-
-
-    def assertOutput(self, result, output):
-        """
-        Assert that the expected output is printed and that no unexpected
-        exceptions were raised.
-
-        XXX: This is required because of the way click.testing.CliRunner
-        captures exceptions. See https://github.com/mitsuhiko/click/issues/136
-        """
-        self.assertEqual(
-            (None, output),
-            (result.exception, result.output)
-        )
+        assertClickOutput(self, result, u'\n', 0)
 
 
     def test_configDefault(self):
@@ -112,8 +110,7 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         """
         runner = CliRunner()
         result = runner.invoke(volume)
-        self.assertOutput(result, b'\n')
-
+        assertClickOutput(self, result, b'\n', 0)
 
 
 

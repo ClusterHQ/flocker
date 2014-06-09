@@ -30,12 +30,13 @@ class FilePath(click.ParamType):
 @click.group()
 @click.help_option()
 @click.version_option(version=__version__)
-def flocker(self):
+def flocker():
     click.echo()
 
 
 
 @click.command()
+@click.help_option()
 @click.option(
     '--config',
     type=FilePath(),
