@@ -30,18 +30,19 @@ class FilePath(click.ParamType):
 @click.group()
 @click.help_option()
 @click.version_option(version=__version__)
-def flocker():
+def flocker(self):
     click.echo()
 
 
-@flocker.command()
+
+@click.command()
 @click.option(
     '--config',
     type=FilePath(),
-    default=filepath.FilePath(b"/etc/flocker/volume.json"),
+    default=b"/etc/flocker/volume.json",
     help='The path to the config file.'
 )
 def volume(config):
     """
     """
-    click.echo(config)
+    click.echo()

@@ -13,13 +13,13 @@ from zope.interface.verify import verifyObject
 
 from click.testing import CliRunner
 
-from ..script import flocker, volume, FilePath
+from ..script import flocker, volume
 from .. import __version__
 
 
 def assertHelp(testCase, command, arguments):
     """
-
+    Assert that help text is printed.
     """
     runner = CliRunner()
     result = runner.invoke(command, arguments)
@@ -92,16 +92,28 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         )
 
 
+    def assertOutput(self, result, output):
+        """
+        Assert that the expected output is printed and that no unexpected
+        exceptions were raised.
+
+        XXX: This is required because of the way click.testing.CliRunner
+        captures exceptions. See https://github.com/mitsuhiko/click/issues/136
+        """
+        self.assertEqual(
+            (None, output),
+            (result.exception, result.output)
+        )
+
+
     def test_configDefault(self):
         """
         L{volume} without a config argument passes the default value.
         """
         runner = CliRunner()
-        result = runner.invoke(volume, ['--config', 'foo/bar'])
-        self.assertEqual(
-            (0, u'\n'),
-            (result.exit_code, result.output)
-        )
+        result = runner.invoke(volume)
+        self.assertOutput(result, b'\n')
+
 
 
 
