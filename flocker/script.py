@@ -31,7 +31,7 @@ class FilePath(click.ParamType):
 @click.help_option()
 @click.version_option(version=__version__)
 def flocker():
-    click.echo()
+    pass
 
 
 
