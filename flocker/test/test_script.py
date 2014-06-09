@@ -46,8 +46,6 @@ def assertClickOutput(testCase, result, expectedOutput, expectedStatus=0):
 
 
 
-
-
 class CommonArgumentsTestsMixin(object):
     def test_help(self):
         """
