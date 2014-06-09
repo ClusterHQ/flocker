@@ -16,6 +16,8 @@ from twisted.python.filepath import FilePath
 
 FLOCKER_COMMENT_MARKER = b"flocker"
 
+iptables_options = namedtuple("iptables_options", "comment destination_port to_destination")
+
 class Proxy(namedtuple("Proxy", "ip port")):
     """
     :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
@@ -175,6 +177,12 @@ def enumerate_proxies():
 
 
 def get_flocker_rules():
+    """
+    Look up all of the iptables rules created/managed by flocker.
+
+    :return: An iterator of :py:class:`iptables_options` instances, one for
+        each rule found.
+    """
     # Life is horrible.
     # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
     output = check_output([b"iptables-save"])
@@ -201,13 +209,29 @@ def get_flocker_rules():
             yield options
 
 
-iptables_options = namedtuple("iptables_options", "comment destination_port to_destination")
-
 def parse_iptables_options(argv):
-    # -A PREROUTING -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL -m comment --comment flocker -j DNAT --to-destination 10.1.2.3
-    # -A OUTPUT -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL -j DNAT --to-destination 10.1.2.3
-    # -A POSTROUTING -p tcp -m tcp --dport 4567 -j MASQUERADE
+    """
+    Parse a single line of iptables-save(8) output from the NAT table section.
 
+    :param argv: A :py:class:`list` of :py:class:`bytes` instances like an
+        iptables argv (not including ``b"iptables"`` as ``argv[0]``).
+
+    :return: A :py:class:`iptables_options` instance holding the values taken
+        from ``argv``.
+    """
+    # "Parsing" things like this:
+    #
+    # -A PREROUTING -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL
+    #     -m comment --comment flocker -j DNAT --to-destination 10.1.2.3
+    #
+    # -A OUTPUT -p tcp -m tcp --dport 4567 -m addrtype --dst-type LOCAL -j DNAT
+    #     --to-destination 10.1.2.3
+    #
+    # -A POSTROUTING -p tcp -m tcp --dport 4567 -j MASQUERADE
+    #
+    # To avoid having to know about every single possible current and future
+    # iptables option, don't try to parse the whole line.  Just look for things
+    # we expect and recognize.
     comment = None
     destination_port = None
     to_destination = None
