@@ -24,20 +24,21 @@ class VolumeServiceStartupTests(TestCase):
     """
     def test_interface(self):
         """:class:`VolumeService` implements :class:`IService`."""
-        self.assertTrue(verifyObject(IService, VolumeService(FilePath(""))))
+        self.assertTrue(verifyObject(IService,
+                                     VolumeService(FilePath(""), None)))
 
     def test_no_config_UUID(self):
         """If no config file exists in the given path, a new UUID is chosen."""
-        service = VolumeService(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), None)
         service.startService()
-        service2 = VolumeService(FilePath(self.mktemp()))
+        service2 = VolumeService(FilePath(self.mktemp()), None)
         service2.startService()
         self.assertNotEqual(service.uuid, service2.uuid)
 
     def test_no_config_written(self):
         """If no config file exists, a new one is written with the UUID."""
         path = FilePath(self.mktemp())
-        service = VolumeService(path)
+        service = VolumeService(path, None)
         service.startService()
         config = json.loads(path.getContent())
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
@@ -45,7 +46,7 @@ class VolumeServiceStartupTests(TestCase):
     def test_no_config_directory(self):
         """The config file's parent directory is created if it doesn't exist."""
         path = FilePath(self.mktemp()).child(b"config.json")
-        service = VolumeService(path)
+        service = VolumeService(path, None)
         service.startService()
         self.assertTrue(path.exists())
 
@@ -57,7 +58,7 @@ class VolumeServiceStartupTests(TestCase):
         path.makedirs()
         path.chmod(0)
         path = path.child(b"dir").child(b"config.json")
-        service = VolumeService(path)
+        service = VolumeService(path, None)
         self.assertRaises(CreateConfigurationError, service.startService)
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
@@ -68,15 +69,15 @@ class VolumeServiceStartupTests(TestCase):
         path.makedirs()
         path.chmod(0)
         path = path.child(b"config.json")
-        service = VolumeService(path)
+        service = VolumeService(path, None)
         self.assertRaises(CreateConfigurationError, service.startService)
 
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""
         path = self.mktemp()
-        service = VolumeService(FilePath(path))
+        service = VolumeService(FilePath(path), None)
         service.startService()
-        service2 = VolumeService(FilePath(path))
+        service2 = VolumeService(FilePath(path), None)
         service2.startService()
         self.assertEqual(service.uuid, service2.uuid)
 

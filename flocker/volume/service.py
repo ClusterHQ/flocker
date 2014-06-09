@@ -23,9 +23,7 @@ class VolumeService(Service):
         volume manager. Only available once the service has started.
     """
 
-    def __init__(self, config_path,
-                 # XXX delete =None once we're further along:
-                 pool=None):
+    def __init__(self, config_path, pool):
         """
         :param FilePath config_path: Path to the volume manager config file.
         :param pool: A `flocker.volume.filesystems.interface.IStoragePool`

@@ -42,7 +42,7 @@ def _main(reactor, *arguments):
     # https://github.com/hybridlogic/flocker/issues/30
     options = FlockerVolumeOptions()
     options.parseOptions(arguments)
-    service = VolumeService(options["config"])
+    service = VolumeService(options["config"], None)
     try:
         service.startService()
     except CreateConfigurationError as e:
