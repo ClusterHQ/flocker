@@ -7,8 +7,17 @@ import click
 
 from . import __version__
 
-@click.command()
+@click.group()
 @click.help_option()
 @click.version_option(version=__version__)
 def flocker():
+    click.echo()
+
+
+@flocker.command()
+@click.help_option()
+@click.version_option(version=__version__)
+def volume():
+    """
+    """
     click.echo()

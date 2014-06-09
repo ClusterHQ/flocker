@@ -13,43 +13,37 @@ from zope.interface.verify import verifyObject
 
 from click.testing import CliRunner
 
-from ..script import flocker
+from ..script import flocker, volume
 from .. import __version__
 
 
-class FlockerTests(SynchronousTestCase):
+def assertHelp(testCase, command, arguments):
     """
+
     """
-    def test_noArguments(self):
-        """
-        When run without any arguments flocker prints nothing and exits with
-        status 0.
-        """
-        runner = CliRunner()
-        result = runner.invoke(flocker, [])
-        self.assertEqual(
-            (0, u'\n'),
-            (result.exit_code, result.output)
-        )
+    runner = CliRunner()
+    result = runner.invoke(command, arguments)
+
+    testCase.assertEqual(
+        (0, u'Usage'),
+        (result.exit_code, result.output[:len(u'Usage')])
+    )
 
 
+
+class CommonArgumentsTestsMixin(object):
     def test_help(self):
         """
-        When run without a help argument, the flocker command prints online
-        help and exits with status 0.
+        When run with a help argument, the flocker prints help text and exits
+        with status 0.
         """
-        runner = CliRunner()
-        result = runner.invoke(flocker, ['--help'])
-        self.assertEqual(
-            (0, u'Usage'),
-            (result.exit_code, result.output[:len(u'Usage')])
-        )
+        assertHelp(self, flocker, ['--help'])
 
 
     def test_version(self):
         """
-        When run with a version argument, the flocker command prints the flocker
-        version and exits with status 0
+        When run with a version argument, the command prints the flocker version
+        and exits with status 0
         """
         runner = CliRunner()
         result = runner.invoke(flocker, ['--version'])
@@ -60,3 +54,39 @@ class FlockerTests(SynchronousTestCase):
 
 
 
+class FlockerTests(CommonArgumentsTestsMixin, SynchronousTestCase):
+    """
+    """
+    def test_noArguments(self):
+        """
+        When run without any arguments flocker prints help text.
+        """
+        assertHelp(self, flocker, [])
+
+
+
+class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
+    """
+    """
+    def test_subcommand(self):
+        """
+        L{volume} is registered as a subcommand of L{flocker}.
+        """
+        runner = CliRunner()
+        result = runner.invoke(volume, [])
+        self.assertEqual(
+            (0, u'\n'),
+            (result.exit_code, result.output)
+        )
+
+
+    def test_noArguments(self):
+        """
+        L{volume} without arguments prints a blank line and exits with status 0.
+        """
+        runner = CliRunner()
+        result = runner.invoke(volume, [])
+        self.assertEqual(
+            (0, u'\n'),
+            (result.exit_code, result.output)
+        )
