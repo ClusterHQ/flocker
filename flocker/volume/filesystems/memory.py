@@ -44,10 +44,10 @@ class DirectoryFilesystem(object):
 
 @implementer(IStoragePool)
 class FilesystemStoragePool(object):
-    """A :class:`IStoragePool` implementation that just creates folders.
+    """A :class:`IStoragePool` implementation that just creates directories.
 
     Rather than mounting actual filesystems, they are emulated by simply
-    creating a folder for each filesystem.
+    creating a directory for each filesystem.
     """
     def __init__(self, root):
         """
