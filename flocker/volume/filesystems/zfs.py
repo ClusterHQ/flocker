@@ -144,6 +144,18 @@ class ZFSSnapshots(object):
         return d
 
 
+def volume_to_dataset(volume):
+    """Convert a volume to a dataset name.
+
+    :param flocker.volume.service.Volume volume: The volume.
+
+    :return: Dataset name as ``bytes``.
+    """
+    # Include trunk in case we decide to do branch model later on:
+    return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
+                             volume.name.encode("ascii"))
+
+
 @implementer(IStoragePool)
 class StoragePool(object):
     """A ZFS storage pool."""
@@ -159,17 +171,6 @@ class StoragePool(object):
         self._name = name
         self._mount_root = mount_root
 
-    def _volume_to_dataset(self, volume):
-        """Convert a volume to a dataset name.
-
-        :param flocker.volume.service.Volume volume: The volume.
-
-        :return: Dataset name as ``bytes``.
-        """
-        # Include trunk in case we decide to do branch model later on:
-        return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
-                                 volume.name.encode("ascii"))
-
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_mountpoint().path
@@ -180,6 +181,6 @@ class StoragePool(object):
         return d
 
     def get(self, volume):
-        dataset = self._volume_to_dataset(volume)
+        dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)

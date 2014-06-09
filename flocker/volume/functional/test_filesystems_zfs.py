@@ -17,7 +17,9 @@ from twisted.python.filepath import FilePath
 from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests,
     )
-from ..filesystems.zfs import ZFSSnapshots, Filesystem, StoragePool
+from ..filesystems.zfs import (
+    ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
+    )
 from ..service import Volume
 
 
@@ -56,6 +58,17 @@ class IStoragePoolTests(make_istoragepool_tests(
     """``IStoragePoolTests`` for ZFS storage pool."""
 
 
+class VolumeToDatasetTests(TestCase):
+    """Tests for ``volume_to_dataset``."""
+    def test_volume_to_dataset(self):
+        """``volume_to_dataset`` includes the UUID, dataset
+        name and (for future functionality) a default branch name.
+        """
+        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=None)
+        self.assertEqual(volume_to_dataset(volume),
+                         b"my-uuid.myvolumename.trunk")
+
+
 class StoragePoolTests(TestCase):
     """ZFS-specific ``StoragePool`` tests."""
 
@@ -68,7 +81,7 @@ class StoragePoolTests(TestCase):
         d = pool.create(volume)
         def gotFilesystem(filesystem):
             self.assertEqual(filesystem.get_mountpoint(),
-                             mount_root.child(b"my-uuid.myvolumename.trunk"))
+                             mount_root.child(volume_to_dataset(volume)))
         d.addCallback(gotFilesystem)
         return d
 
@@ -83,7 +96,7 @@ class StoragePoolTests(TestCase):
         def gotFilesystem(filesystem):
             self.assertEqual(
                 filesystem,
-                Filesystem(pool_name, b"my-uuid.myvolumename.trunk"))
+                Filesystem(pool_name, volume_to_dataset(volume)))
         d.addCallback(gotFilesystem)
         return d
 
