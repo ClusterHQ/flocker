@@ -44,6 +44,9 @@ class IFilesystem(Interface):
     def __ne__(other):
         """True if and only if underlying OS filesystem is different."""
 
+    def __hash__():
+        """Equal objects should have the same hash."""
+
 
 class IStoragePool(Interface):
     """Pool of on-disk storage where filesystems are stored."""
