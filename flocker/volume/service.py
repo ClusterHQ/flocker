@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import json
+import stat
 from uuid import uuid4
 
 from characteristic import attributes
@@ -56,7 +57,9 @@ class VolumeService(Service):
         volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
         d = self._pool.create(volume)
         def created(filesystem):
-            filesystem.get_mountpoint().chmod(0777)
+            filesystem.get_mountpoint().chmod(
+                # 0o777 the long way:
+                stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
             return volume
         d.addCallback(created)
         return d
