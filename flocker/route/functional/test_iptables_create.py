@@ -37,6 +37,25 @@ def connect_nonblocking(ip, port):
     return client
 
 
+def create_user_rule():
+    """
+    Create an iptables rule which simulates an existing (or otherwise
+    configured beyond flocker's control) rule on the system and needs to be
+    ignored by :py:func:`enumerate_proxies`.
+    """
+    check_output([
+            b"iptables",
+            # Stick it in the PREROUTING chain based on our knowledge that the
+            # implementation inspects this chain to enumerate proxies.
+            b"-t", b"nat", b"-A", b"PREROUTING",
+
+            b"--protocol", b"tcp", b"--dport", b"12345",
+            b"-m", b"addrtype", b"--dst-type", b"LOCAL",
+
+            b"-j", b"DNAT", b"--to-destination", b"10.7.8.9",
+            ])
+
+
 def is_environment_configured():
     """
     Determine whether it is possible to exercise the proxy setup functionality
@@ -271,10 +290,11 @@ class EnumerateTests(TestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
     """
+    @_environment_skip
     def setUp(self):
         self.addCleanup(preserve_iptables())
 
-    @_environment_skip
+
     def test_empty(self):
         """
         :py:func:`flocker.route.enumerate_proxies` returns an empty
@@ -283,7 +303,6 @@ class EnumerateTests(TestCase):
         self.assertEqual([], enumerate_proxies())
 
 
-    @_environment_skip
     def test_a_proxy(self):
         """
         After :py:func:`flocker.route.create` is used to create a proxy,
@@ -294,4 +313,29 @@ class EnumerateTests(TestCase):
         port = 4567
         proxy = create(ip, port)
 
+        self.assertEqual([proxy], enumerate_proxies())
+
+
+    def test_some_proxies(self):
+        """
+        After :py:func:`flocker.route.create` is used to create several
+        proxies, :py:func:`flocker.route.enumerate_proxies` returns a
+        :py:class:`list` including an object for each of those proxies.
+        """
+        ip = IPAddress("10.1.2.3")
+        port = 4567
+        proxy_one = create(ip, port)
+        proxy_two = create(ip, port + 1)
+
+        self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
+
+
+    def test_unrelated_iptables_rules(self):
+        """
+        If there are rules in NAT table which aren't related to flocker then
+        :py:func:`enumerate_proxies` does not include information about them in
+        its return value.
+        """
+        create_user_rule()
+        proxy = create(IPAddress("10.1.2.3"), 1234)
         self.assertEqual([proxy], enumerate_proxies())

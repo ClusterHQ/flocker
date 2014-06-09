@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 from collections import namedtuple
 
 from iptc import Chain, Rule, Table
+from ipaddr import IPAddress
 
 from twisted.python.filepath import FilePath
 
@@ -62,6 +63,10 @@ def create(ip, port):
     # same port should be left alone.
     local = rule.create_match(b"addrtype")
     local.dst_type = b"LOCAL"
+
+    # Tag it as a flocker-created rule so we can recognize it later.
+    comment = rule.create_match(b"comment")
+    comment.comment = b"flocker"
 
     # If the filter matched, jump to the DNAT chain to handle doing the actual
     # packet mangling.  DNAT is a built-in chain that already knows how to do
@@ -164,15 +169,28 @@ def enumerate_proxies():
 
     :return: A :py:class:`list` of objects describing all configured proxies.
     """
+    def find_match(rule, name):
+        for match in rule.matches:
+            if match.name == name:
+                return match
+        return None
+
+    def comment(rule):
+        rule = find_match(rule, b"comment")
+        if rule is not None:
+            return rule.parameters[b"comment"]
+
     nat = Table(Table.NAT)
+    nat.refresh()
+
     prerouting = Chain(nat, b"PREROUTING")
 
     proxies = []
 
     for rule in prerouting.rules:
-        if rule.target.name == "DNAT":
-            ip = rule.target.parameters[b"to_destination"]
-            port = rule.matches[0].parameters[b"dport"]
+        if rule.target.name == "DNAT" and comment(rule) == b"flocker":
+            ip = IPAddress(rule.target.parameters[b"to_destination"])
+            port = int(find_match(rule, b"tcp").parameters[b"dport"])
             proxies.append(_Proxy(ip, port))
 
     return proxies
