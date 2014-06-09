@@ -51,6 +51,11 @@ setup(
         "pytz == 2014.2",
         "characteristic == 0.1.0",
         "Twisted == 13.2.0"
+
+        "netifaces == 0.8",
+        "ipaddr == 2.1.10",
+
+        "python-iptables == 0.3.0",
         ],
 
     extras_require={
