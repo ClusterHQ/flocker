@@ -40,6 +40,7 @@ setup(
         # Command-line programs we want setuptools to install:
         'console_scripts': [
             'flocker-volume = flocker.volume.script:main',
+            'flocker = flocker.script:flocker',
         ],
     },
 
