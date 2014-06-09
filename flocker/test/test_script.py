@@ -89,7 +89,7 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         L{volume} is registered as a subcommand of L{flocker}.
         """
         runner = CliRunner()
-        result = runner.invoke(volume, [])
+        result = runner.invoke(flocker, ['volume'])
         assertClickOutput(self, result, u'\n', 0)
 
 

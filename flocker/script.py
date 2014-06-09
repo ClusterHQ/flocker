@@ -35,7 +35,7 @@ def flocker():
 
 
 
-@click.command()
+@flocker.command()
 @click.help_option()
 @click.option(
     '--config',
