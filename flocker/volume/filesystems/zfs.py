@@ -79,16 +79,17 @@ class Filesystem(object):
     For now the goal is simply not to pass bytes around when referring to a
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
-
-    :ivar pool: The filesystem's pool name, e.g. ``b"hpool"``.
-
-    :ivar dataset: The filesystem's dataset name, e.g. ``b"myfs"``, or
-        ``None`` for the top-level filesystem.
-
-    :ivar twisted.python.filepath.FilePath _mountpoint: Where the filesystem
-        is mounted.
     """
     def __init__(self, pool, dataset, mountpoint=None):
+        """
+        :param pool: The filesystem's pool name, e.g. ``b"hpool"``.
+
+        :param dataset: The filesystem's dataset name, e.g. ``b"myfs"``, or
+            ``None`` for the top-level filesystem.
+
+        :param twisted.python.filepath.FilePath mountpoint: Where the
+            filesystem is mounted.
+        """
         self.pool = pool
         self.dataset = dataset
         self._mountpoint = mountpoint
