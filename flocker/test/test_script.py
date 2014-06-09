@@ -97,7 +97,7 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
         L{volume} without a config argument passes the default value.
         """
         runner = CliRunner()
-        result = runner.invoke(volume, ['--volume'])
+        result = runner.invoke(volume, ['--config', 'foo/bar'])
         self.assertEqual(
             (0, u'\n'),
             (result.exit_code, result.output)
@@ -105,12 +105,12 @@ class FlockerVolumeTests(CommonArgumentsTestsMixin, SynchronousTestCase):
 
 
 
-class FilePathTypeTests(SynchronousTestCase):
-    """
-    Tests for L{FilePath} click type.
-    """
-    def test_foo(self):
-        """
+# class FilePathTypeTests(SynchronousTestCase):
+#     """
+#     Tests for L{FilePath} click type.
+#     """
+#     def test_foo(self):
+#         """
 
-        """
-        self.assertEqual('', FilePath())
+#         """
+#         self.assertEqual('', FilePath())
