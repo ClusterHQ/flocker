@@ -18,6 +18,7 @@ from ipaddr import IPAddress, IPNetwork
 from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create, enumerate_proxies
+from .iptables import preserve_iptables
 
 ADDRESSES = [
     IPAddress(address['addr'])
@@ -90,6 +91,8 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
+        self.addCleanup(preserve_iptables())
+
         self.server_ip = ADDRESSES[0]
         self.proxy_ip = ADDRESSES[1]
 
@@ -105,6 +108,8 @@ class CreateTests(TestCase):
         # handshake in under one second...).
         self.server.settimeout(1)
         self.port = self.server.getsockname()[1]
+
+
 
     def test_setup(self):
         """
@@ -266,6 +271,9 @@ class EnumerateTests(TestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
     """
+    def setUp(self):
+        self.addCleanup(preserve_iptables())
+
     @_environment_skip
     def test_empty(self):
         """
