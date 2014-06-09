@@ -12,7 +12,7 @@ Volumes are created with two parameters:
 * The logical name; this should be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
 * (XXX https://github.com/hybridlogic/flocker/issues/39) A mount point, indicating where within a container the volume should be mounted.
-  For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores is data.
+  For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores its data.
 
 (XXX https://github.com/hybridlogic/flocker/issues/39)
 Creating a volume will automatically create a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
