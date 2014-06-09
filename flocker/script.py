@@ -5,7 +5,27 @@ A top level flocker command.
 
 import click
 
+from twisted.python import filepath
+
 from . import __version__
+
+
+class FilePath(click.ParamType):
+    """
+    A wrapper around L{click.Path} which returns a
+    L{twisted.python.filepath.FilePath}.
+    """
+    name = 'filepath'
+
+    def __init__(self, *args, **kwargs):
+        self.path = click.Path(*args, **kwargs)
+
+
+    def convert(self, value, param, ctx):
+        value = self.path.convert(value, param, ctx)
+        return filepath.FilePath(value)
+
+
 
 @click.group()
 @click.help_option()
@@ -17,7 +37,12 @@ def flocker():
 @flocker.command()
 @click.help_option()
 @click.version_option(version=__version__)
-def volume():
+@click.option(
+    '--config',
+    type=FilePath(exists=True),
+    default=filepath.FilePath(b"/etc/flocker/volume.json")
+)
+def volume(config):
     """
     """
-    click.echo()
+    click.echo(config)
