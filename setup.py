@@ -33,9 +33,18 @@ setup(
     # explicitly included.
     packages=[
         "flocker", "flocker.test",
+        "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
         ],
 
+    entry_points = {
+        # Command-line programs we want setuptools to install:
+        'console_scripts': [
+            'flocker-volume = flocker.volume.script:main',
+        ],
+    },
+
     install_requires=[
+        "eliot == 0.3",
         "machinist == 0.1",
         "zope.interface == 4.0.5",
         # Pinning this isn't great in general, but we're only using UTC so meh:
@@ -56,6 +65,9 @@ setup(
             # pyflakes is pretty critical to have around to help point out
             # obvious mistakes.
             "pyflakes==0.8.1",
+
+            # Run the test suite:
+            "tox==1.7.1",
 
             # versioneer is necessary in order to update (but *not* merely to
             # use) the automatic versioning tools.

@@ -25,6 +25,7 @@ var/
 .installed.cfg
 *.egg
 twisted/plugins/dropin.cache
+MANIFEST
 
 # Installer logs
 pip-log.txt
