@@ -47,12 +47,12 @@ def create_user_rule():
             b"iptables",
             # Stick it in the PREROUTING chain based on our knowledge that the
             # implementation inspects this chain to enumerate proxies.
-            b"-t", b"nat", b"-A", b"PREROUTING",
+            b"--table", b"nat", b"--append", b"PREROUTING",
 
             b"--protocol", b"tcp", b"--dport", b"12345",
-            b"-m", b"addrtype", b"--dst-type", b"LOCAL",
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-            b"-j", b"DNAT", b"--to-destination", b"10.7.8.9",
+            b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
             ])
 
 
