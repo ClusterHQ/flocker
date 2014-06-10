@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import os
+from collections import namedtuple
 
 from characteristic import with_cmp, with_repr
 
@@ -184,3 +185,35 @@ class StoragePool(object):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)
+
+    def enumerate(self):
+        listing = _list_filesystems(self._reactor, self._name)
+
+        def listed(filesystems):
+            result = set()
+            for entry in filesystems:
+                filesystem = Filesystem(
+                    self._name, entry.dataset, entry.mount_path)
+                result.add(filesystem)
+            return result
+
+        return listing.addCallback(listed)
+
+
+def _list_filesystems(reactor, pool):
+    listing = zfs_command(
+        reactor,
+        [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
+    listing.addCallback(_parse_list_output, pool)
+    return listing
+
+
+def _parse_list_output(output, pool):
+    for line in output.splitlines():
+        name, mountpoint = line.split()
+        name = name[len(pool) + 1:]
+        if name:
+            yield _zfs_filesystem(name, mountpoint)
+
+
+_zfs_filesystem = namedtuple("_zfs_filesystem", "dataset mount_path")
