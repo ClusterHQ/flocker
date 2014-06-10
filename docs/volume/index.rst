@@ -9,9 +9,9 @@ Theory of Operation
 Each volume is a ZFS dataset.
 Volumes are created with two parameters:
 
-* The logical name; this should be the same as the name of the container it will be mounted in.
+* The logical name; this must be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
-* (XXX https://github.com/hybridlogic/flocker/issues/39) A mount point, indicating where within a container the volume should be mounted.
+* (XXX https://github.com/hybridlogic/flocker/issues/39) A mount point, indicating where within a container the volume will be mounted.
   For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores its data.
 
 (XXX https://github.com/hybridlogic/flocker/issues/39)
