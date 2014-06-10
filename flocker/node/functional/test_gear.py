@@ -26,3 +26,4 @@ class IGearClientTests(make_igearclient_tests(
 
 # XXX still needs tests to ensure container is actually started.
 # XXX still need to write documentation.
+# XXX need test to ensure correct image was used... perhaps with Dockerfile?
