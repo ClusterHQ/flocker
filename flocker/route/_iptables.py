@@ -165,6 +165,43 @@ def create_proxy_to(ip, port):
     return Proxy(ip, port)
 
 
+
+def delete_proxy(proxy):
+    """
+    Delete an existing TCP proxy previously created using
+    :py:func:`create_proxy_to`.
+
+    :param proxy: The object returned by :py:func:`create_proxy_to` or one of
+        the elements of the sequence returned by :py:func:`enumerate_proxies`.
+    """
+    ip = unicode(proxy.ip).encode("ascii")
+    port = unicode(proxy.port).encode("ascii")
+    check_output([
+            b"iptables",
+            b"--table", b"nat",
+            b"--delete", b"PREROUTING",
+            b"--protocol", b"tcp", b"--destination-port", port,
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+            b"--jump", b"DNAT", b"--to-destination", ip,
+    ])
+    check_output([
+            b"iptables",
+            b"--table", b"nat",
+            b"--delete", b"POSTROUTING",
+            b"--protocol", b"tcp", b"--destination-port", port,
+            b"--jump", b"MASQUERADE",
+    ])
+    check_output([
+            b"iptables",
+            b"--table", b"nat",
+            b"--delete", b"OUTPUT",
+            b"--protocol", b"tcp", b"--destination-port", port,
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+            b"--jump", b"DNAT", b"--to-destination", ip,
+    ])
+
+
 def enumerate_proxies():
     """
     Retrieve configured proxy information.

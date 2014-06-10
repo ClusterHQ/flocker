@@ -17,7 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 
 from twisted.trial.unittest import SkipTest, TestCase
 
-from .. import create_proxy_to, enumerate_proxies
+from .. import create_proxy_to, delete_proxy, enumerate_proxies
 from .iptables import preserve_iptables
 
 ADDRESSES = [
@@ -110,7 +110,7 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        self.addCleanup(preserve_iptables())
+        self.addCleanup(preserve_iptables().restore)
 
         self.server_ip = ADDRESSES[0]
         self.proxy_ip = ADDRESSES[1]
@@ -311,7 +311,7 @@ class EnumerateTests(TestCase):
     """
     @_environment_skip
     def setUp(self):
-        self.addCleanup(preserve_iptables())
+        self.addCleanup(preserve_iptables().restore)
 
 
     def test_empty(self):
@@ -358,3 +358,51 @@ class EnumerateTests(TestCase):
         create_user_rule()
         proxy = create_proxy_to(IPAddress("10.1.2.3"), 1234)
         self.assertEqual([proxy], enumerate_proxies())
+
+
+
+class DeleteTests(TestCase):
+    """
+    Tests for the deletion of Flocker-managed external routing rules.
+    """
+    @_environment_skip
+    def setUp(self):
+        self.preserver = preserve_iptables()
+        self.addCleanup(self.preserver.restore)
+
+
+    def test_created_rules_deleted(self):
+        """
+        After a route created using :py:func:`flocker.route.create_proxy_to` is
+        deleted using :py:meth:`delete` the iptables
+        rules which were added by the former are removed.
+        """
+        proxy = create_proxy_to("10.1.2.3", 12345)
+        delete_proxy(proxy)
+
+        def normalize(rules):
+            return [
+                rule
+                for rule in rules.splitlines()
+                # Comments don't matter.  They always differ because they
+                # include timestamps.
+                if not rule.startswith("#")
+                # Chain data could matter but doesn't.  The implementation
+                # doesn't mess with this stuff.  It typically differs in
+                # uninteresting ways - such as matched packet counters.
+                and not rule.startswith(":")]
+
+        preserver = preserve_iptables()
+        self.assertEqual(
+            normalize(self.preserver.rules),
+            normalize(preserver.rules))
+
+    def test_deleted_proxies_not_enumerated(self):
+        """
+        Once a proxy has been deleted, :py:func:`enumerate_proxies` does not
+        include an element in the sequence it returns corresponding to it.
+        """
+        proxy = create_proxy_to("10.2.3.4", 4321)
+        delete_proxy(proxy)
+
+        self.assertEqual([], enumerate_proxies())
