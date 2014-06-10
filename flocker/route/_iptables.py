@@ -16,7 +16,9 @@ from twisted.python.filepath import FilePath
 
 FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
 
-iptables_options = namedtuple("iptables_options", "comment destination_port to_destination")
+iptables_options = namedtuple(
+    "iptables_options", "comment destination_port to_destination")
+
 
 class Proxy(namedtuple("Proxy", "ip port")):
     """
@@ -56,10 +58,10 @@ def create_proxy_to(ip, port):
             # All NAT stuff happens in the netfilter NAT table.
             b"--table", b"nat",
 
-            # Destination NAT has to happen "pre"-routing so that the normal routing
-            # rules on the machine will use the re-written destination address and get
-            # the packet to that new destination.  Accomplish this by appending the
-            # rule to the PREROUTING chain.
+            # Destination NAT has to happen "pre"-routing so that the normal
+            # routing rules on the machine will use the re-written destination
+            # address and get the packet to that new destination.  Accomplish
+            # this by appending the rule to the PREROUTING chain.
             b"--append", b"PREROUTING",
 
             # Only re-route traffic with a destination port matching the one we
@@ -105,9 +107,9 @@ def create_proxy_to(ip, port):
             # All NAT stuff happens in the netfilter NAT table.
             b"--table", b"nat",
 
-            # As described above, this transformation happens after routing decisions
-            # have been made and the packet is on its way out of the system.
-            # Therefore, append the rule to the POSTROUTING chain.
+            # As described above, this transformation happens after routing
+            # decisions have been made and the packet is on its way out of the
+            # system.  Therefore, append the rule to the POSTROUTING chain.
             b"--append", b"POSTROUTING",
 
             # We'll stick to matching the same kinds of packets we matched in
