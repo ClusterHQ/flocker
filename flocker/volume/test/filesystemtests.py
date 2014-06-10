@@ -22,7 +22,7 @@ from ..snapshots import SnapshotName
 
 
 
-def makeIFilesystemSnapshotsTests(fixture):
+def make_ifilesystemsnapshots_tests(fixture):
     """
     Create a TestCase for IFilesystemSnapshots.
 
