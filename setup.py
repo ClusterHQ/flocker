@@ -51,6 +51,8 @@ setup(
         "pytz == 2014.2",
         "Twisted == 13.2.0",
 
+        "treq == 0.2.1",
+
         "netifaces == 0.8",
         "ipaddr == 2.1.10",
 

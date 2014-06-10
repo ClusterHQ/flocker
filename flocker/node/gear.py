@@ -2,14 +2,21 @@
 
 """Client implementation for talking to the geard daemon."""
 
+import json
 
 from zope.interface import Interface, implementer
 
+from twisted.web.http import OK, NO_CONTENT, NOT_FOUND
 from twisted.internet.defer import succeed, fail
+from treq import request, content
 
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
+
+
+class GearError(Exception):
+    """Unexpected error received from gear daemon."""
 
 
 class IGearClient(Interface):
@@ -46,8 +53,92 @@ class IGearClient(Interface):
         """
 
 
+@implementer(IGearClient)
 class GearClient(object):
-    """Talk to the gear daemon over HTTP."""
+    """Talk to the gear daemon over HTTP.
+
+    :ivar Agent _agent: HTTP client used to talk to gear.
+    :ivar bytes _base_url: Base URL for gear.
+    """
+
+    def __init__(self, hostname):
+        """
+        :param reactor: Reactor to use for HTTP connections.
+        :param bytes hostname: Gear host to connect to.
+        """
+        self._base_url = b"http://%s:43273" % (hostname,)
+
+    def _request(self, method, unit_name, operation=None, data=None):
+        """Send HTTP request to gear.
+
+        :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
+
+        :param unicode unit_name: The name of the unit.
+
+        :param operation: ``None``, or extra ``unicode`` path element to add to
+            the request URL path.
+
+        :param data: ``None``, or object with a body for the request that
+            can be serialized to JSON.
+
+        :return: A ``Defered`` that fires with a response object.
+        """
+        url = self._base_url + b"/container/" + unit_name.encode("ascii")
+        if operation is not None:
+            url += b"/" + operation
+        if data is not None:
+            data = json.dumps(data)
+        return request(method, url, data=data, persistent=False)
+
+    def _ensure_ok(self, response):
+        """Make sure response is OK.
+
+        Also reads the body to ensure connection is closed.
+
+        :param response: Response from treq request.
+
+        :return: ``Deferred`` that errbacks with ``GearError`` if response
+            is not OK.
+        """
+        d = content(response)
+        # XXX needs tests
+        #if response.code not in (OK, NO_CONTENT):
+        #    d.addCallback(lambda data: fail(GearError(response.code, data)))
+        return d
+
+    def add(self, unit_name, image_name):
+        checked = self.exists(unit_name)
+        checked.addCallback(
+            lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
+        checked.addCallback(
+            lambda _: self._request(b"PUT", unit_name,
+                                     data={u"Image": image_name}))
+        checked.addCallback(self._ensure_ok)
+        return checked
+
+
+    def exists(self, unit_name):
+        d = self._request(b"GET", unit_name, operation=b"status")
+        def got_response(response):
+            result = content(response)
+            if response.code in (OK, NO_CONTENT):
+                result.addCallback(lambda _: True)
+            elif response.code == NOT_FOUND:
+                result.addCallback(lambda _: False)
+            #else:
+            # XXX needs test
+            #    result.addCallback(
+            #    lambda data: fail(GearError(response.code, data)))
+            return result
+        d.addCallback(got_response)
+        return d
+
+    def remove(self, unit_name):
+        d = self._request(b"PUT", unit_name, operation=b"stopped")
+        d.addCallback(self._ensure_ok)
+        d.addCallback(lambda _: self._request(b"DELETE", unit_name))
+        d.addCallback(self._ensure_ok)
+        return d
 
 
 @implementer(IGearClient)

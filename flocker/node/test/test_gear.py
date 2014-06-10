@@ -2,7 +2,7 @@
 
 """Tests for :module:`flocker.node.gear`."""
 
-from uuid import uuid4
+from random import random
 
 from zope.interface.verify import verifyObject
 
@@ -16,7 +16,7 @@ def random_name():
 
     :return: A random name for a container.
     """
-    return u"test-%s" % (uuid4(),)
+    return u"test-%d" % (int(random() * 1e12),)
 
 
 def make_igearclient_tests(fixture):
