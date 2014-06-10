@@ -292,8 +292,8 @@ class CreateTests(TestCase):
 
     def test_proxy_object(self):
         """
-        :py:func:`flocker.route.create` returns an object with attributes
-        describing the created proxy.
+        :py:func:`flocker.route.create_proxy_to` returns an object with
+        attributes describing the created proxy.
         """
         proxy = create_proxy_to(self.server_ip, self.port)
         self.assertEqual(
@@ -318,9 +318,9 @@ class EnumerateTests(TestCase):
 
     def test_a_proxy(self):
         """
-        After :py:func:`flocker.route.create` is used to create a proxy,
-        :py:func:`flocker.route.enumerate_proxies` returns a :py:class:`list`
-        including an object describing that proxy.
+        After :py:func:`flocker.route.create_proxy_to` is used to create a
+        proxy, :py:func:`flocker.route.enumerate_proxies` returns a
+        :py:class:`list` including an object describing that proxy.
         """
         ip = IPAddress("10.1.2.3")
         port = 4567
@@ -330,8 +330,8 @@ class EnumerateTests(TestCase):
 
     def test_some_proxies(self):
         """
-        After :py:func:`flocker.route.create` is used to create several
-        proxies, :py:func:`flocker.route.enumerate_proxies` returns a
+        After :py:func:`flocker.route.create_proxy_to` is used to create
+        several proxies, :py:func:`flocker.route.enumerate_proxies` returns a
         :py:class:`list` including an object for each of those proxies.
         """
         ip = IPAddress("10.1.2.3")
