@@ -191,7 +191,8 @@ def get_flocker_rules():
     """
     # Life is horrible.
     # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
-    output = check_output([b"iptables-save"])
+    # At least we know all the rules we need to inspect are in the NAT table.
+    output = check_output([b"iptables-save", b"--table", b"nat"])
 
     # Find the beginning of the NAT table
     header = b"*nat\n"
