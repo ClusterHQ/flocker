@@ -128,8 +128,6 @@ class CreateTests(TestCase):
         self.server.settimeout(1)
         self.port = self.server.getsockname()[1]
 
-
-
     def test_setup(self):
         """
         A connection attempt to the server created in ``setUp`` is successful.
@@ -292,7 +290,6 @@ class CreateTests(TestCase):
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
 
-
     def test_proxy_object(self):
         """
         :py:func:`flocker.route.create` returns an object with attributes
@@ -304,7 +301,6 @@ class CreateTests(TestCase):
             (self.server_ip, self.port))
 
 
-
 class EnumerateTests(TestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
@@ -313,14 +309,12 @@ class EnumerateTests(TestCase):
     def setUp(self):
         self.addCleanup(preserve_iptables())
 
-
     def test_empty(self):
         """
         :py:func:`flocker.route.enumerate_proxies` returns an empty
         :py:class:`list` when no proxies have been created.
         """
         self.assertEqual([], enumerate_proxies())
-
 
     def test_a_proxy(self):
         """
@@ -334,7 +328,6 @@ class EnumerateTests(TestCase):
 
         self.assertEqual([proxy], enumerate_proxies())
 
-
     def test_some_proxies(self):
         """
         After :py:func:`flocker.route.create` is used to create several
@@ -347,7 +340,6 @@ class EnumerateTests(TestCase):
         proxy_two = create_proxy_to(ip, port + 1)
 
         self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
-
 
     def test_unrelated_iptables_rules(self):
         """
