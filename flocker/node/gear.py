@@ -3,48 +3,46 @@
 """Client implementation for talking to the geard daemon."""
 
 
-from twisted.interface import Interface
+from zope.interface import Interface, implementer
+
+from twisted.internet.defer import succeed
+
+
+class AlreadyExists(Exception):
+    """A unit with the given name already exists."""
 
 
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def install(unit_name, image_name):
-        """Install a new unit.
+    def add(unit_name, image_name):
+        """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
 
         :return: ``Deferred`` that fires on success, or errbacks with
-            :class:`GearError` if an error occurred.
+            :class:`AlreadyExists` if a unit by that name already exists.
         """
 
-    def start(unit_name):
-        """Start the given unit.
+    def exists(unit_name):
+        """Check whether the unit exists.
 
-        :param unicode unit_name: The name of the unit to start.
+        :param unicode unit_name: The name of the unit to create.
 
-        :return: ``Deferred`` that fires on success, or errbacks with
-            :class:`GearError` if an error occurred.
+        :return: ``Deferred`` that fires with ``True`` if unit exists,
+            otherwise ``False``.
         """
 
-    def stop(unit_name):
-        """Stop the given unit.
+    def remove(unit_name):
+        """Stop and delete the given unit.
+
+        This can be done multiple times in the row for the same unit.
 
         :param unicode unit_name: The name of the unit to stop.
 
-        :return: ``Deferred`` that fires on success, or errbacks with
-            :class:`GearError` if an error occurred.
-        """
-
-    def delete(unit_name):
-        """Delete the given unit.
-
-        :param unicode unit_name: The name of the unit to remove.
-
-        :return: ``Deferred`` that fires on success, or errbacks with
-            :class:`GearError` if an error occurred.
+        :return: ``Deferred`` that fires on success.
         """
 
 
@@ -52,5 +50,15 @@ class GearClient(object):
     """Talk to the gear daemon over HTTP."""
 
 
+@implementer(IGearClient)
 class FakeGearClient(object):
     """In-memory fake that simulates talking to a gear daemon."""
+
+    def add(self, unit_name, image_name):
+        return succeed(None)
+
+    def exists(self, unit_name):
+        pass
+
+    def remove(self, unit_name):
+        pass
