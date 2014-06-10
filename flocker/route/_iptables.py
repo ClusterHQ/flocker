@@ -44,8 +44,8 @@ def create_proxy_to(ip, port):
     # That container might be on this host or it might be somewhere else.  So
     # we might need to figure that out (or accept it as an argument) and add a
     # "not interface foo" filter here.
-    ip = unicode(ip).encode("ascii")
-    port = unicode(port).encode("ascii")
+    encoded_ip = unicode(ip).encode("ascii")
+    encoded_port = unicode(port).encode("ascii")
 
     # The first goal is to configure "Destination NAT" (DNAT).  We're just
     # going to rewrite the destination address of traffic arriving on the
@@ -68,7 +68,7 @@ def create_proxy_to(ip, port):
             # were told to manipulate.  It is also necessary to specify TCP (or
             # UDP) here since that is the layer of the network stack that
             # defines ports.
-            b"--protocol", b"tcp", b"--destination-port", port,
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
 
             # And only re-route traffic directed at this host.  Traffic
             # originating on this host directed at some random other host that
@@ -83,7 +83,7 @@ def create_proxy_to(ip, port):
             # knows how to do this.  Pass an argument to the DNAT chain so it
             # knows how to mangle the packet - rewrite the destination IP of
             # the address to the target we were told to use.
-            b"--jump", b"DNAT", b"--to-destination", ip,
+            b"--jump", b"DNAT", b"--to-destination", encoded_ip,
     ])
 
     # Bonus round!  Having performed DNAT (changing the destination) during
@@ -119,7 +119,7 @@ def create_proxy_to(ip, port):
             #
             # This omits the LOCAL addrtype check, though, because at this
             # point the packet is definitely leaving this host.
-            b"--protocol", b"tcp", b"--destination-port", port,
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
 
             # Do the masquerading.
             b"--jump", b"MASQUERADE",
@@ -142,11 +142,11 @@ def create_proxy_to(ip, port):
             # Matching the exact same kinds of packets as the PREROUTING rule
             # matches.
             b"--protocol", b"tcp",
-            b"--destination-port", port,
+            b"--destination-port", encoded_port,
             b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
             # Do the same DNAT as we did in the rule for the PREROUTING chain.
-            b"--jump", b"DNAT", b"--to-destination", ip,
+            b"--jump", b"DNAT", b"--to-destination", encoded_ip,
     ])
 
     # The network stack only considers forwarding traffic when certain system
