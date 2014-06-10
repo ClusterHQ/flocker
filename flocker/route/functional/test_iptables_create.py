@@ -47,12 +47,12 @@ def create_user_rule():
             b"iptables",
             # Stick it in the PREROUTING chain based on our knowledge that the
             # implementation inspects this chain to enumerate proxies.
-            b"-t", b"nat", b"-A", b"PREROUTING",
+            b"--table", b"nat", b"--append", b"PREROUTING",
 
             b"--protocol", b"tcp", b"--dport", b"12345",
-            b"-m", b"addrtype", b"--dst-type", b"LOCAL",
+            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-            b"-j", b"DNAT", b"--to-destination", b"10.7.8.9",
+            b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
             ])
 
 
@@ -127,8 +127,6 @@ class CreateTests(TestCase):
         # handshake in under one second...).
         self.server.settimeout(1)
         self.port = self.server.getsockname()[1]
-
-
 
     def test_setup(self):
         """
@@ -292,7 +290,6 @@ class CreateTests(TestCase):
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
 
-
     def test_proxy_object(self):
         """
         :py:func:`flocker.route.create` returns an object with attributes
@@ -304,7 +301,6 @@ class CreateTests(TestCase):
             (self.server_ip, self.port))
 
 
-
 class EnumerateTests(TestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
@@ -313,14 +309,12 @@ class EnumerateTests(TestCase):
     def setUp(self):
         self.addCleanup(preserve_iptables())
 
-
     def test_empty(self):
         """
         :py:func:`flocker.route.enumerate_proxies` returns an empty
         :py:class:`list` when no proxies have been created.
         """
         self.assertEqual([], enumerate_proxies())
-
 
     def test_a_proxy(self):
         """
@@ -334,7 +328,6 @@ class EnumerateTests(TestCase):
 
         self.assertEqual([proxy], enumerate_proxies())
 
-
     def test_some_proxies(self):
         """
         After :py:func:`flocker.route.create` is used to create several
@@ -347,7 +340,6 @@ class EnumerateTests(TestCase):
         proxy_two = create_proxy_to(ip, port + 1)
 
         self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
-
 
     def test_unrelated_iptables_rules(self):
         """
