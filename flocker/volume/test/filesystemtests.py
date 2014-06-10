@@ -159,4 +159,32 @@ def make_istoragepool_tests(fixture):
                                     second.get_mountpoint())
             d.addCallback(createdFilesystems)
             return d
+
+        def test_enumerate_no_volumes(self):
+            """Lacking any volumes, ``enumerate()`` returns an empty result."""
+            pool = fixture(self)
+            enumerating = pool.enumerate()
+            enumerating.addCallback(self.assertEqual, set())
+            return enumerating
+
+        def test_enumerate_some_volumes(self):
+            """
+            The ``IStoragePool.enumerate`` implementation returns a
+            ``Deferred`` that fires with a ``set`` of ``IFilesystem``
+            providers, one for each filesystem which has been created in that
+            pool.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"name", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"name2", _pool=pool)
+            creating = gatherResults([
+                    pool.create(volume), pool.create(volume2)])
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+            def enumerated(result):
+                expected = {volume.get_filesystem(), volume2.get_filesystem()}
+                self.assertEqual(expected, result)
+            return enumerating.addCallback(enumerated)
+
     return IStoragePoolTests

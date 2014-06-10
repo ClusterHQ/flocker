@@ -114,7 +114,7 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertEqual(pool.get(volume).get_mountpoint().getPermissions(),
-                         Permissions(0777))
+                         Permissions(0o777))
 
 
 class VolumeTests(TestCase):
