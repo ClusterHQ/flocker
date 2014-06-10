@@ -34,6 +34,11 @@ setup(
     packages=[
         "flocker", "flocker.test",
         "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
+        "flocker.volume.filesystems",
+        # This doesn't work with 'python setup.py', 'easy_install', or old 'pip',
+        # but it does work with new 'pip' and distribution packages. See
+        # https://stackoverflow.com/questions/7275295/how-do-i-write-a-setup-py-for-a-twistd-twisted-plugin-that-works-with-setuptools
+        "twisted.plugins",
         ],
 
     entry_points = {
