@@ -298,7 +298,7 @@ class CreateTests(TestCase):
         :py:func:`flocker.route.create` returns an object with attributes
         describing the created proxy.
         """
-        proxy = create(self.server_ip, self.port)
+        proxy = create_proxy_to(self.server_ip, self.port)
         self.assertEqual(
             (proxy.ip, proxy.port),
             (self.server_ip, self.port))
@@ -330,7 +330,7 @@ class EnumerateTests(TestCase):
         """
         ip = IPAddress("10.1.2.3")
         port = 4567
-        proxy = create(ip, port)
+        proxy = create_proxy_to(ip, port)
 
         self.assertEqual([proxy], enumerate_proxies())
 
@@ -343,8 +343,8 @@ class EnumerateTests(TestCase):
         """
         ip = IPAddress("10.1.2.3")
         port = 4567
-        proxy_one = create(ip, port)
-        proxy_two = create(ip, port + 1)
+        proxy_one = create_proxy_to(ip, port)
+        proxy_two = create_proxy_to(ip, port + 1)
 
         self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
 
@@ -356,5 +356,5 @@ class EnumerateTests(TestCase):
         its return value.
         """
         create_user_rule()
-        proxy = create(IPAddress("10.1.2.3"), 1234)
+        proxy = create_proxy_to(IPAddress("10.1.2.3"), 1234)
         self.assertEqual([proxy], enumerate_proxies())
