@@ -54,7 +54,11 @@ class IStoragePool(Interface):
     def create(volume):
         """Create a new filesystem for the given volume.
 
-        By default new filesystems will be automounted.
+        By default new filesystems will be automounted. In future
+        iterations when remotely owned filesystems are added
+        (https://github.com/hybridlogic/flocker/issues/16) this interface
+        will be expanded to allow specifying that the filesystem should
+        not be mounted.
 
         :param volume: The volume whose filesystem should be created.
         :type volume: :class:`flocker.volume.service.Volume`
