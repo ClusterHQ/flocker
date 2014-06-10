@@ -18,7 +18,7 @@ Motivation:
   * We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to btrfs or some other system.
     Especially given conflicting terminology - Btrfs “snapshots” are the same as ZFS “clones”.
   * When it comes to replication, it is probably useful to differentiate between “data which is a copy of what the remote host has” and “local version”, in particular when divergence is a potential issue (e.g. can be caused by erroneous failover).
-  In git you have “origin/branchname” vs. the local “branchname”, for example.
+    In git you have “origin/branchname” vs. the local “branchname”, for example.
 
 We are therefore going to be using the following model for CLI examples below:
 
