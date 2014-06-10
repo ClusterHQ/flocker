@@ -14,7 +14,7 @@ from ipaddr import IPAddress
 
 from twisted.python.filepath import FilePath
 
-FLOCKER_COMMENT_MARKER = b"flocker"
+FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
 
 iptables_options = namedtuple("iptables_options", "comment destination_port to_destination")
 
