@@ -17,7 +17,8 @@ from ipaddr import IPAddress, IPNetwork
 
 from twisted.trial.unittest import SkipTest, TestCase
 
-from .. import create_proxy_to
+from .. import create_proxy_to, enumerate_proxies
+from .iptables import preserve_iptables
 
 ADDRESSES = [
     IPAddress(address['addr'])
@@ -34,6 +35,25 @@ def connect_nonblocking(ip, port):
     client.setblocking(False)
     client.connect_ex((ip.exploded, port))
     return client
+
+
+def create_user_rule():
+    """
+    Create an iptables rule which simulates an existing (or otherwise
+    configured beyond flocker's control) rule on the system and needs to be
+    ignored by :py:func:`enumerate_proxies`.
+    """
+    check_output([
+            b"iptables",
+            # Stick it in the PREROUTING chain based on our knowledge that the
+            # implementation inspects this chain to enumerate proxies.
+            b"-t", b"nat", b"-A", b"PREROUTING",
+
+            b"--protocol", b"tcp", b"--dport", b"12345",
+            b"-m", b"addrtype", b"--dst-type", b"LOCAL",
+
+            b"-j", b"DNAT", b"--to-destination", b"10.7.8.9",
+            ])
 
 
 def is_environment_configured():
@@ -72,13 +92,16 @@ def is_environment_configured():
     return getuid() == 0
 
 
+_environment_skip = skipUnless(
+    is_environment_configured(),
+    "Cannot test port forwarding without suitable test environment.")
+
+
 class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
     """
-    @skipUnless(
-        is_environment_configured(),
-        "Cannot test port forwarding without suitable test environment.")
+    @_environment_skip
     @skipUnless(
         len(ADDRESSES) >= 2,
         "Cannot test proxying without at least two addresses.")
@@ -87,6 +110,8 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
+        self.addCleanup(preserve_iptables())
+
         self.server_ip = ADDRESSES[0]
         self.proxy_ip = ADDRESSES[1]
 
@@ -102,6 +127,8 @@ class CreateTests(TestCase):
         # handshake in under one second...).
         self.server.settimeout(1)
         self.port = self.server.getsockname()[1]
+
+
 
     def test_setup(self):
         """
@@ -264,3 +291,70 @@ class CreateTests(TestCase):
         exception = self.assertRaises(
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
+
+
+    def test_proxy_object(self):
+        """
+        :py:func:`flocker.route.create` returns an object with attributes
+        describing the created proxy.
+        """
+        proxy = create_proxy_to(self.server_ip, self.port)
+        self.assertEqual(
+            (proxy.ip, proxy.port),
+            (self.server_ip, self.port))
+
+
+
+class EnumerateTests(TestCase):
+    """
+    Tests for the enumerate of Flocker-managed external routing rules.
+    """
+    @_environment_skip
+    def setUp(self):
+        self.addCleanup(preserve_iptables())
+
+
+    def test_empty(self):
+        """
+        :py:func:`flocker.route.enumerate_proxies` returns an empty
+        :py:class:`list` when no proxies have been created.
+        """
+        self.assertEqual([], enumerate_proxies())
+
+
+    def test_a_proxy(self):
+        """
+        After :py:func:`flocker.route.create` is used to create a proxy,
+        :py:func:`flocker.route.enumerate_proxies` returns a :py:class:`list`
+        including an object describing that proxy.
+        """
+        ip = IPAddress("10.1.2.3")
+        port = 4567
+        proxy = create_proxy_to(ip, port)
+
+        self.assertEqual([proxy], enumerate_proxies())
+
+
+    def test_some_proxies(self):
+        """
+        After :py:func:`flocker.route.create` is used to create several
+        proxies, :py:func:`flocker.route.enumerate_proxies` returns a
+        :py:class:`list` including an object for each of those proxies.
+        """
+        ip = IPAddress("10.1.2.3")
+        port = 4567
+        proxy_one = create_proxy_to(ip, port)
+        proxy_two = create_proxy_to(ip, port + 1)
+
+        self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
+
+
+    def test_unrelated_iptables_rules(self):
+        """
+        If there are rules in NAT table which aren't related to flocker then
+        :py:func:`enumerate_proxies` does not include information about them in
+        its return value.
+        """
+        create_user_rule()
+        proxy = create_proxy_to(IPAddress("10.1.2.3"), 1234)
+        self.assertEqual([proxy], enumerate_proxies())

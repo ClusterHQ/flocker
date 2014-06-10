@@ -7,9 +7,21 @@ Manipulate network routing behavior on a node using ``iptables``.
 
 from __future__ import unicode_literals
 
+from collections import namedtuple
+
 from iptc import Chain, Rule, Table
+from ipaddr import IPAddress
 
 from twisted.python.filepath import FilePath
+
+
+class _Proxy(namedtuple("_Proxy", "ip port")):
+    """
+    :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
+        directs traffic.
+
+    :ivar int port: The TCP port number on which this proxy operates.
+    """
 
 
 def create_proxy_to(ip, port):
@@ -51,6 +63,10 @@ def create_proxy_to(ip, port):
     # same port should be left alone.
     local = rule.create_match(b"addrtype")
     local.dst_type = b"LOCAL"
+
+    # Tag it as a flocker-created rule so we can recognize it later.
+    comment = rule.create_match(b"comment")
+    comment.comment = b"flocker"
 
     # If the filter matched, jump to the DNAT chain to handle doing the actual
     # packet mangling.  DNAT is a built-in chain that already knows how to do
@@ -145,3 +161,60 @@ def create_proxy_to(ip, port):
     for path in conf.children():
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
+
+    return _Proxy(ip, port)
+
+
+def enumerate_proxies():
+    """
+    Retrieve configured proxy information.
+
+    :return: A :py:class:`list` of objects describing all configured proxies.
+    """
+    def find_match(rule, name):
+        for match in rule.matches:
+            if match.name == name:
+                return match
+        return None
+
+    def comment(rule):
+        rule = find_match(rule, b"comment")
+        if rule is not None:
+            return rule.parameters[b"comment"]
+
+    nat = Table(Table.NAT)
+    nat.refresh()
+
+    prerouting = Chain(nat, b"PREROUTING")
+
+    proxies = []
+
+    for rule in prerouting.rules:
+        if rule.target.name == "DNAT" and comment(rule) == b"flocker":
+            ip = IPAddress(rule.target.parameters[b"to_destination"])
+            port = int(find_match(rule, b"tcp").parameters[b"dport"])
+            proxies.append(_Proxy(ip, port))
+
+    return proxies
+
+
+import os
+def _get_saved_buf(self, ip):
+    if not self._module or not self._module.save:
+        return None
+    # redirect C stdout to a pipe and read back the output of m->save
+    stdout = os.dup(1)
+    try:
+        pipes = os.pipe()
+        os.dup2(pipes[1], 1)
+        self._xt.save(self._module, ip, self._ptr)
+        buf = os.read(pipes[0], 1024)
+        os.close(pipes[0])
+        os.close(pipes[1])
+        return buf
+    finally:
+        os.dup2(stdout, 1)
+        os.close(stdout)
+
+from iptc.ip4tc import IPTCModule
+IPTCModule._get_saved_buf = _get_saved_buf
