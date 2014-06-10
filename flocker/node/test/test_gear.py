@@ -53,7 +53,10 @@ def make_igearclient_tests(fixture):
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
-            return self.assertFailure(d, AlreadyExists)
+            d.addCallback(added)
+            d = self.assertFailure(d, AlreadyExists)
+            d.addCallback(lambda exc: self.assertEqual(exc.args[0], name))
+            return d
 
         def test_double_remove_is_ok(self):
             """Removing a unit twice in a row does not result in error."""

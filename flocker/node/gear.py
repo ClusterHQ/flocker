@@ -5,7 +5,7 @@
 
 from zope.interface import Interface, implementer
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 
 
 class AlreadyExists(Exception):
@@ -52,13 +52,25 @@ class GearClient(object):
 
 @implementer(IGearClient)
 class FakeGearClient(object):
-    """In-memory fake that simulates talking to a gear daemon."""
+    """In-memory fake that simulates talking to a gear daemon.
+
+    :ivar dict _units: Map ``unicode`` names of added units to dictionary
+        containing information about them.
+    """
+
+    def __init__(self):
+        self._units = {}
 
     def add(self, unit_name, image_name):
+        if unit_name in self._units:
+            return fail(AlreadyExists(unit_name))
+        self._units[unit_name] = {}
         return succeed(None)
 
     def exists(self, unit_name):
-        pass
+        return succeed(unit_name in self._units)
 
     def remove(self, unit_name):
-        pass
+        if unit_name in self._units:
+            del self._units[unit_name]
+        return succeed(None)
