@@ -7,6 +7,7 @@ Manipulate network routing behavior on a node using ``iptables``.
 
 from __future__ import unicode_literals
 
+import shlex
 from collections import namedtuple
 from subprocess import check_output
 
@@ -208,7 +209,7 @@ def get_flocker_rules():
             # Skip these lines describing a chain or the table overall.
             continue
 
-        options = parse_iptables_options(line.split())
+        options = parse_iptables_options(shlex.split(line))
 
         if options.comment == FLOCKER_COMMENT_MARKER:
             yield options
