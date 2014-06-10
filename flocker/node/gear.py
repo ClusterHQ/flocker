@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """Client implementation for talking to the geard daemon."""
 
 
