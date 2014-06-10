@@ -27,7 +27,7 @@ class Proxy(namedtuple("Proxy", "ip port")):
     """
 
 
-def create(ip, port):
+def create_proxy_to(ip, port):
     """
     Create a new TCP proxy to `ip` on port `port`.
 
@@ -90,12 +90,14 @@ def create(ip, port):
     # downstream client will be *very* confused if the node we're passing the
     # packet on to replies *directly* to them; and by confused I mean it will
     # be totally broken, of course) so we also need to "masquerade" in the
-    # postrouting chain.  This changes the source address of the packet to the
-    # address of the external interface the packet is exiting upon.  Doing SNAT
-    # here would be a little bit more efficient because the kernel could avoid
-    # looking up the external interface's address for every single packet.  But
-    # it requires this code to know that address and it requires that if it
-    # ever changes the rule gets updated.  So we'll just masquerade for now.
+    # postrouting chain.  This changes the source address (ip and port) of the
+    # packet to the address of the external interface the packet is exiting
+    # upon.  Doing SNAT here would be a little bit more efficient because the
+    # kernel could avoid looking up the external interface's address for every
+    # single packet.  But it requires this code to know that address and it
+    # requires that if it ever changes the rule gets updated and it may require
+    # some steps to do port allocation (not sure what they are yet).  So we'll
+    # just masquerade for now.
     check_output([
             b"iptables",
 

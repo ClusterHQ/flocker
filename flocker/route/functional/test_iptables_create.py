@@ -17,7 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 
 from twisted.trial.unittest import SkipTest, TestCase
 
-from .. import create, enumerate_proxies
+from .. import create_proxy_to, enumerate_proxies
 from .iptables import preserve_iptables
 
 ADDRESSES = [
@@ -144,7 +144,7 @@ class CreateTests(TestCase):
         """
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -155,7 +155,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the client side to the
         server side.
         """
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -168,7 +168,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the server side to the
         client side.
         """
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -198,6 +198,20 @@ class CreateTests(TestCase):
         gateway = network[1]
         address = network[2]
 
+        # The strategy taken by this test is to create a new, clean network
+        # stack and then treat it like a foreign host.  A connection to that
+        # foreign host should not be proxied.  This is possible because Linux
+        # supports the creation of an arbitrary number of instances of its
+        # network stack, all isolated from each other.
+        #
+        # To learn more, here are some links:
+        #
+        # http://man7.org/linux/man-pages/man8/ip-netns.8.html
+        # http://blog.scottlowe.org/2013/09/04/introducing-linux-network-namespaces/
+        #
+        # Note also that Linux network namespaces are how Docker creates
+        # isolated network environments.
+
         # Create a remote "host" that the test can reliably fail a connection
         # attempt to.
         pid = getpid()
@@ -208,6 +222,11 @@ class CreateTests(TestCase):
         def run(cmd):
             check_output(cmd.split())
 
+        # Destroy whatever system resources we go on to allocate in this test.
+        # We set this up first so even if one of the operations encounters an
+        # error after a resource has been allocated we'll still clean it up.
+        # It's not an error to try to delete things that don't exist
+        # (conveniently).
         self.addCleanup(run, b"ip netns delete " + network_namespace)
         self.addCleanup(run, b"ip link delete " + veth0)
 
@@ -261,7 +280,7 @@ class CreateTests(TestCase):
             run(op % params)
 
         # Create the proxy which we expect not to be invoked.
-        create(self.server_ip, self.port)
+        create_proxy_to(self.server_ip, self.port)
 
         client = socket()
         client.settimeout(1)
