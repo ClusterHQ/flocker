@@ -4,6 +4,7 @@
 #
 
 from setuptools import setup
+import os
 
 import versioneer
 versioneer.vcs = "git"
@@ -11,6 +12,12 @@ versioneer.versionfile_source = "flocker/_version.py"
 versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
+
+
+# Hard linking doesn't work inside Vagrant shared folders:
+if os.environ.get('USER','') == 'vagrant':
+    del os.link
+
 
 setup(
     # This is the human-targetted name of the software being packaged.
