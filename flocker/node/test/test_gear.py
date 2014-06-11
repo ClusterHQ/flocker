@@ -8,7 +8,9 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ..gear import IGearClient, FakeGearClient, AlreadyExists
+from ..gear import (
+    IGearClient, FakeGearClient, AlreadyExists, workaround_geard_187,
+    )
 
 
 def random_name():
@@ -42,6 +44,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             return d
 
@@ -50,6 +53,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(workaround_geard_187)
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
@@ -58,12 +62,20 @@ def make_igearclient_tests(fixture):
             d.addCallback(lambda exc: self.assertEqual(exc.args[0], name))
             return d
 
+        def test_remove_nonexistent_is_ok(self):
+            """Removing a non-existent unit does not result in a error."""
+            client = fixture(self)
+            name = random_name()
+            return client.remove(name)
+
         def test_double_remove_is_ok(self):
             """Removing a unit twice in a row does not result in error."""
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
+            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             return d
 
@@ -80,6 +92,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(workaround_geard_187)
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.exists(name)
@@ -92,6 +105,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
             d.addCallback(self.assertFalse)
