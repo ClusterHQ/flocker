@@ -32,7 +32,7 @@ setup(
     # mentioned here.  These aren't recursive so each sub-package must also be
     # explicitly included.
     packages=[
-        "flocker", "flocker.test",
+        "flocker",
         "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
         ],
 
