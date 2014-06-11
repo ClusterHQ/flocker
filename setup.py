@@ -34,6 +34,7 @@ setup(
     packages=[
         "flocker", "flocker.test",
         "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
+        "flocker.volume.filesystems",
         ],
 
     entry_points = {
