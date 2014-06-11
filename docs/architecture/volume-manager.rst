@@ -8,6 +8,8 @@ Although initially built on top of ZFS, FVM should eventually be capable of bein
 As such a generic data model is required.
 
 
+.. _volume-manager-data-model:
+
 Data Model
 ==========
 
@@ -58,7 +60,7 @@ A local branch exists due to local existence ZFS dataset, one of:
 The branch name is stored as a user attribute on the ZFS dataset.
 Dataset names can be the branch human readable names, since only one Flocker instance will ever be setting them.
 
-In cases where we can’t use attributes the data will be in a local database of some sort, I guess.
+In cases where we can’t use attributes the data will be in a local database of some sort.
 E.g. ZFS properties are inherited automatically (not the behavior we want), which might lead to some corrupt state in crashes if the low-level APIs don’t allow bypassing this…
 
 
@@ -66,6 +68,6 @@ Implementation notes - Btrfs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writeable.
-As such I believe the proposed model will also work with btrfs.
+As such the proposed model should also work with btrfs.
 Btrfs appears to lack promotion, but that can be emulated via renames.
 It’s not clear if btrfs has the “can’t delete parent if it has children” restriction, though it may just keep around extra disk storage in that case.
