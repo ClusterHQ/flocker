@@ -57,7 +57,7 @@ class VolumeService(Service):
         volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
         d = self._pool.create(volume)
         def created(filesystem):
-            filesystem.get_mountpoint().chmod(
+            filesystem.get_path().chmod(
                 # 0o777 the long way:
                 stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
             return volume
@@ -82,3 +82,16 @@ class Volume(object):
         :return: The ``IFilesystem`` provider for the volume.
         """
         return self._pool.get(self)
+
+    def expose_to_docker(self, mount_path):
+        """Create a container that will expose the volume to Docker at the given
+        mount path.
+
+        Can be called multiple times. Mount paths from previous calls will
+        be overriden.
+
+        :param mount_path: The path at which to mount the volume within
+            the container.
+
+        :return: ``Deferred`` firing when the operation is done.
+        """

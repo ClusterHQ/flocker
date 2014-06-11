@@ -80,7 +80,7 @@ class StoragePoolTests(TestCase):
 
         d = pool.create(volume)
         def gotFilesystem(filesystem):
-            self.assertEqual(filesystem.get_mountpoint(),
+            self.assertEqual(filesystem.get_path(),
                              mount_root.child(volume_to_dataset(volume)))
         d.addCallback(gotFilesystem)
         return d
@@ -110,7 +110,7 @@ class StoragePoolTests(TestCase):
         d = pool.create(volume)
         def gotFilesystem(filesystem):
             self.assertEqual(
-                filesystem.get_mountpoint().path,
+                filesystem.get_path().path,
                 subprocess.check_output(
                     [b"zfs", b"get", b"-H", b"-o", b"value",
                      b"mountpoint", filesystem.name]).strip())

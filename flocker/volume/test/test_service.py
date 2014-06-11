@@ -101,7 +101,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
-        self.assertTrue(pool.get(volume).get_mountpoint().isdir())
+        self.assertTrue(pool.get(volume).get_path().isdir())
 
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
@@ -113,7 +113,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
-        self.assertEqual(pool.get(volume).get_mountpoint().getPermissions(),
+        self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
 
