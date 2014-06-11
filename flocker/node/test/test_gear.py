@@ -8,9 +8,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ..gear import (
-    IGearClient, FakeGearClient, AlreadyExists, workaround_geard_187,
-    )
+from ..gear import IGearClient, FakeGearClient, AlreadyExists
 
 
 def random_name():
@@ -44,7 +42,6 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
-            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             return d
 
@@ -53,7 +50,6 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
-            d.addCallback(workaround_geard_187)
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
@@ -73,9 +69,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
-            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
-            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             return d
 
@@ -92,7 +86,6 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
-            d.addCallback(workaround_geard_187)
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.exists(name)
@@ -105,7 +98,6 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
-            d.addCallback(workaround_geard_187)
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
             d.addCallback(self.assertFalse)

@@ -14,15 +14,15 @@ from twisted.internet.task import deferLater
 from treq import request, content
 
 
-def workaround_geard_187(value):
+def workaround_geard_187():
     """Slight delay as workaround to
     https://github.com/openshift/geard/issues/187.
 
     :param value: Value to set as value of result ``Deferred``.
 
-    :return: ``Deferred`` that fires with given value after short delay.
+    :return: ``Deferred`` that fires after short delay.
     """
-    return deferLater(reactor, 1, lambda: value)
+    return deferLater(reactor, 1, lambda: None)
 
 
 class AlreadyExists(Exception):
@@ -102,7 +102,10 @@ class GearClient(object):
             url += b"/" + operation
         if data is not None:
             data = json.dumps(data)
-        return request(method, url, data=data, persistent=False)
+        d = workaround_geard_187()
+        d.addCallback(lambda _: request(method, url, data=data,
+                                        persistent=False))
+        return d
 
     def _ensure_ok(self, response):
         """Make sure response is OK.
@@ -151,7 +154,6 @@ class GearClient(object):
     def remove(self, unit_name):
         d = self._request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
-        d.addCallback(workaround_geard_187)
         d.addCallback(lambda _: self._request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
         return d
