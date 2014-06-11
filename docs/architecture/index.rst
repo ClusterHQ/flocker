@@ -7,5 +7,6 @@ Contents:
    :maxdepth: 1
 
    common
+   volume-manager
    datavault
    failover
