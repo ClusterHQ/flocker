@@ -3,11 +3,15 @@
 """Functional tests for :module:`flocker.node.gear`."""
 
 import os
+import json
 from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 
-from ..test.test_gear import make_igearclient_tests
+from treq import request, content
+
+from ...testtools import loop_until
+from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient
 
 
@@ -37,9 +41,33 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    @_if_root
     def test_add_starts_container(self):
         """``GearClient.add`` starts the container."""
+        client = GearClient(GEAR_HOST)
+        name = random_name()
+        d = client.add(name, u"openshift/busybox-http-app")
+
+        def is_started(data):
+            return [container for container in data[u"Containers"] if
+                    (container[u"Id"] == name and
+                     container[u"SubState"] == u"running")]
+
+        def check_if_started():
+            # Replace with ``GearClient.list`` as part of
+            # https://github.com/hybridlogic/flocker/issues/32
+            responded = request(
+                b"GET", b"http://%s:43273/containers" % (GEAR_HOST,),
+                persistent=False)
+            responded.addCallback(content)
+            responded.addCallback(json.loads)
+            responded.addCallback(is_started)
+            return responded
+
+        def added(_):
+            self.addCleanup(client.remove, name)
+            return loop_until(None, check_if_started)
+        d.addCallback(added)
+        return d
 
     @_if_root
     def test_correct_image_used(self):
@@ -60,8 +88,6 @@ class GearClientTests(TestCase):
         ``GearError`` if response code is unexpected.
         """
 
-
-# XXX don't rely on ability to install busybox from the network
 
 # XXX still need to write documentation.
 

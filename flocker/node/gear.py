@@ -112,7 +112,8 @@ class GearClient(object):
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
             lambda _: self._request(b"PUT", unit_name,
-                                     data={u"Image": image_name}))
+                                     data={u"Image": image_name,
+                                           u"Started": True}))
         checked.addCallback(self._ensure_ok)
         return checked
 
