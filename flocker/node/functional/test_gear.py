@@ -9,12 +9,13 @@ from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
+from twisted.internet.defer import succeed
 
 from treq import request, content
 
 from ...testtools import loop_until
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient
+from ..gear import GearClient, GearError
 
 _if_gear_configured = skipIf(which("gear") == [],
                              "Must run on machine with gear running.")
@@ -83,7 +84,8 @@ class GearClientTests(TestCase):
         def started(_):
             data = subprocess.check_output(
                 [b"docker", b"inspect", name.encode("ascii")])
-            self.assertEqual(json.loads(data)[u"Config"][u"Image"], u"busybox")
+            self.assertEqual(json.loads(data)[0][u"Config"][u"Image"],
+                             u"openshift/busybox-http-app")
         d.addCallback(started)
         return d
 
@@ -91,16 +93,30 @@ class GearClientTests(TestCase):
         """``GearClient.exists`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is unexpected.
         """
+        client = GearClient("127.0.0.1")
+        # Illegal container name:
+        d = client.exists(u"!!##!!")
+        return self.assertFailure(d, GearError)
 
     def test_add_error(self):
         """``GearClient.add`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is unexpected.
         """
+        client = GearClient("127.0.0.1")
+        # Don't want exists() to be the one failing:
+        client.exists = lambda _: succeed(False)
+        # Illegal image name:
+        d = client.add(u"!!!###!!!", u"busybox")
+        return self.assertFailure(d, GearError)
 
     def test_remove_error(self):
         """``GearClient.remove`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is unexpected.
         """
+        client = GearClient("127.0.0.1")
+        # Illegal container name:
+        d = client.remove(u"!!##!!")
+        return self.assertFailure(d, GearError)
 
 
 # XXX still need to write documentation.

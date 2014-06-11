@@ -118,9 +118,8 @@ class GearClient(object):
             is not OK.
         """
         d = content(response)
-        # XXX needs tests
-        #if response.code not in (OK, NO_CONTENT):
-        #    d.addCallback(lambda data: fail(GearError(response.code, data)))
+        if response.code not in (OK, NO_CONTENT):
+            d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
     def add(self, unit_name, image_name):
@@ -136,6 +135,9 @@ class GearClient(object):
 
 
     def exists(self, unit_name):
+        # status isn't really intended for this usage; better to use
+        # listing (with option to list all) as part of
+        # https://github.com/openshift/geard/issues/187
         d = self._request(b"GET", unit_name, operation=b"status")
         def got_response(response):
             result = content(response)
@@ -143,10 +145,9 @@ class GearClient(object):
                 result.addCallback(lambda _: True)
             elif response.code == NOT_FOUND:
                 result.addCallback(lambda _: False)
-            #else:
-            # XXX needs test
-            #    result.addCallback(
-            #    lambda data: fail(GearError(response.code, data)))
+            else:
+                result.addCallback(
+                    lambda data: fail(GearError(response.code, data)))
             return result
         d.addCallback(got_response)
         return d
