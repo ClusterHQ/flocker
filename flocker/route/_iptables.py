@@ -8,7 +8,7 @@ Manipulate network routing behavior on a node using ``iptables``.
 from __future__ import unicode_literals
 
 import shlex
-from subprocess import check_output
+from subprocess import check_call, check_output
 
 from ipaddr import IPAddress
 from characteristic import attributes
@@ -64,7 +64,7 @@ def create_proxy_to(ip, port):
     # specified port so it looks like it is destined for the specified ip
     # instead of destined for "us".  This gets the packets delivered to the
     # right destination.
-    check_output([
+    check_call([
             b"iptables",
 
             # All NAT stuff happens in the netfilter NAT table.
@@ -113,7 +113,7 @@ def create_proxy_to(ip, port):
     # requires that if it ever changes the rule gets updated and it may require
     # some steps to do port allocation (not sure what they are yet).  So we'll
     # just masquerade for now.
-    check_output([
+    check_call([
             b"iptables",
 
             # All NAT stuff happens in the netfilter NAT table.
@@ -142,7 +142,7 @@ def create_proxy_to(ip, port):
     # want connections from localhost to the forwarded port to be affected then
     # we need a rule in the OUTPUT chain to do the same kind of DNAT that we
     # did in the PREROUTING chain.
-    check_output([
+    check_call([
             b"iptables",
 
             # All NAT stuff happens in the netfilter NAT table.

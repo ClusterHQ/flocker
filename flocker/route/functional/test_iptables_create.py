@@ -10,7 +10,7 @@ from errno import ECONNREFUSED
 from os import getuid, getpid
 from socket import error, socket
 from unittest import skipUnless
-from subprocess import check_output
+from subprocess import check_call
 
 from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress, IPNetwork
@@ -43,7 +43,7 @@ def create_user_rule():
     configured beyond flocker's control) rule on the system and needs to be
     ignored by :py:func:`enumerate_proxies`.
     """
-    check_output([
+    check_call([
             b"iptables",
             # Stick it in the PREROUTING chain based on our knowledge that the
             # implementation inspects this chain to enumerate proxies.
@@ -218,7 +218,7 @@ class CreateTests(TestCase):
         network_namespace = b"%s.%s" % (self.id(), getpid())
 
         def run(cmd):
-            check_output(cmd.split())
+            check_call(cmd.split())
 
         # Destroy whatever system resources we go on to allocate in this test.
         # We set this up first so even if one of the operations encounters an
