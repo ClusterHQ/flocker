@@ -8,20 +8,31 @@ Manipulate network routing behavior on a node using ``iptables``.
 from __future__ import unicode_literals
 
 import shlex
-from collections import namedtuple
 from subprocess import check_output
 
 from ipaddr import IPAddress
+from characteristic import attributes
 
 from twisted.python.filepath import FilePath
 
 FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
 
-iptables_options = namedtuple(
-    "iptables_options", "comment destination_port to_destination")
+
+@attributes(["comment", "destination_port", "to_destination"])
+class RuleOptions(object):
+    """
+    :ivar bytes comment: The value of the ``comment`` *match* for this rule.
+
+    :ivar int destination_port: The value of the ``destination-port`` option
+        for the ``tcp`` *match* for this rule.
+
+    :ivar IPv4Address to_destination: The value of the ``to-destination``
+        option for the ``DNAT`` *target* for this rule.
+    """
 
 
-class Proxy(namedtuple("Proxy", "ip port")):
+@attributes(["ip", "port"])
+class Proxy(object):
     """
     :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
         directs traffic.
@@ -166,7 +177,7 @@ def create_proxy_to(ip, port):
         with path.child(b"route_localnet").open("wb") as route_localnet:
             route_localnet.write(b"1")
 
-    return Proxy(ip, port)
+    return Proxy(ip=ip, port=port)
 
 
 def enumerate_proxies():
@@ -177,7 +188,8 @@ def enumerate_proxies():
     """
     proxies = []
     for rule in get_flocker_rules():
-        proxies.append(Proxy(rule.to_destination, rule.destination_port))
+        proxies.append(
+            Proxy(ip=rule.to_destination, port=rule.destination_port))
 
     return proxies
 
@@ -186,8 +198,8 @@ def get_flocker_rules():
     """
     Look up all of the iptables rules created/managed by flocker.
 
-    :return: An iterator of :py:class:`iptables_options` instances, one for
-        each rule found.
+    :return: An iterator of :py:class:`Options` instances, one for each rule
+        found.
     """
     # Life is horrible.
     # https://stackoverflow.com/questions/109553/how-can-i-programmatically-manage-iptables-rules-on-the-fly
@@ -223,8 +235,8 @@ def parse_iptables_options(argv):
     :param argv: A :py:class:`list` of :py:class:`bytes` instances like an
         iptables argv (not including ``b"iptables"`` as ``argv[0]``).
 
-    :return: A :py:class:`iptables_options` instance holding the values taken
-        from ``argv``.
+    :return: A :py:class:`RuleOptions` instance holding the values taken from
+        ``argv``.
     """
     # "Parsing" things like this:
     #
@@ -257,4 +269,7 @@ def parse_iptables_options(argv):
     except (IndexError, ValueError):
         pass
 
-    return iptables_options(comment, destination_port, to_destination)
+    return RuleOptions(
+        comment=comment,
+        destination_port=destination_port,
+        to_destination=to_destination)
