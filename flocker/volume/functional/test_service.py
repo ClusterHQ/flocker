@@ -13,7 +13,7 @@ import json
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ..service import Volume
+from ..service import Volume, VolumeService
 from ..filesystems.memory import FilesystemStoragePool
 
 
@@ -46,8 +46,7 @@ class VolumeTests(TestCase):
     def test_expose_creates_container(self):
         """``Volume.expose_to_docker`` creates a Docker container."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        name = random_name()
-        volume = Volume(uuid=u"myuuid", name=name, _pool=pool)
+        volume = Volume(uuid=u"myuuid", name=random_name(), _pool=pool)
         d = volume.expose_to_docker(FilePath(b"/my/path"))
 
         def exposed(_):
@@ -61,6 +60,28 @@ class VolumeTests(TestCase):
     def test_expose_mounted_volume(self):
         """``Volume.expose_to_docker`` mounts the volume's filesystem within
         this container at the given mount path."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        d = service.create(random_name())
+
+        def got_volume(volume):
+            a_file = volume.get_filesystem().get_path().child(b"somefile.txt")
+            a_file.setContent(b"I EXIST!")
+            result = volume.expose_to_docker(FilePath(b"/my/path"))
+            result.addCallback(lambda _: volume)
+            return result
+        d.addCallback(got_volume)
+
+        def exposed(volume):
+            self.add_container_cleanup(volume._container_name)
+            data = subprocess.check_output(
+                [b"docker", b"run", b"--rm",
+                 b"--volumes-from", volume._container_name,
+                 b"busybox", b"cat", b"/my/path/somefile.txt"])
+            self.assertEqual(data, b"I EXIST!")
+        d.addCallback(exposed)
+        return d
 
     def test_expose_twice(self):
         """If ``Volume.expose_to_docker`` is called twice, the second given

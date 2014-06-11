@@ -133,5 +133,9 @@ class Volume(object):
 
         :return: ``Deferred`` firing when the operation is done.
         """
-        return _docker_command(reactor, [b"run", b"--name", self._container_name,
-                                         b"busybox", b"/bin/true"])
+        local_path = self.get_filesystem().get_path().path
+        mount_path = mount_path.path
+        return _docker_command(reactor,
+                               [b"run", b"--name", self._container_name,
+                                b"--volume=%s:%s:rw" % (local_path, mount_path),
+                                b"busybox", b"/bin/true"])
