@@ -57,6 +57,18 @@ class VolumeTests(TestCase):
         d.addCallback(exposed)
         return d
 
+    def read_file_from_container(self, volume, path):
+        """Return contents of file in the volume.
+
+        :param Volume volume: The volume whose container we are checking.
+        :param bytes path: Path within the container.
+        :return: ``bytes`` of file at given path.
+        """
+        return subprocess.check_output(
+                [b"docker", b"run", b"--rm",
+                 b"--volumes-from", volume._container_name,
+                 b"busybox", b"cat", path])
+
     def test_expose_mounted_volume(self):
         """``Volume.expose_to_docker`` mounts the volume's filesystem within
         this container at the given mount path."""
@@ -75,10 +87,8 @@ class VolumeTests(TestCase):
 
         def exposed(volume):
             self.add_container_cleanup(volume._container_name)
-            data = subprocess.check_output(
-                [b"docker", b"run", b"--rm",
-                 b"--volumes-from", volume._container_name,
-                 b"busybox", b"cat", b"/my/path/somefile.txt"])
+            data = self.read_file_from_container(
+                volume, b"/my/path/somefile.txt")
             self.assertEqual(data, b"I EXIST!")
         d.addCallback(exposed)
         return d
@@ -86,3 +96,25 @@ class VolumeTests(TestCase):
     def test_expose_twice(self):
         """If ``Volume.expose_to_docker`` is called twice, the second given
         mount path overrides the first."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        d = service.create(random_name())
+
+        def got_volume(volume):
+            a_file = volume.get_filesystem().get_path().child(b"somefile.txt")
+            a_file.setContent(b"I EXIST!")
+            result = volume.expose_to_docker(FilePath(b"/my/path"))
+            result.addCallback(lambda _: volume.expose_to_docker(
+                FilePath(b"/another/")))
+            result.addCallback(lambda _: volume)
+            return result
+        d.addCallback(got_volume)
+
+        def exposed(volume):
+            self.add_container_cleanup(volume._container_name)
+            data = self.read_file_from_container(
+                volume, b"/another/somefile.txt")
+            self.assertEqual(data, b"I EXIST!")
+        d.addCallback(exposed)
+        return d

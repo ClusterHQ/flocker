@@ -18,7 +18,7 @@ from twisted.internet import reactor
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/hybridlogic/flocker/issues/64
-from .filesystems.zfs import _AccumulatingProtocol
+from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 
 class CreateConfigurationError(Exception):
@@ -135,7 +135,10 @@ class Volume(object):
         """
         local_path = self.get_filesystem().get_path().path
         mount_path = mount_path.path
-        return _docker_command(reactor,
+        d = _docker_command(reactor, [b"rm", self._container_name])
+        d.addErrback(lambda failure: failure.trap(CommandFailed))
+        d.addCallback(lambda _: _docker_command(reactor,
                                [b"run", b"--name", self._container_name,
                                 b"--volume=%s:%s:rw" % (local_path, mount_path),
-                                b"busybox", b"/bin/true"])
+                                b"busybox", b"/bin/true"]))
+        return d
