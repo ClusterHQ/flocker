@@ -14,10 +14,12 @@ from subprocess import check_call
 
 from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress, IPNetwork
+from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
 from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create_proxy_to, enumerate_proxies
+from .._logging import CREATE_PROXY_TO, IPTABLES
 from .iptables import preserve_iptables
 
 ADDRESSES = [
@@ -92,6 +94,24 @@ def is_environment_configured():
     return getuid() == 0
 
 
+def some_iptables_logged(case, logger):
+    """
+    Assert that some ``IPTABLES`` actions got logged.
+
+    They should be logged as children of a CREATE_PROXY_TO action (but this
+    function will not verify that).  No other assertions are made about the
+    particulars of the message because that would be difficult (by virtue of
+    requiring we duplicate the exact iptables commands from the implementation
+    here, in the tests, which is tedious and produces fragile tests).
+    """
+    assertHasAction(case, logger, CREATE_PROXY_TO, succeeded=True)
+    # Remember what the docstring said?  Ideally this would inspect the
+    # children of the action returned by assertHasAction but the interfaces
+    # don't seem to line up.
+    iptables = LoggedAction.ofType(logger.messages, IPTABLES)
+    case.assertNotEqual(iptables, [])
+
+
 _environment_skip = skipUnless(
     is_environment_configured(),
     "Cannot test port forwarding without suitable test environment.")
@@ -136,10 +156,13 @@ class CreateTests(TestCase):
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
-    def test_connection(self):
+    @validateLogging(some_iptables_logged)
+    def test_connection(self, logger):
         """
         A connection attempt is forwarded to the specified destination address.
         """
+        self.patch(create_proxy_to, "logger", logger)
+
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
         create_proxy_to(self.server_ip, self.port)
