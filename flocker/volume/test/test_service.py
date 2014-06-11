@@ -156,3 +156,10 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         volume = Volume(uuid=u"123", name=u"456", _pool=pool)
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
+
+    def test_container_name(self):
+        """The volume's container name adds a ``"flocker-"`` prefix and
+        ``"-data"`` suffix.
+        """
+        volume = Volume(uuid=u"123", name=u"456", _pool=object())
+        self.assertEqual(volume._container_name, b"flocker-456-data")

@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+import os
 import json
 import stat
 from uuid import uuid4
@@ -11,6 +12,13 @@ from uuid import uuid4
 from characteristic import attributes
 
 from twisted.application.service import Service
+from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
+from twisted.internet import reactor
+
+# We might want to make these utilities shared, rather than in zfs
+# module... but in this case the usage is temporary and should go away as
+# part of https://github.com/hybridlogic/flocker/issues/64
+from .filesystems.zfs import _AccumulatingProtocol
 
 
 class CreateConfigurationError(Exception):
@@ -65,6 +73,28 @@ class VolumeService(Service):
         return d
 
 
+# Communication with Docker should be done via its API, not with this
+# approach, but that depends on unreleased Twisted 14.1:
+# https://github.com/hybridlogic/flocker/issues/64
+def _docker_command(reactor, arguments):
+    """Run the ``docker`` command-line tool with the given arguments.
+
+    :param reactor: A ``IReactorProcess`` provider.
+
+    :param arguments: A ``list`` of ``bytes``, command-line arguments to
+    ``docker``.
+
+    :return: A :class:`Deferred` firing with the bytes of the result (on
+        exit code 0), or errbacking with :class:`CommandFailed` or
+        :class:`BadArguments` depending on the exit code (1 or 2).
+    """
+    endpoint = ProcessEndpoint(reactor, b"docker", [b"docker"] + arguments,
+                               os.environ)
+    d = connectProtocol(endpoint, _AccumulatingProtocol())
+    d.addCallback(lambda protocol: protocol._result)
+    return d
+
+
 @attributes(["uuid", "name", "_pool"])
 class Volume(object):
     """A data volume's identifier.
@@ -83,6 +113,14 @@ class Volume(object):
         """
         return self._pool.get(self)
 
+    @property
+    def _container_name(self):
+        """Return the corresponding Docker container name.
+
+        :return: Container name as ``bytes``.
+        """
+        return b"flocker-%s-data" % (self.name.encode("ascii"),)
+
     def expose_to_docker(self, mount_path):
         """Create a container that will expose the volume to Docker at the given
         mount path.
@@ -95,3 +133,5 @@ class Volume(object):
 
         :return: ``Deferred`` firing when the operation is done.
         """
+        return _docker_command(reactor, [b"run", b"--name", self._container_name,
+                                         b"busybox", b"/bin/true"])
