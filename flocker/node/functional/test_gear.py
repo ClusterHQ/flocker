@@ -117,7 +117,3 @@ class GearClientTests(TestCase):
         # Illegal container name:
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
-
-
-# XXX still need to write documentation.
-# XXX add flocker- prefix to container names?
