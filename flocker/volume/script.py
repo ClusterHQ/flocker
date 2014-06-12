@@ -14,6 +14,10 @@ from .. import __version__
 
 
 def flocker_standard_options(cls):
+    """
+    Add various standard command line options to flocker commands and
+    subcommands.
+    """
     def opt_version(self):
         """
         Print the program's version and exit.
