@@ -51,7 +51,6 @@ setup(
         # Pinning this isn't great in general, but we're only using UTC so meh:
         "pytz == 2014.2",
         "Twisted == 13.2.0",
-        "click == 2.0",
         ],
 
     extras_require={
