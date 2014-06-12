@@ -13,6 +13,20 @@ from .service import VolumeService, CreateConfigurationError
 from .. import __version__
 
 
+def flocker_standard_options(cls):
+    def opt_version(self):
+        """
+        Print the program's version and exit.
+        """
+        print(__version__)
+        raise SystemExit(0)
+    cls.opt_version = opt_version
+    cls.opt_v = opt_version
+
+    return cls
+
+
+
 class FlockerVolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
 
