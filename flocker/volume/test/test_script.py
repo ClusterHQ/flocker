@@ -52,26 +52,19 @@ class StandardOptionsTestsMixin(object):
 
 
 class FlockerVolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """
-    Tests for L{FlockerVolumeOptions}.
-    """
-    options = FlockerVolumeOptions
-
-
-
-class OptionsTestCase(SynchronousTestCase):
     """Tests for :class:`FlockerVolumeOptions`."""
+    options = FlockerVolumeOptions
 
     def test_default_config(self):
         """By default the config file is ``b'/etc/flocker/volume.json'``."""
-        options = FlockerVolumeOptions()
+        options = self.options()
         options.parseOptions([])
         self.assertEqual(options["config"],
                          FilePath(b"/etc/flocker/volume.json"))
 
     def test_custom_config(self):
         """A custom config file can be specified with ``--config``."""
-        options = FlockerVolumeOptions()
+        options = self.options()
         options.parseOptions([b"--config", b"/path/somefile.json"])
         self.assertEqual(options["config"],
                          FilePath(b"/path/somefile.json"))
