@@ -27,6 +27,7 @@ def flocker_standard_options(cls):
 
 
 
+@flocker_standard_options
 class FlockerVolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
 
@@ -44,10 +45,6 @@ class FlockerVolumeOptions(Options):
     def postOptions(self):
         self["config"] = FilePath(self["config"])
 
-    def opt_version(self):
-        """Print the program's version and exit."""
-        print(__version__)
-        raise SystemExit(0)
 
 
 def _main(reactor, *arguments):
