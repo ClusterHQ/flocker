@@ -64,6 +64,22 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def enumerate(self):
+        """Get a listing of all volumes managed by this service.
+
+        :return: A ``Deferred`` that fires with an iterator of :class:`Volume`.
+        """
+        enumerating = self._pool.enumerate()
+        def enumerated(filesystems):
+            for filesystem in filesystems:
+                yield Volume(
+                    self.uuid,
+                    # XXX It so happens that this works but it's kind of a
+                    # fragile way to recover the information.
+                    name=filesystem.get_mountpoint().basename(),
+                    _pool=self)
+        return enumerating.addCallback(enumerated)
+
 
 @attributes(["uuid", "name", "_pool"])
 class Volume(object):
