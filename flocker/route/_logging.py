@@ -45,8 +45,16 @@ IPTABLES = ActionType(
     [],
     u"An iptables command which Flocker is executing against the system.")
 
+
 CREATE_PROXY_TO = ActionType(
     _system(u"create_proxy_to"),
     [TARGET_IP, TARGET_PORT],
     [],
     U"Flocker is creating a new proxy.")
+
+
+DELETE_PROXY = ActionType(
+    _system(u"delete_proxy"),
+    [TARGET_IP, TARGET_PORT],
+    [],
+    u"Flocker is deleting an existing proxy.")

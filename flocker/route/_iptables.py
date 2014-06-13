@@ -16,7 +16,7 @@ from eliot import Logger
 
 from twisted.python.filepath import FilePath
 
-from ._logging import CREATE_PROXY_TO, IPTABLES
+from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 
 
 FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
@@ -201,32 +201,33 @@ def delete_proxy(proxy):
     :param proxy: The object returned by :py:func:`create_proxy_to` or one of
         the elements of the sequence returned by :py:func:`enumerate_proxies`.
     """
+    logger = delete_proxy.logger
+
     ip = unicode(proxy.ip).encode("ascii")
     port = unicode(proxy.port).encode("ascii")
-    check_output([
-            b"iptables",
-            b"--table", b"nat",
-            b"--delete", b"PREROUTING",
-            b"--protocol", b"tcp", b"--destination-port", port,
-            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
-            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
-            b"--jump", b"DNAT", b"--to-destination", ip,
-    ])
-    check_output([
-            b"iptables",
-            b"--table", b"nat",
-            b"--delete", b"POSTROUTING",
-            b"--protocol", b"tcp", b"--destination-port", port,
-            b"--jump", b"MASQUERADE",
-    ])
-    check_output([
-            b"iptables",
-            b"--table", b"nat",
-            b"--delete", b"OUTPUT",
-            b"--protocol", b"tcp", b"--destination-port", port,
-            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
-            b"--jump", b"DNAT", b"--to-destination", ip,
-    ])
+
+    commands = [
+        [b"--table", b"nat",
+         b"--delete", b"PREROUTING",
+         b"--protocol", b"tcp", b"--destination-port", port,
+         b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+         b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+         b"--jump", b"DNAT", b"--to-destination", ip],
+        [b"--table", b"nat",
+         b"--delete", b"POSTROUTING",
+         b"--protocol", b"tcp", b"--destination-port", port,
+         b"--jump", b"MASQUERADE"],
+        [b"--table", b"nat",
+         b"--delete", b"OUTPUT",
+         b"--protocol", b"tcp", b"--destination-port", port,
+         b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+         b"--jump", b"DNAT", b"--to-destination", ip],
+    ]
+
+    with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
+        for argv in commands:
+            iptables(logger, argv)
+delete_proxy.logger = Logger()
 
 
 def enumerate_proxies():

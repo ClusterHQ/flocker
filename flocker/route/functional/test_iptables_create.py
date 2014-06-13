@@ -19,7 +19,7 @@ from eliot.testing import LoggedAction, validateLogging, assertHasAction
 from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create_proxy_to, delete_proxy, enumerate_proxies
-from .._logging import CREATE_PROXY_TO, IPTABLES
+from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import preserve_iptables
 
 ADDRESSES = [
@@ -94,22 +94,25 @@ def is_environment_configured():
     return getuid() == 0
 
 
-def some_iptables_logged(case, logger):
+def some_iptables_logged(parent_action_type):
     """
-    Assert that some ``IPTABLES`` actions got logged.
+    Create a validator which assert that some ``IPTABLES`` actions got logged.
 
-    They should be logged as children of a CREATE_PROXY_TO action (but this
-    function will not verify that).  No other assertions are made about the
-    particulars of the message because that would be difficult (by virtue of
-    requiring we duplicate the exact iptables commands from the implementation
-    here, in the tests, which is tedious and produces fragile tests).
+    They should be logged as children of a ``parent_action_type`` action (but
+    this function will not verify that).  No other assertions are made about
+    the particulars of the message because that would be difficult (by virtue
+    of requiring we duplicate the exact iptables commands from the
+    implementation here, in the tests, which is tedious and produces fragile
+    tests).
     """
-    assertHasAction(case, logger, CREATE_PROXY_TO, succeeded=True)
-    # Remember what the docstring said?  Ideally this would inspect the
-    # children of the action returned by assertHasAction but the interfaces
-    # don't seem to line up.
-    iptables = LoggedAction.ofType(logger.messages, IPTABLES)
-    case.assertNotEqual(iptables, [])
+    def validate(case, logger):
+        assertHasAction(case, logger, parent_action_type, succeeded=True)
+        # Remember what the docstring said?  Ideally this would inspect the
+        # children of the action returned by assertHasAction but the interfaces
+        # don't seem to line up.
+        iptables = LoggedAction.ofType(logger.messages, IPTABLES)
+        case.assertNotEqual(iptables, [])
+    return validate
 
 
 _environment_skip = skipUnless(
@@ -156,7 +159,7 @@ class CreateTests(TestCase):
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
-    @validateLogging(some_iptables_logged)
+    @validateLogging(some_iptables_logged(CREATE_PROXY_TO))
     def test_connection(self, logger):
         """
         A connection attempt is forwarded to the specified destination address.
@@ -375,7 +378,6 @@ class EnumerateTests(TestCase):
         self.assertEqual([proxy], enumerate_proxies())
 
 
-
 class DeleteTests(TestCase):
     """
     Tests for the deletion of Flocker-managed external routing rules.
@@ -385,14 +387,17 @@ class DeleteTests(TestCase):
         self.preserver = preserve_iptables()
         self.addCleanup(self.preserver.restore)
 
-
-    def test_created_rules_deleted(self):
+    @validateLogging(some_iptables_logged(DELETE_PROXY))
+    def test_created_rules_deleted(self, logger):
         """
         After a route created using :py:func:`flocker.route.create_proxy_to` is
         deleted using :py:meth:`delete` the iptables
         rules which were added by the former are removed.
         """
-        proxy = create_proxy_to("10.1.2.3", 12345)
+        # Only interested in logging behavior of delete_proxy here.
+        self.patch(delete_proxy, "logger", logger)
+
+        proxy = create_proxy_to(IPAddress("10.1.2.3"), 12345)
         delete_proxy(proxy)
 
         def normalize(rules):
@@ -417,7 +422,7 @@ class DeleteTests(TestCase):
         Once a proxy has been deleted, :py:func:`enumerate_proxies` does not
         include an element in the sequence it returns corresponding to it.
         """
-        proxy = create_proxy_to("10.2.3.4", 4321)
+        proxy = create_proxy_to(IPAddress("10.2.3.4"), 4321)
         delete_proxy(proxy)
 
         self.assertEqual([], enumerate_proxies())
