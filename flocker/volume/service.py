@@ -5,7 +5,10 @@
 from __future__ import absolute_import
 
 import json
+import stat
 from uuid import uuid4
+
+from characteristic import attributes
 
 from twisted.application.service import Service
 
@@ -21,11 +24,14 @@ class VolumeService(Service):
         volume manager. Only available once the service has started.
     """
 
-    def __init__(self, config_path):
+    def __init__(self, config_path, pool):
         """
         :param FilePath config_path: Path to the volume manager config file.
+        :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
+            provider.
         """
         self._config_path = config_path
+        self._pool = pool
 
     def startService(self):
         parent = self._config_path.parent()
@@ -40,3 +46,39 @@ class VolumeService(Service):
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
         self.uuid = config[u"uuid"]
+
+    def create(self, name):
+        """Create a new volume.
+
+        :param unicode name: The name of the volume.
+
+        :return: A ``Deferred`` that fires with a :class:`Volume`.
+        """
+        volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
+        d = self._pool.create(volume)
+        def created(filesystem):
+            filesystem.get_mountpoint().chmod(
+                # 0o777 the long way:
+                stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+            return volume
+        d.addCallback(created)
+        return d
+
+
+@attributes(["uuid", "name", "_pool"])
+class Volume(object):
+    """A data volume's identifier.
+
+    :ivar unicode uuid: The UUID of the volume manager that owns this volume.
+    :ivar unicode name: The name of the volume. Since volume names must
+        match Docker container names, the characters used should be limited to
+        those that Docker allows for container names.
+    :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
+        provider where the volume's filesystem is stored.
+    """
+    def get_filesystem(self):
+        """Return the volume's filesystem.
+
+        :return: The ``IFilesystem`` provider for the volume.
+        """
+        return self._pool.get(self)

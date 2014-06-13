@@ -44,11 +44,11 @@ setup(
     },
 
     install_requires=[
-        "eliot == 0.3",
-        "machinist == 0.1",
+        "eliot == 0.4.0",
         "zope.interface == 4.0.5",
         # Pinning this isn't great in general, but we're only using UTC so meh:
         "pytz == 2014.2",
+        "characteristic == 0.1.0",
         "Twisted == 13.2.0",
 
         "netifaces == 0.8",

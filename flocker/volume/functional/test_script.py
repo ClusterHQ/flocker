@@ -64,6 +64,7 @@ class FlockerVolumeTests(TestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         path.chmod(0)
+        self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
         result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
