@@ -18,6 +18,13 @@ def flocker_standard_options(cls):
     Add various standard command line options to flocker commands and
     subcommands.
     """
+    original_init = cls.__init__
+    def __init__(self, *args, **kwargs):
+        self['verbosity'] = 0
+        original_init(self, *args, **kwargs)
+    cls.__init__ = __init__
+
+
     def opt_version(self):
         """
         Print the program's version and exit.
@@ -26,6 +33,14 @@ def flocker_standard_options(cls):
         raise SystemExit(0)
     cls.opt_version = opt_version
     cls.opt_v = opt_version
+
+
+    def opt_verbose(self):
+        """
+        Increase the verbosity.
+        """
+        self['verbosity'] += 1
+    cls.opt_verbose = opt_verbose
 
     return cls
 

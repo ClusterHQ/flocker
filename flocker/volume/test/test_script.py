@@ -50,6 +50,24 @@ class StandardOptionsTestsMixin(object):
         self.assert_version_option('-v')
 
 
+    def test_verbosity_default(self):
+        """
+        Flocker commands have C{verbosity} of C{0} by default.
+        """
+        options = self.options()
+        self.assertEqual(0, options['verbosity'])
+
+
+    def test_verbosity_option(self):
+        """
+        Flocker commands have a I{--verbosity} option which increments the
+        configured verbosity by 1.
+        """
+        options = self.options()
+        options.parseOptions(['--verbose'])
+        self.assertEqual(1, options['verbosity'])
+
+
 
 class FlockerVolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`FlockerVolumeOptions`."""
