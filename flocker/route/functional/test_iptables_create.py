@@ -428,6 +428,28 @@ class DeleteTests(TestCase):
             self.preserver.normalize_rules(),
             preserver.normalize_rules())
 
+    def test_only_specified_proxy_deleted(self):
+        """
+        Only the rules associated with the proxy specified by the object passed
+        to :py:func:`delete_proxy` are deleted.
+        """
+        create_proxy_to(IPAddress("10.1.2.3"), 12345)
+
+        # Capture the rules that exist now for comparison later.
+        expected = preserve_iptables()
+
+        delete = create_proxy_to(IPAddress("10.1.2.4"), 23456)
+        delete_proxy(delete)
+
+        # Capture the new rules
+        actual = preserve_iptables()
+
+        # They should match because only the second proxy should have been torn
+        # down.
+        self.assertEqual(
+            expected.normalize_rules(),
+            actual.normalize_rules())
+
     def test_deleted_proxies_not_enumerated(self):
         """
         Once a proxy has been deleted, :py:func:`enumerate_proxies` does not
