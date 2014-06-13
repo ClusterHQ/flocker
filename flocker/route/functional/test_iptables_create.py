@@ -6,6 +6,7 @@ Tests for :py:mod:`flocker.route._iptables`.
 
 from __future__ import print_function
 
+from time import sleep
 from errno import ECONNREFUSED
 from os import getuid, getpid
 from socket import error, socket
@@ -118,6 +119,25 @@ def some_iptables_logged(parent_action_type):
 _environment_skip = skipUnless(
     is_environment_configured(),
     "Cannot test port forwarding without suitable test environment.")
+
+
+class PreserveTests(TestCase):
+    """
+    Tests for the iptables rule preserving helper.
+    """
+    @_environment_skip
+    def test_normalized_rules(self):
+        """
+        :py:code:`preserve_iptables().normalize_rules()` returns the same list of
+        bytes as long as no rules have changed.
+        """
+        first = preserve_iptables().normalize_rules()
+        # The most likely reason the result might change is that
+        # `iptables-save` includes timestamps with one-second resolution in its
+        # output.
+        sleep(1.0)
+        second = preserve_iptables().normalize_rules()
+        self.assertEqual(first, second)
 
 
 class CreateTests(TestCase):
@@ -400,22 +420,13 @@ class DeleteTests(TestCase):
         proxy = create_proxy_to(IPAddress("10.1.2.3"), 12345)
         delete_proxy(proxy)
 
-        def normalize(rules):
-            return [
-                rule
-                for rule in rules.splitlines()
-                # Comments don't matter.  They always differ because they
-                # include timestamps.
-                if not rule.startswith("#")
-                # Chain data could matter but doesn't.  The implementation
-                # doesn't mess with this stuff.  It typically differs in
-                # uninteresting ways - such as matched packet counters.
-                and not rule.startswith(":")]
-
+        # Capture the new rules
         preserver = preserve_iptables()
+
+        # And compare them against the rules when we started.
         self.assertEqual(
-            normalize(self.preserver.rules),
-            normalize(preserver.rules))
+            self.preserver.normalize_rules(),
+            preserver.normalize_rules())
 
     def test_deleted_proxies_not_enumerated(self):
         """

@@ -43,6 +43,24 @@ class _Preserver(object):
                 "Possibly failed to restore iptables configuration: %s" % (
                     exit_code,))
 
+    def normalize_rules(self):
+        """
+        Return a list of :command:`iptables-save`-formatted rule strings with
+        comments and packet/byte counter lines removed.
+
+        This also removes the information about the default policy for chains
+        (which might someday be important).
+        """
+        return [
+            rule
+            for rule in self.rules.splitlines()
+            # Comments don't matter.  They always differ because they
+            # include timestamps.
+            if not rule.startswith("#")
+            # Chain data could matter but doesn't.  The implementation
+            # doesn't mess with this stuff.  It typically differs in
+            # uninteresting ways - such as matched packet counters.
+            and not rule.startswith(":")]
 
 
 def preserve_iptables():
