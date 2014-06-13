@@ -65,7 +65,8 @@ def create_proxy_to(ip, port):
 
     :param int port: The TCP port number on which to proxy.
 
-    :return: None
+    :return: An object representing the created proxy.  Primarily useful as an
+        argument to :py:func:`delete_proxy`.
     """
     logger = create_proxy_to.logger
 
