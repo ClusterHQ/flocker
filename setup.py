@@ -40,6 +40,7 @@ setup(
     # explicitly included.
     packages=[
         "flocker", "flocker.test",
+        "flocker.node", "flocker.node.test", "flocker.node.functional",
         "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
         ],
 
