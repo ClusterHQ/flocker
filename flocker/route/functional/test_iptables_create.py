@@ -391,8 +391,8 @@ class DeleteTests(TestCase):
     def test_created_rules_deleted(self, logger):
         """
         After a route created using :py:func:`flocker.route.create_proxy_to` is
-        deleted using :py:meth:`delete` the iptables
-        rules which were added by the former are removed.
+        deleted using :py:meth:`delete_proxy` the iptables rules which were
+        added by the former are removed.
         """
         # Only interested in logging behavior of delete_proxy here.
         self.patch(delete_proxy, "logger", logger)
