@@ -10,14 +10,16 @@ from errno import ECONNREFUSED
 from os import getuid, getpid
 from socket import error, socket
 from unittest import skipUnless
-from subprocess import check_output
+from subprocess import check_call
 
 from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress, IPNetwork
+from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
 from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create_proxy_to, enumerate_proxies
+from .._logging import CREATE_PROXY_TO, IPTABLES
 from .iptables import preserve_iptables
 
 ADDRESSES = [
@@ -43,7 +45,7 @@ def create_user_rule():
     configured beyond flocker's control) rule on the system and needs to be
     ignored by :py:func:`enumerate_proxies`.
     """
-    check_output([
+    check_call([
             b"iptables",
             # Stick it in the PREROUTING chain based on our knowledge that the
             # implementation inspects this chain to enumerate proxies.
@@ -92,6 +94,24 @@ def is_environment_configured():
     return getuid() == 0
 
 
+def some_iptables_logged(case, logger):
+    """
+    Assert that some ``IPTABLES`` actions got logged.
+
+    They should be logged as children of a CREATE_PROXY_TO action (but this
+    function will not verify that).  No other assertions are made about the
+    particulars of the message because that would be difficult (by virtue of
+    requiring we duplicate the exact iptables commands from the implementation
+    here, in the tests, which is tedious and produces fragile tests).
+    """
+    assertHasAction(case, logger, CREATE_PROXY_TO, succeeded=True)
+    # Remember what the docstring said?  Ideally this would inspect the
+    # children of the action returned by assertHasAction but the interfaces
+    # don't seem to line up.
+    iptables = LoggedAction.ofType(logger.messages, IPTABLES)
+    case.assertNotEqual(iptables, [])
+
+
 _environment_skip = skipUnless(
     is_environment_configured(),
     "Cannot test port forwarding without suitable test environment.")
@@ -136,10 +156,13 @@ class CreateTests(TestCase):
         accepted, client_address = self.server.accept()
         self.assertEqual(client.getsockname(), client_address)
 
-    def test_connection(self):
+    @validateLogging(some_iptables_logged)
+    def test_connection(self, logger):
         """
         A connection attempt is forwarded to the specified destination address.
         """
+        self.patch(create_proxy_to, "logger", logger)
+
         # Note - we're leaking iptables rules into the system here.
         # https://github.com/hybridlogic/flocker/issues/22
         create_proxy_to(self.server_ip, self.port)
@@ -218,7 +241,7 @@ class CreateTests(TestCase):
         network_namespace = b"%s.%s" % (self.id(), getpid())
 
         def run(cmd):
-            check_output(cmd.split())
+            check_call(cmd.split())
 
         # Destroy whatever system resources we go on to allocate in this test.
         # We set this up first so even if one of the operations encounters an
@@ -292,8 +315,8 @@ class CreateTests(TestCase):
 
     def test_proxy_object(self):
         """
-        :py:func:`flocker.route.create` returns an object with attributes
-        describing the created proxy.
+        :py:func:`flocker.route.create_proxy_to` returns an object with
+        attributes describing the created proxy.
         """
         proxy = create_proxy_to(self.server_ip, self.port)
         self.assertEqual(
@@ -318,9 +341,9 @@ class EnumerateTests(TestCase):
 
     def test_a_proxy(self):
         """
-        After :py:func:`flocker.route.create` is used to create a proxy,
-        :py:func:`flocker.route.enumerate_proxies` returns a :py:class:`list`
-        including an object describing that proxy.
+        After :py:func:`flocker.route.create_proxy_to` is used to create a
+        proxy, :py:func:`flocker.route.enumerate_proxies` returns a
+        :py:class:`list` including an object describing that proxy.
         """
         ip = IPAddress("10.1.2.3")
         port = 4567
@@ -330,8 +353,8 @@ class EnumerateTests(TestCase):
 
     def test_some_proxies(self):
         """
-        After :py:func:`flocker.route.create` is used to create several
-        proxies, :py:func:`flocker.route.enumerate_proxies` returns a
+        After :py:func:`flocker.route.create_proxy_to` is used to create
+        several proxies, :py:func:`flocker.route.enumerate_proxies` returns a
         :py:class:`list` including an object for each of those proxies.
         """
         ip = IPAddress("10.1.2.3")
