@@ -79,8 +79,8 @@ class IStoragePool(Interface):
         """
 
     def enumerate():
-        """Get a listing of all volumes in this pool.
+        """Get a listing of all filesystems in this pool.
 
         :return: A ``Deferred`` that fires with a :class:`list` of
-            :class:`Volume` instances.
+            :class:`IFilesystem` providers.
         """
