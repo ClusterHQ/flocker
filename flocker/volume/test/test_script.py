@@ -60,12 +60,21 @@ class StandardOptionsTestsMixin(object):
 
     def test_verbosity_option(self):
         """
-        Flocker commands have a I{--verbosity} option which increments the
+        Flocker commands have a I{--verbose} option which increments the
         configured verbosity by 1.
         """
         options = self.options()
         options.parseOptions(['--verbose'])
         self.assertEqual(1, options['verbosity'])
+
+
+    def test_verbosity_multiple(self):
+        """
+        I{--verbose} can be supplied multiple times to increase the verbosity.
+        """
+        options = self.options()
+        options.parseOptions(['--verbose', '--verbose'])
+        self.assertEqual(2, options['verbosity'])
 
 
 
