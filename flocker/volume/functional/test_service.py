@@ -75,6 +75,8 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
+        # We use VolumeService.create() so that the underlying filesystem
+        # is created:
         d = service.create(random_name())
 
         def got_volume(volume):
