@@ -126,7 +126,7 @@ class Volume(object):
         mount path.
 
         Can be called multiple times. Mount paths from previous calls will
-        be overriden.
+        be overridden.
 
         :param mount_path: The path at which to mount the volume within
             the container.
