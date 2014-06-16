@@ -104,7 +104,8 @@ class GearClientTests(TestCase):
         ``GearError`` if response code is unexpected.
         """
         client = GearClient("127.0.0.1")
-        # Illegal container name:
+        # Illegal container name should make gear complain when we check
+        # if it exists:
         d = client.exists(u"!!##!!")
         return self.assertFailure(d, GearError)
 
@@ -117,7 +118,8 @@ class GearClientTests(TestCase):
         # failing since that's not the code path we're testing, so bypass
         # it:
         client.exists = lambda _: succeed(False)
-        # Illegal image name:
+        # Illegal container name should make gear complain when we try to
+        # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
         return self.assertFailure(d, GearError)
 
@@ -126,6 +128,7 @@ class GearClientTests(TestCase):
         ``GearError`` if response code is not a success response code.
         """
         client = GearClient("127.0.0.1")
-        # Illegal container name:
+        # Illegal container name should make gear complain when we try to
+        # remove it:
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
