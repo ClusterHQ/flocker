@@ -159,4 +159,34 @@ def make_istoragepool_tests(fixture):
                                     second.get_path())
             d.addCallback(createdFilesystems)
             return d
+
+        def test_reader_cleanup(self):
+            """The reader does not leave any open file descriptors behind."""
+
+        def test_writer_cleanup(self):
+            """The writer does not leave any open file descriptors behind."""
+
+        def test_write_new_fileystem(self):
+            """Writing the contents of one pool's filesystem to another pool's
+            filesystem creates that filesystem with the given contents.
+            """
+
+        def test_write_update_to_unchanged_filesystem(self):
+            """Writing an update of the contents of one pool's filesystem to
+            another pool's filesystem that was previously created this way but
+            is unchanged updates its contents.
+            """
+
+        def test_write_update_to_changed_filesystem(self):
+            """Writing an update of the contents of one pool's filesystem to
+            another pool's filesystem that was previously created this way and
+            was since changed drops any changes and updates its contents to
+            the sender's.
+            """
+
+        def test_multiple_writes(self):
+            """Writing the same contents to a filesystem twice does not result
+            in an error
+            """
+
     return IStoragePoolTests
