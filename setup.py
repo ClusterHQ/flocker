@@ -3,7 +3,7 @@
 # Generate a Flocker package that can be deployed onto cluster nodes.
 #
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 import versioneer
 versioneer.vcs = "git"
@@ -27,14 +27,9 @@ setup(
     url="http://hybridcluster.com/",
 
     # This defines *Python* packages (in other words, things that can be
-    # imported) which are part of the package.  Most of what they contain will
-    # be included in the package automatically by virtue of the packages being
-    # mentioned here.  These aren't recursive so each sub-package must also be
-    # explicitly included.
-    packages=[
-        "flocker",
-        "flocker.volume", "flocker.volume.test", "flocker.volume.functional",
-        ],
+    # imported) which are part of the package.  This setuptools helper will
+    # find everything that looks like a package automatically.
+    packages=find_packages(),
 
     entry_points = {
         # Command-line programs we want setuptools to install:
