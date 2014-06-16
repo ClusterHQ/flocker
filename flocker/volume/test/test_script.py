@@ -2,7 +2,7 @@
 
 """Tests for :module:`flocker.volume.script`."""
 
-import io, sys
+import io
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -19,34 +19,18 @@ class StandardOptionsTestsMixin(object):
     """
     options = None
 
-    def assert_version_option(self, argument):
+    def test_version(self):
         """
         Flocker commands have a I{--version} option which prints the current
         version string to stdout and causes the command to exit with status 0.
         """
         stdout = io.BytesIO()
         error = self.assertRaises(
-            SystemExit, self.options(stdout=stdout).parseOptions, [argument])
+            SystemExit, self.options(stdout=stdout).parseOptions, ['--version'])
         self.assertEqual(
             (__version__ + '\n', 0),
             (stdout.getvalue(), error.code)
         )
-
-
-    def test_version_long(self):
-        """
-        Flocker commands have a I{--version} option which prints the current
-        version string to stdout and causes the command to exit with status 0.
-        """
-        self.assert_version_option('--version')
-
-
-    def test_version_short(self):
-        """
-        Flocker commands have a I{-v} option which prints the current
-        version string to stdout and causes the command to exit with status 0.
-        """
-        self.assert_version_option('-v')
 
 
     def test_verbosity_default(self):
