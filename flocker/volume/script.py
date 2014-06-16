@@ -34,7 +34,6 @@ def flocker_standard_options(cls):
         self.stdout.write(__version__.encode('utf-8') + b'\n')
         raise SystemExit(0)
     cls.opt_version = opt_version
-    cls.opt_v = opt_version
 
 
     def opt_verbose(self):
@@ -43,6 +42,7 @@ def flocker_standard_options(cls):
         """
         self['verbosity'] += 1
     cls.opt_verbose = opt_verbose
+    cls.opt_v = opt_verbose
 
     return cls
 
