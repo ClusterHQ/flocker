@@ -14,16 +14,18 @@ Source0:        Flocker-%{flocker_version}.tar.gz
 
 BuildRequires:  python-devel
 
-BuildRequires:  python-twisted
-BuildRequires:       python-eliot = 0.3.0
-BuildRequires:       python-characteristic
 BuildRequires:  python
 BuildRequires:  python-setuptools
+# For tests
+BuildRequires:  python-twisted
+BuildRequires:  python-eliot = 0.3.0
+BuildRequires:  python-characteristic
+BuildRequires:  pytz
 
+Requires:       python
 Requires:       python-twisted
 Requires:       python-eliot = 0.3.0
 Requires:       python-characteristic
-Requires:       python
 Requires:       pytz
 
 %description
