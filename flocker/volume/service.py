@@ -67,6 +67,8 @@ class VolumeService(Service):
     def push(self, volume, destination):
         """Push the latest data in the volume to a remote destination.
 
+        This is a blocking API, for now.
+
         :param Volume volume: The volume to push.
         :param Node destination: The node to push to.
 
@@ -82,7 +84,9 @@ class VolumeService(Service):
         # receiver.close()
 
     def receive(self, volume):
-        """A volume's data is being pushed in over standard in.
+        """Process a volume's data that is being pushed in over stin.
+
+        This is a blocking API, for now.
 
         :param Volume volume: A description of the volume being pushed in.
         """
