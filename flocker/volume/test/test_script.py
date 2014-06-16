@@ -7,9 +7,60 @@ import io
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from ..script import FlockerVolumeOptions
+from ..script import FlockerVolumeOptions, FlockerScript, VolumeScript
 
 from ... import __version__
+
+
+def helpProblems(commandName, helpText):
+    """
+    Identify and return a list of problems with the help output for a given
+    command.
+    """
+    problems = []
+    expectedStart = b'Usage: {command}'.format(command=commandName)
+    if not helpText.startswith(expectedStart):
+        problems.append(
+            'Does not begin with {expected}. Found {actual} instead'.format(
+                expected=repr(expectedStart),
+                actual=repr(helpText[:len(expectedStart)])
+            )
+        )
+    if problems:
+        return problems
+
+
+
+class FlockerScriptTestsMixin(object):
+    """
+    Tests for L{FlockerScript}
+    """
+    script = None
+
+    def test_too_many_arguments(self):
+        """
+        L{FlockerScript.main} exits with status 0 and prints help to stderr if
+        supplied with unexpected arguments.
+        """
+        stderr = io.BytesIO()
+        script = self.script(stderr=stderr)
+        dummyReactor = object()
+        error = self.assertRaises(
+            SystemExit,
+            script.main,
+            dummyReactor, b'--unexpected-argument'
+        )
+
+        self.assertEqual(
+            (1, None),
+            (error.code, helpProblems('flocker volume', stderr.getvalue()))
+        )
+
+
+
+class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+    script = VolumeScript
+
 
 
 class StandardOptionsTestsMixin(object):

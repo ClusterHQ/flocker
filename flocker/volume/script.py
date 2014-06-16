@@ -4,7 +4,7 @@
 
 import sys
 
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.task import react
 from twisted.internet.defer import succeed
@@ -57,6 +57,7 @@ class FlockerVolumeOptions(Options):
 
     At the moment no functionality has been implemented.
     """
+    synopsis = "Usage: flocker volume [OPTIONS]"
 
     optParameters = [
         ["config", None, b"/etc/flocker/volume.json",
@@ -65,6 +66,34 @@ class FlockerVolumeOptions(Options):
 
     def postOptions(self):
         self["config"] = FilePath(self["config"])
+
+
+
+class FlockerScript(object):
+    """
+    """
+    def __init__(self, stdout=None, stderr=None):
+        """
+        """
+        if stdout is None:
+            stdout = sys.stdout
+        self.stdout = stdout
+
+        if stderr is None:
+            stderr = sys.stderr
+        self.stderr = stderr
+
+
+
+class VolumeScript(FlockerScript):
+    def main(self, reactor, *arguments):
+        options = FlockerVolumeOptions(stdout=self.stdout, stderr=self.stderr)
+        try:
+            options.parseOptions(arguments)
+        except UsageError as e:
+            self.stderr.write(unicode(options).encode('utf-8'))
+            self.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
+            raise SystemExit(1)
 
 
 
