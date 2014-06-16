@@ -46,6 +46,24 @@ class IFilesystem(Interface):
         :return: A file-like object that can be read from.
         """
 
+    def get_receiver():
+        """Return a receiver which will have new contents written to it.
+
+        This receiver is a blocking API, for now.
+
+        The higher-level volume API will ensure that whoever is writing
+        the data is the owner of the volume. As such, whatever new data is
+        being received will overwrite the filesystem's existing data.
+
+        The filesystem may not exist the first time this is called; in
+        that case it should be created.
+
+        :param Volume volume: A volume that is being pushed to us.
+
+        :return: A file-like object which when written to will populate
+            the volume's filesystem.
+        """
+
     def __eq__(other):
         """True if and only if underlying OS filesystem is the same."""
 
@@ -84,14 +102,4 @@ class IStoragePool(Interface):
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: A :class:`IFilesystem` provider.
-        """
-
-    def get_receiver(volume):
-        """Return a receiver which will have a volume's contents written to it.
-
-        This receiver is a blocking API, for now.
-
-        :param Volume volume: The volume that is being pushed to us.
-
-        :return: A file-like object which will populate the volume's filesystem.
         """

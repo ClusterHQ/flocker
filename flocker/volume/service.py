@@ -88,9 +88,14 @@ class VolumeService(Service):
 
         This is a blocking API, for now.
 
-        :param Volume volume: A description of the volume being pushed in.
+        :param Volume volume: A description of the remotely-owne volume
+            being pushed in.
+
+        :raises ...: If the uuid of the volume matches our own; remote
+            nodes can't overwrite locally-owned volumes.
         """
-        # receiver = self._pool.get_receiver(volume)
+        # if volume.uuid == self.uuid: raise ValueError()
+        # receiver = self._pool.get(volume).get_filesystem().get_receiver()
         # for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
         #     receiver.writer(chunk)
         # receiver.close()
