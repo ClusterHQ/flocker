@@ -26,9 +26,9 @@ setup(
     # Here is a website where more information about the software is available.
     url="http://hybridcluster.com/",
 
-    # This defines *Python* packages (in other words, things that can be
-    # imported) which are part of the package.  This setuptools helper will
-    # find everything that looks like a package automatically.
+    # This setuptools helper will find everything that looks like a *Python*
+    # package (in other words, things that can be imported) which are part of
+    # the Flocker package.
     packages=find_packages(),
 
     entry_points = {
