@@ -14,7 +14,13 @@ versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
 
-# Hard linking doesn't work inside Vagrant shared folders:
+# Hard linking doesn't work inside Vagrant shared folders. This means that
+# you can't use tox in a directory that is being shared with Vagrant,
+# since tox relies on `python setup.py sdist` which uses hard links. As a
+# workaround, disable hard-linking if it looks like we're a vagrant user.
+# See
+# https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
+# for more details.
 if os.environ.get('USER','') == 'vagrant':
     del os.link
 
