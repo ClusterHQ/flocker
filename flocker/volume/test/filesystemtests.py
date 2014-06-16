@@ -160,14 +160,14 @@ def make_istoragepool_tests(fixture):
             d.addCallback(createdFilesystems)
             return d
 
-        def test_enumerate_no_volumes(self):
-            """Lacking any volumes, ``enumerate()`` returns an empty result."""
+        def test_enumerate_no_filesystems(self):
+            """Lacking any filesystems, ``enumerate()`` returns an empty result."""
             pool = fixture(self)
             enumerating = pool.enumerate()
             enumerating.addCallback(self.assertEqual, set())
             return enumerating
 
-        def test_enumerate_some_volumes(self):
+        def test_enumerate_some_filesystems(self):
             """
             The ``IStoragePool.enumerate`` implementation returns a
             ``Deferred`` that fires with a ``set`` of ``IFilesystem``
