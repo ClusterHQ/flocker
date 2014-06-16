@@ -73,10 +73,10 @@ class VolumeService(Service):
         def enumerated(filesystems):
             for filesystem in filesystems:
                 yield Volume(
-                    self.uuid,
+                    uuid=self.uuid,
                     # XXX It so happens that this works but it's kind of a
                     # fragile way to recover the information.
-                    name=filesystem.get_mountpoint().basename(),
+                    name=filesystem.get_mountpoint().basename().split(b".", 1)[1],
                     _pool=self)
         return enumerating.addCallback(enumerated)
 
