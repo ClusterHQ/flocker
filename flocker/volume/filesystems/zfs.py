@@ -201,6 +201,12 @@ class StoragePool(object):
 
 
 def _list_filesystems(reactor, pool):
+    """
+    :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
+        provider.
+    :return: A ``Deferred`` that fires with an iterator, the elements
+        of which are ``_zfs_filesystem`` instances.
+    """
     listing = zfs_command(
         reactor,
         [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
