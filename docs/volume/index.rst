@@ -11,18 +11,18 @@ Volumes are created with two parameters:
 
 * The logical name; this must be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
-* (XXX https://github.com/hybridlogic/flocker/issues/39) A mount point, indicating where within a container the volume will be mounted.
+* A mount path, indicating where within a container the volume will be mounted.
   For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores its data.
 
-(XXX https://github.com/hybridlogic/flocker/issues/39)
 Creating a volume will automatically create a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
+Since Flocker adds a ``"flocker-"`` prefix to containers it creates, this prefix will also be added to the data container.
+For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"flocker-myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
 You can then use this volume manually using ``--volumes-from``::
 
-    $ docker run --volumes-from myapp-mongodb-data --name mongodb openshift/centos-mongodb
+    $ docker run --volumes-from flocker-myapp-mongodb-data --name mongodb openshift/centos-mongodb
 
-Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
+Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"flocker-myapp-mongodb-data"`` if you create a unit called ``"flocker-myapp-mongodb"``.
 
 Configuration
 *************
