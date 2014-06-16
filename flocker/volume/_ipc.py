@@ -42,5 +42,6 @@ class SSHNode(object):
 class LocalNode(object):
     """Run all processes on the local machine.
 
-    This is useful for testing.
+    This is useful for testing (but may turn out to be unnecessary in
+    which case this will cease to exist.)
     """
