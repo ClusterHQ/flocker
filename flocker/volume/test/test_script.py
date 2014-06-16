@@ -33,7 +33,7 @@ def helpProblems(commandName, helpText):
 
 class FlockerScriptTestsMixin(object):
     """
-    Tests for L{FlockerScript}
+    Common tests for scripts that can be run via L{FlockerScriptRunner}
     """
     script = None
     script_name = None
@@ -59,6 +59,9 @@ class FlockerScriptTestsMixin(object):
 
 
 class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+    """
+    Tests for L{VolumeScript}.
+    """
     script = VolumeScript
     script_name = 'flocker-volume'
 

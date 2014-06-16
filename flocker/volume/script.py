@@ -71,6 +71,7 @@ class FlockerVolumeOptions(Options):
 
 class FlockerScriptRunner(object):
     """
+    An API for running standard flocker scripts.
     """
     def __init__(self, script, stdout=None, stderr=None):
         """
@@ -87,6 +88,15 @@ class FlockerScriptRunner(object):
 
 
     def _parseOptions(self, arguments):
+        """
+        Parse the options defined in the script's options class.
+
+        L{UsageErrors} are caught and printed to I{stderr} and the script then
+        exits.
+
+        @param arguments: The command line arguments to be parsed.
+        @rtype: L{Options}
+        """
         options = self.script.options(stdout=self.stdout, stderr=self.stderr)
         try:
             options.parseOptions(arguments)
@@ -99,6 +109,7 @@ class FlockerScriptRunner(object):
 
     def main(self, arguments=None):
         """
+        Parse arguments and run the script's main function via L{react}.
         """
         if arguments is None:
             arguments = sys.argv[1:]
@@ -110,6 +121,9 @@ class FlockerScriptRunner(object):
 
 
 class VolumeScript(object):
+    """
+    A volume manager script.
+    """
     options = FlockerVolumeOptions
 
     def __init__(self, stdout=None, stderr=None):
