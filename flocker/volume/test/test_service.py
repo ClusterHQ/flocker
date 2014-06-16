@@ -103,7 +103,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
-        self.assertTrue(pool.get(volume).get_mountpoint().isdir())
+        self.assertTrue(pool.get(volume).get_path().isdir())
 
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
@@ -115,7 +115,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
-        self.assertEqual(pool.get(volume).get_mountpoint().getPermissions(),
+        self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
 
@@ -158,3 +158,10 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         volume = Volume(uuid=u"123", name=u"456", _pool=pool)
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
+
+    def test_container_name(self):
+        """The volume's container name adds a ``"flocker-"`` prefix and
+        ``"-data"`` suffix.
+        """
+        volume = Volume(uuid=u"123", name=u"456", _pool=object())
+        self.assertEqual(volume._container_name, b"flocker-456-data")

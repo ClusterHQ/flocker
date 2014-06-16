@@ -143,7 +143,7 @@ def make_istoragepool_tests(fixture):
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
             def createdFilesystem(filesystem):
-                self.assertTrue(filesystem.get_mountpoint().isdir())
+                self.assertTrue(filesystem.get_path().isdir())
             d.addCallback(createdFilesystem)
             return d
 
@@ -155,8 +155,8 @@ def make_istoragepool_tests(fixture):
             d = gatherResults([pool.create(volume), pool.create(volume2)])
             def createdFilesystems(filesystems):
                 first, second = filesystems
-                self.assertNotEqual(first.get_mountpoint(),
-                                    second.get_mountpoint())
+                self.assertNotEqual(first.get_path(),
+                                    second.get_path())
             d.addCallback(createdFilesystems)
             return d
     return IStoragePoolTests
