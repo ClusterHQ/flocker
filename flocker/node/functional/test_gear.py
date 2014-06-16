@@ -5,6 +5,7 @@
 import os
 import json
 import subprocess
+import socket
 from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
@@ -17,8 +18,17 @@ from ...testtools import loop_until
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError
 
-_if_gear_configured = skipIf(which("gear") == [],
-                             "Must run on machine with gear running.")
+
+def _gear_running():
+    if not which("gear"):
+        return False
+    sock = socket.socket()
+    try:
+        return not sock.connect_ex((b'127.0.0.1', 43273))
+    finally:
+        sock.close()
+_if_gear_configured = skipIf(not _gear_running(),
+                             "Must run on machine with `gear daemon`.")
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
