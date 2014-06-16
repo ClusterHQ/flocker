@@ -57,7 +57,7 @@ class FlockerVolumeOptions(Options):
 
     At the moment no functionality has been implemented.
     """
-    synopsis = "Usage: flocker volume [OPTIONS]"
+    synopsis = "Usage: flocker-volume [OPTIONS]"
 
     optParameters = [
         ["config", None, b"/etc/flocker/volume.json",
@@ -69,12 +69,12 @@ class FlockerVolumeOptions(Options):
 
 
 
-class FlockerScript(object):
-    """
-    """
-    def __init__(self, stdout=None, stderr=None):
+class FlockerScriptRunner(object):
+    def __init__(self, script, stdout=None, stderr=None):
         """
         """
+        self.script = script
+
         if stdout is None:
             stdout = sys.stdout
         self.stdout = stdout
@@ -84,16 +84,24 @@ class FlockerScript(object):
         self.stderr = stderr
 
 
-
-class VolumeScript(FlockerScript):
-    def main(self, reactor, *arguments):
-        options = FlockerVolumeOptions(stdout=self.stdout, stderr=self.stderr)
+    def _parseOptions(self, arguments):
+        options = self.script.options(stdout=self.stdout, stderr=self.stderr)
         try:
             options.parseOptions(arguments)
         except UsageError as e:
             self.stderr.write(unicode(options).encode('utf-8'))
             self.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
+
+
+    def main(self, reactor, *arguments):
+        """
+        """
+        self._parseOptions(arguments)
+
+
+class VolumeScript(object):
+    options = FlockerVolumeOptions
 
 
 
@@ -111,6 +119,7 @@ def _main(reactor, *arguments):
             options["config"].path, e))
         raise SystemExit(1)
     return succeed(None)
+
 
 
 def main():

@@ -7,7 +7,7 @@ import io
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from ..script import FlockerVolumeOptions, FlockerScript, VolumeScript
+from ..script import FlockerVolumeOptions, FlockerScriptRunner, VolumeScript
 
 from ... import __version__
 
@@ -36,30 +36,32 @@ class FlockerScriptTestsMixin(object):
     Tests for L{FlockerScript}
     """
     script = None
+    script_name = None
 
-    def test_too_many_arguments(self):
+    def test_incorrect_arguments(self):
         """
         L{FlockerScript.main} exits with status 0 and prints help to stderr if
         supplied with unexpected arguments.
         """
         stderr = io.BytesIO()
-        script = self.script(stderr=stderr)
+        script = FlockerScriptRunner(self.script, stderr=stderr)
         dummyReactor = object()
         error = self.assertRaises(
             SystemExit,
             script.main,
             dummyReactor, b'--unexpected-argument'
         )
-
+        error_text = stderr.getvalue()
         self.assertEqual(
             (1, None),
-            (error.code, helpProblems('flocker volume', stderr.getvalue()))
+            (error.code, helpProblems(self.script_name, error_text))
         )
 
 
 
 class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     script = VolumeScript
+    script_name = 'flocker-volume'
 
 
 
