@@ -70,6 +70,8 @@ class FlockerVolumeOptions(Options):
 
 
 class FlockerScriptRunner(object):
+    """
+    """
     def __init__(self, script, stdout=None, stderr=None):
         """
         """
@@ -92,33 +94,31 @@ class FlockerScriptRunner(object):
             self.stderr.write(unicode(options).encode('utf-8'))
             self.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
+        return options
 
 
-    def main(self, reactor, *arguments):
+    def main(self, arguments):
         """
         """
-        self._parseOptions(arguments)
+        options = self._parseOptions(arguments)
 
 
 class VolumeScript(object):
     options = FlockerVolumeOptions
 
-
-
-def _main(reactor, *arguments):
-    """Parse command-line options and use them to run volume management."""
-    # Much of this should be moved (and expanded) into shared class:
-    # https://github.com/hybridlogic/flocker/issues/30
-    options = FlockerVolumeOptions()
-    options.parseOptions(arguments)
-    service = VolumeService(options["config"])
-    try:
-        service.startService()
-    except CreateConfigurationError as e:
-        sys.stderr.write(b"Writing config file %s failed: %s\n" % (
-            options["config"].path, e))
-        raise SystemExit(1)
-    return succeed(None)
+    def main(reactor, options):
+        """
+        Run a volume management server configured according to the supplied
+        options.
+        """
+        service = VolumeService(options["config"])
+        try:
+            service.startService()
+        except CreateConfigurationError as e:
+            sys.stderr.write(b"Writing config file %s failed: %s\n" % (
+                options["config"].path, e))
+            raise SystemExit(1)
+        return succeed(None)
 
 
 

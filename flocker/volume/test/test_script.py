@@ -45,11 +45,10 @@ class FlockerScriptTestsMixin(object):
         """
         stderr = io.BytesIO()
         script = FlockerScriptRunner(self.script, stderr=stderr)
-        dummyReactor = object()
         error = self.assertRaises(
             SystemExit,
             script.main,
-            dummyReactor, b'--unexpected-argument'
+            b'--unexpected-argument'
         )
         error_text = stderr.getvalue()
         self.assertEqual(
