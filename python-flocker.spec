@@ -18,6 +18,7 @@ BuildRequires:  python-twisted
 BuildRequires:       python-eliot = 0.3.0
 BuildRequires:       python-characteristic
 BuildRequires:  python
+BuildRequires:  python-setuptools
 
 Requires:       python-twisted
 Requires:       python-eliot = 0.3.0
