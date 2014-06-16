@@ -2,21 +2,12 @@
 
 """Tests for :module:`flocker.node.gear`."""
 
-from random import random
-
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
+from ...testtools import random_name
 from ..gear import IGearClient, FakeGearClient, AlreadyExists
-
-
-def random_name():
-    """Generate a random unit name.
-
-    :return: A random name for a container.
-    """
-    return u"test-%d" % (int(random() * 1e12),)
 
 
 def make_igearclient_tests(fixture):

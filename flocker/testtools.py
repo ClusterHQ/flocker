@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+from random import random
 from collections import namedtuple
 
 from zope.interface import implementer
@@ -100,3 +101,11 @@ def loop_until(arg, predicate):
         return arg
     d.addCallback(loop)
     return d
+
+
+def random_name():
+    """Return a short, random name.
+
+    :return unicode name: A random name.
+    """
+    return u"%d" % (int(random() * 1e12),)
