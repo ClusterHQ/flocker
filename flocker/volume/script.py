@@ -97,16 +97,32 @@ class FlockerScriptRunner(object):
         return options
 
 
-    def main(self, arguments):
+    def main(self, arguments=None):
         """
         """
+        if arguments is None:
+            arguments = sys.argv[1:]
+
         options = self._parseOptions(arguments)
+        script = self.script(stdout=self.stdout, stderr=self.stderr)
+        return react(script.main, (options,))
+
 
 
 class VolumeScript(object):
     options = FlockerVolumeOptions
 
-    def main(reactor, options):
+    def __init__(self, stdout=None, stderr=None):
+        if stdout is None:
+            stdout = sys.stderr
+        self.stdout = stdout
+
+        if stderr is None:
+            stderr = sys.stderr
+        self.stderr = stderr
+
+
+    def main(self, reactor, options):
         """
         Run a volume management server configured according to the supplied
         options.
@@ -121,7 +137,4 @@ class VolumeScript(object):
         return succeed(None)
 
 
-
-def main():
-    """Entry point to the ``flocker-volume`` command-line tool."""
-    react(_main, sys.argv[1:])
+flocker_volume_main = FlockerScriptRunner(VolumeScript).main
