@@ -110,7 +110,7 @@ class GearClientTests(TestCase):
 
     def test_add_error(self):
         """``GearClient.add`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is unexpected.
+        ``GearError`` if response code is not a success response code.
         """
         client = GearClient("127.0.0.1")
         # add() calls exists(), and we don't want exists() to be the one
@@ -123,7 +123,7 @@ class GearClientTests(TestCase):
 
     def test_remove_error(self):
         """``GearClient.remove`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is unexpected.
+        ``GearError`` if response code is not a success response code.
         """
         client = GearClient("127.0.0.1")
         # Illegal container name:
