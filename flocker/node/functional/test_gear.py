@@ -113,7 +113,9 @@ class GearClientTests(TestCase):
         ``GearError`` if response code is unexpected.
         """
         client = GearClient("127.0.0.1")
-        # Don't want exists() to be the one failing:
+        # add() calls exists(), and we don't want exists() to be the one
+        # failing since that's not the code path we're testing, so bypass
+        # it:
         client.exists = lambda _: succeed(False)
         # Illegal image name:
         d = client.add(u"!!!###!!!", u"busybox")
