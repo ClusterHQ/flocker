@@ -64,6 +64,18 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def push(self, volume, destination):
+        """Push the latest data in the volume to a remote destination.
+
+        ...
+        """
+
+    def receive(self, volume_name):
+        """A volume's data is being pushed in over standard in.
+
+        ...
+        """
+
 
 @attributes(["uuid", "name", "_pool"])
 class Volume(object):
