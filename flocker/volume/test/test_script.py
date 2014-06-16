@@ -24,14 +24,13 @@ class StandardOptionsTestsMixin(object):
         Flocker commands have a I{--version} option which prints the current
         version string to stdout and causes the command to exit with status 0.
         """
-        output = io.BytesIO()
-        # XXX: Is there a better way to capture stdout in trial? I think there
-        # is.
-        self.patch(sys, 'stdout', output)
+        stdout = io.BytesIO()
         error = self.assertRaises(
-            SystemExit, self.options().parseOptions, [argument])
+            SystemExit, self.options(stdout=stdout).parseOptions, [argument])
         self.assertEqual(
-            (__version__ + '\n', 0), (output.getvalue(), error.code))
+            (__version__ + '\n', 0),
+            (stdout.getvalue(), error.code)
+        )
 
 
     def test_version_long(self):

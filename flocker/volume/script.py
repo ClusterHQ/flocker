@@ -20,6 +20,8 @@ def flocker_standard_options(cls):
     """
     original_init = cls.__init__
     def __init__(self, *args, **kwargs):
+        self.stdout = kwargs.pop('stdout', sys.stdout)
+        self.stderr = kwargs.pop('stderr', sys.stderr)
         self['verbosity'] = 0
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
@@ -29,7 +31,7 @@ def flocker_standard_options(cls):
         """
         Print the program's version and exit.
         """
-        print(__version__)
+        self.stdout.write(__version__.encode('utf-8') + b'\n')
         raise SystemExit(0)
     cls.opt_version = opt_version
     cls.opt_v = opt_version
