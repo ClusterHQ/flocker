@@ -38,6 +38,14 @@ class IFilesystem(Interface):
         :return: The mountpoint as a ``FilePath``.
         """
 
+    def get_contents():
+        """Return the contents of the filesystem.
+
+        A blocking API, for now.
+
+        :return: A file-like object that can be read from.
+        """
+
     def __eq__(other):
         """True if and only if underlying OS filesystem is the same."""
 
@@ -72,8 +80,18 @@ class IStoragePool(Interface):
 
         This presumes the volume exists.
 
-        :param volume: The volume whose filesystem is being retrieved.
+        :param Volume volume: The volume whose filesystem is being retrieved.
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: A :class:`IFilesystem` provider.
+        """
+
+    def get_receiver(volume):
+        """Return a receiver which will have a volume's contents written to it.
+
+        This receiver is a blocking API, for now.
+
+        :param Volume volume: The volume that is being pushed to us.
+
+        :return: A file-like object which will populate the volume's filesystem.
         """

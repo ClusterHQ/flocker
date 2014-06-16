@@ -67,14 +67,29 @@ class VolumeService(Service):
     def push(self, volume, destination):
         """Push the latest data in the volume to a remote destination.
 
-        ...
-        """
+        :param Volume volume: The volume to push.
+        :param Node destination: The node to push to.
 
-    def receive(self, volume_name):
+        :return: ``Deferred`` that fires when the push is finished.
+        """
+        # fs = volume.get_filesystem()
+        # contents = fs.get_contents()
+        # receiver = destination.run([b"flocker-volume", b"receive",
+        #                             volume.uuid.encode(b"ascii"),
+        #                             volume.name.encode("ascii")])
+        # for chunk in iter(lambda: contents.read(1024 * 1024), b""):
+        #     receiver.write(chunk)
+        # receiver.close()
+
+    def receive(self, volume):
         """A volume's data is being pushed in over standard in.
 
-        ...
+        :param Volume volume: A description of the volume being pushed in.
         """
+        # receiver = self._pool.get_receiver(volume)
+        # for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
+        #     receiver.writer(chunk)
+        # receiver.close()
 
 
 @attributes(["uuid", "name", "_pool"])
