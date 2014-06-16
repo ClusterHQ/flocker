@@ -56,6 +56,7 @@ class VolumeService(Service):
         """
         volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
         d = self._pool.create(volume)
+
         def created(filesystem):
             filesystem.get_mountpoint().chmod(
                 # 0o777 the long way:
@@ -70,14 +71,17 @@ class VolumeService(Service):
         :return: A ``Deferred`` that fires with an iterator of :class:`Volume`.
         """
         enumerating = self._pool.enumerate()
+
         def enumerated(filesystems):
             for filesystem in filesystems:
+                name = filesystem.get_mountpoint().basename().split(b".", 1)[1]
                 yield Volume(
                     uuid=self.uuid,
                     # XXX It so happens that this works but it's kind of a
-                    # fragile way to recover the information.
-                    name=filesystem.get_mountpoint().basename().split(b".", 1)[1],
-                    _pool=self)
+                    # fragile way to recover the information:
+                    #    https://github.com/hybridlogic/flocker/issues/78
+                    name=name.decode('utf8'),
+                    _pool=self._pool)
         return enumerating.addCallback(enumerated)
 
 
