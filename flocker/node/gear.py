@@ -71,7 +71,6 @@ class IGearClient(Interface):
 class GearClient(object):
     """Talk to the gear daemon over HTTP.
 
-    :ivar Agent _agent: HTTP client used to talk to gear.
     :ivar bytes _base_url: Base URL for gear.
     """
 
