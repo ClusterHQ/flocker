@@ -56,7 +56,6 @@ trial flocker
 
 %{_bindir}/flocker-volume
 %{python2_sitelib}/flocker
-%{python2_sitelib}/twisted/plugins/
 %{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
 
 %changelog
