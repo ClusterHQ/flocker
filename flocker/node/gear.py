@@ -108,7 +108,7 @@ class GearClient(object):
         return d
 
     def _ensure_ok(self, response):
-        """Make sure response is OK.
+        """Make sure response indicates success.
 
         Also reads the body to ensure connection is closed.
 
@@ -118,7 +118,10 @@ class GearClient(object):
             is not OK.
         """
         d = content(response)
-        if response.code not in (OK, NO_CONTENT):
+        # geard uses a variaty of 2xx response codes. Filed treq issue
+        # about having "is this a success?" API:
+        # https://github.com/dreid/treq/issues/62
+        if response.code // 100 != 2:
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
