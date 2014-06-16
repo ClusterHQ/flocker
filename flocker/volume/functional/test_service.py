@@ -26,6 +26,7 @@ def random_name():
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
+# This is terible (https://github.com/hybridlogic/flocker/issues/85):
 _if_docker = skipIf(subprocess.Popen([b"docker", b"version"]).wait(),
                     "Docker must be installed and running.")
 
