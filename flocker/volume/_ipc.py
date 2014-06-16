@@ -17,7 +17,7 @@ class INode(Interface):
     """A remote node with which this node can communicate."""
 
     def run(remote_command):
-        """Run a remote command and return its stdin.
+        """Context manager that runs a remote command and return its stdin.
 
         :param remote_command: ``list`` of ``bytes``, the command to run
             remotely along with its arguments.

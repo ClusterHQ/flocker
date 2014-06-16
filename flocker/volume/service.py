@@ -83,13 +83,12 @@ class VolumeService(Service):
         :return: ``Deferred`` that fires when the push is finished.
         """
         # fs = volume.get_filesystem()
-        # contents = fs.get_contents()
-        # receiver = destination.run([b"flocker-volume", b"receive",
-        #                             volume.uuid.encode(b"ascii"),
-        #                             volume.name.encode("ascii")])
-        # for chunk in iter(lambda: contents.read(1024 * 1024), b""):
-        #     receiver.write(chunk)
-        # receiver.close()
+        # with destination.run([b"flocker-volume", b"receive",
+        #                       volume.uuid.encode(b"ascii"),
+        #                       volume.name.encode("ascii")]) as receiver:
+        #     with fs.reader() as contents:
+        #         for chunk in iter(lambda: contents.read(1024 * 1024), b""):
+        #             receiver.write(chunk)
 
     def receive(self, volume):
         """Process a volume's data that is being pushed in over stin.
@@ -103,10 +102,9 @@ class VolumeService(Service):
             nodes can't overwrite locally-owned volumes.
         """
         # if volume.uuid == self.uuid: raise ValueError()
-        # receiver = self._pool.get(volume).get_filesystem().get_receiver()
-        # for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
-        #     receiver.writer(chunk)
-        # receiver.close()
+        # with self._pool.get(volume).get_filesystem().writer() as w:
+        #     for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
+        #     w.write(chunk)
 
 
 # Communication with Docker should be done via its API, not with this

@@ -41,16 +41,16 @@ class IFilesystem(Interface):
         :return: The path as a ``FilePath``.
         """
 
-    def get_contents():
-        """Return the contents of the filesystem.
+    def reader():
+        """Context manager that allows reading the contents of the filesystem.
 
         A blocking API, for now.
 
         :return: A file-like object that can be read from.
         """
 
-    def get_receiver():
-        """Return a receiver which will have new contents written to it.
+    def writer():
+        """Context manager that allows writing new contents to the filesystem.
 
         This receiver is a blocking API, for now.
 
