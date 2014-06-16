@@ -90,19 +90,21 @@ class VolumeService(Service):
         #         for chunk in iter(lambda: contents.read(1024 * 1024), b""):
         #             receiver.write(chunk)
 
-    def receive(self, volume):
-        """Process a volume's data that is being pushed in over stin.
+    def receive(self, volume_uuid, volume_name):
+        """Process a volume's data that is being pushed in over stdin.
 
         This is a blocking API, for now.
 
-        :param Volume volume: A description of the remotely-owne volume
-            being pushed in.
+        :param bytes volume_uuid: The volume's UUID.
+
+        :param bytes volume_name: The volume's name.
 
         :raises ...: If the uuid of the volume matches our own; remote
             nodes can't overwrite locally-owned volumes.
         """
-        # if volume.uuid == self.uuid: raise ValueError()
-        # with self._pool.get(volume).get_filesystem().writer() as w:
+        # if volume_uuid == self.uuid: raise ValueError()
+        # volume = Volume(volume_uuid, volume_name, _pool=self._pool)
+        # with volume.get_filesystem().writer() as w:
         #     for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
         #     w.write(chunk)
 
