@@ -12,6 +12,7 @@ import json
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 
 from ..service import Volume, VolumeService
 from ..filesystems.memory import FilesystemStoragePool
@@ -26,12 +27,15 @@ def random_name():
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
+_if_docker = skipIf(not which("docker"),
+                    "Docker must be installed and running.")
 
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
 
     @_if_root
+    @_if_docker
     def setUp(self):
         pass
 
