@@ -34,12 +34,12 @@ class CannedFilesystemSnapshots(object):
 
 
 @implementer(IFilesystem)
-@attributes(["mountpoint"])
+@attributes(["path"])
 class DirectoryFilesystem(object):
     """A directory pretending to be an independent filesystem."""
 
-    def get_mountpoint(self):
-        return self.mountpoint
+    def get_path(self):
+        return self.path
 
 
 @implementer(IStoragePool)
@@ -57,13 +57,13 @@ class FilesystemStoragePool(object):
 
     def create(self, volume):
         filesystem = self.get(volume)
-        filesystem.get_mountpoint().makedirs()
+        filesystem.get_path().makedirs()
         return succeed(filesystem)
 
     def get(self, volume):
         return DirectoryFilesystem(
-            mountpoint=self._root.child(b"%s.%s" % (
-            volume.uuid.encode("ascii"), volume.name.encode("ascii"))))
+            path=self._root.child(b"%s.%s" % (
+                volume.uuid.encode("ascii"), volume.name.encode("ascii"))))
 
     def enumerate(self):
         if self._root.isdir():

@@ -32,10 +32,13 @@ class IFilesystemSnapshots(Interface):
 class IFilesystem(Interface):
     """A filesystem that is part of a pool."""
 
-    def get_mountpoint():
-        """Retrieve the filesystem mount point.
+    def get_path():
+        """Retrieve the filesystem's local path.
 
-        :return: The mountpoint as a ``FilePath``.
+        E.g. for a ZFS filesystem this would be the path where it is
+        mounted.
+
+        :return: The path as a ``FilePath``.
         """
 
     def __eq__(other):

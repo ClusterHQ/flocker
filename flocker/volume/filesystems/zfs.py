@@ -102,7 +102,7 @@ class Filesystem(object):
             return self.pool
         return b"%s/%s" % (self.pool, self.dataset)
 
-    def get_mountpoint(self):
+    def get_path(self):
         return self._mountpoint
 
 
@@ -174,7 +174,7 @@ class StoragePool(object):
 
     def create(self, volume):
         filesystem = self.get(volume)
-        mount_path = filesystem.get_mountpoint().path
+        mount_path = filesystem.get_path().path
         d = zfs_command(self._reactor,
                         [b"create",  b"-o", b"mountpoint=" + mount_path,
                          filesystem.name])
