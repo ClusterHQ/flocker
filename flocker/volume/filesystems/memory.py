@@ -13,6 +13,7 @@ from zope.interface import implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed
+from twisted.python import log
 
 from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
 
@@ -61,8 +62,16 @@ class DirectoryFilesystem(object):
         result = BytesIO()
         yield result
         result.seek(0, 0)
-        tarball = TarFile(fileobj=result, mode="r")
-        tarball.extractall(self.path.path)
+        try:
+            tarball = TarFile(fileobj=result, mode="r")
+            if self.path.exists():
+                self.path.remove()
+                self.path.makedirs()
+            tarball.extractall(self.path.path)
+        except:
+            # XXX Should log this, or raise a well-specified exception, or
+            # something. Open a ticket.
+            pass
 
 
 @implementer(IStoragePool)

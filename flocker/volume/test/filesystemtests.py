@@ -229,9 +229,10 @@ def make_istoragepool_tests(fixture):
                 return result
             self.assertEqual(get_contents(first), get_contents(second))
 
-        def test_write_new_fileystem(self):
-            """Writing the contents of one pool's filesystem to another pool's
-            filesystem creates that filesystem with the given contents.
+        def create_and_copy(self):
+            """Create a volume's filesystem on one pool, copy to another pool.
+
+            :return: ``Deferred`` that fires with the two volumes, from and to.
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
@@ -242,10 +243,20 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 path = filesystem.get_path()
                 path.child(b"file").setContent(b"some bytes")
-                path.child("directory").makedirs()
+                path.child(b"directory").makedirs()
                 self.copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
+                return (volume, volume2)
             d.addCallback(created_filesystem)
+            return d
+
+        def test_write_new_fileystem(self):
+            """Writing the contents of one pool's filesystem to another pool's
+            filesystem creates that filesystem with the given contents.
+            """
+            d = self.create_and_copy()
+            def got_volumes((volume, volume2)):
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
             return d
 
         def test_write_update_to_unchanged_filesystem(self):
@@ -253,6 +264,15 @@ def make_istoragepool_tests(fixture):
             another pool's filesystem that was previously created this way but
             is unchanged updates its contents.
             """
+            d = self.create_and_copy()
+            def got_volumes((volume, volume2)):
+                path = volume.get_filesystem().get_path()
+                path.child(b"anotherfile").setContent(b"hello")
+                path.child(b"file").remove()
+                self.copy(volume, volume2)
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
+            return d
 
         def test_write_update_to_changed_filesystem(self):
             """Writing an update of the contents of one pool's filesystem to
@@ -260,14 +280,120 @@ def make_istoragepool_tests(fixture):
             was since changed drops any changes and updates its contents to
             the sender's.
             """
+            d = self.create_and_copy()
+            def got_volumes((volume, volume2)):
+                # Mutate the second volume's filesystem:
+                path2 = volume2.get_filesystem().get_path()
+                path2.child(b"extra").setContent(b"lalala")
+
+                # Writing from first volume to second volume should revert
+                # any changes to the second volume:
+                path = volume.get_filesystem().get_path()
+                path.child(b"anotherfile").setContent(b"hello")
+                path.child(b"file").remove()
+                self.copy(volume, volume2)
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
+            return d
 
         def test_multiple_writes(self):
             """Writing the same contents to a filesystem twice does not result
-            in an error
+            in an error.
             """
+            d = self.create_and_copy()
+            def got_volumes((volume, volume2)):
+                self.copy(volume, volume2)
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
+            return d
+
+        def test_exception_passes_through_read(self):
+            """If an exception is raised in the context of the reader, it is not
+            swallowed."""
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+            def created_filesystem(filesystem):
+                with filesystem.reader():
+                    raise RuntimeError("ONO")
+            d.addCallback(created_filesystem)
+            return self.assertFailure(d, RuntimeError)
+
+        def test_exception_passes_through_write(self):
+            """If an exception is raised in the context of the writer, it is not
+            swallowed."""
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+            def created_filesystem(filesystem):
+                with filesystem.writer():
+                    raise RuntimeError("ONO")
+            d.addCallback(created_filesystem)
+            return self.assertFailure(d, RuntimeError)
+
+        def test_exception_cleanup_through_read(self):
+            """If an exception is raised in the context of the reader, no
+            filedescriptors are leaked."""
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+            def created_filesystem(filesystem):
+                fds = self.process_fds()
+                try:
+                    with filesystem.reader():
+                        raise RuntimeError("ONO")
+                except RuntimeError:
+                    pass
+                self.assertEqual(fds, self.process_fds())
+            d.addCallback(created_filesystem)
+            return d
+
+        def test_exception_cleanup_through_write(self):
+            """If an exception is raised in the context of the writer, no
+            filedescriptors are leaked."""
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+            def created_filesystem(filesystem):
+                fds = self.process_fds()
+                try:
+                    with filesystem.writer():
+                        raise RuntimeError("ONO")
+                except RuntimeError:
+                    pass
+                self.assertEqual(fds, self.process_fds())
+            d.addCallback(created_filesystem)
+            return d
 
         def test_exception_aborts_write(self):
             """If an exception is raised in the context of the writer, no
             changes are made to the filesystem."""
+            d = self.create_and_copy()
+
+            def got_volumes((volume, volume2)):
+                from_filesystem = volume.get_filesystem()
+                to_filesystem = volume2.get_filesystem()
+                try:
+                    with from_filesystem.reader():
+                        with to_filesystem.writer():
+                            raise ZeroDivisionError()
+                except ZeroDivisionError:
+                    pass
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
+            return d
+
+        def test_garbage_in_write(self):
+            """If garbage is written to the writer, no changes are made to the
+            filesystem."""
+            d = self.create_and_copy()
+
+            def got_volumes((volume, volume2)):
+                to_filesystem = volume2.get_filesystem()
+                with to_filesystem.writer() as writer:
+                    writer.write(b"NOT A REAL THING")
+                self.assertVolumesEqual(volume, volume2)
+            d.addCallback(got_volumes)
+            return d
 
     return IStoragePoolTests
