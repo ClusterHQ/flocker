@@ -27,8 +27,7 @@ def helpProblems(commandName, helpText):
                 actual=repr(helpText[:len(expectedStart)])
             )
         )
-    if problems:
-        return problems
+    return problems
 
 
 
@@ -83,10 +82,12 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         `FlockerScriptRunner._parseOptions` accepts a list of arguments,
         instantiates a `usage.Options` instance using the the `options` factory
         of the supplied script; passing stdout and stdin arguments to it.
-        It then calls the `parseOptions` method with the supplied arguments.
+        It then calls the `parseOptions` method with the supplied arguments and
+        returns the populated options instance.
         """
         class FakeOptions(usage.Options):
             def __init__(self, stdout, stderr):
+                usage.Options.__init__(self)
                 self.stdout = stdout
                 self.stderr = stderr
 
@@ -102,6 +103,38 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         self.assertEqual(
             (runner.stdout, runner.stderr, expectedArguments),
             (options.stdout, options.stderr, options.parseOptionsArguments)
+        )
+
+
+    def test_parseOptionsUsageError(self):
+        """
+        `FlockerScriptRunner._parseOptions` catches `usage.UsageError`
+        exceptions and writes the help text and an error message to `stderr`
+        before exiting with status 1.
+        """
+        expectedMessage = b'foo bar baz'
+        expectedCommandName = b'test_command'
+        class FakeOptions(usage.Options):
+            synopsis = 'Usage: %s [options]' % (expectedCommandName,)
+            def __init__(self, stdout, stderr):
+                usage.Options.__init__(self)
+
+            def parseOptions(self, arguments):
+                raise usage.UsageError(expectedMessage)
+
+
+        class FakeScript(object):
+            options = FakeOptions
+
+        stderr = io.BytesIO()
+
+        runner = FlockerScriptRunner(script=FakeScript, stdout=object(), stderr=stderr)
+        error = self.assertRaises(SystemExit, runner._parseOptions, [])
+        expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
+        errorText = stderr.getvalue()
+        self.assertEqual(
+            (1, [], expectedErrorMessage),
+            (error.code, helpProblems('test_command', errorText), errorText[-len(expectedErrorMessage):])
         )
 
 
@@ -127,7 +160,7 @@ class FlockerScriptTestsMixin(object):
         )
         error_text = stderr.getvalue()
         self.assertEqual(
-            (1, None),
+            (1, []),
             (error.code, helpProblems(self.script_name, error_text))
         )
 
