@@ -208,6 +208,10 @@ def _list_filesystems(reactor, pool):
     :return: A ``Deferred`` that fires with an iterator, the elements
         of which are ``_zfs_filesystem`` instances.
     """
+    # ZFS list command with a depth of 1, so that only this dataset and its
+    # direct children are shown.
+    # No headers are printed.
+    # name and mountpoint are the properties displayed.
     listing = zfs_command(
         reactor,
         [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
