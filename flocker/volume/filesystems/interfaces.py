@@ -82,7 +82,7 @@ class IStoragePool(Interface):
 
         By default new filesystems will be automounted. In future
         iterations when remotely owned filesystems are added
-        (https://github.com/hybridlogic/flocker/issues/16) this interface
+        (https://github.com/hybridlogic/flocker/issues/93) this interface
         will be expanded to allow specifying that the filesystem should
         not be mounted.
 
