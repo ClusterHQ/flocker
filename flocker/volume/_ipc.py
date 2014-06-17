@@ -3,10 +3,14 @@
 """Inter-process communication for the volume manager.
 
 Specific volume managers ("nodes") may wish to push data to other
-nodes. In the current iteration this is done over SSH. In some future
-iteration this will be replaced with an actual well-specified
-communication protocol between daemon processes.
+nodes. In the current iteration this is done over SSH, using a blocking
+API. In some future iteration this will be replaced with an actual
+well-specified communication protocol between daemon processes using
+Twisted's event loop.
 """
+
+from contextlib import contextmanager
+from io import BytesIO
 
 from zope.interface import Interface, implementer
 
@@ -19,6 +23,8 @@ class INode(Interface):
     def run(remote_command):
         """Context manager that runs a remote command and return its stdin.
 
+        The returned file-like object will be closed by this object.
+
         :param remote_command: ``list`` of ``bytes``, the command to run
             remotely along with its arguments.
 
@@ -26,7 +32,7 @@ class INode(Interface):
         """
 
 
-@attributes(["host", "port", "private_key"], defaults={"port": 22})
+@attributes(["host", "port", "private_key"])
 @implementer(INode)
 class SSHNode(object):
     """A remote node that can be SSHed into.
@@ -39,9 +45,18 @@ class SSHNode(object):
 
 
 @implementer(INode)
-class LocalNode(object):
-    """Run all processes on the local machine.
+class FakeNode(object):
+    """Pretend to run a command.
 
-    This is useful for testing (but may turn out to be unnecessary in
-    which case this will cease to exist.)
+    This is useful for testing.
+
+    :ivar remote_command: The arguments to the last call to ``run()``.
+    :ivar stdin: `BytesIO` returned from last call to ``run()``.
     """
+    @contextmanager
+    def run(self, remote_command):
+        """Store arguments and in-memory "stdin"."""
+        self.stdin = BytesIO()
+        self.remote_command = remote_command
+        yield self.stdin
+        self.stdin.seek(0, 0)
