@@ -46,6 +46,8 @@ class IFilesystem(Interface):
 
         A blocking API, for now.
 
+        The returned file-like object will be closed by this object.
+
         :return: A file-like object that can be read from.
         """
 
@@ -53,6 +55,8 @@ class IFilesystem(Interface):
         """Context manager that allows writing new contents to the filesystem.
 
         This receiver is a blocking API, for now.
+
+        The returned file-like object will be closed by this object.
 
         The higher-level volume API will ensure that whoever is writing
         the data is the owner of the volume. As such, whatever new data is
