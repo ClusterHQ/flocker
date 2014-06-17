@@ -20,6 +20,8 @@ from twisted.python.filepath import FilePath
 
 from pytz import UTC
 
+from ...testtools import assertNoFDsLeaked
+
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     )
@@ -36,7 +38,7 @@ def make_ifilesystemsnapshots_tests(fixture):
     """
     class IFilesystemSnapshotsTests(TestCase):
         """
-        Tests for :class:`IFilesystemSnapshotsTests`.
+        Tests for :class:`IFilesystemSnapshots` implementors.
 
         These are functional tests if run against real filesystems.
         """
@@ -175,22 +177,15 @@ def make_istoragepool_tests(fixture):
                     for chunk in iter(lambda: reader.read(4096), b""):
                         writer.write(chunk)
 
-        def process_fds(self):
-            """Return the number of file descriptors opened by this process."""
-            path = FilePath(b"/proc").descendant(
-                [b"%d" % (os.getpid(),), b"fd"])
-            return len(path.children())
-
         def test_reader_cleanup(self):
             """The reader does not leave any open file descriptors behind."""
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
             def created_filesystem(filesystem):
-                fds = self.process_fds()
-                with filesystem.reader():
-                    pass
-                self.assertEqual(fds, self.process_fds())
+                with assertNoFDsLeaked(self):
+                    with filesystem.reader():
+                        pass
             d.addCallback(created_filesystem)
             return d
 
@@ -202,10 +197,9 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 with filesystem.reader() as reader:
                     data = reader.read()
-                fds = self.process_fds()
-                with filesystem.writer() as writer:
-                    writer.write(data)
-                self.assertEqual(fds, self.process_fds())
+                with assertNoFDsLeaked(self):
+                    with filesystem.writer() as writer:
+                        writer.write(data)
             d.addCallback(created_filesystem)
             return d
 
@@ -339,13 +333,12 @@ def make_istoragepool_tests(fixture):
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
             def created_filesystem(filesystem):
-                fds = self.process_fds()
-                try:
-                    with filesystem.reader():
-                        raise RuntimeError("ONO")
-                except RuntimeError:
-                    pass
-                self.assertEqual(fds, self.process_fds())
+                with assertNoFDsLeaked(self):
+                    try:
+                        with filesystem.reader():
+                            raise RuntimeError("ONO")
+                    except RuntimeError:
+                        pass
             d.addCallback(created_filesystem)
             return d
 
@@ -356,13 +349,12 @@ def make_istoragepool_tests(fixture):
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
             def created_filesystem(filesystem):
-                fds = self.process_fds()
-                try:
-                    with filesystem.writer():
-                        raise RuntimeError("ONO")
-                except RuntimeError:
-                    pass
-                self.assertEqual(fds, self.process_fds())
+                with assertNoFDsLeaked(self):
+                    try:
+                        with filesystem.writer():
+                            raise RuntimeError("ONO")
+                    except RuntimeError:
+                        pass
             d.addCallback(created_filesystem)
             return d
 

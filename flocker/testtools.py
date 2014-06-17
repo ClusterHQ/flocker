@@ -6,13 +6,17 @@ Various utilities to help with unit testing.
 
 from __future__ import absolute_import
 
+import gc
+import os
 from collections import namedtuple
+from contextlib import contextmanager
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 from twisted.internet.task import Clock
+from twisted.python.filepath import FilePath
 
 
 @implementer(IProcessTransport)
@@ -78,3 +82,25 @@ class FakeProcessReactor(Clock):
 
 
 verifyClass(IReactorProcess, FakeProcessReactor)
+
+
+@contextmanager
+def assertNoFDsLeaked(test_case):
+    """Context manager that asserts no file descriptors are leaked.
+
+    :param test_case: The ``TestCase`` running this unit test.
+    """
+    # Make sure there's no file descriptors that will be cleared by GC
+    # later on:
+    gc.collect()
+
+    def process_fds():
+        path = FilePath(b"/proc").descendant(
+            [b"%d" % (os.getpid(),), b"fd"])
+        return set([child.basename() for child in path.children()])
+
+    fds = process_fds()
+    try:
+        yield
+    finally:
+        test_case.assertEqual(process_fds(), fds)
