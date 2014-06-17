@@ -250,7 +250,7 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
             return d
 
-        def test_write_new_fileystem(self):
+        def test_write_new_filesystem(self):
             """Writing the contents of one pool's filesystem to another pool's
             filesystem creates that filesystem with the given contents.
             """
