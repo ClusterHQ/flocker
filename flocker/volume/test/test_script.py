@@ -30,12 +30,21 @@ def helpProblems(commandName, helpText):
     return problems
 
 
+
 class StdoutStderrTestMixin(object):
+    """
+    Test `fixture` accepts optional `stdout` and `stderr` keyword arguments,
+    that these are assigned to public attributes of the resulting object and
+    that the defaults are `sys.stdout` and `sys.stderr`.
+
+    `fixture` may either be a class or a factory function which returns an
+    instance of the class under test.
+    """
     fixture = None
 
     def test_stdoutDefault(self):
         """
-        `FlockerScriptRunner.stdout` is `sys.stdout` by default.
+        `stdout` is `sys.stdout` by default.
         """
         self.assertIdentical(
             sys.stdout,
@@ -45,7 +54,7 @@ class StdoutStderrTestMixin(object):
 
     def test_stdoutOverride(self):
         """
-        `FlockerScriptRunner.stdout` can be overridden in the constructor.
+        `stdout` can be overridden in the constructor.
         """
         sentinal = object()
         self.assertIdentical(
@@ -56,7 +65,7 @@ class StdoutStderrTestMixin(object):
 
     def test_stderrDefault(self):
         """
-        `FlockerScriptRunner.stderr` is `sys.stderr` by default.
+        `stderr` is `sys.stderr` by default.
         """
         self.assertIdentical(
             sys.stderr,
@@ -66,7 +75,7 @@ class StdoutStderrTestMixin(object):
 
     def test_stderrOverride(self):
         """
-        `FlockerScriptRunner.stderr` can be overridden in the constructor.
+        `stderr` can be overridden in the constructor.
         """
         sentinal = object()
         self.assertIdentical(
@@ -78,7 +87,13 @@ class StdoutStderrTestMixin(object):
 
 class FlockerScriptRunnerInitialiserTests(StdoutStderrTestMixin,
                                           SynchronousTestCase):
+    """
+    Tests for `FlockerScriptRunner.__init__`.
+    """
     def fixture(self, **kwargs):
+        """
+        Return a `FlockerScriptRunner` initialised with a dummy script.
+        """
         return FlockerScriptRunner(script=object(), **kwargs)
 
 
@@ -247,6 +262,13 @@ class StandardOptionsTestsMixin(object):
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
 
+
+class FlockerVolumeOptionsInitialiserTests(StdoutStderrTestMixin,
+                                           SynchronousTestCase):
+    """
+    Tests for the
+    """
+    fixture = FlockerVolumeOptions
 
 
 class FlockerVolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
