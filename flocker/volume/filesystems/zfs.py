@@ -137,19 +137,24 @@ class Filesystem(object):
     @contextmanager
     def writer(self):
         """Read in zfs stream."""
-        # This is very bad, but will be unnecessary once we do
+        # The temporary filesystem will be unnecessary once we have
         # https://github.com/hybridlogic/flocker/issues/46
-        subprocess.check_call([b"zfs", b"destroy", b"-R", self.name])
-        process = subprocess.Popen([b"zfs", b"recv", b"-F", self.name],
+        temp_filesystem = b"%s/%s" % (self.pool, random_name())
+        process = subprocess.Popen([b"zfs", b"recv", b"-F", temp_filesystem],
                                    stdin=subprocess.PIPE)
+        succeeded = False
         try:
             yield process.stdin
         finally:
             process.stdin.close()
-            process.wait()
-        subprocess.check_call([b"zfs", b"set",
-                               b"mountpoint=" + self._mountpoint.path,
-                               self.name])
+            succeeded = not process.wait()
+        if succeeded:
+            subprocess.check_call([b"zfs", b"destroy", b"-R", self.name])
+            subprocess.check_call([b"zfs", b"rename", temp_filesystem,
+                                   self.name])
+            subprocess.check_call([b"zfs", b"set",
+                                   b"mountpoint=" + self._mountpoint.path,
+                                   self.name])
 
 
 @implementer(IFilesystemSnapshots)
