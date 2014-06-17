@@ -5,6 +5,9 @@
 from __future__ import absolute_import
 
 import os
+import subprocess
+from contextlib import contextmanager
+from uuid import uuid4
 
 from characteristic import with_cmp, with_repr
 
@@ -103,6 +106,42 @@ class Filesystem(object):
 
     def get_path(self):
         return self._mountpoint
+
+    @contextmanager
+    def reader(self):
+        """Send zfs stream of contents."""
+        # The existing snapshot code uses Twisted, so we're not using it
+        # in this iteration.  What's worse, though, is that it's not clear
+        # if the current snapshot naming scheme makes any sense, and
+        # moreover it violates abstraction boundaries. So as first pass
+        # I'm just using UUIDs, and hopefully requirements will become
+        # clearer as we iterate.
+        snapshot = b"%s@%s" % (self.name, uuid4())
+        subprocess.check_call([b"zfs", b"snapshot", snapshot])
+        process = subprocess.Popen([b"zfs", b"send", snapshot],
+                                   stdout=subprocess.PIPE)
+        yield process.stdout
+        process.stdout.close()
+        process.wait()
+
+    @contextmanager
+    def writer(self):
+        """Read in zfs stream."""
+        # The deletion is dangerous (it will destroy clones!) but will
+        # become unnecessary once we do
+        # https://github.com/hybridlogic/flocker/issues/46
+        process = subprocess.Popen([b"zfs", b"recv",
+                                    # Rollback to last snapshot:
+                                    b"-F",
+                                    # We're going to extract dataset name
+                                    # from the received stream; discard
+                                    # all but last segment of full filesystem
+                                    # path:
+                                    b"-e", self.pool],
+                                   stdin=subprocess.PIPE)
+        yield process.stdin
+        process.stdin.close()
+        process.wait()
 
 
 @implementer(IFilesystemSnapshots)

@@ -59,6 +59,7 @@ class DirectoryFilesystem(object):
 
     @contextmanager
     def writer(self):
+        """Expect written bytes to be a tarball."""
         result = BytesIO()
         yield result
         result.seek(0, 0)
