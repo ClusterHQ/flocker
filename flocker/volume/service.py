@@ -82,7 +82,7 @@ class VolumeService(Service):
 
         def enumerated(filesystems):
             for filesystem in filesystems:
-                name = filesystem.get_mountpoint().basename().split(b".", 1)[1]
+                name = filesystem.get_path().basename().split(b".", 1)[1]
                 yield Volume(
                     uuid=self.uuid,
                     # XXX It so happens that this works but it's kind of a
