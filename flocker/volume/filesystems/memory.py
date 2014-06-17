@@ -4,6 +4,10 @@
 
 from __future__ import absolute_import
 
+from contextlib import contextmanager
+from tarfile import TarFile
+from io import BytesIO
+
 from zope.interface import implementer
 
 from characteristic import attributes
@@ -40,6 +44,25 @@ class DirectoryFilesystem(object):
 
     def get_path(self):
         return self.path
+
+    @contextmanager
+    def reader(self):
+        """Package up filesystem contents as a tarball."""
+        result = BytesIO()
+        tarball = TarFile(fileobj=result, mode="w")
+        for child in self.path.children():
+            tarball.add(child.path, arcname=child.basename(), recursive=True)
+        tarball.close()
+        result.seek(0, 0)
+        yield result
+
+    @contextmanager
+    def writer(self):
+        result = BytesIO()
+        yield result
+        result.seek(0, 0)
+        tarball = TarFile(fileobj=result, mode="r")
+        tarball.extractall(self.path.path)
 
 
 @implementer(IStoragePool)

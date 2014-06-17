@@ -178,7 +178,7 @@ def make_istoragepool_tests(fixture):
         def process_fds(self):
             """Return the number of file descriptors opened by this process."""
             path = FilePath(b"/proc").descendant(
-                [b"%d" % (os.getpid(),), b"fds"])
+                [b"%d" % (os.getpid(),), b"fd"])
             return len(path.children())
 
         def test_reader_cleanup(self):
@@ -221,7 +221,7 @@ def make_istoragepool_tests(fixture):
             def get_contents(path):
                 result = {}
                 for child in path.children():
-                    if child.isdirectory():
+                    if child.isdir():
                         value = get_contents(child)
                     else:
                         value = child.getContent()
@@ -265,5 +265,9 @@ def make_istoragepool_tests(fixture):
             """Writing the same contents to a filesystem twice does not result
             in an error
             """
+
+        def test_exception_aborts_write(self):
+            """If an exception is raised in the context of the writer, no
+            changes are made to the filesystem."""
 
     return IStoragePoolTests
