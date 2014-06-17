@@ -141,7 +141,7 @@ class VolumeScript(object):
         Run a volume management server configured according to the supplied
         options.
         """
-        service = VolumeService(options["config"])
+        service = VolumeService(config_path=options["config"], pool=None)
         try:
             service.startService()
         except CreateConfigurationError as e:

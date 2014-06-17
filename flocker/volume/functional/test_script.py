@@ -5,6 +5,7 @@
 from subprocess import check_output, Popen, PIPE
 import json
 import os
+from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -55,6 +56,7 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
+    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.
@@ -62,6 +64,7 @@ class FlockerVolumeTests(TestCase):
         path = FilePath(self.mktemp())
         path.makedirs()
         path.chmod(0)
+        self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
         result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
