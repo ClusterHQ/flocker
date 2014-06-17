@@ -128,7 +128,7 @@ class VolumeScript(object):
 
     def __init__(self, stdout=None, stderr=None):
         if stdout is None:
-            stdout = sys.stderr
+            stdout = sys.stdout
         self.stdout = stdout
 
         if stderr is None:

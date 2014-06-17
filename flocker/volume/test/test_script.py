@@ -30,18 +30,16 @@ def helpProblems(commandName, helpText):
     return problems
 
 
+class StdoutStderrTestMixin(object):
+    fixture = None
 
-class FlockerScriptRunnerTests(SynchronousTestCase):
-    """
-    Tests for :class:`FlockerScriptRunner`.
-    """
     def test_stdoutDefault(self):
         """
         `FlockerScriptRunner.stdout` is `sys.stdout` by default.
         """
         self.assertIdentical(
             sys.stdout,
-            FlockerScriptRunner(script=object()).stdout
+            self.fixture().stdout
         )
 
 
@@ -52,7 +50,7 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         sentinal = object()
         self.assertIdentical(
             sentinal,
-            FlockerScriptRunner(script=object(), stdout=sentinal).stdout
+            self.fixture(stdout=sentinal).stdout
         )
 
 
@@ -62,7 +60,7 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         """
         self.assertIdentical(
             sys.stderr,
-            FlockerScriptRunner(script=object()).stderr
+            self.fixture().stderr
         )
 
 
@@ -73,10 +71,22 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         sentinal = object()
         self.assertIdentical(
             sentinal,
-            FlockerScriptRunner(script=object(), stderr=sentinal).stderr
+            self.fixture(stderr=sentinal).stderr
         )
 
 
+
+class FlockerScriptRunnerInitialiserTests(StdoutStderrTestMixin,
+                                          SynchronousTestCase):
+    def fixture(self, **kwargs):
+        return FlockerScriptRunner(script=object(), **kwargs)
+
+
+
+class FlockerScriptRunnerTests(SynchronousTestCase):
+    """
+    Tests for :class:`FlockerScriptRunner`.
+    """
     def test_parseOptions(self):
         """
         `FlockerScriptRunner._parseOptions` accepts a list of arguments,
@@ -163,6 +173,11 @@ class FlockerScriptTestsMixin(object):
             (1, []),
             (error.code, helpProblems(self.script_name, error_text))
         )
+
+
+
+class VolumeScriptInitialiserTests(StdoutStderrTestMixin, SynchronousTestCase):
+    fixture = VolumeScript
 
 
 
