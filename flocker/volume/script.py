@@ -73,6 +73,8 @@ class FlockerScriptRunner(object):
     """
     An API for running standard flocker scripts.
     """
+    _react = staticmethod(react)
+
     def __init__(self, script, stdout=None, stderr=None):
         """
         """
@@ -116,7 +118,7 @@ class FlockerScriptRunner(object):
 
         options = self._parseOptions(arguments)
         script = self.script(stdout=self.stdout, stderr=self.stderr)
-        return react(script.main, (options,))
+        return self._react(script.main, (options,))
 
 
 
