@@ -118,7 +118,7 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
-    def test_enumerate_nothing(self):
+    def test_enumerate_no_volumes(self):
         """``enumerate()`` returns no volumes when there are no volumes."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
