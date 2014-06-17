@@ -239,8 +239,9 @@ def make_istoragepool_tests(fixture):
             pool2 = fixture(self)
             volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool2)
 
-            d = pool.create(volume)
-            def created_filesystem(filesystem):
+            d = gatherResults([pool.create(volume), pool2.create(volume2)])
+            def created_filesystem(results):
+                filesystem, filesystem2 = results
                 path = filesystem.get_path()
                 path.child(b"file").setContent(b"some bytes")
                 path.child(b"directory").makedirs()

@@ -58,9 +58,6 @@ class IFilesystem(Interface):
         the data is the owner of the volume. As such, whatever new data is
         being received will overwrite the filesystem's existing data.
 
-        The filesystem may not exist the first time this is called; in
-        that case it should be created.
-
         :param Volume volume: A volume that is being pushed to us.
 
         :return: A file-like object which when written to will populate
