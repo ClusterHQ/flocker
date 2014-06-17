@@ -20,6 +20,7 @@ from twisted.internet.error import ConnectionDone, ProcessTerminated
 
 from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
 from ..snapshots import SnapshotName
+from ...testtools import random_name
 
 
 class CommandFailed(Exception):
@@ -118,8 +119,13 @@ class Filesystem(object):
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
         subprocess.check_call([b"zfs", b"snapshot", snapshot])
-        process = subprocess.Popen([b"zfs", b"send", snapshot],
-                                   stdout=subprocess.PIPE)
+        process = subprocess.Popen(
+            [b"zfs", b"send",
+             # Include all previous snapshots; will become unnecessary once we
+             # do https://github.com/hybridlogic/flocker/issues/46
+             b"-R",
+             snapshot],
+            stdout=subprocess.PIPE)
         yield process.stdout
         process.stdout.close()
         process.wait()
@@ -127,17 +133,11 @@ class Filesystem(object):
     @contextmanager
     def writer(self):
         """Read in zfs stream."""
-        # The deletion is dangerous (it will destroy clones!) but will
-        # become unnecessary once we do
-        # https://github.com/hybridlogic/flocker/issues/46
-        process = subprocess.Popen([b"zfs", b"recv",
-                                    # Rollback to last snapshot:
-                                    b"-F",
-                                    # We're going to extract dataset name
-                                    # from the received stream; discard
-                                    # all but last segment of full filesystem
-                                    # path:
-                                    b"-e", self.pool],
+        # Move existing data out of the way; this will become unnecessary
+        # once we do https://github.com/hybridlogic/flocker/issues/46
+        temp_pool = b"%s/temp-%s" % (self.pool, random_name())
+        subprocess.check_call([b"zfs", "rename", self.name, temp_pool])
+        process = subprocess.Popen([b"zfs", b"recv", self.name],
                                    stdin=subprocess.PIPE)
         yield process.stdin
         process.stdin.close()
