@@ -75,18 +75,14 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(react)
 
-    def __init__(self, script, stdout=None, stderr=None):
+    def __init__(self, script, sys_module=None):
         """
         """
         self.script = script
 
-        if stdout is None:
-            stdout = sys.stdout
-        self.stdout = stdout
-
-        if stderr is None:
-            stderr = sys.stderr
-        self.stderr = stderr
+        if sys_module is None:
+            sys_module = sys
+        self.sys_module = sys_module
 
 
     def _parseOptions(self, arguments):
@@ -99,26 +95,25 @@ class FlockerScriptRunner(object):
         @param arguments: The command line arguments to be parsed.
         @rtype: L{Options}
         """
-        options = self.script.options(stdout=self.stdout, stderr=self.stderr)
+        options = self.script.options(
+            stdout=self.sys_module.stdout,
+            stderr=self.sys_module.stderr)
         try:
             options.parseOptions(arguments)
         except UsageError as e:
-            self.stderr.write(unicode(options).encode('utf-8'))
-            self.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
+            self.sys_module.stderr.write(unicode(options).encode('utf-8'))
+            self.sys_module.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
         return options
 
 
-    def main(self, arguments=None):
+    def main(self):
         """
         Parse arguments and run the script's main function via L{react}.
         """
-        if arguments is None:
-            arguments = sys.argv[1:]
-
-        options = self._parseOptions(arguments)
-        script = self.script(stdout=self.stdout, stderr=self.stderr)
-        return self._react(script.main, (options,))
+        options = self._parseOptions(self.sys_module.argv[1:])
+        args = (self.sys_module.stdout, self.sys_module.stderr, options)
+        return self._react(self.script.main, args)
 
 
 
@@ -128,17 +123,7 @@ class VolumeScript(object):
     """
     options = FlockerVolumeOptions
 
-    def __init__(self, stdout=None, stderr=None):
-        if stdout is None:
-            stdout = sys.stdout
-        self.stdout = stdout
-
-        if stderr is None:
-            stderr = sys.stderr
-        self.stderr = stderr
-
-
-    def main(self, reactor, options):
+    def main(self, reactor, stdout, stderr, options):
         """
         Run a volume management server configured according to the supplied
         options.
@@ -147,7 +132,7 @@ class VolumeScript(object):
         try:
             service.startService()
         except CreateConfigurationError as e:
-            sys.stderr.write(b"Writing config file %s failed: %s\n" % (
+            stderr.write(b"Writing config file %s failed: %s\n" % (
                 options["config"].path, e))
             raise SystemExit(1)
         return succeed(None)

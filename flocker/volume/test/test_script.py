@@ -4,6 +4,7 @@
 
 import io, sys
 
+from twisted.internet.defer import succeed
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python import usage
@@ -163,7 +164,74 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         )
 
 
-    def test_main(self):
+class FakeSysModule(object):
+    def __init__(self, expectedArgv):
+        self.argv = expectedArgv
+        # io.BytesIO is not quite the same as sys.stdout/stderr
+        # particularly with respect to unicode handling.  So,
+        # hopefully the implementation doesn't try to write any
+        # unicode.
+        self.stdout = io.BytesIO()
+        self.stderr = io.BytesIO()
+
+
+
+class FlockerScriptRunnerMainTests(SynchronousTestCase):
+    """
+    """
+    def test_sys_default(self):
+        """
+        `FlockerScriptRunner.sys` is `sys` by default.
+        """
+        self.assertIs(
+            sys,
+            FlockerScriptRunner(script=None).sys_module
+        )
+
+
+    def test_sys_override(self):
+        """
+        `FlockerScriptRunner.sys` can be overridden in the constructor.
+        """
+        dummySys = object()
+        self.assertIs(
+            dummySys,
+            FlockerScriptRunner(script=None, sys_module=dummySys).sys_module
+        )
+
+
+    def test_main_uses_sysargv_by_default(self):
+        """
+        ``FlockerScriptRunner.main`` uses ``sys.argv`` by default.
+        """
+        expectedArgv = [b"flocker", b"--hello", b"world"]
+
+        class SillyOptions(usage.Options):
+            def opt_hello(self, value):
+                self.value = value
+
+        class SpyScript(object):
+            def options(self, stdout, stderr):
+                return SillyOptions()
+
+            def main(self, reactor, stdout, stderr, arguments):
+                self.arguments = arguments
+                return succeed(None)
+
+        script = SpyScript()
+        sys = FakeSysModule(expectedArgv)
+        
+        runner = FlockerScriptRunner(
+            script=script,
+            sys_module=sys,
+        )
+
+        self.assertRaises(SystemExit, runner.main)
+        
+        self.assertEqual(b"world", script.arguments.value)
+
+
+    def xtest_main(self):
         """
         `FlockerScriptRunner.main` accepts an `arguments` argument which is
         passed to `FlockerScriptRunner._parseOptions` and which is
