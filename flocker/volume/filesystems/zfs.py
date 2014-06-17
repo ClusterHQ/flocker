@@ -201,7 +201,8 @@ class StoragePool(object):
 
 
 def _list_filesystems(reactor, pool):
-    """
+    """Get a listing of all filesystems on a given pool.
+
     :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider.
     :return: A ``Deferred`` that fires with an iterator, the elements
@@ -215,6 +216,11 @@ def _list_filesystems(reactor, pool):
 
 
 def _parse_list_output(output, pool):
+    """Parse the output of ``zfs list`` into ``_zfs_filesystem`` instances.
+
+    :return: A generator, the elements of which are ``_zfs_filesystem``
+        instances.
+    """
     for line in output.splitlines():
         name, mountpoint = line.split()
         name = name[len(pool) + 1:]
