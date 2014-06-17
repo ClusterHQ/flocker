@@ -6,6 +6,7 @@ import io, sys
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.python import usage
 
 from ..script import FlockerVolumeOptions, FlockerScriptRunner, VolumeScript
 
@@ -74,6 +75,33 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         self.assertIdentical(
             sentinal,
             FlockerScriptRunner(script=object(), stderr=sentinal).stderr
+        )
+
+
+    def test_parseOptions(self):
+        """
+        `FlockerScriptRunner._parseOptions` accepts a list of arguments,
+        instantiates a `usage.Options` instance using the the `options` factory
+        of the supplied script; passing stdout and stdin arguments to it.
+        It then calls the `parseOptions` method with the supplied arguments.
+        """
+        class FakeOptions(usage.Options):
+            def __init__(self, stdout, stderr):
+                self.stdout = stdout
+                self.stderr = stderr
+
+            def parseOptions(self, arguments):
+                self.parseOptionsArguments = arguments
+
+        class FakeScript(object):
+            options = FakeOptions
+
+        expectedArguments = [object(), object()]
+        runner = FlockerScriptRunner(script=FakeScript, stdout=object(), stderr=object())
+        options = runner._parseOptions(expectedArguments)
+        self.assertEqual(
+            (runner.stdout, runner.stderr, expectedArguments),
+            (options.stdout, options.stderr, options.parseOptionsArguments)
         )
 
 
