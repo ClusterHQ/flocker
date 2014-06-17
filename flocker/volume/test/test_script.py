@@ -2,7 +2,7 @@
 
 """Tests for :module:`flocker.volume.script`."""
 
-import io
+import io, sys
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -28,6 +28,53 @@ def helpProblems(commandName, helpText):
         )
     if problems:
         return problems
+
+
+
+class FlockerScriptRunnerTests(SynchronousTestCase):
+    """
+    Tests for :class:`FlockerScriptRunner`.
+    """
+    def test_stdoutDefault(self):
+        """
+        `FlockerScriptRunner.stdout` is `sys.stdout` by default.
+        """
+        self.assertIdentical(
+            sys.stdout,
+            FlockerScriptRunner(script=object()).stdout
+        )
+
+
+    def test_stdoutOverride(self):
+        """
+        `FlockerScriptRunner.stdout` can be overridden in the constructor.
+        """
+        sentinal = object()
+        self.assertIdentical(
+            sentinal,
+            FlockerScriptRunner(script=object(), stdout=sentinal).stdout
+        )
+
+
+    def test_stderrDefault(self):
+        """
+        `FlockerScriptRunner.stderr` is `sys.stderr` by default.
+        """
+        self.assertIdentical(
+            sys.stderr,
+            FlockerScriptRunner(script=object()).stderr
+        )
+
+
+    def test_stderrOverride(self):
+        """
+        `FlockerScriptRunner.stderr` can be overridden in the constructor.
+        """
+        sentinal = object()
+        self.assertIdentical(
+            sentinal,
+            FlockerScriptRunner(script=object(), stderr=sentinal).stderr
+        )
 
 
 
