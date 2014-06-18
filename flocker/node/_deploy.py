@@ -133,13 +133,3 @@ def find_moves(applications, desired_configuration):
             coming.append(app)
 
     return Moves(coming=coming, going=going)
-
-
-def main():
-    configuration = safe_load(stdin.read())
-    application_config = configuration[u"application"]
-    deployment_config = configuration[u"deployment"]
-    desired_configuration = model_from_configuration(
-        application_config, deployment_config)
-
-    deploy(desired_configuration)
