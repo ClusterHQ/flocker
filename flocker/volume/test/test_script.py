@@ -166,9 +166,14 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         )
 
 
+
 class FakeSysModule(object):
-    def __init__(self, expectedArgv):
-        self.argv = expectedArgv
+    """
+    """
+    def __init__(self, expected_argv=None):
+        if expected_argv is None:
+            expected_argv = []
+        self.argv = expected_argv
         # io.BytesIO is not quite the same as sys.stdout/stderr
         # particularly with respect to unicode handling.  So,
         # hopefully the implementation doesn't try to write any
@@ -364,12 +369,15 @@ class StandardOptionsTestsMixin(object):
         Flocker commands have a I{--version} option which prints the current
         version string to stdout and causes the command to exit with status 0.
         """
-        stdout = io.BytesIO()
+        sys = FakeSysModule()
         error = self.assertRaises(
-            SystemExit, self.options(stdout=stdout).parseOptions, ['--version'])
+            SystemExit,
+            self.options(sys_module=sys).parseOptions,
+            ['--version']
+        )
         self.assertEqual(
             (__version__ + '\n', 0),
-            (stdout.getvalue(), error.code)
+            (sys.stdout.getvalue(), error.code)
         )
 
 

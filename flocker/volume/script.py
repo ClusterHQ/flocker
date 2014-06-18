@@ -32,7 +32,7 @@ def flocker_standard_options(cls):
         """
         Print the program's version and exit.
         """
-        self.stdout.write(__version__.encode('utf-8') + b'\n')
+        self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
         raise SystemExit(0)
     cls.opt_version = opt_version
 
