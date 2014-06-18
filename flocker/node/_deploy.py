@@ -35,6 +35,14 @@ def discover_node_configuration():
             ])
 
 
+def start_container(app):
+    pass
+
+
+def stop_container(app):
+    pass
+
+
 def deploy(desired_configuration):
     """
     :param Deployment desired_configuration:
