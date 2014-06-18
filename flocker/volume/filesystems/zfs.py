@@ -5,7 +5,6 @@
 from __future__ import absolute_import
 
 import os
-from collections import namedtuple
 
 from characteristic import with_cmp, with_repr
 
@@ -192,8 +191,9 @@ class StoragePool(object):
         def listed(filesystems):
             result = set()
             for entry in filesystems:
+                dataset, mountpoint = entry
                 filesystem = Filesystem(
-                    self._name, entry.dataset, entry.mount_path)
+                    self._name, dataset, mountpoint)
                 result.add(filesystem)
             return result
 
@@ -206,7 +206,8 @@ def _list_filesystems(reactor, pool):
     :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider.
     :return: A ``Deferred`` that fires with an iterator, the elements
-        of which are ``_zfs_filesystem`` instances.
+        of which are ``tuples`` containing the name and mountpoint of each
+        filesystem.
     """
     # ZFS list command with a depth of 1, so that only this dataset and its
     # direct children are shown.
@@ -221,10 +222,7 @@ def _list_filesystems(reactor, pool):
             name, mountpoint = line.split()
             name = name[len(pool) + 1:]
             if name:
-                yield _zfs_filesystem(name, mountpoint)
+                yield (name, mountpoint)
 
     listing.addCallback(listed, pool)
     return listing
-
-
-_zfs_filesystem = namedtuple("_zfs_filesystem", "dataset mount_path")
