@@ -17,18 +17,22 @@ from flocker.common.script import (
 from flocker import __version__
 
 
-def helpProblems(commandName, helpText):
-    """
-    Identify and return a list of problems with the help output for a given
-    command.
+def helpProblems(command_name, help_text):
+    """Identify and return a list of help text problems.
+
+    :param text command_name: The name of the command which should appear in the
+        help text.
+    :param text help_text: The full help text to be inspected.
+    :return: A list of problems found with the supplied ``help_text``.
+    :rtype: list
     """
     problems = []
-    expectedStart = b'Usage: {command}'.format(command=commandName)
-    if not helpText.startswith(expectedStart):
+    expected_start = b'Usage: {command}'.format(command=command_name)
+    if not help_text.startswith(expected_start):
         problems.append(
             'Does not begin with {expected}. Found {actual} instead'.format(
-                expected=repr(expectedStart),
-                actual=repr(helpText[:len(expectedStart)])
+                expected=repr(expected_start),
+                actual=repr(help_text[:len(expected_start)])
             )
         )
     return problems
