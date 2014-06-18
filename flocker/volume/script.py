@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-volume`` tool."""
+import sys
 
 from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
@@ -35,17 +36,29 @@ class VolumeScript(object):
     """
     A volume manager script.
     """
+    _service_factory = VolumeService
+
+    def __init__(self, sys_module=None):
+        """
+        """
+        if sys_module is None:
+            sys_module = sys
+        self._sys_module = sys_module
+
+
     def main(self, reactor, options):
         """
         Run a volume management server configured according to the supplied
         options.
         """
-        service = VolumeService(config_path=options["config"], pool=None)
+        service = self._service_factory(config_path=options["config"], pool=None)
         try:
             service.startService()
         except CreateConfigurationError as e:
-            stderr.write(b"Writing config file %s failed: %s\n" % (
-                options["config"].path, e))
+            self._sys_module.stderr.write(
+                b"Writing config file %s failed: %s\n" % (
+                    options["config"].path, e)
+            )
             raise SystemExit(1)
         return succeed(None)
 
