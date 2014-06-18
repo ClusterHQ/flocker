@@ -53,7 +53,7 @@ class VolumeScriptMainTests(SynchronousTestCase):
     """
     Tests for ``VolumeScript.main``.
     """
-    def test_main(self):
+    def test_createConfigurationError(self):
         """
         ``VolumeScript.main`` catches ``CreateConfigurationError`` s raised by
         ``startService`` and writes an error message to stderr before exiting
@@ -78,6 +78,18 @@ class VolumeScriptMainTests(SynchronousTestCase):
             (error.code, fake_sys.stderr.getvalue())
         )
 
+
+    def test_deferred_result(self):
+        """
+        ``VolumeScript.main`` returns a ``Deferred`` on success.
+        """
+        script = VolumeScript()
+        options = dict(config=FilePath(self.mktemp()))
+        dummy_reactor = object()
+        self.assertIs(
+            None,
+            self.successResultOf(script.main(dummy_reactor, options))
+        )
 
 
 class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
