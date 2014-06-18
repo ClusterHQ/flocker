@@ -1,11 +1,6 @@
-from sys import stdin
-
-from yaml import safe_load
-
 from characteristic import attributes
 
 from ._model import Application
-from ._config import model_from_configuration
 from ._inspect import flocker_volume_list, geard_list
 
 from ..volume import push_volume, wait_for_volume, handoff_volume
