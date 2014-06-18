@@ -48,7 +48,7 @@ def flocker_standard_options(cls):
 
 
 @flocker_standard_options
-class FlockerVolumeOptions(Options):
+class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
 
     longdesc = """flocker-volume allows you to manage volumes, filesystems
@@ -74,10 +74,11 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(react)
 
-    def __init__(self, script, sys_module=None):
+    def __init__(self, script, options, sys_module=None):
         """
         """
         self.script = script
+        self.options = options
 
         if sys_module is None:
             sys_module = sys
@@ -94,14 +95,13 @@ class FlockerScriptRunner(object):
         @param arguments: The command line arguments to be parsed.
         @rtype: L{Options}
         """
-        options = self.script.options()
         try:
-            options.parseOptions(arguments)
+            self.options.parseOptions(arguments)
         except UsageError as e:
-            self.sys_module.stderr.write(unicode(options).encode('utf-8'))
+            self.sys_module.stderr.write(unicode(self.options).encode('utf-8'))
             self.sys_module.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
-        return options
+        return self.options
 
 
     def main(self):
@@ -118,8 +118,6 @@ class VolumeScript(object):
     """
     A volume manager script.
     """
-    options = FlockerVolumeOptions
-
     def main(self, reactor, options):
         """
         Run a volume management server configured according to the supplied
@@ -135,4 +133,8 @@ class VolumeScript(object):
         return succeed(None)
 
 
-flocker_volume_main = FlockerScriptRunner(VolumeScript).main
+
+flocker_volume_main = FlockerScriptRunner(
+    script=VolumeScript(),
+    options=VolumeOptions()
+).main

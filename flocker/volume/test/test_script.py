@@ -10,7 +10,7 @@ from twisted.python.filepath import FilePath
 from twisted.python import usage
 
 from ..script import (
-    flocker_standard_options, FlockerVolumeOptions, FlockerScriptRunner,
+    flocker_standard_options, VolumeOptions, FlockerScriptRunner,
     VolumeScript)
 
 from ... import __version__
@@ -49,6 +49,7 @@ class FakeSysModule(object):
         self.stderr = io.BytesIO()
 
 
+
 class FlockerScriptRunnerTests(SynchronousTestCase):
     """
     Tests for :class:`FlockerScriptRunner`.
@@ -56,19 +57,15 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
     def test_parseOptions(self):
         """
         ``FlockerScriptRunner._parseOptions`` accepts a list of arguments,
-        instantiates a ``usage.Options`` instance using the the ``options``
-        factory of the supplied script and calls its `parseOptions` method with
-        the supplied arguments and returns the populated options instance.
+        passes them to the `parseOptions` method of its ``options`` attribute
+        and returns the populated options instance.
         """
         class OptionsSpy(usage.Options):
             def parseOptions(self, arguments):
                 self.parseOptionsArguments = arguments
 
-        class FakeScript(object):
-            options = OptionsSpy
-
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(script=FakeScript)
+        runner = FlockerScriptRunner(script=None, options=OptionsSpy())
         options = runner._parseOptions(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
@@ -86,13 +83,9 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
             def parseOptions(self, arguments):
                 raise usage.UsageError(expectedMessage)
 
-
-        class FakeScript(object):
-            options = FakeOptions
-
         sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=FakeScript, sys_module=sys)
+        runner = FlockerScriptRunner(script=None, options=FakeOptions(), sys_module=sys)
         error = self.assertRaises(SystemExit, runner._parseOptions, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = sys.stderr.getvalue()
@@ -112,7 +105,7 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         """
         self.assertIs(
             sys,
-            FlockerScriptRunner(script=None).sys_module
+            FlockerScriptRunner(script=None, options=None).sys_module
         )
 
 
@@ -123,32 +116,30 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         dummySys = object()
         self.assertIs(
             dummySys,
-            FlockerScriptRunner(script=None, sys_module=dummySys).sys_module
+            FlockerScriptRunner(script=None, options=None,
+                                sys_module=dummySys).sys_module
         )
 
 
-    def test_main_uses_sysargv_by_default(self):
+    def test_main_uses_sysargv(self):
         """
-        ``FlockerScriptRunner.main`` uses ``sys.argv`` by default.
+        ``FlockerScriptRunner.main`` uses ``self.sys_module.argv``.
         """
-        expectedArgv = [b"flocker", b"--hello", b"world"]
-
-        class SillyOptions(usage.Options):
+        class SpyOptions(usage.Options):
             def opt_hello(self, value):
                 self.value = value
 
         class SpyScript(object):
-            def options(self):
-                return SillyOptions()
-
             def main(self, reactor, arguments):
                 self.arguments = arguments
                 return succeed(None)
 
+        options = SpyOptions()
         script = SpyScript()
-        sys = FakeSysModule(argv=expectedArgv)
+        sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
 
-        runner = FlockerScriptRunner(script=script, sys_module=sys)
+        runner = FlockerScriptRunner(
+            script=script, options=options, sys_module=sys)
 
         self.assertRaises(SystemExit, runner.main)
 
@@ -217,6 +208,7 @@ class FlockerScriptTestsMixin(object):
     Common tests for scripts that can be run via L{FlockerScriptRunner}
     """
     script = None
+    options = None
     command_name = None
 
     def test_incorrect_arguments(self):
@@ -225,7 +217,7 @@ class FlockerScriptTestsMixin(object):
         supplied with unexpected arguments.
         """
         sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
-        script = FlockerScriptRunner(self.script(), sys_module=sys)
+        script = FlockerScriptRunner(self.script(), self.options(), sys_module=sys)
         error = self.assertRaises(SystemExit, script.main)
         error_text = sys.stderr.getvalue()
         self.assertEqual(
@@ -240,6 +232,7 @@ class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     Tests for L{VolumeScript}.
     """
     script = VolumeScript
+    options = VolumeOptions
     command_name = 'flocker-volume'
 
 
@@ -341,9 +334,9 @@ class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
 
 
 
-class FlockerVolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`FlockerVolumeOptions`."""
-    options = FlockerVolumeOptions
+    options = VolumeOptions
 
     def test_default_config(self):
         """By default the config file is ``b'/etc/flocker/volume.json'``."""
