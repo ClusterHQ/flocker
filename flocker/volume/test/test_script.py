@@ -9,7 +9,9 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from ..script import FlockerVolumeOptions, FlockerScriptRunner, VolumeScript
+from ..script import (
+    flocker_standard_options, FlockerVolumeOptions, FlockerScriptRunner,
+    VolumeScript)
 
 from ... import __version__
 
@@ -220,14 +222,14 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
 
         script = SpyScript()
         sys = FakeSysModule(expectedArgv)
-        
+
         runner = FlockerScriptRunner(
             script=script,
             sys_module=sys,
         )
 
         self.assertRaises(SystemExit, runner.main)
-        
+
         self.assertEqual(b"world", script.arguments.value)
 
 
@@ -336,6 +338,27 @@ class StandardOptionsTestsMixin(object):
     """
     options = None
 
+
+    def test_sys_module_default(self):
+        """
+        ``flocker_standard_options`` adds a ``_sys_module`` attribute which is
+        ``sys`` by default.
+        """
+        self.assertIs(sys, self.options()._sys_module)
+
+
+    def test_sys_module_override(self):
+        """
+        ``flocker_standard_options`` adds a ``sys_module`` argument to the
+        initialiser which is assigned to ``_sys_module``.
+        """
+        dummy_sys_module = object()
+        self.assertIs(
+            dummy_sys_module,
+            self.options(sys_module=dummy_sys_module)._sys_module
+        )
+
+
     def test_version(self):
         """
         Flocker commands have a I{--version} option which prints the current
@@ -385,6 +408,21 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+
+
+class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
+                                  SynchronousTestCase):
+    """
+    """
+    def options(self, **kwargs):
+        """
+        """
+        @flocker_standard_options
+        class TestOptions(usage.Options):
+            pass
+        return TestOptions(**kwargs)
+
 
 
 class FlockerVolumeOptionsInitialiserTests(StdoutStderrTestMixin,

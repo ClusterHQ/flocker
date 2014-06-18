@@ -20,6 +20,7 @@ def flocker_standard_options(cls):
     """
     original_init = cls.__init__
     def __init__(self, *args, **kwargs):
+        self._sys_module = kwargs.pop('sys_module', sys)
         self.stdout = kwargs.pop('stdout', sys.stdout)
         self.stderr = kwargs.pop('stderr', sys.stderr)
         self['verbosity'] = 0
