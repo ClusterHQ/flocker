@@ -9,8 +9,10 @@ from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 
+from zope.interface.verify import verifyClass
+
 from flocker.common.script import (
-    flocker_standard_options, FlockerScriptRunner)
+    flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
 from flocker import __version__
 
@@ -151,6 +153,13 @@ class FlockerScriptTestsMixin(object):
     script = None
     options = None
     command_name = None
+
+    def test_interface(self):
+        """
+        A script that is meant to be run by ``FlockerScriptRunner`` must
+        implement ``ICommandLineScript``.
+        """
+        self.assertTrue(verifyClass(ICommandLineScript, self.script))
 
     def test_incorrect_arguments(self):
         """

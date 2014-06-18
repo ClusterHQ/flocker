@@ -7,8 +7,11 @@ from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 
+from zope.interface import implementer
+
 from .service import VolumeService, CreateConfigurationError
-from flocker.common.script import flocker_standard_options, FlockerScriptRunner
+from ..common.script import (
+    flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
 
 @flocker_standard_options
@@ -31,6 +34,7 @@ class VolumeOptions(Options):
         self["config"] = FilePath(self["config"])
 
 
+@implementer(ICommandLineScript)
 class VolumeScript(object):
     """
     A volume manager script.

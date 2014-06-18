@@ -7,6 +7,8 @@ import sys
 from twisted.internet.task import react
 from twisted.python import usage
 
+from zope.interface import Interface
+
 from .. import __version__
 
 
@@ -46,9 +48,23 @@ def flocker_standard_options(cls):
     return cls
 
 
+class ICommandLineScript(Interface):
+    """
+    A script which can be run by ``FlockerScriptRunner``.
+    """
+    def main(reactor, options):
+        """
+        :param twisted.internet.reactor reactor: A Twisted reactor.
+        :param dict options: A dictionary of configuration options.
+        :return: A ``Deferred`` which fires when the script has completed.
+        """
+
+
 class FlockerScriptRunner(object):
     """
     An API for running standard flocker scripts.
+
+    :ivar ICommandLineScript script: See ``script`` of ``__init__``.
     """
     def __init__(self, script, options, sys_module=None):
         """
@@ -85,3 +101,10 @@ class FlockerScriptRunner(object):
         """
         options = self._parseOptions(self.sys_module.argv[1:])
         return react(self.script.main, (options,))
+
+
+__all__ = [
+    'flocker_standard_options',
+    'ICommandLineScript',
+    'FlockerScriptRunner',
+]
