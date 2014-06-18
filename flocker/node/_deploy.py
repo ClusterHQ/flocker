@@ -24,6 +24,12 @@ def is_this_node(node):
     pass
 
 
+def iterapps(configuration):
+    for node in configuration.nodes:
+        for app in node.applications:
+            yield (node, app)
+
+
 def discover_node_configuration():
     containers = geard_list()
     volumes = flocker_volume_list()
@@ -49,9 +55,16 @@ def stop_container(app):
 
 
 def external_proxying(configuration):
-    # tear down any existing irrelevant proxies
-    # create new proxies for the given configuration
-    pass
+    for (node, app) in iterapps(configuration):
+        for route in app.routes:
+            # tear down any existing irrelevant proxies.
+            #
+            # XXX this destroys more than necessary since not all apps are
+            # necessarily moving.
+            route.destroy()
+
+            # create new ones for the new (or maybe unchanged) configuration
+            route.create_for(node, app)
 
 
 def deploy(desired_configuration):
@@ -97,18 +110,27 @@ def deploy(desired_configuration):
 def find_moves(applications, desired_configuration):
     """
     Figure out which applications are moving between nodes.
+
+    :param dict applications: The applications that are currently running on
+        this node.  A mapping from names to ``Application`` instances.
     """
     coming = []
     going = []
     app_to_node = {}
-    for node in desired_configuration.nodes:
-        for app in node.applications:
-            app_to_node[app.name] = node
+    for (node, app) in iterapps(desired_configuration):
+        app_to_node[app.name] = node
 
+    # Inspect all the running applications
     for app in applications:
         node = app_to_node[app.name]
         if not is_this_node(node):
             going.append((app, node))
+
+    # Inspect all the configured applications - including applications that
+    # possibly should be running here.
+    for (node, app) in iterapps(desired_configuration):
+        if is_this_node(node) and app.name not in applications:
+            coming.append(app)
 
     return Moves(coming=coming, going=going)
 
