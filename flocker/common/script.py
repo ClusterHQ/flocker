@@ -14,10 +14,14 @@ def flocker_standard_options(cls):
     """
     Add various standard command line options to flocker commands and
     subcommands.
+
+
     """
     original_init = cls.__init__
 
     def __init__(self, *args, **kwargs):
+        """
+        """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
         original_init(self, *args, **kwargs)
@@ -46,8 +50,6 @@ class FlockerScriptRunner(object):
     """
     An API for running standard flocker scripts.
     """
-    _react = staticmethod(react)
-
     def __init__(self, script, options, sys_module=None):
         """
         """
@@ -82,4 +84,4 @@ class FlockerScriptRunner(object):
         Parse arguments and run the script's main function via L{react}.
         """
         options = self._parseOptions(self.sys_module.argv[1:])
-        return self._react(self.script.main, (options,))
+        return react(self.script.main, (options,))
