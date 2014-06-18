@@ -23,6 +23,8 @@ BuildRequires:  python-characteristic
 BuildRequires:  pytz
 BuildRequires:  python-ipaddr
 BuildRequires:  python-netifaces
+# See https://github.com/hybridlogic/flocker/issues/85
+BuildRequires:  docker-io
 
 Requires:       python
 Requires:       python-twisted
@@ -31,6 +33,7 @@ Requires:       python-characteristic
 Requires:       pytz
 Requires:       python-ipaddr
 Requires:       python-netifaces
+Requires:       docker-io
 
 %description
 probably a replication-based fail-over product
