@@ -13,9 +13,7 @@ from .. import __version__
 
 
 def flocker_standard_options(cls):
-    """
-    Add various standard command line options to flocker commands and
-    subcommands.
+    """Add various standard command line options to flocker commands.
 
     :param type cls: The `class` to decorate.
     :return: The decorated `class`.
@@ -23,9 +21,9 @@ def flocker_standard_options(cls):
     original_init = cls.__init__
 
     def __init__(self, *args, **kwargs):
-        """
-        Set the default verbosity to `0` and then call the original
-        ``cls.__init__``.
+        """Set the default verbosity to `0`
+
+        Calls the original ``cls.__init__`` method finally.
 
         :param sys_module: An optional ``sys`` like fake module for use in
             testing. Defaults to ``sys``.
@@ -36,17 +34,13 @@ def flocker_standard_options(cls):
     cls.__init__ = __init__
 
     def opt_version(self):
-        """
-        Print the program's version and exit.
-        """
+        """Print the program's version and exit."""
         self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
         raise SystemExit(0)
     cls.opt_version = opt_version
 
     def opt_verbose(self):
-        """
-        Increase the verbosity.
-        """
+        """Turn on verbose logging."""
         self['verbosity'] += 1
     cls.opt_verbose = opt_verbose
     cls.opt_v = opt_verbose
@@ -55,9 +49,7 @@ def flocker_standard_options(cls):
 
 
 class ICommandLineScript(Interface):
-    """
-    A script which can be run by ``FlockerScriptRunner``.
-    """
+    """A script which can be run by ``FlockerScriptRunner``."""
     def main(reactor, options):
         """
         :param twisted.internet.reactor reactor: A Twisted reactor.
@@ -67,8 +59,7 @@ class ICommandLineScript(Interface):
 
 
 class FlockerScriptRunner(object):
-    """
-    An API for running standard flocker scripts.
+    """An API for running standard flocker scripts.
 
     :ivar ICommandLineScript script: See ``script`` of ``__init__``.
     """
@@ -88,8 +79,7 @@ class FlockerScriptRunner(object):
         self.sys_module = sys_module
 
     def _parseOptions(self, arguments):
-        """
-        Parse the options defined in the script's options class.
+        """Parse the options defined in the script's options class.
 
         ``UsageError``s are caught and printed to `stderr` and the script then
         exits.
@@ -107,9 +97,7 @@ class FlockerScriptRunner(object):
         return self.options
 
     def main(self):
-        """
-        Parse arguments and run the script's main function via ``react``.
-        """
+        """Parse arguments and run the script's main function via ``react``."""
         options = self._parseOptions(self.sys_module.argv[1:])
         react(self.script.main, (options,))
 
