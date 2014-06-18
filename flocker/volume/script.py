@@ -94,9 +94,7 @@ class FlockerScriptRunner(object):
         @param arguments: The command line arguments to be parsed.
         @rtype: L{Options}
         """
-        options = self.script.options(
-            stdout=self.sys_module.stdout,
-            stderr=self.sys_module.stderr)
+        options = self.script.options()
         try:
             options.parseOptions(arguments)
         except UsageError as e:

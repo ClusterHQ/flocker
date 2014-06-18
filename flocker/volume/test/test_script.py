@@ -40,31 +40,22 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
     """
     def test_parseOptions(self):
         """
-        `FlockerScriptRunner._parseOptions` accepts a list of arguments,
-        instantiates a `usage.Options` instance using the the `options` factory
-        of the supplied script; passing stdout and stdin arguments to it.
-        It then calls the `parseOptions` method with the supplied arguments and
-        returns the populated options instance.
+        ``FlockerScriptRunner._parseOptions`` accepts a list of arguments,
+        instantiates a ``usage.Options`` instance using the the ``options``
+        factory of the supplied script and calls its `parseOptions` method with
+        the supplied arguments and returns the populated options instance.
         """
-        class FakeOptions(usage.Options):
-            def __init__(self, stdout, stderr):
-                usage.Options.__init__(self)
-                self.stdout = stdout
-                self.stderr = stderr
-
+        class OptionsSpy(usage.Options):
             def parseOptions(self, arguments):
                 self.parseOptionsArguments = arguments
 
         class FakeScript(object):
-            options = FakeOptions
+            options = OptionsSpy
 
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(script=FakeScript, stdout=object(), stderr=object())
+        runner = FlockerScriptRunner(script=FakeScript)
         options = runner._parseOptions(expectedArguments)
-        self.assertEqual(
-            (runner.stdout, runner.stderr, expectedArguments),
-            (options.stdout, options.stderr, options.parseOptionsArguments)
-        )
+        self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
 
     def test_parseOptionsUsageError(self):
@@ -77,9 +68,6 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         expectedCommandName = b'test_command'
         class FakeOptions(usage.Options):
             synopsis = 'Usage: %s [options]' % (expectedCommandName,)
-            def __init__(self, stdout, stderr):
-                usage.Options.__init__(self)
-
             def parseOptions(self, arguments):
                 raise usage.UsageError(expectedMessage)
 
@@ -87,12 +75,12 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         class FakeScript(object):
             options = FakeOptions
 
-        stderr = io.BytesIO()
+        sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=FakeScript, stdout=object(), stderr=stderr)
+        runner = FlockerScriptRunner(script=FakeScript, sys_module=sys)
         error = self.assertRaises(SystemExit, runner._parseOptions, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
-        errorText = stderr.getvalue()
+        errorText = sys.stderr.getvalue()
         self.assertEqual(
             (1, [], expectedErrorMessage),
             (error.code, helpProblems('test_command', errorText), errorText[-len(expectedErrorMessage):])
