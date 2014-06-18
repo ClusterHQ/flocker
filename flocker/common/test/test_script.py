@@ -2,13 +2,15 @@
 
 """Tests for :module:`flocker.common.script`."""
 
-import io, sys
+import io
+import sys
 
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 
-from flocker.common.script import (flocker_standard_options, FlockerScriptRunner)
+from flocker.common.script import (
+    flocker_standard_options, FlockerScriptRunner)
 
 from flocker import __version__
 
@@ -30,7 +32,6 @@ def helpProblems(commandName, helpText):
     return problems
 
 
-
 class FakeSysModule(object):
     """
     """
@@ -44,7 +45,6 @@ class FakeSysModule(object):
         # unicode.
         self.stdout = io.BytesIO()
         self.stderr = io.BytesIO()
-
 
 
 class FlockerScriptRunnerTests(SynchronousTestCase):
@@ -66,7 +66,6 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         options = runner._parseOptions(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
-
     def test_parseOptionsUsageError(self):
         """
         `FlockerScriptRunner._parseOptions` catches `usage.UsageError`
@@ -75,22 +74,26 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
         """
         expectedMessage = b'foo bar baz'
         expectedCommandName = b'test_command'
+
         class FakeOptions(usage.Options):
             synopsis = 'Usage: %s [options]' % (expectedCommandName,)
+
             def parseOptions(self, arguments):
                 raise usage.UsageError(expectedMessage)
 
         fake_sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=None, options=FakeOptions(), sys_module=fake_sys)
+        runner = FlockerScriptRunner(script=None, options=FakeOptions(),
+                                     sys_module=fake_sys)
         error = self.assertRaises(SystemExit, runner._parseOptions, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = fake_sys.stderr.getvalue()
         self.assertEqual(
             (1, [], expectedErrorMessage),
-            (error.code, helpProblems('test_command', errorText), errorText[-len(expectedErrorMessage):])
+            (error.code,
+             helpProblems('test_command', errorText),
+             errorText[-len(expectedErrorMessage):])
         )
-
 
 
 class FlockerScriptRunnerMainTests(SynchronousTestCase):
@@ -105,7 +108,6 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
             FlockerScriptRunner(script=None, options=None).sys_module
         )
 
-
     def test_sys_override(self):
         """
         `FlockerScriptRunner.sys` can be overridden in the constructor.
@@ -116,7 +118,6 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
             FlockerScriptRunner(script=None, options=None,
                                 sys_module=dummySys).sys_module
         )
-
 
     def test_main_uses_sysargv(self):
         """
@@ -143,7 +144,6 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         self.assertEqual(b"world", script.arguments.value)
 
 
-
 class FlockerScriptTestsMixin(object):
     """
     Common tests for scripts that can be run via L{FlockerScriptRunner}
@@ -158,14 +158,14 @@ class FlockerScriptTestsMixin(object):
         supplied with unexpected arguments.
         """
         sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
-        script = FlockerScriptRunner(self.script(), self.options(), sys_module=sys)
+        script = FlockerScriptRunner(
+            self.script(), self.options(), sys_module=sys)
         error = self.assertRaises(SystemExit, script.main)
         error_text = sys.stderr.getvalue()
         self.assertEqual(
             (1, []),
             (error.code, helpProblems(self.command_name, error_text))
         )
-
 
 
 class StandardOptionsTestsMixin(object):
@@ -175,14 +175,12 @@ class StandardOptionsTestsMixin(object):
     """
     options = None
 
-
     def test_sys_module_default(self):
         """
         ``flocker_standard_options`` adds a ``_sys_module`` attribute which is
         ``sys`` by default.
         """
         self.assertIs(sys, self.options()._sys_module)
-
 
     def test_sys_module_override(self):
         """
@@ -194,7 +192,6 @@ class StandardOptionsTestsMixin(object):
             dummy_sys_module,
             self.options(sys_module=dummy_sys_module)._sys_module
         )
-
 
     def test_version(self):
         """
@@ -212,14 +209,12 @@ class StandardOptionsTestsMixin(object):
             (sys.stdout.getvalue(), error.code)
         )
 
-
     def test_verbosity_default(self):
         """
         Flocker commands have C{verbosity} of C{0} by default.
         """
         options = self.options()
         self.assertEqual(0, options['verbosity'])
-
 
     def test_verbosity_option(self):
         """
@@ -230,7 +225,6 @@ class StandardOptionsTestsMixin(object):
         options.parseOptions(['--verbose'])
         self.assertEqual(1, options['verbosity'])
 
-
     def test_verbosity_option_short(self):
         """
         Flocker commands have a I{-v} option which increments the configured
@@ -240,7 +234,6 @@ class StandardOptionsTestsMixin(object):
         options.parseOptions(['-v'])
         self.assertEqual(1, options['verbosity'])
 
-
     def test_verbosity_multiple(self):
         """
         I{--verbose} can be supplied multiple times to increase the verbosity.
@@ -248,7 +241,6 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
-
 
 
 class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
