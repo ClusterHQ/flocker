@@ -126,18 +126,8 @@ class VolumeServiceAPITests(TestCase):
         volumes = self.successResultOf(service.enumerate())
         self.assertEqual([], list(volumes))
 
-    def test_enumerate_a_volume(self):
-        """``enumerate()`` returns a volume previously ``create()``ed."""
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        expected = self.successResultOf(service.create(u"somevolume"))
-        actual = self.successResultOf(service.enumerate())
-        self.assertEqual([expected], list(actual))
-
     def test_enumerate_some_volumes(self):
-        """``enumerate()`` returns several volumes previously
-        ``create()``ed."""
+        """``enumerate()`` returns all volumes previously ``create()``ed."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
