@@ -18,7 +18,9 @@ EOF
 yum install -y zfs
 
 systemctl enable docker
+systemctl start docker
 systemctl enable geard
+systemctl start geard
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
