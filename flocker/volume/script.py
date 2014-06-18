@@ -31,7 +31,6 @@ class VolumeOptions(Options):
         self["config"] = FilePath(self["config"])
 
 
-
 class VolumeScript(object):
     """
     A volume manager script.
@@ -45,13 +44,13 @@ class VolumeScript(object):
             sys_module = sys
         self._sys_module = sys_module
 
-
     def main(self, reactor, options):
         """
         Run a volume management server configured according to the supplied
         options.
         """
-        service = self._service_factory(config_path=options["config"], pool=None)
+        service = self._service_factory(
+            config_path=options["config"], pool=None)
         try:
             service.startService()
         except CreateConfigurationError as e:
@@ -63,12 +62,10 @@ class VolumeScript(object):
         return succeed(None)
 
 
-
 flocker_volume_main = FlockerScriptRunner(
     script=VolumeScript(),
     options=VolumeOptions()
 ).main
-
 
 
 __all__ = [
