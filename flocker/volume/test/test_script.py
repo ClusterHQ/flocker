@@ -34,73 +34,6 @@ def helpProblems(commandName, helpText):
 
 
 
-class StdoutStderrTestMixin(object):
-    """
-    Test `fixture` accepts optional `stdout` and `stderr` keyword arguments,
-    that these are assigned to public attributes of the resulting object and
-    that the defaults are `sys.stdout` and `sys.stderr`.
-
-    `fixture` may either be a class or a factory function which returns an
-    instance of the class under test.
-    """
-    fixture = None
-
-    def test_stdoutDefault(self):
-        """
-        `stdout` is `sys.stdout` by default.
-        """
-        self.assertIdentical(
-            sys.stdout,
-            self.fixture().stdout
-        )
-
-
-    def test_stdoutOverride(self):
-        """
-        `stdout` can be overridden in the constructor.
-        """
-        sentinal = object()
-        self.assertIdentical(
-            sentinal,
-            self.fixture(stdout=sentinal).stdout
-        )
-
-
-    def test_stderrDefault(self):
-        """
-        `stderr` is `sys.stderr` by default.
-        """
-        self.assertIdentical(
-            sys.stderr,
-            self.fixture().stderr
-        )
-
-
-    def test_stderrOverride(self):
-        """
-        `stderr` can be overridden in the constructor.
-        """
-        sentinal = object()
-        self.assertIdentical(
-            sentinal,
-            self.fixture(stderr=sentinal).stderr
-        )
-
-
-
-class FlockerScriptRunnerInitialiserTests(StdoutStderrTestMixin,
-                                          SynchronousTestCase):
-    """
-    Tests for `FlockerScriptRunner.__init__`.
-    """
-    def fixture(self, **kwargs):
-        """
-        Return a `FlockerScriptRunner` initialised with a dummy script.
-        """
-        return FlockerScriptRunner(script=object(), **kwargs)
-
-
-
 class FlockerScriptRunnerTests(SynchronousTestCase):
     """
     Tests for :class:`FlockerScriptRunner`.
@@ -307,23 +240,18 @@ class FlockerScriptTestsMixin(object):
         L{FlockerScript.main} exits with status 0 and prints help to stderr if
         supplied with unexpected arguments.
         """
-        stderr = io.BytesIO()
-        script = FlockerScriptRunner(self.script, stderr=stderr)
+        sys = FakeSysModule()
+        script = FlockerScriptRunner(self.script, sys_module=sys)
         error = self.assertRaises(
             SystemExit,
             script.main,
             b'--unexpected-argument'
         )
-        error_text = stderr.getvalue()
+        error_text = sys.stderr.getvalue()
         self.assertEqual(
             (1, []),
             (error.code, helpProblems(self.script_name, error_text))
         )
-
-
-
-class VolumeScriptInitialiserTests(StdoutStderrTestMixin, SynchronousTestCase):
-    fixture = VolumeScript
 
 
 
@@ -431,14 +359,6 @@ class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
             pass
         return TestOptions(**kwargs)
 
-
-
-class FlockerVolumeOptionsInitialiserTests(StdoutStderrTestMixin,
-                                           SynchronousTestCase):
-    """
-    Tests for the
-    """
-    fixture = FlockerVolumeOptions
 
 
 class FlockerVolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
