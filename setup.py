@@ -7,7 +7,7 @@ import os
 # if you are using vagrant, just delete os.link directly,
 # The hard link only saves a little disk space, so you should not care
 # See https://www.virtualbox.org/ticket/818 and http://bugs.python.org/issue8876
-if os.environ.get('USER','') == 'vagrant':
+if os.path.abspath(__file__).startswith('/vagrant/'):
     del os.link
 
 from setuptools import setup, find_packages
