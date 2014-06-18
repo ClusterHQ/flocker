@@ -1,4 +1,29 @@
+
+from zope.interface import implementer
+
 from characteristic import attributes
+
+from ._interface import IRoute
+
+from ..route import create_proxy_to, delete_proxy, enumerate_proxies
+
+@implementer(IRoute)
+@attributes(["port"])
+class TCPPort(object):
+    """
+    :ivar int port: A TCP port number.  Connections to this port number will be
+        routed to the application which owns this route.
+    """
+    def create_for(self, node, app):
+        create_proxy_to(node.hostname, self.port)
+
+
+    def destroy(self):
+        for proxy in enumerate_proxies():
+            if proxy.port == self.port:
+                delete_proxy(proxy)
+                break
+
 
 @attributes(["mount_path"])
 class Volume(object):
@@ -20,7 +45,7 @@ class DockerImage(object):
     """
 
 
-@attributes(["name", "image", "volume"])
+@attributes(["name", "image", "volume", "routes"])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -34,6 +59,9 @@ class Application(object):
 
     :ivar Volume volume: A volume which will always be made available with this
         application.
+
+    :ivar set routes: A ``set`` of ``IRoute`` providers describing how this
+        application is exposed to the internet.
     """
 
 
