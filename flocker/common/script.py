@@ -62,7 +62,11 @@ class FlockerScriptRunner(object):
     """An API for running standard flocker scripts.
 
     :ivar ICommandLineScript script: See ``script`` of ``__init__``.
+    :ivar callable _react: A reference to ``task.react`` which can be overridden
+        for testing purposes.
     """
+    _react = staticmethod(react)
+
     def __init__(self, script, options, sys_module=None):
         """
         :param ICommandLineScript script: A script object with a ``main``
@@ -99,7 +103,7 @@ class FlockerScriptRunner(object):
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
         options = self._parseOptions(self.sys_module.argv[1:])
-        react(self.script.main, (options,))
+        self._react(self.script.main, (options,))
 
 
 __all__ = [

@@ -5,6 +5,7 @@
 import io
 import sys
 
+from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
@@ -65,7 +66,40 @@ class FakeSysModule(object):
         self.stderr = io.BytesIO()
 
 
-class FlockerScriptRunnerTests(SynchronousTestCase):
+class FlockerScriptRunnerInitTests(SynchronousTestCase):
+    """Tests for :py:meth:`FlockerScriptRunner.__init__`."""
+
+    def test_sys_default(self):
+        """
+        `FlockerScriptRunner.sys` is `sys` by default.
+        """
+        self.assertIs(
+            sys,
+            FlockerScriptRunner(script=None, options=None).sys_module
+        )
+
+    def test_sys_override(self):
+        """
+        `FlockerScriptRunner.sys` can be overridden in the constructor.
+        """
+        dummySys = object()
+        self.assertIs(
+            dummySys,
+            FlockerScriptRunner(script=None, options=None,
+                                sys_module=dummySys).sys_module
+        )
+
+    def test_react(self):
+        """
+        `FlockerScriptRunner._react` is ``task.react`` by default
+        """
+        self.assertIs(
+            task.react,
+            FlockerScriptRunner(script=None, options=None)._react
+        )
+
+
+class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
     """Tests for :py:meth:`FlockerScriptRunner._parseOptions`."""
 
     def test_parseOptions(self):
@@ -116,26 +150,6 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
 class FlockerScriptRunnerMainTests(SynchronousTestCase):
     """Tests for :py:meth:`FlockerScriptRunner.main`."""
 
-    def test_sys_default(self):
-        """
-        `FlockerScriptRunner.sys` is `sys` by default.
-        """
-        self.assertIs(
-            sys,
-            FlockerScriptRunner(script=None, options=None).sys_module
-        )
-
-    def test_sys_override(self):
-        """
-        `FlockerScriptRunner.sys` can be overridden in the constructor.
-        """
-        dummySys = object()
-        self.assertIs(
-            dummySys,
-            FlockerScriptRunner(script=None, options=None,
-                                sys_module=dummySys).sys_module
-        )
-
     def test_main_uses_sysargv(self):
         """
         ``FlockerScriptRunner.main`` uses ``self.sys_module.argv``.
@@ -146,6 +160,7 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
 
         class SpyScript(object):
             def main(self, reactor, arguments):
+                self.reactor = reactor
                 self.arguments = arguments
                 return succeed(None)
 
@@ -156,7 +171,22 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         runner = FlockerScriptRunner(
             script=script, options=options, sys_module=sys)
 
-        self.assertRaises(SystemExit, runner.main)
+        class TestSystemExit(SystemExit):
+            """A subclass to demonstrate that self._react has been called"""
+
+        dummyReactor = object()
+
+        def fakeReact(main, argv):
+            """A fake version of ``task.react``
+
+            Used to avoid running the real reactor in tests.
+            """
+
+            self.successResultOf(main(dummyReactor, *argv))
+            raise TestSystemExit(0)
+        runner._react = fakeReact
+
+        self.assertRaises(TestSystemExit, runner.main)
 
         self.assertEqual(b"world", script.arguments.value)
 
