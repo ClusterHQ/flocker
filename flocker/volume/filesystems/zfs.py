@@ -215,21 +215,16 @@ def _list_filesystems(reactor, pool):
     listing = zfs_command(
         reactor,
         [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
-    listing.addCallback(_parse_list_output, pool)
+
+    def listed(output, pool):
+        for line in output.splitlines():
+            name, mountpoint = line.split()
+            name = name[len(pool) + 1:]
+            if name:
+                yield _zfs_filesystem(name, mountpoint)
+
+    listing.addCallback(listed, pool)
     return listing
-
-
-def _parse_list_output(output, pool):
-    """Parse the output of ``zfs list`` into ``_zfs_filesystem`` instances.
-
-    :return: A generator, the elements of which are ``_zfs_filesystem``
-        instances.
-    """
-    for line in output.splitlines():
-        name, mountpoint = line.split()
-        name = name[len(pool) + 1:]
-        if name:
-            yield _zfs_filesystem(name, mountpoint)
 
 
 _zfs_filesystem = namedtuple("_zfs_filesystem", "dataset mount_path")
