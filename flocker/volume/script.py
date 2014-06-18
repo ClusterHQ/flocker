@@ -36,22 +36,28 @@ class VolumeOptions(Options):
 
 @implementer(ICommandLineScript)
 class VolumeScript(object):
-    """
-    A volume manager script.
+    """A volume manager script.
+
+    :ivar IService _service: ``VolumeService`` by default but can be overridden
+        for testing purposes.
     """
     _service_factory = VolumeService
 
     def __init__(self, sys_module=None):
         """
+        :param sys_module: An optional ``sys`` like fake module for use in
+            testing. Defaults to ``sys``.
         """
         if sys_module is None:
             sys_module = sys
         self._sys_module = sys_module
 
     def main(self, reactor, options):
-        """
-        Run a volume management server configured according to the supplied
-        options.
+        """Run a volume management server
+
+        The server will be configured according to the supplied options.
+
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
         service = self._service_factory(
             config_path=options["config"], pool=None)
