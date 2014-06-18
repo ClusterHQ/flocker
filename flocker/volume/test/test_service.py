@@ -135,10 +135,12 @@ class VolumeServiceAPITests(TestCase):
         expected = {
             self.successResultOf(service.create(name))
             for name in names}
-        actual = self.successResultOf(service.enumerate())
+        service2 = VolumeService(FilePath(self.mktemp()), pool)
+        service2.startService()
+        actual = self.successResultOf(service2.enumerate())
         self.assertEqual(expected, set(actual))
 
-# TODO test for https://github.com/hybridlogic/flocker/pull/92#discussion_r13882526
+
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
