@@ -12,6 +12,7 @@ from flocker.common.test.test_script import (
 from flocker.volume.script import VolumeOptions, VolumeScript
 from flocker.volume.service import VolumeService, CreateConfigurationError
 
+
 class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     """
     Tests for L{VolumeScript}.
@@ -19,7 +20,6 @@ class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     script = VolumeScript
     options = VolumeOptions
     command_name = 'flocker-volume'
-
 
 
 class VolumeScriptInitTests(SynchronousTestCase):
@@ -32,21 +32,19 @@ class VolumeScriptInitTests(SynchronousTestCase):
         """
         self.assertIs(sys, VolumeScript()._sys_module)
 
-
     def test_sys_module_override(self):
         """
         ``VolumeScript._sys_module`` can be overridden in the constructor.
         """
         dummy_sys = object()
-        self.assertIs(dummy_sys, VolumeScript(sys_module=dummy_sys)._sys_module)
-
+        self.assertIs(dummy_sys,
+                      VolumeScript(sys_module=dummy_sys)._sys_module)
 
     def test_service_factory_default(self):
         """
         ``VolumeScript._service_factory`` is ``VolumeService`` by default.
         """
         self.assertIs(VolumeService, VolumeScript._service_factory)
-
 
 
 class VolumeScriptMainTests(SynchronousTestCase):
@@ -62,6 +60,7 @@ class VolumeScriptMainTests(SynchronousTestCase):
         class RaisingService(object):
             def __init__(self, config_path, pool):
                 pass
+
             def startService(self):
                 raise CreateConfigurationError('Foo')
 
@@ -77,7 +76,6 @@ class VolumeScriptMainTests(SynchronousTestCase):
             (1, b'Writing config file /foo/bar/baz failed: Foo\n'),
             (error.code, fake_sys.stderr.getvalue())
         )
-
 
     def test_deferred_result(self):
         """
