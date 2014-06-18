@@ -68,6 +68,7 @@ setup(
 
             # Some of the tests use Conch.
             "PyCrypto==2.6.1",
+            "pyasn1==0.1.7",
             ]
         },
 

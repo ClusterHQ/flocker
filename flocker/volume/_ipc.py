@@ -65,7 +65,13 @@ class ProcessNode(object):
 
         :return: ``ProcessNode`` instance that communicates over SSH.
         """
-        #return cls([b"ssh", ...])
+        return cls(initial_command_arguments=[
+            b"ssh",
+            b"-q", # suppress warnings
+            b"-i", private_key.path,
+            b"-l", username,
+            b"-o", b"StrictHostKeyChecking=no", # we're ok with unknown hosts
+            b"-p", b"%d" % (port,), host])
 
 
 @implementer(INode)
