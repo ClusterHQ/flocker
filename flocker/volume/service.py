@@ -82,6 +82,7 @@ class VolumeService(Service):
 
         :return: ``Deferred`` that fires when the push is finished.
         """
+        # if volume_uuid != self.uuid: raise ValueError()
         # fs = volume.get_filesystem()
         # with destination.run([b"flocker-volume", b"receive",
         #                       volume.uuid.encode(b"ascii"),
