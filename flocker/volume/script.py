@@ -109,7 +109,7 @@ class FlockerScriptRunner(object):
         Parse arguments and run the script's main function via L{react}.
         """
         options = self._parseOptions(self.sys_module.argv[1:])
-        args = (self.sys_module.stdout, self.sys_module.stderr, options)
+        args = (options,)
         return self._react(self.script.main, args)
 
 
@@ -120,7 +120,7 @@ class VolumeScript(object):
     """
     options = FlockerVolumeOptions
 
-    def main(self, reactor, stdout, stderr, options):
+    def main(self, reactor, options):
         """
         Run a volume management server configured according to the supplied
         options.

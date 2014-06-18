@@ -34,6 +34,21 @@ def helpProblems(commandName, helpText):
 
 
 
+class FakeSysModule(object):
+    """
+    """
+    def __init__(self, argv=None):
+        if argv is None:
+            argv = []
+        self.argv = argv
+        # io.BytesIO is not quite the same as sys.stdout/stderr
+        # particularly with respect to unicode handling.  So,
+        # hopefully the implementation doesn't try to write any
+        # unicode.
+        self.stdout = io.BytesIO()
+        self.stderr = io.BytesIO()
+
+
 class FlockerScriptRunnerTests(SynchronousTestCase):
     """
     Tests for :class:`FlockerScriptRunner`.
@@ -88,22 +103,6 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
 
 
 
-class FakeSysModule(object):
-    """
-    """
-    def __init__(self, expected_argv=None):
-        if expected_argv is None:
-            expected_argv = []
-        self.argv = expected_argv
-        # io.BytesIO is not quite the same as sys.stdout/stderr
-        # particularly with respect to unicode handling.  So,
-        # hopefully the implementation doesn't try to write any
-        # unicode.
-        self.stdout = io.BytesIO()
-        self.stderr = io.BytesIO()
-
-
-
 class FlockerScriptRunnerMainTests(SynchronousTestCase):
     """
     """
@@ -139,20 +138,17 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
                 self.value = value
 
         class SpyScript(object):
-            def options(self, stdout, stderr):
+            def options(self):
                 return SillyOptions()
 
-            def main(self, reactor, stdout, stderr, arguments):
+            def main(self, reactor, arguments):
                 self.arguments = arguments
                 return succeed(None)
 
         script = SpyScript()
-        sys = FakeSysModule(expectedArgv)
+        sys = FakeSysModule(argv=expectedArgv)
 
-        runner = FlockerScriptRunner(
-            script=script,
-            sys_module=sys,
-        )
+        runner = FlockerScriptRunner(script=script, sys_module=sys)
 
         self.assertRaises(SystemExit, runner.main)
 
@@ -221,24 +217,20 @@ class FlockerScriptTestsMixin(object):
     Common tests for scripts that can be run via L{FlockerScriptRunner}
     """
     script = None
-    script_name = None
+    command_name = None
 
     def test_incorrect_arguments(self):
         """
         L{FlockerScript.main} exits with status 0 and prints help to stderr if
         supplied with unexpected arguments.
         """
-        sys = FakeSysModule()
-        script = FlockerScriptRunner(self.script, sys_module=sys)
-        error = self.assertRaises(
-            SystemExit,
-            script.main,
-            b'--unexpected-argument'
-        )
+        sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
+        script = FlockerScriptRunner(self.script(), sys_module=sys)
+        error = self.assertRaises(SystemExit, script.main)
         error_text = sys.stderr.getvalue()
         self.assertEqual(
             (1, []),
-            (error.code, helpProblems(self.script_name, error_text))
+            (error.code, helpProblems(self.command_name, error_text))
         )
 
 
@@ -248,7 +240,7 @@ class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     Tests for L{VolumeScript}.
     """
     script = VolumeScript
-    script_name = 'flocker-volume'
+    command_name = 'flocker-volume'
 
 
 
