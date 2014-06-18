@@ -1,22 +1,27 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.endpoints import ProcessEndpoint
+from twisted.internet.defer import Deferred, gatherResults
+from twisted.protocols.basic import NetstringReceiver
+from twisted.internet import reactor
 
-def deploy(desired_configuration):
-    """
-    Update a deployment.
+from yaml import safe_load, safe_dump
 
-    Stop any running applications which are not described by the given
-    configuration.  Start any applications which are described by it but are
-    not yet running.  Move any applications (with their data volumes) that are
-    running on a different node than specified by the configuration.
 
-    :param desired_configuration: A ``set`` of ``Deployment`` instances
-        describing the complete configuration of applications on a
-        participating collection of nodes.  This is the desired configuration
-        which the resulting changes will achieve.
-    """
-    _node_directed_deploy(desired_configuration)
+class _SendConfiguration(NetstringReceiver):
+    def __init__(self, configuration):
+        self.configuration = configuration
+        self.result = Deferred()
+
+    def connectionMade(self):
+        self.sendString(safe_dump(self.configuration))
+
+    def stringReceived(self, data):
+        if data == "success":
+            self.result.callback(None)
+        else:
+            self.result.errback(Exception(data))
+        self.transport.loseConnection()
 
 
 def _node_directed_deploy(desired_configuration):
@@ -34,6 +39,9 @@ def _node_directed_deploy(desired_configuration):
         for node in desired_configuration)
 
 
+deploy = _node_directed_deploy
+
+
 def _node_directed_single_deploy(node, desired_configuration):
     """
     Contact the specified node and tell it to change its configuration to match
@@ -41,30 +49,21 @@ def _node_directed_single_deploy(node, desired_configuration):
 
     :param Node: node:
     """
+    protocol = _SendConfiguration(desired_configuration)
     endpoint = ProcessEndpoint(reactor, b"ssh", b"flocker-node", b"--deploy")
 
-    stops = determine_stops(actual_configuration, desired_configuration)
-    moves = determine_moves(actual_configuration, desired_configuration)
-    starts = determine_starts(actual_configuration, desired_configuration)
-
-    stop_containers(stops)
-    move_containers(moves)
-    start_containers(starts)
-
-
-def move_containers(moves):
-    # Push volumes that need to move
-    # Stop containers that need to move
-    # Re-push volumes that need to move
-    # Start containers that have moved
-    # Mumble mumble networks
-    pass
+    #
+    # XXX What if this connection is lost after the configuration is sent but
+    # before the result is received?  Need to make it possible to reconnect and
+    # get the results of a previous deploy attempt.
+    #
+    connecting = endpoint.connect(protocol)
+    connecting.addCallback(lambda ignored: protocol.result)
+    return connecting
 
 
 def main(application_config_path, deployment_config_path):
-    desired_configuration = load_configuration(
-        application_config_path, deployment_config_path)
-    actual_configuration = discover_configuration(
-        {node.hostname for node in desired_configuration.nodes})
-    changes = determine_changes(actual_configuration, desired_configuration)
-    deploy(changes)
+    return deploy({
+            u"application": safe_load(application_config_path),
+            u"deployment": safe_load(deployment_config_path),
+            })

@@ -39,6 +39,10 @@ def deploy(desired_configuration):
     """
     :param Deployment desired_configuration:
     """
+    #
+    # XXX What if someone does another deploy in parallel?  Need to lock the
+    # node so only one deployment can happen at a time.
+    #
     applications = discover_node_configuration()
 
     # Find any applications that have moved from this node to another node or
@@ -53,6 +57,14 @@ def deploy(desired_configuration):
     # Wait for all volumes that will need to be pushed to this node.
     for app in moves.coming:
         wait_for_volume(app.volume)
+
+    # Stop all containers that are being moved or just eliminated.
+    for (app, node) in moves.going:
+        stop_container(app)
+
+    # Start all containers that have been moved here or are brand new.
+    for app in moves.coming:
+        start_container(app)
 
 
 def find_moves(applications, desired_configuration):
