@@ -9,6 +9,7 @@ well-specified communication protocol between daemon processes using
 Twisted's event loop.
 """
 
+import subprocess
 from contextlib import contextmanager
 from io import BytesIO
 
@@ -32,16 +33,36 @@ class INode(Interface):
         """
 
 
-@attributes(["host", "port", "private_key"])
+@attributes(["initial_command_arguments"])
 @implementer(INode)
-class SSHNode(object):
-    """A remote node that can be SSHed into.
+class ProcessNode(object):
+    """Communicate with a remote node using a subprocess.
 
-    :ivar bytes host: The hostname or IP.
-    :ivar int port: The port number of the SSH server.
-    :ivar FilePath private_key: Path to private key to use when talking to
-        SSH server.
+    :param initial_command_arguments: ``list`` of ``bytes``, initial
+        command arguments to prefix to whatever arguments get passed to
+        ``run()``.
     """
+    @contextmanager
+    def run(self, remote_command):
+        process = subprocess.Popen([b"cat"], stdin=subprocess.PIPE)
+        try:
+            yield process.stdin
+        finally:
+            process.stdin.close()
+
+    @classmethod
+    def using_ssh(cls, host, port, username, private_key):
+        """Create a ``ProcessNode`` that communicate over SSH.
+
+        :param bytes host: The hostname or IP.
+        :param int port: The port number of the SSH server.
+        :param bytes username: The username to SSH as.
+        :param FilePath private_key: Path to private key to use when talking to
+            SSH server.
+
+        :return: ``ProcessNode`` instance that communicates over SSH.
+        """
+        #return cls([b"ssh", ...])
 
 
 @implementer(INode)
