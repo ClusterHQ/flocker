@@ -39,9 +39,21 @@ def helpProblems(command_name, help_text):
 
 
 class FakeSysModule(object):
-    """
+    """A ``sys`` like substitute.
+
+    For use in testing the handling of `argv`, `stdout` and `stderr` by command
+    line scripts.
+
+    :ivar list argv: See ``__init__``
+    :ivar stdout: A py:class:`io.BytesIO` object representing standard output.
+    :ivar stderr: A py:class:`io.BytesIO` object representing standard error.
     """
     def __init__(self, argv=None):
+        """Initialise the fake sys module.
+
+        :param list argv: The arguments list which should be exposed as
+            ``sys.argv``.
+        """
         if argv is None:
             argv = []
         self.argv = argv
@@ -54,9 +66,8 @@ class FakeSysModule(object):
 
 
 class FlockerScriptRunnerTests(SynchronousTestCase):
-    """
-    Tests for :class:`FlockerScriptRunner`.
-    """
+    """Tests for :py:meth:`FlockerScriptRunner._parseOptions`."""
+
     def test_parseOptions(self):
         """
         ``FlockerScriptRunner._parseOptions`` accepts a list of arguments,
@@ -103,8 +114,8 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
 
 
 class FlockerScriptRunnerMainTests(SynchronousTestCase):
-    """
-    """
+    """Tests for :py:meth:`FlockerScriptRunner.main`."""
+
     def test_sys_default(self):
         """
         `FlockerScriptRunner.sys` is `sys` by default.
@@ -151,9 +162,13 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
 
 
 class FlockerScriptTestsMixin(object):
+    """Common tests for scripts that can be run via L{FlockerScriptRunner}
+
+    :ivar ICommandLineScript script: The script class under test.
+    :ivar usage.Options options: The options parser class to use in the test.
+    :ivar text command_name: The name of the command represented by ``script``.
     """
-    Common tests for scripts that can be run via L{FlockerScriptRunner}
-    """
+
     script = None
     options = None
     command_name = None
@@ -167,8 +182,8 @@ class FlockerScriptTestsMixin(object):
 
     def test_incorrect_arguments(self):
         """
-        L{FlockerScript.main} exits with status 0 and prints help to stderr if
-        supplied with unexpected arguments.
+        ``FlockerScriptRunner.main`` exits with status 0 and prints help to
+        `stderr` if supplied with unexpected arguments.
         """
         sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
         script = FlockerScriptRunner(
@@ -182,9 +197,12 @@ class FlockerScriptTestsMixin(object):
 
 
 class StandardOptionsTestsMixin(object):
-    """
+    """Tests for classes decorated with ``flocker_standard_options``.
+
     Tests for the standard options that should be available on every flocker
     command.
+
+    :ivar usage.Options options: The ``usage.Options`` class under test.
     """
     options = None
 
@@ -208,8 +226,8 @@ class StandardOptionsTestsMixin(object):
 
     def test_version(self):
         """
-        Flocker commands have a I{--version} option which prints the current
-        version string to stdout and causes the command to exit with status 0.
+        Flocker commands have a `--version` option which prints the current
+        version string to stdout and causes the command to exit with status `0`.
         """
         sys = FakeSysModule()
         error = self.assertRaises(
@@ -224,15 +242,15 @@ class StandardOptionsTestsMixin(object):
 
     def test_verbosity_default(self):
         """
-        Flocker commands have C{verbosity} of C{0} by default.
+        Flocker commands have `verbosity` of `0` by default.
         """
         options = self.options()
         self.assertEqual(0, options['verbosity'])
 
     def test_verbosity_option(self):
         """
-        Flocker commands have a I{--verbose} option which increments the
-        configured verbosity by 1.
+        Flocker commands have a `--verbose` option which increments the
+        configured verbosity by `1`.
         """
         options = self.options()
         options.parseOptions(['--verbose'])
@@ -240,7 +258,7 @@ class StandardOptionsTestsMixin(object):
 
     def test_verbosity_option_short(self):
         """
-        Flocker commands have a I{-v} option which increments the configured
+        Flocker commands have a `-v` option which increments the configured
         verbosity by 1.
         """
         options = self.options()
@@ -249,21 +267,22 @@ class StandardOptionsTestsMixin(object):
 
     def test_verbosity_multiple(self):
         """
-        I{--verbose} can be supplied multiple times to increase the verbosity.
+        `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
 
 
+@flocker_standard_options
+class TestOptions(usage.Options):
+    """An unmodified ``usage.Options`` subclass for use in testing."""
+
+
 class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
                                   SynchronousTestCase):
+    """Tests for ``flocker_standard_options``
+
+    Using a decorating an unmodified ``usage.Options`` subclass.
     """
-    """
-    def options(self, **kwargs):
-        """
-        """
-        @flocker_standard_options
-        class TestOptions(usage.Options):
-            pass
-        return TestOptions(**kwargs)
+    options = TestOptions
