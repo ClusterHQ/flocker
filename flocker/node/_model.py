@@ -62,5 +62,3 @@ class Deployment(object):
     :ivar set nodes: A ``set`` containing ``Node`` instances describing the
         configuration of each cooperating node.
     """
-
-
