@@ -80,12 +80,12 @@ class FlockerScriptRunnerTests(SynchronousTestCase):
             def parseOptions(self, arguments):
                 raise usage.UsageError(expectedMessage)
 
-        sys = FakeSysModule()
+        fake_sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(script=None, options=FakeOptions(), sys_module=sys)
+        runner = FlockerScriptRunner(script=None, options=FakeOptions(), sys_module=fake_sys)
         error = self.assertRaises(SystemExit, runner._parseOptions, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
-        errorText = sys.stderr.getvalue()
+        errorText = fake_sys.stderr.getvalue()
         self.assertEqual(
             (1, [], expectedErrorMessage),
             (error.code, helpProblems('test_command', errorText), errorText[-len(expectedErrorMessage):])
