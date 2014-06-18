@@ -16,12 +16,12 @@ def flocker_standard_options(cls):
     subcommands.
     """
     original_init = cls.__init__
+
     def __init__(self, *args, **kwargs):
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
         original_init(self, *args, **kwargs)
     cls.__init__ = __init__
-
 
     def opt_version(self):
         """
@@ -30,7 +30,6 @@ def flocker_standard_options(cls):
         self._sys_module.stdout.write(__version__.encode('utf-8') + b'\n')
         raise SystemExit(0)
     cls.opt_version = opt_version
-
 
     def opt_verbose(self):
         """
@@ -41,7 +40,6 @@ def flocker_standard_options(cls):
     cls.opt_v = opt_verbose
 
     return cls
-
 
 
 class FlockerScriptRunner(object):
@@ -60,7 +58,6 @@ class FlockerScriptRunner(object):
             sys_module = sys
         self.sys_module = sys_module
 
-
     def _parseOptions(self, arguments):
         """
         Parse the options defined in the script's options class.
@@ -75,10 +72,10 @@ class FlockerScriptRunner(object):
             self.options.parseOptions(arguments)
         except usage.UsageError as e:
             self.sys_module.stderr.write(unicode(self.options).encode('utf-8'))
-            self.sys_module.stderr.write(b'ERROR: ' + e.message.encode('utf-8') + b'\n')
+            self.sys_module.stderr.write(
+                b'ERROR: ' + e.message.encode('utf-8') + b'\n')
             raise SystemExit(1)
         return self.options
-
 
     def main(self):
         """
