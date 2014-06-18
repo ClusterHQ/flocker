@@ -57,6 +57,11 @@ def _node_directed_single_deploy(node, desired_configuration):
     # before the result is received?  Need to make it possible to reconnect and
     # get the results of a previous deploy attempt.
     #
+    # deploy is idempotent!  just retry.  it doesn't hurt to do the same deploy
+    # twice.  if the first one succeeded then the second one will instantly
+    # succeed.  if the first one failed then the second one will make progress
+    # or fail the same way.
+    # 
     connecting = endpoint.connect(protocol)
     connecting.addCallback(lambda ignored: protocol.result)
     return connecting
