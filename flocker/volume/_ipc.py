@@ -44,11 +44,14 @@ class ProcessNode(object):
     """
     @contextmanager
     def run(self, remote_command):
-        process = subprocess.Popen([b"cat"], stdin=subprocess.PIPE)
+        process = subprocess.Popen(
+            self.initial_command_arguments + remote_command,
+            stdin=subprocess.PIPE)
         try:
             yield process.stdin
         finally:
             process.stdin.close()
+            process.wait()
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):
