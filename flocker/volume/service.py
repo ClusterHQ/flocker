@@ -85,9 +85,9 @@ class VolumeService(Service):
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
                 #    https://github.com/hybridlogic/flocker/issues/78
-                name = filesystem.get_path().basename().split(b".", 1)[1]
+                uuid, name = filesystem.get_path().basename().split(b".", 1)
                 yield Volume(
-                    uuid=self.uuid,
+                    uuid=uuid.decode('utf8'),
                     name=name.decode('utf8'),
                     _pool=self._pool)
         return enumerating.addCallback(enumerated)

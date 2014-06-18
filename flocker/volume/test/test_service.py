@@ -138,7 +138,7 @@ class VolumeServiceAPITests(TestCase):
         actual = self.successResultOf(service.enumerate())
         self.assertEqual(expected, set(actual))
 
-
+# TODO test for https://github.com/hybridlogic/flocker/pull/92#discussion_r13882526
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
