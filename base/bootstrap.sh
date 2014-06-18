@@ -13,7 +13,8 @@ yum install -y automake autoconf libtool
 yum install -y rpm-devel rpmlint mock
 yum install -y docker-io geard
 yum install -y python-devel python-tox python-virtualenv python-pip
-yum install -y createrepo 
+yum install -y createrepo
+yum install -y python-twisted python-characteristic python-eliot pytz python-ipaddr
 
 # Cleanup
 rm -rf /tmp/* /var/tmp/*
