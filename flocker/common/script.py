@@ -17,12 +17,18 @@ def flocker_standard_options(cls):
     Add various standard command line options to flocker commands and
     subcommands.
 
-
+    :param type cls: The `class` to decorate.
+    :return: The decorated `class`.
     """
     original_init = cls.__init__
 
     def __init__(self, *args, **kwargs):
         """
+        Set the default verbosity to `0` and then call the original
+        ``cls.__init__``.
+
+        :param sys_module: An optional ``sys`` like fake module for use in
+            testing. Defaults to ``sys``.
         """
         self._sys_module = kwargs.pop('sys_module', sys)
         self['verbosity'] = 0
@@ -68,6 +74,11 @@ class FlockerScriptRunner(object):
     """
     def __init__(self, script, options, sys_module=None):
         """
+        :param ICommandLineScript script: A script object with a ``main``
+            method.
+        :param usage.Options options: An option parser object.
+        :param sys_module: An optional ``sys`` like fake module for use in
+            testing. Defaults to ``sys``.
         """
         self.script = script
         self.options = options
@@ -80,11 +91,11 @@ class FlockerScriptRunner(object):
         """
         Parse the options defined in the script's options class.
 
-        L{UsageErrors} are caught and printed to I{stderr} and the script then
+        ``UsageError``s are caught and printed to `stderr` and the script then
         exits.
 
-        @param arguments: The command line arguments to be parsed.
-        @rtype: L{Options}
+        :param list arguments: The command line arguments to be parsed.
+        :return: A ``dict`` of configuration options.
         """
         try:
             self.options.parseOptions(arguments)
@@ -97,10 +108,10 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """
-        Parse arguments and run the script's main function via L{react}.
+        Parse arguments and run the script's main function via ``react``.
         """
         options = self._parseOptions(self.sys_module.argv[1:])
-        return react(self.script.main, (options,))
+        react(self.script.main, (options,))
 
 
 __all__ = [
