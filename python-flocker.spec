@@ -18,15 +18,19 @@ BuildRequires:  python
 BuildRequires:  python-setuptools
 # For tests
 BuildRequires:  python-twisted
-BuildRequires:  python-eliot = 0.3.0
+BuildRequires:  python-eliot = 0.4.0
 BuildRequires:  python-characteristic
 BuildRequires:  pytz
+BuildRequires:  python-ipaddr
+BuildRequires:  python-netifaces
 
 Requires:       python
 Requires:       python-twisted
-Requires:       python-eliot = 0.3.0
+Requires:       python-eliot = 0.4.0
 Requires:       python-characteristic
 Requires:       pytz
+Requires:       python-ipaddr
+Requires:       python-netifaces
 
 %description
 probably a replication-based fail-over product
