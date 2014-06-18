@@ -143,62 +143,6 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         self.assertEqual(b"world", script.arguments.value)
 
 
-    def xtest_main(self):
-        """
-        `FlockerScriptRunner.main` accepts an `arguments` argument which is
-        passed to `FlockerScriptRunner._parseOptions` and which is
-        `sys.argv[1:]` by default.
-        """
-        class FakeScript(object):
-            def main(self, reactor, arguments):
-                pass
-
-        expectedScriptInstance = FakeScript()
-        runner = FlockerScriptRunner(
-            script=lambda stdout, stderr: expectedScriptInstance,
-            stdout=object(),
-            stderr=object()
-        )
-
-        expectedOptionsObject = object()
-        parseOptionsArguments = []
-        def fakeParseOptions(arguments):
-            parseOptionsArguments.append(arguments)
-            return expectedOptionsObject
-
-        self.patch(runner, '_parseOptions', fakeParseOptions)
-
-        reactArguments = []
-        self.patch(
-            runner,
-            '_react',
-            lambda mainFunction, argv: reactArguments.append(
-                (mainFunction, argv))
-        )
-
-        defaultArguments = [None, object()]
-        self.patch(sys, 'argv', defaultArguments)
-        runner.main()
-
-        explicitArguments = [object()]
-        runner.main(arguments=explicitArguments)
-
-        expectedParseOptionsArguments = [
-            defaultArguments[1:],
-            explicitArguments
-        ]
-
-        expectedReactArguments = [
-            (expectedScriptInstance.main, expectedOptionsObject),
-            (expectedScriptInstance.main, expectedOptionsObject),
-        ]
-
-        self.assertEqual(
-            (expectedParseOptionsArguments, expectedReactArguments),
-            (parseOptionsArguments, reactArguments)
-        )
-
-
 
 class FlockerScriptTestsMixin(object):
     """
