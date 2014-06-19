@@ -69,8 +69,7 @@ class FlockerScriptRunner(object):
 
     def __init__(self, reactor, script, options, sys_module=None):
         """
-        :param ICommandLineScript script: A script object with a ``main``
-            method.
+        :param ICommandLineScript script: The script object to be run.
         :param usage.Options options: An option parser object.
         :param sys_module: An optional ``sys`` like fake module for use in
             testing. Defaults to ``sys``.
