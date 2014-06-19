@@ -137,7 +137,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         fake_sys = FakeSysModule()
 
         runner = FlockerScriptRunner(
-            reactor=None, script=None, options=FakeOptions(), 
+            reactor=None, script=None, options=FakeOptions(),
             sys_module=fake_sys)
         error = self.assertRaises(SystemExit, runner._parseOptions, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
@@ -220,7 +220,7 @@ class FlockerScriptTestsMixin(object):
         """
         sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
         script = FlockerScriptRunner(
-            reactor=None, script=self.script(), options=self.options(), 
+            reactor=None, script=self.script(), options=self.options(),
             sys_module=sys)
         error = self.assertRaises(SystemExit, script.main)
         error_text = sys.stderr.getvalue()
