@@ -21,9 +21,9 @@ from flocker import __version__
 def helpProblems(command_name, help_text):
     """Identify and return a list of help text problems.
 
-    :param text command_name: The name of the command which should appear in the
-        help text.
-    :param text help_text: The full help text to be inspected.
+    :param unicode command_name: The name of the command which should appear in
+        the help text.
+    :param unicode help_text: The full help text to be inspected.
     :return: A list of problems found with the supplied ``help_text``.
     :rtype: list
     """
