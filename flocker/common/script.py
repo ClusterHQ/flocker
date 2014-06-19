@@ -52,7 +52,7 @@ class ICommandLineScript(Interface):
     """A script which can be run by ``FlockerScriptRunner``."""
     def main(reactor, options):
         """
-        :param twisted.internet.reactor reactor: A Twisted reactor.
+        :param reactor: A Twisted reactor.
         :param dict options: A dictionary of configuration options.
         :return: A ``Deferred`` which fires when the script has completed.
         """
