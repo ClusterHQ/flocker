@@ -148,3 +148,116 @@ Managing Links
 * Containers declare other containers they want to be able to talk to and on what port they expect to be able to do this.
 * Gear is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
 * The routes code makes ensures the connection is then proxy to the machine hosting the target container.
+
+Example - Overview
+==================
+
+* Alice wants to run trac using the postgresql backend and kibana for log analysis.
+* trac needs to connect to postgresql and shovel logs over to kibana
+* trac and postgresql will run on one host (one cpu heavy container, one disk heavy container)
+* elasticsearch and kibana will run on a second host (same deal)
+
+Example - trac configuration
+============================
+
+Maybe something like
+
+```
+trac = {
+    "image": "clusterhq/trac",
+    "volume": "/opt/trac/env",
+    "environment": {
+        "ELASTICSEARCH_PORT": unicode(elasticsearch_port_number),
+    },
+    "routes": [https_port_number],
+    "links": [
+        ("pgsql-trac", pgsql_port_number),
+        ("elasticsearch-trac", log_consumer_port_number),
+    ],
+}
+```
+
+Example - postgresql configuration
+==================================
+
+Maybe something like
+
+```
+postgresql = {
+    "image": "clusterhq/postgresql",
+    "volume": "/var/run/postgresql",
+    "routes": [pgsql_port_number],
+    "links": [],
+}
+```
+
+Example - elasticsearch configuration
+=====================================
+
+Maybe something like
+
+```
+elasticsearch = {
+    "image": "clusterhq/elasticsearch",
+    "volume": "/var/run/elasticsearch",
+    "routes": [elasticsearch_port_number],
+    "links": [],
+}
+```
+
+Example - kibana configuration
+==============================
+
+Maybe something like
+
+```
+kibana = {
+    "image": "clusterhq/elasticsearch",
+    "volume": "/var/run/elasticsearch",
+    "environment": {
+        "ELASTICSEARCH_RESOURCE": "http://localhost:%d" % (elasticsearch_port_number,),
+    },
+    "routes": [alternate_https_port],
+    "links": [
+        ("elasticsearch-trac", elasticsearch_port_number),
+        ],
+}
+```
+
+Example - Application Configuration
+===================================
+
+Aggregate all of the applications
+
+```
+application_config = {
+    "trac": trac,
+    "pgsql-trac": postgresql,
+    "elasticsearch-trac": elasticsearch,
+    "kibana-trac": kibana,
+}
+```
+
+Example - Deployment Configuration
+==================================
+
+Explicitly place containers for the applications
+
+```
+deployment_config = {
+    "nodes": {
+        "1.1.1.1": ["trac", "pgsql-trac"],
+        "1.1.1.2": ["elasticsearch-trac", "kibana-trac"],
+    },
+}
+```
+
+Example - User Interaction
+==========================
+
+```
+$ flocker-cluster deploy application_config.yml deployment_config.yml
+$ echo $?
+0
+$
+```
