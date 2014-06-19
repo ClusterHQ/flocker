@@ -109,13 +109,42 @@ Managing Containers
 ===================
 
 * Gear is used to start, stop, and enumerate containers.
-* 
+* Gear works by creating systemd units.
+* Systemd units are a good way to provide admin tools for:
+  * logging and state inspection
+  * starting/stopping (including at boot)
+  * inter-unit dependency management
+  * lots of other stuff
+* Gear helps support the implementation of links
+
 
 Managing Volumes
 ================
 
+* Volumes are ZFS filesystems.
+* Volumes are attached to a Docker "data" container.
+* Gear automatically associates the "data" container's volumes with the actual container.
+  * Association is done based on container names by Gear.
+* Data model
+  * Volumes are owned by a specific machine.
+  * Machine A can push a copy to machine B but machine A still owns the volume.  Machine B may not modify its copy.
+  * Volumes can be "handed off" to another machine.  Machine A can hand off the volume to machine B.  Then machine B can modify the volume and machine A no longer can.
+* Volumes are pushed and handed off so as to follow the containers they are associated with.
+  * This happens automatically when ``flocker-cluster deploy`` runs with a new deployment configuration.
+
+
 Managing Routes
 ===============
 
+* Containers claim TCP port numbers with the application configuration that defines them.
+* Connections to that TCP port on the machine that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
+* Connections to that TCP port on any other machine in the Flocker cluster are proxied (NAT'd!) to the machine that is running the container.
+* Proxying is done using iptables.
+
+
 Managing Links
 ==============
+
+* Containers declare other containers they want to be able to talk to and on what port they expect to be able to do this.
+* Gear is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
+* The routes code makes ensures the connection is then proxy to the machine hosting the target container.
