@@ -25,7 +25,7 @@ def flocker_standard_options(cls):
 
         Calls the original ``cls.__init__`` method finally.
 
-        :param sys_module: An optional ``sys`` like fake module for use in
+        :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
         self._sys_module = kwargs.pop('sys_module', sys)
