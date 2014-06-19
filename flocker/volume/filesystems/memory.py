@@ -68,6 +68,6 @@ class FilesystemStoragePool(object):
     def enumerate(self):
         if self._root.isdir():
             return succeed({
-                    DirectoryFilesystem(path=path)
-                    for path in self._root.children()})
+                DirectoryFilesystem(path=path)
+                for path in self._root.children()})
         return succeed(set())
