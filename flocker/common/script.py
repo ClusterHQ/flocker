@@ -62,8 +62,8 @@ class FlockerScriptRunner(object):
     """An API for running standard flocker scripts.
 
     :ivar ICommandLineScript script: See ``script`` of ``__init__``.
-    :ivar callable _react: A reference to ``task.react`` which can be overridden
-        for testing purposes.
+    :ivar _react: A reference to ``task.react`` which can be overridden for
+        testing purposes.
     """
     _react = staticmethod(task.react)
 
