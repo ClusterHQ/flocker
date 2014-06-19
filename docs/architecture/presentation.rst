@@ -165,7 +165,6 @@ Example - trac configuration
 Maybe something like
 
 .. code-block::
-
   trac = {
       "image": "clusterhq/trac",
       "volume": "/opt/trac/env",
@@ -185,89 +184,89 @@ Example - postgresql configuration
 
 Maybe something like
 
-```
-postgresql = {
-    "image": "clusterhq/postgresql",
-    "volume": "/var/run/postgresql",
-    "routes": [pgsql_port_number],
-    "links": [],
-}
-```
+.. code-block::
+   postgresql = {
+       "image": "clusterhq/postgresql",
+       "volume": "/var/run/postgresql",
+       "routes": [pgsql_port_number],
+       "links": [],
+   }
+
 
 Example - elasticsearch configuration
 =====================================
 
 Maybe something like
 
-```
-elasticsearch = {
-    "image": "clusterhq/elasticsearch",
-    "volume": "/var/run/elasticsearch",
-    "routes": [elasticsearch_port_number],
-    "links": [],
-}
-```
+.. code-block::
+   elasticsearch = {
+       "image": "clusterhq/elasticsearch",
+       "volume": "/var/run/elasticsearch",
+       "routes": [elasticsearch_port_number],
+       "links": [],
+   }
+
 
 Example - kibana configuration
 ==============================
 
 Maybe something like
 
-```
-kibana = {
-    "image": "clusterhq/elasticsearch",
-    "volume": "/var/run/elasticsearch",
-    "environment": {
-        "ELASTICSEARCH_RESOURCE": "http://localhost:%d" % (elasticsearch_port_number,),
-    },
-    "routes": [alternate_https_port],
-    "links": [
-        ("elasticsearch-trac", elasticsearch_port_number),
-        ],
-}
-```
+.. code-block::
+   kibana = {
+       "image": "clusterhq/elasticsearch",
+       "volume": "/var/run/elasticsearch",
+       "environment": {
+           "ELASTICSEARCH_RESOURCE": "http://localhost:%d" % (elasticsearch_port_number,),
+       },
+       "routes": [alternate_https_port],
+       "links": [
+           ("elasticsearch-trac", elasticsearch_port_number),
+           ],
+   }
+
 
 Example - Application Configuration
 ===================================
 
 Aggregate all of the applications
 
-```
-application_config = {
-    "trac": trac,
-    "pgsql-trac": postgresql,
-    "elasticsearch-trac": elasticsearch,
-    "kibana-trac": kibana,
-}
-```
+.. code-block::
+   application_config = {
+       "trac": trac,
+       "pgsql-trac": postgresql,
+       "elasticsearch-trac": elasticsearch,
+       "kibana-trac": kibana,
+   }
+
 
 Example - Deployment Configuration
 ==================================
 
 Explicitly place containers for the applications
 
-```
-deployment_config = {
-    "nodes": {
-        "1.1.1.1": ["trac", "pgsql-trac"],
-        "1.1.1.2": ["elasticsearch-trac", "kibana-trac"],
-    },
-}
-```
+.. code-block::
+   deployment_config = {
+       "nodes": {
+           "1.1.1.1": ["trac", "pgsql-trac"],
+           "1.1.1.2": ["elasticsearch-trac", "kibana-trac"],
+       },
+   }
+
 
 Example - User Interaction
 ==========================
 
 Imagine some yaml files containing the previously given application and deployment configuration objects.
 
-```
-$ flocker-cluster deploy application_config.yml deployment_config.yml
-Deployed `trac` to 1.1.1.1.
-Deployed `elasticsearch-trac` to 1.1.1.2.
-Deployed `pgsql-trac` to 1.1.1.1.
-Deployed `kibana-trac` to 1.1.1.2.
-$
-```
+.. code-block::
+   $ flocker-cluster deploy application_config.yml deployment_config.yml
+   Deployed `trac` to 1.1.1.1.
+   Deployed `elasticsearch-trac` to 1.1.1.2.
+   Deployed `pgsql-trac` to 1.1.1.1.
+   Deployed `kibana-trac` to 1.1.1.2.
+   $
+
 
 Example - Alter Deployment
 ==========================
@@ -277,19 +276,17 @@ Give it an entire machine to itself.
 
 The deployment configuration changes to:
 
-```
-deployment_config = {
-    "nodes": {
-        "1.1.1.1": ["trac"],
-        "1.1.1.2": ["elasticsearch-trac", "kibana-trac", "pgsql-trac"],
-    },
-}
-```
+.. code-block::
+   deployment_config = {
+       "nodes": {
+           "1.1.1.1": ["trac"],
+           "1.1.1.2": ["elasticsearch-trac", "kibana-trac", "pgsql-trac"],
+       },
+   }
 
-```
-$ flocker-cluster deploy application_config.yml deployment_config.yml
-Re-deployed pgsql-trac from 1.1.1.1 to 1.1.1.2.
-$
-```
+.. code-block:: sh
+   $ flocker-cluster deploy application_config.yml deployment_config.yml
+   Re-deployed pgsql-trac from 1.1.1.1 to 1.1.1.2.
+   $
 
 Note that after pgsql-trac is moved it still has all of the same filesystem state as it had prior to the move.
