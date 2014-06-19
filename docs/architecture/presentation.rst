@@ -149,6 +149,7 @@ Managing Links
 * Gear is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
 * The routes code makes ensures the connection is then proxy to the machine hosting the target container.
 
+
 Example - Overview
 ==================
 
@@ -157,25 +158,27 @@ Example - Overview
 * trac and postgresql will run on one host (one cpu heavy container, one disk heavy container)
 * elasticsearch and kibana will run on a second host (same deal)
 
+
 Example - trac configuration
 ============================
 
 Maybe something like
 
-```
-trac = {
-    "image": "clusterhq/trac",
-    "volume": "/opt/trac/env",
-    "environment": {
-        "ELASTICSEARCH_PORT": unicode(elasticsearch_port_number),
-    },
-    "routes": [https_port_number],
-    "links": [
-        ("pgsql-trac", pgsql_port_number),
-        ("elasticsearch-trac", log_consumer_port_number),
-    ],
-}
-```
+.. code-block::
+
+  trac = {
+      "image": "clusterhq/trac",
+      "volume": "/opt/trac/env",
+      "environment": {
+          "ELASTICSEARCH_PORT": unicode(elasticsearch_port_number),
+      },
+      "routes": [https_port_number],
+      "links": [
+          ("pgsql-trac", pgsql_port_number),
+          ("elasticsearch-trac", log_consumer_port_number),
+      ],
+  }
+
 
 Example - postgresql configuration
 ==================================
