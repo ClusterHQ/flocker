@@ -140,7 +140,15 @@ class VolumeServiceAPITests(TestCase):
         actual = self.successResultOf(service2.enumerate())
         self.assertEqual(expected, set(actual))
 
-
+    def test_enumerate_a_volume_with_period(self):
+        """``enumerate()`` returns a volume previously ``create()``ed when its
+        name includes a period."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        expected = self.successResultOf(service.create(u"some.volume"))
+        actual = self.successResultOf(service.enumerate())
+        self.assertEqual([expected], list(actual))
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
