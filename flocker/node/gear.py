@@ -18,11 +18,13 @@ def workaround_geard_187():
     """Slight delay as workaround to
     https://github.com/openshift/geard/issues/187.
 
+    To be removed in https://github.com/hybridlogic/flocker/issues/105
+
     :param value: Value to set as value of result ``Deferred``.
 
     :return: ``Deferred`` that fires after short delay.
     """
-    return deferLater(reactor, 1, lambda: None)
+    return deferLater(reactor, 1.5, lambda: None)
 
 
 class AlreadyExists(Exception):
