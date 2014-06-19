@@ -41,6 +41,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
@@ -77,6 +78,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+
             def added(_):
                 self.addCleanup(client.remove, name)
                 return client.exists(name)

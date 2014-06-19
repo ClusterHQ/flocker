@@ -132,17 +132,17 @@ class GearClient(object):
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
             lambda _: self._request(b"PUT", unit_name,
-                                     data={u"Image": image_name,
-                                           u"Started": True}))
+                                    data={u"Image": image_name,
+                                          u"Started": True}))
         checked.addCallback(self._ensure_ok)
         return checked
-
 
     def exists(self, unit_name):
         # status isn't really intended for this usage; better to use
         # listing (with option to list all) as part of
         # https://github.com/openshift/geard/issues/187
         d = self._request(b"GET", unit_name, operation=b"status")
+
         def got_response(response):
             result = content(response)
             # Gear can return a variety of 2xx success codes:
