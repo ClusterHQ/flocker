@@ -157,8 +157,9 @@ class Volume(object):
         mount_path = mount_path.path
         d = _docker_command(reactor, [b"rm", self._container_name])
         d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(lambda _: _docker_command(reactor,
-                               [b"run", b"--name", self._container_name,
-                                b"--volume=%s:%s:rw" % (local_path, mount_path),
-                                b"busybox", b"/bin/true"]))
+        d.addCallback(lambda _: _docker_command(
+            reactor,
+            [b"run", b"--name", self._container_name,
+             b"--volume=%s:%s:rw" % (local_path, mount_path),
+             b"busybox", b"/bin/true"]))
         return d
