@@ -255,9 +255,38 @@ deployment_config = {
 Example - User Interaction
 ==========================
 
+Imagine some yaml files containing the previously given application and deployment configuration objects.
+
 ```
 $ flocker-cluster deploy application_config.yml deployment_config.yml
-$ echo $?
-0
+Deployed `trac` to 1.1.1.1.
+Deployed `elasticsearch-trac` to 1.1.1.2.
+Deployed `pgsql-trac` to 1.1.1.1.
+Deployed `kibana-trac` to 1.1.1.2.
 $
 ```
+
+Example - Alter Deployment
+==========================
+
+It turns out trac is the most resource hungry container.
+Give it an entire machine to itself.
+
+The deployment configuration changes to:
+
+```
+deployment_config = {
+    "nodes": {
+        "1.1.1.1": ["trac"],
+        "1.1.1.2": ["elasticsearch-trac", "kibana-trac", "pgsql-trac"],
+    },
+}
+```
+
+```
+$ flocker-cluster deploy application_config.yml deployment_config.yml
+Re-deployed pgsql-trac from 1.1.1.1 to 1.1.1.2.
+$
+```
+
+Note that after pgsql-trac is moved it still has all of the same filesystem state as it had prior to the move.
