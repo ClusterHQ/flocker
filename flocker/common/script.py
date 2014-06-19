@@ -71,7 +71,7 @@ class FlockerScriptRunner(object):
         """
         :param ICommandLineScript script: The script object to be run.
         :param usage.Options options: An option parser object.
-        :param sys_module: An optional ``sys`` like fake module for use in
+        :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
         self.reactor = reactor
