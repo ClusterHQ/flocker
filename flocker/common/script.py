@@ -4,7 +4,7 @@
 
 import sys
 
-from twisted.internet.task import react
+from twisted.internet import task
 from twisted.python import usage
 
 from zope.interface import Interface
@@ -65,7 +65,7 @@ class FlockerScriptRunner(object):
     :ivar callable _react: A reference to ``task.react`` which can be overridden
         for testing purposes.
     """
-    _react = staticmethod(react)
+    _react = staticmethod(task.react)
 
     def __init__(self, reactor, script, options, sys_module=None):
         """
