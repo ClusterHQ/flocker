@@ -28,7 +28,7 @@ def _gear_running():
     finally:
         sock.close()
 _if_gear_configured = skipIf(not _gear_running(),
-                             "Must run on machine with `gear daemon`.")
+                             "Must run on machine with `gear daemon` running.")
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
