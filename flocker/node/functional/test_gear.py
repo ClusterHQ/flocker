@@ -57,6 +57,7 @@ class GearClientTests(TestCase):
         """
         client = GearClient("127.0.0.1")
         d = client.add(name, u"openshift/busybox-http-app")
+        self.addCleanup(client.remove, name)
 
         def is_started(data):
             return [container for container in data[u"Containers"] if
@@ -75,7 +76,6 @@ class GearClientTests(TestCase):
             return responded
 
         def added(_):
-            self.addCleanup(client.remove, name)
             return loop_until(None, check_if_started)
         d.addCallback(added)
         return d
