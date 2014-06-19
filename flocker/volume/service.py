@@ -85,7 +85,6 @@ class VolumeService(Service):
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
                 #    https://github.com/hybridlogic/flocker/issues/78
-                import pdb; pdb.set_trace()
                 uuid, name = filesystem.get_path().basename().split(b".", 1)
                 yield Volume(
                     uuid=uuid.decode('utf8'),
