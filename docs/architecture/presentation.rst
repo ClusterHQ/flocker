@@ -165,6 +165,7 @@ Example - trac configuration
 Maybe something like
 
 .. code-block::
+
   trac = {
       "image": "clusterhq/trac",
       "volume": "/opt/trac/env",
@@ -185,6 +186,7 @@ Example - postgresql configuration
 Maybe something like
 
 .. code-block::
+
    postgresql = {
        "image": "clusterhq/postgresql",
        "volume": "/var/run/postgresql",
@@ -199,6 +201,7 @@ Example - elasticsearch configuration
 Maybe something like
 
 .. code-block::
+
    elasticsearch = {
        "image": "clusterhq/elasticsearch",
        "volume": "/var/run/elasticsearch",
@@ -213,6 +216,7 @@ Example - kibana configuration
 Maybe something like
 
 .. code-block::
+
    kibana = {
        "image": "clusterhq/elasticsearch",
        "volume": "/var/run/elasticsearch",
@@ -232,6 +236,7 @@ Example - Application Configuration
 Aggregate all of the applications
 
 .. code-block::
+
    application_config = {
        "trac": trac,
        "pgsql-trac": postgresql,
@@ -246,6 +251,7 @@ Example - Deployment Configuration
 Explicitly place containers for the applications
 
 .. code-block::
+
    deployment_config = {
        "nodes": {
            "1.1.1.1": ["trac", "pgsql-trac"],
@@ -260,6 +266,7 @@ Example - User Interaction
 Imagine some yaml files containing the previously given application and deployment configuration objects.
 
 .. code-block::
+
    $ flocker-cluster deploy application_config.yml deployment_config.yml
    Deployed `trac` to 1.1.1.1.
    Deployed `elasticsearch-trac` to 1.1.1.2.
@@ -277,6 +284,7 @@ Give it an entire machine to itself.
 The deployment configuration changes to:
 
 .. code-block::
+
    deployment_config = {
        "nodes": {
            "1.1.1.1": ["trac"],
@@ -285,6 +293,7 @@ The deployment configuration changes to:
    }
 
 .. code-block:: sh
+
    $ flocker-cluster deploy application_config.yml deployment_config.yml
    Re-deployed pgsql-trac from 1.1.1.1 to 1.1.1.2.
    $
