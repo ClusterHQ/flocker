@@ -34,3 +34,66 @@ Flocker - Cross-container Communication
 
 * Container configuration describes links (port numbers) which are required to other containers. E.g. your web application container needs to talk to your database.
 * Connections to any linked port inside the source container are routed to the correct port inside the target container.
+
+
+Flocker - Application State
+===========================
+
+* Flocker manages ZFS filesystems as Docker volumes.  It attaches them to your containers.
+* Flocker provides tools for copying those volumes between machines.
+* If an application container is moved from one machine to another, Flocker automatically moves the volume with it.
+
+
+User Experience
+===============
+
+* Flocker provides a command-line interface for manually deploying or re-deploying containers across machines.
+* The tool operates on two distinct pieces of configuration:
+  * Application
+  * Deployment
+* Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
+
+
+Application Configuration
+=========================
+
+ * Application configuration describes what you want to run in a container.
+   * it identifies a Docker image
+   * a volume mountpoint
+   * other containers to link to
+   * externally "routed" ports
+ * This configuration is expected to be shared between development, staging, production, etc environments.
+ * Flocker 0.1 may not support automatic re-deployment of application configuration changes
+
+
+Deployment Configuration
+========================
+
+* Deployment configuration describes how you want your containers deployed.
+  * which machines run which containers
+* This configuration can vary between development, staging, production, etc environments
+  * Developer might want to deploy all of the containers on their laptop
+  * Production might put database on one machine, web server on another machine, etc
+* Reacting to changes to this configuration is the primary focus of Flocker 0.1.
+
+
+Overall Implementation Strategy
+===============================
+
+* Don't Panic.
+* This is the 0.1 approach.
+* Future approaches will be very different.
+
+
+Overall Implementation Strategy
+===============================
+
+* All functionality is provided as short-lived, manually invoked processes.
+* ``flocker-cluster deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
+* Machines might connect to each other over SSH to copy volume data to the necessary place.
+
+
+flocker-node
+============
+
+* 
