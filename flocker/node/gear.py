@@ -6,7 +6,7 @@ import json
 
 from zope.interface import Interface, implementer
 
-from twisted.web.http import OK, NO_CONTENT, NOT_FOUND
+from twisted.web.http import NOT_FOUND
 from twisted.internet.defer import succeed, fail
 from twisted.internet import reactor
 from twisted.internet.task import deferLater
@@ -113,8 +113,8 @@ class GearClient(object):
 
         :param response: Response from treq request.
 
-        :return: ``Deferred`` that errbacks with ``GearError`` if response
-            is not OK.
+        :return: ``Deferred`` that errbacks with ``GearError`` if the response
+            is not successful (2xx HTTP response code).
         """
         d = content(response)
         # geard uses a variaty of 2xx response codes. Filed treq issue
@@ -143,7 +143,8 @@ class GearClient(object):
         d = self._request(b"GET", unit_name, operation=b"status")
         def got_response(response):
             result = content(response)
-            if response.code in (OK, NO_CONTENT):
+            # Gear can return a variety of 2xx success codes:
+            if response.code // 100 == 2:
                 result.addCallback(lambda _: True)
             elif response.code == NOT_FOUND:
                 result.addCallback(lambda _: False)
