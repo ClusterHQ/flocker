@@ -20,6 +20,10 @@ from ..gear import GearClient, GearError
 
 
 def _gear_running():
+    """Return whether gear is running on this machine.
+
+    :return: ``True`` if gear can be reached, otherwise ``False``.
+    """
     if not which("gear"):
         return False
     sock = socket.socket()
