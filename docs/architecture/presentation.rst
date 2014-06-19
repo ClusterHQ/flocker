@@ -96,4 +96,26 @@ Overall Implementation Strategy
 flocker-node
 ============
 
+* Installed and runs on machines participating in the Flocker cluster.
+* Accepts the desired global configuration
+* Looks at local state - running containers, configured network proxies, etc
+* Makes changes to local state so that it complies with the desired global configuration
+  * Start or stop containers
+  * Push volume data to other machines
+  * Add or remove routing configuration
+
+
+Managing Containers
+===================
+
+* Gear is used to start, stop, and enumerate containers.
 * 
+
+Managing Volumes
+================
+
+Managing Routes
+===============
+
+Managing Links
+==============
