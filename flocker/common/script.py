@@ -104,7 +104,7 @@ class FlockerScriptRunner(object):
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
         options = self._parseOptions(self.sys_module.argv[1:])
-        self._react(self.script.main, (options,))
+        self._react(self.script.main, (options,), _reactor=self.reactor)
 
 
 __all__ = [

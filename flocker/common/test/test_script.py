@@ -170,27 +170,12 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         options = SpyOptions()
         script = SpyScript()
         sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
-
+        from twisted.test.test_task import _FakeReactor
+        fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(
-            reactor=None, script=script, options=options, sys_module=sys)
+            reactor=fakeReactor, script=script, options=options, sys_module=sys)
 
-        class TestSystemExit(SystemExit):
-            """A subclass to demonstrate that self._react has been called"""
-
-        dummyReactor = object()
-
-        def fakeReact(main, argv):
-            """A fake version of ``task.react``
-
-            Used to avoid running the real reactor in tests.
-            """
-
-            self.successResultOf(main(dummyReactor, *argv))
-            raise TestSystemExit(0)
-        runner._react = fakeReact
-
-        self.assertRaises(TestSystemExit, runner.main)
-
+        self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)
 
 
