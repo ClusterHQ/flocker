@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# ZFS setup, until RPMs are available for Fedora 20:
+# Script to build binary rpms of zfs kernel modules.
+# Run this in the vagrant image, and it will create a
+# yum repository in zfs-kmod.
+
 cd ~
 git clone https://github.com/zfsonlinux/zfs.git
 git clone https://github.com/zfsonlinux/spl.git
