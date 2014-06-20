@@ -83,7 +83,7 @@ class FlockerScriptRunner(object):
         """
         self.script = script
         self.options = options
-        self.reactor = reactor
+        self._reactor = reactor
 
         if sys_module is None:
             sys_module = sys
@@ -113,4 +113,4 @@ class FlockerScriptRunner(object):
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
-        self._react(self.script.main, (options,), _reactor=self.reactor)
+        self._react(self.script.main, (options,), _reactor=self._reactor)
