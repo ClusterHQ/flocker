@@ -53,7 +53,7 @@ You can run all unit tests by doing::
    $ tox
 
 Functional tests require ``ZFS``, ``geard`` and ``docker`` to be installed and in the case of the latter two running as well.
-In addition, ``tox`` needs to be run as root.
+In addition, ``tox`` needs to be run as root::
 
    $ sudo tox
 
@@ -73,15 +73,18 @@ Ready
 
 In Progress
     Such issues are assigned to the developer who is currently working on them.
+    This is indicated by a ``in progress`` label.
     When the code is ready for review a new pull request is opened.
     The pull request is added to the *Review* category.
 
-Review
+Ready for Review
     A pull request that is ready to be reviewed.
+    This is indicated by a ``review`` label.
     A reviewer can move it to the *In Progress* category or the *Approved* category.
 
 Passed Review
     A pull request that has some minor problems that need addressing, and can be merged once those are dealt with and all tests pass.
+    This is indicated by a ``accepted`` label.
 
 Done
     Closed issues and pull requests.
@@ -97,73 +100,93 @@ Backlog
 
 You can see the current status of all issues and pull requests by visiting https://waffle.io/hybridlogic/flocker.
 In general issues will move from *Backlog* to *Ready* to *In Progress*.
-An in-progress issue will have a branch with the issue number in its name, e.g. ``fix-thingie-123``.
+An in-progress issue will have a branch with the issue number in its name,
 When the branch is ready for review a pull request will be created in the *Review* category.
-When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
-
-
-Steps to contribute code - internal contributors
-================================================
-
-    1. Pick the next issue in `the tracker <https://www.pivotaltracker.com/n/projects/1069998>`_.
-       Click the ``Start`` button on the issue in `the tracker`_.
-
-    2. Create a branch from master with a name including a few descriptive words and ending with the issue number.
-
-    3. Resolve the issue by making changes in the branch.
-
-    4. Use the continuous integration system to verify the test suite is passing (TODO: Set up continuous integration; automate this step).
-
-    5. Submit the issue/branch for review.
-       Create a pull request on GitHub for the branch.
-       Link to the issue in the tracker.
-       Create a reciprocal link on the issue in `the tracker`_.
-       Click the ``Deliver`` button on the issue in `the tracker`_.
-
-    6. Address any points raised by the reviewer.
-       If requested, go back to step 5.
-
-    7. Merge the branch into master (TODO: Determine if this means clicking the green button on the github PR page).
+When the branch is merged the corresponding pull requests and issues will be closed.
 
 
 Steps to contribute code - external contributors
 ================================================
 
+1. Open an issue if one does not already exist.
 
-Steps to contribute reviews
-===========================
+2. If the problem is non-trivial discuss the issue and best solution with the core development team via the issue.
 
-    1. Pick an issue in `the tracker`_ that has been submitted for review.
+3. Fork the repository on github.
+   Add a note in the issue so people know you're working on it.
 
-    2. Use the continuous integration system to verify the test suite is passing (TODO: Set up continuous integration; automate this step).
+4. Implement your change.
+   Tests are required to get your code merged, but you can prototype a change and submit for review if you want some feedback on your design.
 
-    3. Verify the code satisfies the Requirements for Contribution (see below).
+5. Do a pull request.
+   Make sure to indicate which issue this will fix.
 
-    4. Verify the change satisfies the requirements specified on the issue.
+6. Address any points raised by the reviewer.
 
-    5. Think hard about whether the code is good or bad.
-
-    6. Leave comments on the github PR page about any of these areas where you find problems.
-
-    7. Leave a comment on the github PR page explicitly approving or rejecting the change.
-       If you accept the PR and no final changes are required then use the GitHub merge button to merge the branch.
-       If you accept the PR (whether you merge it or not) click the ``Accept`` button on the issue in `the tracker`_.
-       If you do not accept the PR click the ``Reject`` button on the issue in `the tracker`_.
 
 Requirements for Contributions
 ==============================
 
-    * All code must have unit test coverage.
-      Use the coverage.py tool with the `--branch` option to generate line and branch coverage reports.
-      This report can tell you if you missed anything.
-      It does not necessarily catch everything though.
-      Treat it as a helper but not the definitive indicator of success.
-      Practice test-driven development to ensure all code has test coverage.
+* All code must have unit test coverage and to the extent possible functional test coverage.
+  Use the coverage.py tool with the `--branch` option to generate line and branch coverage reports.
+  This report can tell you if you missed anything.
+  It does not necessarily catch everything though.
+  Treat it as a helper but not the definitive indicator of success.
+  You can also see coverage output in the Buildbot details link of your pull request.
+  Practice test-driven development to ensure all code has test coverage.
 
-    * All code must have documentation.
-      Modules, functions, classes, and methods must be documented (even if they are private or nested).
-      Function parameters and object attributes must be documented (even if they are private).
+* All code must have documentation.
+  Modules, functions, classes, and methods must be documented (even if they are private).
+  Function parameters and object attributes must be documented (even if they are private).
 
-    * All user-facing tools must have documentation.
-      Document tool usage as part of big-picture documentation.
-      Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+* All user-facing tools must have documentation.
+  Document tool usage as part of big-picture documentation.
+  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+
+* Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
+
+
+Internal Developers
+===================
+
+Steps to contribute code
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. Pick the next issue in the *Ready* category.
+   Drag it to the *In Progress* column in Waffle (or change the label from ``ready`` to ``in progress`` in Github).
+
+2. Create a branch from master with a name including a few descriptive words and ending with the issue number, e.g. ``add-thingie-123``.
+
+3. Resolve the issue by making changes in the branch.
+
+4. Submit the issue/branch for review.
+   Create a pull request on GitHub for the branch.
+   Make sure Buildbot indicates all tests pass.
+   Add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle).
+
+5. Address any points raised by the reviewer.
+   If requested, go back to step 4.
+
+6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
+   When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
+
+
+Steps to contribute reviews
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. Pick a pull request in Github/Waffle that is ready for review (``review`` label/*Review* category).
+
+2. Use the continuous integration information in the PR to verify the test suite is passing.
+
+3. Verify the code satisfies the Requirements for Contribution (see above).
+
+4. Verify the change satisfies the requirements specified on the issue.
+
+5. Think hard about whether the code is good or bad.
+
+6. Leave comments on the github PR page about any of these areas where you find problems.
+
+7. Leave a comment on the github PR page explicitly approving or rejecting the change.
+   If you accept the PR and no final changes are required then use the GitHub merge button to merge the branch.
+   If you accept the PR but changes are needed move it to the *Review Passed* column in Waffle or change its label from ``review`` to ``approved``.
+   If you do not accept the PR move it to the *In Progress* column in Waffle or change its label from ``review`` to ``in progress``.
