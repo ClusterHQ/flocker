@@ -14,6 +14,13 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
 
+__all__ = [
+    'flocker_volume_main',
+    'VolumeOptions',
+    'VolumeScript',
+]
+
+
 @flocker_standard_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
@@ -77,10 +84,3 @@ def flocker_volume_main():
         script=VolumeScript(),
         options=VolumeOptions()
     ).main()
-
-
-__all__ = [
-    'flocker_volume_main',
-    'VolumeOptions',
-    'VolumeScript',
-]
