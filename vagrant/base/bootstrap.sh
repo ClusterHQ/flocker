@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This script builds the base flocker-dev box.
+
 set -e
 
 # Install useful yum repos
