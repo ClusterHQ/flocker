@@ -1,11 +1,18 @@
 flocker
 =======
 
-Flocker is a command line tool that let's you easily manage distributed Docker containers and their volumes. Even stateless apps run many stateful services (logging, queues, databases, etc) and currently running these services in Docker containers in production is nearly impossible. Flocker aims to solve this problem by providing an orchestration framework that addresses the problem of state. This document mainly describes the architecture &amp; features that will be present in the 0.1 release.  Areas for potential future development are discussed at the end.
+Flocker is a command line tool that let's you easily manage distributed Docker containers and their volumes. 
+Even stateless apps run many stateful services (logging, queues, databases, etc) and currently running these services in Docker containers in production is nearly impossible. 
+Flocker aims to solve this problem by providing an orchestration framework that addresses the problem of state. 
+This document mainly describes the architecture &amp; features that will be present in the 0.1 release.  
+Areas for potential future development are discussed at the end.
 
-This project is under active development and version 0.1 will be released soon under and Apache 2.0 license.  Until you can start hacking on it with us, please submit an issue if you have a question or feature request prior to the initial release. You can also star or watch this repo to stay up-to-date on what is happening.  
+This project is under active development and version 0.1 will be released soon under and Apache 2.0 license.  
+Until you can start hacking on it with us, please submit an issue if you have a question or feature request prior to the initial release. 
+You can also star or watch this repo to stay up-to-date on what is happening.  
 
-Flocker is being developed by `ClusterHQ`_.  ClusterHQ is a small team of engineers with experience running distributed systems and includes many of the core contributors to the Twisted Python project.
+Flocker is being developed by `ClusterHQ`_.  
+ClusterHQ is a small team of engineers with experience running distributed systems and includes many of the core contributors to the Twisted Python project.
 
 Table of Contents
 =================
@@ -137,7 +144,8 @@ Managing Volumes
   * Association is done based on container names by Geard.
 * Data model
   * Volumes are owned by a specific machine.
-  * Machine A can push a copy to machine B but machine A still owns the volume.  Machine B may not modify its copy.
+  * Machine A can push a copy to machine B but machine A still owns the volume.  
+  Machine B may not modify its copy.
   * Volumes can be "handed off" to another machine.  Machine A can hand off the volume to machine B.  Then machine B can modify the volume and machine A no longer can.
 * Volumes are pushed and handed off so as to follow the containers they are associated with.
   * This happens automatically when ``flocker-cluster deploy`` runs with a new deployment configuration.
