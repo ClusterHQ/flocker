@@ -111,7 +111,8 @@ Deployment configuration
 * All functionality is provided as short-lived, manually invoked processes.
 * ``flocker-cluster deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
 * Machines might connect to each other over SSH to copy volume data to the necessary place.
-* Future approaches will be very different.  Feedback welcome.
+* Future approaches will be very different.  
+  Feedback welcome.
 
 flocker-node
 ------------
