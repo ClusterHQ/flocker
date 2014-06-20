@@ -34,7 +34,7 @@ setup(
     entry_points = {
         # Command-line programs we want setuptools to install:
         'console_scripts': [
-            'flocker-volume = flocker.volume.script:main',
+            'flocker-volume = flocker.volume.script:flocker_volume_main',
         ],
     },
 
