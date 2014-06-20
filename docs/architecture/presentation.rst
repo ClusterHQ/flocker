@@ -16,12 +16,12 @@ ClusterHQ is a small team of engineers with experience running distributed syste
 
 **Table of Contents**
 
- 0. Motivation for building Flocker
- 1. Architecture
- 2. Overall implementation strategy
- 3. User experience
- 4. Example- running trac with PostgresSQL and Elasticsearch
- 5. Areas of potential future development
+0. Motivation for building Flocker
+1. Architecture
+2. Overall implementation strategy
+3. User experience
+4. Example- running trac with PostgresSQL and Elasticsearch
+5. Areas of potential future development
 
 0. Motivation for building Flocker
 ===============================
