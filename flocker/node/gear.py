@@ -127,14 +127,15 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, internal_port=None, external_port=None):
         checked = self.exists(unit_name)
+        data = {u"Image": image_name, u"Started": True}
+        if internal_port is not None:
+            data['Ports'] = [{u'Internal': internal_port, u'External': external_port}]
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._request(b"PUT", unit_name,
-                                    data={u"Image": image_name,
-                                          u"Started": True}))
+            lambda _: self._request(b"PUT", unit_name, data=data))
         checked.addCallback(self._ensure_ok)
         return checked
 
