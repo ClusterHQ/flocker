@@ -13,6 +13,7 @@ Contents:
 
    architecture/index
    volume/index
+   infrastructure/index
 
 
 Indices and tables
