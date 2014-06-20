@@ -4,6 +4,8 @@ Vagrant
 There is a :file:`Vagrantfile` in the base of the repository,
 that is preinstalled with all of the dependencies required to run flocker.
 
+See the `vagrant documentation <http://docs.vagrantup.com/v2/>`_ for more details.
+
 Base Image
 ----------
 
