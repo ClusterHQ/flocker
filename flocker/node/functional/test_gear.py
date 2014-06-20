@@ -52,7 +52,7 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name):
+    def start_container(self, name, internal_port=None, external_port=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
@@ -60,7 +60,7 @@ class GearClientTests(TestCase):
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app")
+        d = client.add(name, u"openshift/busybox-http-app", internal_port=internal_port, external_port=external_port)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -136,3 +136,25 @@ class GearClientTests(TestCase):
         # remove it:
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
+
+
+    def test_add_with_port(self):
+        """
+        GearClient.add accepts an internal_port argument which is passed to gear
+        to expose that port on the unit.
+        """
+        external_port = 4040
+        name = random_name()
+        d = self.start_container(
+            name, internal_port=8080, external_port=external_port)
+
+        expected_response = b'Hello world'
+        def started(_):
+            responded = request(
+                b"GET", b"http://127.0.0.1:%d" % (external_port,),
+                persistent=False)
+            responded.addCallback(content)
+            self.assertEqual(expected_response, content)
+
+        d.addCallback(started)
+        return d
