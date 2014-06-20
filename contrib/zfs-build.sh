@@ -4,6 +4,8 @@
 # Run this in the vagrant image, and it will create a
 # yum repository in zfs-kmod.
 
+set -e
+
 cd ~
 git clone https://github.com/zfsonlinux/zfs.git
 git clone https://github.com/zfsonlinux/spl.git

@@ -6,6 +6,7 @@ VAGRANTFILE_API_VERSION = "2"
 
 
 $bootstrap = <<SCRIPT
+set -e
 yum install -y zfs
 
 systemctl enable docker
