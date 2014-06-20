@@ -82,7 +82,7 @@ class FlockerScriptRunner(object):
             sys_module = sys
         self.sys_module = sys_module
 
-    def _parseOptions(self, arguments):
+    def _parse_options(self, arguments):
         """Parse the options defined in the script's options class.
 
         ``UsageError``s are caught and printed to `stderr` and the script then
@@ -102,7 +102,7 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
-        options = self._parseOptions(self.sys_module.argv[1:])
+        options = self._parse_options(self.sys_module.argv[1:])
         self._react(self.script.main, (options,), _reactor=self.reactor)
 
 

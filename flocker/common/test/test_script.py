@@ -101,11 +101,11 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
 
 
 class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
-    """Tests for :py:meth:`FlockerScriptRunner._parseOptions`."""
+    """Tests for :py:meth:`FlockerScriptRunner._parse_options`."""
 
-    def test_parseOptions(self):
+    def test_parse_options(self):
         """
-        ``FlockerScriptRunner._parseOptions`` accepts a list of arguments,
+        ``FlockerScriptRunner._parse_options`` accepts a list of arguments,
         passes them to the `parseOptions` method of its ``options`` attribute
         and returns the populated options instance.
         """
@@ -116,12 +116,12 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         expectedArguments = [object(), object()]
         runner = FlockerScriptRunner(
             reactor=None, script=None, options=OptionsSpy())
-        options = runner._parseOptions(expectedArguments)
+        options = runner._parse_options(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
-    def test_parseOptionsUsageError(self):
+    def test_parse_options_usage_error(self):
         """
-        `FlockerScriptRunner._parseOptions` catches `usage.UsageError`
+        `FlockerScriptRunner._parse_options` catches `usage.UsageError`
         exceptions and writes the help text and an error message to `stderr`
         before exiting with status 1.
         """
@@ -139,7 +139,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         runner = FlockerScriptRunner(
             reactor=None, script=None, options=FakeOptions(),
             sys_module=fake_sys)
-        error = self.assertRaises(SystemExit, runner._parseOptions, [])
+        error = self.assertRaises(SystemExit, runner._parse_options, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = fake_sys.stderr.getvalue()
         self.assertEqual(
