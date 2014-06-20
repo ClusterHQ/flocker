@@ -18,7 +18,7 @@ BuildRequires:  python
 BuildRequires:  python-setuptools
 # For tests
 BuildRequires:  python-twisted
-BuildRequires:  python-eliot = 0.4.0
+BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
 BuildRequires:  python-characteristic
 BuildRequires:  pytz
 BuildRequires:  python-ipaddr
@@ -28,7 +28,7 @@ BuildRequires:  docker-io
 
 Requires:       python
 Requires:       python-twisted
-Requires:       python-eliot = 0.4.0
+Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       python-characteristic
 Requires:       pytz
 Requires:       python-ipaddr
