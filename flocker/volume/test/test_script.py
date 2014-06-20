@@ -51,9 +51,9 @@ class VolumeScriptMainTests(SynchronousTestCase):
     """
     Tests for ``VolumeScript.main``.
     """
-    def test_createConfigurationError(self):
+    def test_create_configuration_error(self):
         """
-        ``VolumeScript.main`` catches ``CreateConfigurationError`` s raised by
+        ``VolumeScript.main`` catches ``CreateConfigurationError``\ s raised by
         ``startService`` and writes an error message to stderr before exiting
         with code 1.
         """
