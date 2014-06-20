@@ -34,7 +34,8 @@ Requires:       pytz
 Requires:       python-ipaddr
 Requires:       python-netifaces
 Requires:       docker-io
-Requires:	/sbin/iptables
+Requires:       /sbin/iptables
+Requires:       geard
 
 %description
 probably a replication-based fail-over product
