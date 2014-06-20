@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Install useful yum repos
 yum localinstall -y http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
 curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo
@@ -19,5 +21,5 @@ yum install -y python-cffi python-netifaces
 
 # Cleanup
 rm -rf /tmp/* /var/tmp/*
-dd if=/dev/zero of=/EMPTY bs=1M
+dd if=/dev/zero of=/EMPTY bs=1M || true
 rm -f /EMPTY
