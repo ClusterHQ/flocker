@@ -2,8 +2,29 @@
 Contributing to Flocker
 =======================
 
-Requirements
+Introduction
 ============
+
+ClusterHQ develops software using a variation of the `Ultimate Quality Development System`_.
+
+* Each unit of work is defined in an issue in the issue tracker and developed on a branch.
+* Code is written using test-driven development.
+* The issue is closed by merging the branch (via a GitHub pull request).
+* Before a branch is merged it must pass code review.
+* The code reviewer ensures that the pull request:
+    * Follows the coding standard (Python's PEP 8).
+    * Includes appropriate documentation.
+    * Has full test coverage (unit tests and functional tests).
+    * The tests pass in the continuous integration system (Buildbot).
+    * Resolves the issue.
+* The code reviewer can approve the pull request for merging as is, with some changes, or request changes and an additional review.
+
+.. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
+.. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
+
+
+Development requirements
+========================
 
 * To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
   ``geard`` requires an operating system with ``systemd``.
@@ -38,11 +59,51 @@ In addition, ``tox`` needs to be run as root.
 
 Since these tests involve global state on your machine (filesystems, iptables, docker containers, etc.) we recommend running them in the development Vagrant image.
 
+
 Project development process
 ===========================
 
-Steps to contribute code
-========================
+The core development team uses GitHub issues to track planned work.
+Issues are organized by release milestones, and then by subcategories:
+
+Ready
+    Issues that are ready to be worked on.
+    This is indicated by a ``ready`` label.
+    When someone starts work on an issue it is moved to the *In Progress* category.
+
+In Progress
+    Such issues are assigned to the developer who is currently working on them.
+    When the code is ready for review a new pull request is opened.
+    The pull request is added to the *Review* category.
+
+Review
+    A pull request that is ready to be reviewed.
+    A reviewer can move it to the *In Progress* category or the *Approved* category.
+
+Passed Review
+    A pull request that has some minor problems that need addressing, and can be merged once those are dealt with and all tests pass.
+
+Done
+    Closed issues and pull requests.
+
+Blocked
+    Issues that can't be worked on because they are waiting on some other work to be completed.
+    This is indicated by a ``blocked`` label.
+
+Backlog
+    Issues we don't expect to do in the release.
+    These issues don't have any particular category label.
+
+
+You can see the current status of all issues and pull requests by visiting https://waffle.io/hybridlogic/flocker.
+In general issues will move from *Backlog* to *Ready* to *In Progress*.
+An in-progress issue will have a branch with the issue number in its name, e.g. ``fix-thingie-123``.
+When the branch is ready for review a pull request will be created in the *Review* category.
+When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
+
+
+Steps to contribute code - internal contributors
+================================================
 
     1. Pick the next issue in `the tracker <https://www.pivotaltracker.com/n/projects/1069998>`_.
        Click the ``Start`` button on the issue in `the tracker`_.
@@ -63,6 +124,11 @@ Steps to contribute code
        If requested, go back to step 5.
 
     7. Merge the branch into master (TODO: Determine if this means clicking the green button on the github PR page).
+
+
+Steps to contribute code - external contributors
+================================================
+
 
 Steps to contribute reviews
 ===========================
