@@ -19,7 +19,7 @@ class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     """
     script = VolumeScript
     options = VolumeOptions
-    command_name = 'flocker-volume'
+    command_name = u'flocker-volume'
 
 
 class VolumeScriptInitTests(SynchronousTestCase):

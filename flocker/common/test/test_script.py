@@ -23,12 +23,13 @@ def help_problems(command_name, help_text):
 
     :param unicode command_name: The name of the command which should appear in
         the help text.
-    :param unicode help_text: The full help text to be inspected.
+    :param bytes help_text: The full help text to be inspected.
     :return: A list of problems found with the supplied ``help_text``.
     :rtype: list
     """
     problems = []
-    expected_start = b'Usage: {command}'.format(command=command_name)
+    expected_start = u'Usage: {command}'.format(
+        command=command_name).encode('utf8')
     if not help_text.startswith(expected_start):
         problems.append(
             'Does not begin with {expected}. Found {actual} instead'.format(
@@ -145,7 +146,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         self.assertEqual(
             (1, [], expectedErrorMessage),
             (error.code,
-             help_problems('test_command', errorText),
+             help_problems(u'test_command', errorText),
              errorText[-len(expectedErrorMessage):])
         )
 
