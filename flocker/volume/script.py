@@ -73,9 +73,7 @@ class VolumeScript(object):
 
 
 def flocker_volume_main():
-    from twisted.internet import reactor
     return FlockerScriptRunner(
-        reactor=reactor,
         script=VolumeScript(),
         options=VolumeOptions()
     ).main()

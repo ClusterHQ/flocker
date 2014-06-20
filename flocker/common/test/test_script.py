@@ -24,7 +24,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         self.assertIs(
             sys,
             FlockerScriptRunner(
-                reactor=None, script=None, options=None).sys_module
+                script=None, options=None).sys_module
         )
 
     def test_sys_override(self):
@@ -34,7 +34,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         dummySys = object()
         self.assertIs(
             dummySys,
-            FlockerScriptRunner(reactor=None, script=None, options=None,
+            FlockerScriptRunner(script=None, options=None,
                                 sys_module=dummySys).sys_module
         )
 
@@ -44,7 +44,7 @@ class FlockerScriptRunnerInitTests(SynchronousTestCase):
         """
         self.assertIs(
             task.react,
-            FlockerScriptRunner(reactor=None, script=None, options=None)._react
+            FlockerScriptRunner(script=None, options=None)._react
         )
 
 
@@ -62,8 +62,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
                 self.parseOptionsArguments = arguments
 
         expectedArguments = [object(), object()]
-        runner = FlockerScriptRunner(
-            reactor=None, script=None, options=OptionsSpy())
+        runner = FlockerScriptRunner(script=None, options=OptionsSpy())
         options = runner._parse_options(expectedArguments)
         self.assertEqual(expectedArguments, options.parseOptionsArguments)
 
@@ -84,9 +83,8 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
 
         fake_sys = FakeSysModule()
 
-        runner = FlockerScriptRunner(
-            reactor=None, script=None, options=FakeOptions(),
-            sys_module=fake_sys)
+        runner = FlockerScriptRunner(script=None, options=FakeOptions(),
+                                     sys_module=fake_sys)
         error = self.assertRaises(SystemExit, runner._parse_options, [])
         expectedErrorMessage = b'ERROR: %s\n' % (expectedMessage,)
         errorText = fake_sys.stderr.getvalue()
@@ -123,8 +121,8 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
-        runner = FlockerScriptRunner(
-            fakeReactor, script, options, sys_module=sys)
+        runner = FlockerScriptRunner(script, options,
+                                     reactor=fakeReactor, sys_module=sys)
 
         self.assertRaises(SystemExit, runner.main)
         self.assertEqual(b"world", script.arguments.value)

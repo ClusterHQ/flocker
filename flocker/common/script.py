@@ -74,16 +74,16 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
-    def __init__(self, reactor, script, options, sys_module=None):
+    def __init__(self, script, options, reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
         :param usage.Options options: An option parser object.
         :param sys_module: An optional ``sys`` like module for use in
             testing. Defaults to ``sys``.
         """
-        self.reactor = reactor
         self.script = script
         self.options = options
+        self.reactor = reactor
 
         if sys_module is None:
             sys_module = sys
