@@ -15,17 +15,6 @@ from treq import request, content
 GEAR_PORT = 43273
 
 
-def workaround_geard_187():
-    """Slight delay as workaround to
-    https://github.com/openshift/geard/issues/187.
-
-    To be removed in https://github.com/hybridlogic/flocker/issues/105
-
-    :return: ``Deferred`` that fires after short delay.
-    """
-    return succeed(None)
-
-
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
@@ -101,10 +90,7 @@ class GearClient(object):
             url += b"/" + operation
         if data is not None:
             data = json.dumps(data)
-        d = workaround_geard_187()
-        d.addCallback(lambda _: request(method, url, data=data,
-                                        persistent=False))
-        return d
+        return request(method, url, data=data, persistent=False)
 
     def _ensure_ok(self, response):
         """Make sure response indicates success.
