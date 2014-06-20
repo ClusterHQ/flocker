@@ -14,7 +14,8 @@ Until you can start hacking on it with us, star this repo to stay up-to-date on 
 Flocker is being developed by `ClusterHQ`_.  
 ClusterHQ is a small team of engineers with experience running distributed systems and includes many of the core contributors to the Twisted Python project.
 
-**Table of Contents**
+Table of Contents
+=================
 
 0. Motivation for building Flocker
 1. Architecture
