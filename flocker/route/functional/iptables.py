@@ -6,6 +6,37 @@ Testing tools related to iptables.
 
 from subprocess import PIPE, Popen, check_output
 
+
+def get_iptables_rules():
+    """
+    Return a list of :command:`iptables-save`-formatted rule strings with
+    comments and packet/byte counter lines removed.
+
+    This also removes the information about the default policy for chains
+    (which might someday be important).
+    """
+    # Naive use of iptables-save | iptables-restore isn't actually a safe
+    # way to restore original configuration.
+    # https://bugzilla.netfilter.org/show_bug.cgi?id=960
+    tables = [b"filter", b"nat", b"mangle", b"raw", b"security"]
+
+    # Add material to flush every table first.  This overcomes the lack of
+    # information about "empty" tables in the bare iptables-save output.
+    flush_rules = "".join(
+        "*{table}\nCOMMIT\n".format(table=table) for table in tables)
+    rules = flush_rules + check_output([b"iptables-save"])
+    return [
+            rule
+            for rule in rules.splitlines()
+            # Comments don't matter.  They always differ because they
+            # include timestamps.
+            if not rule.startswith("#")
+            # Chain data could matter but doesn't.  The implementation
+            # doesn't mess with this stuff.  It typically differs in
+            # uninteresting ways - such as matched packet counters.
+            and not rule.startswith(":")]
+
+
 class _Preserver(object):
     """
     Implementation helper for :py:func:`preserve_iptables`.
@@ -14,16 +45,7 @@ class _Preserver(object):
         """
         Use ``iptables-save`` to record the current rules.
         """
-        # Naive use of iptables-save | iptables-restore isn't actually a safe
-        # way to restore original configuration.
-        # https://bugzilla.netfilter.org/show_bug.cgi?id=960
-        tables = [b"filter", b"nat", b"mangle", b"raw", b"security"]
-
-        # Add material to flush every table first.  This overcomes the lack of
-        # information about "empty" tables in the bare iptables-save output.
-        flush_rules = "".join(
-            "*{table}\nCOMMIT\n".format(table=table) for table in tables)
-        self.rules = flush_rules + check_output([b"iptables-save"])
+        self._saved_rules = get_iptables_rules()
 
 
     def restore(self):
@@ -35,32 +57,13 @@ class _Preserver(object):
             error code.
         """
         process = Popen([b"iptables-restore"], stdin=PIPE)
-        process.stdin.write(self.rules)
+        process.stdin.write(b'\n'.join(self._saved_rules) + b'\n')
         process.stdin.close()
         exit_code = process.wait()
         if exit_code != 0:
             raise Exception(
                 "Possibly failed to restore iptables configuration: %s" % (
                     exit_code,))
-
-    def normalize_rules(self):
-        """
-        Return a list of :command:`iptables-save`-formatted rule strings with
-        comments and packet/byte counter lines removed.
-
-        This also removes the information about the default policy for chains
-        (which might someday be important).
-        """
-        return [
-            rule
-            for rule in self.rules.splitlines()
-            # Comments don't matter.  They always differ because they
-            # include timestamps.
-            if not rule.startswith("#")
-            # Chain data could matter but doesn't.  The implementation
-            # doesn't mess with this stuff.  It typically differs in
-            # uninteresting ways - such as matched packet counters.
-            and not rule.startswith(":")]
 
 
 def preserve_iptables():

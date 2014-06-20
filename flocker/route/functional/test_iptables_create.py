@@ -21,7 +21,7 @@ from twisted.trial.unittest import SkipTest, TestCase
 
 from .. import create_proxy_to, delete_proxy, enumerate_proxies
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
-from .iptables import preserve_iptables
+from .iptables import preserve_iptables, get_iptables_rules
 
 ADDRESSES = [
     IPAddress(address['addr'])
@@ -131,12 +131,12 @@ class PreserveTests(TestCase):
         :py:code:`preserve_iptables().normalize_rules()` returns the same list of
         bytes as long as no rules have changed.
         """
-        first = preserve_iptables().normalize_rules()
+        first = get_iptables_rules()
         # The most likely reason the result might change is that
         # `iptables-save` includes timestamps with one-second resolution in its
         # output.
         sleep(1.0)
-        second = preserve_iptables().normalize_rules()
+        second = get_iptables_rules()
         self.assertEqual(first, second)
 
 
@@ -417,16 +417,18 @@ class DeleteTests(TestCase):
         # Only interested in logging behavior of delete_proxy here.
         self.patch(delete_proxy, "logger", logger)
 
+        original_rules = get_iptables_rules()
+
         proxy = create_proxy_to(IPAddress("10.1.2.3"), 12345)
         delete_proxy(proxy)
 
         # Capture the new rules
-        preserver = preserve_iptables()
+        new_rules = get_iptables_rules()
 
         # And compare them against the rules when we started.
         self.assertEqual(
-            self.preserver.normalize_rules(),
-            preserver.normalize_rules())
+            original_rules,
+            new_rules)
 
     def test_only_specified_proxy_deleted(self):
         """
@@ -436,19 +438,19 @@ class DeleteTests(TestCase):
         create_proxy_to(IPAddress("10.1.2.3"), 12345)
 
         # Capture the rules that exist now for comparison later.
-        expected = preserve_iptables()
+        expected = get_iptables_rules()
 
         delete = create_proxy_to(IPAddress("10.1.2.4"), 23456)
         delete_proxy(delete)
 
         # Capture the new rules
-        actual = preserve_iptables()
+        actual = get_iptables_rules()
 
         # They should match because only the second proxy should have been torn
         # down.
         self.assertEqual(
-            expected.normalize_rules(),
-            actual.normalize_rules())
+            expected,
+            actual)
 
     def test_deleted_proxies_not_enumerated(self):
         """
