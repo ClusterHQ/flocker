@@ -2,7 +2,7 @@
 
 %global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
 
-Name:           python-flocker
+Name:           flocker
 Version:        %{underscore_version}
 Release:        1%{?dist}
 Summary:        Docker orchestration and volume management
