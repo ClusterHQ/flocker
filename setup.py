@@ -3,6 +3,7 @@
 # Generate a Flocker package that can be deployed onto cluster nodes.
 #
 
+import os
 from setuptools import setup, find_packages
 
 import versioneer
@@ -35,6 +36,16 @@ cmdclass = {'generate_spec': cmd_generate_spec}
 # certain data at appropriate times.
 cmdclass.update(versioneer.get_cmdclass())
 
+# Hard linking doesn't work inside Vagrant shared folders. This means that
+# you can't use tox in a directory that is being shared with Vagrant,
+# since tox relies on `python setup.py sdist` which uses hard links. As a
+# workaround, disable hard-linking if it looks like we're a vagrant user.
+# See
+# https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
+# for more details.
+if os.environ.get('USER','') == 'vagrant':
+    del os.link
+
 setup(
     # This is the human-targetted name of the software being packaged.
     name="Flocker",
@@ -57,7 +68,7 @@ setup(
     entry_points = {
         # Command-line programs we want setuptools to install:
         'console_scripts': [
-            'flocker-volume = flocker.volume.script:main',
+            'flocker-volume = flocker.volume.script:flocker_volume_main',
         ],
     },
 
@@ -68,6 +79,8 @@ setup(
         "pytz == 2014.2",
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
+
+        "treq == 0.2.1",
 
         "netifaces == 0.8",
         "ipaddr == 2.1.10",
