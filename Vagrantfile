@@ -6,15 +6,6 @@ VAGRANTFILE_API_VERSION = "2"
 
 
 $bootstrap = <<SCRIPT
-# Remove this when the repository becomes public
-cat <<EOF  >/etc/yum.repos.d/zfs-kmod.repo
-[zfs-kmod]
-name=Compiled ZFS modules
-baseurl=http://data.hybridcluster.net/zfs-6.3-fedora20
-gpgcheck=0
-enabled=1
-EOF
-
 yum install -y zfs
 
 systemctl enable docker
