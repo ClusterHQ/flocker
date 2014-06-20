@@ -204,7 +204,7 @@ class FlockerScriptTestsMixin(object):
 
     def test_incorrect_arguments(self):
         """
-        ``FlockerScriptRunner.main`` exits with status 0 and prints help to
+        ``FlockerScriptRunner.main`` exits with status 1 and prints help to
         `stderr` if supplied with unexpected arguments.
         """
         sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
