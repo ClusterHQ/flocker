@@ -7,10 +7,10 @@ import sys
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from flocker.common.test.test_script import (
+from ...testtools import (
     FlockerScriptTestsMixin, StandardOptionsTestsMixin, FakeSysModule)
-from flocker.volume.script import VolumeOptions, VolumeScript
-from flocker.volume.service import VolumeService, CreateConfigurationError
+from ..script import VolumeOptions, VolumeScript
+from ..service import VolumeService, CreateConfigurationError
 
 
 class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
