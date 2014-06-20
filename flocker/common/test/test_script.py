@@ -47,8 +47,8 @@ class FakeSysModule(object):
     line scripts.
 
     :ivar list argv: See ``__init__``
-    :ivar stdout: A py:class:`io.BytesIO` object representing standard output.
-    :ivar stderr: A py:class:`io.BytesIO` object representing standard error.
+    :ivar stdout: A :py:class:`io.BytesIO` object representing standard output.
+    :ivar stderr: A :py:class:`io.BytesIO` object representing standard error.
     """
     def __init__(self, argv=None):
         """Initialise the fake sys module.
