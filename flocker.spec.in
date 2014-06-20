@@ -21,6 +21,7 @@ BuildRequires:  python-characteristic
 BuildRequires:  pytz
 BuildRequires:  python-ipaddr
 BuildRequires:  python-netifaces
+BuildRequires:  python-treq
 # See https://github.com/hybridlogic/flocker/issues/85
 BuildRequires:  docker-io
 
@@ -31,6 +32,7 @@ Requires:       python-characteristic
 Requires:       pytz
 Requires:       python-ipaddr
 Requires:       python-netifaces
+Requires:       python-treq
 Requires:       docker-io
 Requires:       /sbin/iptables
 Requires:       geard
