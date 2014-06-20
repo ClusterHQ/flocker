@@ -171,6 +171,9 @@ class FlockerScriptRunnerMainTests(SynchronousTestCase):
         options = SpyOptions()
         script = SpyScript()
         sys = FakeSysModule(argv=[b"flocker", b"--hello", b"world"])
+        # XXX: We shouldn't be using this private fake and Twisted probably
+        # shouldn't either. See https://twistedmatrix.com/trac/ticket/6200 and
+        # https://twistedmatrix.com/trac/ticket/7527
         from twisted.test.test_task import _FakeReactor
         fakeReactor = _FakeReactor()
         runner = FlockerScriptRunner(
