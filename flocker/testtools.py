@@ -1,20 +1,21 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""
-Various utilities to help with unit testing.
-"""
+"""Various utilities to help with unit and functional testing."""
 
 from __future__ import absolute_import
 
 import io
 import sys
 from collections import namedtuple
+from random import random
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
-from twisted.internet.task import Clock
+from twisted.internet.task import Clock, deferLater
+from twisted.internet.defer import maybeDeferred
+from twisted.internet import reactor
 
 from . import __version__
 from .common.script import (
@@ -84,6 +85,36 @@ class FakeProcessReactor(Clock):
 
 
 verifyClass(IReactorProcess, FakeProcessReactor)
+
+
+def loop_until(arg, predicate):
+    """Call predicate every 0.1 seconds, until it returns ``True``.
+
+    This should only be used in functional tests.
+
+    :param arg: Value to return.
+    :param predicate: Callable returning termination condition.
+    :type predicate: 0-argument callable returning a Deferred.
+
+    :return: A ``Deferred`` firing with ``arg``
+    """
+    d = maybeDeferred(predicate)
+    def loop(result):
+        if not result:
+            d = deferLater(reactor, 0.1, predicate)
+            d.addCallback(loop)
+            return d
+        return arg
+    d.addCallback(loop)
+    return d
+
+
+def random_name():
+    """Return a short, random name.
+
+    :return name: A random ``unicode`` name.
+    """
+    return u"%d" % (int(random() * 1e12),)
 
 
 def help_problems(command_name, help_text):

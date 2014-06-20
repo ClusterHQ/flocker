@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import
 
-from random import random
 from unittest import skipIf
 import subprocess
 import os
@@ -13,16 +12,9 @@ import json
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
+from ...testtools import random_name
 from ..service import Volume, VolumeService
 from ..filesystems.memory import FilesystemStoragePool
-
-
-def random_name():
-    """Return a random volume name.
-
-    :return unicode name: A random name.
-    """
-    return u"%d" % (int(random() * 1e12),)
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
