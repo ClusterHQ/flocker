@@ -1,5 +1,3 @@
-# Created by pyp2rpm-1.1.0b
-
 %global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
 
 Name:           flocker

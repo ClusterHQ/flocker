@@ -12,6 +12,29 @@ versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
+from distutils.core import Command
+class cmd_generate_spec(Command):
+    description = "Generate flocker.spec with current version."
+    user_options = []
+    boolean_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        with open('flocker.spec.in', 'r') as source:
+            spec = source.read()
+        version = "%%global flocker_version %s\n" % (versioneer.get_version(),)
+        with open('flocker.spec', 'w') as destination:
+            destination.write(version)
+            destination.write(spec)
+
+
+cmdclass = {'generate_spec': cmd_generate_spec}
+# Let versioneer hook into the various distutils commands so it can rewrite
+# certain data at appropriate times.
+cmdclass.update(versioneer.get_cmdclass())
+
 setup(
     # This is the human-targetted name of the software being packaged.
     name="Flocker",
@@ -68,7 +91,5 @@ setup(
             ]
         },
 
-    # Let versioneer hook into the various distutils commands so it can rewrite
-    # certain data at appropriate times.
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=cmdclass,
     )
