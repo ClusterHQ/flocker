@@ -12,6 +12,13 @@ from zope.interface import Interface
 from .. import __version__
 
 
+__all__ = [
+    'flocker_standard_options',
+    'ICommandLineScript',
+    'FlockerScriptRunner',
+]
+
+
 def flocker_standard_options(cls):
     """Add various standard command line options to flocker commands.
 
@@ -104,10 +111,3 @@ class FlockerScriptRunner(object):
         """Parse arguments and run the script's main function via ``react``."""
         options = self._parse_options(self.sys_module.argv[1:])
         self._react(self.script.main, (options,), _reactor=self.reactor)
-
-
-__all__ = [
-    'flocker_standard_options',
-    'ICommandLineScript',
-    'FlockerScriptRunner',
-]
