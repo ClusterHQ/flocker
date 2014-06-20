@@ -14,13 +14,14 @@ from twisted.internet.task import deferLater
 from treq import request, content
 
 
+GEAR_PORT = 43273
+
+
 def workaround_geard_187():
     """Slight delay as workaround to
     https://github.com/openshift/geard/issues/187.
 
     To be removed in https://github.com/hybridlogic/flocker/issues/105
-
-    :param value: Value to set as value of result ``Deferred``.
 
     :return: ``Deferred`` that fires after short delay.
     """
@@ -61,7 +62,7 @@ class IGearClient(Interface):
     def remove(unit_name):
         """Stop and delete the given unit.
 
-        This can be done multiple times in the row for the same unit.
+        This can be done multiple times in a row for the same unit.
 
         :param unicode unit_name: The name of the unit to stop.
 
@@ -78,10 +79,9 @@ class GearClient(object):
 
     def __init__(self, hostname):
         """
-        :param reactor: Reactor to use for HTTP connections.
         :param bytes hostname: Gear host to connect to.
         """
-        self._base_url = b"http://%s:43273" % (hostname,)
+        self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
 
     def _request(self, method, unit_name, operation=None, data=None):
         """Send HTTP request to gear.
@@ -113,13 +113,14 @@ class GearClient(object):
 
         Also reads the body to ensure connection is closed.
 
-        :param response: Response from treq request.
+        :param response: Response from treq request,
+            ``twisted.web.iweb.IResponse`` provider.
 
         :return: ``Deferred`` that errbacks with ``GearError`` if the response
             is not successful (2xx HTTP response code).
         """
         d = content(response)
-        # geard uses a variaty of 2xx response codes. Filed treq issue
+        # geard uses a variety of 2xx response codes. Filed treq issue
         # about having "is this a success?" API:
         # https://github.com/dreid/treq/issues/62
         if response.code // 100 != 2:
@@ -168,6 +169,8 @@ class GearClient(object):
 @implementer(IGearClient)
 class FakeGearClient(object):
     """In-memory fake that simulates talking to a gear daemon.
+
+    The state the the simulated units is stored in memory.
 
     :ivar dict _units: Map ``unicode`` names of added units to dictionary
         containing information about them.

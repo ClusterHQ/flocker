@@ -16,7 +16,7 @@ from treq import request, content
 
 from ...testtools import loop_until
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError
+from ..gear import GearClient, GearError, GEAR_PORT
 
 
 def _gear_running():
@@ -28,7 +28,7 @@ def _gear_running():
         return False
     sock = socket.socket()
     try:
-        return not sock.connect_ex((b'127.0.0.1', 43273))
+        return not sock.connect_ex((b'127.0.0.1', GEAR_PORT))
     finally:
         sock.close()
 _if_gear_configured = skipIf(not _gear_running(),
@@ -55,7 +55,7 @@ class GearClientTests(TestCase):
     def start_container(self, name):
         """Start a unit and wait until it's up and running.
 
-        :param name: The name of the unit.
+        :param unicode name: The name of the unit.
 
         :return: Deferred that fires when the unit is running.
         """
@@ -72,7 +72,7 @@ class GearClientTests(TestCase):
             # Replace with ``GearClient.list`` as part of
             # https://github.com/hybridlogic/flocker/issues/32
             responded = request(
-                b"GET", b"http://%s:43273/containers" % ("127.0.0.1",),
+                b"GET", b"http://127.0.0.1:%d/containers" % (GEAR_PORT,),
                 persistent=False)
             responded.addCallback(content)
             responded.addCallback(json.loads)

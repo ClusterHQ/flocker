@@ -106,6 +106,6 @@ def loop_until(arg, predicate):
 def random_name():
     """Return a short, random name.
 
-    :return unicode name: A random name.
+    :return name: A random ``unicode`` name.
     """
     return u"%d" % (int(random() * 1e12),)
