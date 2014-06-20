@@ -2,7 +2,46 @@
 Contributing to Flocker
 =======================
 
-Steps to Contribute Code
+Requirements
+============
+
+* To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
+  ``geard`` requires an operating system with ``systemd``.
+  The easiest way to get going with these is to use our Vagrant image::
+
+   # XXX LINK TO UPDATED LOCATION
+   $ vagrant init tomprince/flocker-dev
+   $ vagrant up
+   $ vagrant ssh
+
+* You will need Python 2.7 and a recent version PyPy installed on your machine.
+* If you don't already have ``tox`` on your machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing::
+
+    $ python setup.py install .[dev]
+
+.. _ZFS: http://zfsonlinux.org
+.. _geard: https://openshift.github.io/geard/
+.. _docker: https://www.docker.com/
+
+
+Running tests
+=============
+
+You can run all unit tests by doing::
+
+   $ tox
+
+Functional tests require ``ZFS``, ``geard`` and ``docker`` to be installed and in the case of the latter two running as well.
+In addition, ``tox`` needs to be run as root.
+
+   $ sudo tox
+
+Since these tests involve global state on your machine (filesystems, iptables, docker containers, etc.) we recommend running them in the development Vagrant image.
+
+Project development process
+===========================
+
+Steps to contribute code
 ========================
 
     1. Pick the next issue in `the tracker <https://www.pivotaltracker.com/n/projects/1069998>`_.
@@ -25,7 +64,7 @@ Steps to Contribute Code
 
     7. Merge the branch into master (TODO: Determine if this means clicking the green button on the github PR page).
 
-Steps to Contribute Reviews
+Steps to contribute reviews
 ===========================
 
     1. Pick an issue in `the tracker`_ that has been submitted for review.
