@@ -1,7 +1,3 @@
-Vagrant file for building base box for flocker development.
+Code for generating the box for the main vagrant image.
 
-::
-
-   vagrant up
-   vagrant package
-   vagrant destroy
+See the `documentation <../docs/infrastructure/vagrant.rst#base-image>`_ for details.

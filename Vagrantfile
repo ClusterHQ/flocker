@@ -24,21 +24,9 @@ systemctl start geard
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  # All Vagrant configuration is done here. The most common configuration
-  # options are documented and commented below. For a complete reference,
-  # please see the online documentation at vagrantup.com.
-
-  # Every Vagrant virtual environment requires a box to build off of.
   config.vm.box = "tomprince/flocker-dev"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
-
-  config.vm.define "node1" do |node1|
-    node1.vm.network :private_network, :ip => "192.168.200.3"
-  end
-  #config.vm.define "node2" do |node2|
-  #  node2.vm.network :private_network, :ip => "192.168.200.4"
-  #end
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
