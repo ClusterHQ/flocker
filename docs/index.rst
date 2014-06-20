@@ -13,7 +13,7 @@ Contents:
 
    architecture/index
    volume/index
-
+   contributing
 
 Indices and tables
 ==================
