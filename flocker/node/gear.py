@@ -8,8 +8,6 @@ from zope.interface import Interface, implementer
 
 from twisted.web.http import NOT_FOUND
 from twisted.internet.defer import succeed, fail
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
 
 from treq import request, content
 
@@ -25,7 +23,7 @@ def workaround_geard_187():
 
     :return: ``Deferred`` that fires after short delay.
     """
-    return deferLater(reactor, 1.5, lambda: None)
+    return succeed(None)
 
 
 class AlreadyExists(Exception):
