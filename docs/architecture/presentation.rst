@@ -1,28 +1,51 @@
-===============
-Flocker And You
-===============
+flocker
+=======
 
-Motivation
-==========
+Flocker is a command line tool that let's you easily manage distributed Docker containers and their volumes. Even stateless apps run many stateful services (logging, queues, databases, etc) and currently running these services in Docker containers in production is nearly impossible. Flocker aims to solve this problem by providing an orchestration framework that addresses the problem of state. This document mainly describes the architecture &amp; features that will be present in the 0.1 release.  Areas for potential future development are discussed at the end.
 
-* Docker does multiple isolated, reproducable application environments on a single machine: "containers".
+This project is under active development and version 0.1 will be released soon under and Apache 2.0 license.  Until you can start hacking on it with us, please submit an issue if you have a question or feature request prior to the initial release. You can also star or watch this repo to stay up-to-date on what is happening.  
+
+Flocker is being developed by `ClusterHQ`_.  ClusterHQ is a small team of engineers with experience running distributed systems and includes many of the core contributors to the Twisted Python project.
+
+Table of Contents
+=================
+
+::
+
+ 0. Motivation for building Flocker
+ 1. Architecture
+ 2. Overall Implementation Strategy
+ 3. User Experience
+ 4. Example- running trac with PostgresSQL and Elasticsearch
+ 5. Areas of potential future development
+
+0. Motivation for building Flocker
+===============================
+
+* Docker does multiple isolated, reproducible application environments on a single machine: "containers".
+
   * Application state can be stored on local disk in "volumes" attached to containers.
   * Containers can talk to each other and external world via specified ports.
+  
 * What happens if you have more than one machine?
+
   * Where do containers run?
   * How do you talk to the container you care about?
   * How do containers across multiple machines talk to each other?
   * How does application state work if you move containers around?
 
+1. Architecture
+============
+
 Flocker - Orchestration
-=======================
+-----------------------
 
 * Flocker can run multiple containers on multiple machines
 * Flocker offers a configuration language to specify what to run and where to run it.
 
 
 Flocker - Routing
-=================
+-----------------
 
 * Container configuration includes externally visible TCP port numbers.
 * Connect to any machine on a Flocker cluster and traffic is routed to the machine hosting the appropriate container (based on port).
@@ -30,44 +53,37 @@ Flocker - Routing
 
 
 Flocker - Cross-container Communication
-=======================================
+---------------------------------------
 
 * Container configuration describes links (port numbers) which are required to other containers. E.g. your web application container needs to talk to your database.
 * Connections to any linked port inside the source container are routed to the correct port inside the target container.
 
 
 Flocker - Application State
-===========================
+---------------------------
 
 * Flocker manages ZFS filesystems as Docker volumes.  It attaches them to your containers.
 * Flocker provides tools for copying those volumes between machines.
 * If an application container is moved from one machine to another, Flocker automatically moves the volume with it.
 
 
-User Experience
-===============
-
-* Flocker provides a command-line interface for manually deploying or re-deploying containers across machines.
-* The tool operates on two distinct pieces of configuration:
-  * Application
-  * Deployment
-* Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
-
 
 Application Configuration
-=========================
+-------------------------
 
- * Application configuration describes what you want to run in a container.
-   * it identifies a Docker image
-   * a volume mountpoint
-   * other containers to link to
-   * externally "routed" ports
- * This configuration is expected to be shared between development, staging, production, etc environments.
- * Flocker 0.1 may not support automatic re-deployment of application configuration changes
+* Application configuration describes what you want to run in a container.
+
+  * it identifies a Docker image
+  * a volume mountpoint
+  * other containers to link to
+  * externally "routed" ports
+   
+* This configuration is expected to be shared between development, staging, production, etc environments.
+* Flocker 0.1 may not support automatic re-deployment of application configuration changes
 
 
 Deployment Configuration
-========================
+------------------------
 
 * Deployment configuration describes how you want your containers deployed.
   * which machines run which containers
@@ -77,24 +93,18 @@ Deployment Configuration
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
 
-Overall Implementation Strategy
-===============================
+2. Overall Implementation Strategy
+==================================
 
 * Don't Panic.
 * This is the 0.1 approach.
-* Future approaches will be very different.
-
-
-Overall Implementation Strategy
-===============================
-
 * All functionality is provided as short-lived, manually invoked processes.
 * ``flocker-cluster deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
 * Machines might connect to each other over SSH to copy volume data to the necessary place.
-
+* Future approaches will be very different.  Feedback welcome.
 
 flocker-node
-============
+------------
 
 * Installed and runs on machines participating in the Flocker cluster.
 * Accepts the desired global configuration
@@ -106,25 +116,25 @@ flocker-node
 
 
 Managing Containers
-===================
+-------------------
 
-* Gear is used to start, stop, and enumerate containers.
-* Gear works by creating systemd units.
+* `Geard`_ is used to start, stop, and enumerate containers.
+* Geard works by creating systemd units.
 * Systemd units are a good way to provide admin tools for:
   * logging and state inspection
   * starting/stopping (including at boot)
   * inter-unit dependency management
   * lots of other stuff
-* Gear helps support the implementation of links
+* Geard helps support the implementation of links
 
 
 Managing Volumes
-================
+----------------
 
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
-* Gear automatically associates the "data" container's volumes with the actual container.
-  * Association is done based on container names by Gear.
+* Geard automatically associates the "data" container's volumes with the actual container.
+  * Association is done based on container names by Geard.
 * Data model
   * Volumes are owned by a specific machine.
   * Machine A can push a copy to machine B but machine A still owns the volume.  Machine B may not modify its copy.
@@ -134,7 +144,7 @@ Managing Volumes
 
 
 Managing Routes
-===============
+---------------
 
 * Containers claim TCP port numbers with the application configuration that defines them.
 * Connections to that TCP port on the machine that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
@@ -143,15 +153,24 @@ Managing Routes
 
 
 Managing Links
-==============
+--------------
 
 * Containers declare other containers they want to be able to talk to and on what port they expect to be able to do this.
 * Gear is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
 * The routes code makes ensures the connection is then proxy to the machine hosting the target container.
 
-
-Example - Overview
+3. User Experience
 ==================
+
+* Flocker provides a command-line interface for manually deploying or re-deploying containers across machines.
+* The tool operates on two distinct pieces of configuration:
+  * Application
+  * Deployment
+* Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
+
+
+4. Example - running trac with Postgresql and Elasticsearch
+===========================================================
 
 * Alice wants to run trac using the postgresql backend and kibana for log analysis.
 * trac needs to connect to postgresql and shovel logs over to kibana
@@ -160,9 +179,7 @@ Example - Overview
 
 
 Example - trac configuration
-============================
-
-Maybe something like
+----------------------------
 
 .. code-block::
 
@@ -181,9 +198,7 @@ Maybe something like
 
 
 Example - postgresql configuration
-==================================
-
-Maybe something like
+----------------------------------
 
 .. code-block::
 
@@ -196,9 +211,7 @@ Maybe something like
 
 
 Example - elasticsearch configuration
-=====================================
-
-Maybe something like
+-------------------------------------
 
 .. code-block::
 
@@ -211,9 +224,7 @@ Maybe something like
 
 
 Example - kibana configuration
-==============================
-
-Maybe something like
+------------------------------
 
 .. code-block::
 
@@ -231,7 +242,7 @@ Maybe something like
 
 
 Example - Application Configuration
-===================================
+-----------------------------------
 
 Aggregate all of the applications
 
@@ -246,7 +257,7 @@ Aggregate all of the applications
 
 
 Example - Deployment Configuration
-==================================
+----------------------------------
 
 Explicitly place containers for the applications
 
@@ -261,7 +272,7 @@ Explicitly place containers for the applications
 
 
 Example - User Interaction
-==========================
+--------------------------
 
 Imagine some yaml files containing the previously given application and deployment configuration objects.
 
@@ -276,7 +287,7 @@ Imagine some yaml files containing the previously given application and deployme
 
 
 Example - Alter Deployment
-==========================
+--------------------------
 
 It turns out trac is the most resource hungry container.
 Give it an entire machine to itself.
@@ -299,3 +310,20 @@ The deployment configuration changes to:
    $
 
 Note that after pgsql-trac is moved it still has all of the same filesystem state as it had prior to the move.
+
+5. Areas of potential future development
+========================================
+- Support for atomic updates
+- Scale-out for stateless containers
+- API to support managing Flocker volumes programmatically
+- Statically configured continuous replication and manual failover
+- No-downtime migrations between containers
+- Automatically configured continuous replication and failover
+- Multi-data center support
+- Automatically balance load across cluster
+- Roll-back a container to a snapshot
+- Let us know what else you'd like to see by submitting an issue :)
+
+.. _Geard: https://github.com/openshift/geard
+.. _ClusterHQ: https://clusterhq.com/
+
