@@ -124,7 +124,7 @@ Steps to contribute code - external contributors
 6. Address any points raised by the reviewer.
 
 
-Requirements for Contributions
+Requirements for contributions
 ==============================
 
 * All code must have unit test coverage and to the extent possible functional test coverage.
@@ -146,7 +146,7 @@ Requirements for Contributions
 * Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 
 
-Internal Developers
+Internal developers
 ===================
 
 Steps to contribute code
