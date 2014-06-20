@@ -18,7 +18,7 @@ from flocker.common.script import (
 from flocker import __version__
 
 
-def helpProblems(command_name, help_text):
+def help_problems(command_name, help_text):
     """Identify and return a list of help text problems.
 
     :param unicode command_name: The name of the command which should appear in
@@ -145,7 +145,7 @@ class FlockerScriptRunnerParseOptionsTests(SynchronousTestCase):
         self.assertEqual(
             (1, [], expectedErrorMessage),
             (error.code,
-             helpProblems('test_command', errorText),
+             help_problems('test_command', errorText),
              errorText[-len(expectedErrorMessage):])
         )
 
@@ -211,7 +211,7 @@ class FlockerScriptTestsMixin(object):
         error_text = sys.stderr.getvalue()
         self.assertEqual(
             (1, []),
-            (error.code, helpProblems(self.command_name, error_text))
+            (error.code, help_problems(self.command_name, error_text))
         )
 
 
