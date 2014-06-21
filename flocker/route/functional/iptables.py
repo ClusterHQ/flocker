@@ -4,7 +4,21 @@
 Testing tools related to iptables.
 """
 
-from subprocess import PIPE, Popen, check_output
+from subprocess import check_output
+from cffi import FFI
+ffi = FFI()
+ffi.cdef("""     // some declarations from the man page
+
+   int setns(int fd, int nstype);
+   int unshare(int flags);
+
+   static const int CLONE_NEWIPC;
+   static const int CLONE_NEWNET;
+   static const int CLONE_NEWUTS;
+""")
+C = ffi.verify("""   // passed to the real C compiler
+   #include <sched.h>
+""", libraries=[])   # or a list of libraries to link with
 
 
 def get_iptables_rules():
@@ -45,7 +59,13 @@ class _Preserver(object):
         """
         Use ``iptables-save`` to record the current rules.
         """
-        self._saved_rules = get_iptables_rules()
+        self.fd = open('/proc/self/ns/net')
+        C.unshare(C.CLONE_NEWNET)
+        import os
+        os.system('ip link set up lo')
+        os.system('ip link add eth0 type dummy')
+        os.system('ip link set eth0 up')
+        os.system('ip addr add 10.0.0.1/8 dev eth0')
 
 
     def restore(self):
@@ -56,14 +76,8 @@ class _Preserver(object):
         :raise Exception: If the ``iptables-restore`` command exits with an
             error code.
         """
-        process = Popen([b"iptables-restore"], stdin=PIPE)
-        process.stdin.write(b'\n'.join(self._saved_rules) + b'\n')
-        process.stdin.close()
-        exit_code = process.wait()
-        if exit_code != 0:
-            raise Exception(
-                "Possibly failed to restore iptables configuration: %s" % (
-                    exit_code,))
+        C.setns(self.fd.fileno(), C.CLONE_NEWNET)
+        self.fd.close()
 
 
 def preserve_iptables():

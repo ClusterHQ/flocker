@@ -23,7 +23,8 @@ from .. import create_proxy_to, delete_proxy, enumerate_proxies
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import preserve_iptables, get_iptables_rules
 
-ADDRESSES = [
+def ADDRESSES():
+    return [
     IPAddress(address['addr'])
     for name in interfaces()
     for address in ifaddresses(name).get(AF_INET, [])
@@ -145,9 +146,6 @@ class CreateTests(TestCase):
     Tests for the creation of new external routing rules.
     """
     @_environment_skip
-    @skipUnless(
-        len(ADDRESSES) >= 2,
-        "Cannot test proxying without at least two addresses.")
     def setUp(self):
         """
         Select some addresses between which to proxy and set up a server to act
@@ -155,8 +153,8 @@ class CreateTests(TestCase):
         """
         self.addCleanup(preserve_iptables().restore)
 
-        self.server_ip = ADDRESSES[0]
-        self.proxy_ip = ADDRESSES[1]
+        self.server_ip = ADDRESSES()[0]
+        self.proxy_ip = ADDRESSES()[1]
 
         # This is the target of the proxy which will be created.
         self.server = socket()
@@ -230,7 +228,7 @@ class CreateTests(TestCase):
             IPNetwork("172.16.0.0/12"),
             IPNetwork("192.168.0.0/16")}
 
-        for address in ADDRESSES:
+        for address in ADDRESSES():
             for network in networks:
                 if address in network:
                     networks.remove(network)

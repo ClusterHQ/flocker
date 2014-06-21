@@ -61,6 +61,8 @@ setup(
 
         "treq == 0.2.1",
 
+        "cffi == 0.6",
+
         "netifaces == 0.8",
         "ipaddr == 2.1.10",
         ],
