@@ -19,7 +19,7 @@ yum install -y docker-io geard
 yum install -y python-devel python-tox python-virtualenv python-pip
 yum install -y createrepo
 yum install -y python-twisted python-characteristic python-eliot pytz python-ipaddr
-yum install -y python-cffi python-netifaces
+yum install -y python-cffi python-netifaces python-treq
 
 # Cleanup
 rm -rf /tmp/* /var/tmp/*
