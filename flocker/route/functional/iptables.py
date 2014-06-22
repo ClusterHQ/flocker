@@ -5,20 +5,7 @@ Testing tools related to iptables.
 """
 
 from subprocess import check_output
-from cffi import FFI
-ffi = FFI()
-ffi.cdef("""     // some declarations from the man page
-
-   int setns(int fd, int nstype);
-   int unshare(int flags);
-
-   static const int CLONE_NEWIPC;
-   static const int CLONE_NEWNET;
-   static const int CLONE_NEWUTS;
-""")
-C = ffi.verify("""   // passed to the real C compiler
-   #include <sched.h>
-""", libraries=[])   # or a list of libraries to link with
+from nomenclature.syscalls import unshare, setns, CLONE_NEWNET
 
 
 def get_iptables_rules():
@@ -60,7 +47,7 @@ class _Preserver(object):
         Use ``iptables-save`` to record the current rules.
         """
         self.fd = open('/proc/self/ns/net')
-        C.unshare(C.CLONE_NEWNET)
+        unshare(CLONE_NEWNET)
         import os
         os.system('ip link set up lo')
         os.system('ip link add eth0 type dummy')
@@ -76,7 +63,7 @@ class _Preserver(object):
         :raise Exception: If the ``iptables-restore`` command exits with an
             error code.
         """
-        C.setns(self.fd.fileno(), C.CLONE_NEWNET)
+        setns(self.fd.fileno(), CLONE_NEWNET)
         self.fd.close()
 
 
