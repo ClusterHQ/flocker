@@ -38,7 +38,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-_trial_temp
+_trial_temp*
 
 # Translations
 *.mo
@@ -58,3 +58,5 @@ _trial_temp
 # Sphinx documentation
 docs/_build/
 
+# Vagrant
+.vagrant
