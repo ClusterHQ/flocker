@@ -15,24 +15,24 @@ BuildRequires:  python-devel
 BuildRequires:  python
 BuildRequires:  python-setuptools
 # For tests
-BuildRequires:  python-twisted
+BuildRequires:  python-twisted = 14.0.0
 BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
-BuildRequires:  python-characteristic
+BuildRequires:  python-characteristic = 0.1.0
 BuildRequires:  pytz
-BuildRequires:  python-ipaddr
+BuildRequires:  python-ipaddr = 2.1.10
 BuildRequires:  python-netifaces >= 0.8.0
-BuildRequires:  python-treq
+BuildRequires:  python-treq = 0.2.1
 # See https://github.com/hybridlogic/flocker/issues/85
 BuildRequires:  docker-io
 
 Requires:       python
-Requires:       python-twisted
+Requires:       python-twisted = 14.0.0
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
-Requires:       python-characteristic
+Requires:       python-characteristic = 0.1.0
 Requires:       pytz
-Requires:       python-ipaddr
+Requires:       python-ipaddr = 2.1.10
 Requires:       python-netifaces >= 0.8.0
-Requires:       python-treq
+Requires:       python-treq = 0.2.1
 Requires:       docker-io
 Requires:       /sbin/iptables
 Requires:       geard
