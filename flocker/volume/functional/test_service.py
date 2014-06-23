@@ -31,7 +31,6 @@ class VolumeTests(TestCase):
     def setUp(self):
         pass
 
-
     def add_container_cleanup(self, name):
         """Delete container with the given name when the test is over.
 
@@ -61,9 +60,9 @@ class VolumeTests(TestCase):
         :return: ``bytes`` of file at given path.
         """
         return subprocess.check_output(
-                [b"docker", b"run", b"--rm",
-                 b"--volumes-from", volume._container_name,
-                 b"busybox", b"cat", path])
+            [b"docker", b"run", b"--rm",
+             b"--volumes-from", volume._container_name,
+             b"busybox", b"cat", path])
 
     def test_expose_mounted_volume(self):
         """``Volume.expose_to_docker`` mounts the volume's filesystem within

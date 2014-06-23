@@ -23,6 +23,7 @@ def run(*args):
     """
     return check_output([b"flocker-volume"] + list(args))
 
+
 def run_expecting_error(*args):
     """Run ``flocker-volume`` with the given arguments.
 

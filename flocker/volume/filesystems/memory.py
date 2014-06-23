@@ -18,8 +18,8 @@ class CannedFilesystemSnapshots(object):
     """In-memory filesystem snapshotter."""
     def __init__(self, results):
         """
-        :param results: A ``list`` of ``Deferred`` instances, results of calling
-            ``create()``.
+        :param results: A ``list`` of ``Deferred`` instances, results of
+        calling ``create()``.
         """
         self._results = results
         self._snapshots = []

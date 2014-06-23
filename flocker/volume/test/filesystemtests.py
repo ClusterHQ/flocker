@@ -45,7 +45,6 @@ def make_ifilesystemsnapshots_tests(fixture):
             fsSnapshots = fixture(self)
             self.assertTrue(verifyObject(IFilesystemSnapshots, fsSnapshots))
 
-
         def test_created(self):
             """
             Snapshots created with ``create()`` are listed in that order in
@@ -85,6 +84,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 self.assertTrue(verifyObject(IFilesystem, filesystem))
             d.addCallback(createdFilesystem)
@@ -96,8 +96,10 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -112,9 +114,12 @@ def make_istoragepool_tests(fixture):
             return different filesystems.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename", _pool=pool)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename",
+                            _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -130,6 +135,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 filesystem2 = pool.get(volume)
                 self.assertTrue(filesystem == filesystem2)
@@ -138,10 +144,12 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_mountpoint(self):
-            """The volume's filesystem has a mountpoint which is a directory."""
+            """The volume's filesystem has a mountpoint which is a
+            directory."""
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 self.assertTrue(filesystem.get_path().isdir())
             d.addCallback(createdFilesystem)
@@ -151,8 +159,10 @@ def make_istoragepool_tests(fixture):
             """Each volume has its own mountpoint."""
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 self.assertNotEqual(first.get_path(),

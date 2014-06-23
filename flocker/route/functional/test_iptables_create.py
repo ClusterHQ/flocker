@@ -47,16 +47,16 @@ def create_user_rule():
     ignored by :py:func:`enumerate_proxies`.
     """
     check_call([
-            b"iptables",
-            # Stick it in the PREROUTING chain based on our knowledge that the
-            # implementation inspects this chain to enumerate proxies.
-            b"--table", b"nat", b"--append", b"PREROUTING",
+        b"iptables",
+        # Stick it in the PREROUTING chain based on our knowledge that the
+        # implementation inspects this chain to enumerate proxies.
+        b"--table", b"nat", b"--append", b"PREROUTING",
 
-            b"--protocol", b"tcp", b"--dport", b"12345",
-            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+        b"--protocol", b"tcp", b"--dport", b"12345",
+        b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-            b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
-            ])
+        b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
+        ])
 
 
 def is_environment_configured():
@@ -128,8 +128,8 @@ class PreserveTests(TestCase):
     @_environment_skip
     def test_normalized_rules(self):
         """
-        :py:code:`preserve_iptables().normalize_rules()` returns the same list of
-        bytes as long as no rules have changed.
+        :py:code:`preserve_iptables().normalize_rules()` returns the same list
+        of bytes as long as no rules have changed.
         """
         first = preserve_iptables().normalize_rules()
         # The most likely reason the result might change is that

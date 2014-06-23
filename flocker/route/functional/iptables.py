@@ -6,6 +6,7 @@ Testing tools related to iptables.
 
 from subprocess import PIPE, Popen, check_output
 
+
 class _Preserver(object):
     """
     Implementation helper for :py:func:`preserve_iptables`.
@@ -24,7 +25,6 @@ class _Preserver(object):
         flush_rules = "".join(
             "*{table}\nCOMMIT\n".format(table=table) for table in tables)
         self.rules = flush_rules + check_output([b"iptables-save"])
-
 
     def restore(self):
         """

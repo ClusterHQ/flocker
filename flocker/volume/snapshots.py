@@ -22,11 +22,11 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
     :ivar node: The name of the node creating the snapshot, as ``bytes``.
     """
     # We don't use isoformat() because:
-    # 1. It returns inconsistent results (it omits microseconds when they're 0).
+    # 1. It returns inconsistent results (it omits microseconds when
+    #    they're 0).
     # 2. ZFS snapshots are not allowed to have a + in the name, so we need to
     #    omit timezone information.
     _dateFormat = b"%Y-%m-%dT%H:%M:%S.%f"
-
 
     def to_bytes(self):
         """
@@ -35,8 +35,7 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
         :return: Snapshot name encoded into ``bytes``.
         """
         return b"%s_%s" % (self.timestamp.strftime(self._dateFormat),
-                                 self.node)
-
+                           self.node)
 
     @classmethod
     def from_bytes(cls, encoded):
@@ -51,6 +50,3 @@ class SnapshotName(namedtuple("SnapshotName", "timestamp node")):
         timestamp = datetime.strptime(timestamp, cls._dateFormat).replace(
             tzinfo=UTC)
         return SnapshotName(timestamp, node)
-
-
-

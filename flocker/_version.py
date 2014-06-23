@@ -53,6 +53,7 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False):
 import re
 import os.path
 
+
 def get_expanded_variables(versionfile_abs):
     # the code embedded in _version.py can just fetch the value of these
     # variables. When used from setup.py, we don't want to import
@@ -60,7 +61,7 @@ def get_expanded_variables(versionfile_abs):
     # used from _version.py.
     variables = {}
     try:
-        f = open(versionfile_abs,"r")
+        f = open(versionfile_abs, "r")
         for line in f.readlines():
             if line.strip().startswith("git_refnames ="):
                 mo = re.search(r'=\s*"(.*)"', line)
@@ -75,12 +76,13 @@ def get_expanded_variables(versionfile_abs):
         pass
     return variables
 
+
 def versions_from_expanded_variables(variables, tag_prefix, verbose=False):
     refnames = variables["refnames"].strip()
     if refnames.startswith("$Format"):
         if verbose:
             print("variables are unexpanded, not using")
-        return {} # unexpanded, so not in an unpacked git-archive tarball
+        return {}  # unexpanded, so not in an unpacked git-archive tarball
     refs = set([r.strip() for r in refnames.strip("()").split(",")])
     # starting in git-1.8.3, tags are listed as "tag: foo-1.0" instead of
     # just "foo-1.0". If we see a "tag: " prefix, prefer those.
@@ -105,13 +107,14 @@ def versions_from_expanded_variables(variables, tag_prefix, verbose=False):
             r = ref[len(tag_prefix):]
             if verbose:
                 print("picking %s" % r)
-            return { "version": r,
-                     "full": variables["full"].strip() }
+            return {"version": r,
+                    "full": variables["full"].strip()}
     # no suitable tags, so we use the full revision id
     if verbose:
         print("no suitable tags, using full revision id")
-    return { "version": variables["full"].strip(),
-             "full": variables["full"].strip() }
+    return {"version": variables["full"].strip(),
+            "full": variables["full"].strip()}
+
 
 def versions_from_vcs(tag_prefix, root, verbose=False):
     # this runs 'git' from the root of the source tree. This only gets called
@@ -133,7 +136,8 @@ def versions_from_vcs(tag_prefix, root, verbose=False):
         return {}
     if not stdout.startswith(tag_prefix):
         if verbose:
-            print("tag '%s' doesn't start with prefix '%s'" % (stdout, tag_prefix))
+            print("tag '%s' doesn't start with prefix '%s'" %
+                  (stdout, tag_prefix))
         return {}
     tag = stdout[len(tag_prefix):]
     stdout = run_command(GITS, ["rev-parse", "HEAD"], cwd=root)
@@ -151,7 +155,8 @@ def versions_from_parentdir(parentdir_prefix, root, verbose=False):
     dirname = os.path.basename(root)
     if not dirname.startswith(parentdir_prefix):
         if verbose:
-            print("guessing rootdir is '%s', but '%s' doesn't start with prefix '%s'" %
+            print("guessing rootdir is '%s', but '%s' doesn't start '"
+                  "'with prefix '%s'" %
                   (root, dirname, parentdir_prefix))
         return None
     return {"version": dirname[len(parentdir_prefix):], "full": ""}
@@ -160,13 +165,14 @@ tag_prefix = ""
 parentdir_prefix = "flocker-"
 versionfile_source = "flocker/_version.py"
 
+
 def get_versions(default={"version": "unknown", "full": ""}, verbose=False):
     # I am in _version.py, which lives at ROOT/VERSIONFILE_SOURCE. If we have
     # __file__, we can work backwards from there to the root. Some
     # py2exe/bbfreeze/non-CPython implementations don't do __file__, in which
     # case we can only use expanded variables.
 
-    variables = { "refnames": git_refnames, "full": git_full }
+    variables = {"refnames": git_refnames, "full": git_full}
     ver = versions_from_expanded_variables(variables, tag_prefix, verbose)
     if ver:
         return ver
@@ -184,4 +190,3 @@ def get_versions(default={"version": "unknown", "full": ""}, verbose=False):
     return (versions_from_vcs(tag_prefix, root, verbose)
             or versions_from_parentdir(parentdir_prefix, root, verbose)
             or default)
-
