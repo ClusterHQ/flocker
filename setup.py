@@ -3,6 +3,7 @@
 # Generate a Flocker package that can be deployed onto cluster nodes.
 #
 
+import os
 from setuptools import setup, find_packages
 
 import versioneer
@@ -11,6 +12,18 @@ versioneer.versionfile_source = "flocker/_version.py"
 versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
+
+
+# Hard linking doesn't work inside Vagrant shared folders. This means that
+# you can't use tox in a directory that is being shared with Vagrant,
+# since tox relies on `python setup.py sdist` which uses hard links. As a
+# workaround, disable hard-linking if it looks like we're a vagrant user.
+# See
+# https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
+# for more details.
+if os.environ.get('USER','') == 'vagrant':
+    del os.link
+
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -26,6 +39,9 @@ setup(
     # Here is a website where more information about the software is available.
     url="http://hybridcluster.com/",
 
+    # A short identifier for the license under which the project is released.
+    license="Apache License, Version 2.0",
+
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
     # the Flocker package.
@@ -34,7 +50,7 @@ setup(
     entry_points = {
         # Command-line programs we want setuptools to install:
         'console_scripts': [
-            'flocker-volume = flocker.volume.script:main',
+            'flocker-volume = flocker.volume.script:flocker_volume_main',
         ],
     },
 
@@ -45,6 +61,8 @@ setup(
         "pytz == 2014.2",
         "characteristic == 0.1.0",
         "Twisted == 13.2.0",
+
+        "treq == 0.2.1",
 
         "netifaces == 0.8",
         "ipaddr == 2.1.10",
@@ -75,4 +93,9 @@ setup(
     # Let versioneer hook into the various distutils commands so it can rewrite
     # certain data at appropriate times.
     cmdclass=versioneer.get_cmdclass(),
+
+    # Some "trove classifiers" which are relevant.
+    classifiers=[
+        "License :: OSI Approved :: Apache Software License",
+        ],
     )
