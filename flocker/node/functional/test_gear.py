@@ -154,8 +154,8 @@ class GearClientTests(TestCase):
                 b"GET", b"http://127.0.0.1:%d" % (external_port,),
                 persistent=False)
             responded.addCallback(content)
-            import pdb; pdb.set_trace()
             responded.addCallback(self.assertEqual, expected_response)
+            return responded
 
         d.addCallback(started)
         return d
