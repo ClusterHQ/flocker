@@ -102,9 +102,7 @@ class Filesystem(object):
         return b"%s/%s" % (self.pool, self.dataset)
 
     def get_path(self):
-        """Return the path to this filesystem as expected"""
-        suffix = b".trunk"
-        return self._mountpoint[:len(suffix)]
+        return self._mountpoint
 
 
 @implementer(IFilesystemSnapshots)
