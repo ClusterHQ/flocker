@@ -90,7 +90,8 @@ class VolumeService(Service):
                     uuid=uuid.decode('utf8'),
                     name=name.decode('utf8'),
                     _pool=self._pool)
-        return enumerating.addCallback(enumerated)
+        enumerating.addCallback(enumerated)
+        return enumerating
 
 
 # Communication with Docker should be done via its API, not with this
