@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-volume`` tool."""
+
 import sys
 
 from twisted.python.usage import Options
@@ -22,6 +23,18 @@ __all__ = [
     'VolumeScript',
 ]
 
+class ReceiveSubcommandOptions(Options):
+    """Command line options ``flocker-volume receive``."""
+
+    longdesc = """Receive a volume pushed from another volume manager.
+
+    Reads the volume in from standard in. This is typically called
+    automatically over SSH.
+    """
+
+    def parseArgs(self, uuid, name):
+        self["uuid"] = uuid.decode("ascii")
+        self["name"] = name.decode("ascii")
 
 
 @flocker_standard_options
@@ -31,13 +44,17 @@ class VolumeOptions(Options):
     longdesc = """flocker-volume allows you to manage volumes, filesystems
     that can be attached to Docker containers.
 
-    At the moment no functionality has been implemented.
     """
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
     optParameters = [
         ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the config file."],
+    ]
+
+    subCommands = [
+        ["receive", None, ReceiveSubcommandOptions,
+         "Receive a remotely pushed volume."],
     ]
 
     def postOptions(self):
@@ -79,6 +96,11 @@ class VolumeScript(object):
                     options["config"].path, e)
             )
             raise SystemExit(1)
+
+        if options.subCommand == "receive":
+            service.receive(options.subOptions["uuid"],
+                            options.subOptions["name"],
+                            sys.stdin)
         return succeed(None)
 
 
