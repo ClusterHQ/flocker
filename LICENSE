@@ -1,139 +1,201 @@
-PLEASE NOTE THAT THE TERMS OF THIS END USER LICENSE AGREEMENT SHALL GOVERN YOUR
-USE OF THE SOFTWARE, REGARDLESS OF ANY TERMS THAT MAY APPEAR DURING THE
-INSTALLATION OF THE SOFTWARE.
+                                Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
 
-1. DEFINITIONS
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
 
-1.1 “Documentation” means, collectively, the operation instructions, release
-notes, user manuals and/or help files for the Software in electronic or written
-form.
+   1. Definitions.
 
-1.2 “Software” means software products that are licensed to you under this
-EULA, including, but not limited to, any related components purchased or
-provided with the Software, Documentation, and any maintenance releases
-thereto. This includes, but is not limited to, the “Cluster Software” (see
-1.3).
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
 
-1.3 “Cluster Software” means the software which runs on the servers which
-provides the data replication, failover, scalability and general management of
-the servers.
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
 
-1.4 “The Company” means Hybrid Logic, Ltd.
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
 
-2. GRANT AND USE RIGHTS FOR SOFTWARE
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
 
-2.1 License Grant. The Software is licensed, not sold. Subject to the terms of
-this EULA, The Company grants you a non-exclusive, non-transferable license,
-without rights to sublicense, to use the Software in the country where you are
-invoiced in accordance with the Documentation and license model (per CPU
-socket) for which you have paid the applicable license fees. You may allow
-third party consultants or contractors to access and use the Software on your
-behalf solely for your internal business operations, provided, they are bound
-by an agreement with you protecting The Company's intellectual property with
-terms no less stringent than this EULA and you ensure that such third party use
-of the Software complies with the terms of this EULA. If you upgrade or
-exchange the Software from a previous validly licensed version, you must cease
-use of the prior version of that Software. You agree to provide written
-certification of destruction of the previous version of the Software upon The
-Company’s request.
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
 
-2.2 Restrictions. Except as expressly permitted by this EULA or by applicable
-law, You may not (i) sell, lease, assign, license, sublicense, distribute or
-otherwise transfer in whole or in part the Software; (ii) permit any use of or
-access to the Software by any third party, (iii) operate the Software on behalf
-of or for the benefit of any third party, including the operation of any
-service that is accessed by a third party, except that, for the purposes of
-this Section 2.2(iii), you may use the Software to deliver hosted services to
-your affiliates that are directly or indirectly controlled by, or are under
-common control with you. “Control” in this Section 2.2(iii) means an ownership,
-voting or similar interest representing fifty percent (50%) or more of the
-total interests then outstanding of the relevant entity; (iv) decompile,
-disassemble, reverse engineer, or otherwise attempt to derive source code from
-the Software; (v) modify or create derivative works based upon the Software; or
-(vi) create, develop, license, install, use, or deploy any software or services
-to circumvent, enable, modify or provide access, permissions or rights which
-violate the technical restrictions in the Software. If you wish to exercise any
-rights to reverse engineer to ensure interoperability in accordance with
-applicable law, you must first provide The Company with written notice and all
-reasonably requested information to support@hybridcluster.com within 30 days
-and permit The Company to assess your claim and, at The Company’s sole
-discretion, to make an offer to provide alternatives that reduce any adverse
-impact on The Company’s intellectual property or other rights.
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
 
-2.3 Third-party Software. You are responsible for separately obtaining and
-complying with any licenses necessary to operate third-party software,
-including but not limited to application programs which the Software enables
-you to run.
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
 
-3. TITLE
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
 
-The Company retains all right, title, and interest in and to the Software and
-all related intellectual property rights. The Company retains all rights not
-expressly granted to you in this EULA.
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
 
-4. SUPPORT AND SUBSCRIPTION SERVICES
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
 
-The Company does not provide any support or subscription services for the
-Software under this EULA. You have no rights to any updates, upgrades or
-extensions or enhancements to the Software developed by The Company unless you
-separately purchase The Company support or subscription services. These support
-or subscription services are subject to The Company’s then-current Support and
-Subscription Contract Terms and Conditions.
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
 
-5. TERMINATION
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
 
-The Company may terminate this EULA immediately upon notice if you fail to
-comply with any term of this EULA. In the event of termination, you must remove
-and destroy all copies of the Software, including all backup copies, you own,
-possess or control. Any obligations to pay fees incurred prior to termination
-and Sections 1, 2, 3, 6, and 7 of this EULA shall survive termination for any
-reason.
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
 
-6. LIMITED WARRANTY AND LIMITATION OF LIABILITY
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
 
-TO THE MAXIMUM EXTENT MANDATED BY LAW, THE COMPANY AND ITS LICENSORS PROVIDE
-THE SOFTWARE WITHOUT ANY WARRANTIES OF ANY KIND, EXPRESS, IMPLIED, STATUTORY,
-OR IN ANY OTHER PROVISION OF THIS EULA OR COMMUNICATION WITH YOU, AND HYBRID
-LOGIC, LTD. AND ITS LICENSORS SPECIFICALLY DISCLAIM ANY IMPLIED WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
 
-6.2 LIMITATION OF LIABILITY. TO THE MAXIMUM EXTENT MANDATED BY LAW, IN NO EVENT
-WILL THE COMPANY AND ITS LICENSORS BE LIABLE FOR ANY LOST PROFITS OR BUSINESS
-OPPORTUNITIES, LOSS OF USE, BUSINESS INTERRUPTION, LOSS OF DATA, OR ANY OTHER
-INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES UNDER ANY THEORY OF
-LIABILITY, WHETHER BASED IN CONTRACT, TORT, NEGLIGENCE, PRODUCT LIABILITY, OR
-OTHERWISE. BECAUSE SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION
-OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, THE PRECEDING LIMITATION
-MAY NOT APPLY TO YOU. THE COMPANY’S AND ITS LICENSORS’ LIABILITY UNDER THIS
-EULA WILL NOT, IN ANY EVENT, EXCEED THE LICENSE FEES YOU PAID FOR THE SOFTWARE,
-IF ANY. THE FOREGOING LIMITATIONS SHALL APPLY REGARDLESS OF WHETHER THE COMPANY
-OR ITS LICENSORS HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES AND
-REGARDLESS OF WHETHER ANY REMEDY FAILS OF ITS ESSENTIAL PURPOSE.
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
 
-7. GENERAL
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
 
-7.1 Entire Agreement. This EULA represents the entire agreement between the
-parties with respect to the Software, and supersedes any prior or
-contemporaneous oral or written agreements concerning the subject matter
-contained herein.
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
 
-7.2 Headings. Headings under this EULA are intended only for convenience and
-shall not affect the interpretation of this EULA.
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
 
-7.3 Waiver and Modification. No failure of either party to exercise or enforce
-any of its rights under this EULA will act as a waiver of those rights. This
-EULA may only be modified, or any rights under it waived, by a written
-agreement executed by the party against which it is asserted.
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
 
-7.4 Severability. If any provision of this EULA is found illegal or
-unenforceable, it will be enforced to the maximum extent permissible, and the
-legality and enforceability of the other provisions of this EULA will not be
-affected.
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
 
-7.5 Governing Law. This EULA is governed by the laws of the United Kingdom,
-unless mandated by other law.
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
 
-7.6 Contact Information. Please direct legal notices or other correspondence to
-Hybrid Logic, Ltd., 29 Devizes Road, Swindon, Wiltshire, SN1 4BG. If you have
-any questions concerning this EULA, please send an email to
-support@hybridcluster.com.
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright {yyyy} {name of copyright owner}
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
