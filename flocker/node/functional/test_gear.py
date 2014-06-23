@@ -10,13 +10,11 @@ from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
-from twisted.internet.defer import succeed, maybeDeferred
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
+from twisted.internet.defer import succeed
 
 from treq import request, content
 
-from ...testtools import loop_until
+from ...testtools import loop_until, loop_until2
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT
 
@@ -185,10 +183,17 @@ class GearClientTests(TestCase):
                 persistent=False)
             # Catch errors and return False so that loop_until repeats the
             # request.
+            # XXX: This will hide all errors. We should probably only catch
+            # timeouts and reject responses here.
             response.addErrback(lambda err: False)
             return response
 
         def loop_request(ignored):
+            """
+            The container may have started, but the webserver inside may take a
+            little while to start serving requests. Resend our test request
+            until we get a response.
+            """
             d = loop_until2(send_request)
             return d
         d.addCallback(loop_request)
@@ -200,27 +205,3 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
-
-
-def loop_until2(predicate):
-    """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
-
-    XXX: This is a copy of flocker.testutils.loop_until which returns the result
-    of the predicate. Maybe this can replace that implementation since none of
-    the current users of loop_until supply a return argument.
-
-    :param predicate: Callable returning termination condition.
-    :type predicate: 0-argument callable returning a Deferred.
-
-    :return: A ``Deferred`` firing with the first ``Truthy`` response from
-        ``predicate``.
-    """
-    d = maybeDeferred(predicate)
-    def loop(result):
-        if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
-            return d
-        return result
-    d.addCallback(loop)
-    return d

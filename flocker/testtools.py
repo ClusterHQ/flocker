@@ -109,6 +109,30 @@ def loop_until(arg, predicate):
     return d
 
 
+def loop_until2(predicate):
+    """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
+
+    XXX: This is a copy of flocker.testutils.loop_until which returns the result
+    of the predicate. Maybe this can replace that implementation since none of
+    the current users of loop_until supply a return argument.
+
+    :param predicate: Callable returning termination condition.
+    :type predicate: 0-argument callable returning a Deferred.
+
+    :return: A ``Deferred`` firing with the first ``Truthy`` response from
+        ``predicate``.
+    """
+    d = maybeDeferred(predicate)
+    def loop(result):
+        if not result:
+            d = deferLater(reactor, 0.1, predicate)
+            d.addCallback(loop)
+            return d
+        return result
+    d.addCallback(loop)
+    return d
+
+
 def random_name():
     """Return a short, random name.
 
