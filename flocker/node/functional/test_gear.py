@@ -138,6 +138,35 @@ class GearClientTests(TestCase):
         return self.assertFailure(d, GearError)
 
 
+    def assert_busybox_http_response(self, response):
+        """
+        Assert that the busybox-http-app returns the expected "Hello world!"
+        response.
+
+        XXX: We should use a stable internal container instead. See
+        https://github.com/hybridlogic/flocker/issues/120
+
+        XXX: The busybox-http-app returns headers in the body of its response,
+        hence this over complicated custom assertion. See
+        https://github.com/openshift/geard/issues/213
+        """
+        expected_response = b'Hello world!\n'
+        actual_response = response[-len(expected_response):]
+        message = (
+            "Response {response} does not end with {expected_response}. "
+            "Found {actual_response}.".format(
+                response=repr(response),
+                expected_response=repr(expected_response),
+                actual_response=repr(actual_response)
+            )
+        )
+        self.assertEqual(
+            expected_response,
+            actual_response,
+            message
+        )
+
+
     def test_add_with_port(self):
         """
         GearClient.add accepts an internal_port argument which is passed to gear
@@ -148,13 +177,12 @@ class GearClientTests(TestCase):
         d = self.start_container(
             name, internal_port=8080, external_port=external_port)
 
-        expected_response = b'Hello world'
         def started(_):
             responded = request(
                 b"GET", b"http://127.0.0.1:%d" % (external_port,),
                 persistent=False)
             responded.addCallback(content)
-            responded.addCallback(self.assertEqual, expected_response)
+            responded.addCallback(self.assert_busybox_http_response)
             return responded
 
         d.addCallback(started)
