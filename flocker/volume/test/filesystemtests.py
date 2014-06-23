@@ -199,4 +199,20 @@ def make_istoragepool_tests(fixture):
                 self.assertEqual(expected, result)
             return enumerating.addCallback(enumerated)
 
+        def test_consistent_naming_pattern(self):
+            """``IFilesystem.get_path().basename()`` has a consistent naming
+            pattern"""
+            pool = fixture(self)
+            uuid = u"my-uuid"
+            volume_name = u"myvolumename"
+            volume = Volume(uuid=uuid, name=volume_name, _pool=pool)
+            d = pool.create(volume)
+
+            def createdFilesystem(filesystem):
+                name = filesystem.get_path().basename()
+                expected = u"{uuid}.{name}".format(uuid=uuid, name=volume_name)
+                self.assertEqual(name, expected)
+            d.addCallback(createdFilesystem)
+            return d
+
     return IStoragePoolTests
