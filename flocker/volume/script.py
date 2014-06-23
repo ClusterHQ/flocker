@@ -9,7 +9,9 @@ from twisted.internet.defer import succeed
 
 from zope.interface import implementer
 
-from .service import VolumeService, CreateConfigurationError
+from .service import (
+    VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
+    )
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
@@ -19,6 +21,7 @@ __all__ = [
     'VolumeOptions',
     'VolumeScript',
 ]
+
 
 
 @flocker_standard_options
@@ -33,7 +36,7 @@ class VolumeOptions(Options):
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
     optParameters = [
-        ["config", None, b"/etc/flocker/volume.json",
+        ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the config file."],
     ]
 

@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from characteristic import attributes
 
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
@@ -19,6 +20,9 @@ from twisted.internet import reactor
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/hybridlogic/flocker/issues/64
 from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
+
+
+DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
 
 
 class CreateConfigurationError(Exception):
@@ -72,7 +76,7 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def push(self, volume, destination):
+    def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
         """Push the latest data in the volume to a remote destination.
 
         This is a blocking API, for now.
@@ -82,6 +86,8 @@ class VolumeService(Service):
 
         :param Volume volume: The volume to push.
         :param Node destination: The node to push to.
+        :param FilePath config_path: Path to configuration file for the
+            remote ``flocker-volume``.
 
         :raises ValueError: If the uuid of the volume is different than our own;
             only locally-owned volumes can be pushed.
@@ -89,7 +95,8 @@ class VolumeService(Service):
         if volume.uuid != self.uuid:
             raise ValueError()
         fs = volume.get_filesystem()
-        with destination.run([b"flocker-volume", b"receive",
+        with destination.run([b"flocker-volume", b"--config", config_path.path,
+                              b"receive",
                               volume.uuid.encode(b"ascii"),
                               volume.name.encode("ascii")]) as receiver:
             with fs.reader() as contents:
@@ -105,9 +112,7 @@ class VolumeService(Service):
         this service's) can be received.
 
         :param unicode volume_uuid: The volume's UUID.
-
         :param unicode volume_name: The volume's name.
-
         :param input_file: A file-like object, typically ``sys.stdin``, from
             which to read the data.
 
