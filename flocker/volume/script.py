@@ -13,6 +13,7 @@ from zope.interface import implementer
 from .service import (
     VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
     )
+from .filesystems.zfs import StoragePool
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
@@ -23,7 +24,8 @@ __all__ = [
     'VolumeScript',
 ]
 
-class ReceiveSubcommandOptions(Options):
+
+class _ReceiveSubcommandOptions(Options):
     """Command line options ``flocker-volume receive``."""
 
     longdesc = """Receive a volume pushed from another volume manager.
@@ -50,10 +52,16 @@ class VolumeOptions(Options):
     optParameters = [
         ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the config file."],
+        # Maybe we can come up with something better in
+        # https://github.com/hybridlogic/flocker/issues/125
+        ["pool", None, b"flocker",
+         "The ZFS pool to use for volumes."],
+        ["mountpoint", None, b"/flocker",
+         "The path where ZFS filesystems will be mounted."],
     ]
 
     subCommands = [
-        ["receive", None, ReceiveSubcommandOptions,
+        ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
     ]
 
@@ -86,8 +94,13 @@ class VolumeScript(object):
 
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
+        if options.subCommand is None:
+            pool = None
+        else:
+            pool = StoragePool(reactor, options["pool"],
+                               FilePath(options["mountpoint"]))
         service = self._service_factory(
-            config_path=options["config"], pool=None)
+            config_path=options["config"], pool=pool)
         try:
             service.startService()
         except CreateConfigurationError as e:

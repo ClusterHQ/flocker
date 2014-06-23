@@ -135,7 +135,7 @@ class ReceiveTests(TestCase):
             to_volume = Volume(uuid=self.to_service.uuid, name=u"thevolume",
                                _pool=self.to_pool)
             root = to_volume.get_filesystem().get_path()
-            self.assertEqual(root.child(b"afile.txt"), b"WORKS!")
+            self.assertEqual(root.child(b"afile.txt").getContent(), b"WORKS!")
         created.addCallback(pushed)
 
         return created

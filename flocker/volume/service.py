@@ -95,7 +95,13 @@ class VolumeService(Service):
         if volume.uuid != self.uuid:
             raise ValueError()
         fs = volume.get_filesystem()
-        with destination.run([b"flocker-volume", b"--config", config_path.path,
+        with destination.run([b"flocker-volume",
+                              b"--config", config_path.path,
+                              # Totally breaks abstraction boundaries; fix in
+                              # https://github.com/hybridlogic/flocker/issues/125
+                              b"--pool", self._pool._name,
+                              b"--mountpoint", self._pool._mount_root.path,
+
                               b"receive",
                               volume.uuid.encode(b"ascii"),
                               volume.name.encode("ascii")]) as receiver:
