@@ -6,7 +6,7 @@ Release:        1%{?dist}
 Summary:        Docker orchestration and volume management
 BuildArch:      noarch
 
-License:        Proprietary
+License:        ASL 2.0 
 URL:            https://hybridcluster.github.io/
 Source0:        Flocker-%{flocker_version}.tar.gz
 
