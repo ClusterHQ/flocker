@@ -20,7 +20,7 @@ BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
 BuildRequires:  python-characteristic
 BuildRequires:  pytz
 BuildRequires:  python-ipaddr
-BuildRequires:  python-netifaces
+BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-treq
 # See https://github.com/hybridlogic/flocker/issues/85
 BuildRequires:  docker-io
@@ -31,7 +31,7 @@ Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       python-characteristic
 Requires:       pytz
 Requires:       python-ipaddr
-Requires:       python-netifaces
+Requires:       python-netifaces >= 0.8.0
 Requires:       python-treq
 Requires:       docker-io
 Requires:       /sbin/iptables

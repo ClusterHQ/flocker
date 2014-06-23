@@ -85,7 +85,7 @@ setup(
 
         "treq == 0.2.1",
 
-        "netifaces == 0.8",
+        "netifaces >= 0.8",
         "ipaddr == 2.1.10",
         ],
 
