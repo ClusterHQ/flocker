@@ -13,7 +13,6 @@ from zope.interface import implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed
-from twisted.python import log
 
 from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
 
@@ -70,8 +69,8 @@ class DirectoryFilesystem(object):
                 self.path.makedirs()
             tarball.extractall(self.path.path)
         except:
-            # XXX Should log this, or raise a well-specified exception, or
-            # something. Open a ticket.
+            # This should really be dealt with, e.g. logged:
+            # https://github.com/hybridlogic/flocker/issues/122
             pass
 
 
