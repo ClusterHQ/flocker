@@ -96,26 +96,30 @@ class VolumeService(Service):
                 for chunk in iter(lambda: contents.read(1024 * 1024), b""):
                     receiver.write(chunk)
 
-    def receive(self, volume_uuid, volume_name):
-        """Process a volume's data that is being pushed in over stdin.
+    def receive(self, volume_uuid, volume_name, input_file):
+        """Process a volume's data that can be read from a file-lik.
 
         This is a blocking API, for now.
 
         Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
         this service's) can be received.
 
-        :param bytes volume_uuid: The volume's UUID.
+        :param unicode volume_uuid: The volume's UUID.
 
-        :param bytes volume_name: The volume's name.
+        :param unicode volume_name: The volume's name.
+
+        :param input_file: A file-like object, typically ``sys.stdin``, from
+            which to read the data.
 
         :raises ValueError: If the uuid of the volume matches our own;
             remote nodes can't overwrite locally-owned volumes.
         """
-        # if volume_uuid == self.uuid: raise ValueError()
-        # volume = Volume(volume_uuid, volume_name, _pool=self._pool)
-        # with volume.get_filesystem().writer() as w:
-        #     for chunk in iter(lambda: sys.stdin.read(1024 * 1024), b""):
-        #     w.write(chunk)
+        if volume_uuid == self.uuid:
+            raise ValueError()
+        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        with volume.get_filesystem().writer() as writer:
+             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+                 writer.write(chunk)
 
 
 # Communication with Docker should be done via its API, not with this

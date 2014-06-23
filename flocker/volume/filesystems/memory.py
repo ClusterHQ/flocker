@@ -66,7 +66,7 @@ class DirectoryFilesystem(object):
             tarball = TarFile(fileobj=result, mode="r")
             if self.path.exists():
                 self.path.remove()
-                self.path.makedirs()
+            self.path.createDirectory()
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:

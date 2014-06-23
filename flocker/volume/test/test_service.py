@@ -157,6 +157,45 @@ class VolumeServiceAPITests(TestCase):
         service.push(volume, node)
         self.assertEqual(node.stdin.read(), data)
 
+    def test_receive_local_uuid(self):
+        """If a volume with same uuid as service is received, ``ValueError`` is
+        raised."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        self.assertRaises(ValueError, service.receive,
+                          service.uuid.encode("ascii"), b"lalala", None)
+
+    def test_receive_creates_volume(self):
+        """Receiving creates a volume with the given uuid and name."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+
+        with filesystem.reader() as reader:
+            service.receive(u"anotheruuid", u"newvolume", reader)
+        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+        self.assertTrue(new_volume.get_filesystem().get_path().exists())
+
+    def test_receive_creates_files(self):
+        """Receiving creates filesystem with the given psuh data."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+        filesystem.get_path().child(b"afile").setContent(b"lalala")
+
+        with filesystem.reader() as reader:
+            service.receive(u"anotheruuid", u"newvolume", reader)
+
+        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+        root = new_volume.get_filesystem().get_path()
+        self.assertTrue(root.child(b"afile").getContent(), b"lalala")
+
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
