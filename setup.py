@@ -60,6 +60,9 @@ setup(
     # Here is a website where more information about the software is available.
     url="http://hybridcluster.com/",
 
+    # A short identifier for the license under which the project is released.
+    license="Apache License, Version 2.0",
+
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
     # the Flocker package.
@@ -105,4 +108,9 @@ setup(
         },
 
     cmdclass=cmdclass,
+
+    # Some "trove classifiers" which are relevant.
+    classifiers=[
+        "License :: OSI Approved :: Apache Software License",
+        ],
     )
