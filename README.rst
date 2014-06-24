@@ -1,7 +1,12 @@
 =======
 flocker
 =======
-probably a replication-based failover product
+Flocker is a volume manager and multi-host Docker container orchestration tool.
+
+With Flocker's command line tools and a simple configuration language, you can deploy your Docker-based applications onto one or more hosts.
+Once deployed, your applications will have access to the volumes you have configured for them.
+Those applications will follow your containers when you use Flocker to move them between different hosts in your Flocker cluster.
+
 
 Development
 -----------
