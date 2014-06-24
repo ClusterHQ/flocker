@@ -200,7 +200,7 @@ class VolumeServiceAPITests(TestCase):
         self.assertTrue(new_volume.get_filesystem().get_path().exists())
 
     def test_receive_creates_files(self):
-        """Receiving creates filesystem with the given psuh data."""
+        """Receiving creates filesystem with the given push data."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()

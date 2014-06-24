@@ -51,7 +51,9 @@ class ProcessNode(object):
             yield process.stdin
         finally:
             process.stdin.close()
-            process.wait()
+            exit_code = process.wait()
+            if exit_code:
+                raise IOError("Bad exit")
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):

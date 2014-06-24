@@ -58,7 +58,8 @@ def make_inode_tests(fixture):
         def test_writeable(self):
             """The returned object is writeable."""
             node = fixture(self)
-            with node.run([b"cat"]) as writer:
+            with node.run([b"python", b"-c",
+                           b"import sys; sys.stdin.read()"]) as writer:
                 writer.write(b"hello")
                 writer.write(b"there")
 

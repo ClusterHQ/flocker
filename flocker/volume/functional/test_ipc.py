@@ -29,7 +29,7 @@ def make_cat_processnode(test_case):
 
     :return: ``ProcessNode`` that runs ``cat``.
     """
-    return ProcessNode(initial_command_arguments=[b"cat"])
+    return ProcessNode(initial_command_arguments=[b"echo"])
 
 
 class ProcessINodeTests(make_inode_tests(make_cat_processnode)):
@@ -57,6 +57,18 @@ class ProcessNodeTests(TestCase):
             stdin.write(b"hello ")
             stdin.write(b"world")
         self.assertEqual(FilePath(temp_file).getContent(), b"hello world")
+
+    def test_bad_exit(self):
+        """``run()`` raises ``IOError`` if subprocess has non-zero exit code."""
+        node = ProcessNode(initial_command_arguments=[])
+        nonexistent = self.mktemp()
+        try:
+            with node.run([b"ls", nonexistent]):
+                pass
+        except IOError:
+            pass
+        else:
+            self.fail("No IOError")
 
 
 class InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
@@ -148,3 +160,4 @@ class SSHProcessNodeTests(TestCase):
             self.assertEqual(data, b"hello there")
         d.addCallback(got_data)
         return d
+

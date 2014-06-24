@@ -83,6 +83,27 @@ class FlockerVolumeTests(TestCase):
                          % (config.path,))
 
 
+class MutatingProcessNode(ProcessNode):
+    """Mutate the command being run in order to make tests work.
+
+    Come up with something better in
+    https://github.com/hybridlogic/flocker/issues/125
+    """
+    def __init__(self, to_service):
+        """
+        :param to_service: The VolumeService to which a push is being done.
+        """
+        self.to_service = to_service
+        ProcessNode.__init__(self, initial_command_arguments=[])
+
+    def run(self, remote_command):
+        remote_command = remote_command[:1] + [
+            b"--pool", self.to_service._pool._name,
+            b"--mountpoint", self.to_service._pool._mount_root.path
+        ] + remote_command[1:]
+        return ProcessNode.run(self, remote_command)
+
+
 class ReceiveTests(TestCase):
     """Tests for ``flocker-volume receive``."""
 
@@ -106,12 +127,12 @@ class ReceiveTests(TestCase):
 
         def do_push(volume):
             # Blocking call:
-            run_locally = ProcessNode(initial_command_arguments=[])
+            run_locally = MutatingProcessNode(self.to_service)
             self.from_service.push(volume, run_locally, self.to_config)
         created.addCallback(do_push)
 
         def pushed(_):
-            to_volume = Volume(uuid=self.to_service.uuid, name=u"thevolume",
+            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
                                _pool=self.to_pool)
             self.assertTrue(to_volume.get_filesystem().get_path().exists())
         created.addCallback(pushed)
@@ -127,12 +148,12 @@ class ReceiveTests(TestCase):
             root.child(b"afile.txt").setContent(b"WORKS!")
 
             # Blocking call:
-            run_locally = ProcessNode(initial_command_arguments=[])
+            run_locally = MutatingProcessNode(self.to_service)
             self.from_service.push(volume, run_locally, self.to_config)
         created.addCallback(do_push)
 
         def pushed(_):
-            to_volume = Volume(uuid=self.to_service.uuid, name=u"thevolume",
+            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
                                _pool=self.to_pool)
             root = to_volume.get_filesystem().get_path()
             self.assertEqual(root.child(b"afile.txt").getContent(), b"WORKS!")
