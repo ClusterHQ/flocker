@@ -8,35 +8,51 @@ Introduction
 ClusterHQ develops software using a variation of the `Ultimate Quality Development System`_.
 
 * Each unit of work is defined in an issue in the issue tracker and developed on a branch.
+
 * Code is written using test-driven development.
+
 * The issue is closed by merging the branch (via a GitHub pull request).
+
 * Before a branch is merged it must pass code review.
+
 * The code reviewer ensures that the pull request:
     * Follows the coding standard (Python's PEP 8).
+
     * Includes appropriate documentation.
+
     * Has full test coverage (unit tests and functional tests).
+
     * The tests pass in the continuous integration system (Buildbot).
+
     * Resolves the issue.
+
 * The code reviewer can approve the pull request for merging as is, with some changes, or request changes and an additional review.
 
 .. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
 
 
-Development requirements
-========================
+Talk to us
+==========
+
+Have questions or need help?
+Besides filing a `Github issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network.
+
+.. _Github issue: https://github.com/clusterhq/flocker/issues
+
+
+Development environment
+=======================
 
 * To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
   ``geard`` requires an operating system with ``systemd``.
-  The easiest way to get going with these is to use our Vagrant image::
+  The easiest way to get an environment with these installed is to use the included ``Vagrantfile`` (see the `vagrant documentation <http://docs.vagrantup.com/v2/>`_) which will create a pre-configured Fedora 20 virtual machine::
 
-   # XXX LINK TO UPDATED LOCATION
-   $ vagrant init tomprince/flocker-dev
    $ vagrant up
    $ vagrant ssh
 
-* You will need Python 2.7 and a recent version PyPy installed on your machine.
-* If you don't already have ``tox`` on your machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing::
+* You will need Python 2.7 and a recent version PyPy installed on your development machine.
+* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing::
 
     $ python setup.py install .[dev]
 
@@ -59,6 +75,53 @@ In addition, ``tox`` needs to be run as root::
 
 Since these tests involve global state on your machine (filesystems, iptables, docker containers, etc.) we recommend running them in the development Vagrant image.
 
+
+Steps to contribute code - external contributors
+================================================
+
+1. Open an issue if one does not already exist.
+
+2. If the problem is non-trivial discuss the issue and best solution with the core development team via the issue.
+
+3. Fork the repository on github.
+   Add a note in the issue so people know you're working on it.
+
+4. Implement your change.
+   Tests are required to get your code merged, but you can prototype a change and submit for review if you want some feedback on your design.
+
+5. Do a pull request.
+   Make sure to indicate which issue this will fix.
+
+6. Address any points raised by the reviewer.
+
+
+Requirements for contributions
+==============================
+
+1. All code must have unit test coverage and to the extent possible functional test coverage.
+
+  Use the coverage.py tool with the `--branch` option to generate line and branch coverage reports.
+  This report can tell you if you missed anything.
+  It does not necessarily catch everything though.
+  Treat it as a helper but not the definitive indicator of success.
+  You can also see coverage output in the Buildbot details link of your pull request.
+  Practice test-driven development to ensure all code has test coverage.
+
+2. All code must have documentation.
+
+  Modules, functions, classes, and methods must be documented (even if they are private).
+  Function parameters and object attributes must be documented (even if they are private).
+
+3. All user-facing tools must have documentation.
+
+  Document tool usage as part of big-picture documentation.
+  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+
+4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
+
+
+Internal developers
+===================
 
 Project development process
 ===========================
@@ -104,50 +167,6 @@ An in-progress issue will have a branch with the issue number in its name,
 When the branch is ready for review a pull request will be created in the *Review* category.
 When the branch is merged the corresponding pull requests and issues will be closed.
 
-
-Steps to contribute code - external contributors
-================================================
-
-1. Open an issue if one does not already exist.
-
-2. If the problem is non-trivial discuss the issue and best solution with the core development team via the issue.
-
-3. Fork the repository on github.
-   Add a note in the issue so people know you're working on it.
-
-4. Implement your change.
-   Tests are required to get your code merged, but you can prototype a change and submit for review if you want some feedback on your design.
-
-5. Do a pull request.
-   Make sure to indicate which issue this will fix.
-
-6. Address any points raised by the reviewer.
-
-
-Requirements for contributions
-==============================
-
-* All code must have unit test coverage and to the extent possible functional test coverage.
-  Use the coverage.py tool with the `--branch` option to generate line and branch coverage reports.
-  This report can tell you if you missed anything.
-  It does not necessarily catch everything though.
-  Treat it as a helper but not the definitive indicator of success.
-  You can also see coverage output in the Buildbot details link of your pull request.
-  Practice test-driven development to ensure all code has test coverage.
-
-* All code must have documentation.
-  Modules, functions, classes, and methods must be documented (even if they are private).
-  Function parameters and object attributes must be documented (even if they are private).
-
-* All user-facing tools must have documentation.
-  Document tool usage as part of big-picture documentation.
-  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
-
-* Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
-
-
-Internal developers
-===================
 
 Steps to contribute code
 ^^^^^^^^^^^^^^^^^^^^^^^^
