@@ -203,9 +203,14 @@ class FakeGearClient(object):
 
 @attributes(['internal', 'external'])
 class PortMap(object):
-    pass
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+    """
 
 
 @attributes(['unit_name', 'image_name', 'ports'])
 class GearUnit(object):
-    pass
+    """
+    A record representing a single `geard` unit.
+    """
