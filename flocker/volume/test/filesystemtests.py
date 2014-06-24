@@ -144,15 +144,12 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_mountpoint(self):
-<<<<<<< HEAD
             """
             The volume's filesystem has a mountpoint which is a
             directory.
             """
-=======
             """The volume's filesystem has a mountpoint which is a
             directory."""
->>>>>>> 2761de0268ab4f60f8df1e71a3df6116db26e984
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
