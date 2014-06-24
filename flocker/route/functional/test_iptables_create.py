@@ -147,6 +147,8 @@ class CreateTests(TestCase):
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
 
+        # https://github.com/hybridlogic/flocker/issues/135
+        # Don't hardcode addresses in the created namespace
         self.server_ip = self.namespace.ADDRESSES[0]
         self.proxy_ip = self.namespace.ADDRESSES[1]
 
