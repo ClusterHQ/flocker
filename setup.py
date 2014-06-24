@@ -13,6 +13,28 @@ versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
+from distutils.core import Command
+class cmd_generate_spec(Command):
+    description = "Generate flocker.spec with current version."
+    user_options = []
+    boolean_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        with open('flocker.spec.in', 'r') as source:
+            spec = source.read()
+        version = "%%global flocker_version %s\n" % (versioneer.get_version(),)
+        with open('flocker.spec', 'w') as destination:
+            destination.write(version)
+            destination.write(spec)
+
+
+cmdclass = {'generate_spec': cmd_generate_spec}
+# Let versioneer hook into the various distutils commands so it can rewrite
+# certain data at appropriate times.
+cmdclass.update(versioneer.get_cmdclass())
 
 # Hard linking doesn't work inside Vagrant shared folders. This means that
 # you can't use tox in a directory that is being shared with Vagrant,
@@ -23,7 +45,6 @@ versioneer.parentdir_prefix = "flocker-"
 # for more details.
 if os.environ.get('USER','') == 'vagrant':
     del os.link
-
 
 setup(
     # This is the human-targetted name of the software being packaged.
@@ -38,6 +59,9 @@ setup(
     author_email="support@hybridcluster.com",
     # Here is a website where more information about the software is available.
     url="http://hybridcluster.com/",
+
+    # A short identifier for the license under which the project is released.
+    license="Apache License, Version 2.0",
 
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
@@ -54,14 +78,13 @@ setup(
     install_requires=[
         "eliot == 0.4.0",
         "zope.interface == 4.0.5",
-        # Pinning this isn't great in general, but we're only using UTC so meh:
-        "pytz == 2014.2",
+        "pytz",
         "characteristic == 0.1.0",
-        "Twisted == 13.2.0",
+        "Twisted == 14.0.0",
 
         "treq == 0.2.1",
 
-        "netifaces == 0.8",
+        "netifaces >= 0.8",
         "ipaddr == 2.1.10",
         ],
 
@@ -83,7 +106,10 @@ setup(
             ]
         },
 
-    # Let versioneer hook into the various distutils commands so it can rewrite
-    # certain data at appropriate times.
-    cmdclass=versioneer.get_cmdclass(),
+    cmdclass=cmdclass,
+
+    # Some "trove classifiers" which are relevant.
+    classifiers=[
+        "License :: OSI Approved :: Apache Software License",
+        ],
     )
