@@ -180,10 +180,9 @@ def create_proxy_to(ip, port):
         # https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
         # will explain the meaning of these in (very slightly) more detail.
         conf = FilePath(b"/proc/sys/net/ipv4/conf")
-        with conf.descendant(
-                [b"default", b"forwarding"]
-                ).open("wb") as forwarding:
-                    forwarding.write(b"1")
+        descendant = conf.descendant([b"default", b"forwarding"])
+        with descendant.open("wb") as forwarding:
+            forwarding.write(b"1")
 
         # In order to have the OUTPUT chain DNAT rule affect routing decisions,
         # we also need to tell the system to make routing decisions about
