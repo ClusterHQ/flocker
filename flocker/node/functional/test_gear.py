@@ -11,6 +11,7 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
+from twisted.internet.test.connectionmixins import findFreePort
 
 from treq import request, content
 

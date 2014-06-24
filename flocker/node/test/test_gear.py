@@ -5,6 +5,7 @@
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
+from twisted.internet.test.connectionmixins import findFreePort
 
 from ...testtools import random_name
 from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, GearUnit
@@ -105,7 +106,7 @@ def make_igearclient_tests(fixture):
             expected_unit = GearUnit(
                 unit_name=name,
                 image_name=u"openshift/busybox-http-app",
-                ports=[PortMap(internal=8080, external=8081)]
+                ports=[PortMap(internal=8080, external=findFreePort()[1])]
             )
             client = fixture(self)
             d = client.add(
