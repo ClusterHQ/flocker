@@ -135,7 +135,11 @@ class ReceiveTests(TestCase):
         def pushed(_):
             to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
                                _pool=self.to_pool)
-            self.assertTrue(to_volume.get_filesystem().get_path().exists())
+            d = self.to_service.enumerate()
+            def got_volumes(volumes):
+                self.assertIn(to_volume, volumes)
+            d.addCallback(got_volumes)
+            return d
         created.addCallback(pushed)
 
         return created

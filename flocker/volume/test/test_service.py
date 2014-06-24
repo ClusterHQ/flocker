@@ -198,7 +198,11 @@ class VolumeServiceAPITests(TestCase):
         with filesystem.reader() as reader:
             service.receive(u"anotheruuid", u"newvolume", reader)
         new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
-        self.assertTrue(new_volume.get_filesystem().get_path().exists())
+        d = service.enumerate()
+        def got_volumes(volumes):
+            self.assertIn(new_volume, volumes)
+        d.addCallback(got_volumes)
+        return d
 
     def test_receive_creates_files(self):
         """Receiving creates filesystem with the given push data."""

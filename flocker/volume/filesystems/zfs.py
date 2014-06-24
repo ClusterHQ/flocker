@@ -13,6 +13,7 @@ from characteristic import with_cmp, with_repr
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
@@ -246,7 +247,7 @@ class StoragePool(object):
             for entry in filesystems:
                 dataset, mountpoint = entry
                 filesystem = Filesystem(
-                    self._name, dataset, mountpoint)
+                    self._name, dataset, FilePath(mountpoint))
                 result.add(filesystem)
             return result
 
