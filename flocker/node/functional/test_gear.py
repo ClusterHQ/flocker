@@ -17,7 +17,7 @@ from treq import request, content
 
 from ...testtools import loop_until, loop_until2
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, GEAR_PORT
+from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
 
 def _gear_running():
@@ -53,7 +53,7 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name, internal_port=None, external_port=None):
+    def start_container(self, name, ports=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
@@ -61,7 +61,7 @@ class GearClientTests(TestCase):
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app", internal_port=internal_port, external_port=external_port)
+        d = client.add(name, u"openshift/busybox-http-app", ports=ports)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -189,13 +189,13 @@ class GearClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        GearClient.add accepts an internal_port argument which is passed to gear
-        to expose that port on the unit.
+        GearClient.add accepts a ports argument which is passed to gear to
+        expose those ports on the unit.
         """
-        external_port = 4040
+        external_port = findFreePort()[1]
         name = random_name()
         d = self.start_container(
-            name, internal_port=8080, external_port=external_port)
+            name, ports=[PortMap(internal=8080, external=external_port)])
 
         d.addCallback(lambda ignored: self.request_until_response(external_port))
 
