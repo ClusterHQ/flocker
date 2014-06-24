@@ -1,2 +1,3 @@
+include README.rst
 include versioneer.py
 include flocker/_version.py

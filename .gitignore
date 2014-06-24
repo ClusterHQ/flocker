@@ -26,6 +26,7 @@ var/
 *.egg
 twisted/plugins/dropin.cache
 MANIFEST
+flocker.spec
 
 # Installer logs
 pip-log.txt
@@ -58,3 +59,5 @@ _trial_temp*
 # Sphinx documentation
 docs/_build/
 
+# Vagrant
+.vagrant
