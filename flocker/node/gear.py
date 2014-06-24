@@ -15,6 +15,8 @@ from treq import request, content
 
 from characteristic import attributes
 
+from ..volume.service import _docker_command
+
 GEAR_PORT = 43273
 
 
@@ -181,19 +183,61 @@ class GearClient(object):
         d.addCallback(self._ensure_ok)
         return d
 
-    def list(self):
+    def _filter_ids(self, unit_data):
+        """
+        """
+        ids = []
+        for record in unit_data["Containers"]:
+            ids.append(record["Id"])
+        return ids
+
+    def _containers(self):
         d = request(b'GET', self._base_url + b'/containers', persistent=False)
         d.addCallback(content)
         d.addCallback(json.loads)
-        def create_units(unit_data):
-            units = []
-            for record in unit_data["Containers"]:
-                units.append(record["Id"])
-            return units
-        d.addCallback(create_units)
+        d.addCallback(self._filter_ids)
         return d
 
+    def _docker_inspect(self, unit_name):
+        d = _docker_command(reactor, ['inspect', unit_name])
+        d.addCallback(json.loads)
+        return d
 
+    def _gear_unit_from_docker(self, unit_name):
+        d = workaround_geard_187()
+        d.addCallback(lambda ignored: self._docker_inspect(unit_name))
+        def gear_unit(inspect_data):
+            record = inspect_data[0]
+            image_name = record['Config']['Image']
+            ports = []
+            for port in record['Config']['ExposedPorts']:
+                internal_port, internal_protocol = port.split('/', 1)
+                internal_port = int(internal_port)
+                for external_info  in record['HostConfig']['PortBindings'][port]:
+                    host_port = int(external_info['HostPort'])
+                    ports.append(PortMap(internal=internal_port, external=host_port))
+
+            return GearUnit(
+                unit_name=unit_name,
+                image_name=image_name,
+                ports=ports
+            )
+        d.addCallback(gear_unit)
+        return d
+
+    def get(self, unit_name):
+        d = self._containers()
+        def name_exists(unit_names):
+            if unit_name in unit_names:
+                return unit_name
+            raise UnknownUnit(unit_name=unit_name)
+        d.addCallback(name_exists)
+        d.addCallback(self._gear_unit_from_docker)
+        return d
+
+@attributes(['unit_name'])
+class UnknownUnit(Exception):
+    pass
 
 @implementer(IGearClient)
 class FakeGearClient(object):
