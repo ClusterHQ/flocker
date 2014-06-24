@@ -151,9 +151,8 @@ def volume_to_dataset(volume):
 
     :return: Dataset name as ``bytes``.
     """
-    # Include trunk in case we decide to do branch model later on:
-    return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
-                             volume.name.encode("ascii"))
+    return b"%s.%s" % (volume.uuid.encode("ascii"),
+                       volume.name.encode("ascii"))
 
 
 @implementer(IStoragePool)
