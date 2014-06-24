@@ -13,22 +13,16 @@ from socket import error, socket
 from unittest import skipUnless
 from subprocess import check_call
 
-from netifaces import AF_INET, interfaces, ifaddresses
 from ipaddr import IPAddress, IPNetwork
 from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
-from twisted.trial.unittest import SkipTest, TestCase
+from twisted.trial.unittest import TestCase
 
 from .. import create_proxy_to, delete_proxy, enumerate_proxies
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
-from .iptables import preserve_iptables, get_iptables_rules
+from .iptables import create_network_namespace, get_iptables_rules
 
-def ADDRESSES():
-    return [
-    IPAddress(address['addr'])
-    for name in interfaces()
-    for address in ifaddresses(name).get(AF_INET, [])
-]
+ADDRESSES = [IPAddress('127.0.0.1'), IPAddress('10.0.0.1')]
 
 
 def connect_nonblocking(ip, port):
@@ -122,14 +116,14 @@ _environment_skip = skipUnless(
     "Cannot test port forwarding without suitable test environment.")
 
 
-class PreserveTests(TestCase):
+class GetIPTablesTests(TestCase):
     """
     Tests for the iptables rule preserving helper.
     """
     @_environment_skip
-    def test_normalized_rules(self):
+    def test_get_iptables_rules(self):
         """
-        :py:code:`preserve_iptables().normalize_rules()` returns the same list of
+        :py:code:`get_iptables_rules()` returns the same list of
         bytes as long as no rules have changed.
         """
         first = get_iptables_rules()
@@ -151,10 +145,10 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        self.addCleanup(preserve_iptables().restore)
+        self.addCleanup(create_network_namespace().restore)
 
-        self.server_ip = ADDRESSES()[0]
-        self.proxy_ip = ADDRESSES()[1]
+        self.server_ip = ADDRESSES[0]
+        self.proxy_ip = ADDRESSES[1]
 
         # This is the target of the proxy which will be created.
         self.server = socket()
@@ -223,20 +217,7 @@ class CreateTests(TestCase):
         A connection attempt to an IP not assigned to this host on the proxied
         port is not proxied.
         """
-        networks = {
-            IPNetwork("10.0.0.0/8"),
-            IPNetwork("172.16.0.0/12"),
-            IPNetwork("192.168.0.0/16")}
-
-        for address in ADDRESSES():
-            for network in networks:
-                if address in network:
-                    networks.remove(network)
-                    break
-        if not networks:
-            raise SkipTest("No private networks available")
-
-        network = next(iter(networks))
+        network = IPNetwork("172.16.0.0/12")
         gateway = network[1]
         address = network[2]
 
@@ -351,7 +332,7 @@ class EnumerateTests(TestCase):
     """
     @_environment_skip
     def setUp(self):
-        self.addCleanup(preserve_iptables().restore)
+        self.addCleanup(create_network_namespace().restore)
 
     def test_empty(self):
         """
@@ -402,8 +383,7 @@ class DeleteTests(TestCase):
     """
     @_environment_skip
     def setUp(self):
-        self.preserver = preserve_iptables()
-        self.addCleanup(self.preserver.restore)
+        self.addCleanup(create_network_namespace().restore)
 
     @validateLogging(some_iptables_logged(DELETE_PROXY))
     def test_created_rules_deleted(self, logger):

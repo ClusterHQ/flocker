@@ -4,7 +4,7 @@
 Testing tools related to iptables.
 """
 
-from subprocess import check_output
+from subprocess import check_output, check_call
 from nomenclature.syscalls import unshare, setns, CLONE_NEWNET
 
 
@@ -29,42 +29,37 @@ def get_iptables_rules():
             and not rule.startswith(":")]
 
 
-class _Preserver(object):
+class _Namespace(object):
     """
-    Implementation helper for :py:func:`preserve_iptables`.
+    Implementation helper for :py:func:`create_network_namespace`.
     """
-    def preserve(self):
+    def create(self):
         """
-        Use ``iptables-save`` to record the current rules.
+        Create a new network namespace, and populate it with some addresses.
         """
         self.fd = open('/proc/self/ns/net')
         unshare(CLONE_NEWNET)
-        import os
-        os.system('ip link set up lo')
-        os.system('ip link add eth0 type dummy')
-        os.system('ip link set eth0 up')
-        os.system('ip addr add 10.0.0.1/8 dev eth0')
+        check_call(['ip', 'link', 'set', 'up', 'lo'])
+        check_call(['ip', 'link', 'add', 'eth0', 'type', 'dummy'])
+        check_call(['ip', 'link', 'set', 'eth0', 'up'])
+        check_call(['ip', 'addr', 'add', '10.0.0.1/8', 'dev', 'eth0'])
 
 
     def restore(self):
         """
-        Use ``iptables-restore`` to put the previously recorded rules back on
-        the system.
-
-        :raise Exception: If the ``iptables-restore`` command exits with an
-            error code.
+        Restore the original network namespace.
         """
         setns(self.fd.fileno(), CLONE_NEWNET)
         self.fd.close()
 
 
-def preserve_iptables():
+def create_network_namespace():
     """
-    :py:func:`preserve_iptables` is a fixture which saves the current iptables
-    configuration and restores it later.  Use the :py:meth:`restore`: method of
-    the returned object to restore the rules as they were at the time this
-    function was called.
+    :py:func:`create_network_namespace` is a fixture which creates a new
+    network namespace, and restores the original one later.  Use the
+    :py:meth:`restore`: method of the returned object to restore the orginal
+    namespace.
     """
-    preserver = _Preserver()
-    preserver.preserve()
-    return preserver
+    namespace = _Namespace()
+    namespace.create()
+    return namespace
