@@ -16,16 +16,7 @@ def get_iptables_rules():
     This also removes the information about the default policy for chains
     (which might someday be important).
     """
-    # Naive use of iptables-save | iptables-restore isn't actually a safe
-    # way to restore original configuration.
-    # https://bugzilla.netfilter.org/show_bug.cgi?id=960
-    tables = [b"filter", b"nat", b"mangle", b"raw", b"security"]
-
-    # Add material to flush every table first.  This overcomes the lack of
-    # information about "empty" tables in the bare iptables-save output.
-    flush_rules = "".join(
-        "*{table}\nCOMMIT\n".format(table=table) for table in tables)
-    rules = flush_rules + check_output([b"iptables-save"])
+    rules = check_output([b"iptables-save"])
     return [
             rule
             for rule in rules.splitlines()
