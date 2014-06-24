@@ -18,8 +18,8 @@ class CannedFilesystemSnapshots(object):
     """In-memory filesystem snapshotter."""
     def __init__(self, results):
         """
-        :param results: A ``list`` of ``Deferred`` instances, results of calling
-            ``create()``.
+        :param results: A ``list`` of ``Deferred`` instances, results of
+            calling ``create()``.
         """
         self._results = results
         self._snapshots = []
@@ -64,3 +64,10 @@ class FilesystemStoragePool(object):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
                 volume.uuid.encode("ascii"), volume.name.encode("ascii"))))
+
+    def enumerate(self):
+        if self._root.isdir():
+            return succeed({
+                DirectoryFilesystem(path=path)
+                for path in self._root.children()})
+        return succeed(set())

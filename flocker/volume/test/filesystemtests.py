@@ -45,7 +45,6 @@ def make_ifilesystemsnapshots_tests(fixture):
             fsSnapshots = fixture(self)
             self.assertTrue(verifyObject(IFilesystemSnapshots, fsSnapshots))
 
-
         def test_created(self):
             """
             Snapshots created with ``create()`` are listed in that order in
@@ -85,6 +84,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 self.assertTrue(verifyObject(IFilesystem, filesystem))
             d.addCallback(createdFilesystem)
@@ -96,8 +96,10 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -113,8 +115,10 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -130,6 +134,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 filesystem2 = pool.get(volume)
                 self.assertTrue(filesystem == filesystem2)
@@ -138,10 +143,12 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_mountpoint(self):
-            """The volume's filesystem has a mountpoint which is a directory."""
+            """The volume's filesystem has a mountpoint which is a
+            directory."""
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def createdFilesystem(filesystem):
                 self.assertTrue(filesystem.get_path().isdir())
             d.addCallback(createdFilesystem)
@@ -151,12 +158,62 @@ def make_istoragepool_tests(fixture):
             """Each volume has its own mountpoint."""
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
+                             _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def createdFilesystems(filesystems):
                 first, second = filesystems
                 self.assertNotEqual(first.get_path(),
                                     second.get_path())
             d.addCallback(createdFilesystems)
             return d
+
+        def test_enumerate_no_filesystems(self):
+            """Lacking any filesystems, ``enumerate()`` returns an empty
+            result."""
+            pool = fixture(self)
+            enumerating = pool.enumerate()
+            enumerating.addCallback(self.assertEqual, set())
+            return enumerating
+
+        def test_enumerate_some_filesystems(self):
+            """
+            The ``IStoragePool.enumerate`` implementation returns a
+            ``Deferred`` that fires with a ``set`` of ``IFilesystem``
+            providers, one for each filesystem which has been created in that
+            pool.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"name", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"name2", _pool=pool)
+            creating = gatherResults([
+                pool.create(volume), pool.create(volume2)])
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                expected = {volume.get_filesystem(), volume2.get_filesystem()}
+                self.assertEqual(expected, result)
+            return enumerating.addCallback(enumerated)
+
+        def test_consistent_naming_pattern(self):
+            """``IFilesystem.get_path().basename()`` has a consistent naming
+            pattern. This test should be removed as part of:
+                https://github.com/hybridlogic/flocker/issues/78"""
+            pool = fixture(self)
+            uuid = u"my-uuid"
+            volume_name = u"myvolumename"
+            volume = Volume(uuid=uuid, name=volume_name, _pool=pool)
+            d = pool.create(volume)
+
+            def createdFilesystem(filesystem):
+                name = filesystem.get_path().basename()
+                expected = u"{uuid}.{name}".format(uuid=uuid, name=volume_name)
+                self.assertEqual(name, expected)
+            d.addCallback(createdFilesystem)
+            return d
+
     return IStoragePoolTests
