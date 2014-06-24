@@ -101,3 +101,41 @@ def make_igearclient_tests(fixture):
 
 class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
     """``IGearClient`` tests for ``FakeGearClient``."""
+
+
+from ..gear import PortMap
+class PortMapTests(TestCase):
+    """
+    Tests for ``PortMap``
+    """
+    def test_init(self):
+        """
+        ``PortMap`` accepts and `internal` and `external` port integers which
+        are exposed as public attributes.
+        """
+        internal_port = 1234
+        external_port = 5678
+        port_map = PortMap(internal=internal_port, external=external_port)
+        self.assertEqual(
+            (internal_port, external_port),
+            (port_map.internal, port_map.external)
+        )
+
+    def test_repr(self):
+        """
+        ``PortMap.__repr__`` shows the internal and external ports.
+        """
+        self.assertEqual(
+            "<PortMap(internal=1234, external=5678)>",
+            repr(PortMap(internal=1234, external=5678))
+        )
+
+    def test_eq(self):
+        """
+        ``PortMap`` instances with the same internal and external ports compare
+        equal.
+        """
+        self.assertEqual(
+            PortMap(internal=1234, external=5678),
+            PortMap(internal=1234, external=5678)
+        )

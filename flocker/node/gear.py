@@ -13,6 +13,7 @@ from twisted.internet.task import deferLater
 
 from treq import request, content
 
+from characteristic import attributes
 
 GEAR_PORT = 43273
 
@@ -196,3 +197,8 @@ class FakeGearClient(object):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)
+
+
+@attributes(['internal', 'external'])
+class PortMap(object):
+    pass
