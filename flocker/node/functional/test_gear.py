@@ -186,7 +186,6 @@ class GearClientTests(TestCase):
         # until we get a response.
         return loop_until2(send_request)
 
-
     def test_add_with_port(self):
         """
         GearClient.add accepts an internal_port argument which is passed to gear
