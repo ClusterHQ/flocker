@@ -73,6 +73,14 @@ class IGearClient(Interface):
         :return: ``Deferred`` that fires on success.
         """
 
+    def list():
+        """Enumerate all geard units
+
+        :return: A ``list`` of ``GearUnit``\ s
+        """
+
+
+
 
 @implementer(IGearClient)
 class GearClient(object):
@@ -131,11 +139,14 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, internal_port=None, external_port=None):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
+
         checked = self.exists(unit_name)
-        data = {u"Image": image_name, u"Started": True}
-        if internal_port is not None:
-            data['Ports'] = [{u'Internal': internal_port, u'External': external_port}]
+        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        for port in ports:
+            data['Ports'].append({u'Internal': port.internal, u'External': port.external})
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
@@ -170,6 +181,19 @@ class GearClient(object):
         d.addCallback(self._ensure_ok)
         return d
 
+    def list(self):
+        d = request(b'GET', self._base_url + b'/containers', persistent=False)
+        d.addCallback(content)
+        d.addCallback(json.loads)
+        def create_units(unit_data):
+            units = []
+            for record in unit_data["Containers"]:
+                units.append(record["Id"])
+            return units
+        d.addCallback(create_units)
+        return d
+
+
 
 @implementer(IGearClient)
 class FakeGearClient(object):
@@ -190,11 +214,12 @@ class FakeGearClient(object):
 
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = GearUnit(
+        unit = GearUnit(
             unit_name=unit_name,
             image_name=image_name,
             ports=ports
         )
+        self._units[unit_name] = unit
         return succeed(None)
 
     def exists(self, unit_name):
@@ -204,6 +229,11 @@ class FakeGearClient(object):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)
+
+    def list(self):
+        """
+        """
+        return self._units.values()
 
 
 @attributes(['internal', 'external'])

@@ -96,6 +96,37 @@ def make_igearclient_tests(fixture):
             d.addCallback(self.assertFalse)
             return d
 
+        def test_added_in_list(self):
+            """
+            An added unit is listed.
+            """
+            name = random_name()
+
+            expected_unit = GearUnit(
+                unit_name=name,
+                image_name=u"openshift/busybox-http-app",
+                ports=[PortMap(internal=8080, external=4040)]
+            )
+            client = fixture(self)
+            d = client.add(
+                unit_name=expected_unit.unit_name,
+                image_name=expected_unit.image_name,
+                ports=expected_unit.ports
+            )
+
+            def handle_list(listed_units, expected_unit):
+                self.assertIn(expected_unit, listed_units)
+
+            def added(unit):
+                self.addCleanup(client.remove, name)
+                d = client.list()
+                d.addCallback(handle_list, unit)
+                return d
+
+            d.addCallback(added)
+            return d
+
+
     return IGearClientTests
 
 
