@@ -10,6 +10,7 @@ from unittest import skipIf, skipUnless
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet import reactor
+from twisted.python.procutils import which
 
 from ... import __version__
 from ..service import VolumeService, Volume
@@ -18,7 +19,7 @@ from ..filesystems.zfs import StoragePool
 from .test_filesystems_zfs import create_zfs_pool
 
 
-_require_installed = skipUnless(os.getenv("FLOCKER_INSTALLED"),
+_require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
 
 
