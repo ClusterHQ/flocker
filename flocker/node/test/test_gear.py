@@ -130,12 +130,23 @@ class PortMapTests(TestCase):
             repr(PortMap(internal=1234, external=5678))
         )
 
-    def test_eq(self):
+    def test_equal(self):
         """
         ``PortMap`` instances with the same internal and external ports compare
         equal.
         """
         self.assertEqual(
             PortMap(internal=1234, external=5678),
+            PortMap(internal=1234, external=5678)
+        )
+
+
+    def test_not_equal(self):
+        """
+        ``PortMap`` instances with the different internal and external ports
+        do not compare equal.
+        """
+        self.assertNotEqual(
+            PortMap(internal=5678, external=1234),
             PortMap(internal=1234, external=5678)
         )
