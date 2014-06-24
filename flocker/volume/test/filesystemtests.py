@@ -201,7 +201,8 @@ def make_istoragepool_tests(fixture):
 
         def test_consistent_naming_pattern(self):
             """``IFilesystem.get_path().basename()`` has a consistent naming
-            pattern"""
+            pattern. This test should be removed as part of:
+                https://github.com/hybridlogic/flocker/issues/78"""
             pool = fixture(self)
             uuid = u"my-uuid"
             volume_name = u"myvolumename"
