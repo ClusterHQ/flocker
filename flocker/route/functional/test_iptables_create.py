@@ -22,7 +22,6 @@ from .. import create_proxy_to, delete_proxy, enumerate_proxies
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import create_network_namespace, get_iptables_rules
 
-ADDRESSES = [IPAddress('127.0.0.1'), IPAddress('10.0.0.1')]
 
 
 def connect_nonblocking(ip, port):
@@ -145,10 +144,11 @@ class CreateTests(TestCase):
         Select some addresses between which to proxy and set up a server to act
         as the target of the proxying.
         """
-        self.addCleanup(create_network_namespace().restore)
+        self.namespace = create_network_namespace()
+        self.addCleanup(self.namespace.restore)
 
-        self.server_ip = ADDRESSES[0]
-        self.proxy_ip = ADDRESSES[1]
+        self.server_ip = self.namespace.ADDRESSES[0]
+        self.proxy_ip = self.namespace.ADDRESSES[1]
 
         # This is the target of the proxy which will be created.
         self.server = socket()

@@ -6,6 +6,7 @@ Testing tools related to iptables.
 
 from subprocess import check_output, check_call
 from nomenclature.syscalls import unshare, setns, CLONE_NEWNET
+from ipaddr import IPAddress
 
 
 def get_iptables_rules():
@@ -32,7 +33,11 @@ def get_iptables_rules():
 class _Namespace(object):
     """
     Implementation helper for :py:func:`create_network_namespace`.
+
+    :ivar ADDRESSES: List of :py:class:`IPAddress`es in the created namespace.
     """
+    ADDRESSES = [IPAddress('127.0.0.1'), IPAddress('10.0.0.1')]
+
     def create(self):
         """
         Create a new network namespace, and populate it with some addresses.
