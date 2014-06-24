@@ -1,5 +1,5 @@
 =======
-flocker
+Flocker
 =======
 Flocker is a volume manager and multi-host Docker container orchestration tool.
 With it you can control your data using the same tools you use for your stateless applications.
