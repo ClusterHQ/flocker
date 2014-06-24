@@ -119,6 +119,38 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
+    def test_enumerate_no_volumes(self):
+        """``enumerate()`` returns no volumes when there are no volumes."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volumes = self.successResultOf(service.enumerate())
+        self.assertEqual([], list(volumes))
+
+    def test_enumerate_some_volumes(self):
+        """``enumerate()`` returns all volumes previously ``create()``ed."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        names = {u"somevolume", u"anotherone", u"lastone"}
+        expected = {
+            self.successResultOf(service.create(name))
+            for name in names}
+        service2 = VolumeService(FilePath(self.mktemp()), pool)
+        service2.startService()
+        actual = self.successResultOf(service2.enumerate())
+        self.assertEqual(expected, set(actual))
+
+    def test_enumerate_a_volume_with_period(self):
+        """``enumerate()`` returns a volume previously ``create()``ed when its
+        name includes a period."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        expected = self.successResultOf(service.create(u"some.volume"))
+        actual = self.successResultOf(service.enumerate())
+        self.assertEqual([expected], list(actual))
+
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""

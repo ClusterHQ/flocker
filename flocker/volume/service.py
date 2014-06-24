@@ -73,6 +73,26 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def enumerate(self):
+        """Get a listing of all volumes managed by this service.
+
+        :return: A ``Deferred`` that fires with an iterator of :class:`Volume`.
+        """
+        enumerating = self._pool.enumerate()
+
+        def enumerated(filesystems):
+            for filesystem in filesystems:
+                # XXX It so happens that this works but it's kind of a
+                # fragile way to recover the information:
+                #    https://github.com/hybridlogic/flocker/issues/78
+                uuid, name = filesystem.get_path().basename().split(b".", 1)
+                yield Volume(
+                    uuid=uuid.decode('utf8'),
+                    name=name.decode('utf8'),
+                    _pool=self._pool)
+        enumerating.addCallback(enumerated)
+        return enumerating
+
 
 # Communication with Docker should be done via its API, not with this
 # approach, but that depends on unreleased Twisted 14.1:

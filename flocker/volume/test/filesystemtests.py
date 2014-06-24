@@ -144,10 +144,15 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_mountpoint(self):
+<<<<<<< HEAD
             """
             The volume's filesystem has a mountpoint which is a
             directory.
             """
+=======
+            """The volume's filesystem has a mountpoint which is a
+            directory."""
+>>>>>>> 2761de0268ab4f60f8df1e71a3df6116db26e984
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
@@ -171,4 +176,52 @@ def make_istoragepool_tests(fixture):
                                     second.get_path())
             d.addCallback(createdFilesystems)
             return d
+
+        def test_enumerate_no_filesystems(self):
+            """Lacking any filesystems, ``enumerate()`` returns an empty
+            result."""
+            pool = fixture(self)
+            enumerating = pool.enumerate()
+            enumerating.addCallback(self.assertEqual, set())
+            return enumerating
+
+        def test_enumerate_some_filesystems(self):
+            """
+            The ``IStoragePool.enumerate`` implementation returns a
+            ``Deferred`` that fires with a ``set`` of ``IFilesystem``
+            providers, one for each filesystem which has been created in that
+            pool.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"name", _pool=pool)
+            volume2 = Volume(uuid=u"my-uuid", name=u"name2", _pool=pool)
+            creating = gatherResults([
+                pool.create(volume), pool.create(volume2)])
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                expected = {volume.get_filesystem(), volume2.get_filesystem()}
+                self.assertEqual(expected, result)
+            return enumerating.addCallback(enumerated)
+
+        def test_consistent_naming_pattern(self):
+            """``IFilesystem.get_path().basename()`` has a consistent naming
+            pattern. This test should be removed as part of:
+                https://github.com/hybridlogic/flocker/issues/78"""
+            pool = fixture(self)
+            uuid = u"my-uuid"
+            volume_name = u"myvolumename"
+            volume = Volume(uuid=uuid, name=volume_name, _pool=pool)
+            d = pool.create(volume)
+
+            def createdFilesystem(filesystem):
+                name = filesystem.get_path().basename()
+                expected = u"{uuid}.{name}".format(uuid=uuid, name=volume_name)
+                self.assertEqual(name, expected)
+            d.addCallback(createdFilesystem)
+            return d
+
     return IStoragePoolTests

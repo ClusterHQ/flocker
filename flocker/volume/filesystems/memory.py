@@ -64,3 +64,10 @@ class FilesystemStoragePool(object):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
                 volume.uuid.encode("ascii"), volume.name.encode("ascii"))))
+
+    def enumerate(self):
+        if self._root.isdir():
+            return succeed({
+                DirectoryFilesystem(path=path)
+                for path in self._root.children()})
+        return succeed(set())
