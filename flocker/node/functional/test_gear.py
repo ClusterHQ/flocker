@@ -167,6 +167,26 @@ class GearClientTests(TestCase):
         )
 
 
+    def request_until_response(self, port):
+        """
+        """
+        def send_request():
+            response = request(
+                b"GET", b"http://127.0.0.1:%d" % (port,),
+                persistent=False)
+            # Catch errors and return False so that loop_until repeats the
+            # request.
+            # XXX: This will hide all errors. We should probably only catch
+            # timeouts and reject responses here.
+            response.addErrback(lambda err: False)
+            return response
+
+        # The container may have started, but the webserver inside may take a
+        # little while to start serving requests. Resend our test request
+        # until we get a response.
+        return loop_until2(send_request)
+
+
     def test_add_with_port(self):
         """
         GearClient.add accepts an internal_port argument which is passed to gear
@@ -177,26 +197,7 @@ class GearClientTests(TestCase):
         d = self.start_container(
             name, internal_port=8080, external_port=external_port)
 
-        def send_request():
-            response = request(
-                b"GET", b"http://127.0.0.1:%d" % (external_port,),
-                persistent=False)
-            # Catch errors and return False so that loop_until repeats the
-            # request.
-            # XXX: This will hide all errors. We should probably only catch
-            # timeouts and reject responses here.
-            response.addErrback(lambda err: False)
-            return response
-
-        def loop_request(ignored):
-            """
-            The container may have started, but the webserver inside may take a
-            little while to start serving requests. Resend our test request
-            until we get a response.
-            """
-            d = loop_until2(send_request)
-            return d
-        d.addCallback(loop_request)
+        d.addCallback(lambda ignored: self.request_until_response(external_port))
 
         def started(response):
             d = content(response)
@@ -205,3 +206,16 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
+
+    def test_add_error_unless_internal_exposed(self):
+        """
+        Raises error when the chosen internal port has not been exposed by the
+        container.
+        """
+        self.fail()
+
+    def test_add_error_if_external_port_in_use(self):
+        """
+        Raises error if the chosen external port is already exposed.
+        """
+        self.fail()
