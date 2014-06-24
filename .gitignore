@@ -30,6 +30,7 @@ var/
 *.egg
 twisted/plugins/dropin.cache
 MANIFEST
+flocker.spec
 
 # Installer logs
 pip-log.txt

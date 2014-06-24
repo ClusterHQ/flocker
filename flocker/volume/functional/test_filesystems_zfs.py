@@ -66,7 +66,7 @@ class VolumeToDatasetTests(TestCase):
         """
         volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=None)
         self.assertEqual(volume_to_dataset(volume),
-                         b"my-uuid.myvolumename.trunk")
+                         b"my-uuid.myvolumename")
 
 
 class StoragePoolTests(TestCase):

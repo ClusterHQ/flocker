@@ -205,9 +205,8 @@ def volume_to_dataset(volume):
 
     :return: Dataset name as ``bytes``.
     """
-    # Include trunk in case we decide to do branch model later on:
-    return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
-                             volume.name.encode("ascii"))
+    return b"%s.%s" % (volume.uuid.encode("ascii"),
+                       volume.name.encode("ascii"))
 
 
 @implementer(IStoragePool)
@@ -238,3 +237,45 @@ class StoragePool(object):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)
+
+    def enumerate(self):
+        listing = _list_filesystems(self._reactor, self._name)
+
+        def listed(filesystems):
+            result = set()
+            for entry in filesystems:
+                dataset, mountpoint = entry
+                filesystem = Filesystem(
+                    self._name, dataset, mountpoint)
+                result.add(filesystem)
+            return result
+
+        return listing.addCallback(listed)
+
+
+def _list_filesystems(reactor, pool):
+    """Get a listing of all filesystems on a given pool.
+
+    :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
+        provider.
+    :return: A ``Deferred`` that fires with an iterator, the elements
+        of which are ``tuples`` containing the name and mountpoint of each
+        filesystem.
+    """
+    # ZFS list command with a depth of 1, so that only this dataset and its
+    # direct children are shown.
+    # No headers are printed.
+    # name and mountpoint are the properties displayed.
+    listing = zfs_command(
+        reactor,
+        [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
+
+    def listed(output, pool):
+        for line in output.splitlines():
+            name, mountpoint = line.split()
+            name = name[len(pool) + 1:]
+            if name:
+                yield (name, mountpoint)
+
+    listing.addCallback(listed, pool)
+    return listing

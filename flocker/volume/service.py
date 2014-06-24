@@ -68,6 +68,7 @@ class VolumeService(Service):
         """
         volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
         d = self._pool.create(volume)
+
         def created(filesystem):
             filesystem.get_path().chmod(
                 # 0o777 the long way:
@@ -75,6 +76,27 @@ class VolumeService(Service):
             return volume
         d.addCallback(created)
         return d
+
+
+    def enumerate(self):
+        """Get a listing of all volumes managed by this service.
+
+        :return: A ``Deferred`` that fires with an iterator of :class:`Volume`.
+        """
+        enumerating = self._pool.enumerate()
+
+        def enumerated(filesystems):
+            for filesystem in filesystems:
+                # XXX It so happens that this works but it's kind of a
+                # fragile way to recover the information:
+                #    https://github.com/hybridlogic/flocker/issues/78
+                uuid, name = filesystem.get_path().basename().split(b".", 1)
+                yield Volume(
+                    uuid=uuid.decode('utf8'),
+                    name=name.decode('utf8'),
+                    _pool=self._pool)
+        enumerating.addCallback(enumerated)
+        return enumerating
 
     def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
         """Push the latest data in the volume to a remote destination.
@@ -192,8 +214,9 @@ class Volume(object):
         mount_path = mount_path.path
         d = _docker_command(reactor, [b"rm", self._container_name])
         d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(lambda _: _docker_command(reactor,
-                               [b"run", b"--name", self._container_name,
-                                b"--volume=%s:%s:rw" % (local_path, mount_path),
-                                b"busybox", b"/bin/true"]))
+        d.addCallback(lambda _: _docker_command(
+            reactor,
+            [b"run", b"--name", self._container_name,
+             b"--volume=%s:%s:rw" % (local_path, mount_path),
+             b"busybox", b"/bin/true"]))
         return d

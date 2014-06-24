@@ -107,3 +107,10 @@ class IStoragePool(Interface):
 
         :return: A :class:`IFilesystem` provider.
         """
+
+    def enumerate():
+        """Get a listing of all filesystems in this pool.
+
+        :return: A ``Deferred`` that fires with a :class:`list` of
+            :class:`IFilesystem` providers.
+        """
