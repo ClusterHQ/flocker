@@ -62,30 +62,6 @@ def is_environment_configured():
         underlying system and the privileges of this process, :obj:`False`
         otherwise.
     """
-    # TODO: A nicer approach would be to create a new network namespace,
-    # configure a couple interfaces with a couple addresses in it, and run the
-    # test in the context of that network namespace.
-    #
-    # Something like:
-    #
-    #    ip netns create flocker-testing
-    #    ip link add veth0 type veth peer name veth1
-    #    ip link set veth1 netns flocker-testing
-    #    ip netns exec flocker-testing ip link set dev veth1 up
-    #    ip netns exec flocker-testing ip address add 10.0.0.1/24 dev veth1
-    #    ip netns exec flocker-testing ip link set dev lo up
-    #
-    # Or, require such to be configured already.  That setup requires
-    # privileged capabilities (probably CAP_SYS_ADMIN?) though.
-    #
-    # The functionality under test probably also requires privileged
-    # capabilities (at least CAP_NET_ADMIN I think?) though.
-    #
-    # So for now just require root and crap on the host system. :/
-    #
-    # You might want to run these tests in a container! ;)
-    #
-    # -exarkun
     return getuid() == 0
 
 
