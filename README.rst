@@ -36,8 +36,8 @@ Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://www.twistedmatrix.com
-.. _features of Flocker and its architecture: docs/flocker-intro.rst
-.. _areas for potential future development: docs/roadmap.rst
+.. _features of Flocker and its architecture: docs/flocker-intro/index.rst
+.. _areas for potential future development: docs/roadmap/index.rst
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
