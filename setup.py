@@ -93,6 +93,7 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
+        "nomenclature >= 0.1.0",
         ],
 
     extras_require={
