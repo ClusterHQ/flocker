@@ -5,8 +5,7 @@ Table of Contents
 1. Architecture
 2. Overall implementation strategy
 3. User experience
-4. Example- running Trac with PostgresSQL and Elasticsearch
-5. Areas of potential future development
+
 
 0. Motivation for building Flocker
 ==================================
@@ -43,7 +42,7 @@ Flocker - Routing
 
 * Container configuration includes externally visible TCP port numbers.
 * Connect to any machine on a Flocker cluster and traffic is routed to the machine hosting the appropriate container (based on port).
-* Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``1.1.1.2``, ``1.168.1.3``)
+* Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``192.0.2.0``, ``192.0.2.1``)
 
 
 Flocker - Cross-container communication
@@ -98,7 +97,7 @@ Deployment configuration
 * Don't Panic.
 * This is the 0.1 approach.
 * All functionality is provided as short-lived, manually invoked processes.
-* ``flocker-cluster deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
+* ``flocker-deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
 * Machines might connect to each other over SSH to copy volume data to the necessary place.
 * Future approaches will be very different.  
   Feedback welcome.
@@ -181,163 +180,4 @@ Managing links
   * Deployment
   
 * Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
-
-
-4. Example - running Trac with Postgresql and Elasticsearch
-===========================================================
-
-* Alice wants to run Trac using the postgresql backend and kibana for log analysis.
-* Trac needs to connect to postgresql and shovel logs over to kibana.
-* Trac and postgresql will run on one host (one cpu heavy container, one disk heavy container).
-* elasticsearch and kibana will run on a second host (same deal).
-
-
-Example - Trac configuration
-----------------------------
-
-.. code-block::
-
-  trac = {
-      "image": "clusterhq/trac",
-      "volume": "/opt/trac/env",
-      "environment": {
-          "ELASTICSEARCH_PORT": unicode(elasticsearch_port_number),
-      },
-      "routes": [https_port_number],
-      "links": [
-          ("pgsql-trac", pgsql_port_number),
-          ("elasticsearch-trac", log_consumer_port_number),
-      ],
-  }
-
-
-Example - postgresql configuration
-----------------------------------
-
-.. code-block::
-
-   postgresql = {
-       "image": "clusterhq/postgresql",
-       "volume": "/var/run/postgresql",
-       "routes": [pgsql_port_number],
-       "links": [],
-   }
-
-
-Example - elasticsearch configuration
--------------------------------------
-
-.. code-block::
-
-   elasticsearch = {
-       "image": "clusterhq/elasticsearch",
-       "volume": "/var/run/elasticsearch",
-       "routes": [elasticsearch_port_number],
-       "links": [],
-   }
-
-
-Example - kibana configuration
-------------------------------
-
-.. code-block::
-
-   kibana = {
-       "image": "clusterhq/elasticsearch",
-       "volume": "/var/run/elasticsearch",
-       "environment": {
-           "ELASTICSEARCH_RESOURCE": "http://localhost:%d" % (elasticsearch_port_number,),
-       },
-       "routes": [alternate_https_port],
-       "links": [
-           ("elasticsearch-trac", elasticsearch_port_number),
-           ],
-   }
-
-
-Example - Application configuration
------------------------------------
-
-Aggregate all of the applications.
-
-.. code-block::
-
-   application_config = {
-       "trac": trac,
-       "pgsql-trac": postgresql,
-       "elasticsearch-trac": elasticsearch,
-       "kibana-trac": kibana,
-   }
-
-
-Example - Deployment configuration
-----------------------------------
-
-Explicitly place containers for the applications.
-
-.. code-block::
-
-   deployment_config = {
-       "nodes": {
-           "1.1.1.1": ["trac", "pgsql-trac"],
-           "1.1.1.2": ["elasticsearch-trac", "kibana-trac"],
-       },
-   }
-
-
-Example - User interaction
---------------------------
-
-Imagine some yaml files containing the previously given application and deployment configuration objects.
-
-.. code-block::
-
-   $ flocker-cluster deploy application_config.yml deployment_config.yml
-   Deployed `trac` to 1.1.1.1.
-   Deployed `elasticsearch-trac` to 1.1.1.2.
-   Deployed `pgsql-trac` to 1.1.1.1.
-   Deployed `kibana-trac` to 1.1.1.2.
-   $
-
-
-Example - Alter deployment
---------------------------
-
-It turns out trac is the most resource hungry container.
-Give it an entire machine to itself.
-
-The deployment configuration changes to:
-
-.. code-block::
-
-   deployment_config = {
-       "nodes": {
-           "1.1.1.1": ["trac"],
-           "1.1.1.2": ["elasticsearch-trac", "kibana-trac", "pgsql-trac"],
-       },
-   }
-
-.. code-block:: sh
-
-   $ flocker-cluster deploy application_config.yml deployment_config.yml
-   Re-deployed pgsql-trac from 1.1.1.1 to 1.1.1.2.
-   $
-
-Note that after pgsql-trac is moved it still has all of the same filesystem state as it had prior to the move.
-
-5. Areas of potential future development
-========================================
-- Support for atomic updates.
-- Scale-out for stateless containers.
-- API to support managing Flocker volumes programmatically.
-- Statically configured continuous replication and manual failover.
-- No-downtime migrations between containers.
-- Automatically configured continuous replication and failover.
-- Multi-data center support.
-- Automatically balance load across cluster.
-- Roll-back a container to a snapshot.
-- Let us know what else you'd like to see by submitting an issue :)
-
-.. _Geard: https://github.com/openshift/geard
-
 
