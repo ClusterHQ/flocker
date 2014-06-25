@@ -11,11 +11,14 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   architecture/index
+   flocker-intro/index
    volume/index
+   roadmap/index
    infrastructure/index
+   architecture/index
    contributing
    authors
+
 
 Indices and tables
 ==================
