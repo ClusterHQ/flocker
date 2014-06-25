@@ -14,7 +14,8 @@ Contents:
    architecture/index
    volume/index
    infrastructure/index
-
+   contributing
+   authors
 
 Indices and tables
 ==================
