@@ -16,11 +16,11 @@ This project is under active development and version 0.1 will be released soon. 
 We're looking forward to developing on this project with you. 
 
 Documentation
------------
-You can read more about the features of Flocker and its architecture in the docs.
+-------------
+You can `read more about the features of Flocker and its architecture in the docs`_.
 
 Tests
-~~~~~
+-----
 
 Flocker's test suite is based on `unittest`_ and `Twisted Trial`_.
 The preferred way to run the test suite is using the command `trial flocker`.
@@ -31,6 +31,7 @@ You can run all of the tox environments using the command `tox`.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
+.. _read more about the features of Flocker and its architecture in the docs: https://github.com/hybridlogic/flocker/blob/update-readme-add-intro-doc-141/docs/flocker-intro.rst
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
