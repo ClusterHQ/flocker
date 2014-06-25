@@ -22,6 +22,7 @@ BuildRequires:  pytz
 BuildRequires:  python-ipaddr = 2.1.10
 BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-treq = 0.2.1
+BuildRequires:  python-nomenclature >= 0.1.0
 # See https://github.com/hybridlogic/flocker/issues/85
 BuildRequires:  docker-io
 
@@ -33,6 +34,7 @@ Requires:       pytz
 Requires:       python-ipaddr = 2.1.10
 Requires:       python-netifaces >= 0.8.0
 Requires:       python-treq = 0.2.1
+Requires:       python-nomenclature >= 0.1.0
 Requires:       docker-io
 Requires:       /sbin/iptables
 Requires:       geard
