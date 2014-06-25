@@ -28,7 +28,7 @@ Flocker aims to solve this problem by providing an orchestration framework that 
   * How does application state work if you move containers around?
 
 1. Architecture
-============
+===============
 
 Flocker - Orchestration
 -----------------------
@@ -180,4 +180,6 @@ Managing links
   * Deployment
   
 * Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
+
+.. _Geard: https://github.com/openshift/geard
 
