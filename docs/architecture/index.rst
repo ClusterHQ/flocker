@@ -8,5 +8,3 @@ Contents:
 
    common
    volume-manager
-   datavault
-   failover
