@@ -16,6 +16,8 @@ Contents:
    roadmap/index
    infrastructure/index
    architecture/index
+   contributing
+   authors
 
 
 Indices and tables
