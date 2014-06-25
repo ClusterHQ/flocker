@@ -15,7 +15,7 @@ Flocker is a suite of software that runs on top of an existing operating system.
 The operating system may be running directly on hardware (“bare metal”) or in a virtualized environment.
 Throughout this documentation this operating system is referred to as the “base system”.
 
-Flocker manages one guest operating system (presently limited to a Linux distribution) using a “container” technology (chroot, LXC, Docker, etc).
+Flocker manages one guest operating system (presently limited to a Linux distribution) using a “container” technology (Docker).
 Throughout this documentation this operating system is referred to as the “user system”.
 All persistent state associated with the user system is the single filesystem associated with it.
 This is referred to as the “user filesystem”.
@@ -53,7 +53,7 @@ User System
 Flocker is agnostic to the contents of the user filesystem.
 The user filesystem may contain a complete (user-space) operating system installation.
 On the other hand, it may contain only a minimal configuration for a single specific application.
-The user filesystem is used to boot the user system using LXC (probably using Docker - to be decided).
+The user filesystem is used to boot the user system using Docker.
 Flocker is responsible for managing the lifetime of the user system.
 This primarily consists of starting the system's init process on the master host and stopping it if the master host is ever demoted to a slave.
 Flocker is roughly as concerned with the particulars of the ``init`` process as is the Linux kernel (that is, not very).
@@ -72,21 +72,6 @@ A simpler strategy is to create a large file on the base system's filesystem and
 This makes no unusual demands on the deployment environment.
 It does force all user filesystem I/O through multiple block and VFS interfaces which likely leads to poor performance
 (performance issues might be mitigated somewhat using ZFS's built-in compression features).
-
-
-Filesystem Change Notification
-==============================
-
-Flocker works best if the master knows exactly when the filesystem has changed.
-It can react to that by snapshotting the filesystem and replicating the snapshot to the slave host.
-
-A bad approximation of filesystem change notification is a time-based service.
-This generates a change notification in a loop at a fixed interval.
-For expediency this will probably be the initial change notification mechanism.
-
-A later improved service may be based on ``blktrace`` or a custom kernel module.
-
-Change notifications are consumed by the Flocker service and feed into the snapshotting system.
 
 
 Filesystem Snapshotting
@@ -110,13 +95,3 @@ The unique data referenced by a particular snapshot must be stored on disk as lo
 If snapshots are never destroyed and the user filesystem continues to change then eventually storage space will be exhausted.
 Additionally, the user interface challenges involved with presenting hundreds or thousands or tens of thousands of snapshots are substantial.
 Therefore, as new snapshots are created it eventually becomes necessary to destroy some older snapshots.
-Service-specific considerations will also influence decisions about which snapshots to destroy.
-See the service-specific documentation for details.
-
-
-User System Roll-back
-=====================
-
-The user filesystem can be returned to any earlier state for which a snapshot exists.
-Combined with a restart of the processes in the user system this is a “rollback”.
-(Details of how a restart is performed depends on whether we decode to use Docker and what hooks we want to expose to the user system.)
