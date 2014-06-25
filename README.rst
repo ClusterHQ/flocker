@@ -9,17 +9,19 @@ With Flocker's command line tools and a simple configuration language, you can d
 Once deployed, your applications will have access to the volumes you have configured for them.
 Those volumes will follow your containers when you use Flocker to move them between different hosts in your Flocker cluster.
 
-Flocker is being developed by `ClusterHQ`_.  
-We are a small team of engineers with experience running distributed systems and many of us are core contributors to the Twisted Python project.
+Flocker is being developed by `ClusterHQ`_.
+We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
-This project is under active development and version 0.1 will be released soon. 
+This project is under active development and version 0.1 will be released soon.
 You shouldn't use it in production.
 Contributions are welcome.
-We're looking forward to working on this project with you. 
+We're looking forward to working on this project with you.
+
 
 Documentation
 -------------
-You can `read more about the features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
+You can read more about the `features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
+
 
 Tests
 -----
@@ -33,8 +35,9 @@ You can run all of the tox environments using the command `tox`.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _read more about the features of Flocker and its architecture: https://github.com/hybridlogic/flocker/blob/update-readme-add-intro-doc-141/docs/flocker-intro.rst
-.. _areas for potential future development: https://github.com/hybridlogic/flocker/blob/update-readme-add-intro-doc-141/docs/roadmap.rst
+.. _Twisted: https://www.twistedmatrix.com
+.. _features of Flocker and its architecture: docs/flocker-intro.rst
+.. _areas for potential future development: docs/roadmap.rst
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
