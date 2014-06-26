@@ -174,10 +174,16 @@ class FakeGearClient(object):
     def __init__(self):
         self._units = {}
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {}
+        self._units[unit_name] = {
+            'unit_name': unit_name,
+            'image_name': image_name,
+            'ports': ports
+        }
         return succeed(None)
 
     def exists(self, unit_name):
