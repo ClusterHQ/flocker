@@ -5,7 +5,6 @@
 from __future__ import absolute_import
 
 import gc
-import os
 import io
 import sys
 from collections import namedtuple
@@ -102,8 +101,7 @@ def assertNoFDsLeaked(test_case):
     gc.collect()
 
     def process_fds():
-        path = FilePath(b"/proc").descendant(
-            [b"%d" % (os.getpid(),), b"fd"])
+        path = FilePath(b"/proc/self/fd")
         return set([child.basename() for child in path.children()])
 
     fds = process_fds()
