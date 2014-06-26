@@ -9,17 +9,12 @@ from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
-from twisted.internet import reactor
-from twisted.cred.portal import Portal
-from twisted.conch.ssh.keys import Key
-from twisted.conch.unix import UnixSSHRealm
-from twisted.conch.checkers import SSHPublicKeyDatabase
-from twisted.conch.openssh_compat.factory import OpenSSHFactory
 from twisted.internet.threads import deferToThread
+from twisted.conch.ssh.keys import Key
 
 from .._ipc import ProcessNode
 from ..test.test_ipc import make_inode_tests
-
+from ...testtools import ConchServer
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
@@ -72,20 +67,6 @@ class ProcessNodeTests(TestCase):
             self.fail("No IOError")
 
 
-class InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
-    """Check SSH public keys in-memory."""
-
-    def __init__(self, public_key):
-        """
-        :param bytes public_key: The public key we will accept.
-        """
-        self._key = Key.fromString(data=public_key)
-
-    def checkKey(self, credentials):
-        return (self._key.blob() == credentials.blob and
-                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
-
-
 @_if_root
 def make_sshnode(test_case):
     """Create a ``ProcessNode`` that can SSH into the local machine.
@@ -94,31 +75,17 @@ def make_sshnode(test_case):
 
     :return: A ``ProcessNode`` instance.
     """
-    sshd_path = FilePath(test_case.mktemp())
-    sshd_path.makedirs()
-    subprocess.check_call(
-        [b"ssh-keygen", b"-f", sshd_path.child(b"ssh_host_key").path,
-         b"-N", b"", b"-q"])
-
     ssh_path = FilePath(test_case.mktemp())
     ssh_path.makedirs()
+    key = ssh_path.child(b"key")
     subprocess.check_call(
-        [b"ssh-keygen", b"-f", ssh_path.child(b"key").path,
+        [b"ssh-keygen", b"-f", key.path,
          b"-N", b"", b"-q"])
 
-    factory = OpenSSHFactory()
-    realm = UnixSSHRealm()
-    checker = InMemoryPublicKeyChecker(ssh_path.child(b"key.pub").getContent())
-    factory.portal = Portal(realm, [checker])
-    factory.dataRoot = sshd_path.path
-    factory.moduliRoot = b"/etc/ssh"
+    server = ConchServer(test_case, Key.fromFile(key.path))
 
-    port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
-    test_case.addCleanup(port.stopListening)
-
-    return ProcessNode.using_ssh(b"127.0.0.1", port.getHost().port,
-                                 pwd.getpwuid(os.getuid()).pw_name,
-                                 ssh_path.child(b"key"))
+    return ProcessNode.using_ssh(server.ip, server.port,
+                                 pwd.getpwuid(os.getuid()).pw_name, key)
 
 
 class SSHProcessNodeTests(TestCase):

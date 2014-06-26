@@ -303,3 +303,49 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+
+import os
+import pwd
+from subprocess import check_call
+from twisted.cred.portal import Portal
+from twisted.conch.ssh.keys import Key
+from twisted.conch.checkers import SSHPublicKeyDatabase
+from twisted.conch.openssh_compat.factory import OpenSSHFactory
+from twisted.conch.unix import UnixSSHRealm
+
+
+class InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
+    """Check SSH public keys in-memory."""
+
+    def __init__(self, public_key):
+        """
+        :param bytes public_key: The public key we will accept.
+        """
+        self._key = Key.fromString(data=public_key)
+
+    def checkKey(self, credentials):
+        return (self._key.blob() == credentials.blob and
+                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+
+
+class ConchServer(object):
+    def __init__(self, test_case, key):
+        sshd_path = FilePath(test_case.mktemp())
+        sshd_path.makedirs()
+        check_call(
+            [b"ssh-keygen", b"-f", sshd_path.child(b"ssh_host_key").path,
+             b"-N", b"", b"-q"])
+
+        factory = OpenSSHFactory()
+        realm = UnixSSHRealm()
+        checker = InMemoryPublicKeyChecker(key.toString("OPENSSH"))
+        factory.portal = Portal(realm, [checker])
+        factory.dataRoot = sshd_path.path
+        factory.moduliRoot = b"/etc/ssh"
+
+        port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
+        test_case.addCleanup(port.stopListening)
+
+        self.ip = b"127.0.0.1"
+        self.port = port.getHost().port
