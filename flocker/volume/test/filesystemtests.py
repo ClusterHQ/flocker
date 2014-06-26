@@ -11,6 +11,7 @@ from __future__ import absolute_import
 
 from datetime import datetime
 
+from characteristic import attributes
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
@@ -75,6 +76,14 @@ def copy(from_volume, to_volume):
         with to_filesystem.writer() as writer:
             for chunk in iter(lambda: reader.read(4096), b""):
                 writer.write(chunk)
+
+@attributes(["from_volume", "to_volume"])
+class CopyVolumes(object):
+    """A pair of volumes that had data copied from one to the other.
+
+    :ivar from_volume Volume: Volume data was copied from.
+    :ivar to_volume Volume: Volume data was copied to.
+    """
 
 
 def make_istoragepool_tests(fixture):
@@ -228,7 +237,8 @@ def make_istoragepool_tests(fixture):
         def create_and_copy(self):
             """Create a volume's filesystem on one pool, copy to another pool.
 
-            :return: ``Deferred`` that fires with the two volumes, from and to.
+            :return: ``Deferred`` that fires with the two volumes in a
+                ``CopyVolumes``.
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
@@ -242,7 +252,7 @@ def make_istoragepool_tests(fixture):
                 path.child(b"file").setContent(b"some bytes")
                 path.child(b"directory").makedirs()
                 copy(volume, volume2)
-                return (volume, volume2)
+                return CopyVolumes(from_volume=volume, to_volume=volume2)
             d.addCallback(created_filesystem)
             return d
 
@@ -251,8 +261,9 @@ def make_istoragepool_tests(fixture):
             filesystem creates that filesystem with the given contents.
             """
             d = self.create_and_copy()
-            def got_volumes((volume, volume2)):
-                self.assertVolumesEqual(volume, volume2)
+            def got_volumes(copy_volumes):
+                self.assertVolumesEqual(copy_volumes.from_volume,
+                                        copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
@@ -262,12 +273,13 @@ def make_istoragepool_tests(fixture):
             is unchanged updates its contents.
             """
             d = self.create_and_copy()
-            def got_volumes((volume, volume2)):
-                path = volume.get_filesystem().get_path()
+            def got_volumes(copy_volumes):
+                path = copy_volumes.from_volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
-                copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
+                copy(copy_volumes.from_volume, copy_volumes.to_volume)
+                self.assertVolumesEqual(copy_volumes.from_volume,
+                                        copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
@@ -278,7 +290,8 @@ def make_istoragepool_tests(fixture):
             the sender's.
             """
             d = self.create_and_copy()
-            def got_volumes((volume, volume2)):
+            def got_volumes(copied):
+                volume, volume2 = copied.from_volume, copied.to_volume
                 # Mutate the second volume's filesystem:
                 path2 = volume2.get_filesystem().get_path()
                 path2.child(b"extra").setContent(b"lalala")
@@ -298,7 +311,8 @@ def make_istoragepool_tests(fixture):
             in an error.
             """
             d = self.create_and_copy()
-            def got_volumes((volume, volume2)):
+            def got_volumes(copied):
+                volume, volume2 = copied.from_volume, copied.to_volume
                 copy(volume, volume2)
                 self.assertVolumesEqual(volume, volume2)
             d.addCallback(got_volumes)
@@ -365,7 +379,8 @@ def make_istoragepool_tests(fixture):
             changes are made to the filesystem."""
             d = self.create_and_copy()
 
-            def got_volumes((volume, volume2)):
+            def got_volumes(copied):
+                volume, volume2 = copied.from_volume, copied.to_volume
                 from_filesystem = volume.get_filesystem()
                 to_filesystem = volume2.get_filesystem()
                 try:
@@ -383,7 +398,8 @@ def make_istoragepool_tests(fixture):
             filesystem."""
             d = self.create_and_copy()
 
-            def got_volumes((volume, volume2)):
+            def got_volumes(copied):
+                volume, volume2 = copied.from_volume, copied.to_volume
                 to_filesystem = volume2.get_filesystem()
                 with to_filesystem.writer() as writer:
                     writer.write(b"NOT A REAL THING")
