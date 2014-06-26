@@ -8,7 +8,6 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from twisted.web.http import NOT_FOUND
 from twisted.internet.defer import succeed, fail
 
 from treq import request, content
@@ -33,9 +32,10 @@ class Unit(object):
 
     :ivar unicode activation_state: The state of the unit in terms of
         systemd activation. Values indicate whether the unit is installed
-        but not running ("inactive"), starting ("activating"), running
-        ("active"), failed ("failed") or stopped (either "failed" or
-        "inactive" apparently).
+        but not running (``u"inactive"``), starting (``u"activating"``),
+        running (``u"active"``), failed (``u"failed"``) stopping
+        (``u"deactivating"``) or stopped (either ``u"failed"`` or
+        ``u"inactive"`` apparently).
     """
 
 
