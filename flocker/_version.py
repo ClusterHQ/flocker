@@ -50,7 +50,6 @@ def run_command(commands, args, cwd=None, verbose=False, hide_stderr=False):
     return stdout
 
 
-import sys
 import re
 import os.path
 
@@ -61,7 +60,7 @@ def get_expanded_variables(versionfile_abs):
     # used from _version.py.
     variables = {}
     try:
-        f = open(versionfile_abs, "r")
+        f = open(versionfile_abs,"r")
         for line in f.readlines():
             if line.strip().startswith("git_refnames ="):
                 mo = re.search(r'=\s*"(.*)"', line)
@@ -106,8 +105,8 @@ def versions_from_expanded_variables(variables, tag_prefix, verbose=False):
             r = ref[len(tag_prefix):]
             if verbose:
                 print("picking %s" % r)
-            return {"version": r,
-                    "full": variables["full"].strip()}
+            return { "version": r,
+                     "full": variables["full"].strip() }
     # no suitable tags, so we use the full revision id
     if verbose:
         print("no suitable tags, using full revision id")
