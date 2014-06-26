@@ -20,3 +20,15 @@ class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
 class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`DeployOptions`."""
     options = DeployOptions
+
+
+class FlockerDeployMainTests(SynchronousTestCase):
+    """
+    Tests for ``DeployScript.main``.
+    """
+    def test_deferred_result(self):
+        """
+        ``DeployScript.main`` returns ``True`` on success.
+        """
+        script = DeployScript()
+        self.assertTrue(script.main(reactor=object(), options={}))
