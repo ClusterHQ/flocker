@@ -102,7 +102,7 @@ setup(
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
             # flake8 is pretty critical to have around to help point out
-            # obvious mistakes. It depends on PEP8, pylfakes and mccabe.
+            # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
             "pyflakes==0.8.1",
             "pep8==1.5.7",
             "mccabe==0.2.1",
