@@ -187,11 +187,11 @@ class GearClient(object):
         return d
 
     def list(self):
-        d = self._request(b"GET", b"/links")
+        d = self._request(b"GET", b"/containers")
         d.addCallback(content)
 
         def got_body(data):
-            values = json.loads(data)
+            values = json.loads(data)[u"Containers"]
             return set([Unit(name=unit[u"Id"],
                              activation_state=unit[u"ActiveState"])
                         for unit in values])
