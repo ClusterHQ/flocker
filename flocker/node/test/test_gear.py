@@ -6,9 +6,8 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name
-from ..gear import IGearClient, FakeGearClient, AlreadyExists
-
+from ...testtools import random_name, WithInitTestsMixin
+from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap
 
 def make_igearclient_tests(fixture):
     """
@@ -101,3 +100,45 @@ def make_igearclient_tests(fixture):
 
 class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
     """``IGearClient`` tests for ``FakeGearClient``."""
+
+
+class PortMapTests(WithInitTestsMixin, TestCase):
+    """
+    Tests for ``PortMap``.
+    """
+    record_type = PortMap
+    values = dict(
+        internal=1234,
+        external=5678,
+    )
+
+    def test_repr(self):
+        """
+        ``PortMap.__repr__`` shows the internal and external ports.
+        """
+        self.assertEqual(
+            "<PortMap(internal=1234, external=5678)>",
+            repr(PortMap(internal=1234, external=5678))
+        )
+
+    def test_equal(self):
+        """
+        ``PortMap`` instances with the same internal and external ports compare
+        equal.
+        """
+        self.assertEqual(
+            PortMap(internal=1234, external=5678),
+            PortMap(internal=1234, external=5678)
+        )
+
+
+    def test_not_equal(self):
+        """
+        ``PortMap`` instances with the different internal and external ports
+        do not compare equal.
+        """
+        self.assertNotEqual(
+            PortMap(internal=5678, external=1234),
+            PortMap(internal=1234, external=5678)
+        )
+
