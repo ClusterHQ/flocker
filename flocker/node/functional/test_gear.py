@@ -57,7 +57,8 @@ class GearClientTests(TestCase):
 
         :param unicode name: The name of the unit.
 
-        :return: Deferred that fires when the unit is running.
+        :return: ``Deferred`` that fires with the ``GearClient`` when the unit
+            is running.
         """
         client = GearClient("127.0.0.1")
         d = client.add(name, u"openshift/busybox-http-app")
@@ -76,6 +77,7 @@ class GearClientTests(TestCase):
         def added(_):
             return loop_until(None, check_if_started)
         d.addCallback(added)
+        d.addCallback(lambda _: client)
         return d
 
     def test_add_starts_container(self):
