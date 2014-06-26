@@ -111,6 +111,10 @@ setup(
             # versioneer is necessary in order to update (but *not* merely to
             # use) the automatic versioning tools.
             "versioneer==0.10",
+
+            # Some of the tests use Conch:
+            "PyCrypto==2.6.1",
+            "pyasn1==0.1.7",
             ]
         },
 

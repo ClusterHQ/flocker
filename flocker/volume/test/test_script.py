@@ -68,7 +68,8 @@ class VolumeScriptMainTests(SynchronousTestCase):
         script = VolumeScript(sys_module=fake_sys)
         script._service_factory = RaisingService
         dummy_reactor = object()
-        options = dict(config=FilePath(b'/foo/bar/baz'))
+        options = VolumeOptions()
+        options["config"] = FilePath(b'/foo/bar/baz')
         error = self.assertRaises(
             SystemExit, script.main, dummy_reactor, options)
 
@@ -82,7 +83,8 @@ class VolumeScriptMainTests(SynchronousTestCase):
         ``VolumeScript.main`` returns a ``Deferred`` on success.
         """
         script = VolumeScript()
-        options = dict(config=FilePath(self.mktemp()))
+        options = VolumeOptions()
+        options["config"] = FilePath(self.mktemp())
         dummy_reactor = object()
         self.assertIs(
             None,
