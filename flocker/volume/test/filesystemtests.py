@@ -382,14 +382,20 @@ def make_istoragepool_tests(fixture):
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 from_filesystem = volume.get_filesystem()
+                path = from_filesystem.get_path()
+                path.child(b"anotherfile").setContent(b"hello")
+
                 to_filesystem = volume2.get_filesystem()
                 try:
-                    with from_filesystem.reader():
-                        with to_filesystem.writer():
+                    with from_filesystem.reader() as reader:
+                        with to_filesystem.writer() as writer:
+                            data = reader.read()
+                            writer.write(data)
                             raise ZeroDivisionError()
                 except ZeroDivisionError:
                     pass
-                self.assertVolumesEqual(volume, volume2)
+                to_path = volume2.get_filesystem().get_path()
+                self.assertFalse(to_path.child(b"anotherfile").exists())
             d.addCallback(got_volumes)
             return d
 
