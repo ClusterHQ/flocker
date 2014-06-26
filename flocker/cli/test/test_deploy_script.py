@@ -32,10 +32,14 @@ class FlockerDeployMainTests(SynchronousTestCase):
     """
     Tests for ``DeployScript.main``.
     """
-    def test_success(self):
+    def test_deferred_result(self):
         """
-        ``DeployScript.main`` returns ``True`` on success.
+        ``DeployScript.main`` returns a ``Deferred`` on success.
         """
         script = DeployScript()
-        self.assertTrue(script.main(reactor=object(), options={}))
-
+        dummy_reactor = object()
+        options = {}
+        self.assertIs(
+            None,
+            self.successResultOf(script.main(dummy_reactor, options))
+        )
