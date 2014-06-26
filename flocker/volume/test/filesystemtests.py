@@ -77,6 +77,7 @@ def copy(from_volume, to_volume):
             for chunk in iter(lambda: reader.read(4096), b""):
                 writer.write(chunk)
 
+
 @attributes(["from_volume", "to_volume"])
 class CopyVolumes(object):
     """A pair of volumes that had data copied from one to the other.
@@ -246,6 +247,7 @@ def make_istoragepool_tests(fixture):
             volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool2)
 
             d = gatherResults([pool.create(volume), pool2.create(volume2)])
+
             def created_filesystem(results):
                 filesystem, filesystem2 = results
                 path = filesystem.get_path()
@@ -261,6 +263,7 @@ def make_istoragepool_tests(fixture):
             filesystem creates that filesystem with the given contents.
             """
             d = self.create_and_copy()
+
             def got_volumes(copy_volumes):
                 self.assertVolumesEqual(copy_volumes.from_volume,
                                         copy_volumes.to_volume)
@@ -273,6 +276,7 @@ def make_istoragepool_tests(fixture):
             is unchanged updates its contents.
             """
             d = self.create_and_copy()
+
             def got_volumes(copy_volumes):
                 path = copy_volumes.from_volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
@@ -290,6 +294,7 @@ def make_istoragepool_tests(fixture):
             the sender's.
             """
             d = self.create_and_copy()
+
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 # Mutate the second volume's filesystem:
@@ -311,6 +316,7 @@ def make_istoragepool_tests(fixture):
             in an error.
             """
             d = self.create_and_copy()
+
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 copy(volume, volume2)
@@ -324,6 +330,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with filesystem.reader():
                     raise RuntimeError("ONO")
@@ -336,6 +343,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with filesystem.writer():
                     raise RuntimeError("ONO")
@@ -348,6 +356,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with assertNoFDsLeaked(self):
                     try:
@@ -364,6 +373,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with assertNoFDsLeaked(self):
                     try:

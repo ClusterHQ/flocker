@@ -59,7 +59,8 @@ class ProcessNodeTests(TestCase):
         self.assertEqual(FilePath(temp_file).getContent(), b"hello world")
 
     def test_bad_exit(self):
-        """``run()`` raises ``IOError`` if subprocess has non-zero exit code."""
+        """``run()`` raises ``IOError`` if subprocess has non-zero exit code.
+        """
         node = ProcessNode(initial_command_arguments=[])
         nonexistent = self.mktemp()
         try:
@@ -127,11 +128,12 @@ class SSHProcessNodeTests(TestCase):
         being ssh'd into."""
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
+
         def go():
             # Commands are run with a shell... but I verified separately
             # that opensshd at least DTRT with multiple arguments,
             # including quoting.
-            with node.run([b"/bin/echo -n hello > "+ temp_file.path]):
+            with node.run([b"/bin/echo -n hello > " + temp_file.path]):
                 pass
             return temp_file.getContent()
         d = deferToThread(go)
@@ -146,11 +148,12 @@ class SSHProcessNodeTests(TestCase):
         stdin."""
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
+
         def go():
             # Commands are run with a shell... but I verified separately
             # that opensshd at least DTRT with multiple arguments,
             # including quoting.
-            with node.run([b"cat > "+ temp_file.path]) as stdin:
+            with node.run([b"cat > " + temp_file.path]) as stdin:
                 stdin.write(b"hello ")
                 stdin.write(b"there")
             return temp_file.getContent()
@@ -160,4 +163,3 @@ class SSHProcessNodeTests(TestCase):
             self.assertEqual(data, b"hello there")
         d.addCallback(got_data)
         return d
-

@@ -71,7 +71,7 @@ class ProcessNode(object):
         """
         return cls(initial_command_arguments=[
             b"ssh",
-            b"-q", # suppress warnings
+            b"-q",  # suppress warnings
             b"-i", private_key.path,
             b"-l", username,
             # We're ok with unknown hosts; we'll be switching away from

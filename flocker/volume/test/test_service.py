@@ -199,6 +199,7 @@ class VolumeServiceAPITests(TestCase):
             service.receive(u"anotheruuid", u"newvolume", reader)
         new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
         d = service.enumerate()
+
         def got_volumes(volumes):
             self.assertIn(new_volume, volumes)
         d.addCallback(got_volumes)

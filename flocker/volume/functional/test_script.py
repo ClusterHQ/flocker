@@ -136,6 +136,7 @@ class ReceiveTests(TestCase):
             to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
                                _pool=self.to_pool)
             d = self.to_service.enumerate()
+
             def got_volumes(volumes):
                 self.assertIn(to_volume, volumes)
             d.addCallback(got_volumes)

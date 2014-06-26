@@ -111,8 +111,8 @@ class VolumeService(Service):
         :param FilePath config_path: Path to configuration file for the
             remote ``flocker-volume``.
 
-        :raises ValueError: If the uuid of the volume is different than our own;
-            only locally-owned volumes can be pushed.
+        :raises ValueError: If the uuid of the volume is different than
+            our own; only locally-owned volumes can be pushed.
         """
         if volume.uuid != self.uuid:
             raise ValueError()
@@ -146,8 +146,8 @@ class VolumeService(Service):
             raise ValueError()
         volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
         with volume.get_filesystem().writer() as writer:
-             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
-                 writer.write(chunk)
+            for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+                writer.write(chunk)
 
 
 # Communication with Docker should be done via its API, not with this
