@@ -130,6 +130,7 @@ class GearClientTests(TestCase):
         """
         name = random_name()
         d = self.start_container(name)
+
         def started(client):
             self.addCleanup(client.remove, name)
 

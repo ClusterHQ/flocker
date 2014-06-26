@@ -104,6 +104,7 @@ def make_igearclient_tests(fixture):
 
             d = client.add(name, u"openshift/busybox-http-ap")
             d.addCallback(lambda _: client.list())
+
             def got_list(units):
                 activating = Unit(name=name, activation_state=u"activating")
                 active = Unit(name=name, activation_state=u"active")
@@ -121,6 +122,7 @@ def make_igearclient_tests(fixture):
             d = client.add(name, u"openshift/busybox-http-ap")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.list())
+
             def got_list(units):
                 self.assertNotIn(name, [unit.name for unit in units])
             d.addCallback(got_list)

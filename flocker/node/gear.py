@@ -161,6 +161,7 @@ class GearClient(object):
 
     def exists(self, unit_name):
         d = self.list()
+
         def got_units(units):
             return unit_name in [unit.name for unit in units]
         d.addCallback(got_units)
