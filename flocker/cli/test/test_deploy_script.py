@@ -25,7 +25,8 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """Custom config files can be specified."""
         options = self.options()
         options.parseOptions([b"/path/somefile.json", b"/path/anotherfile.json"])
-        self.assertEqual(options, {deploy: b"/path/somefile.json", app: b"/path/anotherfile.json"})
+        self.assertEqual(options,
+            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
 
 
 class FlockerDeployMainTests(SynchronousTestCase):

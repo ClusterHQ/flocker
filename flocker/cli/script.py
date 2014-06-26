@@ -1,3 +1,7 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""The command-line ``flocker-deploy`` tool."""
+from twisted.internet.defer import succeed
 from twisted.python.usage import Options
 
 from zope.interface import implementer
@@ -10,6 +14,11 @@ class DeployOptions(Options):
     """
     synopsis = "Usage: flocker-deploy"
 
+    def parseArgs(self, deploy, app):
+        self['deploy'] = deploy
+        self['app'] = app
+
+
 
 @implementer(ICommandLineScript)
 class DeployScript(object):
@@ -18,4 +27,4 @@ class DeployScript(object):
        https://github.com/hybridlogic/flocker/issues/19
     """
     def main(self, reactor, options):
-        return True
+        return succeed(None)
