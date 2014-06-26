@@ -103,16 +103,6 @@ class GearClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    def test_exists_error(self):
-        """``GearClient.exists`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is unexpected.
-        """
-        client = GearClient("127.0.0.1")
-        # Illegal container name should make gear complain when we check
-        # if it exists:
-        d = client.exists(u"!!##!!")
-        return self.assertFailure(d, GearError)
-
     def test_add_error(self):
         """``GearClient.add`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
