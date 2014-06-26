@@ -160,23 +160,10 @@ class GearClient(object):
         return checked
 
     def exists(self, unit_name):
-        # status isn't really intended for this usage; better to use
-        # listing (with option to list all) as part of
-        # https://github.com/openshift/geard/issues/187
-        d = self._container_request(b"GET", unit_name, operation=b"status")
-
-        def got_response(response):
-            result = content(response)
-            # Gear can return a variety of 2xx success codes:
-            if response.code // 100 == 2:
-                result.addCallback(lambda _: True)
-            elif response.code == NOT_FOUND:
-                result.addCallback(lambda _: False)
-            else:
-                result.addCallback(
-                    lambda data: fail(GearError(response.code, data)))
-            return result
-        d.addCallback(got_response)
+        d = self.list()
+        def got_units(units):
+            return unit_name in [unit.name for unit in units]
+        d.addCallback(got_units)
         return d
 
     def remove(self, unit_name):
