@@ -28,7 +28,7 @@ class GearError(Exception):
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name, ports=None):
+    def add(unit_name, image_name, ports=None, links=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
@@ -37,6 +37,9 @@ class IGearClient(Interface):
 
         :param list ports: A list of ``PortMap``\ s mapping ports exposed in the
             container to ports exposed on the host.
+
+        :param list links: A list of ``PortMap``\ s mapping ports forwarded from
+            the container to ports on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -116,9 +119,12 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None):
+    def add(self, unit_name, image_name, ports=None, links=None):
         if ports is None:
             ports = []
+
+        if links is None:
+            links = []
 
         data = {u"Image": image_name, u"Started": True, u'Ports': []}
         for port in ports:

@@ -53,15 +53,17 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name, ports=None):
+    def start_container(self, name, ports=None, links=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
+        :param list links: A list of ``PortMap`` instances describing the
+            network links between the container and the host.
 
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app", ports=ports)
+        d = client.add(name, u"openshift/busybox-http-app", ports=ports, links=links)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -218,3 +220,26 @@ class GearClientTests(TestCase):
         Raises error if the chosen external port is already exposed.
         """
         self.fail()
+
+
+    def test_add_with_links(self):
+        """
+        GearClient.add accepts a links argument which sets up links between
+        container local ports and host local ports.
+        """
+        # This is the target of the proxy which will be created.
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setblocking(0)
+        server.bind((b'127.0.0.1', 0))
+        server.listen(1)
+        host_port = server.getsockname()[1]
+        name = random_name()
+        d = self.start_container(
+            name, links=[PortMap(internal=8080, external=host_port)])
+
+        def started(ignored):
+            accepted, client_address = server.accept()
+            self.assertEqual(b'XXX', accepted.read())
+        d.addCallback(started)
+
+        return d
