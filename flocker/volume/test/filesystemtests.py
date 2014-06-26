@@ -63,6 +63,20 @@ def make_ifilesystemsnapshots_tests(fixture):
     return IFilesystemSnapshotsTests
 
 
+def copy(from_volume, to_volume):
+    """Copy contents of one volume to another.
+
+    :param Volume from_volume: Volume to read from.
+    :param Volume to_volume: Volume to write to.
+    """
+    from_filesystem = from_volume.get_filesystem()
+    to_filesystem = to_volume.get_filesystem()
+    with from_filesystem.reader() as reader:
+        with to_filesystem.writer() as writer:
+            for chunk in iter(lambda: reader.read(4096), b""):
+                writer.write(chunk)
+
+
 def make_istoragepool_tests(fixture):
     """Create a TestCase for IStoragePool.
 
@@ -165,19 +179,6 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystems)
             return d
 
-        def copy(self, from_volume, to_volume):
-            """Copy contents of one volume to another.
-
-            :param Volume from_volume: Volume to read from.
-            :param Volume to_volume: Volume to write to.
-            """
-            from_filesystem = from_volume.get_filesystem()
-            to_filesystem = to_volume.get_filesystem()
-            with from_filesystem.reader() as reader:
-                with to_filesystem.writer() as writer:
-                    for chunk in iter(lambda: reader.read(4096), b""):
-                        writer.write(chunk)
-
         def test_reader_cleanup(self):
             """The reader does not leave any open file descriptors behind."""
             pool = fixture(self)
@@ -240,7 +241,7 @@ def make_istoragepool_tests(fixture):
                 path = filesystem.get_path()
                 path.child(b"file").setContent(b"some bytes")
                 path.child(b"directory").makedirs()
-                self.copy(volume, volume2)
+                copy(volume, volume2)
                 return (volume, volume2)
             d.addCallback(created_filesystem)
             return d
@@ -265,7 +266,7 @@ def make_istoragepool_tests(fixture):
                 path = volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
-                self.copy(volume, volume2)
+                copy(volume, volume2)
                 self.assertVolumesEqual(volume, volume2)
             d.addCallback(got_volumes)
             return d
@@ -287,7 +288,7 @@ def make_istoragepool_tests(fixture):
                 path = volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
-                self.copy(volume, volume2)
+                copy(volume, volume2)
                 self.assertVolumesEqual(volume, volume2)
             d.addCallback(got_volumes)
             return d
@@ -298,7 +299,7 @@ def make_istoragepool_tests(fixture):
             """
             d = self.create_and_copy()
             def got_volumes((volume, volume2)):
-                self.copy(volume, volume2)
+                copy(volume, volume2)
                 self.assertVolumesEqual(volume, volume2)
             d.addCallback(got_volumes)
             return d
