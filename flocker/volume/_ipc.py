@@ -74,7 +74,10 @@ class ProcessNode(object):
             b"-q", # suppress warnings
             b"-i", private_key.path,
             b"-l", username,
-            b"-o", b"StrictHostKeyChecking=no", # we're ok with unknown hosts
+            # We're ok with unknown hosts; we'll be switching away from
+            # SSH by the time Flocker is production-ready and security is
+            # a concern.
+            b"-o", b"StrictHostKeyChecking=no",
             b"-p", b"%d" % (port,), host])
 
 
