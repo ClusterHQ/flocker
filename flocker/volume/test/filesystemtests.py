@@ -400,7 +400,7 @@ def make_istoragepool_tests(fixture):
                     with from_filesystem.reader() as reader:
                         with to_filesystem.writer() as writer:
                             data = reader.read()
-                            writer.write(data)
+                            writer.write(data[1:])
                             raise ZeroDivisionError()
                 except ZeroDivisionError:
                     pass
