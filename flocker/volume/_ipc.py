@@ -53,6 +53,8 @@ class ProcessNode(object):
             process.stdin.close()
             exit_code = process.wait()
             if exit_code:
+                # We should really capture this and stderr:
+                # https://github.com/ClusterHQ/flocker/issues/155
                 raise IOError("Bad exit")
 
     @classmethod
