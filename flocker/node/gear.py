@@ -194,4 +194,7 @@ class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
+
+    :ivar int internal: The port number exposed by the container.
+    :ivar int external: The port number exposed by the host
     """
