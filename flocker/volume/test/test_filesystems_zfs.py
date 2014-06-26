@@ -19,8 +19,10 @@ from ...testtools import FakeProcessReactor
 
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
-    zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
+    zfs_command, Filesystem, ZFSSnapshots,
     )
+from ...common.process import CommandFailed, BadArguments
+
 
 class FilesystemTests(SynchronousTestCase):
     """

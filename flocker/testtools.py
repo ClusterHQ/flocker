@@ -279,3 +279,22 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+
+class WithInitTestsMixin(object):
+    """
+    Tests for record classes decorated with ``with_init``.
+    """
+    record_type = None
+    values = None
+
+    def test_init(self):
+        """
+        The record type accepts keyword arguments which are exposed as public
+        attributes.
+        """
+        record = self.record_type(**self.values)
+        self.assertEqual(
+            self.values.values(),
+            [getattr(record, key) for key in self.values.keys()]
+        )
