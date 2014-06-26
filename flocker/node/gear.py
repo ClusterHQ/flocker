@@ -6,6 +6,8 @@ import json
 
 from zope.interface import Interface, implementer
 
+from characteristic import attributes
+
 from twisted.web.http import NOT_FOUND
 from twisted.internet.defer import succeed, fail
 
@@ -21,6 +23,20 @@ class AlreadyExists(Exception):
 
 class GearError(Exception):
     """Unexpected error received from gear daemon."""
+
+
+@attributes(["name", "activation_state"])
+class Unit(object):
+    """Information about a unit managed by geard/systemd.
+
+    :ivar unicode name: The name of the unit.
+
+    :ivar unicode activation_state: The state of the unit in terms of
+        systemd activation. Values indicate whether the unit is installed
+        but not running ("inactive"), starting ("activating"), running
+        ("active"), failed ("failed") or stopped (either "failed" or
+        "inactive" apparently).
+    """
 
 
 class IGearClient(Interface):
@@ -54,6 +70,12 @@ class IGearClient(Interface):
         :param unicode unit_name: The name of the unit to stop.
 
         :return: ``Deferred`` that fires on success.
+        """
+
+    def list():
+        """List all known units.
+
+        :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
 
 
@@ -176,3 +198,9 @@ class FakeGearClient(object):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)
+
+    def list(self):
+        result = set()
+        for name in self._units:
+            result.add(Unit(name=name, activation_state=u"active"))
+        return succeed(result)
