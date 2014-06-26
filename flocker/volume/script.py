@@ -46,6 +46,13 @@ class _ReceiveSubcommandOptions(Options):
         self["uuid"] = uuid.decode("ascii")
         self["name"] = name.decode("ascii")
 
+    def run(self, service):
+        """Run the action for this sub-command.
+
+        :param VolumeService service: The volume manager service to utilize.
+        """
+        service.receive(self["uuid"], self["name"], sys.stdin)
+
 
 @flocker_standard_options
 class VolumeOptions(Options):
@@ -118,10 +125,8 @@ class VolumeScript(object):
             )
             raise SystemExit(1)
 
-        if options.subCommand == "receive":
-            service.receive(options.subOptions["uuid"],
-                            options.subOptions["name"],
-                            sys.stdin)
+        if options.subCommand is not None:
+            options.subCommand.run(service)
         return succeed(None)
 
 
