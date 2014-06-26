@@ -18,19 +18,5 @@ class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
 
 
 class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """Tests for :class:`FlockerVolumeOptions`."""
+    """Tests for :class:`DeployOptions`."""
     options = DeployOptions
-
-    # def test_default_config(self):
-    #     """By default the config file is ``b'/etc/flocker/volume.json'``."""
-    #     options = self.options()
-    #     options.parseOptions([])
-    #     self.assertEqual(options["config"],
-    #                      FilePath(b"/etc/flocker/volume.json"))
-    #
-    # def test_custom_config(self):
-    #     """A custom config file can be specified with ``--config``."""
-    #     options = self.options()
-    #     options.parseOptions([b"--config", b"/path/somefile.json"])
-    #     self.assertEqual(options["config"],
-    #                      FilePath(b"/path/somefile.json"))
