@@ -126,7 +126,7 @@ class VolumeScript(object):
             raise SystemExit(1)
 
         if options.subCommand is not None:
-            options.subCommand.run(service)
+            options.subOptions.run(service)
         return succeed(None)
 
 
