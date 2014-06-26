@@ -48,7 +48,8 @@ class IFilesystem(Interface):
 
         The returned file-like object will be closed by this object.
 
-        :return: A file-like object that can be read from.
+        :return: A file-like object from whom the filesystem's data can be
+            read as ``bytes``.
         """
 
     def writer():
@@ -64,8 +65,9 @@ class IFilesystem(Interface):
 
         :param Volume volume: A volume that is being pushed to us.
 
-        :return: A file-like object which when written to will populate
-            the volume's filesystem.
+        :return: A file-like object which when written to with output of
+            :meth:`IFilesystem.reader` will populate the volume's
+            filesystem.
         """
 
     def __eq__(other):
