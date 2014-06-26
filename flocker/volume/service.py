@@ -101,7 +101,7 @@ class VolumeService(Service):
     def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
         """Push the latest data in the volume to a remote destination.
 
-        This is a blocking API, for now.
+        This is a blocking API for now.
 
         Only locally owned volumes (i.e. volumes whose ``uuid`` matches
         this service's) can be pushed.
@@ -129,7 +129,7 @@ class VolumeService(Service):
     def receive(self, volume_uuid, volume_name, input_file):
         """Process a volume's data that can be read from a file-lik.
 
-        This is a blocking API, for now.
+        This is a blocking API for now.
 
         Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
         this service's) can be received.
