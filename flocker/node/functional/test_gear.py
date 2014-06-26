@@ -12,8 +12,6 @@ from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
 
-from treq import request, content
-
 from ...testtools import loop_until
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT
