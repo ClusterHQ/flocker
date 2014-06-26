@@ -77,7 +77,6 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
 

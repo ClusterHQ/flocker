@@ -110,6 +110,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 self.assertTrue(verifyObject(IFilesystem, filesystem))
             d.addCallback(created_filesystem)
@@ -124,6 +125,7 @@ def make_istoragepool_tests(fixture):
             volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
                              _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def created_filesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -143,6 +145,7 @@ def make_istoragepool_tests(fixture):
             volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename",
                              _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def created_filesystems(filesystems):
                 first, second = filesystems
                 # Thanks Python! *Obviously* you should have two code paths
@@ -158,6 +161,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 filesystem2 = pool.get(volume)
                 self.assertTrue(filesystem == filesystem2)
@@ -175,6 +179,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 self.assertTrue(filesystem.get_path().isdir())
             d.addCallback(created_filesystem)
@@ -187,6 +192,7 @@ def make_istoragepool_tests(fixture):
             volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
                              _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
+
             def created_filesystems(filesystems):
                 first, second = filesystems
                 self.assertNotEqual(first.get_path(),
@@ -199,6 +205,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with assertNoFDsLeaked(self):
                     with filesystem.reader():
@@ -211,6 +218,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             d = pool.create(volume)
+
             def created_filesystem(filesystem):
                 with filesystem.reader() as reader:
                     data = reader.read()
@@ -249,7 +257,11 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
             pool2 = fixture(self)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool2)
+            volume2 = Volume(
+                uuid=u"my-uuid",
+                name=u"myvolumename",
+                _pool=pool2
+            )
 
             d = gatherResults([pool.create(volume), pool2.create(volume2)])
 
