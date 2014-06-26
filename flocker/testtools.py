@@ -17,6 +17,8 @@ from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
 
+from twisted.python.usage import UsageError
+
 from . import __version__
 from .common.script import (
     FlockerScriptRunner, ICommandLineScript)
@@ -260,7 +262,12 @@ class StandardOptionsTestsMixin(object):
         configured verbosity by `1`.
         """
         options = self.options()
-        options.parseOptions(['--verbose'])
+        try:
+            options.parseOptions(['--verbose'])
+        except UsageError, e:
+            if e.message == 'Wrong number of arguments.':
+                pass
+
         self.assertEqual(1, options['verbosity'])
 
     def test_verbosity_option_short(self):
@@ -269,7 +276,12 @@ class StandardOptionsTestsMixin(object):
         verbosity by 1.
         """
         options = self.options()
-        options.parseOptions(['-v'])
+        try:
+            options.parseOptions(['-v'])
+        except UsageError, e:
+            if e.message == 'Wrong number of arguments.':
+                pass
+
         self.assertEqual(1, options['verbosity'])
 
     def test_verbosity_multiple(self):
@@ -277,5 +289,9 @@ class StandardOptionsTestsMixin(object):
         `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
-        options.parseOptions(['-v', '--verbose'])
+        try:
+            options.parseOptions(['-v', '--verbose'])
+        except UsageError, e:
+            if e.message == 'Wrong number of arguments.':
+                pass
         self.assertEqual(2, options['verbosity'])
