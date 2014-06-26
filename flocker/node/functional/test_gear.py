@@ -15,6 +15,8 @@ from twisted.internet.test.connectionmixins import findFreePort
 
 from treq import request, content
 
+from characteristic import attributes
+
 from ...testtools import loop_until, loop_until2
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
@@ -53,7 +55,7 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name, ports=None, links=None):
+    def start_container(self, name, image_name=u"openshift/busybox-http-app", ports=None, links=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
@@ -63,7 +65,7 @@ class GearClientTests(TestCase):
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app", ports=ports, links=links)
+        d = client.add(name, image_name, ports=ports, links=links)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -227,6 +229,16 @@ class GearClientTests(TestCase):
         GearClient.add accepts a links argument which sets up links between
         container local ports and host local ports.
         """
+        internal_port = 31337
+        image_name = b'flocker/send_xxx_to_31337'
+        # Create a Docker image
+        image = DockerImageBuilder(
+            docker_dir=os.path.dirname(__file__),
+            tag=image_name
+        )
+        image.build()
+        self.addCleanup(image.remove)
+
         # This is the target of the proxy which will be created.
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
@@ -235,7 +247,7 @@ class GearClientTests(TestCase):
         host_port = server.getsockname()[1]
         name = random_name()
         d = self.start_container(
-            name, links=[PortMap(internal=8080, external=host_port)])
+            name, image_name=image_name, links=[PortMap(internal=internal_port, external=host_port)])
 
         def started(ignored):
             accepted, client_address = server.accept()
@@ -243,3 +255,23 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
+
+
+@attributes(['docker_dir', 'tag'])
+class DockerImageBuilder(object):
+    def build(self):
+        command = [
+            b'docker', b'build',
+            b'--force-rm',
+            b'--tag=%s' % (self.tag,),
+            self.docker_dir
+        ]
+        subprocess.check_call(command)
+
+    def remove(self):
+        command = [
+            b'docker', b'rmi',
+            b'--force',
+            self.tag
+        ]
+        subprocess.check_call(command)
