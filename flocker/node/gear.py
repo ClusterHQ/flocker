@@ -28,12 +28,15 @@ class GearError(Exception):
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name):
+    def add(unit_name, image_name, ports=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
+
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in the
+            container to ports exposed on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -113,14 +116,20 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
+
+        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        for port in ports:
+            data['Ports'].append(
+                {u'Internal': port.internal, u'External': port.external})
+
         checked = self.exists(unit_name)
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._request(b"PUT", unit_name,
-                                    data={u"Image": image_name,
-                                          u"Started": True}))
+            lambda _: self._request(b"PUT", unit_name, data=data))
         checked.addCallback(self._ensure_ok)
         return checked
 

@@ -11,12 +11,13 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
+from twisted.internet.test.connectionmixins import findFreePort
 
 from treq import request, content
 
-from ...testtools import loop_until
+from ...testtools import loop_until, loop_until2
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, GEAR_PORT
+from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
 
 def _gear_running():
@@ -52,7 +53,7 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name):
+    def start_container(self, name, ports=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
@@ -60,7 +61,7 @@ class GearClientTests(TestCase):
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app")
+        d = client.add(name, u"openshift/busybox-http-app", ports=ports)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -136,3 +137,84 @@ class GearClientTests(TestCase):
         # remove it:
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
+
+    def assert_busybox_http_response(self, response):
+        """
+        Assert that the busybox-http-app returns the expected "Hello world!"
+        response.
+
+        XXX: We should use a stable internal container instead. See
+        https://github.com/hybridlogic/flocker/issues/120
+
+        XXX: The busybox-http-app returns headers in the body of its response,
+        hence this over complicated custom assertion. See
+        https://github.com/openshift/geard/issues/213
+        """
+        expected_response = b'Hello world!\n'
+        actual_response = response[-len(expected_response):]
+        message = (
+            "Response {response} does not end with {expected_response}. "
+            "Found {actual_response}.".format(
+                response=repr(response),
+                expected_response=repr(expected_response),
+                actual_response=repr(actual_response)
+            )
+        )
+        self.assertEqual(
+            expected_response,
+            actual_response,
+            message
+        )
+
+
+    def request_until_response(self, port):
+        """
+        """
+        def send_request():
+            response = request(
+                b"GET", b"http://127.0.0.1:%d" % (port,),
+                persistent=False)
+            # Catch errors and return False so that loop_until repeats the
+            # request.
+            # XXX: This will hide all errors. We should probably only catch
+            # timeouts and reject responses here.
+            response.addErrback(lambda err: False)
+            return response
+
+        # The container may have started, but the webserver inside may take a
+        # little while to start serving requests. Resend our test request
+        # until we get a response.
+        return loop_until2(send_request)
+
+    def test_add_with_port(self):
+        """
+        GearClient.add accepts a ports argument which is passed to gear to
+        expose those ports on the unit.
+        """
+        external_port = findFreePort()[1]
+        name = random_name()
+        d = self.start_container(
+            name, ports=[PortMap(internal=8080, external=external_port)])
+
+        d.addCallback(lambda ignored: self.request_until_response(external_port))
+
+        def started(response):
+            d = content(response)
+            d.addCallback(self.assert_busybox_http_response)
+            return d
+        d.addCallback(started)
+
+        return d
+
+    def test_add_error_unless_internal_exposed(self):
+        """
+        Raises error when the chosen internal port has not been exposed by the
+        container.
+        """
+        self.fail()
+
+    def test_add_error_if_external_port_in_use(self):
+        """
+        Raises error if the chosen external port is already exposed.
+        """
+        self.fail()

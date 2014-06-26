@@ -141,4 +141,3 @@ class PortMapTests(WithInitTestsMixin, TestCase):
             PortMap(internal=5678, external=1234),
             PortMap(internal=1234, external=5678)
         )
-
