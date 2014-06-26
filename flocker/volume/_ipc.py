@@ -6,7 +6,7 @@ Specific volume managers ("nodes") may wish to push data to other
 nodes. In the current iteration this is done over SSH, using a blocking
 API. In some future iteration this will be replaced with an actual
 well-specified communication protocol between daemon processes using
-Twisted's event loop.
+Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 """
 
 import subprocess
