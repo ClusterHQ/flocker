@@ -82,7 +82,8 @@ class InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
         self._key = Key.fromString(data=public_key)
 
     def checkKey(self, credentials):
-        return self._key.blob() == credentials.blob
+        return (self._key.blob() == credentials.blob and
+                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
 
 
 @_if_root
