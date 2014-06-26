@@ -11,7 +11,7 @@ Each volume is a ZFS dataset.
 Volumes are created with three parameters:
 
 * The UUID of the volume manager that owns the volume.
-  When a volume is first created this is assigned automatically to the creating volume manager's UUID (see below).
+  The creating volume manager's UUID (see below) is used to supply a value for this parameter.
 * The logical name; this must be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
 * A mount path, indicating where within a container the volume will be mounted.
