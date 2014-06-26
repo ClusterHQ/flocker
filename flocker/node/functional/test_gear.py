@@ -148,7 +148,8 @@ class GearClientTests(TestCase):
             def is_stopped(units):
                 return [unit for unit in units if
                         (unit.name == name and
-                         unit.activation_state == u"inactive")]
+                         unit.activation_state in
+                         (u"inactive", u"deactivating", u"failed"))]
 
             def check_if_stopped():
                 responded = client.list()
