@@ -78,6 +78,10 @@ class ProcessNode(object):
             # SSH by the time Flocker is production-ready and security is
             # a concern.
             b"-o", b"StrictHostKeyChecking=no",
+            # On some Ubuntu versions (and perhaps elsewhere) not
+            # disabling this leads for mDNS lookups on every SSH, which
+            # can slow down connections very noticeably:
+            b"-o", b"GSSAPIAuthentication=no",
             b"-p", b"%d" % (port,), host])
 
 
