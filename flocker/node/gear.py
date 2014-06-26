@@ -92,7 +92,7 @@ class GearClient(object):
         """
         self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
 
-    def _request(self, method, unit_name, operation=None, data=None):
+    def _container_request(self, method, unit_name, operation=None, data=None):
         """Send HTTP request to gear.
 
         :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
@@ -107,9 +107,24 @@ class GearClient(object):
 
         :return: A ``Defered`` that fires with a response object.
         """
-        url = self._base_url + b"/container/" + unit_name.encode("ascii")
+        path = b"/container/" + unit_name.encode("ascii")
         if operation is not None:
-            url += b"/" + operation
+            path += b"/" + operation
+        return self._request(method, path, data=data)
+
+    def _request(self, method, path, data=None):
+        """Send HTTP request to gear.
+
+        :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
+
+        :param bytes path: Path to request.
+
+        :param data: ``None``, or object with a body for the request that
+            can be serialized to JSON.
+
+        :return: A ``Defered`` that fires with a response object.
+        """
+        url = self._base_url + path
         if data is not None:
             data = json.dumps(data)
         return request(method, url, data=data, persistent=False)
@@ -138,7 +153,7 @@ class GearClient(object):
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._request(b"PUT", unit_name,
+            lambda _: self._container_request(b"PUT", unit_name,
                                     data={u"Image": image_name,
                                           u"Started": True}))
         checked.addCallback(self._ensure_ok)
@@ -148,7 +163,7 @@ class GearClient(object):
         # status isn't really intended for this usage; better to use
         # listing (with option to list all) as part of
         # https://github.com/openshift/geard/issues/187
-        d = self._request(b"GET", unit_name, operation=b"status")
+        d = self._container_request(b"GET", unit_name, operation=b"status")
 
         def got_response(response):
             result = content(response)
@@ -165,10 +180,22 @@ class GearClient(object):
         return d
 
     def remove(self, unit_name):
-        d = self._request(b"PUT", unit_name, operation=b"stopped")
+        d = self._container_request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
-        d.addCallback(lambda _: self._request(b"DELETE", unit_name))
+        d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
+        return d
+
+    def list(self):
+        d = self._request(b"GET", b"/links")
+        d.addCallback(content)
+
+        def got_body(data):
+            values = json.loads(data)
+            return set([Unit(name=unit[u"Id"],
+                             activation_state=unit[u"ActiveState"])
+                        for unit in values])
+        d.addCallback(got_body)
         return d
 
 
