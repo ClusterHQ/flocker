@@ -9,7 +9,7 @@ well-specified communication protocol between daemon processes using
 Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 """
 
-import subprocess
+from subprocess import Popen, PIPE
 from contextlib import contextmanager
 from io import BytesIO
 
@@ -44,9 +44,9 @@ class ProcessNode(object):
     """
     @contextmanager
     def run(self, remote_command):
-        process = subprocess.Popen(
+        process = Popen(
             self.initial_command_arguments + remote_command,
-            stdin=subprocess.PIPE)
+            stdin=PIPE)
         try:
             yield process.stdin
         finally:
