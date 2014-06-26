@@ -46,6 +46,9 @@ cmdclass.update(versioneer.get_cmdclass())
 if os.environ.get('USER','') == 'vagrant':
     del os.link
 
+with open("README.rst") as readme:
+    description = readme.read()
+
 setup(
     # This is the human-targetted name of the software being packaged.
     name="Flocker",
@@ -62,6 +65,10 @@ setup(
 
     # A short identifier for the license under which the project is released.
     license="Apache License, Version 2.0",
+
+    # Some details about what Flocker is.  Synchronized with the README.rst to
+    # keep it up to date more easily.
+    long_description=description,
 
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
@@ -86,6 +93,7 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
+        "nomenclature >= 0.1.0",
         ],
 
     extras_require={
