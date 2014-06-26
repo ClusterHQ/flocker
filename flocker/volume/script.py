@@ -32,7 +32,15 @@ class _ReceiveSubcommandOptions(Options):
 
     Reads the volume in from standard in. This is typically called
     automatically over SSH.
+
+    Parameters:
+
+    * owner-uuid: The UUID of the volume manager that owns the volume.
+
+    * name: The name of the volume.
     """
+
+    synopsis = "<owner-uuid> <name>"
 
     def parseArgs(self, uuid, name):
         self["uuid"] = uuid.decode("ascii")
