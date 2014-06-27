@@ -2,6 +2,7 @@
 
 """The command-line ``flocker-deploy`` tool."""
 from twisted.internet.defer import succeed
+from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from zope.interface import implementer
@@ -16,6 +17,9 @@ class DeployOptions(Options):
     synopsis = "Usage: flocker-deploy"
 
     def parseArgs(self, deploy, app):
+        deploy = FilePath(deploy)
+        deploy = FilePath(app)
+
         self['deploy'] = deploy
         self['app'] = app
 
