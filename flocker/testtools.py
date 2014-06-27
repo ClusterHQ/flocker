@@ -17,8 +17,6 @@ from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
 
-from twisted.python.usage import UsageError
-
 from . import __version__
 from .common.script import (
     FlockerScriptRunner, ICommandLineScript)
@@ -262,7 +260,7 @@ class StandardOptionsTestsMixin(object):
         configured verbosity by `1`.
         """
         options = self.options()
-        # The command may otherwise give a Usage Error
+        # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
@@ -274,7 +272,7 @@ class StandardOptionsTestsMixin(object):
         verbosity by 1.
         """
         options = self.options()
-        # The command may otherwise give a Usage Error
+        # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
@@ -285,7 +283,7 @@ class StandardOptionsTestsMixin(object):
         `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
-        # The command may otherwise give a Usage Error
+        # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
