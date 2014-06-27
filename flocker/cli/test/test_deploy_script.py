@@ -36,7 +36,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                           'verbosity': 0})
 
     def test_deploy_must_exist(self):
-        """The ``deploy`` config file must be a real file."""
+        """The ``deployment_config`` file must be a real file."""
         options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
@@ -44,7 +44,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                           [b"/path/to/non-existent-file.cfg", app])
 
     def test_app_must_exist(self):
-        """The ``app`` config file must be a real file."""
+        """The ``app_config`` file must be a real file."""
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()

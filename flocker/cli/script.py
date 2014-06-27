@@ -39,7 +39,9 @@ class DeployScript(object):
     """
     def main(self, reactor, options):
         """
-        Returns a ``Deferred``.
+        Returns a ``Deferred``. This is a stub.
+
+        :return: A ``Deferred`` which fires with ``None``.
         """
         return succeed(None)
 
