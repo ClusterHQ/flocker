@@ -211,8 +211,7 @@ class Volume(object):
         """
         local_path = self.get_filesystem().get_path().path
         mount_path = mount_path.path
-        d = _docker_command(reactor, [b"rm", self._container_name])
-        d.addErrback(lambda failure: failure.trap(CommandFailed))
+        d = self.remove_from_docker()
         d.addCallback(
             lambda _:
                 _docker_command(reactor,
@@ -230,5 +229,6 @@ class Volume(object):
 
         :return: ``Deferred`` firing when the operation is done.
         """
-        from twisted.internet.defer import succeed
-        return succeed(None)
+        d = _docker_command(reactor, [b"rm", self._container_name])
+        d.addErrback(lambda failure: failure.trap(CommandFailed))
+        return d
