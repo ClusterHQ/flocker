@@ -139,35 +139,6 @@ class GearClientTests(TestCase):
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
 
-    def assert_busybox_http_response(self, response):
-        """
-        Assert that the busybox-http-app returns the expected "Hello world!"
-        response.
-
-        XXX: We should use a stable internal container instead. See
-        https://github.com/hybridlogic/flocker/issues/120
-
-        XXX: The busybox-http-app returns headers in the body of its response,
-        hence this over complicated custom assertion. See
-        https://github.com/openshift/geard/issues/213
-        """
-        expected_response = b'Hello world!\n'
-        actual_response = response[-len(expected_response):]
-        message = (
-            "Response {response} does not end with {expected_response}. "
-            "Found {actual_response}.".format(
-                response=repr(response),
-                expected_response=repr(expected_response),
-                actual_response=repr(actual_response)
-            )
-        )
-        self.assertEqual(
-            expected_response,
-            actual_response,
-            message
-        )
-
-
     def request_until_response(self, port):
         """
         """
@@ -191,7 +162,18 @@ class GearClientTests(TestCase):
         """
         GearClient.add accepts a ports argument which is passed to gear to
         expose those ports on the unit.
+
+        Assert that the busybox-http-app returns the expected "Hello world!"
+        response.
+
+        XXX: We should use a stable internal container instead. See
+        https://github.com/hybridlogic/flocker/issues/120
+
+        XXX: The busybox-http-app returns headers in the body of its response,
+        hence this over complicated custom assertion. See
+        https://github.com/openshift/geard/issues/213
         """
+        expected_response = b'Hello world!\n'
         external_port = find_free_port()[1]
         name = random_name()
         d = self.start_container(
@@ -201,7 +183,7 @@ class GearClientTests(TestCase):
 
         def started(response):
             d = content(response)
-            d.addCallback(self.assert_busybox_http_response)
+            d.addCallback(lambda body: self.assertIn(expected_response, body))
             return d
         d.addCallback(started)
 
