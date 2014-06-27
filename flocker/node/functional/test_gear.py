@@ -239,7 +239,7 @@ class GearClientTests(TestCase):
         server.bind((b'127.0.0.1', 0))
         server.listen(1)
         host_port = server.getsockname()[1]
-        name = (self.id().replace('.', '_') + b'_' +  random_name())[-24:]
+        name = random_name()
         d = self.start_container(
             unit_name=name,
             image_name=image_name,
