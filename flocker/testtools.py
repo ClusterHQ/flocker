@@ -8,18 +8,28 @@ import gc
 import io
 import socket
 import sys
+import os
+import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
+from subprocess import check_call
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
+
+from ipaddr import IPAddress
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
+from twisted.cred.portal import Portal
+from twisted.conch.ssh.keys import Key
+from twisted.conch.checkers import SSHPublicKeyDatabase
+from twisted.conch.openssh_compat.factory import OpenSSHFactory
+from twisted.conch.unix import UnixSSHRealm
 from twisted.trial.unittest import SynchronousTestCase
 
 from . import __version__
@@ -300,6 +310,69 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+
+class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
+    """
+    Check SSH public keys in-memory.
+    """
+
+    def __init__(self, public_key):
+        """
+        :param bytes public_key: The public key we will accept.
+        """
+        self._key = Key.fromString(data=public_key)
+
+    def checkKey(self, credentials):
+        return (self._key.blob() == credentials.blob and
+                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+
+
+class _ConchServer(object):
+    """
+    A helper for a test fixture to run an SSH server using Twisted Conch.
+
+    :ivar IPv4Address ip: The address the server is listening on.
+    :ivar int port: The port number the server is listening on.
+    :ivar _port: An object which provides ``IListeningPort`` and represents the
+        listening Conch server.
+    """
+    def __init__(self, test_case, key):
+        sshd_path = FilePath(test_case.mktemp())
+        sshd_path.makedirs()
+        check_call(
+            [b"ssh-keygen", b"-f", sshd_path.child(b"ssh_host_key").path,
+             b"-N", b"", b"-q"])
+
+        factory = OpenSSHFactory()
+        realm = UnixSSHRealm()
+        checker = _InMemoryPublicKeyChecker(key.toString("OPENSSH"))
+        factory.portal = Portal(realm, [checker])
+        factory.dataRoot = sshd_path.path
+        factory.moduliRoot = b"/etc/ssh"
+
+        self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
+        self.ip = b"127.0.0.1"
+        self.port = self._port.getHost().port
+
+
+    def restore(self):
+        return self._port.stopListening()
+
+
+def create_ssh_server(test_case, key):
+    """
+    :py:func:`create_ssh_server` is a fixture which creates and runs a new SSH
+    server and stops it later.  Use the :py:meth:`restore` method of the
+    returned object to stop the server.
+
+    :param test_case: A :py:class:`TestCase` instance to use to create
+        temporary paths necessary for the server.
+
+    :param key: A :py:class:`Key` which the resulting server will accept for
+        authentication.
+    """
+    return _ConchServer(test_case, key)
 
 
 def make_with_init_tests(record_type, kwargs):
