@@ -56,6 +56,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 # Error message for the non-existent file
 # Documentation of how this should be used
 
+
 class FlockerDeployMainTests(SynchronousTestCase):
     """
     Tests for ``DeployScript.main``.
