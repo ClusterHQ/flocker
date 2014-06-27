@@ -11,12 +11,13 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
+from twisted.internet.error import ConnectionRefusedError
 
 from treq import request, content
 
-from ...testtools import loop_until
+from ...testtools import loop_until, find_free_port
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, GEAR_PORT
+from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
 
 def _gear_running():
@@ -52,15 +53,17 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name):
+    def start_container(self, name, ports=None):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
 
+        :param list ports: See ``IGearClient.add``.
+
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, u"openshift/busybox-http-app")
+        d = client.add(name, u"openshift/busybox-http-app", ports=ports)
         self.addCleanup(client.remove, name)
 
         def is_started(data):
@@ -80,7 +83,7 @@ class GearClientTests(TestCase):
             return responded
 
         def added(_):
-            return loop_until(None, check_if_started)
+            return loop_until(check_if_started)
         d.addCallback(added)
         return d
 
@@ -136,3 +139,70 @@ class GearClientTests(TestCase):
         # remove it:
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
+
+    def request_until_response(self, port):
+        """
+        Resend a test HTTP request until a response is received.
+
+        The container may have started, but the webserver inside may take a
+        little while to start serving requests.
+
+        :param int port: The localhost port to which an HTTP request will be
+            sent.
+
+        :return: A ``Deferred`` which fires with the result of the first
+            successful HTTP request.
+        """
+        def send_request():
+            """
+            Send an HTTP request in a loop until the request is answered.
+            """
+            response = request(
+                b"GET", b"http://127.0.0.1:%d" % (port,),
+                persistent=False)
+
+            def check_error(failure):
+                """
+                Catch ConnectionRefused errors and return False so that
+                loop_until repeats the request.
+
+                Other error conditions will be passed down the errback chain.
+                """
+                failure.trap(ConnectionRefusedError)
+                return False
+            response.addErrback(check_error)
+            return response
+
+        return loop_until(send_request)
+
+    def test_add_with_port(self):
+        """
+        GearClient.add accepts a ports argument which is passed to gear to
+        expose those ports on the unit.
+
+        Assert that the busybox-http-app returns the expected "Hello world!"
+        response.
+
+        XXX: We should use a stable internal container instead. See
+        https://github.com/hybridlogic/flocker/issues/120
+
+        XXX: The busybox-http-app returns headers in the body of its response,
+        hence this over complicated custom assertion. See
+        https://github.com/openshift/geard/issues/213
+        """
+        expected_response = b'Hello world!\n'
+        external_port = find_free_port()[1]
+        name = random_name()
+        d = self.start_container(
+            name, ports=[PortMap(internal=8080, external=external_port)])
+
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
+
+        def started(response):
+            d = content(response)
+            d.addCallback(lambda body: self.assertIn(expected_response, body))
+            return d
+        d.addCallback(started)
+
+        return d
