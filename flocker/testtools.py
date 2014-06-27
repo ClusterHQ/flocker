@@ -112,34 +112,8 @@ def assertNoFDsLeaked(test_case):
         test_case.assertEqual(process_fds(), fds)
 
 
-def loop_until(arg, predicate):
-    """Call predicate every 0.1 seconds, until it returns ``True``.
-
-    This should only be used in functional tests.
-
-    :param arg: Value to return.
-    :param predicate: Callable returning termination condition.
-    :type predicate: 0-argument callable returning a Deferred.
-
-    :return: A ``Deferred`` firing with ``arg``
-    """
-    d = maybeDeferred(predicate)
-    def loop(result):
-        if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
-            return d
-        return arg
-    d.addCallback(loop)
-    return d
-
-
-def loop_until2(predicate):
+def loop_until(predicate):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
-
-    XXX: This is a copy of flocker.testutils.loop_until which returns the result
-    of the predicate. Maybe this can replace that implementation since none of
-    the current users of loop_until supply a return argument.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.

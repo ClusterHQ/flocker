@@ -14,7 +14,7 @@ from twisted.internet.defer import succeed
 
 from treq import request, content
 
-from ...testtools import loop_until, loop_until2, find_free_port
+from ...testtools import loop_until, find_free_port
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
@@ -80,7 +80,7 @@ class GearClientTests(TestCase):
             return responded
 
         def added(_):
-            return loop_until(None, check_if_started)
+            return loop_until(check_if_started)
         d.addCallback(added)
         return d
 
@@ -183,7 +183,7 @@ class GearClientTests(TestCase):
         # The container may have started, but the webserver inside may take a
         # little while to start serving requests. Resend our test request
         # until we get a response.
-        return loop_until2(send_request)
+        return loop_until(send_request)
 
     def test_add_with_port(self):
         """
