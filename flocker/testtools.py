@@ -20,6 +20,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
+from twisted.trial.unittest import SynchronousTestCase
 
 from . import __version__
 from .common.script import (
@@ -301,23 +302,31 @@ class StandardOptionsTestsMixin(object):
         self.assertEqual(2, options['verbosity'])
 
 
-class WithInitTestsMixin(object):
+def make_with_init_tests(record_type, kwargs):
     """
-    Tests for record classes decorated with ``with_init``.
-    """
-    record_type = None
-    values = None
+    Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
+    supplied ``kwargs`` and exposes them as public attributes.
 
-    def test_init(self):
+    :param record_type: The class with an ``__init__`` method to be tested.
+    :param kwargs: The keyword arguments which will be supplied to the
+        ``__init__`` method.
+    :returns: A ``TestCase``.
+    """
+    class WithInitTests(SynchronousTestCase):
         """
-        The record type accepts keyword arguments which are exposed as public
-        attributes.
+        Tests for classes decorated with ``with_init``.
         """
-        record = self.record_type(**self.values)
-        self.assertEqual(
-            self.values.values(),
-            [getattr(record, key) for key in self.values.keys()]
-        )
+        def test_init(self):
+            """
+            The record type accepts keyword arguments which are exposed as
+            public attributes.
+            """
+            record = record_type(**kwargs)
+            self.assertEqual(
+                kwargs.values(),
+                [getattr(record, key) for key in kwargs.keys()]
+            )
+    return WithInitTests
 
 
 def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,

@@ -6,7 +6,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name, WithInitTestsMixin
+from ...testtools import random_name, make_with_init_tests
 from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap
 
 
@@ -103,7 +103,22 @@ class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
     """``IGearClient`` tests for ``FakeGearClient``."""
 
 
-class PortMapTests(WithInitTestsMixin, TestCase):
+
+class PortMapInitTests(
+        make_with_init_tests(
+            record_type=PortMap,
+            kwargs = dict(
+                internal=1234,
+                external=5678,
+            )
+        )
+):
+    """
+    Tests for ``PortMap.__init__``.
+    """
+
+
+class PortMapTests(TestCase):
     """
     Tests for ``PortMap``.
 
@@ -111,12 +126,6 @@ class PortMapTests(WithInitTestsMixin, TestCase):
     https://github.com/hynek/characteristic/issues/4 for a proposed solution to
     this.
     """
-    record_type = PortMap
-    values = dict(
-        internal=1234,
-        external=5678,
-    )
-
     def test_repr(self):
         """
         ``PortMap.__repr__`` shows the internal and external ports.
