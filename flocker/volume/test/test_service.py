@@ -47,8 +47,8 @@ class VolumeServiceStartupTests(TestCase):
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
 
     def test_no_config_directory(self):
-        """The config file's parent directory is created if it doesn't
-        exist."""
+        """The config file's parent directory is created if it
+        doesn't exist."""
         path = FilePath(self.mktemp()).child(b"config.json")
         service = VolumeService(path, None)
         service.startService()
@@ -113,7 +113,7 @@ class VolumeServiceAPITests(TestCase):
         """The created filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/hybridlogic/flocker/issues/34
+        https://github.com/ClusterHQ/flocker/issues/34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)

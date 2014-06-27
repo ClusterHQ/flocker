@@ -101,9 +101,12 @@ setup(
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
-            # pyflakes is pretty critical to have around to help point out
-            # obvious mistakes.
+            # flake8 is pretty critical to have around to help point out
+            # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
             "pyflakes==0.8.1",
+            "pep8==1.5.7",
+            "mccabe==0.2.1",
+            "flake8==2.2.0",
 
             # Run the test suite:
             "tox==1.7.1",

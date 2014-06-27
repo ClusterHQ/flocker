@@ -23,7 +23,6 @@ from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import create_network_namespace, get_iptables_rules
 
 
-
 def connect_nonblocking(ip, port):
     """
     Attempt a TCP connection to the given address without blocking.
@@ -41,16 +40,16 @@ def create_user_rule():
     ignored by :py:func:`enumerate_proxies`.
     """
     check_call([
-            b"iptables",
-            # Stick it in the PREROUTING chain based on our knowledge that the
-            # implementation inspects this chain to enumerate proxies.
-            b"--table", b"nat", b"--append", b"PREROUTING",
+        b"iptables",
+        # Stick it in the PREROUTING chain based on our knowledge that the
+        # implementation inspects this chain to enumerate proxies.
+        b"--table", b"nat", b"--append", b"PREROUTING",
 
-            b"--protocol", b"tcp", b"--dport", b"12345",
-            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+        b"--protocol", b"tcp", b"--dport", b"12345",
+        b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-            b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
-            ])
+        b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
+        ])
 
 
 def is_environment_configured():
@@ -123,7 +122,7 @@ class CreateTests(TestCase):
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
 
-        # https://github.com/hybridlogic/flocker/issues/135
+        # https://github.com/ClusterHQ/flocker/issues/135
         # Don't hardcode addresses in the created namespace
         self.server_ip = self.namespace.ADDRESSES[0]
         self.proxy_ip = self.namespace.ADDRESSES[1]
@@ -157,7 +156,7 @@ class CreateTests(TestCase):
         self.patch(create_proxy_to, "logger", logger)
 
         # Note - we're leaking iptables rules into the system here.
-        # https://github.com/hybridlogic/flocker/issues/22
+        # https://github.com/ClusterHQ/flocker/issues/22
         create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)

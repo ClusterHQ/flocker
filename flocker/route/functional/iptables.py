@@ -19,15 +19,16 @@ def get_iptables_rules():
     """
     rules = check_output([b"iptables-save"])
     return [
-            rule
-            for rule in rules.splitlines()
-            # Comments don't matter.  They always differ because they
-            # include timestamps.
-            if not rule.startswith("#")
-            # Chain data could matter but doesn't.  The implementation
-            # doesn't mess with this stuff.  It typically differs in
-            # uninteresting ways - such as matched packet counters.
-            and not rule.startswith(":")]
+        rule
+        for rule in rules.splitlines()
+        # Comments don't matter.  They always differ because they
+        # include timestamps.
+        if not rule.startswith("#")
+        # Chain data could matter but doesn't.  The implementation
+        # doesn't mess with this stuff.  It typically differs in
+        # uninteresting ways - such as matched packet counters.
+        and not rule.startswith(":")
+        ]
 
 
 class _Namespace(object):
@@ -36,7 +37,7 @@ class _Namespace(object):
 
     :ivar ADDRESSES: List of :py:class:`IPAddress`es in the created namespace.
     """
-    # https://github.com/hybridlogic/flocker/issues/135
+    # https://github.com/ClusterHQ/flocker/issues/135
     # Don't hardcode addresses in the created namespace
     ADDRESSES = [IPAddress('127.0.0.1'), IPAddress('10.0.0.1')]
 
@@ -50,7 +51,6 @@ class _Namespace(object):
         check_call(['ip', 'link', 'add', 'eth0', 'type', 'dummy'])
         check_call(['ip', 'link', 'set', 'eth0', 'up'])
         check_call(['ip', 'addr', 'add', '10.0.0.1/8', 'dev', 'eth0'])
-
 
     def restore(self):
         """

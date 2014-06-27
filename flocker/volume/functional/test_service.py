@@ -18,7 +18,7 @@ from ..filesystems.memory import FilesystemStoragePool
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
-# This is terible (https://github.com/hybridlogic/flocker/issues/85):
+# This is terible (https://github.com/ClusterHQ/flocker/issues/85):
 _if_docker = skipIf(subprocess.Popen([b"docker", b"version"]).wait(),
                     "Docker must be installed and running.")
 
@@ -30,7 +30,6 @@ class VolumeTests(TestCase):
     @_if_docker
     def setUp(self):
         pass
-
 
     def add_container_cleanup(self, name):
         """Delete container with the given name when the test is over.
@@ -61,9 +60,9 @@ class VolumeTests(TestCase):
         :return: ``bytes`` of file at given path.
         """
         return subprocess.check_output(
-                [b"docker", b"run", b"--rm",
-                 b"--volumes-from", volume._container_name,
-                 b"busybox", b"cat", path])
+            [b"docker", b"run", b"--rm",
+             b"--volumes-from", volume._container_name,
+             b"busybox", b"cat", path])
 
     def test_expose_mounted_volume(self):
         """``Volume.expose_to_docker`` mounts the volume's filesystem within
