@@ -6,7 +6,8 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options
 
 from zope.interface import implementer
-from ..common.script import flocker_standard_options, ICommandLineScript
+from ..common.script import (flocker_standard_options, ICommandLineScript,
+                             FlockerScriptRunner)
 
 
 @flocker_standard_options
@@ -38,3 +39,10 @@ class DeployScript(object):
     """
     def main(self, reactor, options):
         return succeed(None)
+
+
+def flocker_deploy_main():
+    return FlockerScriptRunner(
+        script=DeployScript(),
+        options=DeployOptions()
+    ).main()
