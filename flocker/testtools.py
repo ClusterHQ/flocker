@@ -37,15 +37,14 @@ class FakeProcessTransport(object):
     def __init__(self):
         self.signals = []
 
-
     def signalProcess(self, signal):
         self.signals.append(signal)
 
 
-
-class SpawnProcessArguments(namedtuple('ProcessData',
-                  'processProtocol executable args env path '
-                  'uid gid usePTY childFDs transport')):
+class SpawnProcessArguments(namedtuple(
+                            'ProcessData',
+                            'processProtocol executable args env path '
+                            'uid gid usePTY childFDs transport')):
     """
     Object recording the arguments passed to L{FakeProcessReactor.spawnProcess}
     as well as the L{IProcessTransport} that was connected to the protocol.
@@ -55,7 +54,6 @@ class SpawnProcessArguments(namedtuple('ProcessData',
 
     @see L{twisted.internet.interfaces.IReactorProcess.spawnProcess}
     """
-
 
 
 @implementer(IReactorProcess)
@@ -71,12 +69,10 @@ class FakeProcessReactor(Clock):
         Clock.__init__(self)
         self.processes = []
 
-
     def timeout(self):
         if self.calls:
             return max(0, self.calls[0].getTime() - self.seconds())
         return 0
-
 
     def spawnProcess(self, processProtocol, executable, args=(), env={},
                      path=None, uid=None, gid=None, usePTY=0, childFDs=None):
@@ -122,6 +118,7 @@ def loop_until(predicate):
         ``predicate``.
     """
     d = maybeDeferred(predicate)
+
     def loop(result):
         if not result:
             d = deferLater(reactor, 0.1, predicate)
