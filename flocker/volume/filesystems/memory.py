@@ -23,7 +23,7 @@ class CannedFilesystemSnapshots(object):
     def __init__(self, results):
         """
         :param results: A ``list`` of ``Deferred`` instances, results of
-            calling ``create()``.
+        calling ``create()``.
         """
         self._results = results
         self._snapshots = []
