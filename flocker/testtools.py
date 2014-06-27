@@ -262,12 +262,10 @@ class StandardOptionsTestsMixin(object):
         configured verbosity by `1`.
         """
         options = self.options()
-        try:
-            options.parseOptions(['--verbose'])
-        except UsageError, e:
-            if e.message == 'Wrong number of arguments.':
-                pass
-
+        # The command may otherwise give a Usage Error
+        # "Wrong number of arguments." if there are arguments required
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions(['--verbose'])
         self.assertEqual(1, options['verbosity'])
 
     def test_verbosity_option_short(self):
@@ -276,12 +274,10 @@ class StandardOptionsTestsMixin(object):
         verbosity by 1.
         """
         options = self.options()
-        try:
-            options.parseOptions(['-v'])
-        except UsageError, e:
-            if e.message == 'Wrong number of arguments.':
-                pass
-
+        # The command may otherwise give a Usage Error
+        # "Wrong number of arguments." if there are arguments required
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions(['-v'])
         self.assertEqual(1, options['verbosity'])
 
     def test_verbosity_multiple(self):
@@ -289,9 +285,8 @@ class StandardOptionsTestsMixin(object):
         `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
-        try:
-            options.parseOptions(['-v', '--verbose'])
-        except UsageError, e:
-            if e.message == 'Wrong number of arguments.':
-                pass
+        # The command may otherwise give a Usage Error
+        # "Wrong number of arguments." if there are arguments required
+        self.patch(options, "parseArgs", lambda: None)
+        options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
