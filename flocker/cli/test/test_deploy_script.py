@@ -3,7 +3,6 @@
 """
 Unit tests for the implementation ``flocker-deploy``.
 """
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
@@ -28,17 +27,19 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         app = self.mktemp()
         options.parseOptions([deploy, app])
         self.assertEqual(options,
-            {'deploy': deploy, 'app': app, 'verbosity': 0})
+                         {'deploy': deploy, 'app': app, 'verbosity': 0})
 
     def test_deploy_must_exist(self):
         """The ``deploy`` config file must be a real file."""
         options = self.options()
-        self.assertRaises(ValueError, options.parseOptions, [b"/path/to/nonexistantfile.json", self.mktemp()])
+        self.assertRaises(ValueError, options.parseOptions,
+                          [b"/path/to/nonexistantfile.json", self.mktemp()])
 
     def test_app_must_exist(self):
         """The ``app`` config file must be a real file."""
         options = self.options()
-        self.assertRaises(ValueError, options.parseOptions, [self.mktemp(), b"/path/to/nonexistantfile.json"])
+        self.assertRaises(ValueError, options.parseOptions,
+                          [self.mktemp(), b"/path/to/nonexistantfile.json"])
 
 
 class FlockerDeployMainTests(SynchronousTestCase):

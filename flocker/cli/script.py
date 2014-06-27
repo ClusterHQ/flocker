@@ -7,6 +7,7 @@ from twisted.python.usage import Options
 from zope.interface import implementer
 from ..common.script import flocker_standard_options, ICommandLineScript
 
+
 @flocker_standard_options
 class DeployOptions(Options):
     """
@@ -17,7 +18,6 @@ class DeployOptions(Options):
     def parseArgs(self, deploy, app):
         self['deploy'] = deploy
         self['app'] = app
-
 
 
 @implementer(ICommandLineScript)
