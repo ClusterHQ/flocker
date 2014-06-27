@@ -175,7 +175,7 @@ Backlog
     These issues don't have any particular category label.
 
 
-You can see the current status of all issues and pull requests by visiting https://waffle.io/hybridlogic/flocker.
+You can see the current status of all issues and pull requests by visiting https://waffle.io/clusterhq/flocker.
 In general issues will move from *Backlog* to *Ready* to *In Progress*.
 An in-progress issue will have a branch with the issue number in its name.
 When the branch is ready for review a pull request will be created in the *Review* category.

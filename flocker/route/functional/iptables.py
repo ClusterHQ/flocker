@@ -37,7 +37,7 @@ class _Namespace(object):
 
     :ivar ADDRESSES: List of :py:class:`IPAddress`es in the created namespace.
     """
-    # https://github.com/hybridlogic/flocker/issues/135
+    # https://github.com/clusterhq/flocker/issues/135
     # Don't hardcode addresses in the created namespace
     ADDRESSES = [IPAddress('127.0.0.1'), IPAddress('10.0.0.1')]
 

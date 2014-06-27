@@ -70,7 +70,7 @@ class DirectoryFilesystem(object):
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:
-            # https://github.com/hybridlogic/flocker/issues/122
+            # https://github.com/clusterhq/flocker/issues/122
             pass
 
 

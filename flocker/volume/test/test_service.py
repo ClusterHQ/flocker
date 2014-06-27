@@ -113,7 +113,7 @@ class VolumeServiceAPITests(TestCase):
         """The created filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/hybridlogic/flocker/issues/34
+        https://github.com/clusterhq/flocker/issues/34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
