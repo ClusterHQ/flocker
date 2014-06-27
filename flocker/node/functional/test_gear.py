@@ -188,16 +188,3 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
-
-    def test_add_error_unless_internal_exposed(self):
-        """
-        Raises error when the chosen internal port has not been exposed by the
-        container.
-        """
-        self.fail()
-
-    def test_add_error_if_external_port_in_use(self):
-        """
-        Raises error if the chosen external port is already exposed.
-        """
-        self.fail()
