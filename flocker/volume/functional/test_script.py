@@ -5,12 +5,22 @@
 from subprocess import check_output, Popen, PIPE
 import json
 import os
-from unittest import skipIf
+from unittest import skipIf, skipUnless
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet import reactor
+from twisted.python.procutils import which
 
 from ... import __version__
+from ..service import VolumeService, Volume
+from .._ipc import ProcessNode
+from ..filesystems.zfs import StoragePool
+from .test_filesystems_zfs import create_zfs_pool
+
+
+_require_installed = skipUnless(which("flocker-volume"),
+                                "flocker-volume not installed")
 
 
 def run(*args):
@@ -43,8 +53,9 @@ def run_expecting_error(*args):
 class FlockerVolumeTests(TestCase):
     """Tests for ``flocker-volume``."""
 
-    if not os.getenv("FLOCKER_INSTALLED"):
-        skip = "flocker-volume not installed"
+    @_require_installed
+    def setUp(self):
+        pass
 
     def test_version(self):
         """``flocker-volume --version`` returns the current version."""
@@ -71,3 +82,87 @@ class FlockerVolumeTests(TestCase):
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
                          % (config.path,))
+
+
+class MutatingProcessNode(ProcessNode):
+    """Mutate the command being run in order to make tests work.
+
+    Come up with something better in
+    https://github.com/hybridlogic/flocker/issues/125
+    """
+    def __init__(self, to_service):
+        """
+        :param to_service: The VolumeService to which a push is being done.
+        """
+        self.to_service = to_service
+        ProcessNode.__init__(self, initial_command_arguments=[])
+
+    def run(self, remote_command):
+        remote_command = remote_command[:1] + [
+            b"--pool", self.to_service._pool._name,
+            b"--mountpoint", self.to_service._pool._mount_root.path
+        ] + remote_command[1:]
+        return ProcessNode.run(self, remote_command)
+
+
+class ReceiveTests(TestCase):
+    """Tests for ``flocker-volume receive``."""
+
+    @_require_installed
+    def setUp(self):
+        self.from_pool = StoragePool(reactor, create_zfs_pool(self),
+                                     FilePath(self.mktemp()))
+        self.from_service = VolumeService(FilePath(self.mktemp()),
+                                          self.from_pool)
+        self.from_service.startService()
+
+        self.to_pool = StoragePool(reactor, create_zfs_pool(self),
+                                   FilePath(self.mktemp()))
+        self.to_config = FilePath(self.mktemp())
+        self.to_service = VolumeService(self.to_config, self.to_pool)
+        self.to_service.startService()
+
+    def test_creates_volume(self):
+        """``flocker-volume receive`` creates a volume."""
+        created = self.from_service.create(u"thevolume")
+
+        def do_push(volume):
+            # Blocking call:
+            run_locally = MutatingProcessNode(self.to_service)
+            self.from_service.push(volume, run_locally, self.to_config)
+        created.addCallback(do_push)
+
+        def pushed(_):
+            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
+                               _pool=self.to_pool)
+            d = self.to_service.enumerate()
+
+            def got_volumes(volumes):
+                self.assertIn(to_volume, volumes)
+            d.addCallback(got_volumes)
+            return d
+        created.addCallback(pushed)
+
+        return created
+
+    def test_creates_files(self):
+        """``flocker-volume receive`` recreates files pushed from origin."""
+        created = self.from_service.create(u"thevolume")
+
+        def do_push(volume):
+            root = volume.get_filesystem().get_path()
+            root.child(b"afile.txt").setContent(b"WORKS!")
+
+            # Blocking call:
+            run_locally = MutatingProcessNode(self.to_service)
+            self.from_service.push(volume, run_locally, self.to_config)
+        created.addCallback(do_push)
+
+        def pushed(_):
+            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
+                               _pool=self.to_pool)
+            root = to_volume.get_filesystem().get_path()
+            self.assertEqual(root.child(b"afile.txt").getContent(), b"WORKS!")
+        created.addCallback(pushed)
+
+        return created
