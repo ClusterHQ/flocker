@@ -38,6 +38,9 @@ class DeployScript(object):
        https://github.com/hybridlogic/flocker/issues/19
     """
     def main(self, reactor, options):
+        """
+        Returns a ``Deferred``.
+        """
         return succeed(None)
 
 
