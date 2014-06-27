@@ -18,7 +18,13 @@ class DeployOptions(Options):
 
     def parseArgs(self, deploy, app):
         deploy = FilePath(deploy)
-        deploy = FilePath(app)
+        app = FilePath(app)
+
+        if not deploy.exists():
+            raise ValueError
+
+        if not app.exists():
+            raise ValueError
 
         self['deploy'] = deploy
         self['app'] = app

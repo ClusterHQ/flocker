@@ -24,16 +24,15 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     def test_custom_configs(self):
         """Custom config files can be specified."""
         options = self.options()
-        deploy = FilePath(self.mktemp())
-        deploy.touch()
-        deploy = deploy.path
-        app = FilePath(self.mktemp())
-        app.touch()
-        app = app.path
-        import pdb; pdb.set_trace()
+        deploy = self.mktemp()
+        FilePath(deploy).touch()
+        app = self.mktemp()
+        FilePath(app).touch()
         options.parseOptions([deploy, app])
         self.assertEqual(options,
-                         {'deploy': deploy, 'app': app, 'verbosity': 0})
+                         {'deploy': FilePath(deploy),
+                          'app': FilePath(app),
+                          'verbosity': 0})
 
     def test_deploy_must_exist(self):
         """The ``deploy`` config file must be a real file."""
@@ -47,7 +46,6 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertRaises(ValueError, options.parseOptions,
                           [self.mktemp(), b"/path/to/nonexistantfile.json"])
 
-# TODO test if is not a valid path
 class FlockerDeployMainTests(SynchronousTestCase):
     """
     Tests for ``DeployScript.main``.
