@@ -3,7 +3,7 @@
 """
 Unit tests for the implementation ``flocker-deploy``.
 """
-
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
@@ -24,23 +24,27 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     def test_custom_configs(self):
         """Custom config files can be specified."""
         options = self.options()
-        options.parseOptions([b"/path/somefakefile.json", b"/path/anotherfakefile.json"])
+        deploy = self.mktemp()
+        app = self.mktemp()
+        options.parseOptions([deploy, app])
         self.assertEqual(options,
-            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
+            {'deploy': deploy, 'app': app, 'verbosity': 0})
 
     def test_deploy_must_exist(self):
         """The ``deploy`` config file must be a real file."""
         options = self.options()
-        options.parseOptions([b"/path/nonexistantfile.json", b"/path/anotherfakefile.json"])
+        app = self.mktemp()
+        options.parseOptions([b"/path/nonexistantfile.json", app])
         self.assertEqual(options,
-            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
+            {'deploy': b"/path/nonexistantfile.json", 'app': app, 'verbosity': 0})
 
     def test_app_must_exist(self):
         """The ``app`` config file must be a real file."""
         options = self.options()
-        options.parseOptions([b"/path/nonexistantfile.json", b"/path/nonexistantfile.json"])
+        deploy = self.mktemp()
+        options.parseOptions([deploy, b"/path/nonexistantfile.json"])
         self.assertEqual(options,
-            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
+            {'deploy': deploy, 'app': b"/path/nonexistantfile.json", 'verbosity': 0})
 
 
 class FlockerDeployMainTests(SynchronousTestCase):
