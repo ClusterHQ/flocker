@@ -56,24 +56,30 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_container(self, name, image_name=u"openshift/busybox-http-app", ports=None, links=None):
+    def start_container(self, unit_name,
+                        image_name=u"openshift/busybox-http-app",
+                        ports=None, links=None):
         """Start a unit and wait until it's up and running.
 
-        :param unicode name: The name of the unit.
-        :param list links: A list of ``PortMap`` instances describing the
-            network links between the container and the host.
-
+        :param unicode unit_name: See ``IGearClient.add``.
+        :param unicode image_name: See ``IGearClient.add``.
         :param list ports: See ``IGearClient.add``.
+        :param list links: See ``IGearClient.add``.
 
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
-        d = client.add(name, image_name, ports=ports, links=links)
-        self.addCleanup(client.remove, name)
+        d = client.add(
+            unit_name=unit_name,
+            image_name=image_name,
+            ports=ports,
+            links=links,
+        )
+        self.addCleanup(client.remove, unit_name)
 
         def is_started(data):
             return [container for container in data[u"Containers"] if
-                    (container[u"Id"] == name and
+                    (container[u"Id"] == unit_name and
                      container[u"SubState"] == u"running")]
 
         def check_if_started():
@@ -233,13 +239,16 @@ class GearClientTests(TestCase):
         server.bind((b'127.0.0.1', 0))
         server.listen(1)
         host_port = server.getsockname()[1]
-        name = random_name()
+        name = (self.id().replace('.', '_') + b'_' +  random_name())[-24:]
         d = self.start_container(
-            name, image_name=image_name, links=[PortMap(internal=internal_port, external=host_port)])
+            unit_name=name,
+            image_name=image_name,
+            links=[PortMap(internal=internal_port, external=host_port)]
+        )
 
         def started(ignored):
             accepted, client_address = server.accept()
-            self.assertEqual(b'XXX', accepted.read())
+            self.assertEqual(b'xxx', accepted.read())
         d.addCallback(started)
 
         return d
