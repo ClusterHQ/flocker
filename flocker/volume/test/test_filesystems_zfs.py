@@ -22,17 +22,18 @@ from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     )
 
+
 class FilesystemTests(SynchronousTestCase):
     """
     Tests for :class:`Filesystem`.
     """
     def test_name(self):
         """
-        ``Filesystem.name`` returns the ZFS filesystem name, (``pool/dataset``).
+        ``Filesystem.name`` returns the ZFS filesystem name,
+        (``pool/dataset``).
         """
         filesystem = Filesystem(b"hpool", b"mydataset")
         self.assertEqual(filesystem.name, b"hpool/mydataset")
-
 
     def test_root_name(self):
         """Given dataset ``None``, ``Filesystem.name`` returns the ZFS

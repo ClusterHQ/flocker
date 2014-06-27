@@ -35,8 +35,9 @@ class IGearClient(Interface):
 
         :param unicode image_name: The Docker image to use for the unit.
 
-        :param list ports: A list of ``PortMap``\ s mapping ports exposed in the
-            container to ports exposed on the host.
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in
+            the container to ports exposed on the host. Default ``None`` means
+            that no port mappings will be configured for this unit.
 
         :param list links: A list of ``PortMap``\ s mapping ports forwarded from
             the container to ports on the host.

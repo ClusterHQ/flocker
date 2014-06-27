@@ -11,13 +11,14 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
-from twisted.internet.test.connectionmixins import findFreePort
+from twisted.internet.error import ConnectionRefusedError
 
 from treq import request, content
 
 from characteristic import attributes
 
-from ...testtools import loop_until, loop_until2
+from ...testtools import loop_until, find_free_port
+
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
@@ -62,6 +63,8 @@ class GearClientTests(TestCase):
         :param list links: A list of ``PortMap`` instances describing the
             network links between the container and the host.
 
+        :param list ports: See ``IGearClient.add``.
+
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
@@ -85,7 +88,7 @@ class GearClientTests(TestCase):
             return responded
 
         def added(_):
-            return loop_until(None, check_if_started)
+            return loop_until(check_if_started)
         d.addCallback(added)
         return d
 
@@ -142,8 +145,46 @@ class GearClientTests(TestCase):
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
 
-    def assert_busybox_http_response(self, response):
+    def request_until_response(self, port):
         """
+        Resend a test HTTP request until a response is received.
+
+        The container may have started, but the webserver inside may take a
+        little while to start serving requests.
+
+        :param int port: The localhost port to which an HTTP request will be
+            sent.
+
+        :return: A ``Deferred`` which fires with the result of the first
+            successful HTTP request.
+        """
+        def send_request():
+            """
+            Send an HTTP request in a loop until the request is answered.
+            """
+            response = request(
+                b"GET", b"http://127.0.0.1:%d" % (port,),
+                persistent=False)
+
+            def check_error(failure):
+                """
+                Catch ConnectionRefused errors and return False so that
+                loop_until repeats the request.
+
+                Other error conditions will be passed down the errback chain.
+                """
+                failure.trap(ConnectionRefusedError)
+                return False
+            response.addErrback(check_error)
+            return response
+
+        return loop_until(send_request)
+
+    def test_add_with_port(self):
+        """
+        GearClient.add accepts a ports argument which is passed to gear to
+        expose those ports on the unit.
+
         Assert that the busybox-http-app returns the expected "Hello world!"
         response.
 
@@ -155,74 +196,21 @@ class GearClientTests(TestCase):
         https://github.com/openshift/geard/issues/213
         """
         expected_response = b'Hello world!\n'
-        actual_response = response[-len(expected_response):]
-        message = (
-            "Response {response} does not end with {expected_response}. "
-            "Found {actual_response}.".format(
-                response=repr(response),
-                expected_response=repr(expected_response),
-                actual_response=repr(actual_response)
-            )
-        )
-        self.assertEqual(
-            expected_response,
-            actual_response,
-            message
-        )
-
-
-    def request_until_response(self, port):
-        """
-        """
-        def send_request():
-            response = request(
-                b"GET", b"http://127.0.0.1:%d" % (port,),
-                persistent=False)
-            # Catch errors and return False so that loop_until repeats the
-            # request.
-            # XXX: This will hide all errors. We should probably only catch
-            # timeouts and reject responses here.
-            response.addErrback(lambda err: False)
-            return response
-
-        # The container may have started, but the webserver inside may take a
-        # little while to start serving requests. Resend our test request
-        # until we get a response.
-        return loop_until2(send_request)
-
-    def test_add_with_port(self):
-        """
-        GearClient.add accepts a ports argument which is passed to gear to
-        expose those ports on the unit.
-        """
-        external_port = findFreePort()[1]
+        external_port = find_free_port()[1]
         name = random_name()
         d = self.start_container(
             name, ports=[PortMap(internal=8080, external=external_port)])
 
-        d.addCallback(lambda ignored: self.request_until_response(external_port))
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
 
         def started(response):
             d = content(response)
-            d.addCallback(self.assert_busybox_http_response)
+            d.addCallback(lambda body: self.assertIn(expected_response, body))
             return d
         d.addCallback(started)
 
         return d
-
-    def test_add_error_unless_internal_exposed(self):
-        """
-        Raises error when the chosen internal port has not been exposed by the
-        container.
-        """
-        self.fail()
-
-    def test_add_error_if_external_port_in_use(self):
-        """
-        Raises error if the chosen external port is already exposed.
-        """
-        self.fail()
-
 
     def test_add_with_links(self):
         """

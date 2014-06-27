@@ -4,18 +4,23 @@
 
 from __future__ import absolute_import
 
+import gc
 import io
+import socket
 import sys
 from collections import namedtuple
+from contextlib import contextmanager
 from random import random
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
+from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
+from twisted.trial.unittest import SynchronousTestCase
 
 from . import __version__
 from .common.script import (
@@ -33,15 +38,14 @@ class FakeProcessTransport(object):
     def __init__(self):
         self.signals = []
 
-
     def signalProcess(self, signal):
         self.signals.append(signal)
 
 
-
-class SpawnProcessArguments(namedtuple('ProcessData',
-                  'processProtocol executable args env path '
-                  'uid gid usePTY childFDs transport')):
+class SpawnProcessArguments(namedtuple(
+                            'ProcessData',
+                            'processProtocol executable args env path '
+                            'uid gid usePTY childFDs transport')):
     """
     Object recording the arguments passed to L{FakeProcessReactor.spawnProcess}
     as well as the L{IProcessTransport} that was connected to the protocol.
@@ -51,7 +55,6 @@ class SpawnProcessArguments(namedtuple('ProcessData',
 
     @see L{twisted.internet.interfaces.IReactorProcess.spawnProcess}
     """
-
 
 
 @implementer(IReactorProcess)
@@ -67,12 +70,10 @@ class FakeProcessReactor(Clock):
         Clock.__init__(self)
         self.processes = []
 
-
     def timeout(self):
         if self.calls:
             return max(0, self.calls[0].getTime() - self.seconds())
         return 0
-
 
     def spawnProcess(self, processProtocol, executable, args=(), env={},
                      path=None, uid=None, gid=None, usePTY=0, childFDs=None):
@@ -87,34 +88,29 @@ class FakeProcessReactor(Clock):
 verifyClass(IReactorProcess, FakeProcessReactor)
 
 
-def loop_until(arg, predicate):
-    """Call predicate every 0.1 seconds, until it returns ``True``.
+@contextmanager
+def assertNoFDsLeaked(test_case):
+    """Context manager that asserts no file descriptors are leaked.
 
-    This should only be used in functional tests.
-
-    :param arg: Value to return.
-    :param predicate: Callable returning termination condition.
-    :type predicate: 0-argument callable returning a Deferred.
-
-    :return: A ``Deferred`` firing with ``arg``
+    :param test_case: The ``TestCase`` running this unit test.
     """
-    d = maybeDeferred(predicate)
-    def loop(result):
-        if not result:
-            d = deferLater(reactor, 0.1, predicate)
-            d.addCallback(loop)
-            return d
-        return arg
-    d.addCallback(loop)
-    return d
+    # Make sure there's no file descriptors that will be cleared by GC
+    # later on:
+    gc.collect()
+
+    def process_fds():
+        path = FilePath(b"/proc/self/fd")
+        return set([child.basename() for child in path.children()])
+
+    fds = process_fds()
+    try:
+        yield
+    finally:
+        test_case.assertEqual(process_fds(), fds)
 
 
-def loop_until2(predicate):
+def loop_until(predicate):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
-
-    XXX: This is a copy of flocker.testutils.loop_until which returns the result
-    of the predicate. Maybe this can replace that implementation since none of
-    the current users of loop_until supply a return argument.
 
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
@@ -123,6 +119,7 @@ def loop_until2(predicate):
         ``predicate``.
     """
     d = maybeDeferred(predicate)
+
     def loop(result):
         if not result:
             d = deferLater(reactor, 0.1, predicate)
@@ -305,20 +302,52 @@ class StandardOptionsTestsMixin(object):
         self.assertEqual(2, options['verbosity'])
 
 
-class WithInitTestsMixin(object):
+def make_with_init_tests(record_type, kwargs):
     """
-    Tests for record classes decorated with ``with_init``.
-    """
-    record_type = None
-    values = None
+    Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
+    supplied ``kwargs`` and exposes them as public attributes.
 
-    def test_init(self):
+    :param record_type: The class with an ``__init__`` method to be tested.
+    :param kwargs: The keyword arguments which will be supplied to the
+        ``__init__`` method.
+    :returns: A ``TestCase``.
+    """
+    class WithInitTests(SynchronousTestCase):
         """
-        The record type accepts keyword arguments which are exposed as public
-        attributes.
+        Tests for classes decorated with ``with_init``.
         """
-        record = self.record_type(**self.values)
-        self.assertEqual(
-            self.values.values(),
-            [getattr(record, key) for key in self.values.keys()]
-        )
+        def test_init(self):
+            """
+            The record type accepts keyword arguments which are exposed as
+            public attributes.
+            """
+            record = record_type(**kwargs)
+            self.assertEqual(
+                kwargs.values(),
+                [getattr(record, key) for key in kwargs.keys()]
+            )
+    return WithInitTests
+
+
+def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
+                   socket_type=socket.SOCK_STREAM):
+    """
+    Ask the platform to allocate a free port on the specified interface, then
+    release the socket and return the address which was allocated.
+
+    Copied from ``twisted.internet.test.connectionmixins.findFreePort``.
+
+    :param bytes interface: The local address to try to bind the port on.
+    :param int socket_family: The socket family of port.
+    :param int socket_type: The socket type of the port.
+
+    :return: A two-tuple of address and port, like that returned by
+        ``socket.getsockname``.
+    """
+    address = socket.getaddrinfo(interface, 0)[0][4]
+    probe = socket.socket(socket_family, socket_type)
+    try:
+        probe.bind(address)
+        return probe.getsockname()
+    finally:
+        probe.close()

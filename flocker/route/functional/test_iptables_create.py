@@ -23,7 +23,6 @@ from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import create_network_namespace, get_iptables_rules
 
 
-
 def connect_nonblocking(ip, port):
     """
     Attempt a TCP connection to the given address without blocking.
@@ -41,16 +40,16 @@ def create_user_rule():
     ignored by :py:func:`enumerate_proxies`.
     """
     check_call([
-            b"iptables",
-            # Stick it in the PREROUTING chain based on our knowledge that the
-            # implementation inspects this chain to enumerate proxies.
-            b"--table", b"nat", b"--append", b"PREROUTING",
+        b"iptables",
+        # Stick it in the PREROUTING chain based on our knowledge that the
+        # implementation inspects this chain to enumerate proxies.
+        b"--table", b"nat", b"--append", b"PREROUTING",
 
-            b"--protocol", b"tcp", b"--dport", b"12345",
-            b"--match", b"addrtype", b"--dst-type", b"LOCAL",
+        b"--protocol", b"tcp", b"--dport", b"12345",
+        b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
-            b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
-            ])
+        b"--jump", b"DNAT", b"--to-destination", b"10.7.8.9",
+        ])
 
 
 def is_environment_configured():
