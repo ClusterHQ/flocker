@@ -342,13 +342,14 @@ class _ConchServer(object):
 
     :ivar FilePath host_key_path: The path of the server's private host key.
     """
-    def __init__(self, base_path, key):
+    def __init__(self, base_path):
         ssh_path = base_path.child(b"ssh")
         ssh_path.makedirs()
         self.key_path = ssh_path.child(b"key")
         check_call(
             [b"ssh-keygen", b"-f", self.key_path.path,
              b"-N", b"", b"-q"])
+        key = Key.fromFile(self.key_path.path)
 
         sshd_path = base_path.child(b"sshd")
         sshd_path.makedirs()
