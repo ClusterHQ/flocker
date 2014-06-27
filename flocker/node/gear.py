@@ -11,6 +11,9 @@ from twisted.internet.defer import succeed, fail
 
 from treq import request, content
 
+from characteristic import attributes
+
+from ..volume.service import _docker_command
 
 GEAR_PORT = 43273
 
@@ -26,12 +29,15 @@ class GearError(Exception):
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name):
+    def add(unit_name, image_name, ports=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
+
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in the
+            container to ports exposed on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -55,6 +61,14 @@ class IGearClient(Interface):
 
         :return: ``Deferred`` that fires on success.
         """
+
+    def list():
+        """Enumerate all geard units
+
+        :return: A ``list`` of ``GearUnit``\ s
+        """
+
+
 
 
 @implementer(IGearClient)
@@ -111,14 +125,18 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
+
         checked = self.exists(unit_name)
+        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        for port in ports:
+            data['Ports'].append({u'Internal': port.internal, u'External': port.external})
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._request(b"PUT", unit_name,
-                                    data={u"Image": image_name,
-                                          u"Started": True}))
+            lambda _: self._request(b"PUT", unit_name, data=data))
         checked.addCallback(self._ensure_ok)
         return checked
 
@@ -149,6 +167,61 @@ class GearClient(object):
         d.addCallback(self._ensure_ok)
         return d
 
+    def _filter_ids(self, unit_data):
+        """
+        """
+        ids = []
+        for record in unit_data["Containers"]:
+            ids.append(record["Id"])
+        return ids
+
+    def _containers(self):
+        d = request(b'GET', self._base_url + b'/containers', persistent=False)
+        d.addCallback(content)
+        d.addCallback(json.loads)
+        d.addCallback(self._filter_ids)
+        return d
+
+    def _docker_inspect(self, unit_name):
+        d = _docker_command(reactor, ['inspect', unit_name])
+        d.addCallback(json.loads)
+        return d
+
+    def _gear_unit_from_docker(self, unit_name):
+        d = workaround_geard_187()
+        d.addCallback(lambda ignored: self._docker_inspect(unit_name))
+        def gear_unit(inspect_data):
+            record = inspect_data[0]
+            image_name = record['Config']['Image']
+            ports = []
+            for port in record['Config']['ExposedPorts']:
+                internal_port, internal_protocol = port.split('/', 1)
+                internal_port = int(internal_port)
+                for external_info  in record['HostConfig']['PortBindings'][port]:
+                    host_port = int(external_info['HostPort'])
+                    ports.append(PortMap(internal=internal_port, external=host_port))
+
+            return GearUnit(
+                unit_name=unit_name,
+                image_name=image_name,
+                ports=ports
+            )
+        d.addCallback(gear_unit)
+        return d
+
+    def get(self, unit_name):
+        d = self._containers()
+        def name_exists(unit_names):
+            if unit_name in unit_names:
+                return unit_name
+            raise UnknownUnit(unit_name=unit_name)
+        d.addCallback(name_exists)
+        d.addCallback(self._gear_unit_from_docker)
+        return d
+
+@attributes(['unit_name'])
+class UnknownUnit(Exception):
+    pass
 
 @implementer(IGearClient)
 class FakeGearClient(object):
@@ -163,10 +236,18 @@ class FakeGearClient(object):
     def __init__(self):
         self._units = {}
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
+
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {}
+        unit = GearUnit(
+            unit_name=unit_name,
+            image_name=image_name,
+            ports=ports
+        )
+        self._units[unit_name] = unit
         return succeed(None)
 
     def exists(self, unit_name):
@@ -176,3 +257,23 @@ class FakeGearClient(object):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)
+
+    def list(self):
+        """
+        """
+        return self._units.values()
+
+
+@attributes(['internal', 'external'])
+class PortMap(object):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+    """
+
+
+@attributes(['unit_name', 'image_name', 'ports'])
+class GearUnit(object):
+    """
+    A record representing a single `geard` unit.
+    """
