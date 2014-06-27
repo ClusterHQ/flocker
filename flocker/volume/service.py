@@ -227,8 +227,10 @@ class Volume(object):
 
         If no container exists this will silently do nothing.
 
-        :return: ``Deferred`` firing when the operation is done.
+        :return: ``Deferred`` firing with ``None`` when the operation is
+           done.
         """
         d = _docker_command(reactor, [b"rm", self._container_name])
         d.addErrback(lambda failure: failure.trap(CommandFailed))
+        d.addCallback(None)
         return d

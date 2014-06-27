@@ -149,7 +149,8 @@ class VolumeTests(TestCase):
     def test_unexpose_no_container(self):
         """
         ``Volume.remove_from_docker`` on an unexposed volume (i.e. no
-        container) does not complain.
+        container) does not error out, instead returning ``Deferred``
+        firing with ``None``.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
@@ -159,4 +160,5 @@ class VolumeTests(TestCase):
         d = service.create(random_name())
 
         d.addCallback(lambda volume: volume.remove_from_docker())
+        d.addCallback(self.assertEqual, None)
         return d
