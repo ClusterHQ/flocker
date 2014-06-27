@@ -232,5 +232,5 @@ class Volume(object):
         """
         d = _docker_command(reactor, [b"rm", self._container_name])
         d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(None)
+        d.addCallback(lambda _: None)
         return d
