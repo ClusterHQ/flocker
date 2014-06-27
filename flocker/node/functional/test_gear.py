@@ -73,7 +73,7 @@ class GearClientTests(TestCase):
 
         def check_if_started():
             # Replace with ``GearClient.list`` as part of
-            # https://github.com/hybridlogic/flocker/issues/32
+            # https://github.com/ClusterHQ/flocker/issues/32
             responded = request(
                 b"GET", b"http://127.0.0.1:%d/containers" % (GEAR_PORT,),
                 persistent=False)
