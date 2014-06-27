@@ -6,6 +6,7 @@ from __future__ import absolute_import
 
 import gc
 import io
+import socket
 import sys
 from collections import namedtuple
 from contextlib import contextmanager
@@ -346,3 +347,27 @@ class WithInitTestsMixin(object):
             self.values.values(),
             [getattr(record, key) for key in self.values.keys()]
         )
+
+
+def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
+                   socket_type=socket.SOCK_STREAM):
+    """
+    Ask the platform to allocate a free port on the specified interface, then
+    release the socket and return the address which was allocated.
+
+    Copied from ``twisted.internet.test.connectionmixins.findFreePort``.
+
+    :param bytes interface: The local address to try to bind the port on.
+    :param int socket_family: The socket family of port.
+    :param int socket_type: The socket type of the port.
+
+    :return: A two-tuple of address and port, like that returned by
+        ``socket.getsockname``.
+    """
+    address = socket.getaddrinfo(interface, 0)[0][4]
+    probe = socket.socket(socket_family, socket_type)
+    try:
+        probe.bind(address)
+        return probe.getsockname()
+    finally:
+        probe.close()

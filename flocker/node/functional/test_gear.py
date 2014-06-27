@@ -11,11 +11,10 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
-from twisted.internet.test.connectionmixins import findFreePort
 
 from treq import request, content
 
-from ...testtools import loop_until, loop_until2
+from ...testtools import loop_until, loop_until2, find_free_port
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
 
@@ -191,7 +190,7 @@ class GearClientTests(TestCase):
         GearClient.add accepts a ports argument which is passed to gear to
         expose those ports on the unit.
         """
-        external_port = findFreePort()[1]
+        external_port = find_free_port()[1]
         name = random_name()
         d = self.start_container(
             name, ports=[PortMap(internal=8080, external=external_port)])
