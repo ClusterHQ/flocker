@@ -51,7 +51,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertRaises(ValueError, options.parseOptions,
                           [deploy, b"/path/to/non-existent-file.cfg"])
 
-# Other tests? (issue?): This needs to take 2 arguments
+# TODO Other tests? (issue?): This needs to take 2 arguments
 # Permissions allow these files to be opened
 # Error message for the non-existent file
 # Documentation of how this should be used
