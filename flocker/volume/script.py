@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-volume`` tool."""
+
 import sys
 
 from twisted.python.usage import Options
@@ -9,7 +10,10 @@ from twisted.internet.defer import succeed
 
 from zope.interface import implementer
 
-from .service import VolumeService, CreateConfigurationError
+from .service import (
+    VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
+    )
+from .filesystems.zfs import StoragePool
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
@@ -21,6 +25,35 @@ __all__ = [
 ]
 
 
+class _ReceiveSubcommandOptions(Options):
+    """Command line options ``flocker-volume receive``."""
+
+    longdesc = """Receive a volume pushed from another volume manager.
+
+    Reads the volume in from standard in. This is typically called
+    automatically over SSH.
+
+    Parameters:
+
+    * owner-uuid: The UUID of the volume manager that owns the volume.
+
+    * name: The name of the volume.
+    """
+
+    synopsis = "<owner-uuid> <name>"
+
+    def parseArgs(self, uuid, name):
+        self["uuid"] = uuid.decode("ascii")
+        self["name"] = name.decode("ascii")
+
+    def run(self, service):
+        """Run the action for this sub-command.
+
+        :param VolumeService service: The volume manager service to utilize.
+        """
+        service.receive(self["uuid"], self["name"], sys.stdin)
+
+
 @flocker_standard_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
@@ -28,13 +61,23 @@ class VolumeOptions(Options):
     longdesc = """flocker-volume allows you to manage volumes, filesystems
     that can be attached to Docker containers.
 
-    At the moment no functionality has been implemented.
     """
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
     optParameters = [
-        ["config", None, b"/etc/flocker/volume.json",
+        ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the config file."],
+        # Maybe we can come up with something better in
+        # https://github.com/hybridlogic/flocker/issues/125
+        ["pool", None, b"flocker",
+         "The ZFS pool to use for volumes."],
+        ["mountpoint", None, b"/flocker",
+         "The path where ZFS filesystems will be mounted."],
+    ]
+
+    subCommands = [
+        ["receive", None, _ReceiveSubcommandOptions,
+         "Receive a remotely pushed volume."],
     ]
 
     def postOptions(self):
@@ -66,8 +109,13 @@ class VolumeScript(object):
 
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
+        if options.subCommand is None:
+            pool = None
+        else:
+            pool = StoragePool(reactor, options["pool"],
+                               FilePath(options["mountpoint"]))
         service = self._service_factory(
-            config_path=options["config"], pool=None)
+            config_path=options["config"], pool=pool)
         try:
             service.startService()
         except CreateConfigurationError as e:
@@ -76,6 +124,9 @@ class VolumeScript(object):
                     options["config"].path, e)
             )
             raise SystemExit(1)
+
+        if options.subCommand is not None:
+            options.subOptions.run(service)
         return succeed(None)
 
 
