@@ -24,7 +24,21 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     def test_custom_configs(self):
         """Custom config files can be specified."""
         options = self.options()
-        options.parseOptions([b"/path/somefile.json", b"/path/anotherfile.json"])
+        options.parseOptions([b"/path/somefakefile.json", b"/path/anotherfakefile.json"])
+        self.assertEqual(options,
+            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
+
+    def test_deploy_must_exist(self):
+        """The ``deploy`` config file must be a real file."""
+        options = self.options()
+        options.parseOptions([b"/path/nonexistantfile.json", b"/path/anotherfakefile.json"])
+        self.assertEqual(options,
+            {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
+
+    def test_app_must_exist(self):
+        """The ``app`` config file must be a real file."""
+        options = self.options()
+        options.parseOptions([b"/path/nonexistantfile.json", b"/path/nonexistantfile.json"])
         self.assertEqual(options,
             {'deploy': b"/path/somefile.json", 'app': b"/path/anotherfile.json", 'verbosity': 0})
 
