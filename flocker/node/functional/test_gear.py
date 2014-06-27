@@ -57,6 +57,8 @@ class GearClientTests(TestCase):
 
         :param unicode name: The name of the unit.
 
+        :param list ports: See ``IGearClient.add``.
+
         :return: Deferred that fires when the unit is running.
         """
         client = GearClient("127.0.0.1")
