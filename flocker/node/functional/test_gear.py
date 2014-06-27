@@ -179,7 +179,8 @@ class GearClientTests(TestCase):
         d = self.start_container(
             name, ports=[PortMap(internal=8080, external=external_port)])
 
-        d.addCallback(lambda ignored: self.request_until_response(external_port))
+        d.addCallback(
+            lambda ignored: self.request_until_response(external_port))
 
         def started(response):
             d = content(response)
