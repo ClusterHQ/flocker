@@ -140,9 +140,9 @@ class VolumeTests(TestCase):
         d.addCallback(got_volume)
 
         def unexposed(volume):
-            self.assertFalse(subprocess.check_output(
-                b"docker ps --all | grep '%s'" % (volume._container_name,),
-                shell=True).strip())
+            self.assertNotIn(
+                volume._container_name,
+                subprocess.check_output([b"docker", b"ps", b"--all"]))
         d.addCallback(unexposed)
         return d
 
