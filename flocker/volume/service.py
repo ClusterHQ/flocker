@@ -221,3 +221,14 @@ class Volume(object):
                                                          mount_path),
                                  b"busybox", b"/bin/true"]))
         return d
+
+    def remove_from_docker(self):
+        """
+        Remove the Docker container created for the volume.
+
+        If no container exists this will silently do nothing.
+
+        :return: ``Deferred`` firing when the operation is done.
+        """
+        from twisted.internet.defer import succeed
+        return succeed(None)

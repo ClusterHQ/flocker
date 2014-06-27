@@ -115,3 +115,40 @@ class VolumeTests(TestCase):
             self.assertEqual(data, b"I EXIST!")
         d.addCallback(exposed)
         return d
+
+    def test_unexpose_removes_container(self):
+        """
+        ``Volume.remove_from_docker`` removes the container created by
+        ``Volume.expose_to_docker``.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        d = service.create(random_name())
+
+        def got_volume(volume):
+            exposed = volume.expose_to_docker(FilePath(b"/my/path"))
+            exposed.addCallback(lambda _: volume.remove_from_docker())
+            exposed.addCallback(lambda _: volume)
+            return exposed
+        d.addCallback(got_volume)
+
+        def unexposed(volume):
+            self.assertRaises(subprocess.CalledProcessError,
+                              subprocess.check_call,
+                              [b"docker", b"inspect", volume._container_name])
+        d.addCallback(unexposed)
+        return d
+
+    def test_unexpose_no_container(self):
+        """
+        ``Volume.remove_from_docker`` on an unexposed volume (i.e. no
+        container) does not complain.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        d = service.create(random_name())
+
+        d.addCallback(lambda volume: volume.remove_from_docker())
+        return d
