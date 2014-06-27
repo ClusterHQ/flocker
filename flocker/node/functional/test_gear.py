@@ -141,21 +141,30 @@ class GearClientTests(TestCase):
 
     def request_until_response(self, port):
         """
+        Resend a test HTTP request until a response is received.
+
+        The container may have started, but the webserver inside may take a
+        little while to start serving requests.
+
+        :param int port: The localhost port to which an HTTP request will be
+            sent.
+
+        :return: A ``Deferred`` which fires with the result of the first
+            successful HTTP request.
         """
         def send_request():
+            """
+            Catch errors and return False so that loop_until repeats the
+            request.
+            XXX: This will hide all errors. We should probably only catch
+            timeouts and reject responses here.
+            """
             response = request(
                 b"GET", b"http://127.0.0.1:%d" % (port,),
                 persistent=False)
-            # Catch errors and return False so that loop_until repeats the
-            # request.
-            # XXX: This will hide all errors. We should probably only catch
-            # timeouts and reject responses here.
             response.addErrback(lambda err: False)
             return response
 
-        # The container may have started, but the webserver inside may take a
-        # little while to start serving requests. Resend our test request
-        # until we get a response.
         return loop_until(send_request)
 
     def test_add_with_port(self):
