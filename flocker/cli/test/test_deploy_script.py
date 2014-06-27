@@ -41,7 +41,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         app = self.mktemp()
         FilePath(app).touch()
         self.assertRaises(ValueError, options.parseOptions,
-                          [b"/path/to/nonexistantfile.cfg", app])
+                          [b"/path/to/non-existent-file.cfg", app])
 
     def test_app_must_exist(self):
         """The ``app`` config file must be a real file."""
@@ -49,8 +49,12 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         deploy = self.mktemp()
         FilePath(deploy).touch()
         self.assertRaises(ValueError, options.parseOptions,
-                          [deploy, b"/path/to/nonexistantfile.cfg"])
+                          [deploy, b"/path/to/non-existent-file.cfg"])
 
+# Other tests? (issue?): This needs to take 2 arguments
+# Permissions allow these files to be opened
+# Error message for the non-existent file
+# Documentation of how this should be used
 
 class FlockerDeployMainTests(SynchronousTestCase):
     """
