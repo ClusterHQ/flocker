@@ -487,4 +487,22 @@ def make_istoragepool_tests(fixture):
             d.addCallback(createdFilesystem)
             return d
 
+        def test_change_owner_creates_new(self):
+            """
+            ``IFilesystem.change_owner()`` exposes a filesystem for the new
+            volume definition.
+            """
+
+        def test_change_owner_removes_old(self):
+            """
+            ``IFilesystem.change_owner()`` ensures the filesystem for the old
+            volume definition no longer exists.
+            """
+
+        def test_change_owner_preserves_data(self):
+            """
+            ``IFilesystem.change_owner()`` moves the data from the filesystem
+            for the old volume definition to that for the new volume definition.
+            """
+
     return IStoragePoolTests

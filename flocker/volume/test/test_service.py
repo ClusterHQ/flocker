@@ -300,3 +300,25 @@ class VolumeTests(TestCase):
         """
         volume = Volume(uuid=u"123", name=u"456", _pool=object())
         self.assertEqual(volume._container_name, b"flocker-456-data")
+
+
+class VolumeOwnerChangeTests(TestCase):
+    """
+    Tests for ``Volume.change_owner``.
+    """
+    def test_return(self):
+        """
+        ``Volume.change_owner`` returns a ``Deferred`` that fires with a new
+        ``Volume`` with the new owner UUID.
+        """
+
+    def test_filesystem(self):
+        """
+        The filesystem for the new ``Volume`` preserves data from the old one.
+        """
+
+    def test_enumerate(self):
+        """
+        The volumes returned from ``VolumeService.enumerate`` replace the old
+        volume with the one returned by ``Volume.change_owner``.
+        """
