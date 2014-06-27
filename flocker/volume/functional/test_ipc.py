@@ -14,7 +14,7 @@ from twisted.conch.ssh.keys import Key
 
 from .._ipc import ProcessNode
 from ..test.test_ipc import make_inode_tests
-from ...testtools import ConchServer
+from ...testtools import create_ssh_server
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
@@ -82,7 +82,8 @@ def make_sshnode(test_case):
         [b"ssh-keygen", b"-f", key.path,
          b"-N", b"", b"-q"])
 
-    server = ConchServer(test_case, Key.fromFile(key.path))
+    server = create_ssh_server(test_case, Key.fromFile(key.path))
+    test_case.addCleanup(server.restore)
 
     return ProcessNode.using_ssh(server.ip, server.port,
                                  pwd.getpwuid(os.getuid()).pw_name, key)
