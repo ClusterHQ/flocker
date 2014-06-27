@@ -33,18 +33,12 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     def test_deploy_must_exist(self):
         """The ``deploy`` config file must be a real file."""
         options = self.options()
-        app = self.mktemp()
-        options.parseOptions([b"/path/nonexistantfile.json", app])
-        self.assertEqual(options,
-            {'deploy': b"/path/nonexistantfile.json", 'app': app, 'verbosity': 0})
+        self.assertRaises(ValueError, options.parseOptions, [b"/path/to/nonexistantfile.json", self.mktemp()])
 
     def test_app_must_exist(self):
         """The ``app`` config file must be a real file."""
         options = self.options()
-        deploy = self.mktemp()
-        options.parseOptions([deploy, b"/path/nonexistantfile.json"])
-        self.assertEqual(options,
-            {'deploy': deploy, 'app': b"/path/nonexistantfile.json", 'verbosity': 0})
+        self.assertRaises(ValueError, options.parseOptions, [self.mktemp(), b"/path/to/nonexistantfile.json"])
 
 
 class FlockerDeployMainTests(SynchronousTestCase):
