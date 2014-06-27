@@ -11,6 +11,7 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
+from twisted.internet.error import ConnectionRefusedError
 
 from treq import request, content
 
@@ -154,15 +155,22 @@ class GearClientTests(TestCase):
         """
         def send_request():
             """
-            Catch errors and return False so that loop_until repeats the
-            request.
-            XXX: This will hide all errors. We should probably only catch
-            timeouts and reject responses here.
+            Send an HTTP request in a loop until the request is answered.
             """
             response = request(
                 b"GET", b"http://127.0.0.1:%d" % (port,),
                 persistent=False)
-            response.addErrback(lambda err: False)
+
+            def check_error(failure):
+                """
+                Catch ConnectionRefused errors and return False so that
+                loop_until repeats the request.
+
+                Other error conditions will be passed down the errback chain.
+                """
+                failure.trap(ConnectionRefusedError)
+                return False
+            response.addErrback(check_error)
             return response
 
         return loop_until(send_request)
