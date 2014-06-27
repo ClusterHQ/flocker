@@ -66,6 +66,7 @@ trial flocker
 %doc README.rst
 
 %{_bindir}/flocker-volume
+%{_bindir}/flocker-deploy
 %{python2_sitelib}/flocker
 %{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
 
