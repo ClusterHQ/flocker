@@ -6,6 +6,7 @@ from __future__ import absolute_import
 
 import gc
 import io
+import socket
 import sys
 import os
 import pwd
@@ -29,6 +30,7 @@ from twisted.conch.ssh.keys import Key
 from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.conch.openssh_compat.factory import OpenSSHFactory
 from twisted.conch.unix import UnixSSHRealm
+from twisted.trial.unittest import SynchronousTestCase
 
 from . import __version__
 from .common.script import (
@@ -46,15 +48,14 @@ class FakeProcessTransport(object):
     def __init__(self):
         self.signals = []
 
-
     def signalProcess(self, signal):
         self.signals.append(signal)
 
 
-
-class SpawnProcessArguments(namedtuple('ProcessData',
-                  'processProtocol executable args env path '
-                  'uid gid usePTY childFDs transport')):
+class SpawnProcessArguments(namedtuple(
+                            'ProcessData',
+                            'processProtocol executable args env path '
+                            'uid gid usePTY childFDs transport')):
     """
     Object recording the arguments passed to L{FakeProcessReactor.spawnProcess}
     as well as the L{IProcessTransport} that was connected to the protocol.
@@ -64,7 +65,6 @@ class SpawnProcessArguments(namedtuple('ProcessData',
 
     @see L{twisted.internet.interfaces.IReactorProcess.spawnProcess}
     """
-
 
 
 @implementer(IReactorProcess)
@@ -80,12 +80,10 @@ class FakeProcessReactor(Clock):
         Clock.__init__(self)
         self.processes = []
 
-
     def timeout(self):
         if self.calls:
             return max(0, self.calls[0].getTime() - self.seconds())
         return 0
-
 
     def spawnProcess(self, processProtocol, executable, args=(), env={},
                      path=None, uid=None, gid=None, usePTY=0, childFDs=None):
@@ -121,24 +119,23 @@ def assertNoFDsLeaked(test_case):
         test_case.assertEqual(process_fds(), fds)
 
 
-def loop_until(arg, predicate):
-    """Call predicate every 0.1 seconds, until it returns ``True``.
+def loop_until(predicate):
+    """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 
-    This should only be used in functional tests.
-
-    :param arg: Value to return.
     :param predicate: Callable returning termination condition.
     :type predicate: 0-argument callable returning a Deferred.
 
-    :return: A ``Deferred`` firing with ``arg``
+    :return: A ``Deferred`` firing with the first ``Truthy`` response from
+        ``predicate``.
     """
     d = maybeDeferred(predicate)
+
     def loop(result):
         if not result:
             d = deferLater(reactor, 0.1, predicate)
             d.addCallback(loop)
             return d
-        return arg
+        return result
     d.addCallback(loop)
     return d
 
@@ -376,3 +373,54 @@ def create_ssh_server(test_case, key):
         authentication.
     """
     return _ConchServer(test_case, key)
+
+
+def make_with_init_tests(record_type, kwargs):
+    """
+    Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
+    supplied ``kwargs`` and exposes them as public attributes.
+
+    :param record_type: The class with an ``__init__`` method to be tested.
+    :param kwargs: The keyword arguments which will be supplied to the
+        ``__init__`` method.
+    :returns: A ``TestCase``.
+    """
+    class WithInitTests(SynchronousTestCase):
+        """
+        Tests for classes decorated with ``with_init``.
+        """
+        def test_init(self):
+            """
+            The record type accepts keyword arguments which are exposed as
+            public attributes.
+            """
+            record = record_type(**kwargs)
+            self.assertEqual(
+                kwargs.values(),
+                [getattr(record, key) for key in kwargs.keys()]
+            )
+    return WithInitTests
+
+
+def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
+                   socket_type=socket.SOCK_STREAM):
+    """
+    Ask the platform to allocate a free port on the specified interface, then
+    release the socket and return the address which was allocated.
+
+    Copied from ``twisted.internet.test.connectionmixins.findFreePort``.
+
+    :param bytes interface: The local address to try to bind the port on.
+    :param int socket_family: The socket family of port.
+    :param int socket_type: The socket type of the port.
+
+    :return: A two-tuple of address and port, like that returned by
+        ``socket.getsockname``.
+    """
+    address = socket.getaddrinfo(interface, 0)[0][4]
+    probe = socket.socket(socket_family, socket_type)
+    try:
+        probe.bind(address)
+        return probe.getsockname()
+    finally:
+        probe.close()

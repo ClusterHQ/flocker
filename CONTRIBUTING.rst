@@ -38,7 +38,7 @@ Talk to us
 Have questions or need help?
 Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network.
 
-.. _GitHub issue: https://github.com/clusterhq/flocker/issues
+.. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
 
 
 Development environment
@@ -175,7 +175,7 @@ Backlog
     These issues don't have any particular category label.
 
 
-You can see the current status of all issues and pull requests by visiting https://waffle.io/hybridlogic/flocker.
+You can see the current status of all issues and pull requests by visiting https://waffle.io/clusterhq/flocker.
 In general issues will move from *Backlog* to *Ready* to *In Progress*.
 An in-progress issue will have a branch with the issue number in its name.
 When the branch is ready for review a pull request will be created in the *Review* category.

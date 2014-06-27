@@ -23,7 +23,7 @@ class CannedFilesystemSnapshots(object):
     def __init__(self, results):
         """
         :param results: A ``list`` of ``Deferred`` instances, results of
-            calling ``create()``.
+        calling ``create()``.
         """
         self._results = results
         self._snapshots = []
@@ -70,7 +70,7 @@ class DirectoryFilesystem(object):
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:
-            # https://github.com/hybridlogic/flocker/issues/122
+            # https://github.com/ClusterHQ/flocker/issues/122
             pass
 
 
