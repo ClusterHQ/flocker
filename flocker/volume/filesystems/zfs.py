@@ -5,11 +5,15 @@
 from __future__ import absolute_import
 
 import os
+import subprocess
+from contextlib import contextmanager
+from uuid import uuid4
 
 from characteristic import with_cmp, with_repr
 
 from zope.interface import implementer
 
+from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
@@ -17,6 +21,14 @@ from twisted.internet.error import ConnectionDone, ProcessTerminated
 
 from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
 from ..snapshots import SnapshotName
+
+
+def random_name():
+    """Return a random pool name.
+
+    :return: Random ``bytes``.
+    """
+    return os.urandom(8).encode("hex")
 
 
 class CommandFailed(Exception):
@@ -104,6 +116,49 @@ class Filesystem(object):
     def get_path(self):
         return self._mountpoint
 
+    @contextmanager
+    def reader(self):
+        """Send zfs stream of contents."""
+        # The existing snapshot code uses Twisted, so we're not using it
+        # in this iteration.  What's worse, though, is that it's not clear
+        # if the current snapshot naming scheme makes any sense, and
+        # moreover it violates abstraction boundaries. So as first pass
+        # I'm just using UUIDs, and hopefully requirements will become
+        # clearer as we iterate.
+        snapshot = b"%s@%s" % (self.name, uuid4())
+        subprocess.check_call([b"zfs", b"snapshot", snapshot])
+        process = subprocess.Popen([b"zfs", b"send", snapshot],
+                                   stdout=subprocess.PIPE)
+        try:
+            yield process.stdout
+        finally:
+            process.stdout.close()
+            process.wait()
+
+    @contextmanager
+    def writer(self):
+        """Read in zfs stream."""
+        # The temporary filesystem will be unnecessary once we have
+        # https://github.com/ClusterHQ/flocker/issues/46
+        temp_filesystem = b"%s/%s" % (self.pool, random_name())
+        process = subprocess.Popen([b"zfs", b"recv", b"-F", temp_filesystem],
+                                   stdin=subprocess.PIPE)
+        succeeded = False
+        try:
+            yield process.stdin
+        finally:
+            process.stdin.close()
+            succeeded = not process.wait()
+        if succeeded:
+            exists = not subprocess.Popen([b"zfs", b"list", self.name]).wait()
+            if exists:
+                subprocess.check_call([b"zfs", b"destroy", b"-R", self.name])
+            subprocess.check_call([b"zfs", b"rename", temp_filesystem,
+                                   self.name])
+            subprocess.check_call([b"zfs", b"set",
+                                   b"mountpoint=" + self._mountpoint.path,
+                                   self.name])
+
 
 @implementer(IFilesystemSnapshots)
 class ZFSSnapshots(object):
@@ -151,9 +206,8 @@ def volume_to_dataset(volume):
 
     :return: Dataset name as ``bytes``.
     """
-    # Include trunk in case we decide to do branch model later on:
-    return b"%s.%s.trunk" % (volume.uuid.encode("ascii"),
-                             volume.name.encode("ascii"))
+    return b"%s.%s" % (volume.uuid.encode("ascii"),
+                       volume.name.encode("ascii"))
 
 
 @implementer(IStoragePool)
@@ -184,3 +238,45 @@ class StoragePool(object):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)
+
+    def enumerate(self):
+        listing = _list_filesystems(self._reactor, self._name)
+
+        def listed(filesystems):
+            result = set()
+            for entry in filesystems:
+                dataset, mountpoint = entry
+                filesystem = Filesystem(
+                    self._name, dataset, FilePath(mountpoint))
+                result.add(filesystem)
+            return result
+
+        return listing.addCallback(listed)
+
+
+def _list_filesystems(reactor, pool):
+    """Get a listing of all filesystems on a given pool.
+
+    :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
+        provider.
+    :return: A ``Deferred`` that fires with an iterator, the elements
+        of which are ``tuples`` containing the name and mountpoint of each
+        filesystem.
+    """
+    # ZFS list command with a depth of 1, so that only this dataset and its
+    # direct children are shown.
+    # No headers are printed.
+    # name and mountpoint are the properties displayed.
+    listing = zfs_command(
+        reactor,
+        [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
+
+    def listed(output, pool):
+        for line in output.splitlines():
+            name, mountpoint = line.split()
+            name = name[len(pool) + 1:]
+            if name:
+                yield (name, mountpoint)
+
+    listing.addCallback(listed, pool)
+    return listing

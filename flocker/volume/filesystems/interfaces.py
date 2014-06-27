@@ -41,6 +41,35 @@ class IFilesystem(Interface):
         :return: The path as a ``FilePath``.
         """
 
+    def reader():
+        """Context manager that allows reading the contents of the filesystem.
+
+        A blocking API, for now.
+
+        The returned file-like object will be closed by this object.
+
+        :return: A file-like object from whom the filesystem's data can be
+            read as ``bytes``.
+        """
+
+    def writer():
+        """Context manager that allows writing new contents to the filesystem.
+
+        This receiver is a blocking API, for now.
+
+        The returned file-like object will be closed by this object.
+
+        The higher-level volume API will ensure that whoever is writing
+        the data is the owner of the volume. As such, whatever new data is
+        being received will overwrite the filesystem's existing data.
+
+        :param Volume volume: A volume that is being pushed to us.
+
+        :return: A file-like object which when written to with output of
+            :meth:`IFilesystem.reader` will populate the volume's
+            filesystem.
+        """
+
     def __eq__(other):
         """True if and only if underlying OS filesystem is the same."""
 
@@ -59,7 +88,7 @@ class IStoragePool(Interface):
 
         By default new filesystems will be automounted. In future
         iterations when remotely owned filesystems are added
-        (https://github.com/hybridlogic/flocker/issues/16) this interface
+        (https://github.com/ClusterHQ/flocker/issues/93) this interface
         will be expanded to allow specifying that the filesystem should
         not be mounted.
 
@@ -75,8 +104,15 @@ class IStoragePool(Interface):
 
         This presumes the volume exists.
 
-        :param volume: The volume whose filesystem is being retrieved.
+        :param Volume volume: The volume whose filesystem is being retrieved.
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: A :class:`IFilesystem` provider.
+        """
+
+    def enumerate():
+        """Get a listing of all filesystems in this pool.
+
+        :return: A ``Deferred`` that fires with a :class:`list` of
+            :class:`IFilesystem` providers.
         """

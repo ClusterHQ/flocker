@@ -1,3 +1,7 @@
+# Floobits
+.floo
+.flooignore
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -26,6 +30,7 @@ var/
 *.egg
 twisted/plugins/dropin.cache
 MANIFEST
+flocker.spec
 
 # Installer logs
 pip-log.txt
@@ -60,3 +65,12 @@ docs/_build/
 
 # Vagrant
 .vagrant
+
+# Mac stuff
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

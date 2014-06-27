@@ -1,0 +1,74 @@
+%global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
+
+Name:           flocker
+Version:        %{underscore_version}
+Release:        1%{?dist}
+Summary:        Docker orchestration and volume management
+BuildArch:      noarch
+
+License:        ASL 2.0
+URL:            https://hybridcluster.github.io/
+Source0:        Flocker-%{flocker_version}.tar.gz
+
+BuildRequires:  python-devel
+
+BuildRequires:  python
+BuildRequires:  python-setuptools
+# For tests
+BuildRequires:  python-twisted = 14.0.0
+BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
+BuildRequires:  python-characteristic = 0.1.0
+BuildRequires:  pytz
+BuildRequires:  python-ipaddr = 2.1.10
+BuildRequires:  python-netifaces >= 0.8.0
+BuildRequires:  python-treq = 0.2.1
+BuildRequires:  python-nomenclature >= 0.1.0
+# See https://github.com/ClusterHQ/flocker/issues/85
+BuildRequires:  docker-io
+
+Requires:       python
+Requires:       python-twisted = 14.0.0
+Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
+Requires:       python-characteristic = 0.1.0
+Requires:       pytz
+Requires:       python-ipaddr = 2.1.10
+Requires:       python-netifaces >= 0.8.0
+Requires:       python-treq = 0.2.1
+Requires:       python-nomenclature >= 0.1.0
+Requires:       docker-io
+Requires:       /sbin/iptables
+Requires:       geard
+
+%description
+probably a replication-based fail-over product
+
+
+%prep
+%setup -q -n Flocker-%{flocker_version}
+# Remove bundled egg-info
+rm -rf %{pypi_name}.egg-info
+
+
+
+%build
+CFLAGS="$RPM_OPT_FLAGS" %{__python2} setup.py build
+
+
+%install
+%{__python2} setup.py install --skip-build --root %{buildroot}
+
+
+%check
+trial flocker
+
+
+%files
+%doc README.rst
+
+%{_bindir}/flocker-volume
+%{python2_sitelib}/flocker
+%{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
+
+%changelog
+* Tue Jun 10 2014 Tom Prince - %{underscore_version}-1%{?dist}
+- Development version

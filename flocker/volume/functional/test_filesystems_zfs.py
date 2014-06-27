@@ -42,7 +42,7 @@ def create_zfs_pool(test_case):
     subprocess.check_call([b"zpool", b"create", b"-m", mount_path.path,
                            pool_name, pool_path.path])
     test_case.addCleanup(subprocess.check_call,
-                        [b"zpool", b"destroy", pool_name])
+                         [b"zpool", b"destroy", pool_name])
     return pool_name
 
 
@@ -66,7 +66,7 @@ class VolumeToDatasetTests(TestCase):
         """
         volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=None)
         self.assertEqual(volume_to_dataset(volume),
-                         b"my-uuid.myvolumename.trunk")
+                         b"my-uuid.myvolumename")
 
 
 class StoragePoolTests(TestCase):
@@ -79,6 +79,7 @@ class StoragePoolTests(TestCase):
         volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
 
         d = pool.create(volume)
+
         def gotFilesystem(filesystem):
             self.assertEqual(filesystem.get_path(),
                              mount_root.child(volume_to_dataset(volume)))
@@ -93,6 +94,7 @@ class StoragePoolTests(TestCase):
         volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
 
         d = pool.create(volume)
+
         def gotFilesystem(filesystem):
             self.assertEqual(
                 filesystem,
@@ -108,6 +110,7 @@ class StoragePoolTests(TestCase):
         volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
 
         d = pool.create(volume)
+
         def gotFilesystem(filesystem):
             self.assertEqual(
                 filesystem.get_path().path,
