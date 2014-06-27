@@ -14,6 +14,8 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
 class DeployOptions(Options):
     """
     Command line options for ``flocker-deploy``.
+
+    :raises ValueError: If either file supplied does not exist.
     """
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
