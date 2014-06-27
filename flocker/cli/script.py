@@ -17,18 +17,18 @@ class DeployOptions(Options):
     """
     synopsis = "Usage: flocker-deploy"
 
-    def parseArgs(self, deploy, app):
-        deploy = FilePath(deploy)
-        app = FilePath(app)
+    def parseArgs(self, deployment_config, app_config):
+        deployment_config = FilePath(deployment_config)
+        app_config = FilePath(app_config)
 
-        if not deploy.exists():
+        if not deployment_config.exists():
             raise ValueError
 
-        if not app.exists():
+        if not app_config.exists():
             raise ValueError
 
-        self['deploy'] = deploy
-        self['app'] = app
+        self['deployment_config'] = deployment_config
+        self['app_config'] = app_config
 
 
 @implementer(ICommandLineScript)

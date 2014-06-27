@@ -31,8 +31,8 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         FilePath(app).touch()
         options.parseOptions([deploy, app])
         self.assertEqual(options,
-                         {'deploy': FilePath(deploy),
-                          'app': FilePath(app),
+                         {'deployment_config': FilePath(deploy),
+                          'app_config': FilePath(app),
                           'verbosity': 0})
 
     def test_deploy_must_exist(self):
