@@ -41,7 +41,8 @@ class FlockerDeployTests(TestCase):
     """Tests for ``flocker-deploy``."""
 
     if not os.getenv("FLOCKER_INSTALLED"):
-        skip = "flocker-deploy not installed"
+        skip = ("flocker-deploy not installed or FLOCKER_INSTALLED "
+                "environment variable is not set.")
 
     def test_version(self):
         """``flocker-deploy --version`` returns the current version."""
