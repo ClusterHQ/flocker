@@ -103,11 +103,10 @@ class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
     """``IGearClient`` tests for ``FakeGearClient``."""
 
 
-
 class PortMapInitTests(
         make_with_init_tests(
             record_type=PortMap,
-            kwargs = dict(
+            kwargs=dict(
                 internal=1234,
                 external=5678,
             )
