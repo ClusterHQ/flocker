@@ -18,7 +18,7 @@ from ..filesystems.memory import FilesystemStoragePool
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
-# This is terible (https://github.com/clusterhq/flocker/issues/85):
+# This is terible (https://github.com/ClusterHQ/flocker/issues/85):
 _if_docker = skipIf(subprocess.Popen([b"docker", b"version"]).wait(),
                     "Docker must be installed and running.")
 

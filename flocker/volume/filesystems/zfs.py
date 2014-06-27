@@ -139,7 +139,7 @@ class Filesystem(object):
     def writer(self):
         """Read in zfs stream."""
         # The temporary filesystem will be unnecessary once we have
-        # https://github.com/clusterhq/flocker/issues/46
+        # https://github.com/ClusterHQ/flocker/issues/46
         temp_filesystem = b"%s/%s" % (self.pool, random_name())
         process = subprocess.Popen([b"zfs", b"recv", b"-F", temp_filesystem],
                                    stdin=subprocess.PIPE)

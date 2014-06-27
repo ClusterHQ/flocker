@@ -473,7 +473,7 @@ def make_istoragepool_tests(fixture):
         def test_consistent_naming_pattern(self):
             """``IFilesystem.get_path().basename()`` has a consistent naming
             pattern. This test should be removed as part of:
-                https://github.com/clusterhq/flocker/issues/78"""
+                https://github.com/ClusterHQ/flocker/issues/78"""
             pool = fixture(self)
             uuid = u"my-uuid"
             volume_name = u"myvolumename"

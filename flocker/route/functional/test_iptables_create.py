@@ -122,7 +122,7 @@ class CreateTests(TestCase):
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
 
-        # https://github.com/clusterhq/flocker/issues/135
+        # https://github.com/ClusterHQ/flocker/issues/135
         # Don't hardcode addresses in the created namespace
         self.server_ip = self.namespace.ADDRESSES[0]
         self.proxy_ip = self.namespace.ADDRESSES[1]
@@ -156,7 +156,7 @@ class CreateTests(TestCase):
         self.patch(create_proxy_to, "logger", logger)
 
         # Note - we're leaking iptables rules into the system here.
-        # https://github.com/clusterhq/flocker/issues/22
+        # https://github.com/ClusterHQ/flocker/issues/22
         create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
