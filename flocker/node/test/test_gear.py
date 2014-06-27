@@ -131,7 +131,6 @@ class PortMapTests(WithInitTestsMixin, TestCase):
             PortMap(internal=1234, external=5678)
         )
 
-
     def test_not_equal(self):
         """
         ``PortMap`` instances with the different internal and external ports
