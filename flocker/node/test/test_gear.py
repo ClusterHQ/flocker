@@ -106,6 +106,10 @@ class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
 class PortMapTests(WithInitTestsMixin, TestCase):
     """
     Tests for ``PortMap``.
+
+    XXX: The equality tests in this case are incomplete. See
+    https://github.com/hynek/characteristic/issues/4 for a proposed solution to
+    this.
     """
     record_type = PortMap
     values = dict(
