@@ -70,6 +70,8 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
+        self.addCleanup(service.stopService)
+
         # We use VolumeService.create() so that the underlying filesystem
         # is created:
         d = service.create(random_name())
@@ -96,6 +98,8 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
+        self.addCleanup(service.stopService)
+
         d = service.create(random_name())
 
         def got_volume(volume):
@@ -124,6 +128,8 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
+        self.addCleanup(service.stopService)
+
         d = service.create(random_name())
 
         def got_volume(volume):
@@ -148,6 +154,8 @@ class VolumeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
         service.startService()
+        self.addCleanup(service.stopService)
+
         d = service.create(random_name())
 
         d.addCallback(lambda volume: volume.remove_from_docker())
