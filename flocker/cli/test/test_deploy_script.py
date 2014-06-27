@@ -23,7 +23,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_custom_configs(self):
         """Custom config files can be specified, and stored as
-        ``FilePath``s."""
+        ``FilePath``\ s."""
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
