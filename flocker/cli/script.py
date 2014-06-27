@@ -15,7 +15,7 @@ class DeployOptions(Options):
     """
     Command line options for ``flocker-deploy``.
     """
-    synopsis = ("Usage: flocker-deploy [OPTIONS] ",
+    synopsis = ("Usage: flocker-deploy [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
 
     def parseArgs(self, deployment_config, app_config):
