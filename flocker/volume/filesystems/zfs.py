@@ -234,6 +234,11 @@ class StoragePool(object):
         d.addCallback(lambda _: filesystem)
         return d
 
+    def change_owner(self, volume, new_owner_uuid):
+        # 1. zfs rename the "filesystem" directory so it has new UUID.
+        # 2. Change mountpoint appropriately.
+        pass
+
     def get(self, volume):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)

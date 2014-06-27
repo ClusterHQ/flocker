@@ -110,6 +110,17 @@ class IStoragePool(Interface):
         :return: A :class:`IFilesystem` provider.
         """
 
+    def change_owner(volume, new_owner_uuid):
+        """
+        Make necessary changes to a filesystem whose volume's owner UUID is
+        being changed.
+
+        :param Volume volume: The volume whose owner will be changed.
+        :param unicode new_owner_uuid: The UUID of the new owner for the volume.
+
+        :return: ``Deferred`` that fires on filesystem change.
+        """
+
     def enumerate():
         """Get a listing of all filesystems in this pool.
 

@@ -15,6 +15,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
+from twisted.internet.defer import fail
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
@@ -182,6 +183,23 @@ class Volume(object):
     :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider where the volume's filesystem is stored.
     """
+    def change_owner(self, new_owner_uuid):
+        """
+        Change which volume manager owns this volume.
+
+        :param unicode new_owner_uuid: The UUID of the new owner.
+
+        :return: ``Deferred`` that fires with a new :class:`Volume`
+            instance once the ownership has been changed.
+        """
+        # d = self._pool.change_owner(self, new_owner_uuid)
+
+        # def filesystem_changed(_):
+        #     return Volume(uuid=new_owner_uuid, name=self.name,
+        #                   _pool=self._pool)
+        # d.addCallback(filesystem_changed)
+        # return d
+
     def get_filesystem(self):
         """Return the volume's filesystem.
 

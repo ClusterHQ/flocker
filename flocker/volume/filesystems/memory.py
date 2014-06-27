@@ -92,6 +92,10 @@ class FilesystemStoragePool(object):
         filesystem.get_path().makedirs()
         return succeed(filesystem)
 
+    def change_owner(self, volume, new_owner_uuid):
+        # Rename the "filesystem" directory so it has new UUID.
+        pass
+
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
