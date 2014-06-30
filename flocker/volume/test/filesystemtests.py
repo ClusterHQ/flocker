@@ -473,8 +473,8 @@ def make_istoragepool_tests(fixture):
         def test_enumerate_spaces(self):
             """
             The ``IStoragePool.enumerate`` implementation doesn't return
-            a ``Deferred`` that fires with a ``Failure`` if there is a filesystem
-            with a space in it.
+            a ``Deferred`` that fires with a ``Failure`` if there is a
+            filesystem with a space in it.
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"spaced name", _pool=pool)
