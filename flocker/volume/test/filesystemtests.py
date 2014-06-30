@@ -470,6 +470,25 @@ def make_istoragepool_tests(fixture):
                 self.assertEqual(expected, result)
             return enumerating.addCallback(enumerated)
 
+        def test_enumerate_spaces(self):
+            """
+            The ``IStoragePool.enumerate`` implementation doesn't return
+            a ``Deferred`` that fires with a ``Failure`` if there is a filesystem
+            with a space in it.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"spaced name", _pool=pool)
+            creating = pool.create(volume)
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                expected = {volume.get_filesystem()}
+                self.assertEqual(expected, result)
+            return enumerating.addCallback(enumerated)
+
         def test_consistent_naming_pattern(self):
             """``IFilesystem.get_path().basename()`` has a consistent naming
             pattern. This test should be removed as part of:
