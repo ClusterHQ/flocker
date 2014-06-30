@@ -169,7 +169,7 @@ class ZFSSnapshots(object):
         self._filesystem = filesystem
 
     def create(self, name):
-        encoded_name = b"%s@%s" % (self._filesystem.pool, name.to_bytes())
+        encoded_name = b"%s@%s" % (self._filesystem.name, name.to_bytes())
         d = zfs_command(self._reactor, [b"snapshot", encoded_name])
         d.addCallback(lambda _: None)
         return d
