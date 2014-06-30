@@ -273,7 +273,7 @@ def _list_filesystems(reactor, pool):
 
     def listed(output, pool):
         for line in output.splitlines():
-            name, mountpoint = line.split()
+            name, mountpoint = line.split(b'\t')
             name = name[len(pool) + 1:]
             if name:
                 yield (name, mountpoint)
