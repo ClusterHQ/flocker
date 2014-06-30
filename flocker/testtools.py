@@ -11,16 +11,17 @@ import sys
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
+from functools import wraps
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from . import __version__
 from .common.script import (
@@ -351,3 +352,29 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         return probe.getsockname()
     finally:
         probe.close()
+
+
+def skip_on_broken_permissions(test_method):
+    """
+    Skips the wrapped test when the temporary directory is on a
+    virtualbox shared folder.
+
+    Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
+    respect changing permissions. For example, this test detects running on a
+    shared folder by the fact that all permissions can't be removed from a
+    file.
+
+    :param callable test_method: Test method to wrap.
+    :return: The wrapped method.
+    """
+    @wraps(test_method)
+    def wrapper(case, *args, **kwargs):
+        test_file = FilePath(case.mktemp())
+        test_file.touch()
+        test_file.chmod(0o000)
+        permissions = test_file.getPermissions()
+        test_file.chmod(0o777)
+        if permissions != Permissions(0o000):
+            raise SkipTest("Can't run test on virtualbox shared folder.")
+        return test_method(case, *args, **kwargs)
+    return wrapper
