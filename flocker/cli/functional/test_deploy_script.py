@@ -3,6 +3,7 @@
 """Functional tests for the ``flocker-deploy`` command line tool."""
 from subprocess import check_output
 import os
+from unittest import skipUnless
 
 from twisted.trial.unittest import TestCase
 
