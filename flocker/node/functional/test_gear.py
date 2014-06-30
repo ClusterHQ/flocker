@@ -6,6 +6,7 @@ import os
 import json
 import subprocess
 import socket
+import time
 from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
@@ -236,9 +237,9 @@ class GearClientTests(TestCase):
         # This is the target of the proxy which will be created.
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
-        server.bind((b'127.0.0.1', 0))
+        server.bind((b'10.0.2.15', 0))
         server.listen(1)
-        host_port = server.getsockname()[1]
+        host_ip, host_port = server.getsockname()[:2]
         name = random_name()
         d = self.start_container(
             unit_name=name,
@@ -247,8 +248,9 @@ class GearClientTests(TestCase):
         )
 
         def started(ignored):
+            time.sleep(5)
             accepted, client_address = server.accept()
-            self.assertEqual(b'xxx', accepted.read())
+            self.assertEqual(b'xxx\n', accepted.recv(1024))
         d.addCallback(started)
 
         return d

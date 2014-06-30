@@ -127,10 +127,20 @@ class GearClient(object):
         if links is None:
             links = []
 
-        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        data = {
+            u"Image": image_name, u"Started": True, u'Ports': [], u'NetworkLinks': []}
+
         for port in ports:
             data['Ports'].append(
                 {u'Internal': port.internal, u'External': port.external})
+
+        for link in links:
+            data['NetworkLinks'].append(
+                {u'FromHost': u'127.0.0.1',
+                 u'FromPort': link.internal,
+                 u'ToHost': u'10.0.2.15',
+                 u'ToPort': link.external}
+            )
 
         checked = self.exists(unit_name)
         checked.addCallback(
