@@ -68,7 +68,7 @@ class VolumeOptions(Options):
         ["config", None, DEFAULT_CONFIG_PATH.path,
          "The path to the config file."],
         # Maybe we can come up with something better in
-        # https://github.com/hybridlogic/flocker/issues/125
+        # https://github.com/ClusterHQ/flocker/issues/125
         ["pool", None, b"flocker",
          "The ZFS pool to use for volumes."],
         ["mountpoint", None, b"/flocker",

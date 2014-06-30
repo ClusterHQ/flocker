@@ -88,7 +88,7 @@ class MutatingProcessNode(ProcessNode):
     """Mutate the command being run in order to make tests work.
 
     Come up with something better in
-    https://github.com/hybridlogic/flocker/issues/125
+    https://github.com/ClusterHQ/flocker/issues/125
     """
     def __init__(self, to_service):
         """

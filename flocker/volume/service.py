@@ -18,7 +18,7 @@ from twisted.internet import reactor
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
-# part of https://github.com/hybridlogic/flocker/issues/64
+# part of https://github.com/ClusterHQ/flocker/issues/64
 from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 
@@ -88,7 +88,7 @@ class VolumeService(Service):
             for filesystem in filesystems:
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
-                #    https://github.com/hybridlogic/flocker/issues/78
+                #    https://github.com/ClusterHQ/flocker/issues/78
                 uuid, name = filesystem.get_path().basename().split(b".", 1)
                 yield Volume(
                     uuid=uuid.decode('utf8'),
@@ -151,7 +151,7 @@ class VolumeService(Service):
 
 # Communication with Docker should be done via its API, not with this
 # approach, but that depends on unreleased Twisted 14.1:
-# https://github.com/hybridlogic/flocker/issues/64
+# https://github.com/ClusterHQ/flocker/issues/64
 def _docker_command(reactor, arguments):
     """Run the ``docker`` command-line tool with the given arguments.
 
