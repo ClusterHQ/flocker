@@ -138,7 +138,11 @@ class GearClient(object):
             data['NetworkLinks'].append(
                 {u'FromHost': u'127.0.0.1',
                  u'FromPort': link.internal,
+<<<<<<< HEAD
                  u'ToHost': link.internal_address,
+=======
+                 u'ToHost': u'172.17.42.1',
+>>>>>>> ca758f30a70a6f463bb9a5ace9e82c49196ef305
                  u'ToPort': link.external}
             )
 
