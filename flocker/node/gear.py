@@ -138,7 +138,7 @@ class GearClient(object):
             data['NetworkLinks'].append(
                 {u'FromHost': u'127.0.0.1',
                  u'FromPort': link.internal,
-                 u'ToHost': u'10.0.2.15',
+                 u'ToHost': link.internal_address,
                  u'ToPort': link.external}
             )
 
@@ -212,7 +212,7 @@ class FakeGearClient(object):
         return succeed(None)
 
 
-@attributes(['internal', 'external'])
+@attributes(['internal', 'external', 'internal_address'])
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a

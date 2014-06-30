@@ -219,6 +219,19 @@ class GearClientTests(TestCase):
 
         return d
 
+    def _first_non_loopback_address(self):
+        """
+        Return an IPv4 address found in system configuration.
+
+        :return: An ``IPv4Address`` address the machine is configured with.
+        """
+        from netifaces import interfaces, ifaddresses, AF_INET
+
+        for interface in interfaces():
+            for link in ifaddresses(interface)[AF_INET]:
+                if link['addr'] != b'127.0.0.1':
+                    return link['addr']
+
     def test_add_with_links(self):
         """
         GearClient.add accepts a links argument which sets up links between
@@ -237,14 +250,16 @@ class GearClientTests(TestCase):
         # This is the target of the proxy which will be created.
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
-        server.bind((b'10.0.2.15', 0))
+
+        address = self._first_non_loopback_address()
+        server.bind((address, 0))
         server.listen(1)
         host_ip, host_port = server.getsockname()[:2]
         name = random_name()
         d = self.start_container(
             unit_name=name,
             image_name=image_name,
-            links=[PortMap(internal=internal_port, external=host_port)]
+            links=[PortMap(internal=internal_port, external=host_port, internal_address=address)]
         )
 
         def started(ignored):
