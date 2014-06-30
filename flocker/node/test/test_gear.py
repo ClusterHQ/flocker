@@ -107,7 +107,6 @@ class PortMapInitTests(
         make_with_init_tests(
             record_type=PortMap,
             kwargs=dict(
-                internal_address='1.2.3.4',
                 internal_port=5678,
                 external_port=910,
             )
@@ -128,36 +127,29 @@ class PortMapTests(TestCase):
     """
     def test_repr(self):
         """
-        ``PortMap.__repr__`` shows the internal address and the internal and
-        external ports.
+        ``PortMap.__repr__`` shows the internal and external ports.
         """
         self.assertEqual(
-            ("<PortMap(internal_address='1.2.3.4', internal_port=5678, "
-             "external_port=910)>"),
-            repr(PortMap(internal_address='1.2.3.4', internal_port=5678,
-                         external_port=910))
+            ("<PortMap(internal_port=5678, external_port=910)>"),
+            repr(PortMap(internal_port=5678, external_port=910))
         )
 
     def test_equal(self):
         """
-        ``PortMap`` instances with the same internal address and the same
-        internal and external ports compare equal.
+        ``PortMap`` instances with the same internal and external ports compare
+        equal.
         """
         self.assertEqual(
-            PortMap(internal_address='1.2.3.4', internal_port=5678,
-                    external_port=910),
-            PortMap(internal_address='1.2.3.4', internal_port=5678,
-                    external_port=910),
+            PortMap(internal_port=5678, external_port=910),
+            PortMap(internal_port=5678, external_port=910),
         )
 
     def test_not_equal(self):
         """
-        ``PortMap`` instances with the different internal addresses and
-        internal and external ports do not compare equal.
+        ``PortMap`` instances with the different internal and external ports do
+        not compare equal.
         """
         self.assertNotEqual(
-            PortMap(internal_address='1.2.3.4', internal_port=5678,
-                    external_port=910),
-            PortMap(internal_address='11.12.13.14', internal_port=1516,
-                    external_port=1718)
+            PortMap(internal_port=5678, external_port=910),
+            PortMap(internal_port=1516, external_port=1718)
         )
