@@ -232,12 +232,12 @@ class GearClientTests(TestCase):
             tag=image_name
         )
         image.build()
-        self.addCleanup(image.remove)
+#        self.addCleanup(image.remove)
 
         # This is the target of the proxy which will be created.
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setblocking(0)
-        server.bind((b'10.0.2.15', 0))
+        server.bind((b'172.17.42.1', 0))
         server.listen(1)
         host_ip, host_port = server.getsockname()[:2]
         name = random_name()
