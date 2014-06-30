@@ -247,7 +247,6 @@ class GearClientTests(TestCase):
             tag=image_name
         )
         image.build()
-#        self.addCleanup(image.remove)
 
         # This is the target of the proxy which will be created.
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
