@@ -11,10 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.conch.ssh.keys import Key
 
 from ._sshconfig import _OpenSSHConfiguration
-
-class ConchServer(object):
-    host = b"127.0.0.1"
-    port = 12345
+from .testtools import create_ssh_server
 
 
 class ConfigureSSHTests(SynchronousTestCase):
@@ -22,7 +19,7 @@ class ConfigureSSHTests(SynchronousTestCase):
     Tests for ``configure_ssh``.
     """
     def setUp(self):
-        self.server = ConchServer()
+        self.server = create_ssh_server()
         self.ssh_config = FilePath(self.mktemp())
         self.flocker_config = FilePath(self.mktemp())
         self.config = _OpenSSHConfiguration(

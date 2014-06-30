@@ -16,6 +16,12 @@ from characteristic import attributes
 
 from twisted.python.filepath import FilePath
 
+
+def ssh(argv):
+    with open(devnull, "w") as discard:
+        check_call([b"ssh"] + argv, stdout=discard, stderr=discard)
+
+
 @attributes(["flocker_path", "ssh_config_path"])
 class _OpenSSHConfiguration(object):
     """
@@ -39,14 +45,38 @@ class _OpenSSHConfiguration(object):
 
         :param int port: The port number of the SSH server on that node.
         """
+        local_private_path = self.ssh_config_path.child(b"id_rsa_flocker")
+        local_public_path = local_private_path.siblingExtension(b".pub")
+
+        remote_private_path = self.flocker_config_path.child(b"id_rsa_flocker")
+        remote_public_path = remote_private_path.siblingExtension(b".pub")
+
         if not self.ssh_config_path.isdir():
             self.ssh_config_path.makedirs()
-        key = self.ssh_config_path.child(b"id_rsa_flocker")
-        if not key.exists():
-            with open(devnull) as discard:
+
+        if not local_private_path.exists():
+            with open(devnull, "w") as discard:
                 check_call(
-                    [b"ssh-keygen", b"-N", b"", b"-f", key.path],
+                    [b"ssh-keygen", b"-N", b"", b"-f", local_private_path.path],
                     stdout=discard, stderr=discard
                 )
+
+        write_authorized_key = (
+            u"("
+            u"echo; "
+            u"echo '# flocker-deploy access'; "
+            u"echo {}) >> .ssh/authorized_keys".format(
+                local_public_path.getContent())
+            ).encode("ascii")
+
+        generate_flocker_key = (
+            u"echo {} > {}; echo {} > {}".format(
+                local_public_path.getContent(), remote_public_path.path,
+                local_private_path.getContent(), remote_private_path.path
+            )).encode("ascii")
+
+        commands = write_authorized_key + b"; " + generate_flocker_key
+
+        ssh([b"-oPort={}".format(port), host, commands])
 
 configure_ssh = _OpenSSHConfiguration.defaults().configure_ssh
