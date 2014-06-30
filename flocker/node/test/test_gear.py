@@ -132,8 +132,10 @@ class PortMapTests(TestCase):
         external ports.
         """
         self.assertEqual(
-            "<PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910)>",
-            repr(PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910))
+            ("<PortMap(internal_address='1.2.3.4', internal_port=5678, "
+             "external_port=910)>"),
+            repr(PortMap(internal_address='1.2.3.4', internal_port=5678,
+                         external_port=910))
         )
 
     def test_equal(self):
@@ -142,8 +144,10 @@ class PortMapTests(TestCase):
         internal and external ports compare equal.
         """
         self.assertEqual(
-            PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910),
-            PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910),
+            PortMap(internal_address='1.2.3.4', internal_port=5678,
+                    external_port=910),
+            PortMap(internal_address='1.2.3.4', internal_port=5678,
+                    external_port=910),
         )
 
     def test_not_equal(self):
@@ -152,6 +156,8 @@ class PortMapTests(TestCase):
         internal and external ports do not compare equal.
         """
         self.assertNotEqual(
-            PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910),
-            PortMap(internal_address='11.12.13.14', internal_port=1516, external_port=1718)
+            PortMap(internal_address='1.2.3.4', internal_port=5678,
+                    external_port=910),
+            PortMap(internal_address='11.12.13.14', internal_port=1516,
+                    external_port=1718)
         )

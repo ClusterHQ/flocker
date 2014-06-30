@@ -39,8 +39,8 @@ class IGearClient(Interface):
             the container to ports exposed on the host. Default ``None`` means
             that no port mappings will be configured for this unit.
 
-        :param list links: A list of ``PortMap``\ s mapping ports forwarded from
-            the container to ports on the host.
+        :param list links: A list of ``PortMap``\ s mapping ports forwarded
+            from the container to ports on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -128,11 +128,13 @@ class GearClient(object):
             links = []
 
         data = {
-            u"Image": image_name, u"Started": True, u'Ports': [], u'NetworkLinks': []}
+            u"Image": image_name, u"Started": True, u'Ports': [],
+            u'NetworkLinks': []}
 
         for port in ports:
             data['Ports'].append(
-                {u'Internal': port.internal_port, u'External': port.external_port})
+                {u'Internal': port.internal_port,
+                 u'External': port.external_port})
 
         for link in links:
             data['NetworkLinks'].append(
