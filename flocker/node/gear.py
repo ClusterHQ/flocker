@@ -99,6 +99,7 @@ class GearClient(object):
             url += b"/" + operation
         if data is not None:
             data = json.dumps(data)
+
         return request(method, url, data=data, persistent=False)
 
     def _ensure_ok(self, response):
@@ -140,7 +141,7 @@ class GearClient(object):
             data['NetworkLinks'].append(
                 {u'FromHost': u'127.0.0.1',
                  u'FromPort': link.internal_port,
-                 u'ToHost': link.internal_address,
+                 u'ToHost': u'127.0.0.1',
                  u'ToPort': link.external_port}
             )
 
@@ -214,13 +215,12 @@ class FakeGearClient(object):
         return succeed(None)
 
 
-@attributes(['internal_address', 'internal_port', 'external_port'])
+@attributes(['internal_port', 'external_port'],)
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
 
-    :ivar IPv4Address internal_address: An IP address of the container.
     :ivar int internal_port: The port number exposed by the container.
     :ivar int external_port: The port number exposed by the host
     """
