@@ -8,9 +8,15 @@ This code runs in the Flocker client - that is, in an administrator's
 environment, such as a laptop or desktop, not on Flocker nodes themselves.
 """
 
+from os import devnull
+from os.path import expanduser
+from subprocess import check_call
+
 from characteristic import attributes
 
-@attributes(["flocker_path"])
+from twisted.python.filepath import FilePath
+
+@attributes(["flocker_path", "ssh_config_path"])
 class _OpenSSHConfiguration(object):
     """
     ``OpenSSHConfiguration`` knows how to generate authentication
@@ -18,7 +24,9 @@ class _OpenSSHConfiguration(object):
     """
     @classmethod
     def defaults(cls):
-        return _OpenSSHConfiguration(flocker_path=b"/etc/flocker")
+        return _OpenSSHConfiguration(
+            flocker_path=FilePath(b"/etc/flocker"),
+            ssh_config_path=FilePath(expanduser(b"~/.ssh/")))
 
     def configure_ssh(self, host, port):
         """
@@ -31,7 +39,14 @@ class _OpenSSHConfiguration(object):
 
         :param int port: The port number of the SSH server on that node.
         """
-        raise Exception("Poots")
-
+        if not self.ssh_config_path.isdir():
+            self.ssh_config_path.makedirs()
+        key = self.ssh_config_path.child(b"id_rsa_flocker")
+        if not key.exists():
+            with open(devnull) as discard:
+                check_call(
+                    [b"ssh-keygen", b"-N", b"", b"-f", key.path],
+                    stdout=discard, stderr=discard
+                )
 
 configure_ssh = _OpenSSHConfiguration.defaults().configure_ssh

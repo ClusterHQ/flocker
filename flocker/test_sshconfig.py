@@ -54,7 +54,10 @@ class ConfigureSSHTests(SynchronousTestCase):
         id_rsa = self.ssh_config.child(b"id_rsa_flocker")
         id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
         key = Key.fromFile(id_rsa.path)
-        self.assertEqual(key.public().toString(), id_rsa_pub.getContent())
+        self.assertEqual(
+            # Avoid comparing the comment
+            key.public().toString("OPENSSH").split()[:2],
+            id_rsa_pub.getContent().split()[:2])
 
     def test_key_not_regenerated(self):
         """
