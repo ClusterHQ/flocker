@@ -17,8 +17,8 @@ class FlockerDeployTests(TestCase):
     """Tests for ``flocker-deploy``."""
 
     @_require_installed
-        def setUp(self):
-            pass
+    def setUp(self):
+        pass
 
     def test_version(self):
         """``flocker-deploy --version`` returns the current version."""
