@@ -11,6 +11,7 @@ import sys
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
+import subprocess
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
@@ -24,6 +25,8 @@ from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.protocol import Factory
+
+from characteristic import attributes
 
 from . import __version__
 from .common.script import (
@@ -386,3 +389,35 @@ class ProtocolPoppingFactory(Factory):
 
     def buildProtocol(self, addr):
         return self.protocols.pop()
+
+
+@attributes(['docker_dir', 'tag'])
+class DockerImageBuilder(object):
+    """
+    Build a docker image tag it, and optionally remove the image later.
+
+    :ivar bytes docker_dir: The path to the directory containing a `Dockerfile`.
+    :ivar bytes tag: The tag name to be applied to the built image.
+    """
+    def build(self):
+        """
+        Build an image and tag it in the local Docker repository.
+        """
+        command = [
+            b'docker', b'build',
+            b'--force-rm',
+            b'--tag=%s' % (self.tag,),
+            self.docker_dir
+        ]
+        subprocess.check_call(command)
+
+    def remove(self):
+        """
+        Forcefully remove the image from the local Docker repository.
+        """
+        command = [
+            b'docker', b'rmi',
+            b'--force',
+            self.tag
+        ]
+        subprocess.check_call(command)

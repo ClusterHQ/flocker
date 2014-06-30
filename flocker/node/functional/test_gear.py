@@ -17,11 +17,9 @@ from twisted.internet import reactor
 
 from treq import request, content
 
-from characteristic import attributes
-
 from ...testtools import (
     loop_until, find_free_port, make_line_capture_protocol,
-    ProtocolPoppingFactory)
+    ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
@@ -262,23 +260,3 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
-
-
-@attributes(['docker_dir', 'tag'])
-class DockerImageBuilder(object):
-    def build(self):
-        command = [
-            b'docker', b'build',
-            b'--force-rm',
-            b'--tag=%s' % (self.tag,),
-            self.docker_dir
-        ]
-        subprocess.check_call(command)
-
-    def remove(self):
-        command = [
-            b'docker', b'rmi',
-            b'--force',
-            self.tag
-        ]
-        subprocess.check_call(command)
