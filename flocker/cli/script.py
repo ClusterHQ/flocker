@@ -29,10 +29,10 @@ class DeployOptions(Options):
         app_config = FilePath(app_config)
 
         if not deployment_config.exists():
-            raise UsageError()
+            raise UsageError('No file exists at %s' % deployment_config.path)
 
         if not app_config.exists():
-            raise UsageError()
+            raise UsageError('No file exists at %s' % app_config.path)
 
         self['deployment_config'] = deployment_config
         self['app_config'] = app_config

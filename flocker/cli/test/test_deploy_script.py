@@ -41,16 +41,18 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
-        self.assertRaises(UsageError, options.parseOptions,
-                          [b"/path/to/non-existent-file.cfg", app])
+        deploy = b"/path/to/non-existent-file.cfg"
+        self.assertRaisesRegexp(UsageError, 'No file exists at %s' % deploy, options.parseOptions,
+                          [deploy, app])
 
     def test_app_must_exist(self):
         """The ``app_config`` file must exist."""
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
-        self.assertRaises(UsageError, options.parseOptions,
-                          [deploy, b"/path/to/non-existent-file.cfg"])
+        app = b"/path/to/non-existent-file.cfg"
+        self.assertRaisesRegexp(UsageError, 'No file exists at %s' % app, options.parseOptions,
+                          [deploy, app])
 
 
 class FlockerDeployMainTests(SynchronousTestCase):
