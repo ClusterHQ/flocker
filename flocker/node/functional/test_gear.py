@@ -229,7 +229,7 @@ class GearClientTests(TestCase):
         image_name = b'flocker/send_xxx_to_31337'
         # Create a Docker image
         image = DockerImageBuilder(
-            docker_dir=os.path.dirname(__file__),
+            docker_dir=os.path.join(os.path.dirname(__file__), 'docker'),
             tag=image_name
         )
         image.build()
@@ -249,7 +249,6 @@ class GearClientTests(TestCase):
         )
 
         def started(ignored):
-            time.sleep(5)
             accepted, client_address = server.accept()
             self.assertEqual(b'xxx\n', accepted.recv(1024))
         d.addCallback(started)
