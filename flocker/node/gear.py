@@ -212,12 +212,13 @@ class FakeGearClient(object):
         return succeed(None)
 
 
-@attributes(['internal', 'external', 'internal_address'])
+@attributes(['internal_address', 'internal_port', 'external_port'])
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
 
-    :ivar int internal: The port number exposed by the container.
-    :ivar int external: The port number exposed by the host
+    :ivar IPv4Address internal_address: An IP address of the container.
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host
     """
