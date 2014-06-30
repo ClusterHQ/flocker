@@ -9,12 +9,16 @@ from twisted.trial.unittest import TestCase
 from ... import __version__
 
 
+_require_installed = skipUnless(which("flocker-deploy"),
+                                "flocker-deploy not installed")
+
+
 class FlockerDeployTests(TestCase):
     """Tests for ``flocker-deploy``."""
 
-    if not os.getenv("FLOCKER_INSTALLED"):
-        skip = ("flocker-deploy not installed or FLOCKER_INSTALLED "
-                "environment variable is not set.")
+    @_require_installed
+        def setUp(self):
+            pass
 
     def test_version(self):
         """``flocker-deploy --version`` returns the current version."""
