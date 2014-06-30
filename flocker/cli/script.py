@@ -17,6 +17,10 @@ class DeployOptions(Options):
 
     :raises ValueError: If either file supplied does not exist.
     """
+    longdesc = """flocker-deploy allows you to configure existing nodes.
+
+    """
+
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
 
