@@ -206,7 +206,7 @@ class GearClientTests(TestCase):
         external_port = find_free_port()[1]
         name = random_name()
         d = self.start_container(
-            name, ports=[PortMap(internal=8080, external=external_port)])
+            name, ports=[PortMap(internal_address='1.2.3.4', internal_port=8080, external_port=external_port)])
 
         d.addCallback(
             lambda ignored: self.request_until_response(external_port))
@@ -258,7 +258,7 @@ class GearClientTests(TestCase):
         d = self.start_container(
             unit_name=name,
             image_name=image_name,
-            links=[PortMap(internal=internal_port, external=host_port, internal_address=address)]
+            links=[PortMap(internal_address=address, internal_port=internal_port, external_port=host_port)]
         )
 
         def started(ignored):

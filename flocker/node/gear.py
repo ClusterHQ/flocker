@@ -132,14 +132,14 @@ class GearClient(object):
 
         for port in ports:
             data['Ports'].append(
-                {u'Internal': port.internal, u'External': port.external})
+                {u'Internal': port.internal_port, u'External': port.external_port})
 
         for link in links:
             data['NetworkLinks'].append(
                 {u'FromHost': u'127.0.0.1',
-                 u'FromPort': link.internal,
+                 u'FromPort': link.internal_port,
                  u'ToHost': link.internal_address,
-                 u'ToPort': link.external}
+                 u'ToPort': link.external_port}
             )
 
         checked = self.exists(unit_name)

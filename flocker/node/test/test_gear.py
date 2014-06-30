@@ -107,8 +107,9 @@ class PortMapInitTests(
         make_with_init_tests(
             record_type=PortMap,
             kwargs=dict(
-                internal=1234,
-                external=5678,
+                internal_address='1.2.3.4',
+                internal_port=5678,
+                external_port=910,
             )
         )
 ):
@@ -131,7 +132,7 @@ class PortMapTests(TestCase):
         external ports.
         """
         self.assertEqual(
-            "<PortMap(internal_address='1.2.3.4', internal_port=1234, external_port=5678)>",
+            "<PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910)>",
             repr(PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910))
         )
 
@@ -142,7 +143,7 @@ class PortMapTests(TestCase):
         """
         self.assertEqual(
             PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910),
-            PortMap(internal_address='11.12.13.14', internal_port=1516, external_port=1718)
+            PortMap(internal_address='1.2.3.4', internal_port=5678, external_port=910),
         )
 
     def test_not_equal(self):
