@@ -17,7 +17,7 @@ from ..service import VolumeService, Volume
 from .._ipc import ProcessNode
 from ..filesystems.zfs import StoragePool
 from .test_filesystems_zfs import create_zfs_pool
-from ...testtools import skip_on_virtualbox_share
+from ...testtools import skip_on_broken_permissions
 
 
 _require_installed = skipUnless(which("flocker-volume"),
@@ -70,7 +70,7 @@ class FlockerVolumeTests(TestCase):
         self.assertTrue(json.loads(path.getContent()))
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
-    @skip_on_virtualbox_share
+    @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.

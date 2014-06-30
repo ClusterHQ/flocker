@@ -354,7 +354,7 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         probe.close()
 
 
-def skip_on_virtualbox_share(test_method):
+def skip_on_broken_permissions(test_method):
     """
     Skips the wrapped test when the temporary directory is on a
     virtualbox shared folder.
