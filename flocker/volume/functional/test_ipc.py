@@ -2,15 +2,13 @@
 
 """Functional tests for IPC."""
 
-import subprocess
 import os
-import pwd
+from getpass import getuser
 from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.threads import deferToThread
-from twisted.conch.ssh.keys import Key
 
 from .._ipc import ProcessNode
 from ..test.test_ipc import make_inode_tests
@@ -69,24 +67,19 @@ class ProcessNodeTests(TestCase):
 
 @_if_root
 def make_sshnode(test_case):
-    """Create a ``ProcessNode`` that can SSH into the local machine.
+    """
+    Create a ``ProcessNode`` that can SSH into the local machine.
 
     :param TestCase test_case: The test case to use.
 
     :return: A ``ProcessNode`` instance.
     """
-    ssh_path = FilePath(test_case.mktemp())
-    ssh_path.makedirs()
-    key = ssh_path.child(b"key")
-    subprocess.check_call(
-        [b"ssh-keygen", b"-f", key.path,
-         b"-N", b"", b"-q"])
-
-    server = create_ssh_server(test_case, Key.fromFile(key.path))
+    server = create_ssh_server(FilePath(test_case.mktemp()))
     test_case.addCleanup(server.restore)
 
-    return ProcessNode.using_ssh(server.ip, server.port,
-                                 pwd.getpwuid(os.getuid()).pw_name, key)
+    return ProcessNode.using_ssh(
+        unicode(server.ip).encode("ascii"), server.port, getuser(),
+        server.key_path)
 
 
 class SSHProcessNodeTests(TestCase):

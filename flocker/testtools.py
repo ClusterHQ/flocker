@@ -336,12 +336,26 @@ class _ConchServer(object):
     :ivar int port: The port number the server is listening on.
     :ivar _port: An object which provides ``IListeningPort`` and represents the
         listening Conch server.
+
+    :ivar FilePath key_path: The path of an SSH private key which can be used
+        to authenticate against the server.
+
+    :ivar FilePath host_key_path: The path of the server's private host key.
     """
-    def __init__(self, test_case, key):
-        sshd_path = FilePath(test_case.mktemp())
-        sshd_path.makedirs()
+    def __init__(self, base_path):
+        ssh_path = base_path.child(b"ssh")
+        ssh_path.makedirs()
+        self.key_path = ssh_path.child(b"key")
         check_call(
-            [b"ssh-keygen", b"-f", sshd_path.child(b"ssh_host_key").path,
+            [b"ssh-keygen", b"-f", self.key_path.path,
+             b"-N", b"", b"-q"])
+        key = Key.fromFile(self.key_path.path)
+
+        sshd_path = base_path.child(b"sshd")
+        sshd_path.makedirs()
+        self.host_key_path = sshd_path.child(b"ssh_host_key")
+        check_call(
+            [b"ssh-keygen", b"-f", self.host_key_path.path,
              b"-N", b"", b"-q"])
 
         factory = OpenSSHFactory()
@@ -352,7 +366,7 @@ class _ConchServer(object):
         factory.moduliRoot = b"/etc/ssh"
 
         self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
-        self.ip = b"127.0.0.1"
+        self.ip = IPAddress(b"127.0.0.1")
         self.port = self._port.getHost().port
 
 
@@ -360,19 +374,16 @@ class _ConchServer(object):
         return self._port.stopListening()
 
 
-def create_ssh_server(test_case, key):
+def create_ssh_server(base_path):
     """
     :py:func:`create_ssh_server` is a fixture which creates and runs a new SSH
     server and stops it later.  Use the :py:meth:`restore` method of the
     returned object to stop the server.
 
-    :param test_case: A :py:class:`TestCase` instance to use to create
-        temporary paths necessary for the server.
-
-    :param key: A :py:class:`Key` which the resulting server will accept for
-        authentication.
+    :param FilePath base_path: The path to a directory in which key material
+        will be generated.
     """
-    return _ConchServer(test_case, key)
+    return _ConchServer(base_path)
 
 
 def make_with_init_tests(record_type, kwargs):
