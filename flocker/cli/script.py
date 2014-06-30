@@ -3,7 +3,7 @@
 """The command-line ``flocker-deploy`` tool."""
 from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 from ..common.script import (flocker_standard_options, ICommandLineScript,
@@ -25,10 +25,10 @@ class DeployOptions(Options):
         app_config = FilePath(app_config)
 
         if not deployment_config.exists():
-            raise ValueError
+            raise UsageError()
 
         if not app_config.exists():
-            raise ValueError
+            raise UsageError()
 
         self['deployment_config'] = deployment_config
         self['app_config'] = app_config

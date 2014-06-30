@@ -4,6 +4,7 @@
 Unit tests for the implementation ``flocker-deploy``.
 """
 from twisted.python.filepath import FilePath
+from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
@@ -40,7 +41,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
-        self.assertRaises(ValueError, options.parseOptions,
+        self.assertRaises(UsageError, options.parseOptions,
                           [b"/path/to/non-existent-file.cfg", app])
 
     def test_app_must_exist(self):
@@ -48,7 +49,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
-        self.assertRaises(ValueError, options.parseOptions,
+        self.assertRaises(UsageError, options.parseOptions,
                           [deploy, b"/path/to/non-existent-file.cfg"])
 
 

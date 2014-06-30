@@ -5,6 +5,7 @@ from subprocess import check_output
 import os
 from unittest import skipUnless
 
+from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
 from ... import __version__
