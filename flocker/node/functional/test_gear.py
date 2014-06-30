@@ -6,19 +6,22 @@ import os
 import json
 import subprocess
 import socket
-import time
 from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
+from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.internet import reactor
 
 from treq import request, content
 
 from characteristic import attributes
 
-from ...testtools import loop_until, find_free_port
+from ...testtools import (
+    loop_until, find_free_port, make_line_capture_protocol,
+    ProtocolPoppingFactory)
 
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, GEAR_PORT, PortMap
@@ -222,7 +225,7 @@ class GearClientTests(TestCase):
 
     def test_add_with_links(self):
         """
-        GearClient.add accepts a links argument which sets up links between
+        ``GearClient.add`` accepts a links argument which sets up links between
         container local ports and host local ports.
         """
         internal_port = 31337
@@ -235,22 +238,27 @@ class GearClientTests(TestCase):
         image.build()
 
         # This is the target of the proxy which will be created.
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setblocking(0)
-        server.bind(('0.0.0.0', 0))
-        server.listen(1)
-        host_ip, host_port = server.getsockname()[:2]
-        name = random_name()
-        d = self.start_container(
-            unit_name=name,
-            image_name=image_name,
-            links=[PortMap(internal_port=internal_port,
-                           external_port=host_port)]
-        )
+        server = TCP4ServerEndpoint(reactor, 0)
+        capture_finished, protocol = make_line_capture_protocol()
+        def check_lines(lines):
+            self.assertEqual([b'xxx'], lines)
+        capture_finished.addCallback(check_lines)
+
+        factory = ProtocolPoppingFactory(protocols=[protocol])
+        d = server.listen(factory)
+        def start_container(port):
+            self.addCleanup(port.stopListening)
+            host_port = port.getHost().port
+            return self.start_container(
+                unit_name=random_name(),
+                image_name=image_name,
+                links=[PortMap(internal_port=internal_port,
+                               external_port=host_port)]
+            )
+        d.addCallback(start_container)
 
         def started(ignored):
-            accepted, client_address = server.accept()
-            self.assertEqual(b'xxx\n', accepted.recv(1024))
+            return capture_finished
         d.addCallback(started)
 
         return d

@@ -18,9 +18,12 @@ from zope.interface.verify import verifyClass
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.protocols.basic import LineReceiver
+from twisted.internet.protocol import Factory
 
 from . import __version__
 from .common.script import (
@@ -351,3 +354,35 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         return probe.getsockname()
     finally:
         probe.close()
+
+
+def make_line_capture_protocol():
+    """
+    Return a deferred, and a protocol which will capture lines and fire the
+    deferred when its connection is lost.
+    """
+    d = Deferred()
+    lines = []
+    class LineRecorder(LineReceiver):
+        delimiter = b'\n'
+
+        def lineReceived(self, line):
+            lines.append(line)
+
+        def connectionLost(self, reason):
+            if reason.check(ConnectionDone):
+                d.callback(lines)
+            else:
+                d.errback(reason)
+    return d, LineRecorder()
+
+
+class ProtocolPoppingFactory(Factory):
+    """
+    A factory which only creates a fixed list of protocols.
+    """
+    def __init__(self, protocols):
+        self.protocols = protocols
+
+    def buildProtocol(self, addr):
+        return self.protocols.pop()
