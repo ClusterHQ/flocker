@@ -111,12 +111,12 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         filesystem and snapshot name.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", "fs"))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"pool", "fs"))
         name = SnapshotName(datetime.now(UTC), b"node")
         snapshots.create(name)
         arguments = reactor.processes[0]
         self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"mypool/fs@%s" % (name.to_bytes(),)])
+                                          b"pool/fs@%s" % (name.to_bytes(),)])
 
     def test_create_no_result_yet(self):
         """
