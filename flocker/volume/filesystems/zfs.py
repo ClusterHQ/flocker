@@ -237,6 +237,14 @@ class StoragePool(object):
         return d
 
     def _get_filesystem(self, uuid, name):
+        """
+        Create an object representing the filesystem with the given name and
+        uuid, with an appropriate mount point.
+
+        :param unicode uuid: UUID of the node that own's the filesystem.
+        :param unicode name: Name of the volume the filesystem is assoicated with.
+        :return: :class:``IFilesystem`` with the given name and uuid.
+        """
         dataset = volume_to_dataset(uuid, name)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)

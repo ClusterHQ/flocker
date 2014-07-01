@@ -93,6 +93,14 @@ class FilesystemStoragePool(object):
         return succeed(filesystem)
 
     def _get_filesystem(self, uuid, name):
+        """
+        Create an object representing the filesystem with the given name and
+        uuid, with an appropriate mount point.
+
+        :param unicode uuid: UUID of the node that own's the filesystem.
+        :param unicode name: Name of the volume the filesystem is assoicated with.
+        :return: :class:``IFilesystem`` with the given name and uuid.
+        """
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
                 uuid.encode("ascii"), name.encode("ascii"))))
