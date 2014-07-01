@@ -527,7 +527,7 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
 def skip_on_broken_permissions(test_method):
     """
     Skips the wrapped test when the temporary directory is on a
-    virtualbox shared folder.
+    filesystem with broken permissions.
 
     Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
     respect changing permissions. For example, this test detects running on a
@@ -536,6 +536,8 @@ def skip_on_broken_permissions(test_method):
 
     :param callable test_method: Test method to wrap.
     :return: The wrapped method.
+    :raise SkipTest: when the temporary directory is on a filesystem with
+        broken permissions.
     """
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
@@ -545,6 +547,7 @@ def skip_on_broken_permissions(test_method):
         permissions = test_file.getPermissions()
         test_file.chmod(0o777)
         if permissions != Permissions(0o000):
-            raise SkipTest("Can't run test on virtualbox shared folder.")
+            raise SkipTest(
+                "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
