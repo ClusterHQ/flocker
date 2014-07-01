@@ -335,9 +335,9 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
 
     def __init__(self, public_key):
         """
-        :param bytes public_key: The public key we will accept.
+        :param Key public_key: The public key we will accept.
         """
-        self._key = Key.fromString(data=public_key)
+        self._key = public_key
 
     def checkKey(self, credentials):
         """
@@ -440,7 +440,7 @@ class _ConchServer(object):
 
         factory = OpenSSHFactory()
         realm = UnixSSHRealm()
-        checker = _InMemoryPublicKeyChecker(key.toString(type="OPENSSH"))
+        checker = _InMemoryPublicKeyChecker(public_key=key.public())
         factory.portal = Portal(realm, [checker])
         factory.dataRoot = sshd_path.path
         factory.moduliRoot = b"/etc/ssh"
