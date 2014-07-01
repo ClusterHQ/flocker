@@ -238,12 +238,14 @@ class GearClientTests(TestCase):
         # This is the target of the proxy which will be created.
         server = TCP4ServerEndpoint(reactor, 0)
         capture_finished, protocol = make_line_capture_protocol()
+
         def check_lines(lines):
             self.assertEqual([b'xxx'], lines)
         capture_finished.addCallback(check_lines)
 
         factory = ProtocolPoppingFactory(protocols=[protocol])
         d = server.listen(factory)
+
         def start_container(port):
             self.addCleanup(port.stopListening)
             host_port = port.getHost().port

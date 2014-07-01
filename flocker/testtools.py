@@ -367,6 +367,7 @@ def make_line_capture_protocol():
     """
     d = Deferred()
     lines = []
+
     class LineRecorder(LineReceiver):
         delimiter = b'\n'
 
@@ -397,7 +398,8 @@ class DockerImageBuilder(object):
     """
     Build a docker image tag it, and optionally remove the image later.
 
-    :ivar bytes docker_dir: The path to the directory containing a `Dockerfile`.
+    :ivar bytes docker_dir: The path to the directory containing a
+        `Dockerfile`.
     :ivar bytes tag: The tag name to be applied to the built image.
     """
     def build(self):
