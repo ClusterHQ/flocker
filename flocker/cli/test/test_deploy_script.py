@@ -23,8 +23,10 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     options = DeployOptions
 
     def test_custom_configs(self):
-        """Custom config files can be specified, and stored as
-        ``FilePath``\ s."""
+        """
+        If paths to configuration files are given then they are saved as
+        ``FilePath`` instances on the options instance.
+        """
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
@@ -37,22 +39,32 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                           'verbosity': 0})
 
     def test_deploy_must_exist(self):
-        """The ``deployment_config`` file must exist."""
+        """
+        A ``UsageError`` is raised if the ``deployment_config`` file does not
+        exist.
+        """
         options = self.options()
         app = self.mktemp()
         FilePath(app).touch()
         deploy = b"/path/to/non-existent-file.cfg"
-        self.assertRaisesRegexp(UsageError, 'No file exists at %s' % deploy,
-                                options.parseOptions, [deploy, app])
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                 [deploy, app])
+        self.assertEqual('No file exists at {deploy}'.format(deploy=deploy),
+                    str(exception))
 
     def test_app_must_exist(self):
-        """The ``app_config`` file must exist."""
+        """
+        A ``UsageError`` is raised if the ``app_config`` file does not
+        exist.
+        """
         options = self.options()
         deploy = self.mktemp()
         FilePath(deploy).touch()
         app = b"/path/to/non-existent-file.cfg"
-        self.assertRaisesRegexp(UsageError, 'No file exists at %s' % app,
-                                options.parseOptions, [deploy, app])
+        exception = self.assertRaises(UsageError, options.parseOptions,
+                                 [deploy, app])
+        self.assertEqual('No file exists at {app}'.format(app=app),
+                         str(exception))
 
 
 class FlockerDeployMainTests(SynchronousTestCase):
