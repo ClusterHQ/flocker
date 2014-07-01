@@ -9,6 +9,7 @@ from .gear import GearClient
 
 class Deployment(object):
     """
+    Start and stop containers.
     """
     def __init__(self, gear_client=None):
         """
@@ -22,6 +23,10 @@ class Deployment(object):
     def start_container(self, application):
         """
         Launch the supplied application as a `gear` unit.
+
+        :param application: The ``Application`` to create and start.
+        :returns: A ``Deferred`` which fires with ``None`` when the application
+           has started.
         """
         unit_name = application.name
         image_name = application.image.tag
@@ -30,6 +35,10 @@ class Deployment(object):
     def stop_container(self, application):
         """
         Stop and disable the application.
+
+        :param application: The ``Application`` to stop.
+        :returns: A ``Deferred`` which fires with ``None`` when the application
+            has stopped.
         """
         unit_name = application.name
         return self._gear_client.remove(unit_name)
