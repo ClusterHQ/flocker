@@ -19,6 +19,7 @@ from ..service import (
     )
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import FakeNode
+from ...testtools import skip_on_broken_permissions
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -55,6 +56,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertTrue(path.exists())
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -67,6 +69,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertRaises(CreateConfigurationError, service.startService)
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
@@ -109,6 +112,7 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
+    @skip_on_broken_permissions
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
 

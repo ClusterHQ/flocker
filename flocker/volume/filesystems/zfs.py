@@ -169,7 +169,7 @@ class ZFSSnapshots(object):
         self._filesystem = filesystem
 
     def create(self, name):
-        encoded_name = b"%s@%s" % (self._filesystem.pool, name.to_bytes())
+        encoded_name = b"%s@%s" % (self._filesystem.name, name.to_bytes())
         d = zfs_command(self._reactor, [b"snapshot", encoded_name])
         d.addCallback(lambda _: None)
         return d
@@ -291,7 +291,7 @@ def _list_filesystems(reactor, pool):
 
     def listed(output, pool):
         for line in output.splitlines():
-            name, mountpoint = line.split()
+            name, mountpoint = line.split(b'\t')
             name = name[len(pool) + 1:]
             if name:
                 yield (name, mountpoint)
