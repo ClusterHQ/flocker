@@ -380,8 +380,11 @@ class UnixSSHRealm(object):
     An ``IRealm`` for a Conch server which gives out ``_FixedHomeConchUser``
     users.
     """
+    def __init__(self, home):
+        self.home = home
+
     def requestAvatar(self, username, mind, *interfaces):
-        user = _FixedHomeConchUser(username)
+        user = _FixedHomeConchUser(username, self.home)
         return interfaces[0], user, user.logout
 
 
@@ -439,7 +442,7 @@ class _ConchServer(object):
              b"-q"])
 
         factory = OpenSSHFactory()
-        realm = UnixSSHRealm()
+        realm = UnixSSHRealm(self.home)
         checker = _InMemoryPublicKeyChecker(public_key=key.public())
         factory.portal = Portal(realm, [checker])
         factory.dataRoot = sshd_path.path
