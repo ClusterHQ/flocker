@@ -44,7 +44,7 @@ class DeployOptions(Options):
 class DeployScript(object):
     """
     A script to start configured deployments, covered by:
-       https://github.com/hybridlogic/flocker/issues/19
+       https://github.com/ClusterHQ/flocker/issues/19
     """
     def main(self, reactor, options):
         """
