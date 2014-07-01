@@ -419,16 +419,24 @@ class _ConchServer(object):
         ssh_path.makedirs()
         self.key_path = ssh_path.child(b"key")
         check_call(
-            [b"ssh-keygen", b"-f", self.key_path.path,
-             b"-N", b"", b"-q"])
+            [b"ssh-keygen",
+             # Specify the path where the generated key is written.
+             b"-f", self.key_path.path,
+             # Specify an empty passphrase.
+             b"-N", b"",
+             # Generate as little output as possible.
+             b"-q"])
         key = Key.fromFile(self.key_path.path)
 
         sshd_path = base_path.child(b"sshd")
         sshd_path.makedirs()
         self.host_key_path = sshd_path.child(b"ssh_host_key")
         check_call(
-            [b"ssh-keygen", b"-f", self.host_key_path.path,
-             b"-N", b"", b"-q"])
+            [b"ssh-keygen",
+             # See above for option explanations.
+             b"-f", self.host_key_path.path,
+             b"-N", b"",
+             b"-q"])
 
         factory = OpenSSHFactory()
         realm = UnixSSHRealm()
