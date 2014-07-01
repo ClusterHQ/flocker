@@ -253,6 +253,7 @@ class StoragePool(object):
             return zfs_command(self._reactor,
                                [b"set", b"mountpoint=" + new_mount_path,
                                 new_filesystem.name])
+        d.addCallback(renamed)
         return d.addCallback(lambda _: new_filesystem)
 
     def get(self, volume):
