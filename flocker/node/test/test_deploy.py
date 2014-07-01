@@ -107,3 +107,19 @@ class DeploymentStopContainerTests(SynchronousTestCase):
              self.successResultOf(existed),
              self.successResultOf(exists_result))
         )
+
+
+    def test_does_not_exist(self):
+        """
+        ``Deployment.stop_container`` does not errback if the application does
+        not exist.
+        """
+        api = Deployment(gear_client=FakeGearClient())
+        application = Application(
+            name=b'site-example.com',
+            image=DockerImage(repository=u'clusterhq/flocker', tag=u'release-14.0')
+        )
+
+        result = api.stop_container(application=application)
+        result = self.successResultOf(result)
+        self.assertIs(None, result)
