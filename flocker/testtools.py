@@ -14,6 +14,7 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 from subprocess import check_call
+from functools import wraps
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
@@ -21,7 +22,7 @@ from zope.interface.verify import verifyClass
 from ipaddr import IPAddress
 
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
@@ -30,7 +31,7 @@ from twisted.conch.ssh.keys import Key
 from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.conch.openssh_compat.factory import OpenSSHFactory
 from twisted.conch.unix import UnixConchUser
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from . import __version__
 from .common.script import (
@@ -291,6 +292,11 @@ class StandardOptionsTestsMixin(object):
         configured verbosity by `1`.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
         self.assertEqual(1, options['verbosity'])
 
@@ -300,6 +306,11 @@ class StandardOptionsTestsMixin(object):
         verbosity by 1.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
         self.assertEqual(1, options['verbosity'])
 
@@ -308,6 +319,11 @@ class StandardOptionsTestsMixin(object):
         `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
 
@@ -319,28 +335,56 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
 
     def __init__(self, public_key):
         """
-        :param bytes public_key: The public key we will accept.
+        :param Key public_key: The public key we will accept.
         """
-        self._key = Key.fromString(data=public_key)
+        self._key = public_key
 
     def checkKey(self, credentials):
+        """
+        Validate some SSH key credentials.
+
+        Access is granted to the name of the user running the current process
+        for the key this checker was initialized with.
+        """
+        # It would probably be better for the username to be another `__init__`
+        # argument.  https://github.com/ClusterHQ/flocker/issues/189
         return (self._key.blob() == credentials.blob and
                 pwd.getpwuid(os.getuid()).pw_name == credentials.username)
 
 
 class _FixedHomeConchUser(UnixConchUser):
+    """
+    An SSH user with a fixed, configurable home directory.
+
+    This is like a normal UNIX SSH user except the user's home directory is not
+    determined by the ``pwd`` database.
+    """
     def __init__(self, username, home):
+        """
+        :param FilePath home: The path of the directory to use as this user's
+            home directory.
+        """
         UnixConchUser.__init__(self, username)
         self._home = home
 
     def getHomeDir(self):
+        """
+        Give back the pre-determined home directory.
+        """
         return self._home.path
 
 
 @implementer(IRealm)
-class UnixSSHRealm:
+class UnixSSHRealm(object):
+    """
+    An ``IRealm`` for a Conch server which gives out ``_FixedHomeConchUser``
+    users.
+    """
+    def __init__(self, home):
+        self.home = home
+
     def requestAvatar(self, username, mind, *interfaces):
-        user = _FixedHomeConchUser(username)
+        user = _FixedHomeConchUser(username, self.home)
         return interfaces[0], user, user.logout
 
 
@@ -364,11 +408,12 @@ class _ConchServer(object):
     def __init__(self, base_path):
         """
         :param FilePath base_path: The path beneath which all of the temporary
-            SSH server-related files will be created.  A ``ssh`` directory will
-            be created as a child of this directory to hold the key pair that
-            is generated.  A ``sshd`` directory will also be created here to
-            hold the generated host key.  A ``home`` directory is also created
-            here and used as the home directory for shell logins to the server.
+            SSH server-related files will be created.  An ``ssh`` directory
+            will be created as a child of this directory to hold the key pair
+            that is generated.  An ``sshd`` directory will also be created here
+            to hold the generated host key.  A ``home`` directory is also
+            created here and used as the home directory for shell logins to the
+            server.
         """
         self.home = base_path.child(b"home")
         self.home.makedirs()
@@ -377,30 +422,42 @@ class _ConchServer(object):
         ssh_path.makedirs()
         self.key_path = ssh_path.child(b"key")
         check_call(
-            [b"ssh-keygen", b"-f", self.key_path.path,
-             b"-N", b"", b"-q"])
+            [b"ssh-keygen",
+             # Specify the path where the generated key is written.
+             b"-f", self.key_path.path,
+             # Specify an empty passphrase.
+             b"-N", b"",
+             # Generate as little output as possible.
+             b"-q"])
         key = Key.fromFile(self.key_path.path)
 
         sshd_path = base_path.child(b"sshd")
         sshd_path.makedirs()
         self.host_key_path = sshd_path.child(b"ssh_host_key")
         check_call(
-            [b"ssh-keygen", b"-f", self.host_key_path.path,
-             b"-N", b"", b"-q"])
+            [b"ssh-keygen",
+             # See above for option explanations.
+             b"-f", self.host_key_path.path,
+             b"-N", b"",
+             b"-q"])
 
         factory = OpenSSHFactory()
-        realm = UnixSSHRealm()
-        checker = _InMemoryPublicKeyChecker(key.toString("OPENSSH"))
+        realm = UnixSSHRealm(self.home)
+        checker = _InMemoryPublicKeyChecker(public_key=key.public())
         factory.portal = Portal(realm, [checker])
         factory.dataRoot = sshd_path.path
         factory.moduliRoot = b"/etc/ssh"
 
         self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
-        self.ip = IPAddress(b"127.0.0.1")
+        self.ip = IPAddress(self._port.getHost().host)
         self.port = self._port.getHost().port
 
-
     def restore(self):
+        """
+        Shut down the SSH server.
+
+        :return: A ``Deferred`` that fires when this has been done.
+        """
         return self._port.stopListening()
 
 
@@ -465,3 +522,29 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         return probe.getsockname()
     finally:
         probe.close()
+
+
+def skip_on_broken_permissions(test_method):
+    """
+    Skips the wrapped test when the temporary directory is on a
+    virtualbox shared folder.
+
+    Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
+    respect changing permissions. For example, this test detects running on a
+    shared folder by the fact that all permissions can't be removed from a
+    file.
+
+    :param callable test_method: Test method to wrap.
+    :return: The wrapped method.
+    """
+    @wraps(test_method)
+    def wrapper(case, *args, **kwargs):
+        test_file = FilePath(case.mktemp())
+        test_file.touch()
+        test_file.chmod(0o000)
+        permissions = test_file.getPermissions()
+        test_file.chmod(0o777)
+        if permissions != Permissions(0o000):
+            raise SkipTest("Can't run test on virtualbox shared folder.")
+        return test_method(case, *args, **kwargs)
+    return wrapper

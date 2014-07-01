@@ -78,8 +78,8 @@ def make_sshnode(test_case):
     test_case.addCleanup(server.restore)
 
     return ProcessNode.using_ssh(
-        unicode(server.ip).encode("ascii"), server.port, getuser(),
-        server.key_path)
+        host=unicode(server.ip).encode("ascii"), port=server.port,
+        username=getuser(), private_key=server.key_path)
 
 
 class SSHProcessNodeTests(TestCase):
