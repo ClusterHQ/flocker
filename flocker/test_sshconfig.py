@@ -4,7 +4,7 @@
 Tests for ``flocker._sshconfig``.
 """
 
-from os import environ, kill
+from os import devnull, environ, kill
 from signal import SIGKILL
 from socket import socket
 from subprocess import check_output, check_call
@@ -16,6 +16,12 @@ from twisted.internet.threads import deferToThread
 
 from ._sshconfig import _OpenSSHConfiguration
 from .testtools import create_ssh_server
+
+# We insert a comment ourselves.  Just skip comparison of
+# comment and blank lines.
+def goodlines(path):
+    return list(line for line in path.getContent().splitlines()
+                if line and not line.strip().startswith(b"#"))
 
 
 class ConfigureSSHTests(TestCase):
@@ -42,7 +48,10 @@ class ConfigureSSHTests(TestCase):
         pid = output[1].split()[2][:-1]
         environ[b"SSH_AUTH_SOCK"] = sock
         environ[b"SSH_AGENT_PID"] = pid
-        check_call([b"ssh-add", self.server.key_path.path])
+        with open(devnull, "w") as discard:
+            check_call(
+                [b"ssh-add", self.server.key_path.path],
+                stdout=discard, stderr=discard)
 
     def test_connection_failed(self):
         """
@@ -107,12 +116,6 @@ class ConfigureSSHTests(TestCase):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
 
-            # We insert a comment ourselves.  Just skip comparison of
-            # comment and blank lines.
-            def goodlines(path):
-                return list(line for line in path.getContent().splitlines()
-                            if line and not line.strip().startswith(b"#"))
-
             self.assertEqual(goodlines(id_rsa_pub), goodlines(keys))
 
         configuring.addCallback(configured)
@@ -128,11 +131,12 @@ class ConfigureSSHTests(TestCase):
             self.configure_ssh, self.server.ip, self.server.port)
         configuring.addCallback(
             lambda ignored:
-                self.configure_ssh(self.server.ip, self.server.port))
+                deferToThread(
+                    self.configure_ssh, self.server.ip, self.server.port))
         def configured(ignored):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
-            self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+            self.assertEqual(goodlines(id_rsa_pub), goodlines(keys))
         configuring.addCallback(configured)
         return configuring
 
