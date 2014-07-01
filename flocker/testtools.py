@@ -373,6 +373,14 @@ class _FixedHomeConchUser(UnixConchUser):
         """
         return self._home.path
 
+    def getUserGroupId(self):
+        """
+        Give back some not-strictly-legal ``None`` UID/GID
+        identifiers.  This prevents the Conch server from trying to
+        switch IDs (which it can't do if it is not running as root).
+        """
+        return None, None
+
 
 @implementer(IRealm)
 class UnixSSHRealm(object):

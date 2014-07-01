@@ -74,6 +74,7 @@ class _OpenSSHConfiguration(object):
                 )
 
         write_authorized_key = (
+            u"mkdir -p .ssh; "
             u"("
             u"    echo; "
             u"    echo '# flocker-deploy access'; "
@@ -83,7 +84,10 @@ class _OpenSSHConfiguration(object):
             )
 
         generate_flocker_key = (
-            u"echo '{}' > '{}'; echo '{}' > '{}'".format(
+            u"mkdir -p {}; "
+            u"echo '{}' > '{}'; "
+            u"echo '{}' > '{}'".format(
+                remote_public_path.parent().path,
                 local_public_path.getContent(), remote_public_path.path,
                 local_private_path.getContent(), remote_private_path.path)
             )

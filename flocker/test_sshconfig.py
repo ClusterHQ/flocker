@@ -42,9 +42,7 @@ class ConfigureSSHTests(TestCase):
         pid = output[1].split()[2][:-1]
         environ[b"SSH_AUTH_SOCK"] = sock
         environ[b"SSH_AGENT_PID"] = pid
-
         check_call([b"ssh-add", self.server.key_path.path])
-
 
     def test_connection_failed(self):
         """
@@ -111,7 +109,15 @@ class ConfigureSSHTests(TestCase):
         def configured(ignored):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
-            self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+
+            # We insert a comment ourselves.  Just skip comparison of
+            # comment and blank lines.
+            def goodlines(path):
+                return list(line for line in path.getContent().splitlines()
+                            if line and not line.strip().startswith(b"#"))
+
+            self.assertEqual(goodlines(id_rsa_pub), goodlines(keys))
+
         configuring.addCallback(configured)
         return configuring
 
