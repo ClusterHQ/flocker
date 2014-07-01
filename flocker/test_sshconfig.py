@@ -63,7 +63,6 @@ class ConfigureSSHTests(TestCase):
         """
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
-        self.assertFailure(configuring, Exception)
         def generated(ignored):
             id_rsa = self.ssh_config.child(b"id_rsa_flocker")
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
@@ -84,13 +83,11 @@ class ConfigureSSHTests(TestCase):
 
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
-        self.assertFailure(configuring, Exception)
         def generated(ignored):
             key = Key.fromFile(id_rsa.path)
 
             configuring = deferToThread(
                 self.configure_ssh, self.server.ip, self.server.port)
-            self.assertFailure(configuring, Exception)
             configuring.addCallback(lambda ignored: key)
             return configuring
         configuring.addCallback(generated)
