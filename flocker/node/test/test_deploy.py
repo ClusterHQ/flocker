@@ -72,6 +72,7 @@ class DeploymentStartContainerTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
+
         result1 = api.start_container(application=application)
         self.successResultOf(result1)
 
@@ -97,7 +98,6 @@ class DeploymentStopContainerTests(SynchronousTestCase):
 
         api.start_container(application=application)
         existed = fake_gear.exists(application.name)
-
         stop_result = api.stop_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
@@ -117,9 +117,10 @@ class DeploymentStopContainerTests(SynchronousTestCase):
         api = Deployment(gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
-            image=DockerImage(repository=u'clusterhq/flocker', tag=u'release-14.0')
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
         )
-
         result = api.stop_container(application=application)
         result = self.successResultOf(result)
+
         self.assertIs(None, result)
