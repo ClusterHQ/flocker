@@ -517,7 +517,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystem(filesystem):
                 old_path = filesystem.get_path()
-                d = pool.change_owner(volume, u"new-uuid")
+                d = pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
                 d.addCallback(lambda new_filesystem: (old_path, new_filesystem))
                 return d
             d.addCallback(created_filesystem)
@@ -540,7 +540,7 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 old_path = filesystem.get_path()
                 old_path.child('file').setContent(b'content')
-                d = pool.change_owner(volume, u"new-uuid")
+                d = pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
                 d.addCallback(lambda ignored: old_path)
                 return d
             d.addCallback(created_filesystem)
@@ -564,7 +564,7 @@ def make_istoragepool_tests(fixture):
                 path = filesystem.get_path()
                 path.child('file').setContent(b'content')
 
-                return pool.change_owner(volume, u"new-uuid")
+                return pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
             d.addCallback(created_filesystem)
 
             def changed_owner(filesystem):

@@ -116,7 +116,7 @@ class IStoragePool(Interface):
         being changed.
 
         :param Volume volume: The volume whose owner will be changed.
-        :param unicode new_owner_uuid: The UUID of the new owner for the volume.
+        :param Volume new_volume: The volume ...
 
         :return: ``Deferred`` that fires on filesystem change.
         """
