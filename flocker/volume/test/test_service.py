@@ -315,14 +315,37 @@ class VolumeOwnerChangeTests(TestCase):
         ``Volume.change_owner`` returns a ``Deferred`` that fires with a new
         ``Volume`` with the new owner UUID.
         """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        self.assertEqual(new_volume.uuid, u"789")
+        self.assertEqual(new_volume.name, u"myvolume")
 
     def test_filesystem(self):
         """
         The filesystem for the new ``Volume`` preserves data from the old one.
         """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        mount = volume.get_filesystem().get_path()
+        mount.child(b'file').setContent(b'content')
+        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        new_mount = new_volume.get_filesystem().get_path()
+        self.assertEqual(new_mount.child(b'file').getContent(), b'content')
 
     def test_enumerate(self):
         """
         The volumes returned from ``VolumeService.enumerate`` replace the old
         volume with the one returned by ``Volume.change_owner``.
         """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        volumes = set(self.successResultOf(service.enumerate()))
+        self.assertEqual({new_volume}, volumes)

@@ -191,13 +191,13 @@ class Volume(object):
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
-        # d = self._pool.change_owner(self, new_owner_uuid)
+        d = self._pool.change_owner(self, new_owner_uuid)
 
-        # def filesystem_changed(_):
-        #     return Volume(uuid=new_owner_uuid, name=self.name,
-        #                   _pool=self._pool)
-        # d.addCallback(filesystem_changed)
-        # return d
+        def filesystem_changed(_):
+            return Volume(uuid=new_owner_uuid, name=self.name,
+                          _pool=self._pool)
+        d.addCallback(filesystem_changed)
+        return d
 
     def get_filesystem(self):
         """Return the volume's filesystem.
