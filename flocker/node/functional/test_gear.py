@@ -57,7 +57,6 @@ class GearClientTests(TestCase):
         """Start a unit and wait until it's up and running.
 
         :param unicode name: The name of the unit.
-
         :param list ports: See ``IGearClient.add``.
 
         :return: ``Deferred`` that fires with the ``GearClient`` when the unit
