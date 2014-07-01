@@ -236,17 +236,6 @@ class StoragePool(object):
         d.addCallback(lambda _: filesystem)
         return d
 
-    def _get_filesystem(self, uuid, name):
-        """
-        Create an object representing the filesystem with the given name and
-        uuid, with an appropriate mount point.
-
-        :param unicode uuid: UUID of the node that own's the filesystem.
-        :param unicode name: Name of the volume the filesystem is assoicated
-            with.
-        :return: :class:``IFilesystem`` with the given name and uuid.
-        """
-
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
