@@ -199,15 +199,17 @@ class ZFSSnapshots(object):
         return d
 
 
-def volume_to_dataset(volume):
+def volume_to_dataset(uuid, name=None):
     """Convert a volume to a dataset name.
 
     :param flocker.volume.service.Volume volume: The volume.
 
     :return: Dataset name as ``bytes``.
     """
-    return b"%s.%s" % (volume.uuid.encode("ascii"),
-                       volume.name.encode("ascii"))
+    if name is None:
+        name = uuid.name; uuid=uuid.uuid
+    return b"%s.%s" % (uuid.encode("ascii"),
+                       name.encode("ascii"))
 
 
 @implementer(IStoragePool)
@@ -234,15 +236,26 @@ class StoragePool(object):
         d.addCallback(lambda _: filesystem)
         return d
 
-    def change_owner(self, volume, new_owner_uuid):
-        # 1. zfs rename the "filesystem" directory so it has new UUID.
-        # 2. Change mountpoint appropriately.
-        pass
-
-    def get(self, volume):
-        dataset = volume_to_dataset(volume)
+    def _get_filesystem(self, uuid, name):
+        dataset = volume_to_dataset(uuid, name)
         mount_path = self._mount_root.child(dataset)
         return Filesystem(self._name, dataset, mount_path)
+
+    def change_owner(self, volume, new_owner_uuid):
+        old_filesystem = self._get_filesystem(volume.uuid, volume.name)
+        new_filesystem = self._get_filesystem(new_owner_uuid, volume.name)
+        new_mount_path = new_filesystem.get_path().path
+        d = zfs_command(self._reactor,
+                        [b"rename", old_filesystem.name, new_filesystem.name])
+        d.addCallback(lambda _: zfs_command(self._reactor,
+                        [b"set", b"mountpoint=" + new_mount_path, new_filesystem.name])
+                        )
+        return d.addCallback(lambda _:new_filesystem)
+        # 1. zfs rename the "filesystem" directory so it has new UUID.
+        # 2. Change mountpoint appropriately.
+
+    def get(self, volume):
+        return self._get_filesystem(volume.uuid, volume.name)
 
     def enumerate(self):
         listing = _list_filesystems(self._reactor, self._name)

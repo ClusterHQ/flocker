@@ -15,7 +15,7 @@ from characteristic import attributes
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
-from twisted.internet.defer import gatherResults, succeed
+from twisted.internet.defer import gatherResults
 
 from pytz import UTC
 
@@ -497,12 +497,14 @@ def make_istoragepool_tests(fixture):
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
-                path = filesystem.get_path()
-                return gatherResults([succeed(path),
-                pool.change_owner(volume, u"new-uuid")])
+                old_path = filesystem.get_path()
+                d = pool.change_owner(volume, u"new-uuid")
+                d.addCallback(lambda new_filesystem: (old_path, new_filesystem))
+                return d
             d.addCallback(created_filesystem)
-            def changed_owner((old_path, filesystem)):
-                new_path = filesystem.get_path()
+
+            def changed_owner((old_path, new_filesystem)):
+                new_path = new_filesystem.get_path()
                 self.assertNotEqual(old_path, new_path)
             d.addCallback(changed_owner)
             return d
@@ -517,12 +519,15 @@ def make_istoragepool_tests(fixture):
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
-                path = filesystem.get_path()
-                return gatherResults([succeed(path),
-                pool.change_owner(volume, u"new-uuid")])
+                old_path = filesystem.get_path()
+                old_path.child('file').setContent(b'content')
+                d = pool.change_owner(volume, u"new-uuid")
+                d.addCallback(lambda ignored: old_path)
+                return d
             d.addCallback(created_filesystem)
-            def changed_owner((old_path, filesystem)):
-                self.assertFalse(old_path.exists())
+            def changed_owner(old_path):
+                #import os; os.system('/bin/bash')
+                self.assertFalse(old_path.exists() and old_path.listdir())
             d.addCallback(changed_owner)
             return d
 
