@@ -8,7 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .._deploy import Deployment
 from .._model import Application, DockerImage
-from ..gear import GearClient, FakeGearClient
+from ..gear import GearClient, FakeGearClient, AlreadyExists
 
 
 class DeploymentAttributesTests(SynchronousTestCase):
@@ -48,7 +48,8 @@ class DeploymentStartContainerTests(SynchronousTestCase):
         api = Deployment(gear_client=fake_gear)
         application = Application(
             name=b'site-example.com',
-            image=DockerImage(repository=u'clusterhq/flocker', tag=u'release-14.0')
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
         )
         start_result = api.start_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
@@ -59,15 +60,33 @@ class DeploymentStartContainerTests(SynchronousTestCase):
              self.successResultOf(exists_result))
         )
 
+    def test_already_exists(self):
+        """
+        ``Deployment.start_container`` returns a deferred which errbacks with an
+        ``AlreadyExists`` error if there is already a unit with the supplied
+        application name.
+        """
+        api = Deployment(gear_client=FakeGearClient())
+        application = Application(
+            name=b'site-example.com',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        result1 = api.start_container(application=application)
+        self.successResultOf(result1)
+
+        result2 = api.start_container(application=application)
+        self.failureResultOf(result2, AlreadyExists)
+
 
 class DeploymentStopContainerTests(SynchronousTestCase):
     """
-    Tests for `Deployment.stop_container`.
+    Tests for ``Deployment.stop_container``.
     """
     def test_stop(self):
         """
-        `Deployment.stop_container` accepts an application object and returns a
-        deferred which fires when the `gear` unit has been removed.
+        ``Deployment.stop_container`` accepts an application object and returns
+        a deferred which fires when the `gear` unit has been removed.
         """
         fake_gear = FakeGearClient()
         api = Deployment(gear_client=fake_gear)
