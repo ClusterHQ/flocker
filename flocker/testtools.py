@@ -353,16 +353,33 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
 
 
 class _FixedHomeConchUser(UnixConchUser):
+    """
+    An SSH user with a fixed, configurable home directory.
+
+    This is like a normal UNIX SSH user except the user's home directory is not
+    determined by the ``pwd`` database.
+    """
     def __init__(self, username, home):
+        """
+        :param FilePath home: The path of the directory to use as this user's
+            home directory.
+        """
         UnixConchUser.__init__(self, username)
         self._home = home
 
     def getHomeDir(self):
+        """
+        Give back the pre-determined home directory.
+        """
         return self._home.path
 
 
 @implementer(IRealm)
-class UnixSSHRealm:
+class UnixSSHRealm(object):
+    """
+    An ``IRealm`` for a Conch server which gives out ``_FixedHomeConchUser``
+    users.
+    """
     def requestAvatar(self, username, mind, *interfaces):
         user = _FixedHomeConchUser(username)
         return interfaces[0], user, user.logout
