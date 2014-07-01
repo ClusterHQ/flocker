@@ -35,7 +35,9 @@ class Unit(object):
         but not running (``u"inactive"``), starting (``u"activating"``),
         running (``u"active"``), failed (``u"failed"``) stopping
         (``u"deactivating"``) or stopped (either ``u"failed"`` or
-        ``u"inactive"`` apparently).
+        ``u"inactive"`` apparently). See
+        https://github.com/ClusterHQ/flocker/issues/187 about using constants
+        instead of strings.
     """
 
 
