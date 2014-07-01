@@ -440,7 +440,7 @@ class _ConchServer(object):
 
         factory = OpenSSHFactory()
         realm = UnixSSHRealm()
-        checker = _InMemoryPublicKeyChecker(key.toString("OPENSSH"))
+        checker = _InMemoryPublicKeyChecker(key.toString(type="OPENSSH"))
         factory.portal = Portal(realm, [checker])
         factory.dataRoot = sshd_path.path
         factory.moduliRoot = b"/etc/ssh"
