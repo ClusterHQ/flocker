@@ -48,9 +48,9 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         FilePath(app).touch()
         deploy = b"/path/to/non-existent-file.cfg"
         exception = self.assertRaises(UsageError, options.parseOptions,
-                                 [deploy, app])
+                                      [deploy, app])
         self.assertEqual('No file exists at {deploy}'.format(deploy=deploy),
-                    str(exception))
+                         str(exception))
 
     def test_app_must_exist(self):
         """
@@ -62,7 +62,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         FilePath(deploy).touch()
         app = b"/path/to/non-existent-file.cfg"
         exception = self.assertRaises(UsageError, options.parseOptions,
-                                 [deploy, app])
+                                      [deploy, app])
         self.assertEqual('No file exists at {app}'.format(app=app),
                          str(exception))
 
