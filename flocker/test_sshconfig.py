@@ -6,21 +6,23 @@ Tests for ``flocker._sshconfig``.
 
 from socket import socket
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.conch.ssh.keys import Key
+from twisted.internet.threads import deferToThread
 
 from ._sshconfig import _OpenSSHConfiguration
 from .testtools import create_ssh_server
 
 
-class ConfigureSSHTests(SynchronousTestCase):
+class ConfigureSSHTests(TestCase):
     """
     Tests for ``configure_ssh``.
     """
     def setUp(self):
-        self.server = create_ssh_server()
         self.ssh_config = FilePath(self.mktemp())
+        self.server = create_ssh_server(self.ssh_config)
+        self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
         self.config = _OpenSSHConfiguration(
             ssh_config_path=self.ssh_config,
@@ -44,46 +46,57 @@ class ConfigureSSHTests(SynchronousTestCase):
         ``configure_ssh`` generates a new key pair and writes it locally to
         ``id_rsa_flocker`` and ``id_rsa_flocker.pub``.
         """
-        try:
-            self.configure_ssh(self.server.host, self.server.port)
-        except Exception:
-            pass
-        id_rsa = self.ssh_config.child(b"id_rsa_flocker")
-        id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
-        key = Key.fromFile(id_rsa.path)
-        self.assertEqual(
-            # Avoid comparing the comment
-            key.public().toString("OPENSSH").split()[:2],
-            id_rsa_pub.getContent().split()[:2])
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+        self.assertFailure(configuring, Exception)
+        def generated(ignored):
+            id_rsa = self.ssh_config.child(b"id_rsa_flocker")
+            id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
+            key = Key.fromFile(id_rsa.path)
+            self.assertEqual(
+                # Avoid comparing the comment
+                key.public().toString("OPENSSH").split()[:2],
+                id_rsa_pub.getContent().split()[:2])
+        configuring.addCallback(generated)
+        return configuring
 
     def test_key_not_regenerated(self):
         """
         ``configure_ssh`` does not generate a new key pair if one can already
         be found in ``id_rsa_flocker`` and ``id_rsa_flocker.pub``.
         """
-        try:
-            self.configure_ssh(self.server.host, self.server.port)
-        except Exception:
-            pass
         id_rsa = self.ssh_config.child(b"id_rsa_flocker")
-        key = Key.fromFile(id_rsa.path)
 
-        try:
-            self.configure_ssh(self.server.host, self.server.port)
-        except Exception:
-            pass
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+        self.assertFailure(configuring, Exception)
+        def generated(ignored):
+            key = Key.fromFile(id_rsa.path)
 
-        self.assertEqual(key, Key.fromFile(id_rsa.path))
+            configuring = deferToThread(
+                self.configure_ssh, self.server.ip, self.server.port)
+            self.assertFailure(configuring, Exception)
+            configuring.addCallback(lambda ignored: key)
+            return configuring
+        configuring.addCallback(generated)
+
+        def not_regenerated(expected_key):
+            self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
+        configuring.addCallback(not_regenerated)
+        return configuring
 
     def test_authorized_keys(self):
         """
         When the SSH connection is established, the ``~/.ssh/authorized_keys``
         file has the public part of the generated key pair appended to it.
         """
-        self.configure_ssh(self.server.host, self.server.port)
-        id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
-        keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
-        self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        def configured(ignored):
+            id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
+            keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
+            self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+        configuring.addCallback(configured)
+        return configuring
 
     def test_authorized_keys_already_in_place(self):
         """
@@ -91,11 +104,17 @@ class ConfigureSSHTests(SynchronousTestCase):
         ``~/.ssh/authorized_keys`` file already has the public part of the key
         pair then it is not appended again.
         """
-        self.configure_ssh(self.server.host, self.server.port)
-        self.configure_ssh(self.server.host, self.server.port)
-        id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
-        keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
-        self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+        configuring.addCallback(
+            lambda ignored:
+                self.configure_ssh(self.server.ip, self.server.port))
+        def configured(ignored):
+            id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
+            keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
+            self.assertEqual(id_rsa_pub.getContent(), keys.getContent())
+        configuring.addCallback(configured)
+        return configuring
 
     def test_existing_authorized_keys_preserved(self):
         """
@@ -106,23 +125,32 @@ class ConfigureSSHTests(SynchronousTestCase):
             b"ssh-dss AAAAB3Nz1234567890 comment\n"
             b"ssh-dss AAAAB3Nz0987654321 comment\n"
         )
-        authorized_keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
+        ssh_path = self.server.home.child(b".ssh")
+        ssh_path.makedirs()
+
+        authorized_keys = ssh_path.child(b"authorized_keys")
         authorized_keys.setContent(existing_keys)
-        self.configure_ssh(self.server.host, self.server.port)
-        self.assertIn(existing_keys, authorized_keys.getContent())
+        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        def configured(ignored):
+            self.assertIn(existing_keys, authorized_keys.getContent())
+        configuring.addCallback(configured)
+        return configuring
 
     def test_flocker_keypair_written(self):
         """
         ``configure_ssh`` writes the keypair to ``id_rsa_flocker`` and
         ``id_rsa_flocker.pub`` remotely.
         """
-        self.configure_ssh(self.server.host, self.server.port)
-        expected = (
-            self.ssh_config.child(b"id_rsa_flocker").getContent(),
-            self.ssh_config.child(b"id_rsa_flocker.pub").getContent()
-        )
-        actual = (
-            self.flocker_config.child(b"id_rsa_flocker").getContent(),
-            self.flocker_config.child(b"id_rsa_flocker.pub").getContent()
-        )
-        self.assertEqual(expected, actual)
+        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        def configured(ignored):
+            expected = (
+                self.ssh_config.child(b"id_rsa_flocker").getContent(),
+                self.ssh_config.child(b"id_rsa_flocker.pub").getContent()
+            )
+            actual = (
+                self.flocker_config.child(b"id_rsa_flocker").getContent(),
+                self.flocker_config.child(b"id_rsa_flocker.pub").getContent()
+            )
+            self.assertEqual(expected, actual)
+        configuring.addCallback(configured)
+        return configuring
