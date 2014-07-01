@@ -513,13 +513,14 @@ def make_istoragepool_tests(fixture):
             volume definition.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
                 old_path = filesystem.get_path()
-                d = pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
-                d.addCallback(lambda new_filesystem: (old_path, new_filesystem))
+                d = pool.change_owner(volume, new_volume)
+                d.addCallback(lambda new_fs: (old_path, new_fs))
                 return d
             d.addCallback(created_filesystem)
 
@@ -535,16 +536,18 @@ def make_istoragepool_tests(fixture):
             volume definition no longer exists.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
                 old_path = filesystem.get_path()
                 old_path.child('file').setContent(b'content')
-                d = pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
+                d = pool.change_owner(volume, new_volume)
                 d.addCallback(lambda ignored: old_path)
                 return d
             d.addCallback(created_filesystem)
+
             def changed_owner(old_path):
                 # We don't assert the path doesn't exist, since we don't
                 # want to fail losing data, if renaming the mount point fails
@@ -555,17 +558,19 @@ def make_istoragepool_tests(fixture):
         def test_change_owner_preserves_data(self):
             """
             ``IStoragePool.change_owner()`` moves the data from the filesystem
-            for the old volume definition to that for the new volume definition.
+            for the old volume definition to that for the new volume
+            definition.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
                 path = filesystem.get_path()
                 path.child('file').setContent(b'content')
 
-                return pool.change_owner(volume, Volume(uuid=u"new-uuid", name=u"myvolumename", _pool=pool))
+                return pool.change_owner(volume, new_volume)
             d.addCallback(created_filesystem)
 
             def changed_owner(filesystem):
@@ -578,12 +583,13 @@ def make_istoragepool_tests(fixture):
 
         def test_change_owner_existing_target(self):
             """
-            ``IStoragePool.change_owner()`` returns a deferred that fails with :exception:`FilesystemAlreadyExists`,
-            if the target filesystem already exsits.
+            ``IStoragePool.change_owner()`` returns a deferred that fails with
+            :exception:`FilesystemAlreadyExists`, if the target filesystem
+            already exsits.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            new_volume = Volume(uuid=u"other-uuid", name=u"myvolumename", _pool=pool)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
             def created_filesystems(igonred):

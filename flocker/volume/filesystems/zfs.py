@@ -242,7 +242,8 @@ class StoragePool(object):
         uuid, with an appropriate mount point.
 
         :param unicode uuid: UUID of the node that own's the filesystem.
-        :param unicode name: Name of the volume the filesystem is assoicated with.
+        :param unicode name: Name of the volume the filesystem is assoicated
+            with.
         :return: :class:``IFilesystem`` with the given name and uuid.
         """
 
@@ -252,15 +253,18 @@ class StoragePool(object):
         new_mount_path = new_filesystem.get_path().path
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
+
         def rename_failed(f):
             if f.check(CommandFailed):
                 raise FilesystemAlreadyExists()
             return f
         d.addErrback(rename_failed)
-        d.addCallback(lambda _: zfs_command(self._reactor,
-                        [b"set", b"mountpoint=" + new_mount_path, new_filesystem.name])
-                        )
-        return d.addCallback(lambda _:new_filesystem)
+
+        def renamed(ignored):
+            return zfs_command(self._reactor,
+                               [b"set", b"mountpoint=" + new_mount_path,
+                                new_filesystem.name])
+        return d.addCallback(lambda _: new_filesystem)
 
     def get(self, volume):
         dataset = volume_to_dataset(volume)
