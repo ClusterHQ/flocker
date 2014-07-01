@@ -20,6 +20,7 @@ yum install -y python-devel python-tox python-virtualenv python-pip
 yum install -y createrepo
 yum install -y python-twisted python-characteristic python-eliot pytz python-ipaddr
 yum install -y python-cffi python-netifaces python-treq
+yum install -y libffi-devel
 yum install -y python-nomenclature
 
 # Cleanup
