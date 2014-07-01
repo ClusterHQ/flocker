@@ -17,7 +17,7 @@ class DockerImage(object):
     """
 
 
-@attributes(["name", "image", "volume", "routes"])
+@attributes(["name", "image"])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -28,11 +28,5 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this containerized
         application.
-
-    :ivar Volume volume: A volume which will always be made available with this
-        application.
-
-    :ivar set routes: A ``set`` of ``IRoute`` providers describing how this
-        application is exposed to the internet.
     """
 

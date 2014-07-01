@@ -23,6 +23,9 @@ class Deployment(object):
         """
         Launch the supplied application as a `gear` unit.
         """
+        unit_name = application.name
+        image_name = application.image.tag
+        return self._gear_client.add(unit_name, image_name)
 
     def stop_container(self, application):
         """
