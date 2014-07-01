@@ -4,7 +4,10 @@
 Tests for ``flocker._sshconfig``.
 """
 
+from os import environ, kill
+from signal import SIGKILL
 from socket import socket
+from subprocess import check_output, check_call
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -28,6 +31,20 @@ class ConfigureSSHTests(TestCase):
             ssh_config_path=self.ssh_config,
             flocker_path=self.flocker_config)
         self.configure_ssh = self.config.configure_ssh
+
+        output = check_output([b"ssh-agent", b"-c"]).splitlines()
+        self.addCleanup(lambda: kill(int(pid), SIGKILL))
+
+        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
+        # setenv SSH_AGENT_PID 6391;
+        # echo Agent pid 6391;
+        sock = output[0].split()[2][:-1]
+        pid = output[1].split()[2][:-1]
+        environ[b"SSH_AUTH_SOCK"] = sock
+        environ[b"SSH_AGENT_PID"] = pid
+
+        check_call([b"ssh-add", self.server.key_path.path])
+
 
     def test_connection_failed(self):
         """
