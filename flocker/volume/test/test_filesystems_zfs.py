@@ -22,17 +22,18 @@ from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     )
 
+
 class FilesystemTests(SynchronousTestCase):
     """
     Tests for :class:`Filesystem`.
     """
     def test_name(self):
         """
-        ``Filesystem.name`` returns the ZFS filesystem name, (``pool/dataset``).
+        ``Filesystem.name`` returns the ZFS filesystem name,
+        (``pool/dataset``).
         """
         filesystem = Filesystem(b"hpool", b"mydataset")
         self.assertEqual(filesystem.name, b"hpool/mydataset")
-
 
     def test_root_name(self):
         """Given dataset ``None``, ``Filesystem.name`` returns the ZFS
@@ -105,20 +106,22 @@ class ZFSSnapshotsTests(SynchronousTestCase):
     """Unit tests for ``ZFSSnapshotsTests``."""
 
     def test_create(self):
-        """``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with
-        the pool and snapshot name.
+        """
+        ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
+        filesystem and snapshot name.
         """
         reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"pool", "fs"))
         name = SnapshotName(datetime.now(UTC), b"node")
         snapshots.create(name)
         arguments = reactor.processes[0]
         self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"mypool@%s" % (name.to_bytes(),)])
+                                          b"pool/fs@%s" % (name.to_bytes(),)])
 
     def test_create_no_result_yet(self):
-        """The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does
-        not fire if the creation is unfinished.
+        """
+        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that does not
+        fire if the creation is unfinished.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
@@ -126,7 +129,8 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertNoResult(d)
 
     def test_create_result(self):
-        """The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
+        """
+        The result of ``ZFSSnapshots.create()`` is a ``Deferred`` that fires
         when creation has finished.
         """
         reactor = FakeProcessReactor()
@@ -137,7 +141,8 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertEqual(self.successResultOf(d), None)
 
     def test_list(self):
-        """``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
+        """
+        ``ZFSSnapshots.list()`` calls the ``zfs list`` command with the pool
         name.
         """
         reactor = FakeProcessReactor()
@@ -148,8 +153,9 @@ class ZFSSnapshotsTests(SynchronousTestCase):
                           b"-o", b"name", b"-s", b"name", b"mypool"])
 
     def test_list_result(self):
-        """``ZFSSnapshots.list`` parses out the snapshot names from the results
-        of the command.
+        """
+        ``ZFSSnapshots.list`` parses out the snapshot names from the results of
+        the command.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
@@ -167,7 +173,8 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertEqual(self.successResultOf(d), [name, name2])
 
     def test_list_result_ignores_other_pools(self):
-        """``ZFSSnapshots.list`` skips snapshots of other pools.
+        """
+        ``ZFSSnapshots.list`` skips snapshots of other pools.
 
         In particular, we are likely to see snapshot names of sub-pools in
         the output.
@@ -188,7 +195,8 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         self.assertEqual(self.successResultOf(d), [name2])
 
     def test_list_ignores_undecodable_snapshots(self):
-        """``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
+        """
+        ``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
 
         These are presumably snapshots not being managed by Flocker.
         """

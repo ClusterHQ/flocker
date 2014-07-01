@@ -12,6 +12,8 @@ from twisted.internet.defer import succeed, fail
 
 from treq import request, content
 
+from characteristic import attributes
+
 
 GEAR_PORT = 43273
 
@@ -42,12 +44,16 @@ class Unit(object):
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name):
+    def add(unit_name, image_name, ports=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
+
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in
+            the container to ports exposed on the host. Default ``None`` means
+            that no port mappings will be configured for this unit.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -148,14 +154,20 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
+
+        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        for port in ports:
+            data['Ports'].append(
+                {u'Internal': port.internal, u'External': port.external})
+
         checked = self.exists(unit_name)
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._container_request(b"PUT", unit_name,
-                                    data={u"Image": image_name,
-                                          u"Started": True}))
+            lambda _: self._container_request(b"PUT", unit_name, data=data))
         checked.addCallback(self._ensure_ok)
         return checked
 
@@ -200,10 +212,16 @@ class FakeGearClient(object):
     def __init__(self):
         self._units = {}
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None):
+        if ports is None:
+            ports = []
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {}
+        self._units[unit_name] = {
+            'unit_name': unit_name,
+            'image_name': image_name,
+            'ports': ports
+        }
         return succeed(None)
 
     def exists(self, unit_name):
@@ -219,3 +237,13 @@ class FakeGearClient(object):
         for name in self._units:
             result.add(Unit(name=name, activation_state=u"active"))
         return succeed(result)
+
+@attributes(['internal', 'external'])
+class PortMap(object):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal: The port number exposed by the container.
+    :ivar int external: The port number exposed by the host
+    """

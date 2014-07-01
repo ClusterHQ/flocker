@@ -6,8 +6,8 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name
-from ..gear import IGearClient, FakeGearClient, AlreadyExists, Unit
+from ...testtools import random_name, make_with_init_tests
+from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit
 
 
 def make_igearclient_tests(fixture):
@@ -133,3 +133,55 @@ def make_igearclient_tests(fixture):
 
 class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
     """``IGearClient`` tests for ``FakeGearClient``."""
+
+
+class PortMapInitTests(
+        make_with_init_tests(
+            record_type=PortMap,
+            kwargs=dict(
+                internal=1234,
+                external=5678,
+            )
+        )
+):
+    """
+    Tests for ``PortMap.__init__``.
+    """
+
+
+class PortMapTests(TestCase):
+    """
+    Tests for ``PortMap``.
+
+    XXX: The equality tests in this case are incomplete. See
+    https://github.com/hynek/characteristic/issues/4 for a proposed solution to
+    this.
+    """
+    def test_repr(self):
+        """
+        ``PortMap.__repr__`` shows the internal and external ports.
+        """
+        self.assertEqual(
+            "<PortMap(internal=1234, external=5678)>",
+            repr(PortMap(internal=1234, external=5678))
+        )
+
+    def test_equal(self):
+        """
+        ``PortMap`` instances with the same internal and external ports compare
+        equal.
+        """
+        self.assertEqual(
+            PortMap(internal=1234, external=5678),
+            PortMap(internal=1234, external=5678)
+        )
+
+    def test_not_equal(self):
+        """
+        ``PortMap`` instances with the different internal and external ports
+        do not compare equal.
+        """
+        self.assertNotEqual(
+            PortMap(internal=5678, external=1234),
+            PortMap(internal=1234, external=5678)
+        )
