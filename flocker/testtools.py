@@ -377,6 +377,6 @@ def skip_on_broken_permissions(test_method):
         permissions = test_file.getPermissions()
         test_file.chmod(0o777)
         if permissions != Permissions(0o000):
-            raise SkipTest("Can't run test on virtualbox shared folder.")
+            raise SkipTest("Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
