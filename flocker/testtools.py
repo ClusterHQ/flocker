@@ -446,7 +446,7 @@ class _ConchServer(object):
         factory.moduliRoot = b"/etc/ssh"
 
         self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
-        self.ip = IPAddress(b"127.0.0.1")
+        self.ip = IPAddress(self._port.getHost().host)
         self.port = self._port.getHost().port
 
 
