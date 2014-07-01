@@ -79,20 +79,20 @@ class _OpenSSHConfiguration(object):
             u"    echo; "
             u"    echo '# flocker-deploy access'; "
             u"    echo '{}'"
-            u") >> .ssh/authorized_keys".format(
-                local_public_path.getContent())
+            u") >> .ssh/authorized_keys;".format(
+                local_public_path.getContent().strip())
             )
 
         generate_flocker_key = (
             u"mkdir -p {}; "
             u"echo '{}' > '{}'; "
-            u"echo '{}' > '{}'".format(
+            u"echo '{}' > '{}';".format(
                 remote_public_path.parent().path,
-                local_public_path.getContent(), remote_public_path.path,
-                local_private_path.getContent(), remote_private_path.path)
+                local_public_path.getContent().strip(), remote_public_path.path,
+                local_private_path.getContent().strip(), remote_private_path.path)
             )
 
-        commands = write_authorized_key + u"; " + generate_flocker_key
+        commands = write_authorized_key + generate_flocker_key
 
         ssh([u"-oPort={}".format(port).encode("ascii"),
              # Suppress warnings
