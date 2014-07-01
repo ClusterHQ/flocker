@@ -452,7 +452,6 @@ class _ConchServer(object):
         self.ip = IPAddress(self._port.getHost().host)
         self.port = self._port.getHost().port
 
-
     def restore(self):
         """
         Shut down the SSH server.
