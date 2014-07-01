@@ -32,6 +32,7 @@ class DockerImageTests(SynchronousTestCase):
             repr(image)
         )
 
+
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(name=u'site-example.com', image=object())
