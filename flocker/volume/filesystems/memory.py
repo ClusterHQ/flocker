@@ -92,14 +92,20 @@ class FilesystemStoragePool(object):
         filesystem.get_path().makedirs()
         return succeed(filesystem)
 
-    def change_owner(self, volume, new_owner_uuid):
-        # Rename the "filesystem" directory so it has new UUID.
-        pass
-
-    def get(self, volume):
+    def _get_filesystem(self, uuid, name):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.encode("ascii"))))
+                uuid.encode("ascii"), name.encode("ascii"))))
+
+    def change_owner(self, volume, new_owner_uuid):
+        # Rename the "filesystem" directory so it has new UUID.
+        old_filesystem = self.get(volume)
+        new_filesystem = self._get_filesystem(new_owner_uuid, volume.name)
+        old_filesystem.get_path().moveTo(new_filesystem.get_path())
+        return succeed(new_filesystem)
+
+    def get(self, volume):
+        return self._get_filesystem(volume.uuid, volume.name)
 
     def enumerate(self):
         if self._root.isdir():

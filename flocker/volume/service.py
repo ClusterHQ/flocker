@@ -15,7 +15,6 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
-from twisted.internet.defer import fail
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as

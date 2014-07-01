@@ -15,7 +15,7 @@ from characteristic import attributes
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import gatherResults, succeed
 
 from pytz import UTC
 
@@ -492,17 +492,62 @@ def make_istoragepool_tests(fixture):
             ``IFilesystem.change_owner()`` exposes a filesystem for the new
             volume definition.
             """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                path = filesystem.get_path()
+                return gatherResults([succeed(path),
+                pool.change_owner(volume, u"new-uuid")])
+            d.addCallback(created_filesystem)
+            def changed_owner((old_path, filesystem)):
+                new_path = filesystem.get_path()
+                self.assertNotEqual(old_path, new_path)
+            d.addCallback(changed_owner)
+            return d
 
         def test_change_owner_removes_old(self):
             """
             ``IFilesystem.change_owner()`` ensures the filesystem for the old
             volume definition no longer exists.
             """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                path = filesystem.get_path()
+                return gatherResults([succeed(path),
+                pool.change_owner(volume, u"new-uuid")])
+            d.addCallback(created_filesystem)
+            def changed_owner((old_path, filesystem)):
+                self.assertFalse(old_path.exists())
+            d.addCallback(changed_owner)
+            return d
 
         def test_change_owner_preserves_data(self):
             """
             ``IFilesystem.change_owner()`` moves the data from the filesystem
             for the old volume definition to that for the new volume definition.
             """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                path = filesystem.get_path()
+                path.child('file').setContent(b'content')
+
+                return pool.change_owner(volume, u"new-uuid")
+            d.addCallback(created_filesystem)
+
+            def changed_owner(filesystem):
+                path = filesystem.get_path()
+                self.assertEqual(path.child('file').getContent(),
+                                 b'content')
+            d.addCallback(changed_owner)
+
+            return d
 
     return IStoragePoolTests
