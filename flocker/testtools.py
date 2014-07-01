@@ -25,11 +25,11 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred
 from twisted.internet import reactor
-from twisted.cred.portal import Portal
+from twisted.cred.portal import IRealm, Portal
 from twisted.conch.ssh.keys import Key
 from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.conch.openssh_compat.factory import OpenSSHFactory
-from twisted.conch.unix import UnixSSHRealm
+from twisted.conch.unix import UnixConchUser
 from twisted.trial.unittest import SynchronousTestCase
 
 from . import __version__
@@ -328,6 +328,22 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
                 pwd.getpwuid(os.getuid()).pw_name == credentials.username)
 
 
+class _FixedHomeConchUser(UnixConchUser):
+    def __init__(self, username, home):
+        UnixConchUser.__init__(self, username)
+        self._home = home
+
+    def getHomeDir(self):
+        return self._home.path
+
+
+@implementer(IRealm)
+class UnixSSHRealm:
+    def requestAvatar(self, username, mind, *interfaces):
+        user = _FixedHomeConchUser(username)
+        return interfaces[0], user, user.logout
+
+
 class _ConchServer(object):
     """
     A helper for a test fixture to run an SSH server using Twisted Conch.
@@ -337,12 +353,26 @@ class _ConchServer(object):
     :ivar _port: An object which provides ``IListeningPort`` and represents the
         listening Conch server.
 
+    :ivar FilePath home_path: The path of the home directory of the user which
+        is allowed to authenticate against this server.
+
     :ivar FilePath key_path: The path of an SSH private key which can be used
         to authenticate against the server.
 
     :ivar FilePath host_key_path: The path of the server's private host key.
     """
     def __init__(self, base_path):
+        """
+        :param FilePath base_path: The path beneath which all of the temporary
+            SSH server-related files will be created.  A ``ssh`` directory will
+            be created as a child of this directory to hold the key pair that
+            is generated.  A ``sshd`` directory will also be created here to
+            hold the generated host key.  A ``home`` directory is also created
+            here and used as the home directory for shell logins to the server.
+        """
+        self.home = base_path.child(b"home")
+        self.home.makedirs()
+
         ssh_path = base_path.child(b"ssh")
         ssh_path.makedirs()
         self.key_path = ssh_path.child(b"key")
