@@ -31,3 +31,5 @@ class Deployment(object):
         """
         Stop and disable the application.
         """
+        unit_name = application.name
+        return self._gear_client.remove(unit_name)
