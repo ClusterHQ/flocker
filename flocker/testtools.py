@@ -451,6 +451,11 @@ class _ConchServer(object):
 
 
     def restore(self):
+        """
+        Shut down the SSH server.
+
+        :return: A ``Deferred`` that fires when this has been done.
+        """
         return self._port.stopListening()
 
 
