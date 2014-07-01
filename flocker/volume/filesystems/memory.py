@@ -4,8 +4,6 @@
 
 from __future__ import absolute_import
 
-import errno
-
 from contextlib import contextmanager
 from tarfile import TarFile
 from io import BytesIO
@@ -97,16 +95,15 @@ class FilesystemStoragePool(object):
         return succeed(filesystem)
 
     def change_owner(self, volume, new_volume):
-        # Rename the "filesystem" directory so it has new UUID.
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
-        try:
-            old_filesystem.get_path().moveTo(new_filesystem.get_path())
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                return fail(FilesystemAlreadyExists())
-            else:
-                return fail()
+
+        # Since this is only used for testing, assume there
+        # will be no race condition.
+        if new_filesystem.get_path().exists():
+            return fail(FilesystemAlreadyExists())
+
+        old_filesystem.get_path().moveTo(new_filesystem.get_path())
         return succeed(new_filesystem)
 
     def get(self, volume):
