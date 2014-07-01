@@ -3,7 +3,7 @@
 """
 Tests for ``flocker.node._model``.
 """
-
+from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
 from .._model import Application, DockerImage
@@ -16,6 +16,18 @@ class DockerImageInitTests(make_with_init_tests(
     Tests for ``DockerImage.__init__``.
     """
 
+class DockerImageTests(SynchronousTestCase):
+    """
+    """
+    def test_repr(self):
+        """
+        """
+        image = DockerImage(repository=u'clusterhq/flocker', 
+                            tag=u'release-14.0')
+        self.assertEqual(
+            ''
+            repr(image)
+        )
 
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
