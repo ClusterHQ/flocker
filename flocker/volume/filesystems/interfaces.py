@@ -7,6 +7,13 @@ from __future__ import absolute_import
 from zope.interface import Interface
 
 
+class FilesystemAlreadyExists(Exception):
+    """
+    Raised when creating or renaming a filesystem, and the target already
+    exists.
+    """
+
+
 class IFilesystemSnapshots(Interface):
     """Support creating and listing snapshots of a specific filesystem."""
 
@@ -116,9 +123,11 @@ class IStoragePool(Interface):
         being changed.
 
         :param Volume volume: The volume whose owner will be changed.
-        :param Volume new_volume: The volume ...
+        :param Volume new_volume: The volume with the changed owner.
 
-        :return: ``Deferred`` that fires on filesystem change.
+        :return: ``Deferred`` that fires with the new :class:`IFilesystem`.
+        :raises FilesystemAlreadyExists: If the target filesystem already
+            exits.
         """
 
     def enumerate():

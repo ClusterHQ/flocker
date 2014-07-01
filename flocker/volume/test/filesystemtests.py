@@ -23,6 +23,7 @@ from ...testtools import assertNoFDsLeaked
 
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists,
     )
 from ..snapshots import SnapshotName
 from ..service import Volume
@@ -530,7 +531,7 @@ def make_istoragepool_tests(fixture):
 
         def test_change_owner_removes_old(self):
             """
-            ``IFilesystem.change_owner()`` ensures the filesystem for the old
+            ``IStoragePool.change_owner()`` ensures the filesystem for the old
             volume definition no longer exists.
             """
             pool = fixture(self)
@@ -553,7 +554,7 @@ def make_istoragepool_tests(fixture):
 
         def test_change_owner_preserves_data(self):
             """
-            ``IFilesystem.change_owner()`` moves the data from the filesystem
+            ``IStoragePool.change_owner()`` moves the data from the filesystem
             for the old volume definition to that for the new volume definition.
             """
             pool = fixture(self)
@@ -574,5 +575,21 @@ def make_istoragepool_tests(fixture):
             d.addCallback(changed_owner)
 
             return d
+
+        def test_change_owner_existing_target(self):
+            """
+            ``IStoragePool.change_owner()`` returns a deferred that fails with :exception:`FilesystemAlreadyExists`,
+            if the target filesystem already exsits.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            new_volume = Volume(uuid=u"other-uuid", name=u"myvolumename", _pool=pool)
+            d = gatherResults([pool.create(volume), pool.create(new_volume)])
+
+            def created_filesystems(igonred):
+                return pool.change_owner(volume, new_volume)
+            d.addCallback(created_filesystems)
+
+            return self.assertFailure(d, FilesystemAlreadyExists)
 
     return IStoragePoolTests

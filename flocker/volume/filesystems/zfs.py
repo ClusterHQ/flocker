@@ -19,7 +19,9 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 
-from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
+from .interfaces import (
+    IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists)
 from ..snapshots import SnapshotName
 
 
@@ -250,6 +252,11 @@ class StoragePool(object):
         new_mount_path = new_filesystem.get_path().path
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
+        def rename_failed(f):
+            if f.check(CommandFailed):
+                raise FilesystemAlreadyExists()
+            return f
+        d.addErrback(rename_failed)
         d.addCallback(lambda _: zfs_command(self._reactor,
                         [b"set", b"mountpoint=" + new_mount_path, new_filesystem.name])
                         )

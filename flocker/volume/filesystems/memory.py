@@ -4,6 +4,8 @@
 
 from __future__ import absolute_import
 
+import errno
+
 from contextlib import contextmanager
 from tarfile import TarFile
 from io import BytesIO
@@ -12,9 +14,11 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 
-from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
+from .interfaces import (
+    IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists)
 
 
 @implementer(IFilesystemSnapshots)
@@ -96,7 +100,13 @@ class FilesystemStoragePool(object):
         # Rename the "filesystem" directory so it has new UUID.
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
-        old_filesystem.get_path().moveTo(new_filesystem.get_path())
+        try:
+            old_filesystem.get_path().moveTo(new_filesystem.get_path())
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                return fail(FilesystemAlreadyExists())
+            else:
+                return fail()
         return succeed(new_filesystem)
 
     def get(self, volume):
