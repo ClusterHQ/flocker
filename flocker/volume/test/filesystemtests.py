@@ -526,7 +526,8 @@ def make_istoragepool_tests(fixture):
                 return d
             d.addCallback(created_filesystem)
             def changed_owner(old_path):
-                #import os; os.system('/bin/bash')
+                # We don't assert the path doesn't exist, since we don't
+                # want to fail losing data, if renaming the mount point fails
                 self.assertFalse(old_path.exists() and old_path.listdir())
             d.addCallback(changed_owner)
             return d
