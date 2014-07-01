@@ -411,7 +411,7 @@ class ProtocolPoppingFactory(Factory):
 @attributes(['docker_dir', 'tag'])
 class DockerImageBuilder(object):
     """
-    Build a docker image tag it, and optionally remove the image later.
+    Build a docker image, tag it, and optionally remove the image later.
 
     :ivar bytes docker_dir: The path to the directory containing a
         `Dockerfile`.
