@@ -581,9 +581,9 @@ def make_istoragepool_tests(fixture):
 
         def test_change_owner_existing_target(self):
             """
-            ``IStoragePool.change_owner()`` returns a deferred that fails with
-            :exception:`FilesystemAlreadyExists`, if the target filesystem
-            already exsits.
+            ``IStoragePool.change_owner()`` returns a :class:`Deferred` that
+            fails with :exception:`FilesystemAlreadyExists`, if the target
+            filesystem already exists.
             """
             pool = fixture(self)
             volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
