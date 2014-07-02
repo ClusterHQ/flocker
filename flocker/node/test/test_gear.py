@@ -162,7 +162,7 @@ class PortMapTests(TestCase):
         ``PortMap.__repr__`` shows the internal and external ports.
         """
         self.assertEqual(
-            ("<PortMap(internal_port=5678, external_port=910)>"),
+            "<PortMap(internal_port=5678, external_port=910)>",
             repr(PortMap(internal_port=5678, external_port=910))
         )
 
