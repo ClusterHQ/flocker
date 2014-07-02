@@ -98,8 +98,10 @@ class FilesystemStoragePool(object):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
 
-        # Since this is only used for testing, assume there
-        # will be no race condition.
+        # There is a race condtion between checking whether the target exists,
+        # and doing the move. If the target is created in between, the error
+        # won't be reported correctly.  Since this is only used for testing,
+        # assume there will be no race condition.
         if new_filesystem.get_path().exists():
             return fail(FilesystemAlreadyExists())
 
