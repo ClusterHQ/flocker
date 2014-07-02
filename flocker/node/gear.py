@@ -168,6 +168,12 @@ class GearClient(object):
 
         XXX: If gear allowed us to reconfigure links this wouldn't be
         necessary. See https://github.com/openshift/geard/issues/223
+
+        XXX: As long as we need to set the target as 127.0.0.1 its also worth
+        noting that gear will actually route the traffic to a non-loopback
+        address on the host. So if your service or NAT rule on the host is
+        configured for 127.0.0.1 only, it won't receive any traffic. See
+        https://github.com/openshift/geard/issues/224
         """
         if ports is None:
             ports = []
