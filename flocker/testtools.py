@@ -615,6 +615,10 @@ class DockerImageBuilder(object):
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
+        # XXX: This dumps lots of debug output to stderr which messes up the
+        # test results output. It's useful debug info incase of a test failure
+        # so it would be better to send it to the test.log file. See
+        # https://github.com/ClusterHQ/flocker/issues/171
         command = [
             b'docker', b'build',
             # Always clean up intermediate containers in case of failures.
