@@ -73,7 +73,8 @@ class OpenSSHConfiguration(object):
         if not local_private_path.exists():
             with open(devnull, "w") as discard:
                 check_call(
-                    [b"ssh-keygen", b"-N", b"", b"-f", local_private_path.path],
+                    [b"ssh-keygen", b"-N", b"", b"-f",
+                     local_private_path.path],
                     stdout=discard, stderr=discard
                 )
 
@@ -94,8 +95,10 @@ class OpenSSHConfiguration(object):
             u"echo '{}' > '{}'; "
             u"echo '{}' > '{}';".format(
                 remote_public_path.parent().path,
-                local_public_path.getContent().strip(), remote_public_path.path,
-                local_private_path.getContent().strip(), remote_private_path.path)
+                local_public_path.getContent().strip(),
+                remote_public_path.path,
+                local_private_path.getContent().strip(),
+                remote_private_path.path)
             )
 
         commands = write_authorized_key + generate_flocker_key

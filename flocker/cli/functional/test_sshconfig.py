@@ -19,6 +19,7 @@ from .. import configure_ssh
 from .._sshconfig import OpenSSHConfiguration
 from ...testtools import create_ssh_server
 
+
 def goodlines(path):
     """
     Return a list of lines read from ``path`` excluding those that are blank
@@ -84,6 +85,7 @@ class ConfigureSSHTests(TestCase):
         """
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
+
         def generated(ignored):
             id_rsa = self.ssh_config.child(b"id_rsa_flocker")
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
@@ -104,6 +106,7 @@ class ConfigureSSHTests(TestCase):
 
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
+
         def generated(ignored):
             key = Key.fromFile(id_rsa.path)
 
@@ -123,7 +126,9 @@ class ConfigureSSHTests(TestCase):
         When the SSH connection is established, the ``~/.ssh/authorized_keys``
         file has the public part of the generated key pair appended to it.
         """
-        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+
         def configured(ignored):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
@@ -146,6 +151,7 @@ class ConfigureSSHTests(TestCase):
             lambda ignored:
                 deferToThread(
                     self.configure_ssh, self.server.ip, self.server.port))
+
         def configured(ignored):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
@@ -167,7 +173,9 @@ class ConfigureSSHTests(TestCase):
 
         authorized_keys = ssh_path.child(b"authorized_keys")
         authorized_keys.setContent(existing_keys)
-        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+
         def configured(ignored):
             self.assertIn(existing_keys, authorized_keys.getContent())
         configuring.addCallback(configured)
@@ -178,7 +186,9 @@ class ConfigureSSHTests(TestCase):
         ``configure_ssh`` writes the keypair to ``id_rsa_flocker`` and
         ``id_rsa_flocker.pub`` remotely.
         """
-        configuring = deferToThread(self.configure_ssh, self.server.ip, self.server.port)
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+
         def configured(ignored):
             expected = (
                 self.ssh_config.child(b"id_rsa_flocker").getContent(),
