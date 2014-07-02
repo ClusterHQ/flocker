@@ -245,6 +245,9 @@ class StoragePool(object):
 
         def rename_failed(f):
             if f.check(CommandFailed):
+                # This isn't the only reason the rename could fail. We should
+                # figure out why and report it appropriately.
+                # https://github.com/ClusterHQ/flocker/issues/199
                 raise FilesystemAlreadyExists()
             return f
         d.addErrback(rename_failed)
