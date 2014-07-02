@@ -8,20 +8,35 @@ import gc
 import io
 import socket
 import sys
+import os
+import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
+import shutil
+from subprocess import check_call
 from functools import wraps
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
+from ipaddr import IPAddress
+
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
+from twisted.cred.portal import IRealm, Portal
+from twisted.conch.ssh.keys import Key
+from twisted.conch.checkers import SSHPublicKeyDatabase
+from twisted.conch.openssh_compat.factory import OpenSSHFactory
+from twisted.conch.unix import UnixConchUser
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.internet.protocol import Factory, Protocol
+
+from characteristic import attributes
 
 from . import __version__
 from .common.script import (
@@ -282,6 +297,11 @@ class StandardOptionsTestsMixin(object):
         configured verbosity by `1`.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
         self.assertEqual(1, options['verbosity'])
 
@@ -291,6 +311,11 @@ class StandardOptionsTestsMixin(object):
         verbosity by 1.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
         self.assertEqual(1, options['verbosity'])
 
@@ -299,8 +324,158 @@ class StandardOptionsTestsMixin(object):
         `--verbose` can be supplied multiple times to increase the verbosity.
         """
         options = self.options()
+        # The command may otherwise give a UsageError
+        # "Wrong number of arguments." if there are arguments required.
+        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # which does not involve patching.
+        self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
+
+
+class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
+    """
+    Check SSH public keys in-memory.
+    """
+
+    def __init__(self, public_key):
+        """
+        :param Key public_key: The public key we will accept.
+        """
+        self._key = public_key
+
+    def checkKey(self, credentials):
+        """
+        Validate some SSH key credentials.
+
+        Access is granted to the name of the user running the current process
+        for the key this checker was initialized with.
+        """
+        # It would probably be better for the username to be another `__init__`
+        # argument.  https://github.com/ClusterHQ/flocker/issues/189
+        return (self._key.blob() == credentials.blob and
+                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+
+
+class _FixedHomeConchUser(UnixConchUser):
+    """
+    An SSH user with a fixed, configurable home directory.
+
+    This is like a normal UNIX SSH user except the user's home directory is not
+    determined by the ``pwd`` database.
+    """
+    def __init__(self, username, home):
+        """
+        :param FilePath home: The path of the directory to use as this user's
+            home directory.
+        """
+        UnixConchUser.__init__(self, username)
+        self._home = home
+
+    def getHomeDir(self):
+        """
+        Give back the pre-determined home directory.
+        """
+        return self._home.path
+
+
+@implementer(IRealm)
+class UnixSSHRealm(object):
+    """
+    An ``IRealm`` for a Conch server which gives out ``_FixedHomeConchUser``
+    users.
+    """
+    def __init__(self, home):
+        self.home = home
+
+    def requestAvatar(self, username, mind, *interfaces):
+        user = _FixedHomeConchUser(username, self.home)
+        return interfaces[0], user, user.logout
+
+
+class _ConchServer(object):
+    """
+    A helper for a test fixture to run an SSH server using Twisted Conch.
+
+    :ivar IPv4Address ip: The address the server is listening on.
+    :ivar int port: The port number the server is listening on.
+    :ivar _port: An object which provides ``IListeningPort`` and represents the
+        listening Conch server.
+
+    :ivar FilePath home_path: The path of the home directory of the user which
+        is allowed to authenticate against this server.
+
+    :ivar FilePath key_path: The path of an SSH private key which can be used
+        to authenticate against the server.
+
+    :ivar FilePath host_key_path: The path of the server's private host key.
+    """
+    def __init__(self, base_path):
+        """
+        :param FilePath base_path: The path beneath which all of the temporary
+            SSH server-related files will be created.  An ``ssh`` directory
+            will be created as a child of this directory to hold the key pair
+            that is generated.  An ``sshd`` directory will also be created here
+            to hold the generated host key.  A ``home`` directory is also
+            created here and used as the home directory for shell logins to the
+            server.
+        """
+        self.home = base_path.child(b"home")
+        self.home.makedirs()
+
+        ssh_path = base_path.child(b"ssh")
+        ssh_path.makedirs()
+        self.key_path = ssh_path.child(b"key")
+        check_call(
+            [b"ssh-keygen",
+             # Specify the path where the generated key is written.
+             b"-f", self.key_path.path,
+             # Specify an empty passphrase.
+             b"-N", b"",
+             # Generate as little output as possible.
+             b"-q"])
+        key = Key.fromFile(self.key_path.path)
+
+        sshd_path = base_path.child(b"sshd")
+        sshd_path.makedirs()
+        self.host_key_path = sshd_path.child(b"ssh_host_key")
+        check_call(
+            [b"ssh-keygen",
+             # See above for option explanations.
+             b"-f", self.host_key_path.path,
+             b"-N", b"",
+             b"-q"])
+
+        factory = OpenSSHFactory()
+        realm = UnixSSHRealm(self.home)
+        checker = _InMemoryPublicKeyChecker(public_key=key.public())
+        factory.portal = Portal(realm, [checker])
+        factory.dataRoot = sshd_path.path
+        factory.moduliRoot = b"/etc/ssh"
+
+        self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
+        self.ip = IPAddress(self._port.getHost().host)
+        self.port = self._port.getHost().port
+
+    def restore(self):
+        """
+        Shut down the SSH server.
+
+        :return: A ``Deferred`` that fires when this has been done.
+        """
+        return self._port.stopListening()
+
+
+def create_ssh_server(base_path):
+    """
+    :py:func:`create_ssh_server` is a fixture which creates and runs a new SSH
+    server and stops it later.  Use the :py:meth:`restore` method of the
+    returned object to stop the server.
+
+    :param FilePath base_path: The path to a directory in which key material
+        will be generated.
+    """
+    return _ConchServer(base_path)
 
 
 def make_with_init_tests(record_type, kwargs):
@@ -354,10 +529,111 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         probe.close()
 
 
+def make_capture_protocol():
+    """
+    Return a ``Deferred``, and a ``Protocol`` which will capture bytes and fire
+    the ``Deferred`` when its connection is lost.
+
+    :returns: A 2-tuple of ``Deferred`` and ``Protocol`` instance.
+    :rtype: tuple
+    """
+    d = Deferred()
+    captured_data = []
+
+    class Recorder(Protocol):
+        def dataReceived(self, data):
+            captured_data.append(data)
+
+        def connectionLost(self, reason):
+            if reason.check(ConnectionDone):
+                d.callback(b''.join(captured_data))
+            else:
+                d.errback(reason)
+    return d, Recorder()
+
+
+class ProtocolPoppingFactory(Factory):
+    """
+    A factory which only creates a fixed list of protocols.
+
+    For example if in a test you want to ensure that a test server only handles
+    a single connection, you'd supply a list of one ``Protocol``
+    instance. Subsequent requests will result in an ``IndexError``.
+    """
+    def __init__(self, protocols):
+        """
+        :param list protocols: A list of ``Protocol`` instances which will be
+            used for successive connections.
+        """
+        self.protocols = protocols
+
+    def buildProtocol(self, addr):
+        return self.protocols.pop()
+
+
+@attributes(['source_dir', 'tag', 'working_dir'])
+class DockerImageBuilder(object):
+    """
+    Build a docker image, tag it, and optionally remove the image later.
+
+    :ivar bytes docker_dir: The path to the directory containing a
+        `Dockerfile`.
+    :ivar bytes tag: The tag name to be applied to the built image.
+    """
+    def _process_template(self, template_file, target_file, replacements):
+        """
+        Fill in the placeholders in `template_file` with the `replacements` and
+        write the result to `target_file`.
+
+        :param FilePath template_file: The file containing the placeholders.
+        :param FilePath target_file: The file to which the result will be
+            written.
+        :param dict replacements: A dictionary of variable names and
+            replacement values.
+        """
+        with template_file.open() as f:
+            template = f.read().decode('utf8')
+        target_file.setContent(template.format(**replacements))
+
+    def build(self, dockerfile_variables=None):
+        """
+        Build an image and tag it in the local Docker repository.
+
+        :param dict dockerfile_variables: A dictionary of replacements which
+            will be applied to a `Dockerfile.in` template file if such a file
+            exists.
+        """
+        if dockerfile_variables is None:
+            dockerfile_variables = {}
+
+        if not self.working_dir.exists():
+            self.working_dir.makedirs()
+
+        docker_dir = self.working_dir.child('docker')
+        shutil.copytree(self.source_dir.path, docker_dir.path)
+        template_file = docker_dir.child('Dockerfile.in')
+        docker_file = docker_dir.child('Dockerfile')
+        if template_file.exists() and not docker_file.exists():
+            self._process_template(
+                template_file, docker_file, dockerfile_variables)
+        # XXX: This dumps lots of debug output to stderr which messes up the
+        # test results output. It's useful debug info incase of a test failure
+        # so it would be better to send it to the test.log file. See
+        # https://github.com/ClusterHQ/flocker/issues/171
+        command = [
+            b'docker', b'build',
+            # Always clean up intermediate containers in case of failures.
+            b'--force-rm',
+            b'--tag=%s' % (self.tag,),
+            docker_dir.path
+        ]
+        check_call(command)
+
+
 def skip_on_broken_permissions(test_method):
     """
     Skips the wrapped test when the temporary directory is on a
-    virtualbox shared folder.
+    filesystem with broken permissions.
 
     Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
     respect changing permissions. For example, this test detects running on a
@@ -366,6 +642,8 @@ def skip_on_broken_permissions(test_method):
 
     :param callable test_method: Test method to wrap.
     :return: The wrapped method.
+    :raise SkipTest: when the temporary directory is on a filesystem with
+        broken permissions.
     """
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
@@ -375,6 +653,7 @@ def skip_on_broken_permissions(test_method):
         permissions = test_file.getPermissions()
         test_file.chmod(0o777)
         if permissions != Permissions(0o000):
-            raise SkipTest("Can't run test on virtualbox shared folder.")
+            raise SkipTest(
+                "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
