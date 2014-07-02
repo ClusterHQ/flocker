@@ -5,6 +5,7 @@ Tests for ``flocker._sshconfig``.
 """
 
 from os import devnull, environ, kill
+from os.path import expanduser
 from signal import SIGKILL
 from socket import socket
 from subprocess import check_output, check_call
@@ -14,7 +15,8 @@ from twisted.python.filepath import FilePath
 from twisted.conch.ssh.keys import Key
 from twisted.internet.threads import deferToThread
 
-from .._sshconfig import _OpenSSHConfiguration
+from .. import configure_ssh
+from .._sshconfig import OpenSSHConfiguration
 from ...testtools import create_ssh_server
 
 def goodlines(path):
@@ -39,7 +41,7 @@ class ConfigureSSHTests(TestCase):
         self.server = create_ssh_server(self.ssh_config)
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
-        self.config = _OpenSSHConfiguration(
+        self.config = OpenSSHConfiguration(
             ssh_config_path=self.ssh_config,
             flocker_path=self.flocker_config)
         self.configure_ssh = self.config.configure_ssh
@@ -185,3 +187,34 @@ class ConfigureSSHTests(TestCase):
             self.assertEqual(expected, actual)
         configuring.addCallback(configured)
         return configuring
+
+
+class OpenSSHDefaultsTests(TestCase):
+    """
+    Tests for `OpenSSHConfiguration.defaults``.
+    """
+    def test_flocker_path(self):
+        """
+        ``OpenSSHConfiguration.defaults`` creates an instance with
+        ``/etc/flocker`` as the Flocker configuration path.
+        """
+        self.assertEqual(
+            FilePath(b"/etc/flocker"),
+            OpenSSHConfiguration.defaults().flocker_path)
+
+    def test_ssh_config_path(self):
+        """
+        ``OpenSSHConfiguration.defaults`` creates an instance with the current
+        user's SSH configuration path as the SSH configuration path.
+        """
+        expected = FilePath(expanduser(b"~")).child(b".ssh")
+        self.assertEqual(
+            expected, OpenSSHConfiguration.defaults().ssh_config_path)
+
+    def test_configure_ssh(self):
+        """
+        ``configure_ssh`` is taken from an ``OpenSSHConfiguration`` instance
+        created using the ``defaults`` method.
+        """
+        self.assertEqual(
+            OpenSSHConfiguration.defaults().configure_ssh, configure_ssh)

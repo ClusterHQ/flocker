@@ -25,7 +25,7 @@ def ssh(argv):
 
 
 @attributes(["flocker_path", "ssh_config_path"])
-class _OpenSSHConfiguration(object):
+class OpenSSHConfiguration(object):
     """
     ``OpenSSHConfiguration`` knows how to generate authentication
     configurations for OpenSSH.
@@ -40,7 +40,11 @@ class _OpenSSHConfiguration(object):
     """
     @classmethod
     def defaults(cls):
-        return _OpenSSHConfiguration(
+        """
+        Create an ``OpenSSHConfiguration`` configured with the standard paths
+        for Flocker and OpenSSH.
+        """
+        return OpenSSHConfiguration(
             flocker_path=FilePath(b"/etc/flocker"),
             ssh_config_path=FilePath(expanduser(b"~/.ssh/")))
 
@@ -108,4 +112,4 @@ class _OpenSSHConfiguration(object):
              b"-oGSSAPIAuthentication=no",
              host, commands.encode("ascii")])
 
-configure_ssh = _OpenSSHConfiguration.defaults().configure_ssh
+configure_ssh = OpenSSHConfiguration.defaults().configure_ssh
