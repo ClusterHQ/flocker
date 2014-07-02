@@ -609,6 +609,7 @@ class DockerImageBuilder(object):
                 template_file, docker_file, dockerfile_variables)
         command = [
             b'docker', b'build',
+            # Always clean up intermediate containers in case of failures.
             b'--force-rm',
             b'--tag=%s' % (self.tag,),
             docker_dir.path
