@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Tests for ``flocker._sshconfig``.
+Tests for ``flocker.cli._sshconfig``.
 """
 
 from os import devnull, environ, kill
@@ -48,6 +48,10 @@ class ConfigureSSHTests(TestCase):
 
         output = check_output([b"ssh-agent", b"-c"]).splitlines()
         self.addCleanup(lambda: kill(int(pid), SIGKILL))
+
+        # ``configure_ssh`` expects ``ssh`` to already be able to
+        # authenticate against the server.  Set up an ssh-agent to
+        # help it do that against our testing server.
 
         # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
         # setenv SSH_AGENT_PID 6391;
