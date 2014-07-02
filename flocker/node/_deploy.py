@@ -7,14 +7,15 @@ Deploy applications on nodes.
 
 from .gear import GearClient
 
+
 class Deployment(object):
     """
     Start and stop containers.
     """
     def __init__(self, gear_client=None):
         """
-        :param IGearClient gear_client: The gear client API to use in deployment
-            operations. Default ``GearClient``.
+        :param IGearClient gear_client: The gear client API to use in
+            deployment operations. Default ``GearClient``.
         """
         if gear_client is None:
             gear_client = GearClient(hostname=b'127.0.0.1')

@@ -8,6 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from ...testtools import make_with_init_tests
 from .._model import Application, DockerImage
 
+
 class DockerImageInitTests(make_with_init_tests(
     record_type=DockerImage,
     kwargs=dict(repository=u'clusterhq/flocker', tag=u'release-14.0')
@@ -15,6 +16,7 @@ class DockerImageInitTests(make_with_init_tests(
     """
     Tests for ``DockerImage.__init__``.
     """
+
 
 class DockerImageTests(SynchronousTestCase):
     """

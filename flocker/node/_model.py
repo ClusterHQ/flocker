@@ -7,6 +7,7 @@ Record types for representing deployment models.
 
 from characteristic import attributes
 
+
 @attributes(["repository", "tag"])
 class DockerImage(object):
     """
@@ -26,7 +27,6 @@ class Application(object):
         application.  For example, ``u"site-example.com"`` or
         ``u"pgsql-payroll"``.
 
-    :ivar DockerImage image: An image that can be used to run this containerized
-        application.
+    :ivar DockerImage image: An image that can be used to run this
+        containerized application.
     """
-

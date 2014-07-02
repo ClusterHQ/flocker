@@ -41,8 +41,8 @@ class DeploymentStartContainerTests(SynchronousTestCase):
     """
     def test_start(self):
         """
-        `Deployment.start_container` accepts an application object and returns a
-        deferred which fires when the `gear` unit has been added and started.
+        `Deployment.start_container` accepts an application object and returns
+        a deferred which fires when the `gear` unit has been added and started.
         """
         fake_gear = FakeGearClient()
         api = Deployment(gear_client=fake_gear)
@@ -62,8 +62,8 @@ class DeploymentStartContainerTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployment.start_container`` returns a deferred which errbacks with an
-        ``AlreadyExists`` error if there is already a unit with the supplied
+        ``Deployment.start_container`` returns a deferred which errbacks with
+        an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
         api = Deployment(gear_client=FakeGearClient())
@@ -93,7 +93,8 @@ class DeploymentStopContainerTests(SynchronousTestCase):
         api = Deployment(gear_client=fake_gear)
         application = Application(
             name=b'site-example.com',
-            image=DockerImage(repository=u'clusterhq/flocker', tag=u'release-14.0')
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
         )
 
         api.start_container(application=application)
@@ -107,7 +108,6 @@ class DeploymentStopContainerTests(SynchronousTestCase):
              self.successResultOf(existed),
              self.successResultOf(exists_result))
         )
-
 
     def test_does_not_exist(self):
         """
