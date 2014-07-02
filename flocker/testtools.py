@@ -586,9 +586,10 @@ class DockerImageBuilder(object):
         write the result to `target_file`.
 
         :param FilePath template_file: The file containing the placeholders.
-        :param FilePath target_file: The file to which the result will be written.
-        :param dict replacements: A dictionary of variable names and replacement
-            values.
+        :param FilePath target_file: The file to which the result will be
+            written.
+        :param dict replacements: A dictionary of variable names and
+            replacement values.
         """
         with template_file.open() as f:
             template = f.read().decode('utf8')
@@ -603,7 +604,7 @@ class DockerImageBuilder(object):
             exists.
         """
         if dockerfile_variables is None:
-           dockerfile_variables = {}
+            dockerfile_variables = {}
 
         if not self.working_dir.exists():
             self.working_dir.makedirs()
