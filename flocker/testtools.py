@@ -531,8 +531,11 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
 
 def make_capture_protocol():
     """
-    Return a deferred, and a protocol which will capture bytes and fire the
-    deferred when its connection is lost.
+    Return a ``Deferred``, and a ``Protocol`` which will capture bytes and fire
+    the ``Deferred`` when its connection is lost.
+
+    :returns: A 2-tuple of ``Deferred`` and ``Protocol`` instance.
+    :rtype: tuple
     """
     d = Deferred()
     captured_data = []
