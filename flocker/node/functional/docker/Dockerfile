@@ -1,4 +1,4 @@
 FROM busybox
-MAINTAINER Hybrid Logic <support@hybridcluster.com>
+MAINTAINER ClusterHQ <support@clusterhq.com>
 ADD . /
 CMD ["/bin/sh",  "-e", "run.sh"]
