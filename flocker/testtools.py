@@ -628,17 +628,6 @@ class DockerImageBuilder(object):
         ]
         check_call(command)
 
-    def remove(self):
-        """
-        Forcefully remove the image from the local Docker repository.
-        """
-        command = [
-            b'docker', b'rmi',
-            b'--force',
-            self.tag
-        ]
-        check_call(command)
-
 
 def skip_on_broken_permissions(test_method):
     """
