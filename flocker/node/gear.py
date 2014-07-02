@@ -268,5 +268,5 @@ class PortMap(object):
     docker container and the corresponding external port on the host.
 
     :ivar int internal_port: The port number exposed by the container.
-    :ivar int external_port: The port number exposed by the host
+    :ivar int external_port: The port number exposed by the host.
     """
