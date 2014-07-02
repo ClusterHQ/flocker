@@ -257,7 +257,6 @@ class VolumeServiceAPITests(TestCase):
         actual = self.successResultOf(service.enumerate())
         self.assertEqual([expected], list(actual))
 
-
     def test_enumerate_skips_other_filesystems(self):
         """
         The result of ``enumerate()`` does not include any volumes representing
