@@ -89,7 +89,15 @@ class VolumeService(Service):
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
                 #    https://github.com/ClusterHQ/flocker/issues/78
-                uuid, name = filesystem.get_path().basename().split(b".", 1)
+                basename = filesystem.get_path().basename()
+                try:
+                    uuid, name = basename.split(b".", 1)
+                except ValueError:
+                    # If we can't split on . and get two parts then it's not a
+                    # filesystem Flocker is managing.  Perhaps a user created
+                    # it, who knows.  Just ignore it.
+                    continue
+
                 yield Volume(
                     uuid=uuid.decode('utf8'),
                     name=name.decode('utf8'),

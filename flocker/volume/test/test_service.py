@@ -258,6 +258,29 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual([expected], list(actual))
 
 
+    def test_enumerate_skips_other_filesystems(self):
+        """
+        The result of ``enumerate()`` does not include any volumes representing
+        filesystems named outside of the Flocker naming convention (which may
+        have been created directly by the user).
+        """
+        path = FilePath(self.mktemp())
+        path.child(b"arbitrary stuff").makedirs()
+        path.child(b"stuff\tarbitrary").makedirs()
+
+        pool = FilesystemStoragePool(path)
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        name = u"good volume name"
+        self.successResultOf(service.create(name))
+
+        volumes = list(self.successResultOf(service.enumerate()))
+        self.assertEqual(
+            [Volume(uuid=service.uuid, name=name, _pool=pool)],
+            volumes)
+
+
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
 
