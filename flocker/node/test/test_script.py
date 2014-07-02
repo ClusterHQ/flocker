@@ -21,9 +21,9 @@ class NodeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     command_name = u'flocker-node'
 
 
-class VolumeScriptMainTests(SynchronousTestCase):
+class NodeScriptMainTests(SynchronousTestCase):
     """
-    Tests for ``VolumeScript.main``.
+    Tests for ``NodeScript.main``.
     """
     # def test_create_configuration_error(self):
     #     """
@@ -70,16 +70,15 @@ class NodeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`FlockerVolumeOptions`."""
     options = NodeOptions
 
-    # def test_default_config(self):
-    #     """By default the config file is ``b'/etc/flocker/volume.json'``."""
-    #     options = self.options()
-    #     options.parseOptions([])
-    #     self.assertEqual(options["config"],
-    #                      FilePath(b"/etc/flocker/volume.json"))
-    #
-    # def test_custom_config(self):
-    #     """A custom config file can be specified with ``--config``."""
-    #     options = self.options()
-    #     options.parseOptions([b"--config", b"/path/somefile.json"])
-    #     self.assertEqual(options["config"],
-    #                      FilePath(b"/path/somefile.json"))
+    def test_custom_configs(self):
+        """
+        If paths to configuration files are given then they are saved as
+        ``FilePath`` instances on the options instance.
+        """
+        options = self.options()
+        deploy = "foo"
+        app = "bar"
+        options.parseOptions([deploy, app])
+        self.assertDictContainsSubset({'deployment_config' : deploy,
+                                       'app_config': app},
+                                      options)

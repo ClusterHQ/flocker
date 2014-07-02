@@ -32,9 +32,10 @@ class NodeOptions(Options):
     optParameters = []
 
     subCommands = []
-    #
-    # def postOptions(self):
-    #     self["config"] = FilePath(self["config"])
+
+    def parseArgs(self, deployment_config, app_config):
+        self['deployment_config'] = deployment_config
+        self['app_config'] = app_config
 
 
 @implementer(ICommandLineScript)
