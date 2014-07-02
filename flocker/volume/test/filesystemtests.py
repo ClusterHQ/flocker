@@ -549,9 +549,7 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
 
             def changed_owner(old_path):
-                # We don't assert the path doesn't exist, since we don't
-                # want to fail losing data, if renaming the mount point fails
-                self.assertFalse(old_path.exists() and old_path.listdir())
+                self.assertFalse(old_path.exists())
             d.addCallback(changed_owner)
             return d
 

@@ -254,7 +254,16 @@ class StoragePool(object):
                                [b"set", b"mountpoint=" + new_mount_path,
                                 new_filesystem.name])
         d.addCallback(renamed)
-        return d.addCallback(lambda _: new_filesystem)
+
+        def remounted(ignored):
+            # Use os.rmdir instead of FilePath.remove since we don't want
+            # recursive behavior. If the directory is non-empty, something
+            # went wrong (or there is a race) and we don't want to lose data.
+            os.rmdir(old_filesystem.get_path().path)
+        d.addCallback(remounted)
+
+        d.addCallback(lambda _: new_filesystem)
+        return d
 
     def get(self, volume):
         dataset = volume_to_dataset(volume)
