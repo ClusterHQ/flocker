@@ -14,8 +14,8 @@ from twisted.python.filepath import FilePath
 from twisted.conch.ssh.keys import Key
 from twisted.internet.threads import deferToThread
 
-from ._sshconfig import _OpenSSHConfiguration
-from .testtools import create_ssh_server
+from .._sshconfig import _OpenSSHConfiguration
+from ...testtools import create_ssh_server
 
 # We insert a comment ourselves.  Just skip comparison of
 # comment and blank lines.
