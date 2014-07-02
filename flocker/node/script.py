@@ -1,18 +1,15 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-node`` tool."""
-
-import sys
+# TODO change it all to flocker-changestate
 
 from twisted.python.usage import Options
-from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 
 from zope.interface import implementer
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
-
 
 __all__ = [
     # TODO
@@ -21,35 +18,29 @@ __all__ = [
 
 @flocker_standard_options
 class NodeOptions(Options):
-    """Command line options for ``flocker-volume`` volume management tool."""
+    """Command line options for ``flocker-node`` node management tool."""
 
-    longdesc = """flocker-volume allows you to manage volumes, filesystems
-    that can be attached to Docker containers.
+    longdesc = """flocker-node allows you to set configs.
 
     """
-    synopsis = "Usage: flocker-node [OPTIONS]"
-
-    optParameters = []
-
-    subCommands = []
+    synopsis = ("Usage: flocker-node [OPTIONS] "
+                "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
 
     def parseArgs(self, deployment_config, app_config):
+        # TODO store these as config objects
+        # TODO parse as YAML
         self['deployment_config'] = deployment_config
         self['app_config'] = app_config
 
 
 @implementer(ICommandLineScript)
 class NodeScript(object):
-    """A volume manager script.
-
-    :ivar IService _service: ``VolumeService`` by default but can be overridden
-        for testing purposes.
     """
-
+    TODO
+    """
     def main(self, reactor, options):
-        """Run a volume management server
-
-        The server will be configured according to the supplied options.
+        """
+        TODO
 
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
