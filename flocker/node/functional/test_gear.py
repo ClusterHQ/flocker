@@ -10,6 +10,7 @@ from unittest import skipIf
 
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -18,7 +19,7 @@ from twisted.internet import reactor
 from treq import request, content
 
 from ...testtools import (
-    loop_until, find_free_port, make_line_capture_protocol,
+    loop_until, find_free_port, make_capture_protocol,
     ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
@@ -251,21 +252,31 @@ class GearClientTests(TestCase):
         container local ports and host local ports.
         """
         internal_port = 31337
-        image_name = b'flocker/send_xxx_to_31337'
+        expected_bytes = b'foo bar baz'
+        image_name = b'flocker/send_bytes_to'
         # Create a Docker image
         image = DockerImageBuilder(
-            docker_dir=os.path.join(os.path.dirname(__file__), 'docker'),
-            tag=image_name
+            source_dir=FilePath(
+                os.path.join(os.path.dirname(__file__), 'docker')),
+            tag=image_name,
+            working_dir=FilePath(self.mktemp())
         )
-        image.build()
+        image.build(
+            dockerfile_variables=dict(
+                host=b'127.0.0.1',
+                port=internal_port,
+                bytes=expected_bytes,
+                timeout=30
+            )
+        )
 
         # This is the target of the proxy which will be created.
         server = TCP4ServerEndpoint(reactor, 0)
-        capture_finished, protocol = make_line_capture_protocol()
+        capture_finished, protocol = make_capture_protocol()
 
-        def check_lines(lines):
-            self.assertEqual([b'xxx'], lines)
-        capture_finished.addCallback(check_lines)
+        def check_data(data):
+            self.assertEqual(expected_bytes, data)
+        capture_finished.addCallback(check_data)
 
         factory = ProtocolPoppingFactory(protocols=[protocol])
         d = server.listen(factory)
