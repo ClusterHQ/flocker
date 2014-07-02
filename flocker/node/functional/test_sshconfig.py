@@ -17,9 +17,15 @@ from twisted.internet.threads import deferToThread
 from .._sshconfig import _OpenSSHConfiguration
 from ...testtools import create_ssh_server
 
-# We insert a comment ourselves.  Just skip comparison of
-# comment and blank lines.
 def goodlines(path):
+    """
+    Return a list of lines read from ``path`` excluding those that are blank
+    or begin with ``#``.
+
+    :param FilePath path: The path to the file to read.
+
+    :return: A ``list`` of ``bytes`` giving good lines from the file.
+    """
     return list(line for line in path.getContent().splitlines()
                 if line and not line.strip().startswith(b"#"))
 
@@ -116,6 +122,7 @@ class ConfigureSSHTests(TestCase):
             id_rsa_pub = self.ssh_config.child(b"id_rsa_flocker.pub")
             keys = self.server.home.descendant([b".ssh", b"authorized_keys"])
 
+            # Compare the contents ignoring comments for ease.
             self.assertEqual(goodlines(id_rsa_pub), goodlines(keys))
 
         configuring.addCallback(configured)
