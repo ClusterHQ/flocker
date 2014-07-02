@@ -75,12 +75,14 @@ class _OpenSSHConfiguration(object):
 
         write_authorized_key = (
             u"mkdir -p .ssh; "
-            u"("
+            u"if ! grep --quiet '{public_key}' .ssh/authorized_keys; then"
+            u"  ("
             u"    echo; "
             u"    echo '# flocker-deploy access'; "
-            u"    echo '{}'"
-            u") >> .ssh/authorized_keys;".format(
-                local_public_path.getContent().strip())
+            u"    echo '{public_key}'; "
+            u"  ) >> .ssh/authorized_keys; "
+            u"fi; ".format(
+                public_key=local_public_path.getContent().strip())
             )
 
         generate_flocker_key = (
