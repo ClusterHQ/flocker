@@ -159,6 +159,16 @@ class GearClient(object):
         return d
 
     def add(self, unit_name, image_name, ports=None, links=None):
+        """
+        See ``IGearClient.add`` for base documentation.
+
+        Gear `NetworkLinks` are currently fixed to destination localhost. This
+        allows us to control the actual target of the link using proxy / nat
+        rules on the host machine without having to restart the gear unit.
+
+        XXX: If gear allowed us to reconfigure links this wouldn't be
+        necessary. See https://github.com/openshift/geard/issues/223
+        """
         if ports is None:
             ports = []
 
