@@ -321,12 +321,12 @@ class VolumeOwnerChangeTests(TestCase):
     def test_return(self):
         """
         ``Volume.change_owner`` returns a ``Deferred`` that fires with a new
-        ``Volume`` with the new owner UUID.
+        ``Volume`` with the new owner UUID and the same name.
         """
         volume = self.successResultOf(self.service.create(u"myvolume"))
         new_volume = self.successResultOf(volume.change_owner(u"789"))
-        self.assertEqual(new_volume.uuid, u"789")
-        self.assertEqual(new_volume.name, u"myvolume")
+        self.assertEqual({'uuid': new_volume.uuid, 'name': new_volume.name},
+                         {'uuid': u"789", 'name': u"myvolume"})
 
     def test_filesystem(self):
         """
