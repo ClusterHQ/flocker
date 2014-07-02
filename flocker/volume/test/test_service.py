@@ -310,15 +310,20 @@ class VolumeOwnerChangeTests(TestCase):
     """
     Tests for ``Volume.change_owner``.
     """
+    def setUp(self):
+        """
+        Create a ``VolumeService`` pointing a new pool.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        self.service = VolumeService(FilePath(self.mktemp()), pool)
+        self.service.startService()
+
     def test_return(self):
         """
         ``Volume.change_owner`` returns a ``Deferred`` that fires with a new
         ``Volume`` with the new owner UUID.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(u"myvolume"))
         new_volume = self.successResultOf(volume.change_owner(u"789"))
         self.assertEqual(new_volume.uuid, u"789")
         self.assertEqual(new_volume.name, u"myvolume")
@@ -327,10 +332,7 @@ class VolumeOwnerChangeTests(TestCase):
         """
         The filesystem for the new ``Volume`` preserves data from the old one.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(u"myvolume"))
         mount = volume.get_filesystem().get_path()
         mount.child(b'file').setContent(b'content')
         new_volume = self.successResultOf(volume.change_owner(u"789"))
@@ -342,10 +344,7 @@ class VolumeOwnerChangeTests(TestCase):
         The volumes returned from ``VolumeService.enumerate`` replace the old
         volume with the one returned by ``Volume.change_owner``.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(u"myvolume"))
         new_volume = self.successResultOf(volume.change_owner(u"789"))
-        volumes = set(self.successResultOf(service.enumerate()))
+        volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
