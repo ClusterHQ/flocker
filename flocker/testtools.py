@@ -555,8 +555,16 @@ def make_capture_protocol():
 class ProtocolPoppingFactory(Factory):
     """
     A factory which only creates a fixed list of protocols.
+
+    For example if in a test you want to ensure that a test server only handles
+    a single connection, you'd supply a list of one ``Protocol``
+    instance. Subsequent requests will result in an ``IndexError``.
     """
     def __init__(self, protocols):
+        """
+        :param list protocols: A list of ``Protocol`` instances which will be
+            used for successive connections.
+        """
         self.protocols = protocols
 
     def buildProtocol(self, addr):
