@@ -29,4 +29,3 @@ class FlockerDeployTests(TestCase):
         """
         result = check_output([b"flocker-changestate"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
-

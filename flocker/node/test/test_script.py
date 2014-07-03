@@ -46,12 +46,19 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         ``FilePath`` instances on the options instance.
         """
         options = self.options()
-        expected_deployment = {"foo":"bar", "spam":"eggs", "anumber":14}
-        expected_application = {"appfoo":"appbar", "appspam":"appeggs", "appnumber":17}
-        options.parseOptions([safe_dump(expected_deployment), safe_dump(expected_application)])
-        self.assertDictContainsSubset({'deployment_config': expected_deployment,
-                                       'app_config': expected_application},
-                                      options)
+        expected_deployment = {"foo": "bar", "spam": "eggs", "anumber": 14}
+        expected_application = {"appfoo": "appbar",
+                                "appspam": "appeggs",
+                                "appnumber": 17}
+        options.parseOptions(
+            [safe_dump(expected_deployment),
+             safe_dump(expected_application)]
+        )
+        self.assertDictContainsSubset(
+            {'deployment_config': expected_deployment,
+             'app_config': expected_application},
+            options
+        )
 
     def test_invalid_deployment_configs(self):
         """
@@ -64,7 +71,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         e = self.assertRaises(UsageError,
                               options.parseOptions,
                               [deployment_bad_yaml, application_good_yaml])
-        self.assertTrue(str(e).startswith('Deployment config could not be parsed as YAML'))
+        self.assertTrue(
+            str(e).startswith('Deployment config could not be parsed as YAML')
+        )
 
     def test_invalid_application_configs(self):
         """
@@ -77,5 +86,6 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         e = self.assertRaises(UsageError,
                               options.parseOptions,
                               [deployment_good_yaml, application_bad_yaml])
-        self.assertTrue(str(e).startswith('Application config could not be parsed as YAML'))
-
+        self.assertTrue(
+            str(e).startswith('Application config could not be parsed as YAML')
+        )

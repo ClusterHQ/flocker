@@ -17,13 +17,13 @@ from ..common.script import (
 __all__ = [
     "ChangeStateOptions",
     "ChangeStateScript",
-    "flocker_node_main",
+    "flocker_changestate_main",
 ]
 
 
 @flocker_standard_options
 class ChangeStateOptions(Options):
-    """Command line options for ``flocker-changestate`` node management tool."""
+    """Command line options for ``flocker-changestate`` management tool."""
 
     longdesc = """flocker-changestate allows you to set configs.
 
@@ -36,11 +36,16 @@ class ChangeStateOptions(Options):
         try:
             self['deployment_config'] = safe_load(deployment_config)
         except YAMLError as e:
-            raise UsageError("Deployment config could not be parsed as YAML:\n\n"+str(e))
+            raise UsageError(
+                "Deployment config could not be parsed as YAML:\n\n"+str(e)
+            )
         try:
             self['app_config'] = safe_load(app_config)
         except YAMLError as e:
-	    raise UsageError("Application config could not be parsed as YAML:\n\n"+str(e))
+            raise UsageError(
+                "Application config could not be parsed as YAML:\n\n"+str(e)
+            )
+
 
 @implementer(ICommandLineScript)
 class ChangeStateScript(object):
