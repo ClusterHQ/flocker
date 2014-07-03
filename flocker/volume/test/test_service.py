@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import json
 import os
 from unittest import skipIf
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
@@ -199,12 +200,17 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         filesystem = volume.get_filesystem()
 
+        manager_uuid = unicode(uuid4())
+
         with filesystem.reader() as reader:
-            service.receive(u"anotheruuid", u"newvolume", reader)
-        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+            service.receive(manager_uuid, u"newvolume", reader)
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
         d = service.enumerate()
 
         def got_volumes(volumes):
+            # Consume the generator into a list.  Using `assertIn` on a
+            # generator produces bad failure messages.
+            volumes = list(volumes)
             self.assertIn(new_volume, volumes)
         d.addCallback(got_volumes)
         return d
@@ -218,10 +224,12 @@ class VolumeServiceAPITests(TestCase):
         filesystem = volume.get_filesystem()
         filesystem.get_path().child(b"afile").setContent(b"lalala")
 
-        with filesystem.reader() as reader:
-            service.receive(u"anotheruuid", u"newvolume", reader)
+        manager_uuid = unicode(uuid4())
 
-        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+        with filesystem.reader() as reader:
+            service.receive(manager_uuid, u"newvolume", reader)
+
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
         root = new_volume.get_filesystem().get_path()
         self.assertTrue(root.child(b"afile").getContent(), b"lalala")
 
