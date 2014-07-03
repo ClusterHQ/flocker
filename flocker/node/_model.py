@@ -8,7 +8,7 @@ Record types for representing deployment models.
 from characteristic import attributes
 
 
-@attributes(["repository", "tag"])
+@attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
 class DockerImage(object):
     """
     An image that can be used to run an application using Docker.
