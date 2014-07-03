@@ -22,6 +22,24 @@ class DockerImageTests(SynchronousTestCase):
     """
     Other tests for ``DockerImage``.
     """
+    def test_full_name_read(self):
+        """
+        ``DockerImage.full_name`` combines the repository and tag names in a
+        format suitable for passing to `docker run`.
+        """
+        self.assertEqual(
+            'repo:tag', DockerImage(repository=u'repo', tag=u'tag').full_name)
+
+    def test_full_name_write(self):
+        """
+        ``DockerImage.full_name`` is readonly.
+        """
+        image = DockerImage(repository=u'repo', tag=u'tag')
+        def setter():
+            image.full_name = u'foo bar'
+
+        self.assertRaises(AttributeError, setter)
+
     def test_repr(self):
         """
         ``DockerImage.__repr__`` includes the repository and tag.

@@ -15,7 +15,13 @@ class DockerImage(object):
 
     :ivar unicode repository: eg ``u"hybridcluster/flocker"``
     :ivar unicode tag: eg ``u"release-14.0"``
+    :ivar unicode full_name: A readonly property which combines the repository
+        and tag in a format that can be passed to `docker run`.
     """
+    @property
+    def full_name(self):
+        return "{repository}:{tag}".format(
+            repository=self.repository, tag=self.tag)
 
 
 @attributes(["name", "image"])
