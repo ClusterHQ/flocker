@@ -16,7 +16,7 @@ _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
 
 
-class FlockerDeployTests(TestCase):
+class FlockerChangeStateTests(TestCase):
     """Tests for ``flocker-changestate``."""
 
     @_require_installed
