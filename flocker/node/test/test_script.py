@@ -53,15 +53,29 @@ class NodeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                                        'app_config': expected_application},
                                       options)
 
-    def test_invalid_configs(self):
+    def test_invalid_deployment_configs(self):
         """
         If the deployment and appplication options passed are not valid YAML,
         a UsageError is raised.
         """
         options = self.options()
-        deploymentBadYaml = "{'foo':'bar', 'x':y, '':'"
-        applicationBadYaml = "{'abc':'def',,"
+        deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
+        application_good_yaml = "{anumber: 14, foo: bar, spam: eggs}"
         e = self.assertRaises(UsageError,
                               options.parseOptions,
-                              [deploymentBadYaml, applicationBadYaml])
-        self.assertEqual(str(e), 'Deployment config could not be parsed as YAML')
+                              [deployment_bad_yaml, application_good_yaml])
+        self.assertTrue(str(e).startswith('Deployment config could not be parsed as YAML'))
+
+    def test_invalid_application_configs(self):
+        """
+        If the deployment and appplication options passed are not valid YAML,
+        a UsageError is raised.
+        """
+        options = self.options()
+        application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
+        deployment_good_yaml = "{anumber: 14, foo: bar, spam: eggs}"
+        e = self.assertRaises(UsageError,
+                              options.parseOptions,
+                              [deployment_good_yaml, application_bad_yaml])
+        self.assertTrue(str(e).startswith('Application config could not be parsed as YAML'))
+
