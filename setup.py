@@ -75,6 +75,10 @@ setup(
     # the Flocker package.
     packages=find_packages(),
 
+    package_data={
+        'flocker.node.functional': ['docker/*'],
+    },
+
     entry_points = {
         # Command-line programs we want setuptools to install:
         'console_scripts': [
