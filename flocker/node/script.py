@@ -1,7 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-changestate`` tool."""
-# TODO change it all to flocker-changestate
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import succeed
@@ -27,12 +26,25 @@ class ChangeStateOptions(Options):
 
     longdesc = """flocker-changestate allows you to set configs.
 
+        DEPLOYMENT_CONFIGURATION: The YAML string describing the desired
+            deployment configuration.
+
+        APPLICATION_CONFIGURATION: The YAML string describing the desired
+            application configuration.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
 
     def parseArgs(self, deployment_config, app_config):
-        # TODO store these as config objects
+        """
+        Parse `deployment_config` and `app_config` strings as YAML and assign
+        the resulting dictionaries to this `Options` dictionary.
+
+        :param bytes deployment_config: The YAML string describing the desired
+            deployment configuration.
+        :param bytes app_config: The YAML string describing the desired
+            application configuration.
+        """
         try:
             self['deployment_config'] = safe_load(deployment_config)
         except YAMLError as e:
@@ -50,12 +62,12 @@ class ChangeStateOptions(Options):
 @implementer(ICommandLineScript)
 class ChangeStateScript(object):
     """
-    TODO
+    A command to get a node into a desired state by pushing volumes, starting
+    and stopping applications, opening up application ports and setting up
+    routes to other nodes.
     """
     def main(self, reactor, options):
         """
-        TODO
-
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
         return succeed(None)
