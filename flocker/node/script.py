@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""The command-line ``flocker-node`` tool."""
+"""The command-line ``flocker-changestate`` tool."""
 # TODO change it all to flocker-changestate
 
 from twisted.python.usage import Options, UsageError
@@ -20,13 +20,13 @@ __all__ = [
 
 
 @flocker_standard_options
-class NodeOptions(Options):
-    """Command line options for ``flocker-node`` node management tool."""
+class ChangeStateOptions(Options):
+    """Command line options for ``flocker-changestate`` node management tool."""
 
-    longdesc = """flocker-node allows you to set configs.
+    longdesc = """flocker-changestate allows you to set configs.
 
     """
-    synopsis = ("Usage: flocker-node [OPTIONS] "
+    synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
 
     def parseArgs(self, deployment_config, app_config):
@@ -41,7 +41,7 @@ class NodeOptions(Options):
 	    raise UsageError("Application config could not be parsed as YAML:\n\n"+str(e))
 
 @implementer(ICommandLineScript)
-class NodeScript(object):
+class ChangeStateScript(object):
     """
     TODO
     """
@@ -56,6 +56,6 @@ class NodeScript(object):
 
 def flocker_node_main():
     return FlockerScriptRunner(
-        script=NodeScript(),
-        options=NodeOptions()
+        script=ChangeStateScript(),
+        options=ChangeStateOptions()
     ).main()

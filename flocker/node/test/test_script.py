@@ -6,29 +6,29 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import NodeOptions, NodeScript
+from ..script import ChangeStateOptions, ChangeStateScript
 
 
-class NodeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     """
-    Tests for L{NodeScript}.
+    Tests for L{ChangeStateScript}.
     """
-    script = NodeScript
-    options = NodeOptions
-    command_name = u'flocker-node'
+    script = ChangeStateScript
+    options = ChangeStateOptions
+    command_name = u'flocker-changestate'
 
 
-class NodeScriptMainTests(SynchronousTestCase):
+class ChangeStateScriptMainTests(SynchronousTestCase):
     """
-    Tests for ``NodeScript.main``.
+    Tests for ``ChangeStateScript.main``.
     """
 
     def test_deferred_result(self):
         """
-        ``NodeScript.main`` returns a ``Deferred`` on success.
+        ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
-        script = NodeScript()
-        options = NodeOptions()
+        script = ChangeStateScript()
+        options = ChangeStateOptions()
         dummy_reactor = object()
         self.assertIs(
             None,
@@ -36,9 +36,9 @@ class NodeScriptMainTests(SynchronousTestCase):
         )
 
 
-class NodeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`FlockerVolumeOptions`."""
-    options = NodeOptions
+    options = ChangeStateOptions
 
     def test_custom_configs(self):
         """
