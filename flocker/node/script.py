@@ -3,8 +3,11 @@
 """The command-line ``flocker-node`` tool."""
 # TODO change it all to flocker-changestate
 
-from twisted.python.usage import Options
+from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import succeed
+
+from yaml import safe_load
+from yaml.error import YAMLError
 
 from zope.interface import implementer
 
@@ -28,10 +31,14 @@ class NodeOptions(Options):
 
     def parseArgs(self, deployment_config, app_config):
         # TODO store these as config objects
-        # TODO parse as YAML
-        self['deployment_config'] = deployment_config
-        self['app_config'] = app_config
-
+        try:
+            self['deployment_config'] = safe_load(deployment_config)
+        except YAMLError:
+            raise UsageError("Deployment config could not be parsed as YAML")
+        try:
+            self['app_config'] = safe_load(app_config)
+        except YAMLError:
+	    raise UsageError("Application config could not be parsed as YAML")
 
 @implementer(ICommandLineScript)
 class NodeScript(object):

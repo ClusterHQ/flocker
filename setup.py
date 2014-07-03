@@ -90,6 +90,8 @@ setup(
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
 
+        "PyYAML == 3.11",
+
         "treq == 0.2.1",
 
         "netifaces >= 0.8",
