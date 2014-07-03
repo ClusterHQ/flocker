@@ -25,7 +25,7 @@ class Deployment(object):
         """
         Launch the supplied application as a `gear` unit.
 
-        :param application: The ``Application`` to create and start.
+        :param Application application: The ``Application`` to create and start.
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
@@ -37,7 +37,7 @@ class Deployment(object):
         """
         Stop and disable the application.
 
-        :param application: The ``Application`` to stop.
+        :param Application application: The ``Application`` to stop.
         :returns: A ``Deferred`` which fires with ``None`` when the application
             has stopped.
         """
