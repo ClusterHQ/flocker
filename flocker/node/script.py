@@ -15,7 +15,9 @@ from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 
 __all__ = [
-    # TODO
+    "ChangeStateOptions",
+    "ChangeStateScript",
+    "flocker_node_main",
 ]
 
 
@@ -54,7 +56,7 @@ class ChangeStateScript(object):
         return succeed(None)
 
 
-def flocker_node_main():
+def flocker_changestate_main():
     return FlockerScriptRunner(
         script=ChangeStateScript(),
         options=ChangeStateOptions()
