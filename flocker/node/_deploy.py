@@ -29,9 +29,8 @@ class Deployment(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
-        unit_name = application.name
-        image_name = application.image.tag
-        return self._gear_client.add(unit_name, image_name)
+        return self._gear_client.add(application.name,
+                                     application.image.full_name)
 
     def stop_container(self, application):
         """

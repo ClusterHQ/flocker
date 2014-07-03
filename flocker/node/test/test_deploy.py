@@ -46,18 +46,20 @@ class DeploymentStartContainerTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient()
         api = Deployment(gear_client=fake_gear)
+        docker_image = DockerImage(repository=u'clusterhq/flocker',
+                                   tag=u'release-14.0')
         application = Application(
             name=b'site-example.com',
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+            image=docker_image
         )
         start_result = api.start_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
-            (None, True),
+            (None, True, docker_image.full_name),
             (self.successResultOf(start_result),
-             self.successResultOf(exists_result))
+             self.successResultOf(exists_result),
+             fake_gear._units[application.name]['image_name'])
         )
 
     def test_already_exists(self):
