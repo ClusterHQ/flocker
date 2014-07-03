@@ -100,6 +100,8 @@ class VolumeService(Service):
                     # user created it, who knows.  Just ignore it.
                     continue
 
+                # Probably shouldn't yield this volume if the uuid doesn't
+                # match this service's uuid.
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name.decode('utf8'),
