@@ -36,6 +36,7 @@ class DockerImageTests(SynchronousTestCase):
         ``DockerImage.full_name`` is readonly.
         """
         image = DockerImage(repository=u'repo', tag=u'tag')
+
         def setter():
             image.full_name = u'foo bar'
 
