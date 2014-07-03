@@ -494,6 +494,12 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     if expected_defaults is None:
         expected_defaults = {}
 
+    unknown_defaults = set(expected_defaults.keys()) - set(kwargs.keys())
+    if unknown_defaults:
+        raise TypeError(
+            'expected_defaults contained the following unrecognized keys: '
+            '{}'.format(tuple(unknown_defaults)))
+
     required_kwargs = kwargs.copy()
     for k, v in expected_defaults.items():
         required_kwargs.pop(k)
