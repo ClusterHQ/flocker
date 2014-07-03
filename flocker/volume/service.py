@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import os
 import json
 import stat
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from characteristic import attributes
 
@@ -92,14 +92,16 @@ class VolumeService(Service):
                 basename = filesystem.get_path().basename()
                 try:
                     uuid, name = basename.split(b".", 1)
+                    uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on . and get two parts then it's not a
-                    # filesystem Flocker is managing.  Perhaps a user created
-                    # it, who knows.  Just ignore it.
+                    # If we can't split on `.` and get two parts then it's not
+                    # a filesystem Flocker is managing.  Likewise if we can't
+                    # interpret the bit before the `.` as a UUID.  Perhaps a
+                    # user created it, who knows.  Just ignore it.
                     continue
 
                 yield Volume(
-                    uuid=uuid.decode('utf8'),
+                    uuid=unicode(uuid),
                     name=name.decode('utf8'),
                     _pool=self._pool)
         enumerating.addCallback(enumerated)

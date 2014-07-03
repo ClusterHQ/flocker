@@ -274,6 +274,7 @@ class VolumeServiceAPITests(TestCase):
         path = FilePath(self.mktemp())
         path.child(b"arbitrary stuff").makedirs()
         path.child(b"stuff\tarbitrary").makedirs()
+        path.child(b"non-uuid.stuff").makedirs()
 
         pool = FilesystemStoragePool(path)
         service = VolumeService(FilePath(self.mktemp()), pool)
