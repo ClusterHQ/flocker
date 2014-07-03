@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 import shlex
 from subprocess import check_call, check_output
 
+from zope.interface import implementer
 from ipaddr import IPAddress
 from characteristic import attributes
 from eliot import Logger
@@ -17,7 +18,8 @@ from eliot import Logger
 from twisted.python.filepath import FilePath
 
 from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
-
+from ._interfaces import INetwork
+from ._memory import Proxy
 
 FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
 
@@ -35,16 +37,6 @@ class RuleOptions(object):
     """
 
 
-@attributes(["ip", "port"])
-class Proxy(object):
-    """
-    :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
-        directs traffic.
-
-    :ivar int port: The TCP port number on which this proxy operates.
-    """
-
-
 def iptables(logger, argv):
     """
     Run ``iptables`` with the given arguments.
@@ -56,20 +48,12 @@ def iptables(logger, argv):
         check_call([b"iptables"] + argv)
 
 
-def create_proxy_to(ip, port):
+def create_proxy_to(logger, ip, port):
     """
-    Create a new TCP proxy to `ip` on port `port`.
+    Configure iptables to proxy TCP traffic on the given port.
 
-    :param ip: The destination to which to proxy.
-    :type ip: ipaddr.IPv4Address
-
-    :param int port: The TCP port number on which to proxy.
-
-    :return: An object representing the created proxy.  Primarily useful as an
-        argument to :py:func:`delete_proxy`.
+    :see: :meth:`INetwork.create_proxy_to` for parameter documentation.
     """
-    logger = create_proxy_to.logger
-
     action = CREATE_PROXY_TO(
         logger=logger, target_ip=ip, target_port=port)
 
@@ -192,19 +176,14 @@ def create_proxy_to(ip, port):
                 route_localnet.write(b"1")
 
         return Proxy(ip=ip, port=port)
-create_proxy_to.logger = Logger()
 
 
-def delete_proxy(proxy):
+def delete_proxy(logger, proxy):
     """
-    Delete an existing TCP proxy previously created using
-    :py:func:`create_proxy_to`.
+    Remove the iptables configuration which makes the given proxy work.
 
-    :param proxy: The object returned by :py:func:`create_proxy_to` or one of
-        the elements of the sequence returned by :py:func:`enumerate_proxies`.
+    :see: :meth:`INetwork.delete_proxy` for parameter documentation.
     """
-    logger = delete_proxy.logger
-
     ip = unicode(proxy.ip).encode("ascii")
     port = unicode(proxy.port).encode("ascii")
 
@@ -229,14 +208,14 @@ def delete_proxy(proxy):
     with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
         for argv in commands:
             iptables(logger, argv)
-delete_proxy.logger = Logger()
 
 
 def enumerate_proxies():
     """
-    Retrieve configured proxy information.
+    Inspect the system's iptables configuration to determine what proxies
+    currently exist.
 
-    :return: A :py:class:`list` of objects describing all configured proxies.
+    :see: :py:meth:`INetwork.enumerate_proxies` for parameter documentation.
     """
     proxies = []
     for rule in get_flocker_rules():
@@ -325,3 +304,27 @@ def parse_iptables_options(argv):
         comment=comment,
         destination_port=destination_port,
         to_destination=to_destination)
+
+
+@implementer(INetwork)
+class HostNetwork(object):
+    """
+    An ``INetwork`` implementation based on ``iptables``.
+    """
+    logger = Logger()
+
+    def create_proxy_to(self, ip, port):
+        return create_proxy_to(self.logger, ip, port)
+
+    def delete_proxy(self, proxy):
+        return delete_proxy(self.logger, proxy)
+
+    enumerate_proxies = staticmethod(enumerate_proxies)
+
+
+def make_host_network():
+    """
+    Create a new ``INetwork`` provider which will interact with the underlying
+    system's network configuration.
+    """
+    return HostNetwork()
