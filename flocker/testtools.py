@@ -478,7 +478,7 @@ def create_ssh_server(base_path):
     return _ConchServer(base_path)
 
 
-def make_with_init_tests(record_type, kwargs):
+def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     """
     Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
     supplied ``kwargs`` and exposes them as public attributes.
@@ -486,8 +486,24 @@ def make_with_init_tests(record_type, kwargs):
     :param record_type: The class with an ``__init__`` method to be tested.
     :param kwargs: The keyword arguments which will be supplied to the
         ``__init__`` method.
+    :param dict expected_defaults: The default keys and default values of
+        arguments which have defaults and which may be omitted when calling the
+        initialiser.
     :returns: A ``TestCase``.
     """
+    if expected_defaults is None:
+        expected_defaults = {}
+
+    unknown_defaults = set(expected_defaults.keys()) - set(kwargs.keys())
+    if unknown_defaults:
+        raise TypeError(
+            'expected_defaults contained the following unrecognized keys: '
+            '{}'.format(tuple(unknown_defaults)))
+
+    required_kwargs = kwargs.copy()
+    for k, v in expected_defaults.items():
+        required_kwargs.pop(k)
+
     class WithInitTests(SynchronousTestCase):
         """
         Tests for classes decorated with ``with_init``.
@@ -502,6 +518,31 @@ def make_with_init_tests(record_type, kwargs):
                 kwargs.values(),
                 [getattr(record, key) for key in kwargs.keys()]
             )
+
+        def test_optional_arguments(self):
+            """
+            The record type initialiser has arguments which may be omitted.
+            """
+            required_kwargs = kwargs.copy()
+            for k, v in expected_defaults.items():
+                required_kwargs.pop(k)
+
+            record = record_type(**required_kwargs)
+            self.assertEqual(
+                required_kwargs.values(),
+                [getattr(record, key) for key in required_kwargs.keys()]
+            )
+
+        def test_optional_defaults(self):
+            """
+            The optional arguments have the expected defaults.
+            """
+            record = record_type(**required_kwargs)
+            self.assertEqual(
+                expected_defaults.values(),
+                [getattr(record, key) for key in expected_defaults.keys()]
+            )
+
     return WithInitTests
 
 
