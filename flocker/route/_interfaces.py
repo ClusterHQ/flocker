@@ -4,13 +4,18 @@
 Definitions of interfaces related to network configuration.
 """
 
-from zope.interface import Interface
+from zope.interface import Attribute, Interface
 
 
 class INetwork(Interface):
     """
     An ``INetwork`` can have proxies configured on it.
     """
+    logger = Attribute(
+        "An ``eliot.Logger`` instance used by this object to log its "
+        "activities.  This is primarily intended as a testing hook which "
+        "can be overridden to observe what log messages are written.")
+
     def create_proxy_to(ip, port):
         """
         Create a new TCP proxy to ``ip`` on port ``port``.

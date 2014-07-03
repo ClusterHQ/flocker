@@ -50,9 +50,7 @@ def iptables(logger, argv):
 
 def create_proxy_to(logger, ip, port):
     """
-    Configure iptables to proxy TCP traffic on the given port.
-
-    :see: :meth:`INetwork.create_proxy_to` for parameter documentation.
+    :see: ``HostNetwork.create_proxy_to``
     """
     action = CREATE_PROXY_TO(
         logger=logger, target_ip=ip, target_port=port)
@@ -180,9 +178,7 @@ def create_proxy_to(logger, ip, port):
 
 def delete_proxy(logger, proxy):
     """
-    Remove the iptables configuration which makes the given proxy work.
-
-    :see: :meth:`INetwork.delete_proxy` for parameter documentation.
+    :see: ``HostNetwork.delete_proxy``
     """
     ip = unicode(proxy.ip).encode("ascii")
     port = unicode(proxy.port).encode("ascii")
@@ -314,9 +310,19 @@ class HostNetwork(object):
     logger = Logger()
 
     def create_proxy_to(self, ip, port):
+        """
+        Configure iptables to proxy TCP traffic on the given port.
+
+        :see: :meth:`INetwork.create_proxy_to` for parameter documentation.
+        """
         return create_proxy_to(self.logger, ip, port)
 
     def delete_proxy(self, proxy):
+        """
+        Remove the iptables configuration which makes the given proxy work.
+
+        :see: :meth:`INetwork.delete_proxy` for parameter documentation.
+        """
         return delete_proxy(self.logger, proxy)
 
     enumerate_proxies = staticmethod(enumerate_proxies)
