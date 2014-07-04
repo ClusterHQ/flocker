@@ -222,6 +222,12 @@ class GearClient(object):
         return d
 
     def list(self):
+        """
+        XXX: Need to find a way to get the ContainerImage for a unit. See
+        http://lists.openshift.redhat.com/openshift-archives/users/2014-July/msg00005.html
+        Gear may not have started a Docker container yet, so no point querying
+        docker for the unit name.
+        """
         d = self._request(b"GET", b"/containers")
         d.addCallback(content)
 
