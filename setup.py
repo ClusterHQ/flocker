@@ -91,7 +91,7 @@ setup(
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
 
-        "PyYAML == 3.11",
+        "PyYAML == 3.10",
 
         "treq == 0.2.1",
 
