@@ -348,6 +348,7 @@ class VolumeOwnerChangeTests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         self.service = VolumeService(FilePath(self.mktemp()), pool)
         self.service.startService()
+        self.other_uuid = unicode(uuid4())
 
     def test_return(self):
         """
@@ -355,9 +356,9 @@ class VolumeOwnerChangeTests(TestCase):
         ``Volume`` with the new owner UUID and the same name.
         """
         volume = self.successResultOf(self.service.create(u"myvolume"))
-        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         self.assertEqual({'uuid': new_volume.uuid, 'name': new_volume.name},
-                         {'uuid': u"789", 'name': u"myvolume"})
+                         {'uuid': self.other_uuid, 'name': u"myvolume"})
 
     def test_filesystem(self):
         """
@@ -366,7 +367,7 @@ class VolumeOwnerChangeTests(TestCase):
         volume = self.successResultOf(self.service.create(u"myvolume"))
         mount = volume.get_filesystem().get_path()
         mount.child(b'file').setContent(b'content')
-        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         new_mount = new_volume.get_filesystem().get_path()
         self.assertEqual(new_mount.child(b'file').getContent(), b'content')
 
@@ -376,6 +377,6 @@ class VolumeOwnerChangeTests(TestCase):
         volume with the one returned by ``Volume.change_owner``.
         """
         volume = self.successResultOf(self.service.create(u"myvolume"))
-        new_volume = self.successResultOf(volume.change_owner(u"789"))
+        new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
