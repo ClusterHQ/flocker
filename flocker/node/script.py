@@ -24,7 +24,8 @@ __all__ = [
 class ChangeStateOptions(Options):
     """Command line options for ``flocker-changestate`` management tool."""
 
-    longdesc = """flocker-changestate allows you to set configs.
+    longdesc = """flocker-changestate is called by flocker-deploy to set the
+        configuration of a node.
 
         DEPLOYMENT_CONFIGURATION: The YAML string describing the desired
             deployment configuration.
