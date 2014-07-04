@@ -523,11 +523,14 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             """
             The record type initialiser has arguments which may be omitted.
             """
-            required_kwargs = kwargs.copy()
-            for k, v in expected_defaults.items():
-                required_kwargs.pop(k)
+            try:
+                record = record_type(**required_kwargs)
+            except ValueError as e:
+                self.fail(
+                    'One of the following arguments was expected to be '
+                    'optional but appears to be required: %r. Error was: %r' % (
+                        expected_defaults.keys(), e))
 
-            record = record_type(**required_kwargs)
             self.assertEqual(
                 required_kwargs.values(),
                 [getattr(record, key) for key in required_kwargs.keys()]
@@ -537,7 +540,13 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             """
             The optional arguments have the expected defaults.
             """
-            record = record_type(**required_kwargs)
+            try:
+                record = record_type(**required_kwargs)
+            except ValueError as e:
+                self.fail(
+                    'One of the following arguments was expected to be '
+                    'optional but appears to be required: %r. Error was: %r' % (
+                        expected_defaults.keys(), e))
             self.assertEqual(
                 expected_defaults.values(),
                 [getattr(record, key) for key in expected_defaults.keys()]

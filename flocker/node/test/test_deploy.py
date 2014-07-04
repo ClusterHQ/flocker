@@ -59,7 +59,7 @@ class DeploymentStartContainerTests(SynchronousTestCase):
             (None, True, docker_image.full_name),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
-             fake_gear._units[application.name]['image_name'])
+             fake_gear._units[application.name].container_image)
         )
 
     def test_already_exists(self):
@@ -138,12 +138,17 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
         ``Application``\ s.
         """
         expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name, activation_state=u'active')
+        image = DockerImage(repository=u'clusterhq/flocker',
+                            tag=u'release-14.0')
+        unit = Unit(
+            name=expected_application_name,
+            activation_state=u'active',
+            container_image=image.full_name
+        )
         fake_gear = FakeGearClient(units={expected_application_name: unit})
         application = Application(
             name=unit.name,
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+            image=image
         )
         api = Deployment(gear_client=fake_gear)
         d = api.discover_node_configuration()

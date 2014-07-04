@@ -23,8 +23,8 @@ class AlreadyExists(Exception):
 class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
-
-@attributes(["name", "activation_state"])
+@attributes(["name", "activation_state", "container_image", "ports", "links"],
+            defaults=dict(ports=(), links=()))
 class Unit(object):
     """Information about a unit managed by geard/systemd.
 
@@ -249,19 +249,16 @@ class FakeGearClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=None, links=None):
-        if ports is None:
-            ports = []
-        if links is None:
-            links = []
+    def add(self, unit_name, image_name, ports=(), links=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {
-            'unit_name': unit_name,
-            'image_name': image_name,
-            'ports': ports,
-            'links': links,
-        }
+        self._units[unit_name] = Unit(
+            name=unit_name,
+            container_image=image_name,
+            ports=ports,
+            links=links,
+            activation_state=u'active'
+        )
         return succeed(None)
 
     def exists(self, unit_name):
@@ -273,10 +270,7 @@ class FakeGearClient(object):
         return succeed(None)
 
     def list(self):
-        result = set()
-        for name in self._units:
-            result.add(Unit(name=name, activation_state=u"active"))
-        return succeed(result)
+        return succeed(self._units.values())
 
 
 @attributes(['internal_port', 'external_port'],)

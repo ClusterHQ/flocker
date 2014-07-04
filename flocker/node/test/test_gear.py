@@ -101,16 +101,18 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             self.addCleanup(client.remove, name)
-
-            d = client.add(name, u"openshift/busybox-http-ap")
+            expected_container_image = u"openshift/busybox-http-app"
+            d = client.add(name, expected_container_image)
             d.addCallback(lambda _: client.list())
 
             def got_list(units):
-                activating = Unit(name=name, activation_state=u"activating")
-                active = Unit(name=name, activation_state=u"active")
+                activating = Unit(name=name, activation_state=u"activating",
+                                  container_image=expected_container_image)
+                active = Unit(name=name, activation_state=u"active",
+                              container_image=expected_container_image)
                 self.assertTrue((activating in units) or
                                 (active in units),
-                                "Added unit not in %r" % (units,))
+                                "Added unit not in %r: %r, %r" % (units, active, activating))
             d.addCallback(got_list)
             return d
 
@@ -151,7 +153,8 @@ class FakeGearClientImplementationTests(TestCase):
         """
         ``FakeGearClient._units`` can be supplied in the constructor.
         """
-        units = {u'foo': Unit(name=u'foo', activation_state=u'active')}
+        units = {u'foo': Unit(name=u'foo', activation_state=u'active',
+                              container_image=u'flocker/flocker:v1.0.0')}
         self.assertEqual(units, FakeGearClient(units=units)._units)
 
 
@@ -204,4 +207,44 @@ class PortMapTests(TestCase):
         self.assertNotEqual(
             PortMap(internal_port=5678, external_port=910),
             PortMap(internal_port=1516, external_port=1718)
+        )
+
+
+class UnitInitTests(
+        make_with_init_tests(
+            record_type=Unit,
+            kwargs=dict(
+                name=u'site-example.com',
+                activation_state=u'active',
+                container_image=u'flocker/flocker:v1.0.0',
+                ports=(PortMap(internal_port=80, external_port=8080),),
+                links=(PortMap(internal_port=3306, external_port=103306),),
+            ),
+            expected_defaults=dict(ports=(), links=())
+        )
+):
+    """
+    Tests for ``Unit.__init__``.
+    """
+
+
+class UnitTests(TestCase):
+    """
+    Tests for ``Unit``.
+
+    XXX: The equality tests in this case are incomplete. See
+    https://github.com/hynek/characteristic/issues/4 for a proposed solution to
+    this.
+    """
+    def test_repr(self):
+        """
+        ``Unit.__repr__`` shows the name, activation_state, container_image,
+        ports and links.
+        """
+        self.assertEqual(
+            "<Unit(name=u'site-example.com', activation_state=u'active', "
+            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
+            repr(Unit(name=u'site-example.com', activation_state=u'active',
+                      container_image=u'flocker/flocker:v1.0.0',
+                      ports=[], links=[]))
         )
