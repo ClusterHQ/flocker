@@ -70,10 +70,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         options = self.options()
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
-        application_good_yaml = "{anumber: 14, foo: bar, spam: eggs}"
-        e = self.assertRaises(UsageError,
-                              options.parseOptions,
-                              [deployment_bad_yaml, application_good_yaml])
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [deployment_bad_yaml, b''])
+
         self.assertTrue(
             str(e).startswith('Deployment config could not be parsed as YAML')
         )
@@ -85,10 +84,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         options = self.options()
         application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
-        deployment_good_yaml = "{anumber: 14, foo: bar, spam: eggs}"
-        e = self.assertRaises(UsageError,
-                              options.parseOptions,
-                              [deployment_good_yaml, application_bad_yaml])
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [b'', application_bad_yaml])
+
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
         )
