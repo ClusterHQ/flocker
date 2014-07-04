@@ -228,7 +228,8 @@ class GearClient(object):
         def got_body(data):
             values = json.loads(data)[u"Containers"]
             return set([Unit(name=unit[u"Id"],
-                             activation_state=unit[u"ActiveState"])
+                             activation_state=unit[u"ActiveState"],
+                             container_image=u"UNKNOWN")
                         for unit in values])
         d.addCallback(got_body)
         return d
