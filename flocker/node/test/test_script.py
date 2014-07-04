@@ -79,8 +79,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_invalid_application_configs(self):
         """
-        If the supplied application_config is not valid `YAML`, a ``UsageError``
-        is raised.
+        If the supplied application_config is not valid `YAML`, a
+        ``UsageError`` is raised.
         """
         options = self.options()
         application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
