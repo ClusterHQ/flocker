@@ -44,7 +44,7 @@ class Unit(object):
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name, ports=None):
+    def add(unit_name, image_name, ports=None, links=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
@@ -54,6 +54,9 @@ class IGearClient(Interface):
         :param list ports: A list of ``PortMap``\ s mapping ports exposed in
             the container to ports exposed on the host. Default ``None`` means
             that no port mappings will be configured for this unit.
+
+        :param list links: A list of ``PortMap``\ s mapping ports forwarded
+            from the container to ports on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -133,6 +136,7 @@ class GearClient(object):
         url = self._base_url + path
         if data is not None:
             data = json.dumps(data)
+
         return request(method, url, data=data, persistent=False)
 
     def _ensure_ok(self, response):
@@ -154,14 +158,45 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None):
+    def add(self, unit_name, image_name, ports=None, links=None):
+        """
+        See ``IGearClient.add`` for base documentation.
+
+        Gear `NetworkLinks` are currently fixed to destination localhost. This
+        allows us to control the actual target of the link using proxy / nat
+        rules on the host machine without having to restart the gear unit.
+
+        XXX: If gear allowed us to reconfigure links this wouldn't be
+        necessary. See https://github.com/openshift/geard/issues/223
+
+        XXX: As long as we need to set the target as 127.0.0.1 its also worth
+        noting that gear will actually route the traffic to a non-loopback
+        address on the host. So if your service or NAT rule on the host is
+        configured for 127.0.0.1 only, it won't receive any traffic. See
+        https://github.com/openshift/geard/issues/224
+        """
         if ports is None:
             ports = []
 
-        data = {u"Image": image_name, u"Started": True, u'Ports': []}
+        if links is None:
+            links = []
+
+        data = {
+            u"Image": image_name, u"Started": True, u'Ports': [],
+            u'NetworkLinks': []}
+
         for port in ports:
             data['Ports'].append(
-                {u'Internal': port.internal, u'External': port.external})
+                {u'Internal': port.internal_port,
+                 u'External': port.external_port})
+
+        for link in links:
+            data['NetworkLinks'].append(
+                {u'FromHost': u'127.0.0.1',
+                 u'FromPort': link.internal_port,
+                 u'ToHost': u'127.0.0.1',
+                 u'ToPort': link.external_port}
+            )
 
         checked = self.exists(unit_name)
         checked.addCallback(
@@ -212,15 +247,18 @@ class FakeGearClient(object):
     def __init__(self):
         self._units = {}
 
-    def add(self, unit_name, image_name, ports=None):
+    def add(self, unit_name, image_name, ports=None, links=None):
         if ports is None:
             ports = []
+        if links is None:
+            links = []
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = {
             'unit_name': unit_name,
             'image_name': image_name,
-            'ports': ports
+            'ports': ports,
+            'links': links,
         }
         return succeed(None)
 
@@ -239,12 +277,12 @@ class FakeGearClient(object):
         return succeed(result)
 
 
-@attributes(['internal', 'external'])
+@attributes(['internal_port', 'external_port'],)
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
 
-    :ivar int internal: The port number exposed by the container.
-    :ivar int external: The port number exposed by the host
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
     """
