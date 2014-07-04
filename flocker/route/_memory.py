@@ -6,19 +6,9 @@ Objects related to an in-memory implementation of ``INetwork``.
 
 from zope.interface import implementer
 from eliot import Logger
-from characteristic import attributes
 
 from ._interfaces import INetwork
-
-
-@attributes(["ip", "port"])
-class Proxy(object):
-    """
-    :ivar ipaddr.IPv4Address ip: The IPv4 address towards which this proxy
-        directs traffic.
-
-    :ivar int port: The TCP port number on which this proxy operates.
-    """
+from ._model import Proxy
 
 
 @implementer(INetwork)
