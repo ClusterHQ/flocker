@@ -244,8 +244,10 @@ class FakeGearClient(object):
         containing information about them.
     """
 
-    def __init__(self):
-        self._units = {}
+    def __init__(self, units=None):
+        if units is None:
+            units = {}
+        self._units = units
 
     def add(self, unit_name, image_name, ports=None, links=None):
         if ports is None:

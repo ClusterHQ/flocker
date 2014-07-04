@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+from twisted.internet.defer import succeed
+
 from .gear import GearClient
 
 
@@ -43,3 +45,9 @@ class Deployment(object):
         """
         unit_name = application.name
         return self._gear_client.remove(unit_name)
+
+
+    def discover_node_configuration(self):
+        """
+        """
+        return succeed(None)

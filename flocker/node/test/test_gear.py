@@ -132,7 +132,27 @@ def make_igearclient_tests(fixture):
 
 
 class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
-    """``IGearClient`` tests for ``FakeGearClient``."""
+    """
+    ``IGearClient`` tests for ``FakeGearClient``.
+    """
+
+
+class FakeGearClientImplementationTests(TestCase):
+    """
+    Tests for implementation details of ``FakeGearClient``.
+    """
+    def test_units_default(self):
+        """
+        ``FakeGearClient._units`` is an empty dict by default.
+        """
+        self.assertEqual({}, FakeGearClient()._units)
+
+    def test_units_override(self):
+        """
+        ``FakeGearClient._units`` can be supplied in the constructor.
+        """
+        units = {u'foo': Unit(name=u'foo', activation_state=u'active')}
+        self.assertEqual(units, FakeGearClient(units=units)._units)
 
 
 class PortMapInitTests(
