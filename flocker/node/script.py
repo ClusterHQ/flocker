@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""The command-line ``flocker-changestate`` tool."""
+"""
+The command-line ``flocker-changestate`` tool.
+"""
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import succeed
@@ -22,10 +24,13 @@ __all__ = [
 
 @flocker_standard_options
 class ChangeStateOptions(Options):
-    """Command line options for ``flocker-changestate`` management tool."""
+    """
+    Command line options for ``flocker-changestate`` management tool.
+    """
 
-    longdesc = """flocker-changestate is called by flocker-deploy to set the
-        configuration of a node.
+    longdesc = """\
+    flocker-changestate is called by flocker-deploy to set the configuration of
+    a node.
 
         DEPLOYMENT_CONFIGURATION: The YAML string describing the desired
             deployment configuration.

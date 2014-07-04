@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.volume.script`."""
+"""
+Tests for :module:`flocker.node.script`.
+"""
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
@@ -37,13 +39,15 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
 
 
 class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """Tests for :class:`FlockerVolumeOptions`."""
+    """
+    Tests for :class:`ChangeStateOptions`.
+    """
     options = ChangeStateOptions
 
     def test_custom_configs(self):
         """
-        If paths to configuration files are given then they are saved as
-        ``FilePath`` instances on the options instance.
+        The supplied configuration strings are saved as ``dict``\ s on the
+        options instance.
         """
         options = self.options()
         expected_deployment = {"foo": "bar", "spam": "eggs", "anumber": 14}
@@ -51,9 +55,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                                 "appspam": "appeggs",
                                 "appnumber": 17}
         options.parseOptions(
-            [safe_dump(expected_deployment),
-             safe_dump(expected_application)]
-        )
+            [safe_dump(expected_deployment), safe_dump(expected_application)])
+
         self.assertDictContainsSubset(
             {'deployment_config': expected_deployment,
              'app_config': expected_application},
@@ -62,8 +65,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_invalid_deployment_configs(self):
         """
-        If the deployment and appplication options passed are not valid YAML,
-        a UsageError is raised.
+        If the supplied deployment_config is not valid `YAML`, a
+        ``UsageError`` is raised.
         """
         options = self.options()
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
@@ -77,8 +80,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_invalid_application_configs(self):
         """
-        If the deployment and appplication options passed are not valid YAML,
-        a UsageError is raised.
+        If the supplied application_config is not valid `YAML`, a ``UsageError``
+        is raised.
         """
         options = self.options()
         application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
