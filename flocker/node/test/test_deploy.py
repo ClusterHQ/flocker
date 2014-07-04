@@ -8,7 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .._deploy import Deployment
 from .._model import Application, DockerImage
-from ..gear import GearClient, FakeGearClient, AlreadyExists
+from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
 class DeploymentAttributesTests(SynchronousTestCase):
@@ -126,3 +126,27 @@ class DeploymentStopContainerTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
+
+
+class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment.discover_node_configuration``.
+    """
+    def test_discover(self):
+        """
+        ``Deployment.discover_node_configuration`` returns a list of
+        ``Application``\ s.
+        """
+        fake_gear = FakeGearClient()
+        expected_application_name = b'site-example.com'
+        unit = Unit(name=expected_application_name, activation_state=u'active')
+        application = Application(
+            name=unit.name,
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        fake_gear._units.add(unit)
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual([application], self.successResultOf(d))
