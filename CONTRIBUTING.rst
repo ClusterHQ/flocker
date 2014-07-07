@@ -36,10 +36,10 @@ Talk to us
 ==========
 
 Have questions or need help?
-Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network.
+Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
-
+.. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 Development environment
 =======================
