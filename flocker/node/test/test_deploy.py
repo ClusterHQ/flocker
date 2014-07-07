@@ -145,3 +145,20 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_node_configuration()
 
         self.assertEqual([application], self.successResultOf(d))
+
+
+    def test_discover_multiple(self):
+        """
+        ``Deployment.discover_node_configuration`` returns one Application for
+        each gear Unit that is running on the host.
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        units={unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
