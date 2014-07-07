@@ -23,6 +23,7 @@ from ...testtools import assertNoFDsLeaked
 
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists,
     )
 from ..snapshots import SnapshotName
 from ..service import Volume
@@ -505,5 +506,94 @@ def make_istoragepool_tests(fixture):
                 self.assertEqual(name, expected)
             d.addCallback(createdFilesystem)
             return d
+
+        def test_change_owner_creates_new(self):
+            """
+            ``IFilesystem.change_owner()`` exposes a filesystem for the new
+            volume definition.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                old_path = filesystem.get_path()
+                d = pool.change_owner(volume, new_volume)
+                d.addCallback(lambda new_fs: (old_path, new_fs))
+                return d
+            d.addCallback(created_filesystem)
+
+            def changed_owner((old_path, new_filesystem)):
+                new_path = new_filesystem.get_path()
+                self.assertNotEqual(old_path, new_path)
+            d.addCallback(changed_owner)
+            return d
+
+        def test_change_owner_removes_old(self):
+            """
+            ``IStoragePool.change_owner()`` ensures the filesystem for the old
+            volume definition no longer exists.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                old_path = filesystem.get_path()
+                old_path.child('file').setContent(b'content')
+                d = pool.change_owner(volume, new_volume)
+                d.addCallback(lambda ignored: old_path)
+                return d
+            d.addCallback(created_filesystem)
+
+            def changed_owner(old_path):
+                self.assertFalse(old_path.exists())
+            d.addCallback(changed_owner)
+            return d
+
+        def test_change_owner_preserves_data(self):
+            """
+            ``IStoragePool.change_owner()`` moves the data from the filesystem
+            for the old volume definition to that for the new volume
+            definition.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                path = filesystem.get_path()
+                path.child('file').setContent(b'content')
+
+                return pool.change_owner(volume, new_volume)
+            d.addCallback(created_filesystem)
+
+            def changed_owner(filesystem):
+                path = filesystem.get_path()
+                self.assertEqual(path.child('file').getContent(),
+                                 b'content')
+            d.addCallback(changed_owner)
+
+            return d
+
+        def test_change_owner_existing_target(self):
+            """
+            ``IStoragePool.change_owner()`` returns a :class:`Deferred` that
+            fails with :exception:`FilesystemAlreadyExists`, if the target
+            filesystem already exists.
+            """
+            pool = fixture(self)
+            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+            d = gatherResults([pool.create(volume), pool.create(new_volume)])
+
+            def created_filesystems(igonred):
+                return pool.change_owner(volume, new_volume)
+            d.addCallback(created_filesystems)
+
+            return self.assertFailure(d, FilesystemAlreadyExists)
 
     return IStoragePoolTests

@@ -19,7 +19,9 @@ from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 
-from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
+from .interfaces import (
+    IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists)
 from ..snapshots import SnapshotName
 
 
@@ -232,6 +234,38 @@ class StoragePool(object):
                         [b"create",  b"-o", b"mountpoint=" + mount_path,
                          filesystem.name])
         d.addCallback(lambda _: filesystem)
+        return d
+
+    def change_owner(self, volume, new_volume):
+        old_filesystem = self.get(volume)
+        new_filesystem = self.get(new_volume)
+        new_mount_path = new_filesystem.get_path().path
+        d = zfs_command(self._reactor,
+                        [b"rename", old_filesystem.name, new_filesystem.name])
+
+        def rename_failed(f):
+            if f.check(CommandFailed):
+                # This isn't the only reason the rename could fail. We should
+                # figure out why and report it appropriately.
+                # https://github.com/ClusterHQ/flocker/issues/199
+                raise FilesystemAlreadyExists()
+            return f
+        d.addErrback(rename_failed)
+
+        def renamed(ignored):
+            return zfs_command(self._reactor,
+                               [b"set", b"mountpoint=" + new_mount_path,
+                                new_filesystem.name])
+        d.addCallback(renamed)
+
+        def remounted(ignored):
+            # Use os.rmdir instead of FilePath.remove since we don't want
+            # recursive behavior. If the directory is non-empty, something
+            # went wrong (or there is a race) and we don't want to lose data.
+            os.rmdir(old_filesystem.get_path().path)
+        d.addCallback(remounted)
+
+        d.addCallback(lambda _: new_filesystem)
         return d
 
     def get(self, volume):

@@ -12,9 +12,11 @@ from zope.interface import implementer
 
 from characteristic import attributes
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, fail
 
-from .interfaces import IFilesystemSnapshots, IStoragePool, IFilesystem
+from .interfaces import (
+    IFilesystemSnapshots, IStoragePool, IFilesystem,
+    FilesystemAlreadyExists)
 
 
 @implementer(IFilesystemSnapshots)
@@ -91,6 +93,20 @@ class FilesystemStoragePool(object):
         filesystem = self.get(volume)
         filesystem.get_path().makedirs()
         return succeed(filesystem)
+
+    def change_owner(self, volume, new_volume):
+        old_filesystem = self.get(volume)
+        new_filesystem = self.get(new_volume)
+
+        # There is a race condtion between checking whether the target exists,
+        # and doing the move. If the target is created in between, the error
+        # won't be reported correctly.  Since this is only used for testing,
+        # assume there will be no race condition.
+        if new_filesystem.get_path().exists():
+            return fail(FilesystemAlreadyExists())
+
+        old_filesystem.get_path().moveTo(new_filesystem.get_path())
+        return succeed(new_filesystem)
 
     def get(self, volume):
         return DirectoryFilesystem(
