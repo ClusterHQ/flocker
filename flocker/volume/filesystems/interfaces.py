@@ -127,7 +127,7 @@ class IStoragePool(Interface):
 
         :return: ``Deferred`` that fires with the new :class:`IFilesystem`.
         :raises FilesystemAlreadyExists: If the target filesystem already
-            exits.
+            exists.
         """
 
     def enumerate():

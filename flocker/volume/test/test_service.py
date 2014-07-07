@@ -343,7 +343,7 @@ class VolumeOwnerChangeTests(TestCase):
     """
     def setUp(self):
         """
-        Create a ``VolumeService`` pointing a new pool.
+        Create a ``VolumeService`` pointing at a new pool.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         self.service = VolumeService(FilePath(self.mktemp()), pool)
