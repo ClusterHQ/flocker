@@ -4,7 +4,7 @@
 Tests for ``flocker.node._config``.
 """
 
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from .._config import Configuration
 
 
@@ -78,6 +78,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` raises an exception if the
         application_configuration uses invalid unix paths for volumes.
         """
+        raise SkipTest('Volumes configuration can not be parsed yet.')
 
     def test_dict_of_applications(self):
         """
