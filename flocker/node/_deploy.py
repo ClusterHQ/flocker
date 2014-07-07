@@ -8,6 +8,7 @@ Deploy applications on nodes.
 from .gear import GearClient
 from ._model import Application
 
+
 class Deployment(object):
     """
     Start and stop containers.
@@ -44,12 +45,12 @@ class Deployment(object):
         unit_name = application.name
         return self._gear_client.remove(unit_name)
 
-
     def discover_node_configuration(self):
         """
         List all the `Application``\ s running on this node.
         """
         d = self._gear_client.list()
+
         def applications_from_units(units):
             applications = []
             for unit in units:
