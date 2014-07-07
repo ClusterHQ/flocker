@@ -288,6 +288,46 @@ class VolumeServiceAPITests(TestCase):
             [Volume(uuid=service.uuid, name=name, _pool=pool)],
             volumes)
 
+    def test_acquire_rejects_local_volume(self):
+        """
+        ``VolumeService.acquire()`` errbacks with a ``ValueError`` if given a
+        locally-owned volume.
+        """
+
+    def test_acquire_changes_uuid(self):
+        """
+        ``VolumeService.acquire()`` changes the UUID of the given volume to
+        the volume manager's.
+        """
+
+    def test_acquire_exposes(self):
+        """
+        ```VolumeService.acquire()`` exposes the newly locally owned volume to
+        Docker.
+        """
+
+    def test_handoff_rejects_remote_volume(self):
+        """
+        ``VolumeService.handoff()`` errbacks with a ``ValueError`` if given a
+        remotely-owned volume.
+        """
+
+    def test_handoff_pushes(self):
+        """
+        ``VolumeService.handoff()`` pushes to the given remote node.
+        """
+
+    def test_handoff_unexposes(self):
+        """
+        ``VolumeService.handoff()`` unexposes the volume from Docker.
+        """
+
+    def test_handoff_changes_uuid(self):
+        """
+        ```VolumeService.handoff()`` changes the UUID of the volume to the
+        output of the call to ``flocker-volume acquire``.
+        """
+
 
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
