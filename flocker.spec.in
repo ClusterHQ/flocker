@@ -24,6 +24,9 @@ BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-treq = 0.2.1
 BuildRequires:  python-nomenclature >= 0.1.0
 BuildRequires:  PyYAML = 3.10
+# The test suite runs the ssh command-line client and uses other utilities such
+# as ssh-keygen.
+BuildRequires: openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
