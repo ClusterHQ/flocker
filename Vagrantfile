@@ -16,7 +16,7 @@ systemctl start geard
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "tomprince/flocker-dev"
+  config.vm.box = "clusterhq/flocker-dev"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
 

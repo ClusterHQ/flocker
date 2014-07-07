@@ -7,7 +7,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap
+from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit
 
 
 def make_igearclient_tests(fixture):
@@ -96,6 +96,38 @@ def make_igearclient_tests(fixture):
             d.addCallback(self.assertFalse)
             return d
 
+        def test_added_is_listed(self):
+            """An added unit is included in the output of ``list()``."""
+            client = fixture(self)
+            name = random_name()
+            self.addCleanup(client.remove, name)
+
+            d = client.add(name, u"openshift/busybox-http-ap")
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                activating = Unit(name=name, activation_state=u"activating")
+                active = Unit(name=name, activation_state=u"active")
+                self.assertTrue((activating in units) or
+                                (active in units),
+                                "Added unit not in %r" % (units,))
+            d.addCallback(got_list)
+            return d
+
+        def test_removed_is_not_listed(self):
+            """A removed unit is not included in the output of ``list()``."""
+            client = fixture(self)
+            name = random_name()
+
+            d = client.add(name, u"openshift/busybox-http-ap")
+            d.addCallback(lambda _: client.remove(name))
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                self.assertNotIn(name, [unit.name for unit in units])
+            d.addCallback(got_list)
+            return d
+
     return IGearClientTests
 
 
@@ -107,8 +139,8 @@ class PortMapInitTests(
         make_with_init_tests(
             record_type=PortMap,
             kwargs=dict(
-                internal=1234,
-                external=5678,
+                internal_port=5678,
+                external_port=910,
             )
         )
 ):
@@ -130,8 +162,8 @@ class PortMapTests(TestCase):
         ``PortMap.__repr__`` shows the internal and external ports.
         """
         self.assertEqual(
-            "<PortMap(internal=1234, external=5678)>",
-            repr(PortMap(internal=1234, external=5678))
+            "<PortMap(internal_port=5678, external_port=910)>",
+            repr(PortMap(internal_port=5678, external_port=910))
         )
 
     def test_equal(self):
@@ -140,16 +172,16 @@ class PortMapTests(TestCase):
         equal.
         """
         self.assertEqual(
-            PortMap(internal=1234, external=5678),
-            PortMap(internal=1234, external=5678)
+            PortMap(internal_port=5678, external_port=910),
+            PortMap(internal_port=5678, external_port=910),
         )
 
     def test_not_equal(self):
         """
-        ``PortMap`` instances with the different internal and external ports
-        do not compare equal.
+        ``PortMap`` instances with the different internal and external ports do
+        not compare equal.
         """
         self.assertNotEqual(
-            PortMap(internal=5678, external=1234),
-            PortMap(internal=1234, external=5678)
+            PortMap(internal_port=5678, external_port=910),
+            PortMap(internal_port=1516, external_port=1718)
         )

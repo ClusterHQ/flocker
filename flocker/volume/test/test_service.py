@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import json
 import os
 from unittest import skipIf
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
@@ -19,6 +20,7 @@ from ..service import (
     )
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import FakeNode
+from ...testtools import skip_on_broken_permissions
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -55,6 +57,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertTrue(path.exists())
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -67,6 +70,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertRaises(CreateConfigurationError, service.startService)
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
@@ -109,6 +113,7 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
+    @skip_on_broken_permissions
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
 
@@ -195,12 +200,17 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         filesystem = volume.get_filesystem()
 
+        manager_uuid = unicode(uuid4())
+
         with filesystem.reader() as reader:
-            service.receive(u"anotheruuid", u"newvolume", reader)
-        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+            service.receive(manager_uuid, u"newvolume", reader)
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
         d = service.enumerate()
 
         def got_volumes(volumes):
+            # Consume the generator into a list.  Using `assertIn` on a
+            # generator produces bad failure messages.
+            volumes = list(volumes)
             self.assertIn(new_volume, volumes)
         d.addCallback(got_volumes)
         return d
@@ -214,10 +224,12 @@ class VolumeServiceAPITests(TestCase):
         filesystem = volume.get_filesystem()
         filesystem.get_path().child(b"afile").setContent(b"lalala")
 
-        with filesystem.reader() as reader:
-            service.receive(u"anotheruuid", u"newvolume", reader)
+        manager_uuid = unicode(uuid4())
 
-        new_volume = Volume(uuid=u"anotheruuid", name=u"newvolume", _pool=pool)
+        with filesystem.reader() as reader:
+            service.receive(manager_uuid, u"newvolume", reader)
+
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
         root = new_volume.get_filesystem().get_path()
         self.assertTrue(root.child(b"afile").getContent(), b"lalala")
 
@@ -252,6 +264,29 @@ class VolumeServiceAPITests(TestCase):
         expected = self.successResultOf(service.create(u"some.volume"))
         actual = self.successResultOf(service.enumerate())
         self.assertEqual([expected], list(actual))
+
+    def test_enumerate_skips_other_filesystems(self):
+        """
+        The result of ``enumerate()`` does not include any volumes representing
+        filesystems named outside of the Flocker naming convention (which may
+        have been created directly by the user).
+        """
+        path = FilePath(self.mktemp())
+        path.child(b"arbitrary stuff").makedirs()
+        path.child(b"stuff\tarbitrary").makedirs()
+        path.child(b"non-uuid.stuff").makedirs()
+
+        pool = FilesystemStoragePool(path)
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        name = u"good volume name"
+        self.successResultOf(service.create(name))
+
+        volumes = list(self.successResultOf(service.enumerate()))
+        self.assertEqual(
+            [Volume(uuid=service.uuid, name=name, _pool=pool)],
+            volumes)
 
 
 class VolumeTests(TestCase):
