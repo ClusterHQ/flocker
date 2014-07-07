@@ -1,14 +1,9 @@
-Table of Contents
-=================
+============
+Introduction
+============
 
-0. Motivation for building Flocker
-1. Architecture
-2. Overall implementation strategy
-3. User experience
-
-
-0. Motivation for building Flocker
-==================================
+Motivation for building Flocker
+===============================
 Flocker lets you move your Docker containers and their data together between hosts.  
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible. 
@@ -27,8 +22,8 @@ Flocker aims to solve this problem by providing an orchestration framework that 
   * How do containers across multiple machines talk to each other?
   * How does application state work if you move containers around?
 
-1. Architecture
-===============
+Architecture
+============
 
 Flocker - Orchestration
 -----------------------
@@ -91,8 +86,8 @@ Deployment configuration
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
 
-2. Overall implementation strategy
-==================================
+Initial implementation strategy
+===============================
 
 * Don't Panic.
 * This is the 0.1 approach.
@@ -170,8 +165,8 @@ Managing links
 * Geard is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
 * The routes code makes ensures the connection is then proxy to the machine hosting the target container.
 
-3. User experience
-==================
+User experience
+===============
 
 * Flocker provides a command-line interface for manually deploying or re-deploying containers across machines.
 * The tool operates on two distinct pieces of configuration:
