@@ -13,6 +13,7 @@ import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
+import shutil
 from subprocess import check_call
 from functools import wraps
 
@@ -24,7 +25,8 @@ from ipaddr import IPAddress
 from twisted.internet.interfaces import IProcessTransport, IReactorProcess
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, Deferred
+from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.cred.portal import IRealm, Portal
 from twisted.conch.ssh.keys import Key
@@ -32,6 +34,9 @@ from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.conch.openssh_compat.factory import OpenSSHFactory
 from twisted.conch.unix import UnixConchUser
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.internet.protocol import Factory, Protocol
+
+from characteristic import attributes
 
 from . import __version__
 from .common.script import (
@@ -481,7 +486,7 @@ def create_ssh_server(base_path):
     return _ConchServer(base_path)
 
 
-def make_with_init_tests(record_type, kwargs):
+def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     """
     Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
     supplied ``kwargs`` and exposes them as public attributes.
@@ -489,8 +494,24 @@ def make_with_init_tests(record_type, kwargs):
     :param record_type: The class with an ``__init__`` method to be tested.
     :param kwargs: The keyword arguments which will be supplied to the
         ``__init__`` method.
+    :param dict expected_defaults: The default keys and default values of
+        arguments which have defaults and which may be omitted when calling the
+        initialiser.
     :returns: A ``TestCase``.
     """
+    if expected_defaults is None:
+        expected_defaults = {}
+
+    unknown_defaults = set(expected_defaults.keys()) - set(kwargs.keys())
+    if unknown_defaults:
+        raise TypeError(
+            'expected_defaults contained the following unrecognized keys: '
+            '{}'.format(tuple(unknown_defaults)))
+
+    required_kwargs = kwargs.copy()
+    for k, v in expected_defaults.items():
+        required_kwargs.pop(k)
+
     class WithInitTests(SynchronousTestCase):
         """
         Tests for classes decorated with ``with_init``.
@@ -505,6 +526,31 @@ def make_with_init_tests(record_type, kwargs):
                 kwargs.values(),
                 [getattr(record, key) for key in kwargs.keys()]
             )
+
+        def test_optional_arguments(self):
+            """
+            The record type initialiser has arguments which may be omitted.
+            """
+            required_kwargs = kwargs.copy()
+            for k, v in expected_defaults.items():
+                required_kwargs.pop(k)
+
+            record = record_type(**required_kwargs)
+            self.assertEqual(
+                required_kwargs.values(),
+                [getattr(record, key) for key in required_kwargs.keys()]
+            )
+
+        def test_optional_defaults(self):
+            """
+            The optional arguments have the expected defaults.
+            """
+            record = record_type(**required_kwargs)
+            self.assertEqual(
+                expected_defaults.values(),
+                [getattr(record, key) for key in expected_defaults.keys()]
+            )
+
     return WithInitTests
 
 
@@ -532,10 +578,111 @@ def find_free_port(interface='127.0.0.1', socket_family=socket.AF_INET,
         probe.close()
 
 
+def make_capture_protocol():
+    """
+    Return a ``Deferred``, and a ``Protocol`` which will capture bytes and fire
+    the ``Deferred`` when its connection is lost.
+
+    :returns: A 2-tuple of ``Deferred`` and ``Protocol`` instance.
+    :rtype: tuple
+    """
+    d = Deferred()
+    captured_data = []
+
+    class Recorder(Protocol):
+        def dataReceived(self, data):
+            captured_data.append(data)
+
+        def connectionLost(self, reason):
+            if reason.check(ConnectionDone):
+                d.callback(b''.join(captured_data))
+            else:
+                d.errback(reason)
+    return d, Recorder()
+
+
+class ProtocolPoppingFactory(Factory):
+    """
+    A factory which only creates a fixed list of protocols.
+
+    For example if in a test you want to ensure that a test server only handles
+    a single connection, you'd supply a list of one ``Protocol``
+    instance. Subsequent requests will result in an ``IndexError``.
+    """
+    def __init__(self, protocols):
+        """
+        :param list protocols: A list of ``Protocol`` instances which will be
+            used for successive connections.
+        """
+        self.protocols = protocols
+
+    def buildProtocol(self, addr):
+        return self.protocols.pop()
+
+
+@attributes(['source_dir', 'tag', 'working_dir'])
+class DockerImageBuilder(object):
+    """
+    Build a docker image, tag it, and optionally remove the image later.
+
+    :ivar bytes docker_dir: The path to the directory containing a
+        `Dockerfile`.
+    :ivar bytes tag: The tag name to be applied to the built image.
+    """
+    def _process_template(self, template_file, target_file, replacements):
+        """
+        Fill in the placeholders in `template_file` with the `replacements` and
+        write the result to `target_file`.
+
+        :param FilePath template_file: The file containing the placeholders.
+        :param FilePath target_file: The file to which the result will be
+            written.
+        :param dict replacements: A dictionary of variable names and
+            replacement values.
+        """
+        with template_file.open() as f:
+            template = f.read().decode('utf8')
+        target_file.setContent(template.format(**replacements))
+
+    def build(self, dockerfile_variables=None):
+        """
+        Build an image and tag it in the local Docker repository.
+
+        :param dict dockerfile_variables: A dictionary of replacements which
+            will be applied to a `Dockerfile.in` template file if such a file
+            exists.
+        """
+        if dockerfile_variables is None:
+            dockerfile_variables = {}
+
+        if not self.working_dir.exists():
+            self.working_dir.makedirs()
+
+        docker_dir = self.working_dir.child('docker')
+        shutil.copytree(self.source_dir.path, docker_dir.path)
+        template_file = docker_dir.child('Dockerfile.in')
+        docker_file = docker_dir.child('Dockerfile')
+        if template_file.exists() and not docker_file.exists():
+            self._process_template(
+                template_file, docker_file, dockerfile_variables)
+        # XXX: This dumps lots of debug output to stderr which messes up the
+        # test results output. It's useful debug info incase of a test failure
+        # so it would be better to send it to the test.log file. See
+        # https://github.com/ClusterHQ/flocker/issues/171
+        command = [
+            b'docker', b'build',
+            # Always clean up intermediate containers in case of failures.
+            b'--force-rm',
+            b'--tag=%s' % (self.tag,),
+            docker_dir.path
+        ]
+        check_call(command)
+
+
 def skip_on_broken_permissions(test_method):
     """
     Skips the wrapped test when the temporary directory is on a
-    virtualbox shared folder.
+    filesystem with broken permissions.
 
     Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
     respect changing permissions. For example, this test detects running on a
@@ -544,6 +691,8 @@ def skip_on_broken_permissions(test_method):
 
     :param callable test_method: Test method to wrap.
     :return: The wrapped method.
+    :raise SkipTest: when the temporary directory is on a filesystem with
+        broken permissions.
     """
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
@@ -553,6 +702,7 @@ def skip_on_broken_permissions(test_method):
         permissions = test_file.getPermissions()
         test_file.chmod(0o777)
         if permissions != Permissions(0o000):
-            raise SkipTest("Can't run test on virtualbox shared folder.")
+            raise SkipTest(
+                "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper

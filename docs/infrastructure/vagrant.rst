@@ -16,8 +16,14 @@ and install all the dependencies besides zfs.
 To build the box, run the following commands in the :file:`vagrant/base` directory::
 
    vagrant up
-   vagrant package
+   vagrant package --output flocker-dev-$(python ../../setup.py --version).box
    vagrant destroy
 
-This will generate a :file:`package.box`.
-To share the box, upload the file somewhere, and add a version on `vagrantcloud <https://vagrantcloud.com>`_.
+This will generate a :file:`package-<version>.box`.
+Upload this file to `google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/clusterhq-vagrant/>`_,
+using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
+
+   gsutil cp -a public_read flocker-dev-$(python ../../setup.py --version).box gs://clusterhq-vagrant/
+
+Then add a version on `vagrantcloud <https://vagrantcloud.com/clusterhq/flocker-dev>`_.
+The version on vagrantcloud should be the version with ``-`` replaced with ``.``.
