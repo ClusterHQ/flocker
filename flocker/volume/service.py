@@ -194,6 +194,24 @@ class Volume(object):
     :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
         provider where the volume's filesystem is stored.
     """
+    def change_owner(self, new_owner_uuid):
+        """
+        Change which volume manager owns this volume.
+
+        :param unicode new_owner_uuid: The UUID of the new owner.
+
+        :return: ``Deferred`` that fires with a new :class:`Volume`
+            instance once the ownership has been changed.
+        """
+        new_volume = Volume(uuid=new_owner_uuid, name=self.name,
+                            _pool=self._pool)
+        d = self._pool.change_owner(self, new_volume)
+
+        def filesystem_changed(_):
+            return new_volume
+        d.addCallback(filesystem_changed)
+        return d
+
     def get_filesystem(self):
         """Return the volume's filesystem.
 

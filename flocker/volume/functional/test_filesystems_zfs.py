@@ -119,3 +119,40 @@ class StoragePoolTests(TestCase):
                      b"mountpoint", filesystem.name]).strip())
         d.addCallback(gotFilesystem)
         return d
+
+    def test_change_owner_does_not_remove_non_empty_mountpoint(self):
+        """
+        ``StoragePool.change_owner()`` doesn't delete the contents of the
+        original mountpoint, if it is non-empty.
+
+        ZFS doesn't like to mount volumes over non-empty directories. To test
+        this, we change the original mount to be a legacy mount (mounted using
+        manpage:`mount(8)`).
+        """
+        pool = StoragePool(reactor, create_zfs_pool(self),
+                           FilePath(self.mktemp()))
+        volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
+        new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+        original_mount = volume.get_filesystem().get_path()
+        d = pool.create(volume)
+
+        def created_filesystems(igonred):
+            filesystem_name = volume.get_filesystem().name
+            subprocess.check_call(['zfs', 'unmount', filesystem_name])
+            # Create a file hiding under the original mount point
+            original_mount.child('file').setContent('content')
+            # Remount the volume at the original mount point as a legacy mount.
+            subprocess.check_call(['zfs', 'set', 'mountpoint=legacy',
+                                   filesystem_name])
+            subprocess.check_call(['mount', '-t', 'zfs', filesystem_name,
+                                   original_mount.path])
+            return pool.change_owner(volume, new_volume)
+        d.addCallback(created_filesystems)
+
+        self.assertFailure(d, OSError)
+
+        def changed_owner(filesystem):
+            self.assertEqual(original_mount.child('file').getContent(),
+                             b'content')
+        d.addCallback(changed_owner)
+        return d
