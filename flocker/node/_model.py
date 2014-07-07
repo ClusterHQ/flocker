@@ -24,7 +24,7 @@ class DockerImage(object):
             repository=self.repository, tag=self.tag)
 
 
-@attributes(["name", "image"])
+@attributes(["name", "image"], defaults=dict(image=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.

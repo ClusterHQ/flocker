@@ -138,18 +138,9 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
         ``Application``\ s.
         """
         expected_application_name = u'site-example.com'
-        image = DockerImage(repository=u'clusterhq/flocker',
-                            tag=u'release-14.0')
-        unit = Unit(
-            name=expected_application_name,
-            activation_state=u'active',
-            container_image=image.full_name
-        )
+        unit = Unit(name=expected_application_name, activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
-        application = Application(
-            name=unit.name,
-            image=image
-        )
+        application = Application(name=unit.name)
         api = Deployment(gear_client=fake_gear)
         d = api.discover_node_configuration()
 
