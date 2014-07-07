@@ -84,6 +84,7 @@ setup(
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
+            'flocker-changestate = flocker.node.script:flocker_changestate_main',
         ],
     },
 
@@ -93,6 +94,8 @@ setup(
         "pytz",
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
+
+        "PyYAML == 3.10",
 
         "treq == 0.2.1",
 
