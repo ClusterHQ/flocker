@@ -5,7 +5,8 @@ Perform necessary SSH configuration to allow nodes to communicate directly with
 each other.
 
 This code runs in the Flocker client - that is, in an administrator's
-environment, such as a laptop or desktop, not on Flocker nodes themselves.
+environment, such as a laptop or desktop, not on Flocker nodes themselves (it
+may accidentally work on the Flocker nodes but this is not the expected use).
 """
 
 from os import devnull
