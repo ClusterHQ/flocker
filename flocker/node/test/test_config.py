@@ -26,6 +26,16 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration does not contain all the attributes of an
         `Application` record.
         """
+        # XXX: Test for individual missing attributes when other attributes (eg
+        # volume) are added to the Application class.
+        config = dict(applications={u'mysql-hybridcluster': {}})
+        parser = Configuration()
+        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Missing value for 'image'.",
+            exception.message
+        )
 
     def test_error_on_extra_application_attributes(self):
         """
@@ -33,7 +43,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration contains unrecognised Application attribute
         names.
         """
-        
+
     def test_error_invalid_dockerimage_name(self):
         """
         ``model_from_configuration`` raises an exception if the
@@ -51,8 +61,3 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` returns a dict of ``Application``
         instances, one for each application key in the supplied configuration.
         """
-
-
-
-
-        
