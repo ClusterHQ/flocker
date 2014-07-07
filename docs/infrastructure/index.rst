@@ -1,5 +1,5 @@
-Infrastructre
-=============
+Infrastructure
+==============
 
 Contents:
 
