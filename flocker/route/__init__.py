@@ -16,6 +16,9 @@ this allows easy, transparent migration of containers between any of the
 cooperating nodes.
 """
 
-__all__ = ["create_proxy_to", "delete_proxy", "enumerate_proxies"]
+__all__ = ["INetwork", "make_host_network", "make_memory_network"]
 
-from ._iptables import create_proxy_to, delete_proxy, enumerate_proxies
+
+from ._interfaces import INetwork
+from ._iptables import make_host_network
+from ._memory import make_memory_network

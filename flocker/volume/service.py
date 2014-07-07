@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import os
 import json
 import stat
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from characteristic import attributes
 
@@ -89,9 +89,21 @@ class VolumeService(Service):
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
                 #    https://github.com/ClusterHQ/flocker/issues/78
-                uuid, name = filesystem.get_path().basename().split(b".", 1)
+                basename = filesystem.get_path().basename()
+                try:
+                    uuid, name = basename.split(b".", 1)
+                    uuid = UUID(uuid)
+                except ValueError:
+                    # If we can't split on `.` and get two parts then it's not
+                    # a filesystem Flocker is managing.  Likewise if we can't
+                    # interpret the bit before the `.` as a UUID.  Perhaps a
+                    # user created it, who knows.  Just ignore it.
+                    continue
+
+                # Probably shouldn't yield this volume if the uuid doesn't
+                # match this service's uuid.
                 yield Volume(
-                    uuid=uuid.decode('utf8'),
+                    uuid=unicode(uuid),
                     name=name.decode('utf8'),
                     _pool=self._pool)
         enumerating.addCallback(enumerated)

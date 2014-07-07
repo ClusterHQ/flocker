@@ -18,9 +18,10 @@ from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
 from twisted.trial.unittest import TestCase
 
-from .. import create_proxy_to, delete_proxy, enumerate_proxies
+from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .iptables import create_network_namespace, get_iptables_rules
+from .networktests import make_proxying_tests
 
 
 def connect_nonblocking(ip, port):
@@ -109,6 +110,21 @@ class GetIPTablesTests(TestCase):
         self.assertEqual(first, second)
 
 
+class IPTablesProxyTests(make_proxying_tests(make_host_network)):
+    """
+    Apply the generic ``INetwork`` test suite to the implementation which
+    manipulates the actual system configuration.
+    """
+    @_environment_skip
+    def setUp(self):
+        """
+        Arrange for the tests to not corrupt the system network configuration.
+        """
+        self.namespace = create_network_namespace()
+        self.addCleanup(self.namespace.restore)
+        super(IPTablesProxyTests, self).setUp()
+
+
 class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
@@ -121,6 +137,8 @@ class CreateTests(TestCase):
         """
         self.namespace = create_network_namespace()
         self.addCleanup(self.namespace.restore)
+
+        self.network = make_host_network()
 
         # https://github.com/ClusterHQ/flocker/issues/135
         # Don't hardcode addresses in the created namespace
@@ -153,11 +171,9 @@ class CreateTests(TestCase):
         """
         A connection attempt is forwarded to the specified destination address.
         """
-        self.patch(create_proxy_to, "logger", logger)
+        self.patch(self.network, "logger", logger)
 
-        # Note - we're leaking iptables rules into the system here.
-        # https://github.com/ClusterHQ/flocker/issues/22
-        create_proxy_to(self.server_ip, self.port)
+        self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -168,7 +184,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the client side to the
         server side.
         """
-        create_proxy_to(self.server_ip, self.port)
+        self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -181,7 +197,7 @@ class CreateTests(TestCase):
         A proxied connection will deliver bytes from the server side to the
         client side.
         """
-        create_proxy_to(self.server_ip, self.port)
+        self.network.create_proxy_to(self.server_ip, self.port)
 
         client = connect_nonblocking(self.proxy_ip, self.port)
         accepted, client_address = self.server.accept()
@@ -280,7 +296,7 @@ class CreateTests(TestCase):
             run(op % params)
 
         # Create the proxy which we expect not to be invoked.
-        create_proxy_to(self.server_ip, self.port)
+        self.network.create_proxy_to(self.server_ip, self.port)
 
         client = socket()
         client.settimeout(1)
@@ -292,16 +308,6 @@ class CreateTests(TestCase):
             error, client.connect, (str(address), self.port))
         self.assertEqual(ECONNREFUSED, exception.errno)
 
-    def test_proxy_object(self):
-        """
-        :py:func:`flocker.route.create_proxy_to` returns an object with
-        attributes describing the created proxy.
-        """
-        proxy = create_proxy_to(self.server_ip, self.port)
-        self.assertEqual(
-            (proxy.ip, proxy.port),
-            (self.server_ip, self.port))
-
 
 class EnumerateTests(TestCase):
     """
@@ -310,38 +316,7 @@ class EnumerateTests(TestCase):
     @_environment_skip
     def setUp(self):
         self.addCleanup(create_network_namespace().restore)
-
-    def test_empty(self):
-        """
-        :py:func:`flocker.route.enumerate_proxies` returns an empty
-        :py:class:`list` when no proxies have been created.
-        """
-        self.assertEqual([], enumerate_proxies())
-
-    def test_a_proxy(self):
-        """
-        After :py:func:`flocker.route.create_proxy_to` is used to create a
-        proxy, :py:func:`flocker.route.enumerate_proxies` returns a
-        :py:class:`list` including an object describing that proxy.
-        """
-        ip = IPAddress("10.1.2.3")
-        port = 4567
-        proxy = create_proxy_to(ip, port)
-
-        self.assertEqual([proxy], enumerate_proxies())
-
-    def test_some_proxies(self):
-        """
-        After :py:func:`flocker.route.create_proxy_to` is used to create
-        several proxies, :py:func:`flocker.route.enumerate_proxies` returns a
-        :py:class:`list` including an object for each of those proxies.
-        """
-        ip = IPAddress("10.1.2.3")
-        port = 4567
-        proxy_one = create_proxy_to(ip, port)
-        proxy_two = create_proxy_to(ip, port + 1)
-
-        self.assertEqual([proxy_one, proxy_two], enumerate_proxies())
+        self.network = make_host_network()
 
     def test_unrelated_iptables_rules(self):
         """
@@ -350,8 +325,8 @@ class EnumerateTests(TestCase):
         its return value.
         """
         create_user_rule()
-        proxy = create_proxy_to(IPAddress("10.1.2.3"), 1234)
-        self.assertEqual([proxy], enumerate_proxies())
+        proxy = self.network.create_proxy_to(IPAddress("10.1.2.3"), 1234)
+        self.assertEqual([proxy], self.network.enumerate_proxies())
 
 
 class DeleteTests(TestCase):
@@ -361,6 +336,7 @@ class DeleteTests(TestCase):
     @_environment_skip
     def setUp(self):
         self.addCleanup(create_network_namespace().restore)
+        self.network = make_host_network()
 
     @validateLogging(some_iptables_logged(DELETE_PROXY))
     def test_created_rules_deleted(self, logger):
@@ -369,13 +345,13 @@ class DeleteTests(TestCase):
         deleted using :py:meth:`delete_proxy` the iptables rules which were
         added by the former are removed.
         """
-        # Only interested in logging behavior of delete_proxy here.
-        self.patch(delete_proxy, "logger", logger)
-
         original_rules = get_iptables_rules()
 
-        proxy = create_proxy_to(IPAddress("10.1.2.3"), 12345)
-        delete_proxy(proxy)
+        proxy = self.network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
+
+        # Only interested in logging behavior of delete_proxy here.
+        self.patch(self.network, "logger", logger)
+        self.network.delete_proxy(proxy)
 
         # Capture the new rules
         new_rules = get_iptables_rules()
@@ -390,13 +366,13 @@ class DeleteTests(TestCase):
         Only the rules associated with the proxy specified by the object passed
         to :py:func:`delete_proxy` are deleted.
         """
-        create_proxy_to(IPAddress("10.1.2.3"), 12345)
+        self.network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
 
         # Capture the rules that exist now for comparison later.
         expected = get_iptables_rules()
 
-        delete = create_proxy_to(IPAddress("10.1.2.4"), 23456)
-        delete_proxy(delete)
+        delete = self.network.create_proxy_to(IPAddress("10.1.2.4"), 23456)
+        self.network.delete_proxy(delete)
 
         # Capture the new rules
         actual = get_iptables_rules()
@@ -406,13 +382,3 @@ class DeleteTests(TestCase):
         self.assertEqual(
             expected,
             actual)
-
-    def test_deleted_proxies_not_enumerated(self):
-        """
-        Once a proxy has been deleted, :py:func:`enumerate_proxies` does not
-        include an element in the sequence it returns corresponding to it.
-        """
-        proxy = create_proxy_to(IPAddress("10.2.3.4"), 4321)
-        delete_proxy(proxy)
-
-        self.assertEqual([], enumerate_proxies())
