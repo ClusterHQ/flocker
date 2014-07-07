@@ -22,6 +22,7 @@ from twisted.python.filepath import FilePath
 
 def ssh(argv):
     with open(devnull, "w") as discard:
+        # See https://github.com/clusterhq/flocker/issues/192
         check_call([b"ssh"] + argv, stdout=discard, stderr=discard)
 
 
@@ -73,6 +74,7 @@ class OpenSSHConfiguration(object):
 
         if not local_private_path.exists():
             with open(devnull, "w") as discard:
+                # See https://github.com/clusterhq/flocker/issues/192
                 check_call(
                     [b"ssh-keygen", b"-N", b"", b"-f",
                      local_private_path.path],

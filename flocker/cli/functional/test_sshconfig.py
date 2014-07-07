@@ -74,6 +74,7 @@ class ConfigureSSHTests(TestCase):
         patchdict(b"SSH_AGENT_PID", pid)
 
         with open(devnull, "w") as discard:
+            # See https://github.com/clusterhq/flocker/issues/192
             check_call(
                 [b"ssh-add", self.server.key_path.path],
                 stdout=discard, stderr=discard)
