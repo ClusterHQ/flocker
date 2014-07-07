@@ -43,6 +43,16 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration contains unrecognised Application attribute
         names.
         """
+        # XXX: Test for individual missing attributes when other attributes (eg
+        # volume) are added to the Application class.
+        config = dict(applications={u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar')})
+        parser = Configuration()
+        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Unrecognised keys in: image, foo",
+            exception.message
+        )
 
     def test_error_invalid_dockerimage_name(self):
         """
