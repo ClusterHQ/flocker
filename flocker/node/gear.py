@@ -24,13 +24,15 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
-# XXX: The container_image attribute defaults to `None` until we have a way to
-# interrogate geard for the docker images associated with its containers. See
-# https://github.com/ClusterHQ/flocker/issues/207
 @attributes(["name", "activation_state", "container_image", "ports", "links"],
             defaults=dict(container_image=None, ports=(), links=()))
 class Unit(object):
-    """Information about a unit managed by geard/systemd.
+    """
+    Information about a unit managed by geard/systemd.
+
+    # XXX: The container_image attribute defaults to `None` until we have a way
+    # to interrogate geard for the docker images associated with its
+    # containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: The name of the unit.
 
