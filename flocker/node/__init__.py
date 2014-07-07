@@ -1,6 +1,7 @@
 """Local node manager for Flocker."""
 
-from ._model import Application
+from ._deploy import Deployment
+from ._model import Application, DockerImage
 
 
-__all__ = ["Application"]
+__all__ = ["Application", "Deployment", "DockerImage"]
