@@ -528,7 +528,8 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             except ValueError as e:
                 self.fail(
                     'One of the following arguments was expected to be '
-                    'optional but appears to be required: %r. Error was: %r' % (
+                    'optional but appears to be required: %r. '
+                    'Error was: %r' % (
                         expected_defaults.keys(), e))
 
             self.assertEqual(
@@ -545,7 +546,8 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             except ValueError as e:
                 self.fail(
                     'One of the following arguments was expected to be '
-                    'optional but appears to be required: %r. Error was: %r' % (
+                    'optional but appears to be required: %r. '
+                    'Error was: %r' % (
                         expected_defaults.keys(), e))
             self.assertEqual(
                 expected_defaults.values(),
