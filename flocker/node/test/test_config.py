@@ -14,9 +14,11 @@ class ModelFromConfigurationTests(SynchronousTestCase):
     """
     def test_error_on_missing_application_key(self):
         """
-        ``model_from_configuration`` raises an exception if the
+        ``model_from_configuration`` raises an ``KeyError`` if the
         application_configuration does not contain an `application` key.
         """
+        config = Configuration()
+        self.assertRaises(KeyError, config._applications_from_configuration, {})
 
     def test_error_on_missing_application_attributes(self):
         """
