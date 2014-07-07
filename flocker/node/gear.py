@@ -263,6 +263,10 @@ class FakeGearClient(object):
     """
 
     def __init__(self, units=None):
+        """
+        :param dict units: A dictionary of canned ``Unit``\ s which will be
+            manipulated and returned by the methods of this ``FakeGearClient``.
+        """
         if units is None:
             units = {}
         self._units = units
