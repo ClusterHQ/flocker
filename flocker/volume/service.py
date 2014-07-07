@@ -223,8 +223,7 @@ class Volume(object):
         """
         local_path = self.get_filesystem().get_path().path
         mount_path = mount_path.path
-        d = _docker_command(reactor, [b"rm", self._container_name])
-        d.addErrback(lambda failure: failure.trap(CommandFailed))
+        d = self.remove_from_docker()
         d.addCallback(
             lambda _:
                 _docker_command(reactor,
@@ -232,4 +231,18 @@ class Volume(object):
                                  b"--volume=%s:%s:rw" % (local_path,
                                                          mount_path),
                                  b"busybox", b"/bin/true"]))
+        return d
+
+    def remove_from_docker(self):
+        """
+        Remove the Docker container created for the volume.
+
+        If no container exists this will silently do nothing.
+
+        :return: ``Deferred`` firing with ``None`` when the operation is
+           done.
+        """
+        d = _docker_command(reactor, [b"rm", self._container_name])
+        d.addErrback(lambda failure: failure.trap(CommandFailed))
+        d.addCallback(lambda _: None)
         return d
