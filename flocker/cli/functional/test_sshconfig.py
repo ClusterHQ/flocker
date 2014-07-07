@@ -48,7 +48,6 @@ class ConfigureSSHTests(TestCase):
         self.configure_ssh = self.config.configure_ssh
 
         output = check_output([b"ssh-agent", b"-c"]).splitlines()
-        self.addCleanup(lambda: kill(int(pid), SIGKILL))
 
         # ``configure_ssh`` expects ``ssh`` to already be able to
         # authenticate against the server.  Set up an ssh-agent to
@@ -59,6 +58,9 @@ class ConfigureSSHTests(TestCase):
         # echo Agent pid 6391;
         sock = output[0].split()[2][:-1]
         pid = output[1].split()[2][:-1]
+
+        self.addCleanup(lambda: kill(int(pid), SIGKILL))
+
         environ[b"SSH_AUTH_SOCK"] = sock
         environ[b"SSH_AGENT_PID"] = pid
         with open(devnull, "w") as discard:
