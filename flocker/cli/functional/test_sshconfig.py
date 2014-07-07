@@ -4,6 +4,7 @@
 Tests for ``flocker.cli._sshconfig``.
 """
 
+from operator import setitem, delitem
 from os import devnull, environ, kill
 from os.path import expanduser
 from signal import SIGKILL
@@ -61,8 +62,17 @@ class ConfigureSSHTests(TestCase):
 
         self.addCleanup(lambda: kill(int(pid), SIGKILL))
 
-        environ[b"SSH_AUTH_SOCK"] = sock
-        environ[b"SSH_AGENT_PID"] = pid
+        def patchdict(k, v):
+            if k in environ:
+                self.addCleanup(lambda old=environ[k]: setitem(environ, k, old))
+            else:
+                self.addCleanup(lambda: delitem(environ, k))
+
+            environ[k] = v
+
+        patchdict(b"SSH_AUTH_SOCK", sock)
+        patchdict(b"SSH_AGENT_PID", pid)
+
         with open(devnull, "w") as discard:
             check_call(
                 [b"ssh-add", self.server.key_path.path],
