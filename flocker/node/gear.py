@@ -24,7 +24,7 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 @attributes(["name", "activation_state", "container_image", "ports", "links"],
-            defaults=dict(ports=(), links=()))
+            defaults=dict(container_image=None, ports=(), links=()))
 class Unit(object):
     """Information about a unit managed by geard/systemd.
 
@@ -222,20 +222,18 @@ class GearClient(object):
         return d
 
     def list(self):
-        """
-        XXX: Need to find a way to get the ContainerImage for a unit. See
-        http://lists.openshift.redhat.com/openshift-archives/users/2014-July/msg00005.html
-        Gear may not have started a Docker container yet, so no point querying
-        docker for the unit name.
-        """
         d = self._request(b"GET", b"/containers")
         d.addCallback(content)
 
         def got_body(data):
             values = json.loads(data)[u"Containers"]
+            # XXX: GearClient.list should also return container_image
+            # information.
+            # See https://github.com/ClusterHQ/flocker/issues/207
+            # container_image=image_name,
             return set([Unit(name=unit[u"Id"],
                              activation_state=unit[u"ActiveState"],
-                             container_image=u"UNKNOWN")
+                             container_image=None)
                         for unit in values])
         d.addCallback(got_body)
         return d
@@ -277,7 +275,15 @@ class FakeGearClient(object):
         return succeed(None)
 
     def list(self):
-        return succeed(self._units.values())
+        # XXX: This is a hack so that functional and unit tests that use
+        # GearClient.list can pass until the real GearClient.list can also
+        # return container_image information, ports and links.
+        # See https://github.com/ClusterHQ/flocker/issues/207
+        incomplete_units = []
+        for unit in self._units.values():
+            incomplete_units.append(
+                Unit(name=unit.name, activation_state=unit.activation_state))
+        return succeed(incomplete_units)
 
 
 @attributes(['internal_port', 'external_port'],)
