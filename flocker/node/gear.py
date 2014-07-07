@@ -42,6 +42,15 @@ class Unit(object):
         ``u"inactive"`` apparently). See
         https://github.com/ClusterHQ/flocker/issues/187 about using constants
         instead of strings.
+
+    :ivar unicode container_image: The docker image name associated with this
+        gear unit
+
+    :ivar list ports: The `PortMap` instances which define the external links
+        for this unit.
+
+    :ivar list links: The `PortMap` instances which define the internal links
+        for this unit.
     """
 
 
