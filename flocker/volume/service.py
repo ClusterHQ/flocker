@@ -160,6 +160,79 @@ class VolumeService(Service):
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
 
+    def acquire(self, volume_uuid, volume_name, mount_path, output_file):
+        """
+        Take ownership of a volume.
+
+        This is a blocking API for now.
+
+        Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
+        this service's) can be acquired.
+
+        :param unicode volume_uuid: The volume's UUID.
+        :param unicode volume_name: The volume's name.
+        :param FilePath mount_path: The path at which to mount the volume within
+            the container.
+        :param output_file: A file-like object, typically ``sys.stdout``, to
+            which the UUID of this volume manager will be written.
+
+        :raises ValueError: If the uuid of the volume matches our own;
+            remote nodes can't relinquish locally-owned volumes.
+        """
+        # if volume_uuid == self.uuid:
+        #     raise ValueError()
+        # volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        # d = self._pool.change_owner(volume, self.uuid)
+        # d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
+        # return d
+
+    def _relinquish(self, volume, remote_uuid):
+        """
+        Cease ownership of a volume.
+
+        The volume is changed to be owned by the volume manager with the
+        given UUID.
+
+        :param Volume volume: The volume to relinquish.
+
+        :return: ``Deferred`` that fires when the operation has finished.
+        """
+        # d = volume.remove_from_docker()
+        # d.addCallback(lambda _: self._pool.change_owner(volume, remote_uuid))
+        # return d
+
+    def handoff(self, volume, destination, mount_path,
+                config_path=DEFAULT_CONFIG_PATH):
+        """
+        Handoff a locally owned volume to a remote destination.
+
+        The remote destination will be the new owner of the volume.
+
+        This is a blocking API for now (but it does return a ``Deferred``
+        for success/failure).
+
+        :param Volume volume: The volume to handoff.
+        :param Node destination: The node to handoff to.
+        :param FilePath mount_path: The path at which to mount the volume within
+            the container.
+        :param FilePath config_path: Path to configuration file for the
+            remote ``flocker-volume``.
+
+        :return: ``Deferred`` that fires when the handoff has finished, or
+        errbacks on error (specifcally with a ``ValueError`` if the volume
+        is not locally owned).
+        """
+        # self.push(volume, destination, config_path)
+        # remote_uuid = destination.get_output(
+        #     [b"flocker-volume",
+        #      b"--config", config_path.path,
+        #      b"acquire",
+        #      volume.uuid.encode(b"ascii"),
+        #      volume.name.encode("ascii"),
+        #      mount_path.path,
+        #      ])
+        # return self._relinquish(volume, remote_uuid.decode("ascii"))
+
 
 # Communication with Docker should be done via its API, not with this
 # approach, but that depends on unreleased Twisted 14.1:
@@ -234,7 +307,7 @@ class Volume(object):
         Can be called multiple times. Mount paths from previous calls will
         be overridden.
 
-        :param mount_path: The path at which to mount the volume within
+        :param FilePath mount_path: The path at which to mount the volume within
             the container.
 
         :return: ``Deferred`` firing when the operation is done.
