@@ -15,7 +15,6 @@ Contents:
    volume/index
    roadmap/index
    infrastructure/index
-   architecture/index
    contributing
    authors
 
