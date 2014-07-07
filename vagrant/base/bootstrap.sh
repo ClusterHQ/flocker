@@ -22,8 +22,8 @@ yum install -y python-twisted python-characteristic python-eliot pytz python-ipa
 yum install -y python-cffi python-netifaces python-treq
 yum install -y libffi-devel
 yum install -y python-nomenclature
+# Install for downloading wheelhouse
+yum install -y wget
 
-# Cleanup
-rm -rf /tmp/* /var/tmp/*
-dd if=/dev/zero of=/EMPTY bs=1M || true
-rm -f /EMPTY
+systemctl enable docker
+systemctl enable geard

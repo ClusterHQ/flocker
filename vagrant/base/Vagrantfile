@@ -6,7 +6,15 @@ VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/fedora20-updated"
+  # Configure base system
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
+  # Configure pip (for root and vagrant)
+  config.vm.provision :shell, :path => "pip.sh", :privileged => true
+  config.vm.provision :shell, :path => "pip.sh", :privileged => false
+  # Prepare cahces
+  config.vm.provision :shell, :path => "cache.sh", :privileged => true
+  # Cleanup
+  config.vm.provision :shell, :path => "cleanup.sh", :privileged => true
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
