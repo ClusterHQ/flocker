@@ -4,18 +4,20 @@ External Routing
 
 Flocker allows you to expose public ports on your applications.
 For example, you can export port 8443 on a HTTPS server running inside a container as an externally visible port 443 on the host machine.
-Because Flocker runs on a cluster of nodes you don't necessarily know in advance which node in the cluster your web application will be running on.
+Because Flocker runs on a cluster of nodes your web application might run on different nodes at different times.
 You could update the DNS record every time a container moves.
 However, updating DNS records can take anywhere from a minute for a few hours to take effect for all clients so this will impact your application's availability.
+This is where Flocker's routing functionality comes in handy.
 
-To solve this problem Flocker routes port 443 on *all* nodes to the node where your application is running.
+When an external route is configured (e.g. on port 443) Flocker routes that port on *all* nodes to the node where your application is running.
+You can therefore move a node and then change your DNS configuration appropriately without incurring any downtime.
 
 
-DNS Configuration
-=================
+No-Change DNS Configuration
+===========================
 
-You can take advantage of this functionality when you configure the DNS records for your application.
-The DNS record for your application should be configured to point at all IPs in the cluster.
+What's more it is also possible to configure your DNS records in such a way that no DNS changes are necessary when applications move to different nodes.
+Specifically, the DNS record for your application should be configured to point at all IPs in the cluster.
 
 For example, consider the following setup:
 
