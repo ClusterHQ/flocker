@@ -99,14 +99,13 @@ def make_igearclient_tests(fixture):
         def test_added_is_listed(self):
             """An added unit is included in the output of ``list()``."""
             client = fixture(self)
-            name = b'rjw' + random_name()
+            name = random_name()
             self.addCleanup(client.remove, name)
             expected_container_image = u"openshift/busybox-http-app"
             d = client.add(name, expected_container_image)
             d.addCallback(lambda _: client.list())
 
             def got_list(units):
-                import pdb; pdb.set_trace()
                 activating = Unit(name=name, activation_state=u"activating",
                                   container_image=expected_container_image)
                 active = Unit(name=name, activation_state=u"active",
