@@ -6,7 +6,7 @@ Tests for ``flocker.node._config``.
 
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from .._config import Configuration
-
+from .._model import Application, DockerImage
 
 class ModelFromConfigurationTests(SynchronousTestCase):
     """
@@ -85,3 +85,21 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` returns a dict of ``Application``
         instances, one for each application key in the supplied configuration.
         """
+        config = dict(
+            applications={
+                u'mysql-hybridcluster': dict(image=u'flocker/mysql:v1.0.0'),
+                u'site-hybridcluster': dict(image=u'flocker/wordpress:v1.0.0')
+            }
+        )
+        parser = Configuration()
+        applications = parser._applications_from_configuration(config)
+        expected_applications = {
+            u'mysql-hybridcluster': Application(
+                name=u'mysql-hybridcluster',
+                image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0')),
+            u'site-hybridcluster': Application(
+                name=u'site-hybridcluster',
+                image=DockerImage(repository=u'flocker/wordpress', tag=u'v1.0.0'))
+        }
+
+        self.assertEqual(expected_applications, applications)
