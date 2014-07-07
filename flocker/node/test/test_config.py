@@ -45,12 +45,12 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         # XXX: Test for individual missing attributes when other attributes (eg
         # volume) are added to the Application class.
-        config = dict(applications={u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar')})
+        config = dict(applications={u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar', baz=b'quux')})
         parser = Configuration()
         exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Unrecognised keys in: image, foo",
+            "Unrecognised keys: foo, baz",
             exception.message
         )
 
@@ -59,6 +59,19 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` raises an exception if the
         application_configuration uses invalid docker image names.
         """
+        invalid_docker_image_name = b':baz'
+        config = dict(
+            applications={u'mysql-hybridcluster': dict(
+                image=invalid_docker_image_name)})
+        parser = Configuration()
+        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid docker image name. "
+            "Docker image names must have format 'repository[:tag]'. "
+            "Found ':baz'".format(image_name=invalid_docker_image_name),
+            exception.message
+        )
 
     def test_error_on_invalid_volume_path(self):
         """

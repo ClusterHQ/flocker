@@ -23,6 +23,18 @@ class DockerImage(object):
         return "{repository}:{tag}".format(
             repository=self.repository, tag=self.tag)
 
+    @classmethod
+    def from_string(cls, input):
+        kwargs = {}
+        parts = input.rsplit(':', 1)
+        repository = parts[0]
+        if not repository:
+            raise ValueError("Docker image names must have format 'repository[:tag]'. Found '{image_name}'".format(image_name=input))
+        kwargs['repository'] = repository
+        if len(parts) == 2:
+            kwargs['tag'] = parts[1]
+        return cls(**kwargs)
+
 
 @attributes(["name", "image"])
 class Application(object):

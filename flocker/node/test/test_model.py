@@ -55,6 +55,23 @@ class DockerImageTests(SynchronousTestCase):
         )
 
 
+class DockerImageFromStringTests(SynchronousTestCase):
+    """
+    Other tests for ``DockerImage.from_string``.
+    """
+    def test_error_on_empty_repository(self):
+        """
+        ``DockerImage.full_name`` raises ``ValueError`` if repository is empty.
+        """
+        exception = self.assertRaises(
+            ValueError, DockerImage.from_string, b':foo')
+        self.assertEqual(
+            "Docker image names must have format 'repository[:tag]'. "
+            "Found ':foo'",
+            exception.message
+        )
+
+
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(name=u'site-example.com', image=object())
