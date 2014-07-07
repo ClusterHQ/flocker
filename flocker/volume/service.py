@@ -176,8 +176,8 @@ class VolumeService(Service):
         :param output_file: A file-like object, typically ``sys.stdout``, to
             which the UUID of this volume manager will be written.
 
-        :raises ValueError: If the uuid of the volume matches our own;
-            remote nodes can't relinquish locally-owned volumes.
+        :return: ``Deferred`` that fires on success, or errbacks with
+            ``ValueError`` If the uuid of the volume matches our own.
         """
         # if volume_uuid == self.uuid:
         #     raise ValueError()
@@ -219,8 +219,8 @@ class VolumeService(Service):
             remote ``flocker-volume``.
 
         :return: ``Deferred`` that fires when the handoff has finished, or
-        errbacks on error (specifcally with a ``ValueError`` if the volume
-        is not locally owned).
+            errbacks on error (specifcally with a ``ValueError`` if the
+            volume is not locally owned).
         """
         # self.push(volume, destination, config_path)
         # remote_uuid = destination.get_output(
