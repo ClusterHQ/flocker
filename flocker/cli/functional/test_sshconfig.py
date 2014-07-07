@@ -64,7 +64,8 @@ class ConfigureSSHTests(TestCase):
 
         def patchdict(k, v):
             if k in environ:
-                self.addCleanup(lambda old=environ[k]: setitem(environ, k, old))
+                self.addCleanup(
+                    lambda old=environ[k]: setitem(environ, k, old))
             else:
                 self.addCleanup(lambda: delitem(environ, k))
 
