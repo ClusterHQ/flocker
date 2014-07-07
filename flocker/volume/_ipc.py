@@ -9,7 +9,7 @@ well-specified communication protocol between daemon processes using
 Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 """
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 from contextlib import contextmanager
 from io import BytesIO
 
@@ -30,6 +30,15 @@ class INode(Interface):
             remotely along with its arguments.
 
         :return: file-like object that can be written to.
+        """
+
+    def get_output(remote_command):
+        """Run a remote command and return its stdout.
+
+        :param remote_command: ``list`` of ``bytes``, the command to run
+            remotely along with its arguments.
+
+        :return: ``bytes`` of stdout from the remote command.
         """
 
 
@@ -56,6 +65,15 @@ class ProcessNode(object):
                 # We should really capture this and stderr:
                 # https://github.com/ClusterHQ/flocker/issues/155
                 raise IOError("Bad exit")
+
+    def get_output(self, remote_command):
+        try:
+            return check_output(
+                self.initial_command_arguments + remote_command)
+        except CalledProcessError:
+            # We should really capture this and stderr:
+            # https://github.com/ClusterHQ/flocker/issues/155
+            raise IOError("Bad exit")
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):
@@ -87,17 +105,35 @@ class ProcessNode(object):
 
 @implementer(INode)
 class FakeNode(object):
-    """Pretend to run a command.
+    """
+    Pretend to run a command.
 
     This is useful for testing.
 
-    :ivar remote_command: The arguments to the last call to ``run()``.
+    :ivar remote_command: The arguments to the last call to ``run()`` or
+        ``get_output()``.
+
     :ivar stdin: `BytesIO` returned from last call to ``run()``.
     """
+    def __init__(self, outputs=()):
+        """
+        :param outputs: Sequence of results for ``get_output()``.
+        """
+        self._outputs = list(outputs)
+
     @contextmanager
     def run(self, remote_command):
-        """Store arguments and in-memory "stdin"."""
+        """
+        Store arguments and in-memory "stdin".
+        """
         self.stdin = BytesIO()
         self.remote_command = remote_command
         yield self.stdin
         self.stdin.seek(0, 0)
+
+    def get_output(self, remote_command):
+        """
+        Return the outputs passed to the constructor.
+        """
+        self.remote_command = remote_command
+        return self._outputs.pop(0)
