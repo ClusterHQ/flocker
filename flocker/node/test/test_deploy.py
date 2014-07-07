@@ -132,6 +132,17 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Deployment.discover_node_configuration``.
     """
+    def test_discover_none(self):
+        """
+        ``Deployment.discover_node_configuration`` returns an empty list if
+        there are geard units.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual([], self.successResultOf(d))
+
     def test_discover_one(self):
         """
         ``Deployment.discover_node_configuration`` returns a list of
