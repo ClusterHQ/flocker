@@ -7,18 +7,22 @@ from __future__ import absolute_import
 import os
 import json
 import stat
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from characteristic import attributes
 
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
-# part of https://github.com/hybridlogic/flocker/issues/64
+# part of https://github.com/ClusterHQ/flocker/issues/64
 from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
+
+
+DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
 
 
 class CreateConfigurationError(Exception):
@@ -84,19 +88,82 @@ class VolumeService(Service):
             for filesystem in filesystems:
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
-                #    https://github.com/hybridlogic/flocker/issues/78
-                uuid, name = filesystem.get_path().basename().split(b".", 1)
+                #    https://github.com/ClusterHQ/flocker/issues/78
+                basename = filesystem.get_path().basename()
+                try:
+                    uuid, name = basename.split(b".", 1)
+                    uuid = UUID(uuid)
+                except ValueError:
+                    # If we can't split on `.` and get two parts then it's not
+                    # a filesystem Flocker is managing.  Likewise if we can't
+                    # interpret the bit before the `.` as a UUID.  Perhaps a
+                    # user created it, who knows.  Just ignore it.
+                    continue
+
+                # Probably shouldn't yield this volume if the uuid doesn't
+                # match this service's uuid.
                 yield Volume(
-                    uuid=uuid.decode('utf8'),
+                    uuid=unicode(uuid),
                     name=name.decode('utf8'),
                     _pool=self._pool)
         enumerating.addCallback(enumerated)
         return enumerating
 
+    def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
+        """Push the latest data in the volume to a remote destination.
+
+        This is a blocking API for now.
+
+        Only locally owned volumes (i.e. volumes whose ``uuid`` matches
+        this service's) can be pushed.
+
+        :param Volume volume: The volume to push.
+        :param Node destination: The node to push to.
+        :param FilePath config_path: Path to configuration file for the
+            remote ``flocker-volume``.
+
+        :raises ValueError: If the uuid of the volume is different than
+            our own; only locally-owned volumes can be pushed.
+        """
+        if volume.uuid != self.uuid:
+            raise ValueError()
+        fs = volume.get_filesystem()
+        with destination.run([b"flocker-volume",
+                              b"--config", config_path.path,
+                              b"receive",
+                              volume.uuid.encode(b"ascii"),
+                              volume.name.encode("ascii")]) as receiver:
+            with fs.reader() as contents:
+                for chunk in iter(lambda: contents.read(1024 * 1024), b""):
+                    receiver.write(chunk)
+
+    def receive(self, volume_uuid, volume_name, input_file):
+        """Process a volume's data that can be read from a file-lik.
+
+        This is a blocking API for now.
+
+        Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
+        this service's) can be received.
+
+        :param unicode volume_uuid: The volume's UUID.
+        :param unicode volume_name: The volume's name.
+        :param input_file: A file-like object, typically ``sys.stdin``, from
+            which to read the data.
+
+        :raises ValueError: If the uuid of the volume matches our own;
+            remote nodes can't overwrite locally-owned volumes.
+        """
+        if volume_uuid == self.uuid:
+            raise ValueError()
+        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        with volume.get_filesystem().writer() as writer:
+            for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+                writer.write(chunk)
+
 
 # Communication with Docker should be done via its API, not with this
 # approach, but that depends on unreleased Twisted 14.1:
-# https://github.com/hybridlogic/flocker/issues/64
+# https://github.com/ClusterHQ/flocker/issues/64
 def _docker_command(reactor, arguments):
     """Run the ``docker`` command-line tool with the given arguments.
 
@@ -158,9 +225,11 @@ class Volume(object):
         mount_path = mount_path.path
         d = _docker_command(reactor, [b"rm", self._container_name])
         d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(lambda _: _docker_command(
-            reactor,
-            [b"run", b"--name", self._container_name,
-             b"--volume=%s:%s:rw" % (local_path, mount_path),
-             b"busybox", b"/bin/true"]))
+        d.addCallback(
+            lambda _:
+                _docker_command(reactor,
+                                [b"run", b"--name", self._container_name,
+                                 b"--volume=%s:%s:rw" % (local_path,
+                                                         mount_path),
+                                 b"busybox", b"/bin/true"]))
         return d

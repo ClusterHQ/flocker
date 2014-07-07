@@ -1,3 +1,7 @@
+# Floobits
+.floo
+.flooignore
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -61,3 +65,12 @@ docs/_build/
 
 # Vagrant
 .vagrant
+
+# Mac stuff
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

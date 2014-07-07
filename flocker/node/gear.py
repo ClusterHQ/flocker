@@ -6,7 +6,8 @@ import json
 
 from zope.interface import Interface, implementer
 
-from twisted.web.http import NOT_FOUND
+from characteristic import attributes
+
 from twisted.internet.defer import succeed, fail
 
 from treq import request, content
@@ -23,15 +24,39 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
+@attributes(["name", "activation_state"])
+class Unit(object):
+    """Information about a unit managed by geard/systemd.
+
+    :ivar unicode name: The name of the unit.
+
+    :ivar unicode activation_state: The state of the unit in terms of
+        systemd activation. Values indicate whether the unit is installed
+        but not running (``u"inactive"``), starting (``u"activating"``),
+        running (``u"active"``), failed (``u"failed"``) stopping
+        (``u"deactivating"``) or stopped (either ``u"failed"`` or
+        ``u"inactive"`` apparently). See
+        https://github.com/ClusterHQ/flocker/issues/187 about using constants
+        instead of strings.
+    """
+
+
 class IGearClient(Interface):
     """A client for the geard HTTP API."""
 
-    def add(unit_name, image_name):
+    def add(unit_name, image_name, ports=None, links=None):
         """Install and start a new unit.
 
         :param unicode unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
+
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in
+            the container to ports exposed on the host. Default ``None`` means
+            that no port mappings will be configured for this unit.
+
+        :param list links: A list of ``PortMap``\ s mapping ports forwarded
+            from the container to ports on the host.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -56,6 +81,12 @@ class IGearClient(Interface):
         :return: ``Deferred`` that fires on success.
         """
 
+    def list():
+        """List all known units.
+
+        :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
+        """
+
 
 @implementer(IGearClient)
 class GearClient(object):
@@ -70,7 +101,7 @@ class GearClient(object):
         """
         self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
 
-    def _request(self, method, unit_name, operation=None, data=None):
+    def _container_request(self, method, unit_name, operation=None, data=None):
         """Send HTTP request to gear.
 
         :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
@@ -85,11 +116,27 @@ class GearClient(object):
 
         :return: A ``Defered`` that fires with a response object.
         """
-        url = self._base_url + b"/container/" + unit_name.encode("ascii")
+        path = b"/container/" + unit_name.encode("ascii")
         if operation is not None:
-            url += b"/" + operation
+            path += b"/" + operation
+        return self._request(method, path, data=data)
+
+    def _request(self, method, path, data=None):
+        """Send HTTP request to gear.
+
+        :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
+
+        :param bytes path: Path to request.
+
+        :param data: ``None``, or object with a body for the request that
+            can be serialized to JSON.
+
+        :return: A ``Defered`` that fires with a response object.
+        """
+        url = self._base_url + path
         if data is not None:
             data = json.dumps(data)
+
         return request(method, url, data=data, persistent=False)
 
     def _ensure_ok(self, response):
@@ -111,42 +158,79 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None, links=None):
+        """
+        See ``IGearClient.add`` for base documentation.
+
+        Gear `NetworkLinks` are currently fixed to destination localhost. This
+        allows us to control the actual target of the link using proxy / nat
+        rules on the host machine without having to restart the gear unit.
+
+        XXX: If gear allowed us to reconfigure links this wouldn't be
+        necessary. See https://github.com/openshift/geard/issues/223
+
+        XXX: As long as we need to set the target as 127.0.0.1 its also worth
+        noting that gear will actually route the traffic to a non-loopback
+        address on the host. So if your service or NAT rule on the host is
+        configured for 127.0.0.1 only, it won't receive any traffic. See
+        https://github.com/openshift/geard/issues/224
+        """
+        if ports is None:
+            ports = []
+
+        if links is None:
+            links = []
+
+        data = {
+            u"Image": image_name, u"Started": True, u'Ports': [],
+            u'NetworkLinks': []}
+
+        for port in ports:
+            data['Ports'].append(
+                {u'Internal': port.internal_port,
+                 u'External': port.external_port})
+
+        for link in links:
+            data['NetworkLinks'].append(
+                {u'FromHost': u'127.0.0.1',
+                 u'FromPort': link.internal_port,
+                 u'ToHost': u'127.0.0.1',
+                 u'ToPort': link.external_port}
+            )
+
         checked = self.exists(unit_name)
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
         checked.addCallback(
-            lambda _: self._request(b"PUT", unit_name,
-                                    data={u"Image": image_name,
-                                          u"Started": True}))
+            lambda _: self._container_request(b"PUT", unit_name, data=data))
         checked.addCallback(self._ensure_ok)
         return checked
 
     def exists(self, unit_name):
-        # status isn't really intended for this usage; better to use
-        # listing (with option to list all) as part of
-        # https://github.com/openshift/geard/issues/187
-        d = self._request(b"GET", unit_name, operation=b"status")
+        d = self.list()
 
-        def got_response(response):
-            result = content(response)
-            # Gear can return a variety of 2xx success codes:
-            if response.code // 100 == 2:
-                result.addCallback(lambda _: True)
-            elif response.code == NOT_FOUND:
-                result.addCallback(lambda _: False)
-            else:
-                result.addCallback(
-                    lambda data: fail(GearError(response.code, data)))
-            return result
-        d.addCallback(got_response)
+        def got_units(units):
+            return unit_name in [unit.name for unit in units]
+        d.addCallback(got_units)
         return d
 
     def remove(self, unit_name):
-        d = self._request(b"PUT", unit_name, operation=b"stopped")
+        d = self._container_request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
-        d.addCallback(lambda _: self._request(b"DELETE", unit_name))
+        d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
+        return d
+
+    def list(self):
+        d = self._request(b"GET", b"/containers")
+        d.addCallback(content)
+
+        def got_body(data):
+            values = json.loads(data)[u"Containers"]
+            return set([Unit(name=unit[u"Id"],
+                             activation_state=unit[u"ActiveState"])
+                        for unit in values])
+        d.addCallback(got_body)
         return d
 
 
@@ -163,10 +247,19 @@ class FakeGearClient(object):
     def __init__(self):
         self._units = {}
 
-    def add(self, unit_name, image_name):
+    def add(self, unit_name, image_name, ports=None, links=None):
+        if ports is None:
+            ports = []
+        if links is None:
+            links = []
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {}
+        self._units[unit_name] = {
+            'unit_name': unit_name,
+            'image_name': image_name,
+            'ports': ports,
+            'links': links,
+        }
         return succeed(None)
 
     def exists(self, unit_name):
@@ -176,3 +269,20 @@ class FakeGearClient(object):
         if unit_name in self._units:
             del self._units[unit_name]
         return succeed(None)
+
+    def list(self):
+        result = set()
+        for name in self._units:
+            result.add(Unit(name=name, activation_state=u"active"))
+        return succeed(result)
+
+
+@attributes(['internal_port', 'external_port'],)
+class PortMap(object):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """

@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import json
 import os
 from unittest import skipIf
+from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
@@ -14,8 +15,12 @@ from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
 
-from ..service import VolumeService, CreateConfigurationError, Volume
+from ..service import (
+    VolumeService, CreateConfigurationError, Volume, DEFAULT_CONFIG_PATH,
+    )
 from ..filesystems.memory import FilesystemStoragePool
+from .._ipc import FakeNode
+from ...testtools import skip_on_broken_permissions
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -44,14 +49,15 @@ class VolumeServiceStartupTests(TestCase):
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
 
     def test_no_config_directory(self):
-        """The config file's parent directory is created if it doesn't
-        exist."""
+        """The config file's parent directory is created if it
+        doesn't exist."""
         path = FilePath(self.mktemp()).child(b"config.json")
         service = VolumeService(path, None)
         service.startService()
         self.assertTrue(path.exists())
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -64,6 +70,7 @@ class VolumeServiceStartupTests(TestCase):
         self.assertRaises(CreateConfigurationError, service.startService)
 
     @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @skip_on_broken_permissions
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
@@ -106,11 +113,12 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
+    @skip_on_broken_permissions
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/hybridlogic/flocker/issues/34
+        https://github.com/ClusterHQ/flocker/issues/34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
@@ -118,6 +126,112 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
+
+    def test_push_different_uuid(self):
+        """Pushing a remotely-owned volume results in a ``ValueError``."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        volume = Volume(uuid=u"wronguuid", name=u"blah", _pool=pool)
+        self.assertRaises(ValueError, service.push, volume, FakeNode())
+
+    def test_push_destination_run(self):
+        """Pushing a locally-owned volume calls ``flocker-volume`` remotely."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode()
+
+        service.push(volume, node, FilePath(b"/path/to/json"))
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
+
+    def test_push_default_config(self):
+        """Pushing by default calls ``flocker-volume`` with default config
+        path."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode()
+
+        service.push(volume, node)
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config",
+                          DEFAULT_CONFIG_PATH.path,
+                          b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
+
+    def test_push_writes_filesystem(self):
+        """Pushing a locally-owned volume writes its filesystem to the remote
+        process."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+        filesystem.get_path().child(b"foo").setContent(b"blah")
+        with filesystem.reader() as reader:
+            data = reader.read()
+        node = FakeNode()
+
+        service.push(volume, node)
+        self.assertEqual(node.stdin.read(), data)
+
+    def test_receive_local_uuid(self):
+        """If a volume with same uuid as service is received, ``ValueError`` is
+        raised."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        self.assertRaises(ValueError, service.receive,
+                          service.uuid.encode("ascii"), b"lalala", None)
+
+    def test_receive_creates_volume(self):
+        """Receiving creates a volume with the given uuid and name."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+
+        manager_uuid = unicode(uuid4())
+
+        with filesystem.reader() as reader:
+            service.receive(manager_uuid, u"newvolume", reader)
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
+        d = service.enumerate()
+
+        def got_volumes(volumes):
+            # Consume the generator into a list.  Using `assertIn` on a
+            # generator produces bad failure messages.
+            volumes = list(volumes)
+            self.assertIn(new_volume, volumes)
+        d.addCallback(got_volumes)
+        return d
+
+    def test_receive_creates_files(self):
+        """Receiving creates filesystem with the given push data."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+        filesystem.get_path().child(b"afile").setContent(b"lalala")
+
+        manager_uuid = unicode(uuid4())
+
+        with filesystem.reader() as reader:
+            service.receive(manager_uuid, u"newvolume", reader)
+
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", _pool=pool)
+        root = new_volume.get_filesystem().get_path()
+        self.assertTrue(root.child(b"afile").getContent(), b"lalala")
 
     def test_enumerate_no_volumes(self):
         """``enumerate()`` returns no volumes when there are no volumes."""
@@ -150,6 +264,29 @@ class VolumeServiceAPITests(TestCase):
         expected = self.successResultOf(service.create(u"some.volume"))
         actual = self.successResultOf(service.enumerate())
         self.assertEqual([expected], list(actual))
+
+    def test_enumerate_skips_other_filesystems(self):
+        """
+        The result of ``enumerate()`` does not include any volumes representing
+        filesystems named outside of the Flocker naming convention (which may
+        have been created directly by the user).
+        """
+        path = FilePath(self.mktemp())
+        path.child(b"arbitrary stuff").makedirs()
+        path.child(b"stuff\tarbitrary").makedirs()
+        path.child(b"non-uuid.stuff").makedirs()
+
+        pool = FilesystemStoragePool(path)
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+
+        name = u"good volume name"
+        self.successResultOf(service.create(name))
+
+        volumes = list(self.successResultOf(service.enumerate()))
+        self.assertEqual(
+            [Volume(uuid=service.uuid, name=name, _pool=pool)],
+            volumes)
 
 
 class VolumeTests(TestCase):

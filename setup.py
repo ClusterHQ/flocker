@@ -75,10 +75,16 @@ setup(
     # the Flocker package.
     packages=find_packages(),
 
+    package_data={
+        'flocker.node.functional': ['docker/*'],
+    },
+
     entry_points = {
         # Command-line programs we want setuptools to install:
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
+            'flocker-deploy = flocker.cli.script:flocker_deploy_main',
+            'flocker-changestate = flocker.node.script:flocker_changestate_main',
         ],
     },
 
@@ -89,10 +95,13 @@ setup(
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
 
+        "PyYAML == 3.10",
+
         "treq == 0.2.1",
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
+        "nomenclature >= 0.1.0",
         ],
 
     extras_require={
@@ -100,9 +109,12 @@ setup(
         "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
-            # pyflakes is pretty critical to have around to help point out
-            # obvious mistakes.
+            # flake8 is pretty critical to have around to help point out
+            # obvious mistakes. It depends on PEP8, pyflakes and mccabe.
             "pyflakes==0.8.1",
+            "pep8==1.5.7",
+            "mccabe==0.2.1",
+            "flake8==2.2.0",
 
             # Run the test suite:
             "tox==1.7.1",
@@ -110,6 +122,10 @@ setup(
             # versioneer is necessary in order to update (but *not* merely to
             # use) the automatic versioning tools.
             "versioneer==0.10",
+
+            # Some of the tests use Conch:
+            "PyCrypto==2.6.1",
+            "pyasn1==0.1.7",
             ]
         },
 
