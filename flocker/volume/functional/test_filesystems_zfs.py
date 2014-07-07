@@ -150,6 +150,7 @@ class StoragePoolTests(TestCase):
         d.addCallback(created_filesystems)
 
         self.assertFailure(d, OSError)
+
         def changed_owner(filesystem):
             self.assertEqual(original_mount.child('file').getContent(),
                              b'content')
