@@ -6,7 +6,7 @@ Deploy applications on nodes.
 """
 
 from .gear import GearClient
-from ._model import Application
+from . import Application
 
 class Deployment(object):
     """
