@@ -57,11 +57,11 @@ class DockerImageTests(SynchronousTestCase):
 
 class DockerImageFromStringTests(SynchronousTestCase):
     """
-    Other tests for ``DockerImage.from_string``.
+    Tests for ``DockerImage.from_string``.
     """
     def test_error_on_empty_repository(self):
         """
-        ``DockerImage.full_name`` raises ``ValueError`` if repository is empty.
+        A ``ValueError`` is raised if repository is empty.
         """
         exception = self.assertRaises(
             ValueError, DockerImage.from_string, b':foo')
