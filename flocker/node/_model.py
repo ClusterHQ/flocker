@@ -59,6 +59,7 @@ class Application(object):
         containerized application.
     """
 
+
 @attributes(["hostname", "applications"])
 class Node(object):
     """
@@ -71,4 +72,16 @@ class Node(object):
 
     :ivar set applications: A ``set`` of ``Application`` instances describing
         the applications which are to run on this ``Node``.
+    """
+
+
+@attributes(["nodes"])
+class Deployment(object):
+    """
+    A ``Deployment`` describes the configuration of a number of applications on
+    a number of cooperating nodes.  This might describe the real state of an
+    existing deployment or be used to represent a desired future state.
+
+    :ivar set nodes: A ``set`` containing ``Node`` instances describing the
+        configuration of each cooperating node.
     """
