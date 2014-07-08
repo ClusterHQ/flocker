@@ -293,6 +293,13 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.acquire()`` errbacks with a ``ValueError`` if given a
         locally-owned volume.
         """
+        service = VolumeService(FilePath(self.mktemp()),
+                                FilesystemStoragePool(FilePath(self.mktemp())))
+        service.startService()
+        self.addCleanup(service.stopService)
+
+        volume = Volume(uuid=u"wronguuid", name=u"blah", _pool=service._pool)
+        self.failureResultOf(service.acquire(volume, FakeNode()), ValueError)
 
     def test_acquire_changes_uuid(self):
         """
