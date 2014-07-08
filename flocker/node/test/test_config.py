@@ -84,6 +84,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` raises an exception if the
         application_configuration uses invalid unix paths for volumes.
         """
+        # The implementation can use os.path.isabs to check that an absolute
+        # path is used.
         raise SkipTest('Volumes configuration can not be parsed yet.')
         config = dict(
             applications={u'mysql-hybridcluster': dict(
@@ -94,7 +96,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid path to volume.",
+            "The volume mount path must be an absolute path.",
             exception.message
         )
 
