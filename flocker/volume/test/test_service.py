@@ -8,12 +8,14 @@ import json
 import os
 from unittest import skipIf
 from uuid import uuid4
+from io import BytesIO
 
 from zope.interface.verify import verifyObject
 
 from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
+from twisted.internet.defer import succeed
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, DEFAULT_CONFIG_PATH,
@@ -298,20 +300,115 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        volume = Volume(uuid=u"wronguuid", name=u"blah", _pool=service._pool)
-        self.failureResultOf(service.acquire(volume, FakeNode()), ValueError)
+        self.failureResultOf(service.acquire(service.uuid, u"blah", None, None),
+                             ValueError)
+
+    def create_service(self):
+        """
+        Create a new ``VolumeService``.
+
+        :return: The ``VolumeService`` created.
+        """
+        service = VolumeService(FilePath(self.mktemp()),
+                                FilesystemStoragePool(FilePath(self.mktemp())))
+        service.startService()
+        self.addCleanup(service.stopService)
+        return service
+
+    def remotely_owned_volume(self, service):
+        """
+        Create a volume ``u"myvolume"`` owned by a remote volume manager with
+        UUID ``b"remoteuuid"`.
+
+        :param VolumeService service: The service where the volume will be
+            stored (but which won't own it).
+
+        :return: The ``Volume`` instance.
+        """
+        created = service.create(u"myvolume")
+        created.addCallback(lambda volume: volume.change_owner(b"remoteuuid"))
+        return created
 
     def test_acquire_changes_uuid(self):
         """
         ``VolumeService.acquire()`` changes the UUID of the given volume to
         the volume manager's.
         """
+        # Lacking a verified fake, we're going to do this the wrong way.
+        # https://github.com/ClusterHQ/flocker/issues/234
+        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
+
+        service = self.create_service()
+
+        created = self.remotely_owned_volume(service)
+
+        def got_volume(remote_volume):
+            acquired = service.acquire(remote_volume.uuid, remote_volume.name,
+                                FilePath(b"/var/blah"), BytesIO())
+            acquired.addCallback(lambda _: service.enumerate())
+            acquired.addCallback(lambda results: self.assertEqual(
+                list(results),
+                [Volume(uuid=service.uuid, name=remote_volume.name,
+                        _pool=service._pool)]))
+            return acquired
+        created.addCallback(got_volume)
+        return created
+
+    def test_acquire_preserves_data(self):
+        """
+        ``VolumeService.acquire()`` preserves the data from acquired volume in
+        the renamed volume.
+        """
+        # Lacking a verified fake, we're going to do this the wrong way.
+        # https://github.com/ClusterHQ/flocker/issues/234
+        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
+
+        service = self.create_service()
+
+        created = self.remotely_owned_volume(service)
+
+        def got_volume(remote_volume):
+            remote_volume.get_filesystem().get_path().child(b"test").setContent(
+                b"some data")
+            acquired = service.acquire(remote_volume.uuid, remote_volume.name,
+                                FilePath(b"/var/blah"), BytesIO())
+
+            def acquire_done(_):
+                root = Volume(uuid=service.uuid,
+                              name=remote_volume.name,
+                              _pool=service._pool).get_filesystem().get_path()
+                self.assertEqual(root.child(b"test").getContent(), b"some data")
+            acquired.addCallback(acquire_done)
+            return acquired
+        created.addCallback(got_volume)
+        return created
 
     def test_acquire_exposes(self):
         """
         ```VolumeService.acquire()`` exposes the newly locally owned volume to
         Docker.
         """
+        # Lacking a verified fake, we're going to do this the wrong way.
+        # https://github.com/ClusterHQ/flocker/issues/234
+        exposed = []
+        def expose_to_docker(self, mount_path):
+            exposed.append((self, mount_path))
+            return succeed(None)
+        self.patch(Volume, "expose_to_docker", expose_to_docker)
+
+        service = self.create_service()
+        created = self.remotely_owned_volume(service)
+
+        def got_volume(remote_volume):
+            remote_volume.get_filesystem().get_path().child(b"test").setContent(
+                b"some data")
+            return service.acquire(remote_volume.uuid, remote_volume.name,
+                                   FilePath(b"/var/blah"), BytesIO())
+        created.addCallback(got_volume)
+        created.addCallback(lambda _: self.assertEqual(
+            exposed, [(Volume(uuid=service.uuid, name=u"myvolume",
+                              _pool=service._pool), FilePath(b"/var/blah"))]))
+        return created
 
     def test_handoff_rejects_remote_volume(self):
         """
@@ -331,8 +428,14 @@ class VolumeServiceAPITests(TestCase):
 
     def test_handoff_changes_uuid(self):
         """
-        ```VolumeService.handoff()`` changes the UUID of the volume to the
-        output of the call to ``flocker-volume acquire``.
+        ```VolumeService.handoff()`` changes the UUID of the volume's owner to
+        the output of the call to ``flocker-volume acquire``.
+        """
+
+    def test_handoff_preserves_data(self):
+        """
+        ``VolumeService.handoff()`` preserves the data from the relinquished
+        volume in the newly owned resulting volume.
         """
 
 

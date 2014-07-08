@@ -15,6 +15,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
+from twisted.internet.defer import fail
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
@@ -179,12 +180,12 @@ class VolumeService(Service):
         :return: ``Deferred`` that fires on success, or errbacks with
             ``ValueError`` If the uuid of the volume matches our own.
         """
-        # if volume_uuid == self.uuid:
-        #     raise ValueError()
-        # volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
-        # d = self._pool.change_owner(volume, self.uuid)
-        # d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
-        # return d
+        if volume_uuid == self.uuid:
+             return fail(ValueError())
+        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        d = volume.change_owner(self.uuid)
+        d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
+        return d
 
     def _relinquish(self, volume, remote_uuid):
         """
