@@ -82,6 +82,6 @@ class Deployment(object):
     a number of cooperating nodes.  This might describe the real state of an
     existing deployment or be used to represent a desired future state.
 
-    :ivar set nodes: A ``set`` containing ``Node`` instances describing the
+    :ivar tuple nodes: A ``tuple`` containing ``Node`` instances describing the
         configuration of each cooperating node.
     """

@@ -9,9 +9,9 @@ from .._config import Configuration
 from .._model import Application, DockerImage, Deployment, Node
 
 
-class ModelFromConfigurationTests(SynchronousTestCase):
+class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
-    Other tests for ``model_from_configuration``.
+    Tests for ``Configuration._applications_from_configuration``.
     """
     def test_error_on_missing_application_key(self):
         """
@@ -219,3 +219,20 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ])
 
         self.assertEqual(expected, result)
+
+
+class ModelFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``Configuration.model_from_configuration``.
+    """
+    def test_model_from_configuration_empty(self):
+        """
+        ``Configuration.model_from_configuration`` returns an empty
+        ``Deployment`` object if supplied with empty configurations.
+        """
+        config = Configuration()
+        application_configuration = {'applications': {}}
+        deployment_configuration = {'nodes': {}}
+        result = config.model_from_configuration(application_configuration, deployment_configuration)
+        expected_result = Deployment(nodes=tuple())
+        self.assertEqual(expected_result, result)
