@@ -13,6 +13,7 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import model_from_configuration
 
+
 @flocker_standard_options
 class DeployOptions(Options):
     """

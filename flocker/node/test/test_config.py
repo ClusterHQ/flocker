@@ -4,7 +4,7 @@
 Tests for ``flocker.node._config``.
 """
 
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SynchronousTestCase
 from .._config import Configuration
 from .._model import Application, DockerImage, Deployment, Node
 

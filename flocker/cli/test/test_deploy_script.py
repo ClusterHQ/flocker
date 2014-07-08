@@ -11,6 +11,7 @@ from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
 from ...node import Application, Deployment, DockerImage, Node
 
+
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
     """Tests for ``flocker-deploy``."""
     script = DeployScript
@@ -77,7 +78,8 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         }
         """)
 
-        options.parseOptions([application_configuration_path, deployment_configuration_path])
+        options.parseOptions(
+            [application_configuration_path, deployment_configuration_path])
         expected = Deployment(nodes=frozenset([
             Node(
                 hostname=u'node1',
