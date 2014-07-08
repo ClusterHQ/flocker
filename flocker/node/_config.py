@@ -17,8 +17,9 @@ class Configuration(object):
         """
         Validate and parse a given application configuration.
 
-        :param dict application_configuration: Map of applications to Docker
-            images.
+        :param dict application_configuration: The intermediate configuration
+            representation to load into ``Application`` instances.  See
+            :ref:`Configuration` for details.
 
         :raises KeyError: if there are validation errors.
 
@@ -66,8 +67,9 @@ class Configuration(object):
         """
         Validate and parse a given deployment configuration.
 
-        :param dict deployment_configuration: Map of node names to application
-            names.
+        :param dict deployment_configuration: The intermediate configuration
+            representation to load into ``Node`` instances.  See
+            :ref:`Configuration` for details.
 
         :raises ValueError: if there are validation errors.
 
