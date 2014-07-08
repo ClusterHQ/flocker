@@ -19,7 +19,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         ``Configuration._applications_from_configuration`` raises a
         ``KeyError`` if the application_configuration does not contain an
-        `application` key.
+        ``u"application"`` key.
         """
         config = Configuration()
         self.assertRaises(ConfigurationError,
@@ -138,9 +138,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             set([])
         )
         self.assertEqual(
-            u'Node node1.example.com has a config error. '
-            u'Wrong value type: NoneType. '
-            u'Should be list.',
+            'Node node1.example.com has a config error. '
+            'Wrong value type: NoneType. '
+            'Should be list.',
             exception.message
         )
 
@@ -166,8 +166,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             applications
         )
         self.assertEqual(
-            u'Node node1.example.com has a config error. '
-            u'Unrecognised application name: site-hybridcluster.',
+            'Node node1.example.com has a config error. '
+            'Unrecognised application name: site-hybridcluster.',
             exception.message
         )
 
