@@ -136,7 +136,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         deployment_configuration does not contain an `nodes` key.
         """
         config = Configuration()
-        self.assertRaises(KeyError, config._deployment_from_configuration, {})
+        self.assertRaises(
+            KeyError, config._deployment_from_configuration, {}, set([]))
 
     def test_error_on_non_list_applications(self):
         """
@@ -148,7 +149,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ValueError,
             config._deployment_from_configuration,
-            dict(nodes={u'node1.example.com': None})
+            dict(nodes={u'node1.example.com': None}),
+            set([])
         )
         self.assertEqual(
             u'Node node1.example.com has a config error. '
