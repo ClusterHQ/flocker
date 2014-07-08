@@ -173,10 +173,10 @@ class RemoteVolumeManager(object):
 
     def receive(self, volume):
         return self._destination.run([b"flocker-volume",
-                                       b"--config", self._config_path.path,
-                                       b"receive",
-                                       volume.uuid.encode(b"ascii"),
-                                       volume.name.encode("ascii")])
+                                      b"--config", self._config_path.path,
+                                      b"receive",
+                                      volume.uuid.encode(b"ascii"),
+                                      volume.name.encode("ascii")])
 
 
 @implementer(IRemoteVolumeManager)
@@ -197,5 +197,3 @@ class LocalVolumeManger(object):
         yield input_file
         input_file.seek(0, 0)
         self._service.receive(volume.uuid, volume.name, input_file)
-
-

@@ -270,4 +270,3 @@ class RemoteVolumeManagerTests(TestCase):
                           DEFAULT_CONFIG_PATH.path,
                           b"receive", volume.uuid.encode("ascii"),
                           b"myvolume"])
-
