@@ -50,8 +50,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         # XXX: Test for individual missing attributes when other attributes (eg
         # volume) are added to the Application class.
         config = dict(applications={
-            u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar',
-                                         baz=b'quux')})
+            u'mysql-hybridcluster': dict(image=b'foo/bar:baz', volume=b'/tmp/',
+                                         foo=b'bar', baz=b'quux')})
         parser = Configuration()
         exception = self.assertRaises(KeyError,
                                       parser._applications_from_configuration,
@@ -70,7 +70,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         invalid_docker_image_name = b':baz'
         config = dict(
             applications={u'mysql-hybridcluster': dict(
-                image=invalid_docker_image_name)})
+                image=invalid_docker_image_name, volume="/tmp/")})
         parser = Configuration()
         exception = self.assertRaises(KeyError,
                                       parser._applications_from_configuration,
@@ -79,8 +79,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid docker image name. "
             "Docker image names must have format 'repository[:tag]'. "
-            "Found '{image_name}'"
-            .format(image_name=invalid_docker_image_name),
+            "Found ':baz'.",
             exception.message
         )
 
@@ -89,7 +88,6 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``model_from_configuration`` raises an exception if the
         application_configuration uses invalid unix paths for volumes.
         """
-        raise SkipTest('Volumes configuration can not be parsed yet.')
         config = dict(
             applications={u'mysql-hybridcluster': dict(
                 image=u'repository:tag', volume=u'invalid//path//')})
@@ -99,7 +97,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid path to volume.",
+            "Must be an absolute path.",
             exception.message
         )
 
@@ -110,8 +108,10 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         config = dict(
             applications={
-                u'mysql-hybridcluster': dict(image=u'flocker/mysql:v1.0.0'),
-                u'site-hybridcluster': dict(image=u'flocker/wordpress:v1.0.0')
+                u'mysql-hybridcluster': dict(image=u'flocker/mysql:v1.0.0',
+                                             volume=b'/tmp'),
+                u'site-hybridcluster': dict(image=u'flocker/wordpress:v1.0.0',
+                                            volume=b'/tmp')
             }
         )
         parser = Configuration()

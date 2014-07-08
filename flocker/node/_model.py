@@ -38,7 +38,7 @@ class DockerImage(object):
         repository = parts[0]
         if not repository:
             raise ValueError("Docker image names must have format "
-                             "'repository[:tag]'. Found '{image_name}'"
+                             "'repository[:tag]'. Found '{image_name}'."
                              .format(image_name=input))
         kwargs['repository'] = repository
         if len(parts) == 2:
@@ -57,4 +57,14 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
+    """
+
+
+@attributes(["mount_path"])
+class Volume(object):
+    """
+    A single filesystem volume to be associated with an application.
+
+    :ivar FilePath mount_path: The absolute path at which the volume will be
+        mounted onto the application image filesystem.
     """
