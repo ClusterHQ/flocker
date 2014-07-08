@@ -195,11 +195,9 @@ Steps to contribute code
 4. Submit the issue/branch for review.
    Create a pull request on GitHub for the branch.
    Make sure Buildbot indicates all tests pass.
-   Waffle will automatically add the ``review`` label to the pull request when it is first created.
-   If the pull request has been placed back in the *Ready* column in Waffle or the ``review`` label has otherwise been removed, add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle).
 
 5. Address any points raised by the reviewer.
-   If requested, go back to step 4.
+   If a re-submission for review has been requested, add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
    When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
