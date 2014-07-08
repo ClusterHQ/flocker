@@ -78,6 +78,14 @@ class ProcessNodeTests(TestCase):
         node.get_output([b"-c", b"echo -n hello > " + temp_file])
         self.assertEqual(FilePath(temp_file).getContent(), b"hello")
 
+    def test_get_output_result(self):
+        """
+        ``get_output()`` returns the output of the command.
+        """
+        node = ProcessNode(initial_command_arguments=[])
+        result = node.get_output([b"echo", b"-n", b"hello"])
+        self.assertEqual(result, b"hello")
+
     def test_get_output_bad_exit(self):
         """
         ``get_output()`` raises ``IOError`` if subprocess has non-zero exit
