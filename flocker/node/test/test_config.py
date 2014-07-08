@@ -169,7 +169,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=Application(
                     name=u'mysql-hybridcluster',
-                    image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0'))
+                    image=DockerImage(repository=u'flocker/mysql',
+                                      tag=u'v1.0.0'))
             )
         }
         config = Configuration()
@@ -207,15 +208,21 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=Application(
                     name=u'mysql-hybridcluster',
-                    image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0'))
+                    image=DockerImage(repository=u'flocker/mysql',
+                                      tag=u'v1.0.0'))
             )
         }
         config = Configuration()
         result = config._deployment_from_configuration(
-            dict(nodes={'node1.example.com': ['mysql-hybridcluster']}), applications)
+            dict(nodes={'node1.example.com': ['mysql-hybridcluster']}),
+            applications
+        )
 
         expected = set([
-            Node(hostname='node1.example.com', applications=frozenset(applications.values()))
+            Node(
+                hostname='node1.example.com',
+                applications=frozenset(applications.values())
+            )
         ])
 
         self.assertEqual(expected, result)
@@ -233,10 +240,10 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         config = Configuration()
         application_configuration = {'applications': {}}
         deployment_configuration = {'nodes': {}}
-        result = config.model_from_configuration(application_configuration, deployment_configuration)
+        result = config.model_from_configuration(
+            application_configuration, deployment_configuration)
         expected_result = Deployment(nodes=frozenset())
         self.assertEqual(expected_result, result)
-
 
     def test_model_from_configuration(self):
         """
@@ -256,7 +263,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 'node2.example.com': ['site-hybridcluster'],
             }
         }
-        result = config.model_from_configuration(application_configuration, deployment_configuration)
+        result = config.model_from_configuration(
+            application_configuration, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([
                 Node(
