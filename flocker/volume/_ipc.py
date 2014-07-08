@@ -157,6 +157,7 @@ class IRemoteVolumeManager(Interface):
         """
 
 
+@implementer(IRemoteVolumeManager)
 class RemoteVolumeManager(object):
     """
     ``INode``\-based communication with a remote volume manager.
