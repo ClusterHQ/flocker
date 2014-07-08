@@ -183,7 +183,7 @@ class RemoteVolumeManager(object):
 @implementer(IRemoteVolumeManager)
 class LocalVolumeManger(object):
     """
-    In-memory communication with a local ``VolumeService``, for testing.
+    In-memory communication with a ``VolumeService`` instance, for testing.
     """
 
     def __init__(self, service):
