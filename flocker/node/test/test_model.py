@@ -98,15 +98,22 @@ class ApplicationTests(SynchronousTestCase):
 
 class NodeInitTests(make_with_init_tests(
         record_type=Node,
-        kwargs=dict(hostname=u'example.com', applications=set([1,2,3]))
+        kwargs=dict(hostname=u'example.com', applications=frozenset([
+            Application(name=u'mysql-clusterhq', image=object()),
+            Application(name=u'site-clusterhq.com', image=object()),
+        ]))
 )):
     """
     Tests for ``Node.__init__``.
     """
 
+
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
-        kwargs=dict(nodes=set([1, 2, 3]))
+        kwargs=dict(nodes=frozenset([
+            Node(hostname=u'node1.example.com', applications=frozenset()),
+            Node(hostname=u'node2.example.com', applications=frozenset())
+        ]))
 )):
     """
     Tests for ``Deployment.__init__``.
