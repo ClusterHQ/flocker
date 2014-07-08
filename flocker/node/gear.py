@@ -24,9 +24,15 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
-@attributes(["name", "activation_state"])
+@attributes(["name", "activation_state", "container_image", "ports", "links"],
+            defaults=dict(container_image=None, ports=(), links=()))
 class Unit(object):
-    """Information about a unit managed by geard/systemd.
+    """
+    Information about a unit managed by geard/systemd.
+
+    XXX: The container_image attribute defaults to `None` until we have a way
+    to interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: The name of the unit.
 
@@ -38,6 +44,15 @@ class Unit(object):
         ``u"inactive"`` apparently). See
         https://github.com/ClusterHQ/flocker/issues/187 about using constants
         instead of strings.
+
+    :ivar unicode container_image: The docker image name associated with this
+        gear unit
+
+    :ivar list ports: The ``PortMap`` instances which define how connections to
+        ports on the host are routed to ports exposed in the container.
+
+    :ivar list links: The ``PortMap`` instances which define how connections to
+        ports inside the container are routed to ports on the host.
     """
 
 
@@ -227,8 +242,13 @@ class GearClient(object):
 
         def got_body(data):
             values = json.loads(data)[u"Containers"]
+            # XXX: GearClient.list should also return container_image
+            # information.
+            # See https://github.com/ClusterHQ/flocker/issues/207
+            # container_image=image_name,
             return set([Unit(name=unit[u"Id"],
-                             activation_state=unit[u"ActiveState"])
+                             activation_state=unit[u"ActiveState"],
+                             container_image=None)
                         for unit in values])
         d.addCallback(got_body)
         return d
@@ -240,26 +260,29 @@ class FakeGearClient(object):
 
     The state the the simulated units is stored in memory.
 
-    :ivar dict _units: Map ``unicode`` names of added units to dictionary
-        containing information about them.
+    :ivar dict _units: See ``units`` of ``__init``\ .
     """
 
-    def __init__(self):
-        self._units = {}
+    def __init__(self, units=None):
+        """
+        :param dict units: A dictionary of canned ``Unit``\ s which will be
+            manipulated and returned by the methods of this ``FakeGearClient``.
+        :type units: ``dict`` mapping `unit_name` to ``Unit``\ .
+        """
+        if units is None:
+            units = {}
+        self._units = units
 
-    def add(self, unit_name, image_name, ports=None, links=None):
-        if ports is None:
-            ports = []
-        if links is None:
-            links = []
+    def add(self, unit_name, image_name, ports=(), links=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
-        self._units[unit_name] = {
-            'unit_name': unit_name,
-            'image_name': image_name,
-            'ports': ports,
-            'links': links,
-        }
+        self._units[unit_name] = Unit(
+            name=unit_name,
+            container_image=image_name,
+            ports=ports,
+            links=links,
+            activation_state=u'active'
+        )
         return succeed(None)
 
     def exists(self, unit_name):
@@ -271,10 +294,15 @@ class FakeGearClient(object):
         return succeed(None)
 
     def list(self):
-        result = set()
-        for name in self._units:
-            result.add(Unit(name=name, activation_state=u"active"))
-        return succeed(result)
+        # XXX: This is a hack so that functional and unit tests that use
+        # GearClient.list can pass until the real GearClient.list can also
+        # return container_image information, ports and links.
+        # See https://github.com/ClusterHQ/flocker/issues/207
+        incomplete_units = []
+        for unit in self._units.values():
+            incomplete_units.append(
+                Unit(name=unit.name, activation_state=unit.activation_state))
+        return succeed(incomplete_units)
 
 
 @attributes(['internal_port', 'external_port'],)

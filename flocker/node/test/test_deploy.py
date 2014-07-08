@@ -6,9 +6,9 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .._deploy import Deployment
-from .._model import Application, DockerImage
-from ..gear import GearClient, FakeGearClient, AlreadyExists
+from .. import Deployment
+from .. import Application, DockerImage
+from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
 class DeploymentAttributesTests(SynchronousTestCase):
@@ -59,7 +59,7 @@ class DeploymentStartContainerTests(SynchronousTestCase):
             (None, True, docker_image.full_name),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
-             fake_gear._units[application.name]['image_name'])
+             fake_gear._units[application.name].container_image)
         )
 
     def test_already_exists(self):
@@ -126,3 +126,49 @@ class DeploymentStopContainerTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
+
+
+class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment.discover_node_configuration``.
+    """
+    def test_discover_none(self):
+        """
+        ``Deployment.discover_node_configuration`` returns an empty list if
+        there are no active `geard` units on the host.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual([], self.successResultOf(d))
+
+    def test_discover_one(self):
+        """
+        ``Deployment.discover_node_configuration`` returns a list of
+        ``Application``\ s; one for each active `gear` unit.
+        """
+        expected_application_name = u'site-example.com'
+        unit = Unit(name=expected_application_name, activation_state=u'active')
+        fake_gear = FakeGearClient(units={expected_application_name: unit})
+        application = Application(name=unit.name)
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual([application], self.successResultOf(d))
+
+    def test_discover_multiple(self):
+        """
+        ``Deployment.discover_node_configuration`` returns an ``Application``
+        for every `active` `gear` ``Unit`` on the host.
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        api = Deployment(gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
