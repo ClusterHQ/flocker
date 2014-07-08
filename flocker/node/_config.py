@@ -16,7 +16,8 @@ class Configuration(object):
             raise KeyError('Missing applications key')
 
         applications = {}
-        for application_name, config in application_configuration['applications'].items():
+        for application_name, config in (
+            application_configuration['applications'].items()):
             try:
                 image_name = config.pop('image')
             except KeyError as e:
