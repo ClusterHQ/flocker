@@ -20,8 +20,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         self.assertRaises(KeyError,
-                          config._applications_from_configuration,
-                          {})
+                          config._applications_from_configuration, {})
 
     def test_error_on_missing_application_attributes(self):
         """
