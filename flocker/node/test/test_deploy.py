@@ -157,7 +157,6 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         self.assertEqual([application], self.successResultOf(d))
 
-
     def test_discover_multiple(self):
         """
         ``Deployment.discover_node_configuration`` returns one ``Application``
@@ -165,7 +164,7 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
         unit2 = Unit(name=u'site-example.net', activation_state=u'active')
-        units={unit1.name: unit1, unit2.name: unit2}
+        units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_gear = FakeGearClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
