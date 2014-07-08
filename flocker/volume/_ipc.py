@@ -172,12 +172,11 @@ class RemoteVolumeManager(object):
         self._config_path = config_path
 
     def receive(self, volume):
-        # return self._destination.run([b"flocker-volume",
-        #                               b"--config", self._config_path.path,
-        #                               b"receive",
-        #                               volume.uuid.encode(b"ascii"),
-        #                               volume.name.encode("ascii")])
-        pass
+        return self._destination.run([b"flocker-volume",
+                                       b"--config", self._config_path.path,
+                                       b"receive",
+                                       volume.uuid.encode(b"ascii"),
+                                       volume.name.encode("ascii")])
 
 
 @implementer(IRemoteVolumeManager)

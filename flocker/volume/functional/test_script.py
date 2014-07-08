@@ -9,14 +9,9 @@ from unittest import skipIf, skipUnless
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
-from twisted.internet import reactor
 from twisted.python.procutils import which
 
 from ... import __version__
-from ..service import VolumeService, Volume
-from .._ipc import ProcessNode
-from ..filesystems.zfs import StoragePool
-from .test_filesystems_zfs import create_zfs_pool
 from ...testtools import skip_on_broken_permissions
 
 
@@ -84,42 +79,3 @@ class FlockerVolumeTests(TestCase):
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
                          % (config.path,))
-
-
-class MutatingProcessNode(ProcessNode):
-    """Mutate the command being run in order to make tests work.
-
-    Come up with something better in
-    https://github.com/ClusterHQ/flocker/issues/125
-    """
-    def __init__(self, to_service):
-        """
-        :param to_service: The VolumeService to which a push is being done.
-        """
-        self.to_service = to_service
-        ProcessNode.__init__(self, initial_command_arguments=[])
-
-    def run(self, remote_command):
-        remote_command = remote_command[:1] + [
-            b"--pool", self.to_service._pool._name,
-            b"--mountpoint", self.to_service._pool._mount_root.path
-        ] + remote_command[1:]
-        return ProcessNode.run(self, remote_command)
-
-
-class ReceiveTests(TestCase):
-    """Tests for ``flocker-volume receive``."""
-
-    @_require_installed
-    def setUp(self):
-        self.from_pool = StoragePool(reactor, create_zfs_pool(self),
-                                     FilePath(self.mktemp()))
-        self.from_service = VolumeService(FilePath(self.mktemp()),
-                                          self.from_pool)
-        self.from_service.startService()
-
-        self.to_pool = StoragePool(reactor, create_zfs_pool(self),
-                                   FilePath(self.mktemp()))
-        self.to_config = FilePath(self.mktemp())
-        self.to_service = VolumeService(self.to_config, self.to_pool)
-        self.to_service.startService()

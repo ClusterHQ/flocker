@@ -13,7 +13,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ..service import VolumeService, Volume
+from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     INode, FakeNode, IRemoteVolumeManager, RemoteVolumeManager,
@@ -222,9 +222,52 @@ def create_local_servicepair(test):
                        remote=LocalVolumeManger(to_service))
 
 
-class LocalVolumeMangerTests(
+class LocalVolumeManagerInterfaceTests(
         make_iremote_volume_manager(create_local_servicepair)):
     """
-    Tests for ``LocalVolumeManger``.
+    Tests for ``LocalVolumeManger`` as a ``IRemoteVolumeManager``.
     """
+
+
+class RemoteVolumeManagerTests(TestCase):
+    """
+    Tests for ``RemoteVolumeManager``.
+    """
+    def test_receive_destination_run(self):
+        """
+        Receiving calls ``flocker-volume`` remotely.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode()
+
+        remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
+        with remote.receive(volume):
+            pass
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
+
+    def test_receive_default_config(self):
+        """
+        ``RemoteVolumeManager`` by default calls ``flocker-volume`` with
+        default config path.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode()
+
+        remote = RemoteVolumeManager(node)
+        with remote.receive(volume):
+            pass
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config",
+                          DEFAULT_CONFIG_PATH.path,
+                          b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
 
