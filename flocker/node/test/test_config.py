@@ -89,7 +89,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         # The implementation can use os.path.isabs to check that an absolute
         # path is used.
-        raise SkipTest('Volumes configuration can not be parsed yet.')
         config = dict(
             applications={u'mysql-hybridcluster': dict(
                 image=u'repository:tag', volume=u'invalid//path//')})
@@ -102,6 +101,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "The volume mount path must be an absolute path.",
             exception.message
         )
+    test_error_on_invalid_volume_path.todo = (
+        'Volumes configuration can not be parsed yet.')
 
     def test_dict_of_applications(self):
         """
