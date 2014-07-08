@@ -55,8 +55,18 @@ class Configuration(object):
                 )
         return applications
 
-    def model_from_configuration(self, application_configuration,
-                                 deployment_configuration):
-        pass
-        # applications = self._applications_from_configuration(
-#             application_configuration)
+    def _deployment_from_configuration(self, deployment_configuration):
+        if 'nodes' not in deployment_configuration:
+            raise KeyError('Missing nodes key')
+
+        for hostname, applications in deployment_configuration['nodes'].items():
+            if not isinstance(applications, list):
+                raise ValueError(
+                    "Node {node_name} has a config error. "
+                    "Wrong value type: {value_type}. "
+                    "Should be list.".format(node_name=hostname,
+                                             value_type=applications.__class__.__name__)
+                )
+
+    def model_from_configuration(self, application_configuration, deployment_configuration):
+        applications = self._applications_from_configuration(application_configuration)

@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
-from .._model import Application, DockerImage
+from .._model import Application, DockerImage, Node
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -94,3 +94,12 @@ class ApplicationTests(SynchronousTestCase):
             "<Application(name=u'site-example.com', image=None)>",
             repr(application)
         )
+
+
+class NodeInitTests(make_with_init_tests(
+        record_type=Node,
+        kwargs=dict(hostname=u'example.com', applications=set([1,2,3]))
+)):
+    """
+    Tests for ``Node.__init__``.
+    """

@@ -58,3 +58,17 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
     """
+
+@attributes(["hostname", "applications"])
+class Node(object):
+    """
+    A single node on which applications will be managed (deployed,
+    reconfigured, destroyed, etc).
+
+    :ivar unicode hostname: The hostname of the node.  This must be a
+        resolveable name so that Flocker can connect to the node.  This may be
+        a literal IP address instead of a proper hostname.
+
+    :ivar set applications: A ``set`` of ``Application`` instances describing
+        the applications which are to run on this ``Node``.
+    """
