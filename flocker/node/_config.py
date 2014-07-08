@@ -31,7 +31,7 @@ class Configuration(object):
             except ValueError as e:
                 raise KeyError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid docker image name. {message}").format(
+                     "Invalid docker image name. {message}.").format(
                          application_name=application_name, message=e.message)
                 )
 
@@ -41,7 +41,7 @@ class Configuration(object):
             if config:
                 raise KeyError(
                     ("Application '{application_name}' has a config error. "
-                     "Unrecognised keys: {keys}").format(
+                     "Unrecognised keys: {keys}.").format(
                          application_name=application_name,
                          keys=', '.join(config.keys()))
                 )

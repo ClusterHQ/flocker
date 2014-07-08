@@ -54,7 +54,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Unrecognised keys: foo, baz",
+            "Unrecognised keys: foo, baz.",
             exception.message
         )
 
@@ -75,8 +75,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid docker image name. "
             "Docker image names must have format 'repository[:tag]'. "
-            "Found '{image_name}'"
-            .format(image_name=invalid_docker_image_name),
+            "Found ':baz'.",
             exception.message
         )
 
