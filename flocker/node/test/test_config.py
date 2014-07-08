@@ -195,6 +195,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``_deployment_from_config`` raises a ``ValueError`` if the
         deployment_configuration contains duplicate applications.
         """
+        self.fail("Not implemented")
     test_error_on_duplicate_applications.todo = (
         "Planned validation improvements")
 
@@ -203,6 +204,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``_deployment_from_config`` raises an ``ValueError`` if the
         deployment_configuration contains invalid DNS hostnames.
         """
+        self.fail("Not implemented")
     test_error_on_invalid_node_hostname.todo = (
         "Planned validation improvements")
 
