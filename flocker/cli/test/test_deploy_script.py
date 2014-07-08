@@ -9,7 +9,7 @@ from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
-
+from ...node import Application, Deployment, DockerImage, Node
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
     """Tests for ``flocker-deploy``."""
@@ -21,21 +21,6 @@ class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
 class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     """Tests for :class:`DeployOptions`."""
     options = DeployOptions
-
-    def test_custom_configs(self):
-        """
-        If paths to configuration files are given then they are saved as
-        ``FilePath`` instances on the options instance.
-        """
-        options = self.options()
-        deploy = self.mktemp()
-        FilePath(deploy).touch()
-        app = self.mktemp()
-        FilePath(app).touch()
-        options.parseOptions([deploy, app])
-        self.assertDictContainsSubset({'deployment_config': FilePath(deploy),
-                                       'app_config': FilePath(app)},
-                                      options)
 
     def test_deploy_must_exist(self):
         """
@@ -64,6 +49,63 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                                       [deploy, app])
         self.assertEqual('No file exists at {app}'.format(app=app),
                          str(exception))
+
+    def test_deployment_object(self):
+        """
+        A ``Deployment`` object is assigned to the ``Options`` instance.
+        """
+        options = self.options()
+        deployment_configuration_path = self.mktemp()
+        deployment_configuration = FilePath(deployment_configuration_path)
+        deployment_configuration.setContent("""
+        {"version": 1,
+         "nodes": {
+             "node1": ["mysql-hybridcluster"],
+             "node2": ["site-hybridcluster.com"]
+         }
+        }
+        """)
+
+        application_configuration_path = self.mktemp()
+        application_configuration = FilePath(application_configuration_path)
+        application_configuration.setContent("""
+        {"version": 1,
+         "applications": {
+             "mysql-hybridcluster": {"image": "hybridlogic/mysql5.9:latest"},
+             "site-hybridcluster.com": {"image": "hybridlogic/nginx:v1.2.3"}
+         }
+        }
+        """)
+
+        options.parseOptions([application_configuration_path, deployment_configuration_path])
+        expected = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node1',
+                applications=frozenset([
+                    Application(
+                        name=u'mysql-hybridcluster',
+                        image=DockerImage(
+                            repository=u'hybridlogic/mysql5.9',
+                            tag=u'latest'
+                        )
+                    )
+                ]),
+            ),
+            Node(
+                hostname=u'node2',
+                applications=frozenset([
+                    Application(
+                        name=u'site-hybridcluster.com',
+                        image=DockerImage(
+                            repository=u'hybridlogic/nginx',
+                            tag=u'v1.2.3'
+                        )
+                    )
+                ]),
+            )
+        ]))
+
+        self.assertEqual(expected, options['deployment'])
 
 
 class FlockerDeployMainTests(SynchronousTestCase):

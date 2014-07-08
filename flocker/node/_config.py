@@ -87,3 +87,6 @@ class Configuration(object):
         applications = self._applications_from_configuration(application_configuration)
         nodes = self._deployment_from_configuration(deployment_configuration, applications)
         return Deployment(nodes=frozenset(nodes))
+
+
+model_from_configuration = Configuration().model_from_configuration

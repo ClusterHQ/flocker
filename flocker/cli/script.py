@@ -6,9 +6,12 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
+
+from yaml import safe_load
+
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-
+from ..node import model_from_configuration
 
 @flocker_standard_options
 class DeployOptions(Options):
@@ -24,20 +27,22 @@ class DeployOptions(Options):
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
 
-    def parseArgs(self, deployment_config, app_config):
+    def parseArgs(self, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
-        app_config = FilePath(app_config)
+        application_config = FilePath(application_config)
 
         if not deployment_config.exists():
             raise UsageError('No file exists at {path}'
                              .format(path=deployment_config.path))
 
-        if not app_config.exists():
+        if not application_config.exists():
             raise UsageError('No file exists at {path}'
-                             .format(path=app_config.path))
+                             .format(path=application_config.path))
 
-        self['deployment_config'] = deployment_config
-        self['app_config'] = app_config
+        deployment_config = safe_load(deployment_config.getContent())
+        application_config = safe_load(application_config.getContent())
+        self['deployment'] = model_from_configuration(
+            deployment_config, application_config)
 
 
 @implementer(ICommandLineScript)
