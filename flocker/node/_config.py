@@ -9,9 +9,16 @@ from ._model import Application, DockerImage
 
 class Configuration(object):
     """
-    
+    Validate and parse configurations.
     """
     def _applications_from_configuration(self, application_configuration):
+        """
+        Validate and parse a given application configuration.
+
+        :param dict application_configuration: Map of applications to Docker
+            images.
+        :raises KeyError: if there are validation errors.
+        """
         if 'applications' not in application_configuration:
             raise KeyError('Missing applications key')
 
