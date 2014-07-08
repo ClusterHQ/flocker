@@ -139,7 +139,8 @@ class VolumeService(Service):
                     receiver.write(chunk)
 
     def receive(self, volume_uuid, volume_name, input_file):
-        """Process a volume's data that can be read from a file-lik.
+        """
+        Process a volume's data that can be read from a file-like object.
 
         This is a blocking API for now.
 
@@ -170,7 +171,7 @@ class VolumeService(Service):
         Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
         this service's) can be acquired.
 
-        :param unicode volume_uuid: The volume's UUID.
+        :param unicode volume_uuid: The volume owner's UUID.
         :param unicode volume_name: The volume's name.
         :param FilePath mount_path: The path at which to mount the volume within
             the container.
@@ -187,22 +188,7 @@ class VolumeService(Service):
         d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
         return d
 
-    def _relinquish(self, volume, remote_uuid):
-        """
-        Cease ownership of a volume.
-
-        The volume is changed to be owned by the volume manager with the
-        given UUID.
-
-        :param Volume volume: The volume to relinquish.
-
-        :return: ``Deferred`` that fires when the operation has finished.
-        """
-        # d = volume.remove_from_docker()
-        # d.addCallback(lambda _: self._pool.change_owner(volume, remote_uuid))
-        # return d
-
-    def handoff(self, volume, destination, mount_path,
+    def handoff(service, volume, destination, mount_path,
                 config_path=DEFAULT_CONFIG_PATH):
         """
         Handoff a locally owned volume to a remote destination.
@@ -212,6 +198,7 @@ class VolumeService(Service):
         This is a blocking API for now (but it does return a ``Deferred``
         for success/failure).
 
+        :param IVolumePusher pusher: An
         :param Volume volume: The volume to handoff.
         :param Node destination: The node to handoff to.
         :param FilePath mount_path: The path at which to mount the volume within
@@ -223,7 +210,7 @@ class VolumeService(Service):
             errbacks on error (specifcally with a ``ValueError`` if the
             volume is not locally owned).
         """
-        # self.push(volume, destination, config_path)
+        # service.push(volume, destination, config_path)
         # remote_uuid = destination.get_output(
         #     [b"flocker-volume",
         #      b"--config", config_path.path,
@@ -231,8 +218,10 @@ class VolumeService(Service):
         #      volume.uuid.encode(b"ascii"),
         #      volume.name.encode("ascii"),
         #      mount_path.path,
-        #      ])
-        # return self._relinquish(volume, remote_uuid.decode("ascii"))
+        #      ]).decode("ascii")
+        # d = volume.remove_from_docker()
+        # d.addCallback(lambda _: volume.change_owner(remote_uuid))
+        # return d
 
 
 # Communication with Docker should be done via its API, not with this

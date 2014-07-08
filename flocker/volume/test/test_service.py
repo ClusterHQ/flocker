@@ -318,7 +318,7 @@ class VolumeServiceAPITests(TestCase):
     def remotely_owned_volume(self, service):
         """
         Create a volume ``u"myvolume"`` owned by a remote volume manager with
-        UUID ``b"remoteuuid"`.
+        UUID ``u"remoteuuid"`.
 
         :param VolumeService service: The service where the volume will be
             stored (but which won't own it).
@@ -326,7 +326,7 @@ class VolumeServiceAPITests(TestCase):
         :return: The ``Volume`` instance.
         """
         created = service.create(u"myvolume")
-        created.addCallback(lambda volume: volume.change_owner(b"remoteuuid"))
+        created.addCallback(lambda volume: volume.change_owner(u"remoteuuid"))
         return created
 
     def test_acquire_changes_uuid(self):
@@ -415,6 +415,11 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.handoff()`` errbacks with a ``ValueError`` if given a
         remotely-owned volume.
         """
+        service = self.create_service()
+        remote_volume = Volume(uuid=u"remote", name=u"blah",_pool=service._pool)
+
+        self.failureResultOf(service.handoff(remote_volume, None, None),
+                             ValueError)
 
     def test_handoff_pushes(self):
         """
@@ -435,7 +440,7 @@ class VolumeServiceAPITests(TestCase):
     def test_handoff_preserves_data(self):
         """
         ``VolumeService.handoff()`` preserves the data from the relinquished
-        volume in the newly owned resulting volume.
+        volume in the newly owned resulting volume in the local volume manager.
         """
 
 
