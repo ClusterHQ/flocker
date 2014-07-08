@@ -29,7 +29,8 @@ class DockerImage(object):
         """
         Given a Docker image name, return a :class:`DockerImage`.
 
-        :param unicode input: A Docker image name in the format 'repository[:tag]'.
+        :param unicode input: A Docker image name in the format
+            ``repository[:tag]``.
 
         :raises ValueError: If Docker image name is not in a valid format.
 

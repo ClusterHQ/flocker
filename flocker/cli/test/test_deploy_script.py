@@ -90,22 +90,22 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         deployment_configuration_path = self.mktemp()
         deployment_configuration = FilePath(deployment_configuration_path)
         deployment_configuration.setContent(safe_dump(dict(
-                    version=1,
-                    nodes=dict(node1=[db.name], node2=[site.name]),
-                    )))
+            version=1,
+            nodes=dict(node1=[db.name], node2=[site.name]),
+            )))
 
         application_configuration_path = self.mktemp()
         application_configuration = FilePath(application_configuration_path)
         application_configuration.setContent(safe_dump(dict(
-                    version=1,
-                    applications={
-                        db.name: dict(
-                            image=u"{}:{}".format(
-                                db.image.repository, db.image.tag)),
-                        site.name: dict(
-                            image=u"{}:{}".format(
-                                site.image.repository, site.image.tag)),
-                    })))
+            version=1,
+            applications={
+                db.name: dict(
+                    image=u"{}:{}".format(
+                        db.image.repository, db.image.tag)),
+                site.name: dict(
+                    image=u"{}:{}".format(
+                        site.image.repository, site.image.tag)),
+            })))
 
         options.parseOptions(
             [application_configuration_path, deployment_configuration_path])
