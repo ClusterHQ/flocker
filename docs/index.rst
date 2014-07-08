@@ -13,9 +13,9 @@ Contents:
 
    flocker-intro/index
    volume/index
+   routing/index
    roadmap/index
    infrastructure/index
-   architecture/index
    contributing
    authors
 
