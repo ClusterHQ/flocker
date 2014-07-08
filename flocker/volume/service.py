@@ -77,6 +77,21 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def wait_for_volume(self, name):
+        """
+        Wait for a volume to be handed off to us.
+
+        Polls the storage pool for the specified volume to appear.
+
+        :param unicode name: The name of the volume.
+
+        :return: A ``Deferred`` that fires with a :class:`Volume`.
+        """
+        # 1. Create a Volume
+        # 2. Start a LoopingCall that calls enumerate a checks if our volume is
+        #    in the results.
+        # 3. Returne the volume.
+
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
 

@@ -380,3 +380,34 @@ class VolumeOwnerChangeTests(TestCase):
         new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
+
+
+class WaitForVolumeTests(TestCase):
+    """"
+    Tests for ``VolumeService.wait_for_volume``.
+    """
+
+    def test_existing_volume(self):
+        """
+        If the volume already exists, the deferred returned by
+        ``VolumeService.wait_for_volume`` has already fired with the
+        corresponding ``Volume``.
+        """
+
+    def test_acquired_volume(self):
+        """
+        The deferred returned by ``VolumeService.wait_for_volume`` fires
+        with the corresponding ``Volume`` after the volumed has been acquired.
+        """
+
+    def test_created_volume(self):
+        """
+        The deferred returned by ``VolumeService.wait_for_volume`` fires
+        with the corresponding ``Volume`` after the volumed has been created.
+        """
+
+    def test_no_volume(self):
+        """
+        If the volume doesn't exist, the deferred returned by
+        ``VolumeService.wait_for_volume`` has not fired.
+        """
