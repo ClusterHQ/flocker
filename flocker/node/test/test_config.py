@@ -116,3 +116,34 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         self.assertRaises(KeyError, config._deployment_from_configuration, {})
+
+    def test_error_on_unrecognized_application_name(self):
+        """
+        ``_deployment_from_config`` raises an ``ValueError`` if the
+        deployment_configuration refers to a non-existent application.
+        """
+
+    def test_error_on_duplicate_applications(self):
+        """
+        ``_deployment_from_config`` raises an ``ValueError`` if the
+        deployment_configuration contains duplicate applications.
+        """
+
+    def test_error_on_invalid_node_hostname(self):
+        """
+        ``_deployment_from_config`` raises an ``ValueError`` if the
+        deployment_configuration contains invalid DNS hostnames.
+        """
+
+    def test_error_on_non_list_applications(self):
+        """
+        ``_deployment_from_config`` raises an ``ValueError`` if the
+        deployment_configuration contains application values not in the form of
+        a list.
+        """
+
+    def test_set_on_success(self):
+        """
+        ``_deployment_from_config`` returns a set of Node objects. One for each
+        key in the supplied nodes dictionary.
+        """
