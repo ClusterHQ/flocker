@@ -39,7 +39,7 @@ class Configuration(object):
             except ValueError as e:
                 raise KeyError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid docker image name. {message}.").format(
+                     "Invalid Docker image name. {message}.").format(
                          application_name=application_name, message=e.message)
                 )
 
@@ -57,5 +57,6 @@ class Configuration(object):
 
     def model_from_configuration(self, application_configuration,
                                  deployment_configuration):
-        applications = self._applications_from_configuration(
-            application_configuration)
+        pass
+        # applications = self._applications_from_configuration(
+#             application_configuration)

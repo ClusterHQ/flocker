@@ -61,7 +61,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
     def test_error_invalid_dockerimage_name(self):
         """
         ``model_from_configuration`` raises an exception if the
-        application_configuration uses invalid docker image names.
+        application_configuration uses invalid Docker image names.
         """
         invalid_docker_image_name = b':baz'
         config = dict(
@@ -73,7 +73,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid docker image name. "
+            "Invalid Docker image name. "
             "Docker image names must have format 'repository[:tag]'. "
             "Found ':baz'.",
             exception.message

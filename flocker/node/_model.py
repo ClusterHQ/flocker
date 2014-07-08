@@ -27,11 +27,11 @@ class DockerImage(object):
     @classmethod
     def from_string(cls, input):
         """
-        Given a docker image name, return a :class:`DockerImage`.
+        Given a Docker image name, return a :class:`DockerImage`.
 
-        :param input: A docker image name in the format 'repository[:tag]'.
+        :param input: A Docker image name in the format 'repository[:tag]'.
 
-        :raises ValueError: If docker image name is not in a valid format.
+        :raises ValueError: If Docker image name is not in a valid format.
         """
         kwargs = {}
         parts = input.rsplit(':', 1)
