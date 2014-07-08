@@ -17,7 +17,11 @@ class Configuration(object):
 
         :param dict application_configuration: Map of applications to Docker
             images.
+
         :raises KeyError: if there are validation errors.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
         """
         if 'applications' not in application_configuration:
             raise KeyError('Missing applications key')
@@ -57,6 +61,16 @@ class Configuration(object):
 
     def _deployment_from_configuration(self, deployment_configuration,
                                        all_applications):
+        """
+        Validate and parse a given deployment configuration.
+
+        :param dict deployment_configuration: Map of node names to application
+            names.
+
+        :raises ValueError: if there are validation errors.
+
+        :returns: A ``set`` of ``Node`` instances.
+        """
         if 'nodes' not in deployment_configuration:
             raise KeyError('Missing nodes key')
 
@@ -89,6 +103,22 @@ class Configuration(object):
 
     def model_from_configuration(self, application_configuration,
                                  deployment_configuration):
+        """
+        Validate coerce the supplied application configuration and deployment
+        configuration dictionaries into a ``Deployment`` instance.
+
+        :param dict application_configuration: Map of applications to Docker
+            images.
+
+        :param dict deployment_configuration: Map of node names to application
+            names.
+
+        :raises ValueError: if there are validation errors.
+
+        :raises KeyError: if there are validation errors.
+
+        :returns: A ``Deployment`` object.
+        """
         applications = self._applications_from_configuration(
             application_configuration)
         nodes = self._deployment_from_configuration(
