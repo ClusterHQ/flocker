@@ -17,32 +17,35 @@ from ...testtools import create_ssh_server
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
-def make_cat_processnode(test_case):
-    """Create a ``ProcessNode`` that just runs ``cat``.
+def make_echo_processnode(test_case):
+    """Create a ``ProcessNode`` that just runs ``echo``.
 
-    :return: ``ProcessNode`` that runs ``cat``.
+    :return: ``ProcessNode`` that runs ``echo``.
     """
     return ProcessNode(initial_command_arguments=[b"echo"])
 
 
-class ProcessINodeTests(make_inode_tests(make_cat_processnode)):
+class ProcessINodeTests(make_inode_tests(make_echo_processnode)):
     """``INode`` tests for ``ProcessNode``."""
 
 
 class ProcessNodeTests(TestCase):
     """Tests for ``ProcessNode``."""
 
-    def test_runs_command(self):
-        """``ProcessNode.run`` runs a command that is a combination of the
-        initial arguments and the ones given to ``run()``."""
+    def test_run_runs_command(self):
+        """
+        ``ProcessNode.run`` runs a command that is a combination of the
+        initial arguments and the ones given to ``run()``.
+        """
         node = ProcessNode(initial_command_arguments=[b"sh"])
         temp_file = self.mktemp()
         with node.run([b"-c", b"echo -n hello > " + temp_file]):
             pass
         self.assertEqual(FilePath(temp_file).getContent(), b"hello")
 
-    def test_stdin(self):
-        """``ProcessNode.run()`` context manager returns the subprocess' stdin.
+    def test_run_stdin(self):
+        """
+        ``ProcessNode.run()`` context manager returns the subprocess' stdin.
         """
         node = ProcessNode(initial_command_arguments=[b"sh", b"-c"])
         temp_file = self.mktemp()
@@ -51,8 +54,9 @@ class ProcessNodeTests(TestCase):
             stdin.write(b"world")
         self.assertEqual(FilePath(temp_file).getContent(), b"hello world")
 
-    def test_bad_exit(self):
-        """``run()`` raises ``IOError`` if subprocess has non-zero exit code.
+    def test_run_bad_exit(self):
+        """
+        ``run()`` raises ``IOError`` if subprocess has non-zero exit code.
         """
         node = ProcessNode(initial_command_arguments=[])
         nonexistent = self.mktemp()
@@ -63,6 +67,33 @@ class ProcessNodeTests(TestCase):
             pass
         else:
             self.fail("No IOError")
+
+    def test_get_output_runs_command(self):
+        """
+        ``ProcessNode.get_output()`` runs a command that is the combination of
+        the initial arguments and the ones given to ``get_output()``.
+        """
+        node = ProcessNode(initial_command_arguments=[b"sh"])
+        temp_file = self.mktemp()
+        node.get_output([b"-c", b"echo -n hello > " + temp_file])
+        self.assertEqual(FilePath(temp_file).getContent(), b"hello")
+
+    def test_get_output_result(self):
+        """
+        ``get_output()`` returns the output of the command.
+        """
+        node = ProcessNode(initial_command_arguments=[])
+        result = node.get_output([b"echo", b"-n", b"hello"])
+        self.assertEqual(result, b"hello")
+
+    def test_get_output_bad_exit(self):
+        """
+        ``get_output()`` raises ``IOError`` if subprocess has non-zero exit
+        code.
+        """
+        node = ProcessNode(initial_command_arguments=[])
+        nonexistent = self.mktemp()
+        self.assertRaises(IOError, node.get_output, [b"ls", nonexistent])
 
 
 @_if_root
