@@ -22,7 +22,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
     * Has full test coverage (unit tests and functional tests).
 
-    * The tests pass in the continuous integration system (Buildbot).
+    * The tests pass in the continuous integration system (`Buildbot`_).
 
     * Resolves the issue.
 
@@ -30,6 +30,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
 .. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
+.. _Buildbot: http://build.clusterhq.com/
 
 
 Talk to us
