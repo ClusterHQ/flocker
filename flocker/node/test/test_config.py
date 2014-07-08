@@ -79,7 +79,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid docker image name. "
             "Docker image names must have format 'repository[:tag]'. "
-            "Found ':baz'".format(image_name=invalid_docker_image_name),
+            "Found '{image_name}'"
+            .format(image_name=invalid_docker_image_name),
             exception.message
         )
 
