@@ -16,10 +16,10 @@ from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
 
 from ..service import (
-    VolumeService, CreateConfigurationError, Volume, DEFAULT_CONFIG_PATH,
+    VolumeService, CreateConfigurationError, Volume,
     )
 from ..filesystems.memory import FilesystemStoragePool
-from .._ipc import FakeNode
+from .._ipc import FakeNode, RemoteVolumeManager
 from ...testtools import skip_on_broken_permissions
 
 
@@ -134,7 +134,8 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
 
         volume = Volume(uuid=u"wronguuid", name=u"blah", _pool=pool)
-        self.assertRaises(ValueError, service.push, volume, FakeNode())
+        self.assertRaises(ValueError, service.push, volume,
+                          RemoteVolumeManager(FakeNode()))
 
     def test_push_writes_filesystem(self):
         """Pushing a locally-owned volume writes its filesystem to the remote
@@ -149,7 +150,7 @@ class VolumeServiceAPITests(TestCase):
             data = reader.read()
         node = FakeNode()
 
-        service.push(volume, node)
+        service.push(volume, RemoteVolumeManager(node))
         self.assertEqual(node.stdin.read(), data)
 
     def test_receive_local_uuid(self):
