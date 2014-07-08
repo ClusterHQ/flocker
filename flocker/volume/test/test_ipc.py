@@ -13,7 +13,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from ..service import VolumeService
+from ..service import VolumeService, Volume
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     INode, FakeNode, IRemoteVolumeManager, RemoteVolumeManager,
@@ -140,58 +140,91 @@ def make_iremote_volume_manager(fixture):
             swallowed.
             """
             service_pair = fixture(self)
-            created = service_pair.from_service()
+            created = service_pair.from_service.create(u"newvolume")
 
             def got_volume(volume):
-                with self.assertRaises(RuntimeError):
-                    with service_pair.remote.receive(volume):
-                        raise RuntimeError()
+                with service_pair.remote.receive(volume):
+                    raise RuntimeError()
             created.addCallback(got_volume)
+            return self.assertFailure(created, RuntimeError)
+
+        def test_receive_creates_volume(self):
+            """``receive`` creates a volume."""
+            service_pair = fixture(self)
+            created = service_pair.from_service.create(u"thevolume")
+
+            def do_push(volume):
+                with volume.get_filesystem().reader() as reader:
+                    with service_pair.remote.receive(volume) as receiver:
+                        receiver.write(reader.read())
+            created.addCallback(do_push)
+
+            def pushed(_):
+                to_volume = Volume(uuid=service_pair.from_service.uuid,
+                                   name=u"thevolume",
+                                   _pool=service_pair.to_service._pool)
+                d = service_pair.to_service.enumerate()
+
+                def got_volumes(volumes):
+                    self.assertIn(to_volume, list(volumes))
+                d.addCallback(got_volumes)
+                return d
+            created.addCallback(pushed)
+
             return created
 
-    def test_receive_creates_volume(self):
-        """``receive`` creates a volume."""
-        created = self.from_service.create(u"thevolume")
+        def test_creates_files(self):
+            """``receive`` recreates files pushed from origin."""
+            service_pair = fixture(self)
+            created = service_pair.from_service.create(u"thevolume")
 
-        def do_push(volume):
-            # Blocking call:
-            run_locally = MutatingProcessNode(self.to_service)
-            self.from_service.push(volume, run_locally, self.to_config)
-        created.addCallback(do_push)
+            def do_push(volume):
+                root = volume.get_filesystem().get_path()
+                root.child(b"afile.txt").setContent(b"WORKS!")
 
-        def pushed(_):
-            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
-                               _pool=self.to_pool)
-            d = self.to_service.enumerate()
+                with volume.get_filesystem().reader() as reader:
+                    with service_pair.remote.receive(volume) as receiver:
+                        receiver.write(reader.read())
+            created.addCallback(do_push)
 
-            def got_volumes(volumes):
-                self.assertIn(to_volume, volumes)
-            d.addCallback(got_volumes)
-            return d
-        created.addCallback(pushed)
+            def pushed(_):
+                to_volume = Volume(uuid=service_pair.from_service.uuid,
+                                   name=u"thevolume",
+                                   _pool=service_pair.to_service._pool)
+                root = to_volume.get_filesystem().get_path()
+                self.assertEqual(root.child(b"afile.txt").getContent(),
+                                 b"WORKS!")
+            created.addCallback(pushed)
 
-        return created
-
-    def test_creates_files(self):
-        """``receive`` recreates files pushed from origin."""
-        created = self.from_service.create(u"thevolume")
-
-        def do_push(volume):
-            root = volume.get_filesystem().get_path()
-            root.child(b"afile.txt").setContent(b"WORKS!")
-
-            # Blocking call:
-            run_locally = MutatingProcessNode(self.to_service)
-            self.from_service.push(volume, run_locally, self.to_config)
-        created.addCallback(do_push)
-
-        def pushed(_):
-            to_volume = Volume(uuid=self.from_service.uuid, name=u"thevolume",
-                               _pool=self.to_pool)
-            root = to_volume.get_filesystem().get_path()
-            self.assertEqual(root.child(b"afile.txt").getContent(), b"WORKS!")
-        created.addCallback(pushed)
-
-        return created
+            return created
 
     return IRemoteVolumeManagerTests
+
+
+def create_local_servicepair(test):
+    """
+    Create a ``ServicePair`` allowing testing of ``LocalVolumeManger``.
+
+    :param TestCase test: A unit test.
+
+    :return: A new ``ServicePair``.
+    """
+    def create_service():
+        path = FilePath(test.mktemp())
+        path.createDirectory()
+        pool = FilesystemStoragePool(path)
+        service = VolumeService(FilePath(test.mktemp()), pool)
+        service.startService()
+        test.addCleanup(service.stopService)
+        return service
+    to_service = create_service()
+    return ServicePair(from_service=create_service(), to_service=to_service,
+                       remote=LocalVolumeManger(to_service))
+
+
+class LocalVolumeMangerTests(
+        make_iremote_volume_manager(create_local_servicepair)):
+    """
+    Tests for ``LocalVolumeManger``.
+    """
+

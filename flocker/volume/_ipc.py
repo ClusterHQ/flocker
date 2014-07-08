@@ -180,6 +180,7 @@ class RemoteVolumeManager(object):
         pass
 
 
+@implementer(IRemoteVolumeManager)
 class LocalVolumeManger(object):
     """
     In-memory communication with a local ``VolumeService``, for testing.
@@ -193,9 +194,9 @@ class LocalVolumeManger(object):
 
     @contextmanager
     def receive(self, volume):
-        yield None
-        #input_file = BytesIO()
-        #yield input_file
-        #input_file.seek(0, 0)
-        #self._service.receive(volume.uuid, volume.name, input_file)
-        pass
+        input_file = BytesIO()
+        yield input_file
+        input_file.seek(0, 0)
+        self._service.receive(volume.uuid, volume.name, input_file)
+
+
