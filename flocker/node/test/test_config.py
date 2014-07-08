@@ -164,6 +164,26 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``_deployment_from_config`` raises an ``ValueError`` if the
         deployment_configuration refers to a non-existent application.
         """
+        applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name=u'mysql-hybridcluster',
+                    image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0'))
+            )
+        }
+        config = Configuration()
+        exception = self.assertRaises(
+            ValueError,
+            config._deployment_from_configuration,
+            dict(nodes={'node1.example.com': ['site-hybridcluster']}),
+            applications
+        )
+        self.assertEqual(
+            u'Node node1.example.com has a config error. '
+            u'Unrecognised application name: site-hybridcluster.',
+            exception.message
+        )
 
     def test_error_on_duplicate_applications(self):
         """

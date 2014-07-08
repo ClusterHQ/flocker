@@ -74,9 +74,9 @@ class Configuration(object):
                 application = all_applications.get(name)
                 if application is None:
                     raise ValueError(
-                        "Node {node_name} has a config error. "
-                        "Unrecognised application name: {name}.".format(
-                            name=name)
+                        "Node {hostname} has a config error. "
+                        "Unrecognised application name: {application_name}.".format(
+                            hostname=hostname, application_name=name)
                     )
                 node_applications.append(application)
             node = Node(hostname=hostname, applications=tuple(set(node_applications)))
