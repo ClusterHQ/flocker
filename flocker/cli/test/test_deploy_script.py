@@ -54,6 +54,20 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual('No file exists at {app}'.format(app=app),
                          str(exception))
 
+    def test_config_must_be_valid(self):
+        """
+        A ``UsageError`` is raised if any of the configuration is invalid.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"{}")
+        app.setContent(b"{}")
+
+        self.assertRaises(
+            UsageError, options.parseOptions, [deploy.path, app.path])
+
     def test_deployment_object(self):
         """
         A ``Deployment`` object is assigned to the ``Options`` instance.

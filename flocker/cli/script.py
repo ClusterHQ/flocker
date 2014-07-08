@@ -11,7 +11,7 @@ from yaml import safe_load
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..node import model_from_configuration
+from ..node import ConfigurationError, model_from_configuration
 
 
 @flocker_standard_options
@@ -42,8 +42,11 @@ class DeployOptions(Options):
 
         deployment_config = safe_load(deployment_config.getContent())
         application_config = safe_load(application_config.getContent())
-        self['deployment'] = model_from_configuration(
-            deployment_config, application_config)
+        try:
+            self['deployment'] = model_from_configuration(
+                deployment_config, application_config)
+        except ConfigurationError as e:
+            raise UsageError(str(e))
 
 
 @implementer(ICommandLineScript)
