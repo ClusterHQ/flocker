@@ -29,14 +29,14 @@ class DockerImage(object):
         """
         Given a Docker image name, return a :class:`DockerImage`.
 
-        :param input: A Docker image name in the format 'repository[:tag]'.
+        :param unicode input: A Docker image name in the format 'repository[:tag]'.
 
         :raises ValueError: If Docker image name is not in a valid format.
 
         :returns: A ``DockerImage`` instance.
         """
         kwargs = {}
-        parts = input.rsplit(':', 1)
+        parts = input.rsplit(u':', 1)
         repository = parts[0]
         if not repository:
             raise ValueError("Docker image names must have format "
