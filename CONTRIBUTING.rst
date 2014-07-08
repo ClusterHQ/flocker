@@ -195,7 +195,9 @@ Steps to contribute code
 4. Submit the issue/branch for review.
    Create a pull request on GitHub for the branch.
    Make sure Buildbot indicates all tests pass.
-   Add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle).
+   Waffle will automatically add the ``review`` label to the pull request when it is first created.
+   If the pull request has been placed back in the *Ready* column in Waffle or the ``review`` label has otherwise been removed,
+   add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle).
 
 5. Address any points raised by the reviewer.
    If requested, go back to step 4.
