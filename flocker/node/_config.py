@@ -39,7 +39,7 @@ class Configuration(object):
             except ValueError as e:
                 raise KeyError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid Docker image name. {message}.").format(
+                     "Invalid Docker image name. {message}").format(
                          application_name=application_name, message=e.message)
                 )
 
