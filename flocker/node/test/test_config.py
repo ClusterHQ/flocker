@@ -103,3 +103,16 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         }
 
         self.assertEqual(expected_applications, applications)
+
+
+class DeploymentFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``_deployment_from_configuration``.
+    """
+    def test_error_on_missing_nodes_key(self):
+        """
+        ``_deployment_from_config`` raises an ``KeyError`` if the
+        deployment_configuration does not contain an `nodes` key.
+        """
+        config = Configuration()
+        self.assertRaises(KeyError, config._deployment_from_configuration, {})

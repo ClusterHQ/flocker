@@ -42,6 +42,9 @@ class Configuration(object):
                 )
         return applications
 
+    def _deployment_from_configuration(self, deployment_configuration):
+        if 'nodes' not in deployment_configuration:
+            raise KeyError('Missing nodes key')
 
 
     def model_from_configuration(self, application_configuration, deployment_configuration):
