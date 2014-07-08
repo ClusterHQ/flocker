@@ -47,7 +47,10 @@ class Deployment(object):
 
     def discover_node_configuration(self):
         """
-        List all the `Application``\ s running on this node.
+        List all the ``Application``\ s running on this node.
+
+        :returns: A ``Deferred`` which fires with a list of ``Application``
+            instances.
         """
         d = self._gear_client.list()
 
