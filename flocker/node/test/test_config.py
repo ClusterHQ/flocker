@@ -8,6 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from .._config import Configuration
 from .._model import Application, DockerImage
 
+
 class ModelFromConfigurationTests(SynchronousTestCase):
     """
     Other tests for ``model_from_configuration``.
@@ -18,7 +19,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration does not contain an `application` key.
         """
         config = Configuration()
-        self.assertRaises(KeyError, config._applications_from_configuration, {})
+        self.assertRaises(KeyError,
+                          config._applications_from_configuration,
+                          {})
 
     def test_error_on_missing_application_attributes(self):
         """
@@ -30,7 +33,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         # volume) are added to the Application class.
         config = dict(applications={u'mysql-hybridcluster': {}})
         parser = Configuration()
-        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        exception = self.assertRaises(KeyError,
+                                      parser._applications_from_configuration,
+                                      config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Missing value for 'image'.",
@@ -45,9 +50,13 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         # XXX: Test for individual missing attributes when other attributes (eg
         # volume) are added to the Application class.
-        config = dict(applications={u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar', baz=b'quux')})
+        config = dict(applications={
+            u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar',
+                                         baz=b'quux')})
         parser = Configuration()
-        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        exception = self.assertRaises(KeyError,
+                                      parser._applications_from_configuration,
+                                      config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Unrecognised keys: foo, baz",
@@ -64,7 +73,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             applications={u'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
         parser = Configuration()
-        exception = self.assertRaises(KeyError, parser._applications_from_configuration, config)
+        exception = self.assertRaises(KeyError,
+                                      parser._applications_from_configuration,
+                                      config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid docker image name. "
@@ -99,7 +110,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0')),
             u'site-hybridcluster': Application(
                 name=u'site-hybridcluster',
-                image=DockerImage(repository=u'flocker/wordpress', tag=u'v1.0.0'))
+                image=DockerImage(repository=u'flocker/wordpress',
+                                  tag=u'v1.0.0'))
         }
 
         self.assertEqual(expected_applications, applications)

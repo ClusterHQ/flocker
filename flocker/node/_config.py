@@ -6,6 +6,7 @@ APIs for parsing and validating configuration.
 
 from ._model import Application, DockerImage
 
+
 class Configuration(object):
 
     def _applications_from_configuration(self, application_configuration):
@@ -27,22 +28,24 @@ class Configuration(object):
                 image = DockerImage.from_string(image_name)
             except ValueError as e:
                 raise KeyError(
-                    ("Application '{application_name}' has a config error. Invalid docker image name. "
-                     "{message}").format(
+                    ("Application '{application_name}' has a config error. "
+                     "Invalid docker image name. {message}").format(
                          application_name=application_name, message=e.message)
                 )
 
-            applications[application_name] = Application(name=application_name, image=image)
+            applications[application_name] = Application(name=application_name,
+                                                         image=image)
 
             if config:
                 raise KeyError(
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}").format(
-                         application_name=application_name, keys=', '.join(config.keys()))
+                         application_name=application_name,
+                         keys=', '.join(config.keys()))
                 )
         return applications
 
-
-
-    def model_from_configuration(self, application_configuration, deployment_configuration):
-        applications = self._applications_from_configuration(application_configuration)
+    def model_from_configuration(self, application_configuration,
+                                 deployment_configuration):
+        applications = self._applications_from_configuration(
+            application_configuration)
