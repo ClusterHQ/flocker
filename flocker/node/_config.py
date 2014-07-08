@@ -4,6 +4,8 @@
 APIs for parsing and validating configuration.
 """
 
+from __future__ import unicode_literals, absolute_import
+
 from ._model import Application, DockerImage, Node, Deployment
 
 
