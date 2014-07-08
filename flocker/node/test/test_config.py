@@ -236,3 +236,54 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         result = config.model_from_configuration(application_configuration, deployment_configuration)
         expected_result = Deployment(nodes=tuple())
         self.assertEqual(expected_result, result)
+
+
+    def test_model_from_configuration(self):
+        """
+        ``Configuration.model_from_configuration`` returns a
+        ``Deployment`` object with ``Nodes`` for each supplied node key.
+        """
+        config = Configuration()
+        application_configuration = {
+            'applications': {
+                'mysql-hybridcluster': {'image': 'flocker/mysql:v1.2.3'},
+                'site-hybridcluster': {'image': 'flocker/nginx:v1.2.3'}
+            }
+        }
+        deployment_configuration = {
+            'nodes': {
+                'node1.example.com': ['mysql-hybridcluster'],
+                'node2.example.com': ['site-hybridcluster'],
+            }
+        }
+        result = config.model_from_configuration(application_configuration, deployment_configuration)
+        expected_result = Deployment(
+            nodes=(
+                Node(
+                    hostname='node1.example.com',
+                    applications=(
+                        Application(
+                            name='mysql-hybridcluster',
+                            image=DockerImage(
+                                repository='flocker/mysql',
+                                tag='v1.2.3'
+                            )
+                        ),
+                    )
+                ),
+                Node(
+                    hostname='node2.example.com',
+                    applications=(
+                        Application(
+                            name='site-hybridcluster',
+                            image=DockerImage(
+                                repository='flocker/nginx',
+                                tag='v1.2.3'
+                            )
+                        ),
+                    )
+                )
+
+            )
+        )
+        self.assertEqual(expected_result, result)
