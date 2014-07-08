@@ -260,14 +260,14 @@ class FakeGearClient(object):
 
     The state the the simulated units is stored in memory.
 
-    :ivar dict _units: Map ``unicode`` names of added units to dictionary
-        containing information about them.
+    :ivar dict _units: See ``units`` of ``__init``\ .
     """
 
     def __init__(self, units=None):
         """
         :param dict units: A dictionary of canned ``Unit``\ s which will be
             manipulated and returned by the methods of this ``FakeGearClient``.
+        :type units: ``dict`` mapping `unit_name` to ``Unit``\ .
         """
         if units is None:
             units = {}
