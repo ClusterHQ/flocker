@@ -3,6 +3,9 @@
 """
 Unit tests for the implementation ``flocker-deploy``.
 """
+
+from yaml import safe_dump
+
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
@@ -55,57 +58,44 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         A ``Deployment`` object is assigned to the ``Options`` instance.
         """
+        db = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(
+                repository=u'hybridlogic/mysql5.9', tag=u'latest'),
+        )
+        site = Application(
+            name=u'site-hybridcluster.com',
+            image=DockerImage(
+                repository=u'hybridlogic/nginx', tag=u'v1.2.3'),
+        )
+
+        node1 = Node(hostname=u'node1', applications=frozenset([db]))
+        node2 = Node(hostname=u'node2', applications=frozenset([site]))
+
         options = self.options()
         deployment_configuration_path = self.mktemp()
         deployment_configuration = FilePath(deployment_configuration_path)
-        deployment_configuration.setContent("""
-        {"version": 1,
-         "nodes": {
-             "node1": ["mysql-hybridcluster"],
-             "node2": ["site-hybridcluster.com"]
-         }
-        }
-        """)
+        deployment_configuration.setContent(safe_dump(dict(
+                    version=1,
+                    nodes=dict(node1=[db.name], node2=[site.name]),
+                    )))
 
         application_configuration_path = self.mktemp()
         application_configuration = FilePath(application_configuration_path)
-        application_configuration.setContent("""
-        {"version": 1,
-         "applications": {
-             "mysql-hybridcluster": {"image": "hybridlogic/mysql5.9:latest"},
-             "site-hybridcluster.com": {"image": "hybridlogic/nginx:v1.2.3"}
-         }
-        }
-        """)
+        application_configuration.setContent(safe_dump(dict(
+                    version=1,
+                    applications={
+                        db.name: dict(
+                            image=u"{}:{}".format(
+                                db.image.repository, db.image.tag)),
+                        site.name: dict(
+                            image=u"{}:{}".format(
+                                site.image.repository, site.image.tag)),
+                    })))
 
         options.parseOptions(
             [application_configuration_path, deployment_configuration_path])
-        expected = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node1',
-                applications=frozenset([
-                    Application(
-                        name=u'mysql-hybridcluster',
-                        image=DockerImage(
-                            repository=u'hybridlogic/mysql5.9',
-                            tag=u'latest'
-                        )
-                    )
-                ]),
-            ),
-            Node(
-                hostname=u'node2',
-                applications=frozenset([
-                    Application(
-                        name=u'site-hybridcluster.com',
-                        image=DockerImage(
-                            repository=u'hybridlogic/nginx',
-                            tag=u'v1.2.3'
-                        )
-                    )
-                ]),
-            )
-        ]))
+        expected = Deployment(nodes=frozenset([node1, node2]))
 
         self.assertEqual(expected, options['deployment'])
 
