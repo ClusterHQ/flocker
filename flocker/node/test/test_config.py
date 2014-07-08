@@ -81,29 +81,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_invalid_volume_path(self):
-        """
-        ``Configuration._applications_from_configuration`` raises an
-        ``KeyError`` if the application_configuration uses invalid unix paths
-        for volumes.
-        """
-        # The implementation can use os.path.isabs to check that an absolute
-        # path is used.
-        config = dict(
-            applications={u'mysql-hybridcluster': dict(
-                image=u'repository:tag', volume=u'invalid//path//')})
-        parser = Configuration()
-        exception = self.assertRaises(KeyError,
-                                      parser._applications_from_configuration,
-                                      config)
-        self.assertEqual(
-            "Application 'mysql-hybridcluster' has a config error. "
-            "The volume mount path must be an absolute path.",
-            exception.message
-        )
-    test_error_on_invalid_volume_path.todo = (
-        'Volumes configuration can not be parsed yet.')
-
     def test_dict_of_applications(self):
         """
         ``Configuration._applications_from_configuration`` returns a ``dict``
@@ -190,24 +167,6 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             u'Unrecognised application name: site-hybridcluster.',
             exception.message
         )
-
-    def test_error_on_duplicate_applications(self):
-        """
-        ``_deployment_from_config`` raises a ``ValueError`` if the
-        deployment_configuration contains duplicate applications.
-        """
-        self.fail("Not implemented")
-    test_error_on_duplicate_applications.todo = (
-        "Planned validation improvements")
-
-    def test_error_on_invalid_node_hostname(self):
-        """
-        ``_deployment_from_config`` raises an ``ValueError`` if the
-        deployment_configuration contains invalid DNS hostnames.
-        """
-        self.fail("Not implemented")
-    test_error_on_invalid_node_hostname.todo = (
-        "Planned validation improvements")
 
     def test_set_on_success(self):
         """
