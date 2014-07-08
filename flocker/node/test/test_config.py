@@ -215,7 +215,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             dict(nodes={'node1.example.com': ['mysql-hybridcluster']}), applications)
 
         expected = set([
-            Node(hostname='node1.example.com', applications=tuple(set(applications.values())))
+            Node(hostname='node1.example.com', applications=frozenset(applications.values()))
         ])
 
         self.assertEqual(expected, result)
@@ -234,7 +234,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration = {'applications': {}}
         deployment_configuration = {'nodes': {}}
         result = config.model_from_configuration(application_configuration, deployment_configuration)
-        expected_result = Deployment(nodes=tuple())
+        expected_result = Deployment(nodes=frozenset())
         self.assertEqual(expected_result, result)
 
 
@@ -258,10 +258,10 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         }
         result = config.model_from_configuration(application_configuration, deployment_configuration)
         expected_result = Deployment(
-            nodes=(
+            nodes=frozenset([
                 Node(
                     hostname='node1.example.com',
-                    applications=(
+                    applications=frozenset([
                         Application(
                             name='mysql-hybridcluster',
                             image=DockerImage(
@@ -269,11 +269,11 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 tag='v1.2.3'
                             )
                         ),
-                    )
+                    ])
                 ),
                 Node(
                     hostname='node2.example.com',
-                    applications=(
+                    applications=frozenset([
                         Application(
                             name='site-hybridcluster',
                             image=DockerImage(
@@ -281,9 +281,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 tag='v1.2.3'
                             )
                         ),
-                    )
+                    ])
                 )
-
-            )
+            ])
         )
         self.assertEqual(expected_result, result)

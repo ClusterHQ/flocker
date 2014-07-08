@@ -79,11 +79,11 @@ class Configuration(object):
                             hostname=hostname, application_name=name)
                     )
                 node_applications.append(application)
-            node = Node(hostname=hostname, applications=tuple(set(node_applications)))
+            node = Node(hostname=hostname, applications=frozenset(node_applications))
             nodes.append(node)
         return set(nodes)
 
     def model_from_configuration(self, application_configuration, deployment_configuration):
         applications = self._applications_from_configuration(application_configuration)
         nodes = self._deployment_from_configuration(deployment_configuration, applications)
-        return Deployment(nodes=tuple(nodes))
+        return Deployment(nodes=frozenset(nodes))

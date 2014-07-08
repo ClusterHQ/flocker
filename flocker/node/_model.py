@@ -70,7 +70,7 @@ class Node(object):
         resolveable name so that Flocker can connect to the node.  This may be
         a literal IP address instead of a proper hostname.
 
-    :ivar tuple applications: A ``tuple`` of ``Application`` instances
+    :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
     """
 
@@ -82,6 +82,6 @@ class Deployment(object):
     a number of cooperating nodes.  This might describe the real state of an
     existing deployment or be used to represent a desired future state.
 
-    :ivar tuple nodes: A ``tuple`` containing ``Node`` instances describing the
-        configuration of each cooperating node.
+    :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
+        describing the configuration of each cooperating node.
     """
