@@ -188,7 +188,7 @@ class VolumeService(Service):
         d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
         return d
 
-    def handoff(service, volume, destination, mount_path,
+    def handoff(self, volume, destination, mount_path,
                 config_path=DEFAULT_CONFIG_PATH):
         """
         Handoff a locally owned volume to a remote destination.
@@ -198,7 +198,6 @@ class VolumeService(Service):
         This is a blocking API for now (but it does return a ``Deferred``
         for success/failure).
 
-        :param IVolumePusher pusher: An
         :param Volume volume: The volume to handoff.
         :param Node destination: The node to handoff to.
         :param FilePath mount_path: The path at which to mount the volume within
@@ -210,7 +209,7 @@ class VolumeService(Service):
             errbacks on error (specifcally with a ``ValueError`` if the
             volume is not locally owned).
         """
-        # service.push(volume, destination, config_path)
+        # self.push(volume, destination, config_path)
         # remote_uuid = destination.get_output(
         #     [b"flocker-volume",
         #      b"--config", config_path.path,
