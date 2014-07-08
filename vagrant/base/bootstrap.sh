@@ -30,6 +30,11 @@ yum install -y \
 	python-netifaces \
 	python-ipaddr \
 	python-nomenclature
+# These are redundant with python-twisted
+yum install -y \
+	python-crypto \
+	python-pyasn1
+yum install -y python-flake8 python-coverage
 
 # Install for downloading wheelhouse
 yum install -y wget
