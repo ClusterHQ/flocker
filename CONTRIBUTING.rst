@@ -197,7 +197,7 @@ Steps to contribute code
    Make sure Buildbot indicates all tests pass.
 
 5. Address any points raised by the reviewer.
-   If a re-submission for review has been requested, add the ``review`` label to the pull request (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
+   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub`` (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
    When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
