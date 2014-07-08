@@ -7,7 +7,7 @@ Tests for ``flocker.node._config``.
 from __future__ import unicode_literals, absolute_import
 
 from twisted.trial.unittest import SynchronousTestCase
-from .._config import Configuration
+from .._config import ConfigurationError, Configuration
 from .._model import Application, DockerImage, Deployment, Node
 
 
@@ -22,7 +22,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         `application` key.
         """
         config = Configuration()
-        self.assertRaises(KeyError,
+        self.assertRaises(ConfigurationError,
                           config._applications_from_configuration, {})
 
     def test_error_on_missing_application_attributes(self):
@@ -33,7 +33,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         config = dict(applications={'mysql-hybridcluster': {}})
         parser = Configuration()
-        exception = self.assertRaises(KeyError,
+        exception = self.assertRaises(ConfigurationError,
                                       parser._applications_from_configuration,
                                       config)
         self.assertEqual(
@@ -52,7 +52,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
                                         baz='quux')})
         parser = Configuration()
-        exception = self.assertRaises(KeyError,
+        exception = self.assertRaises(ConfigurationError,
                                       parser._applications_from_configuration,
                                       config)
         self.assertEqual(
@@ -72,7 +72,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
         parser = Configuration()
-        exception = self.assertRaises(KeyError,
+        exception = self.assertRaises(ConfigurationError,
                                       parser._applications_from_configuration,
                                       config)
         self.assertEqual(
@@ -121,7 +121,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         self.assertRaises(
-            KeyError, config._deployment_from_configuration, {}, set([]))
+            ConfigurationError,
+            config._deployment_from_configuration, {}, set([]))
 
     def test_error_on_non_list_applications(self):
         """
@@ -131,7 +132,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         exception = self.assertRaises(
-            ValueError,
+            ConfigurationError,
             config._deployment_from_configuration,
             dict(nodes={'node1.example.com': None}),
             set([])
@@ -159,7 +160,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         }
         config = Configuration()
         exception = self.assertRaises(
-            ValueError,
+            ConfigurationError,
             config._deployment_from_configuration,
             dict(nodes={'node1.example.com': ['site-hybridcluster']}),
             applications

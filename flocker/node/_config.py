@@ -9,6 +9,14 @@ from __future__ import unicode_literals, absolute_import
 from ._model import Application, DockerImage, Node, Deployment
 
 
+class ConfigurationError(Exception):
+    """
+    Some part of the supplied configuration was wrong.
+
+    The exception message will include some details about what.
+    """
+
+
 class Configuration(object):
     """
     Validate and parse configurations.
@@ -21,13 +29,13 @@ class Configuration(object):
             representation to load into ``Application`` instances.  See
             :ref:`Configuration` for details.
 
-        :raises KeyError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
         if 'applications' not in application_configuration:
-            raise KeyError('Missing applications key')
+            raise ConfigurationError('Missing applications key')
 
         applications = {}
         for application_name, config in (
@@ -35,7 +43,7 @@ class Configuration(object):
             try:
                 image_name = config.pop('image')
             except KeyError as e:
-                raise KeyError(
+                raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Missing value for '{message}'.").format(
                          application_name=application_name, message=e.message)
@@ -44,7 +52,7 @@ class Configuration(object):
             try:
                 image = DockerImage.from_string(image_name)
             except ValueError as e:
-                raise KeyError(
+                raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Invalid Docker image name. {message}").format(
                          application_name=application_name, message=e.message)
@@ -54,7 +62,7 @@ class Configuration(object):
                                                          image=image)
 
             if config:
-                raise KeyError(
+                raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
                          application_name=application_name,
@@ -71,18 +79,18 @@ class Configuration(object):
             representation to load into ``Node`` instances.  See
             :ref:`Configuration` for details.
 
-        :raises ValueError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``set`` of ``Node`` instances.
         """
         if 'nodes' not in deployment_configuration:
-            raise KeyError('Missing nodes key')
+            raise ConfigurationError('Missing nodes key')
 
         nodes = []
         for hostname, application_names in (
                 deployment_configuration['nodes'].items()):
             if not isinstance(application_names, list):
-                raise ValueError(
+                raise ConfigurationError(
                     "Node {node_name} has a config error. "
                     "Wrong value type: {value_type}. "
                     "Should be list.".format(
@@ -93,7 +101,7 @@ class Configuration(object):
             for name in application_names:
                 application = all_applications.get(name)
                 if application is None:
-                    raise ValueError(
+                    raise ConfigurationError(
                         "Node {hostname} has a config error. "
                         "Unrecognised application name: "
                         "{application_name}.".format(
