@@ -20,6 +20,7 @@ To build the box, run the following commands in the :file:`vagrant/base` directo
    vagrant destroy
 
 This will generate a :file:`package-<version>.box`.
+
 Upload this file to `google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/clusterhq-vagrant/>`_,
 using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
@@ -27,3 +28,14 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
 Then add a version on `vagrantcloud <https://vagrantcloud.com/clusterhq/flocker-dev>`_.
 The version on vagrantcloud should be the version with ``-`` replaced with ``.``.
+
+Testing
+^^^^^^^
+It is possible to test this image locally before uploading.
+First add the box locally::
+
+   vagrant box add --name clusterhq/flocker-dev flocker-dev-$(python ../../setup.py --version).box``
+
+This adds the box with version 0.
+Then change ``config.vm.box_version`` to ``= 0`` in the :file:`Vagrantfile` in the base of the repository,
+and then destroy and re-up that vagrant image.
