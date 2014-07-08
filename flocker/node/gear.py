@@ -30,9 +30,9 @@ class Unit(object):
     """
     Information about a unit managed by geard/systemd.
 
-    # XXX: The container_image attribute defaults to `None` until we have a way
-    # to interrogate geard for the docker images associated with its
-    # containers. See https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The container_image attribute defaults to `None` until we have a way
+    to interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: The name of the unit.
 
@@ -48,11 +48,11 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         gear unit
 
-    :ivar list ports: The `PortMap` instances which define the external links
-        for this unit.
+    :ivar list ports: The ``PortMap`` instances which define how connections to
+        ports on the host are routed to ports exposed in the container.
 
-    :ivar list links: The `PortMap` instances which define the internal links
-        for this unit.
+    :ivar list links: The ``PortMap`` instances which define how connections to
+        ports inside the container are routed to ports on the host.
     """
 
 
