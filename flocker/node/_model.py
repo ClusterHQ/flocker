@@ -18,6 +18,7 @@ class DockerImage(object):
     :ivar unicode full_name: A readonly property which combines the repository
         and tag in a format that can be passed to `docker run`.
     """
+
     @property
     def full_name(self):
         return "{repository}:{tag}".format(
@@ -25,6 +26,13 @@ class DockerImage(object):
 
     @classmethod
     def from_string(cls, input):
+        """
+        Given a docker image name, return a :class:`DockerImage`.
+
+        :param input: A docker image name in the format 'repository[:tag]'.
+
+        :raises ValueError: If docker image name is not in a valid format.
+        """
         kwargs = {}
         parts = input.rsplit(':', 1)
         repository = parts[0]

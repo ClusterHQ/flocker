@@ -8,7 +8,9 @@ from ._model import Application, DockerImage
 
 
 class Configuration(object):
-
+    """
+    
+    """
     def _applications_from_configuration(self, application_configuration):
         if 'applications' not in application_configuration:
             raise KeyError('Missing applications key')
