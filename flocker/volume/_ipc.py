@@ -143,7 +143,7 @@ class FakeNode(object):
 
 class IRemoteVolumeManager(Interface):
     """
-    A remote volume manager with which one can communicate over IPC.
+    A remote volume manager with which one can communicate somehow.
     """
     def receive(volume):
         """
