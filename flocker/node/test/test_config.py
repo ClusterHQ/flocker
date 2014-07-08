@@ -4,6 +4,8 @@
 Tests for ``flocker.node._config``.
 """
 
+from __future__ import unicode_literals, absolute_import
+
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import Configuration
 from .._model import Application, DockerImage, Deployment, Node
@@ -29,7 +31,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``KeyError`` if the application_configuration does not contain all the
         attributes of an ``Application`` record.
         """
-        config = dict(applications={u'mysql-hybridcluster': {}})
+        config = dict(applications={'mysql-hybridcluster': {}})
         parser = Configuration()
         exception = self.assertRaises(KeyError,
                                       parser._applications_from_configuration,
@@ -47,8 +49,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         Application attribute names.
         """
         config = dict(applications={
-            u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar',
-                                         baz=b'quux')})
+            'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
+                                        baz='quux')})
         parser = Configuration()
         exception = self.assertRaises(KeyError,
                                       parser._applications_from_configuration,
@@ -65,9 +67,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``KeyError`` if the application_configuration uses invalid Docker image
         names.
         """
-        invalid_docker_image_name = b':baz'
+        invalid_docker_image_name = ':baz'
         config = dict(
-            applications={u'mysql-hybridcluster': dict(
+            applications={'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
         parser = Configuration()
         exception = self.assertRaises(KeyError,
@@ -89,20 +91,20 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         config = dict(
             applications={
-                u'mysql-hybridcluster': dict(image=u'flocker/mysql:v1.0.0'),
-                u'site-hybridcluster': dict(image=u'flocker/wordpress:v1.0.0')
+                'mysql-hybridcluster': dict(image='flocker/mysql:v1.0.0'),
+                'site-hybridcluster': dict(image='flocker/wordpress:v1.0.0')
             }
         )
         parser = Configuration()
         applications = parser._applications_from_configuration(config)
         expected_applications = {
-            u'mysql-hybridcluster': Application(
-                name=u'mysql-hybridcluster',
-                image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0')),
-            u'site-hybridcluster': Application(
-                name=u'site-hybridcluster',
-                image=DockerImage(repository=u'flocker/wordpress',
-                                  tag=u'v1.0.0'))
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0')),
+            'site-hybridcluster': Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'))
         }
 
         self.assertEqual(expected_applications, applications)
@@ -131,7 +133,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ValueError,
             config._deployment_from_configuration,
-            dict(nodes={u'node1.example.com': None}),
+            dict(nodes={'node1.example.com': None}),
             set([])
         )
         self.assertEqual(
@@ -150,9 +152,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
                 image=Application(
-                    name=u'mysql-hybridcluster',
-                    image=DockerImage(repository=u'flocker/mysql',
-                                      tag=u'v1.0.0'))
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
             )
         }
         config = Configuration()
@@ -177,9 +179,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
                 image=Application(
-                    name=u'mysql-hybridcluster',
-                    image=DockerImage(repository=u'flocker/mysql',
-                                      tag=u'v1.0.0'))
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
             )
         }
         config = Configuration()
