@@ -67,7 +67,7 @@ class DockerImageFromStringTests(SynchronousTestCase):
             ValueError, DockerImage.from_string, b':foo')
         self.assertEqual(
             "Docker image names must have format 'repository[:tag]'. "
-            "Found ':foo'.",
+            "Found ':foo'",
             exception.message
         )
 
