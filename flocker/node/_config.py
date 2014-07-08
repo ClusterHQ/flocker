@@ -106,8 +106,8 @@ class Configuration(object):
     def model_from_configuration(self, application_configuration,
                                  deployment_configuration):
         """
-        Validate coerce the supplied application configuration and deployment
-        configuration dictionaries into a ``Deployment`` instance.
+        Validate and coerce the supplied application configuration and
+        deployment configuration dictionaries into a ``Deployment`` instance.
 
         :param dict application_configuration: Map of applications to Docker
             images.
