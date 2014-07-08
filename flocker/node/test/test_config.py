@@ -90,6 +90,18 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         application_configuration uses invalid unix paths for volumes.
         """
         raise SkipTest('Volumes configuration can not be parsed yet.')
+        config = dict(
+            applications={u'mysql-hybridcluster': dict(
+                image=u'repository:tag', volume=u'invalid//path//')})
+        parser = Configuration()
+        exception = self.assertRaises(KeyError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid path to volume.",
+            exception.message
+        )
 
     def test_dict_of_applications(self):
         """
