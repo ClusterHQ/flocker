@@ -32,6 +32,8 @@ class DockerImage(object):
         :param input: A Docker image name in the format 'repository[:tag]'.
 
         :raises ValueError: If Docker image name is not in a valid format.
+
+        :returns: A ``DockerImage`` instance.
         """
         kwargs = {}
         parts = input.rsplit(':', 1)

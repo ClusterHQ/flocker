@@ -15,8 +15,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     def test_error_on_missing_application_key(self):
         """
-        ``model_from_configuration`` raises an ``KeyError`` if the
-        application_configuration does not contain an `application` key.
+        ``Configuration._applications_from_configuration`` raises a
+        ``KeyError`` if the application_configuration does not contain an
+        `application` key.
         """
         config = Configuration()
         self.assertRaises(KeyError,
@@ -24,9 +25,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_application_attributes(self):
         """
-        ``model_from_configuration`` raises an exception if the
-        application_configuration does not contain all the attributes of an
-        `Application` record.
+        ``Configuration._applications_from_configuration`` raises a
+        ``KeyError`` if the application_configuration does not contain all the
+        attributes of an ``Application`` record.
         """
         config = dict(applications={u'mysql-hybridcluster': {}})
         parser = Configuration()
@@ -41,9 +42,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_extra_application_attributes(self):
         """
-        ``model_from_configuration`` raises an exception if the
-        application_configuration contains unrecognised Application attribute
-        names.
+        ``Configuration._applications_from_configuration`` raises a
+        ``KeyError`` if the application_configuration contains unrecognised
+        Application attribute names.
         """
         config = dict(applications={
             u'mysql-hybridcluster': dict(image=b'foo/bar:baz', foo=b'bar',
@@ -60,8 +61,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_invalid_dockerimage_name(self):
         """
-        ``model_from_configuration`` raises an exception if the
-        application_configuration uses invalid Docker image names.
+        ``Configuration._applications_from_configuration`` raises a
+        ``KeyError`` if the application_configuration uses invalid Docker image
+        names.
         """
         invalid_docker_image_name = b':baz'
         config = dict(
@@ -81,8 +83,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_volume_path(self):
         """
-        ``model_from_configuration`` raises an exception if the
-        application_configuration uses invalid unix paths for volumes.
+        ``Configuration._applications_from_configuration`` raises an
+        ``KeyError`` if the application_configuration uses invalid unix paths
+        for volumes.
         """
         # The implementation can use os.path.isabs to check that an absolute
         # path is used.
@@ -102,8 +105,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_dict_of_applications(self):
         """
-        ``model_from_configuration`` returns a dict of ``Application``
-        instances, one for each application key in the supplied configuration.
+        ``Configuration._applications_from_configuration`` returns a ``dict``
+        of ``Application`` instances, one for each application key in the
+        supplied configuration.
         """
         config = dict(
             applications={
@@ -128,11 +132,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``_deployment_from_configuration``.
+    Tests for ``Configuration._deployment_from_configuration``.
     """
     def test_error_on_missing_nodes_key(self):
         """
-        ``_deployment_from_config`` raises an ``KeyError`` if the
+        ``_deployment_from_config`` raises a ``KeyError`` if the
         deployment_configuration does not contain an `nodes` key.
         """
         config = Configuration()
@@ -141,7 +145,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_non_list_applications(self):
         """
-        ``_deployment_from_config`` raises an ``ValueError`` if the
+        ``_deployment_from_config`` raises a ``ValueError`` if the
         deployment_configuration contains application values not in the form of
         a list.
         """
@@ -161,7 +165,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_unrecognized_application_name(self):
         """
-        ``_deployment_from_config`` raises an ``ValueError`` if the
+        ``_deployment_from_config`` raises a ``ValueError`` if the
         deployment_configuration refers to a non-existent application.
         """
         applications = {
@@ -188,20 +192,24 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_duplicate_applications(self):
         """
-        ``_deployment_from_config`` raises an ``ValueError`` if the
+        ``_deployment_from_config`` raises a ``ValueError`` if the
         deployment_configuration contains duplicate applications.
         """
+    test_error_on_duplicate_applications.todo = (
+        "Planned validation improvements")
 
     def test_error_on_invalid_node_hostname(self):
         """
         ``_deployment_from_config`` raises an ``ValueError`` if the
         deployment_configuration contains invalid DNS hostnames.
         """
+    test_error_on_invalid_node_hostname.todo = (
+        "Planned validation improvements")
 
     def test_set_on_success(self):
         """
-        ``_deployment_from_config`` returns a set of Node objects. One for each
-        key in the supplied nodes dictionary.
+        ``_deployment_from_config`` returns a set of ``Node`` objects. One for
+        each key in the supplied nodes dictionary.
         """
         applications = {
             'mysql-hybridcluster': Application(
