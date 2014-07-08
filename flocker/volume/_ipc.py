@@ -17,6 +17,8 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
+from .service import DEFAULT_CONFIG_PATH
+
 
 class INode(Interface):
     """A remote node with which this node can communicate."""
@@ -137,3 +139,63 @@ class FakeNode(object):
         """
         self.remote_command = remote_command
         return self._outputs.pop(0)
+
+
+class IRemoteVolumeManager(Interface):
+    """
+    A remote volume manager with which one can communicate over IPC.
+    """
+    def receive(volume):
+        """
+        Context manager that returns a file-like object to which a volume's
+        contents can be written.
+
+        :param Volume volume: The volume to push.
+
+        :return: A file-like object that can be written to, which will
+             update the volume on the remote volume manager.
+        """
+
+
+class RemoteVolumeManager(object):
+    """
+    ``INode``\-based communication with a remote volume manager.
+    """
+
+    def __init__(self, destination, config_path=DEFAULT_CONFIG_PATH):
+        """
+        :param Node destination: The node to push to.
+        :param FilePath config_path: Path to configuration file for the
+            remote ``flocker-volume``.
+        """
+        self._destination = destination
+        self._config_path = config_path
+
+    def receive(self, volume):
+        # return self._destination.run([b"flocker-volume",
+        #                               b"--config", self._config_path.path,
+        #                               b"receive",
+        #                               volume.uuid.encode(b"ascii"),
+        #                               volume.name.encode("ascii")])
+        pass
+
+
+class LocalVolumeManger(object):
+    """
+    In-memory communication with a local ``VolumeService``, for testing.
+    """
+
+    def __init__(self, service):
+        """
+        :param VolumeService service: The service to communicate with.
+        """
+        self._service = service
+
+    @contextmanager
+    def receive(self, volume):
+        yield None
+        #input_file = BytesIO()
+        #yield input_file
+        #input_file.seek(0, 0)
+        #self._service.receive(volume.uuid, volume.name, input_file)
+        pass
