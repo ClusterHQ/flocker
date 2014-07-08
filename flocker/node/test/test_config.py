@@ -6,7 +6,7 @@ Tests for ``flocker.node._config``.
 
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from .._config import Configuration
-from .._model import Application, DockerImage
+from .._model import Application, DockerImage, Deployment, Node
 
 
 class ModelFromConfigurationTests(SynchronousTestCase):
@@ -182,3 +182,20 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``_deployment_from_config`` returns a set of Node objects. One for each
         key in the supplied nodes dictionary.
         """
+        applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name=u'mysql-hybridcluster',
+                    image=DockerImage(repository=u'flocker/mysql', tag=u'v1.0.0'))
+            )
+        }
+        config = Configuration()
+        result = config._deployment_from_configuration(
+            dict(nodes={'node1.example.com': ['mysql-hybridcluster']}), applications)
+
+        expected = Deployment(nodes=set([
+            Node(hostname='node1.example.com', applications=set(applications.values()))
+        ]))
+
+        self.assertEqual(expected, result)
