@@ -38,7 +38,7 @@ class DockerImage(object):
         repository = parts[0]
         if not repository:
             raise ValueError("Docker image names must have format "
-                             "'repository[:tag]'. Found '{image_name}'"
+                             "'repository[:tag]'. Found '{image_name}'."
                              .format(image_name=input))
         kwargs['repository'] = repository
         if len(parts) == 2:
