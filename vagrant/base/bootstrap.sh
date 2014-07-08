@@ -14,14 +14,23 @@ yum install -y @buildsys-build git
 yum install -y kernel-headers kernel-devel rpmdevtools
 yum install -y zlib-devel libuuid-devel libselinux-devel
 yum install -y automake autoconf libtool
-yum install -y rpm-devel rpmlint mock
+yum install -y rpm-devel rpmlint mock createrepo
 yum install -y docker-io geard
 yum install -y python-devel python-tox python-virtualenv python-pip
-yum install -y createrepo
-yum install -y python-twisted python-characteristic python-eliot pytz python-ipaddr
-yum install -y python-cffi python-netifaces python-treq
-yum install -y libffi-devel
-yum install -y python-nomenclature
+yum install -y python-cffi libffi-devel
+# Flocker python dependencies
+yum install -y \
+	python-eliot \
+	python-zope-interface \
+	pytz \
+	python-characteristic \
+	python-twisted \
+	PyYAML \
+	python-treq \
+	python-netifaces \
+	python-ipaddr \
+	python-nomenclature
+
 # Install for downloading wheelhouse
 yum install -y wget
 
