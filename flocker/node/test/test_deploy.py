@@ -135,7 +135,7 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_none(self):
         """
         ``Deployment.discover_node_configuration`` returns an empty list if
-        there are no `geard` units.
+        there are no active `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployment(gear_client=fake_gear)
@@ -146,7 +146,7 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_one(self):
         """
         ``Deployment.discover_node_configuration`` returns a list of
-        ``Application``\ s.
+        ``Application``\ s; one for each active `gear` unit.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
@@ -159,8 +159,8 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
 
     def test_discover_multiple(self):
         """
-        ``Deployment.discover_node_configuration`` returns one ``Application``
-        for each `gear` ``Unit`` that is running on the host.
+        ``Deployment.discover_node_configuration`` returns an ``Application``
+        for every `active` `gear` ``Unit`` on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
         unit2 = Unit(name=u'site-example.net', activation_state=u'active')
