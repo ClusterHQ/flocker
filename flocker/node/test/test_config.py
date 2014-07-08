@@ -194,8 +194,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         result = config._deployment_from_configuration(
             dict(nodes={'node1.example.com': ['mysql-hybridcluster']}), applications)
 
-        expected = Deployment(nodes=set([
-            Node(hostname='node1.example.com', applications=set(applications.values()))
-        ]))
+        expected = set([
+            Node(hostname='node1.example.com', applications=tuple(set(applications.values())))
+        ])
 
         self.assertEqual(expected, result)

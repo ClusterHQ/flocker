@@ -4,7 +4,7 @@
 APIs for parsing and validating configuration.
 """
 
-from ._model import Application, DockerImage
+from ._model import Application, DockerImage, Node
 
 
 class Configuration(object):
@@ -55,18 +55,33 @@ class Configuration(object):
                 )
         return applications
 
-    def _deployment_from_configuration(self, deployment_configuration, applications):
+    def _deployment_from_configuration(self, deployment_configuration, all_applications):
         if 'nodes' not in deployment_configuration:
             raise KeyError('Missing nodes key')
 
-        for hostname, applications in deployment_configuration['nodes'].items():
-            if not isinstance(applications, list):
+        nodes = []
+
+        for hostname, application_names in deployment_configuration['nodes'].items():
+            if not isinstance(application_names, list):
                 raise ValueError(
                     "Node {node_name} has a config error. "
                     "Wrong value type: {value_type}. "
                     "Should be list.".format(node_name=hostname,
-                                             value_type=applications.__class__.__name__)
+                                             value_type=application_names.__class__.__name__)
                 )
+            node_applications = []
+            for name in application_names:
+                application = all_applications.get(name)
+                if application is None:
+                    raise ValueError(
+                        "Node {node_name} has a config error. "
+                        "Unrecognised application name: {name}.".format(
+                            name=name)
+                    )
+                node_applications.append(application)
+            node = Node(hostname=hostname, applications=tuple(set(node_applications)))
+            nodes.append(node)
+        return set(nodes)
 
     def model_from_configuration(self, application_configuration, deployment_configuration):
         applications = self._applications_from_configuration(application_configuration)

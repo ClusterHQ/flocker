@@ -70,8 +70,8 @@ class Node(object):
         resolveable name so that Flocker can connect to the node.  This may be
         a literal IP address instead of a proper hostname.
 
-    :ivar set applications: A ``set`` of ``Application`` instances describing
-        the applications which are to run on this ``Node``.
+    :ivar tuple applications: A ``tuple`` of ``Application`` instances
+        describing the applications which are to run on this ``Node``.
     """
 
 
