@@ -24,10 +24,14 @@ class DockerImage(object):
             repository=self.repository, tag=self.tag)
 
 
-@attributes(["name", "image"])
+@attributes(["name", "image"], defaults=dict(image=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
+
+    XXX: The image attribute defaults to `None` until we have a way to
+    interrogate geard for the docker images associated with its containers. See
+    https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
