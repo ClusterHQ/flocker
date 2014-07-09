@@ -41,12 +41,14 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
     @_require_installed
     def setUp(self):
-        self.ssh_config = FilePath(self.mktemp())
-        self.server = create_ssh_server(self.ssh_config)
+        self.sshd_config = FilePath(self.mktemp())
+        self.server = create_ssh_server(self.sshd_config)
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
+        self.local_user_ssh = FilePath(self.mktemp())
+
         self.config = OpenSSHConfiguration(
-            ssh_config_path=self.ssh_config,
+            ssh_config_path=self.local_user_ssh,
             flocker_path=self.flocker_config)
         self.configure_ssh = self.config.configure_ssh
 
@@ -86,8 +88,8 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
         def check_authorized_keys(ignored):
             self.assertIn(
-                self.flocker_config.child('id_rsa_flocker.pub').getContent(),
-                (self.ssh_config
+                self.local_user_ssh.child('id_rsa_flocker.pub').getContent(),
+                (self.sshd_config
                  .child('home').child('.ssh').child('authorized_keys')
                  .getContent())
             )
