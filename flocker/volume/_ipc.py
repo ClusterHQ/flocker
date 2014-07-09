@@ -150,7 +150,8 @@ class IRemoteVolumeManager(Interface):
         Context manager that returns a file-like object to which a volume's
         contents can be written.
 
-        :param Volume volume: The volume to push.
+        :param Volume volume: The volume which will be pushed to the
+            remote volume manager.
 
         :return: A file-like object that can be written to, which will
              update the volume on the remote volume manager.
