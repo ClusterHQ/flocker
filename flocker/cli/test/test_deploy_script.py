@@ -98,7 +98,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         application_configuration = FilePath(application_configuration_path)
         application_configuration.setContent(safe_dump(dict(
             version=1,
-            application={
+            applications={
                 db.name: dict(
                     image=u"{}:{}".format(
                         db.image.repository, db.image.tag)),
