@@ -200,6 +200,81 @@ def make_iremote_volume_manager(fixture):
 
             return created
 
+        def remotely_owned_volume(self, service_pair):
+            """
+            Create a volume ``u"myvolume"`` on the destination service that is
+            owned by the origin service.
+
+            :param ServicePair service_pair: The service pair.
+
+            :return: The new ``Volume`` instance on the destination service.
+            """
+            created = service_pair.from_service.create(u"myvolume")
+
+            def got_volume(volume):
+                service_pair.from_service.push(volume, service_pair.remote)
+                return service_pair.to_service.enumerate()
+            created.addCallback(got_volume)
+            created.addCallback(lambda volumes: next(volumes))
+            return created
+
+        def test_acquire_changes_uuid(self):
+            """
+            ``acquire()`` changes the UUID of the given volume on the receiving
+            side to the volume manager's.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(remote_volume):
+                service_pair.remote.acquire(remote_volume)
+                d = to_service.enumerate()
+                d.addCallback(lambda results: self.assertEqual(
+                    list(results),
+                    [Volume(uuid=to_service.uuid, name=remote_volume.name,
+                            _pool=to_service._pool)]))
+                return d
+            created.addCallback(got_volume)
+            return created
+
+        def test_acquire_preserves_data(self):
+            """
+            ``acquire()`` preserves the data from acquired volume in the renamed
+            volume.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(remote_volume):
+                root = remote_volume.get_filesystem().get_path()
+                root.child(b"test").setContent(b"some data")
+                service_pair.remote.acquire(remote_volume)
+
+                filesystem = Volume(uuid=to_service.uuid,
+                                    name=remote_volume.name,
+                                    _pool=to_service._pool).get_filesystem()
+                new_root = filesystem.get_path()
+                self.assertEqual(new_root.child(b"test").getContent(),
+                                 b"some data")
+            created.addCallback(got_volume)
+            return created
+
+        def test_acquire_returns_uuid(self):
+            """
+            ``acquire()`` returns the UUID of the remote volume manager.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(remote_volume):
+                result = service_pair.remote.acquire(remote_volume)
+                self.assertEqual(result, to_service.uuid)
+            created.addCallback(got_volume)
+            return created
+
     return IRemoteVolumeManagerTests
 
 

@@ -15,7 +15,6 @@ from zope.interface.verify import verifyObject
 from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
 from twisted.application.service import IService
-from twisted.internet.defer import succeed
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume,
@@ -271,8 +270,11 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        self.failureResultOf(service.acquire(service.uuid, u"blah", None),
+        self.failureResultOf(service.acquire(service.uuid, u"blah"),
                              ValueError)
+
+    # Further tests for acquire() are done in
+    # test_ipc.make_iremote_volume_manager.
 
     def create_service(self):
         """
@@ -285,66 +287,6 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
         return service
-
-    def remotely_owned_volume(self, service):
-        """
-        Create a volume ``u"myvolume"`` owned by a remote volume manager with
-        UUID ``u"remoteuuid"`.
-
-        :param VolumeService service: The service where the volume will be
-            stored (but which won't own it).
-
-        :return: The ``Volume`` instance.
-        """
-        created = service.create(u"myvolume")
-        created.addCallback(lambda volume: volume.change_owner(u"remoteuuid"))
-        return created
-
-    def test_acquire_changes_uuid(self):
-        """
-        ``VolumeService.acquire()`` changes the UUID of the given volume to
-        the volume manager's.
-        """
-        service = self.create_service()
-
-        created = self.remotely_owned_volume(service)
-
-        def got_volume(remote_volume):
-            acquired = service.acquire(remote_volume.uuid, remote_volume.name,
-                                       BytesIO())
-            acquired.addCallback(lambda _: service.enumerate())
-            acquired.addCallback(lambda results: self.assertEqual(
-                list(results),
-                [Volume(uuid=service.uuid, name=remote_volume.name,
-                        _pool=service._pool)]))
-            return acquired
-        created.addCallback(got_volume)
-        return created
-
-    def test_acquire_preserves_data(self):
-        """
-        ``VolumeService.acquire()`` preserves the data from acquired volume in
-        the renamed volume.
-        """
-        service = self.create_service()
-
-        created = self.remotely_owned_volume(service)
-
-        def got_volume(remote_volume):
-            remote_volume.get_filesystem().get_path().child(b"test").setContent(
-                b"some data")
-            acquired = service.acquire(remote_volume.uuid, remote_volume.name,
-                                       BytesIO())
-
-            def acquire_done(_):
-                root = Volume(uuid=service.uuid,
-                              name=remote_volume.name,
-                              _pool=service._pool).get_filesystem().get_path()
-                self.assertEqual(root.child(b"test").getContent(), b"some data")
-            acquired.addCallback(acquire_done)
-            return acquired
-        created.addCallback(got_volume)
-        return created
 
     def test_handoff_rejects_remote_volume(self):
         """

@@ -162,7 +162,7 @@ class VolumeService(Service):
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
 
-    def acquire(self, volume_uuid, volume_name, output_file):
+    def acquire(self, volume_uuid, volume_name):
         """
         Take ownership of a volume.
 
@@ -173,8 +173,6 @@ class VolumeService(Service):
 
         :param unicode volume_uuid: The volume owner's UUID.
         :param unicode volume_name: The volume's name.
-        :param output_file: A file-like object, typically ``sys.stdout``, to
-            which the UUID of this volume manager will be written.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             ``ValueError`` If the uuid of the volume matches our own.
@@ -184,8 +182,7 @@ class VolumeService(Service):
         volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
         return volume.change_owner(self.uuid)
 
-    def handoff(self, volume, destination,
-                config_path=DEFAULT_CONFIG_PATH):
+    def handoff(self, volume, destination):
         """
         Handoff a locally owned volume to a remote destination.
 
@@ -195,15 +192,14 @@ class VolumeService(Service):
         for success/failure).
 
         :param Volume volume: The volume to handoff.
-        :param Node destination: The node to handoff to.
-        :param FilePath config_path: Path to configuration file for the
-            remote ``flocker-volume``.
+        :param IRemoteVolumeManager destination: The remote volume manager
+            to handoff to.
 
         :return: ``Deferred`` that fires when the handoff has finished, or
             errbacks on error (specifcally with a ``ValueError`` if the
             volume is not locally owned).
         """
-        # self.push(volume, destination, config_path)
+        # self.push(volume, destination)
         # remote_uuid = destination.get_output(
         #     [b"flocker-volume",
         #      b"--config", config_path.path,
