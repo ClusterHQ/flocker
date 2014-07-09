@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-deploy`` tool."""
-from twisted.internet.defer import succeed, DeferredList
+from twisted.internet.defer import DeferredList
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
@@ -59,18 +59,24 @@ class DeployScript(object):
     """
     def __init__(self, ssh_configuration=None, ssh_port=22):
         if ssh_configuration is None:
-	    ssh_configuration = OpenSSHConfiguration.defaults()
-	self.ssh_configuration = ssh_configuration
-	self.ssh_port = ssh_port
+            ssh_configuration = OpenSSHConfiguration.defaults()
+        self.ssh_configuration = ssh_configuration
+        self.ssh_port = ssh_port
 
     def main(self, reactor, options):
         """
-        :return: A ``DeferredList``.
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
         """
         deployment = options["deployment"]
         results = []
-	for node in deployment.nodes:
-	    results.append(deferToThread(self.ssh_configuration.configure_ssh, node.hostname, self.ssh_port))	
+        for node in deployment.nodes:
+            results.append(
+                deferToThread(
+                    self.ssh_configuration.configure_ssh,
+                    node.hostname, self.ssh_port
+                )
+            )
         return DeferredList(results)
 
 
