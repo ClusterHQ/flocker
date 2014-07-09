@@ -108,7 +108,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             })))
 
         options.parseOptions(
-            [application_configuration_path, deployment_configuration_path])
+            [deployment_configuration_path, application_configuration_path])
         expected = Deployment(nodes=frozenset([node1, node2]))
 
         self.assertEqual(expected, options['deployment'])
