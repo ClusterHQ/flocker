@@ -35,7 +35,16 @@ class Configuration(object):
             instances.
         """
         if u'applications' not in application_configuration:
-            raise ConfigurationError('Missing applications key')
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'applications' key.")
+
+        if u'version' not in application_configuration:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'version' key.")
+
+        if application_configuration[u'version'] != 1:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Incorrect version specified.")
 
         applications = {}
         for application_name, config in (

@@ -21,13 +21,46 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the application_configuration does not
         contain an ``u"application"`` key.
         """
-        config = Configuration()
+        parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
-                                      config._applications_from_configuration,
+                                      parser._applications_from_configuration,
                                       {})
         self.assertEqual(
             "Application configuration has an error. "
-            "Missing 'Application' key.",
+            "Missing 'applications' key.",
+            exception.message
+        )
+
+    def test_error_on_missing_version_key(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration does not
+        contain an ``u"version"`` key.
+        """
+        config = dict(applications={})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application configuration has an error. "
+            "Missing 'version' key.",
+            exception.message
+        )
+
+    def test_error_on_incorrect_version(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the version specified is not 1.
+        """
+        config = dict(applications={}, version=2)
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application configuration has an error. "
+            "Incorrect version specified.",
             exception.message
         )
 
@@ -37,7 +70,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the application_configuration does not
         contain all the attributes of an ``Application`` record.
         """
-        config = dict(applications={'mysql-hybridcluster': {}})
+        config = dict(applications={'mysql-hybridcluster': {}}, version=1)
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
                                       parser._applications_from_configuration,
@@ -54,9 +87,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the application_configuration contains
         unrecognised Application attribute names.
         """
-        config = dict(applications={
-            'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
-                                        baz='quux')})
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
+                                            baz='quux')})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
                                       parser._applications_from_configuration,
@@ -75,6 +110,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         invalid_docker_image_name = ':baz'
         config = dict(
+            version=1,
             applications={'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
         parser = Configuration()
@@ -96,6 +132,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         supplied configuration.
         """
         config = dict(
+            version=1,
             applications={
                 'mysql-hybridcluster': dict(image='flocker/mysql:v1.0.0'),
                 'site-hybridcluster': dict(image='flocker/wordpress:v1.0.0')
@@ -217,7 +254,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``Deployment`` object if supplied with empty configurations.
         """
         config = Configuration()
-        application_configuration = {'applications': {}}
+        application_configuration = {'applications': {}, 'version': 1}
         deployment_configuration = {'nodes': {}}
         result = config.model_from_configuration(
             application_configuration, deployment_configuration)
@@ -231,6 +268,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         application_configuration = {
+            'version': 1,
             'applications': {
                 'mysql-hybridcluster': {'image': 'flocker/mysql:v1.2.3'},
                 'site-hybridcluster': {'image': 'flocker/nginx:v1.2.3'}
