@@ -3,18 +3,14 @@
 """
 Functional tests for the ``flocker-deploy`` command line tool.
 """
-from subprocess import check_call, check_output
+from subprocess import check_output
 from unittest import skipUnless
-
-from os import devnull, environ, kill
-from signal import SIGKILL
-from operator import setitem, delitem
 
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ...testtools import create_ssh_server
+from ...testtools import create_ssh_server, create_ssh_agent
 from .._sshconfig import OpenSSHConfiguration
 from ...node import model_from_configuration
 
@@ -54,37 +50,12 @@ class FlockerDeployConfigureSSHTests(TestCase):
             flocker_path=self.flocker_config)
         self.configure_ssh = self.config.configure_ssh
 
-        output = check_output([b"ssh-agent", b"-c"]).splitlines()
-
         # ``configure_ssh`` expects ``ssh`` to already be able to
         # authenticate against the server.  Set up an ssh-agent to
         # help it do that against our testing server.
+        self.agent = create_ssh_agent(self.server.key_path)
+        self.addCleanup(self.agent.restore)
 
-        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
-        # setenv SSH_AGENT_PID 6391;
-        # echo Agent pid 6391;
-        sock = output[0].split()[2][:-1]
-        pid = output[1].split()[2][:-1]
-
-        self.addCleanup(lambda: kill(int(pid), SIGKILL))
-
-        def patchdict(k, v):
-            if k in environ:
-                self.addCleanup(
-                    lambda old=environ[k]: setitem(environ, k, old))
-            else:
-                self.addCleanup(lambda: delitem(environ, k))
-
-            environ[k] = v
-
-        patchdict(b"SSH_AUTH_SOCK", sock)
-        patchdict(b"SSH_AGENT_PID", pid)
-
-        with open(devnull, "w") as discard:
-            # See https://github.com/clusterhq/flocker/issues/192
-            check_call(
-                [b"ssh-add", self.server.key_path.path],
-                stdout=discard, stderr=discard)
 
     def test_installs_public_sshkeys(self):
         """

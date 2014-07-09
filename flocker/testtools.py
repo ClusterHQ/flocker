@@ -9,12 +9,14 @@ import io
 import socket
 import sys
 import os
+from operator import setitem, delitem
 import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call
+from signal import SIGKILL
+from subprocess import check_call, check_output
 from functools import wraps
 
 from zope.interface import implementer
@@ -421,7 +423,7 @@ class _ConchServer(object):
     def __init__(self, base_path):
         """
         :param FilePath base_path: The path beneath which all of the temporary
-            SSH server-related files will be created.  An ``ssh`` directory
+            SSH server-related files will be d.  An ``ssh`` directory
             will be created as a child of this directory to hold the key pair
             that is generated.  An ``sshd`` directory will also be created here
             to hold the generated host key.  A ``home`` directory is also
@@ -484,6 +486,73 @@ def create_ssh_server(base_path):
         will be generated.
     """
     return _ConchServer(base_path)
+
+
+class _SSHAgent(object):
+    """
+    A helper for a test fixture to run an `ssh-agent` process.
+
+    :ivar FilePath key_path: The path of an SSH private key which can be used
+        to authenticate against the server.
+    """
+    def __init__(self, key_file):
+        """
+        Start an `ssh-agent` and add its socket path and pid to the global
+        environment so that SSH sub-processes can use it for authentication.
+
+        :param FilePath key_file: An SSH private key file which can be used
+            when authenticating with SSH servers.
+        """
+        self._cleanups = []
+
+        output = check_output([b"ssh-agent", b"-c"]).splitlines()
+        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
+        # setenv SSH_AGENT_PID 6391;
+        # echo Agent pid 6391;
+        sock = output[0].split()[2][:-1]
+        pid = output[1].split()[2][:-1]
+        self._pid = int(pid)
+
+        def patchdict(k, v):
+            if k in os.environ:
+                self._cleanups.append(
+                    lambda old=os.environ[k]: setitem(os.environ, k, old))
+            else:
+                self._cleanups.append(lambda: delitem(os.environ, k))
+
+            os.environ[k] = v
+
+        patchdict(b"SSH_AUTH_SOCK", sock)
+        patchdict(b"SSH_AGENT_PID", pid)
+
+        with open(os.devnull, "w") as discard:
+            # See https://github.com/clusterhq/flocker/issues/192
+            check_call(
+                [b"ssh-add", key_file.path],
+                stdout=discard, stderr=discard)
+
+    def restore(self):
+        """
+        Shut down the SSH agent and restore the test environment to its
+        previous state.
+        """
+        for cleanup in self._cleanups:
+            cleanup()
+        os.kill(self._pid, SIGKILL)
+
+
+def create_ssh_agent(key_file):
+    """
+    :py:func:`create_ssh_agent` is a fixture which creates and runs a new SSH
+    agent and stops it later.  Use the :py:meth:`restore` method of the
+    returned object to stop the server.
+
+    :param FilePath key_file: The path of an SSH private key which can be
+        used when authenticating with SSH servers.
+
+    :rtype: _SSHAgent
+    """
+    return _SSHAgent(key_file)
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
