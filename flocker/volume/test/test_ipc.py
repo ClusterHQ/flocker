@@ -149,7 +149,9 @@ def make_iremote_volume_manager(fixture):
             return self.assertFailure(created, RuntimeError)
 
         def test_receive_creates_volume(self):
-            """``receive`` creates a volume."""
+            """
+            ``receive`` creates a volume.
+            """
             service_pair = fixture(self)
             created = service_pair.from_service.create(u"thevolume")
 
