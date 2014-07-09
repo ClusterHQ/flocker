@@ -103,22 +103,8 @@ class FlockerDeployTests(TestCase):
 	    }
 	}
 
-	deployment_configuration_file = FilePath(self.mktemp())
-	deployment_configuration_file.setContent(
-	    safe_dump(deployment_configuration)
-	)
-	application_configuration_file = FilePath(self.mktemp())
-	application_configuration_file.setContent(
-	    safe_dump(application_configuration)
-	)
 
-	#result = check_output([b"flocker-deploy"] + [application_configuration_file.path, deployment_configuration_file.path])
-        #fake_sys_module = FakeSysModule(argv=[b"flocker-deploy", application_configuration_file.path, deployment_configuration_file.path]) 
         script = DeployScript(ssh_configuration=self.config, ssh_port=self.server.port)
         options = {"deployment": model_from_configuration(application_configuration, deployment_configuration)}
-        #options.parseOptions()
 	result = script.main(reactor, options)
-        import pdb
-        result.addBoth(lambda x: pdb.set_trace())
         return result
-	#import pdb;pdb.set_trace()
