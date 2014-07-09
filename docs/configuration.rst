@@ -51,5 +51,5 @@ Here's an example of a simple but complete configuration defining a deployment o
 
   "version": 1,
   "nodes":
-    - "node017.clusterhq.internal":
+    - "node017.example.com":
       - "site-clusterhq.com"
