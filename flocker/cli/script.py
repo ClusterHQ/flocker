@@ -63,10 +63,10 @@ class DeployScript(object):
         self.ssh_configuration = ssh_configuration
         self.ssh_port = ssh_port
 
-    def main(self, reactor, options):
+    def _configure_ssh(self, options):
         """
-        :return: A ``Deferred`` which fires when the deployment is complete or
-                 has encountered an error.
+        :return: A ``Deferred`` which fires when all nodes have been configured
+            with ssh keys.
         """
         deployment = options["deployment"]
         results = []
@@ -78,6 +78,13 @@ class DeployScript(object):
                 )
             )
         return DeferredList(results)
+
+    def main(self, reactor, options):
+        """
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
+        """
+        return self._configure_ssh(options)
 
 
 def flocker_deploy_main():

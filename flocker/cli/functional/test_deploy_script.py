@@ -10,7 +10,6 @@ from os import devnull, environ, kill
 from signal import SIGKILL
 from operator import setitem, delitem
 
-from twisted.internet import reactor
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -29,7 +28,20 @@ _require_installed = skipUnless(which("flocker-deploy"),
 
 
 class FlockerDeployTests(TestCase):
-    """Tests for ``flocker-deploy``."""
+    """
+    Tests for ``flocker-deploy``.
+    """
+
+    def test_version(self):
+        """``flocker-deploy --version`` returns the current version."""
+        result = check_output([b"flocker-deploy"] + [b"--version"])
+        self.assertEqual(result, b"%s\n" % (__version__,))
+
+
+class FlockerDeployConfigureSSHTests(TestCase):
+    """
+    Tests for ``DeployScript._configure_ssh``.
+    """
 
     @_require_installed
     def setUp(self):
@@ -74,17 +86,11 @@ class FlockerDeployTests(TestCase):
                 [b"ssh-add", self.server.key_path.path],
                 stdout=discard, stderr=discard)
 
-
-    def test_version(self):
-        """``flocker-deploy --version`` returns the current version."""
-        result = check_output([b"flocker-deploy"] + [b"--version"])
-        self.assertEqual(result, b"%s\n" % (__version__,))
-
-    def test_deploy_installs_public_sshkeys(self):
+    def test_installs_public_sshkeys(self):
         """
-        ``flocker-deploy`` connects to each of the nodes in the supplied
-        deployment configuration file and installs the cluster wide public ssh
-        keys.
+        ``DeployScript._configure_ssh`` connects to each of the nodes in the
+        supplied deployment configuration file and installs the cluster wide
+        public ssh keys.
         """
         deployment_configuration = {
             "version": 1,
@@ -106,7 +112,7 @@ class FlockerDeployTests(TestCase):
         deployment = model_from_configuration(
             application_configuration, deployment_configuration)
         options = {"deployment": deployment}
-        result = script.main(reactor, options)
+        result = script._configure_ssh(options)
         def check_authorized_keys(ignored):
             self.assertIn(
                 self.flocker_config.child('id_rsa_flocker.pub').getContent(),
