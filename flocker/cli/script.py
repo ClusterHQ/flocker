@@ -46,7 +46,8 @@ class DeployOptions(Options):
         application_config = safe_load(application_config.getContent())
         try:
             self['deployment'] = model_from_configuration(
-                deployment_config, application_config)
+                application_configuration=application_config,
+                deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(str(e))
 
@@ -63,12 +64,11 @@ class DeployScript(object):
         self.ssh_configuration = ssh_configuration
         self.ssh_port = ssh_port
 
-    def _configure_ssh(self, options):
+    def _configure_ssh(self, deployment):
         """
         :return: A ``Deferred`` which fires when all nodes have been configured
             with ssh keys.
         """
-        deployment = options["deployment"]
         results = []
         for node in deployment.nodes:
             results.append(
@@ -84,7 +84,7 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return self._configure_ssh(options)
+        return self._configure_ssh(options['deployment'])
 
 
 def flocker_deploy_main():

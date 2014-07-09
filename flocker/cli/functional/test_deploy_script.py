@@ -12,7 +12,7 @@ from twisted.trial.unittest import TestCase
 
 from ...testtools import create_ssh_server, create_ssh_agent
 from .._sshconfig import OpenSSHConfiguration
-from ...node import model_from_configuration
+from ...node import Deployment, Node
 
 from ..script import DeployScript
 
@@ -27,6 +27,9 @@ class FlockerDeployTests(TestCase):
     """
     Tests for ``flocker-deploy``.
     """
+    @_require_installed
+    def setUp(self):
+        pass
 
     def test_version(self):
         """``flocker-deploy --version`` returns the current version."""
@@ -60,39 +63,33 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
     def test_installs_public_sshkeys(self):
         """
-        ``DeployScript._configure_ssh`` connects to each of the nodes in the
-        supplied deployment configuration file and installs the cluster wide
-        public ssh keys.
+        ``DeployScript._configure_ssh`` installs the cluster wide public ssh
+        keys on each node in the supplied ``Deployment``.
         """
-        deployment_configuration = {
-            "version": 1,
-            "nodes": {
-                str(self.server.ip): ["mysql-hybridcluster"],
-            }
-        }
-        application_configuration = {
-            "version": 1,
-            "applications": {
-                "mysql-hybridcluster": {
-                    "image": "flocker/flocker:v1.0"
-                }
-            }
-        }
+        deployment = Deployment(
+            nodes=frozenset([
+                Node(
+                    hostname=str(self.server.ip),
+                    applications=None
+                ),
+                # Node(
+                #     hostname='node2.example.com',
+                #     applications=None
+                # )
+            ])
+        )
 
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        deployment = model_from_configuration(
-            application_configuration, deployment_configuration)
-        options = {"deployment": deployment}
-        result = script._configure_ssh(options)
+        result = script._configure_ssh(deployment)
+
+        local_key = self.local_user_ssh.child(b'id_rsa_flocker.pub')
+        authorized_keys = self.sshd_config.descendant([
+            b'home', b'.ssh', b'authorized_keys'])
 
         def check_authorized_keys(ignored):
-            self.assertIn(
-                self.local_user_ssh.child('id_rsa_flocker.pub').getContent(),
-                (self.sshd_config
-                 .child('home').child('.ssh').child('authorized_keys')
-                 .getContent())
-            )
+            self.assertIn(local_key.getContent(),
+                          authorized_keys.getContent().splitlines())
 
         result.addCallback(check_authorized_keys)
         return result
