@@ -93,7 +93,16 @@ class Configuration(object):
         :returns: A ``set`` of ``Node`` instances.
         """
         if 'nodes' not in deployment_configuration:
-            raise ConfigurationError('Missing nodes key')
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Missing 'nodes' key.")
+
+        if u'version' not in deployment_configuration:
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Missing 'version' key.")
+
+        if deployment_configuration[u'version'] != 1:
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Incorrect version specified.")
 
         nodes = []
         for hostname, application_names in (

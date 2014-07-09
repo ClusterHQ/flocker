@@ -159,13 +159,50 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     def test_error_on_missing_nodes_key(self):
         """
-        ``_deployment_from_config`` raises a ``ConfigurationError`` if the
-        deployment_configuration does not contain an ``u"nodes"`` key.
+        ``Configuration._deployment_from_config`` raises a
+        ``ConfigurationError`` if the deployment_configuration does not
+        contain an ``u"nodes"`` key.
         """
-        config = Configuration()
-        self.assertRaises(
-            ConfigurationError,
-            config._deployment_from_configuration, {}, set())
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._deployment_from_configuration,
+                                      {}, set())
+        self.assertEqual(
+            "Deployment configuration has an error. Missing 'nodes' key.",
+            exception.message
+        )
+
+    def test_error_on_missing_version_key(self):
+        """
+        ``Configuration._deployment_from_config`` raises a
+        ``ConfigurationError`` if the deployment_configuration does not
+        contain an ``u"version"`` key.
+        """
+        config = dict(nodes={})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._deployment_from_configuration,
+                                      config, set())
+        self.assertEqual(
+            "Deployment configuration has an error. Missing 'version' key.",
+            exception.message
+        )
+
+    def test_error_on_incorrect_version(self):
+        """
+        ``Configuration._deployment_from_config`` raises a
+        ``ConfigurationError`` if the version specified is not 1.
+        """
+        config = dict(nodes={}, version=2)
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._deployment_from_configuration,
+                                      config, set())
+        self.assertEqual(
+            "Deployment configuration has an error. "
+            "Incorrect version specified.",
+            exception.message
+        )
 
     def test_error_on_non_list_applications(self):
         """
@@ -177,7 +214,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             config._deployment_from_configuration,
-            dict(nodes={'node1.example.com': None}),
+            dict(version=1, nodes={'node1.example.com': None}),
             set()
         )
         self.assertEqual(
@@ -205,7 +242,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(
             ConfigurationError,
             config._deployment_from_configuration,
-            dict(nodes={'node1.example.com': ['site-hybridcluster']}),
+            dict(
+                version=1,
+                nodes={'node1.example.com': ['site-hybridcluster']}),
             applications
         )
         self.assertEqual(
@@ -230,7 +269,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         }
         config = Configuration()
         result = config._deployment_from_configuration(
-            dict(nodes={'node1.example.com': ['mysql-hybridcluster']}),
+            dict(
+                version=1,
+                nodes={'node1.example.com': ['mysql-hybridcluster']}),
             applications
         )
 
@@ -255,7 +296,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         """
         config = Configuration()
         application_configuration = {'applications': {}, 'version': 1}
-        deployment_configuration = {'nodes': {}}
+        deployment_configuration = {'nodes': {}, 'version': 1}
         result = config.model_from_configuration(
             application_configuration, deployment_configuration)
         expected_result = Deployment(nodes=frozenset())
@@ -275,6 +316,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             }
         }
         deployment_configuration = {
+            'version': 1,
             'nodes': {
                 'node1.example.com': ['mysql-hybridcluster'],
                 'node2.example.com': ['site-hybridcluster'],
