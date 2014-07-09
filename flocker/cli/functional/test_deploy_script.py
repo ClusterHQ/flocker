@@ -80,10 +80,11 @@ class FlockerDeployTests(TestCase):
         result = check_output([b"flocker-deploy"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
 
-    def test_deploy(self):
+    def test_deploy_installs_public_sshkeys(self):
         """
         ``flocker-deploy`` connects to each of the nodes in the supplied
-        deployment configuration file.
+        deployment configuration file and installs the cluster wide public ssh
+        keys.
         """
         deployment_configuration = {
             "version": 1,
@@ -102,9 +103,16 @@ class FlockerDeployTests(TestCase):
 
         script = DeployScript(
             ssh_configuration=self.config, ssh_port=self.server.port)
-        options = {
-            "deployment": model_from_configuration(
-                application_configuration, deployment_configuration)
-        }
+        deployment = model_from_configuration(
+            application_configuration, deployment_configuration)
+        options = {"deployment": deployment}
         result = script.main(reactor, options)
+        def check_authorized_keys(ignored):
+            self.assertIn(
+                self.flocker_config.child('id_rsa_flocker.pub').getContent(),
+                (self.ssh_config
+                 .child('home').child('.ssh').child('authorized_keys')
+                 .getContent())
+            )
+        result.addCallback(check_authorized_keys)
         return result
