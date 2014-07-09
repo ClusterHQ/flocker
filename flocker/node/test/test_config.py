@@ -28,8 +28,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_missing_application_attributes(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``KeyError`` if the application_configuration does not contain all the
-        attributes of an ``Application`` record.
+        ``ConfigurationError`` if the application_configuration does not
+        contain all the attributes of an ``Application`` record.
         """
         config = dict(applications={'mysql-hybridcluster': {}})
         parser = Configuration()
@@ -45,8 +45,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_extra_application_attributes(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``KeyError`` if the application_configuration contains unrecognised
-        Application attribute names.
+        ``ConfigurationError`` if the application_configuration contains
+        unrecognised Application attribute names.
         """
         config = dict(applications={
             'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
@@ -64,8 +64,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_invalid_dockerimage_name(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``KeyError`` if the application_configuration uses invalid Docker image
-        names.
+        ``ConfigurationError`` if the application_configuration uses invalid
+        Docker image names.
         """
         invalid_docker_image_name = ':baz'
         config = dict(
@@ -116,7 +116,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     def test_error_on_missing_nodes_key(self):
         """
-        ``_deployment_from_config`` raises a ``KeyError`` if the
+        ``_deployment_from_config`` raises a ``ConfigurationError`` if the
         deployment_configuration does not contain an ``u"nodes"`` key.
         """
         config = Configuration()
