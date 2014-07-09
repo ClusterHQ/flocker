@@ -56,7 +56,6 @@ class FlockerDeployConfigureSSHTests(TestCase):
         self.agent = create_ssh_agent(self.server.key_path)
         self.addCleanup(self.agent.restore)
 
-
     def test_installs_public_sshkeys(self):
         """
         ``DeployScript._configure_ssh`` connects to each of the nodes in the
@@ -84,6 +83,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
             application_configuration, deployment_configuration)
         options = {"deployment": deployment}
         result = script._configure_ssh(options)
+
         def check_authorized_keys(ignored):
             self.assertIn(
                 self.flocker_config.child('id_rsa_flocker.pub').getContent(),
@@ -91,5 +91,6 @@ class FlockerDeployConfigureSSHTests(TestCase):
                  .child('home').child('.ssh').child('authorized_keys')
                  .getContent())
             )
+
         result.addCallback(check_authorized_keys)
         return result
