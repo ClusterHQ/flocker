@@ -82,26 +82,26 @@ class FlockerDeployTests(TestCase):
 
     def test_deploy(self):
         """
-	``flocker-deploy`` connects to each of the nodes in the supplied
-	deployment configuration file.
-	"""
-	deployment_configuration = {
-	    "version": 1,
-	    "nodes": {
-	        str(self.server.ip): ["mysql-hybridcluster"],
-	    }
-	}
-	application_configuration = {
-	    "version": 1,
-	    "applications": {
-	        "mysql-hybridcluster": {
-		    "image": "flocker/flocker:v1.0"
-		}
-	    }
-	}
+        ``flocker-deploy`` connects to each of the nodes in the supplied
+        deployment configuration file.
+        """
+        deployment_configuration = {
+            "version": 1,
+            "nodes": {
+                str(self.server.ip): ["mysql-hybridcluster"],
+            }
+        }
+        application_configuration = {
+            "version": 1,
+            "applications": {
+                "mysql-hybridcluster": {
+                    "image": "flocker/flocker:v1.0"
+                }
+            }
+        }
 
 
         script = DeployScript(ssh_configuration=self.config, ssh_port=self.server.port)
         options = {"deployment": model_from_configuration(application_configuration, deployment_configuration)}
-	result = script.main(reactor, options)
+        result = script.main(reactor, options)
         return result
