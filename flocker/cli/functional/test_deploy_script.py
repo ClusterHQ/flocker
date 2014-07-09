@@ -100,7 +100,11 @@ class FlockerDeployTests(TestCase):
             }
         }
 
-        script = DeployScript(ssh_configuration=self.config, ssh_port=self.server.port)
-        options = {"deployment": model_from_configuration(application_configuration, deployment_configuration)}
+        script = DeployScript(
+            ssh_configuration=self.config, ssh_port=self.server.port)
+        options = {
+            "deployment": model_from_configuration(
+                application_configuration, deployment_configuration)
+        }
         result = script.main(reactor, options)
         return result
