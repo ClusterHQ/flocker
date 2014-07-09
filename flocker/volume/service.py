@@ -162,7 +162,7 @@ class VolumeService(Service):
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
 
-    def acquire(self, volume_uuid, volume_name, mount_path, output_file):
+    def acquire(self, volume_uuid, volume_name, output_file):
         """
         Take ownership of a volume.
 
@@ -173,8 +173,6 @@ class VolumeService(Service):
 
         :param unicode volume_uuid: The volume owner's UUID.
         :param unicode volume_name: The volume's name.
-        :param FilePath mount_path: The path at which to mount the volume within
-            the container.
         :param output_file: A file-like object, typically ``sys.stdout``, to
             which the UUID of this volume manager will be written.
 
@@ -184,11 +182,9 @@ class VolumeService(Service):
         if volume_uuid == self.uuid:
              return fail(ValueError())
         volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
-        d = volume.change_owner(self.uuid)
-        d.addCallback(lambda volume: volume.expose_to_docker(mount_path))
-        return d
+        return volume.change_owner(self.uuid)
 
-    def handoff(self, volume, destination, mount_path,
+    def handoff(self, volume, destination,
                 config_path=DEFAULT_CONFIG_PATH):
         """
         Handoff a locally owned volume to a remote destination.
@@ -200,8 +196,6 @@ class VolumeService(Service):
 
         :param Volume volume: The volume to handoff.
         :param Node destination: The node to handoff to.
-        :param FilePath mount_path: The path at which to mount the volume within
-            the container.
         :param FilePath config_path: Path to configuration file for the
             remote ``flocker-volume``.
 
@@ -218,9 +212,7 @@ class VolumeService(Service):
         #      volume.name.encode("ascii"),
         #      mount_path.path,
         #      ]).decode("ascii")
-        # d = volume.remove_from_docker()
-        # d.addCallback(lambda _: volume.change_owner(remote_uuid))
-        # return d
+        # return volume.change_owner(remote_uuid)
 
 
 # Communication with Docker should be done via its API, not with this

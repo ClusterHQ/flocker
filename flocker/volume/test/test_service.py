@@ -300,7 +300,7 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        self.failureResultOf(service.acquire(service.uuid, u"blah", None, None),
+        self.failureResultOf(service.acquire(service.uuid, u"blah", None),
                              ValueError)
 
     def create_service(self):
@@ -334,17 +334,13 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.acquire()`` changes the UUID of the given volume to
         the volume manager's.
         """
-        # Lacking a verified fake, we're going to do this the wrong way.
-        # https://github.com/ClusterHQ/flocker/issues/234
-        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
-
         service = self.create_service()
 
         created = self.remotely_owned_volume(service)
 
         def got_volume(remote_volume):
             acquired = service.acquire(remote_volume.uuid, remote_volume.name,
-                                FilePath(b"/var/blah"), BytesIO())
+                                       BytesIO())
             acquired.addCallback(lambda _: service.enumerate())
             acquired.addCallback(lambda results: self.assertEqual(
                 list(results),
@@ -359,10 +355,6 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.acquire()`` preserves the data from acquired volume in
         the renamed volume.
         """
-        # Lacking a verified fake, we're going to do this the wrong way.
-        # https://github.com/ClusterHQ/flocker/issues/234
-        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
-
         service = self.create_service()
 
         created = self.remotely_owned_volume(service)
@@ -371,7 +363,7 @@ class VolumeServiceAPITests(TestCase):
             remote_volume.get_filesystem().get_path().child(b"test").setContent(
                 b"some data")
             acquired = service.acquire(remote_volume.uuid, remote_volume.name,
-                                FilePath(b"/var/blah"), BytesIO())
+                                       BytesIO())
 
             def acquire_done(_):
                 root = Volume(uuid=service.uuid,
@@ -383,33 +375,6 @@ class VolumeServiceAPITests(TestCase):
         created.addCallback(got_volume)
         return created
 
-    def test_acquire_exposes(self):
-        """
-        ```VolumeService.acquire()`` exposes the newly locally owned volume to
-        Docker.
-        """
-        # Lacking a verified fake, we're going to do this the wrong way.
-        # https://github.com/ClusterHQ/flocker/issues/234
-        exposed = []
-        def expose_to_docker(self, mount_path):
-            exposed.append((self, mount_path))
-            return succeed(None)
-        self.patch(Volume, "expose_to_docker", expose_to_docker)
-
-        service = self.create_service()
-        created = self.remotely_owned_volume(service)
-
-        def got_volume(remote_volume):
-            remote_volume.get_filesystem().get_path().child(b"test").setContent(
-                b"some data")
-            return service.acquire(remote_volume.uuid, remote_volume.name,
-                                   FilePath(b"/var/blah"), BytesIO())
-        created.addCallback(got_volume)
-        created.addCallback(lambda _: self.assertEqual(
-            exposed, [(Volume(uuid=service.uuid, name=u"myvolume",
-                              _pool=service._pool), FilePath(b"/var/blah"))]))
-        return created
-
     def test_handoff_rejects_remote_volume(self):
         """
         ``VolumeService.handoff()`` errbacks with a ``ValueError`` if given a
@@ -418,17 +383,12 @@ class VolumeServiceAPITests(TestCase):
         service = self.create_service()
         remote_volume = Volume(uuid=u"remote", name=u"blah",_pool=service._pool)
 
-        self.failureResultOf(service.handoff(remote_volume, None, None),
+        self.failureResultOf(service.handoff(remote_volume, None),
                              ValueError)
 
     def test_handoff_pushes(self):
         """
         ``VolumeService.handoff()`` pushes to the given remote node.
-        """
-
-    def test_handoff_unexposes(self):
-        """
-        ``VolumeService.handoff()`` unexposes the volume from Docker.
         """
 
     def test_handoff_changes_uuid(self):
