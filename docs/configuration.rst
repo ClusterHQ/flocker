@@ -10,7 +10,10 @@ The configuration is represented using yaml syntax.
 Application Configuration
 -------------------------
 
-The application configuration consists of short, human-meaningful application names and the parameters necessary to run those applications.
+The application configuration consists of a version and short, human-meaningful application names and the parameters necessary to run those applications.
+
+The required parameters are ``version`` and ``applications``.
+For now the ``version`` must be ``1``.
 
 The parameters required to define an application are:
 
@@ -27,19 +30,26 @@ Here's an example of a simple but complete configuration defining one applicatio
 
 .. code-block:: yaml
 
-   "site-clusterhq.com":
-       "image": "clusterhq/clusterhq-website"
+   "version": 1,
+   "applications":
+     - "site-clusterhq.com":
+         "image": "clusterhq/clusterhq-website"
 
 
 Deployment Configuration
 ------------------------
 
 The deployment configuration specifies which applications are run on what nodes.
-It consists of a mapping from node names to application names.
+It consists of a version and a mapping from node names to application names.
+
+The required parameters are ``version`` and ``applications``.
+For now the ``version`` must be ``1``.
 
 Here's an example of a simple but complete configuration defining a deployment of one application on one host:
 
 .. code-block:: yaml
 
-  "node017.clusterhq.internal":
+  "version": 1,
+  "nodes":
+    - "node017.clusterhq.internal":
       - "site-clusterhq.com"
