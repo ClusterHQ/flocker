@@ -11,12 +11,14 @@ from uuid import uuid4
 
 from zope.interface.verify import verifyObject
 
+from twisted.application.service import IService
+from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
-from twisted.application.service import IService
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, DEFAULT_CONFIG_PATH,
+    WAIT_FOR_VOLUME_INTERVAL
     )
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import FakeNode
@@ -387,27 +389,51 @@ class WaitForVolumeTests(TestCase):
     Tests for ``VolumeService.wait_for_volume``.
     """
 
+    def setUp(self):
+        """
+        Create a ``VolumeService`` pointing at a new pool.
+        """
+        self.clock = Clock()
+        self.pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        self.service = VolumeService(FilePath(self.mktemp()), self.pool,
+                                     reactor=self.clock)
+        self.service.startService()
+
     def test_existing_volume(self):
         """
         If the volume already exists, the deferred returned by
         ``VolumeService.wait_for_volume`` has already fired with the
         corresponding ``Volume``.
         """
-
-    def test_acquired_volume(self):
-        """
-        The deferred returned by ``VolumeService.wait_for_volume`` fires
-        with the corresponding ``Volume`` after the volumed has been acquired.
-        """
+        volume = self.successResultOf(self.service.create(u'volume'))
+        wait = self.service.wait_for_volume(u'volume')
+        self.assertEqual(self.successResultOf(wait), volume)
 
     def test_created_volume(self):
         """
         The deferred returned by ``VolumeService.wait_for_volume`` fires
         with the corresponding ``Volume`` after the volumed has been created.
         """
+        wait = self.service.wait_for_volume(u'volume')
+        volume = self.successResultOf(self.service.create(u'volume'))
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        self.assertEqual(self.successResultOf(wait), volume)
 
     def test_no_volume(self):
         """
         If the volume doesn't exist, the deferred returned by
         ``VolumeService.wait_for_volume`` has not fired.
         """
+
+    def test_remote_volume(self):
+        """
+        If the volume doesn't exist, the deferred returned by
+        The deferred returned by ``VolumeService.wait_for_volume`` does not
+        fire when a remote volume with the same name is received.
+        """
+        other_uuid = unicode(uuid4())
+        remote_volume = Volume(uuid=other_uuid, name=u"volume",
+                               _pool=self.pool)
+        self.successResultOf(self.pool.create(remote_volume))
+
+        self.assertNoResult(self.service.wait_for_volume(u'volume'))

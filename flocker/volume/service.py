@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.volume.test.test_service -*-
 
 """Volume manager service, the main entry point that manages volumes."""
 
@@ -15,6 +16,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
+from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
@@ -23,6 +25,8 @@ from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
+
+WAIT_FOR_VOLUME_INTERVAL = 30
 
 
 class CreateConfigurationError(Exception):
@@ -36,14 +40,17 @@ class VolumeService(Service):
         volume manager. Only available once the service has started.
     """
 
-    def __init__(self, config_path, pool):
+    def __init__(self, config_path, pool, reactor=None):
         """
         :param FilePath config_path: Path to the volume manager config file.
         :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
             provider.
         """
+        if reactor is None:
+            from twisted.internet import reactor
         self._config_path = config_path
         self._pool = pool
+        self._reactor = reactor
 
     def startService(self):
         parent = self._config_path.parent()
@@ -87,10 +94,22 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        # 1. Create a Volume
-        # 2. Start a LoopingCall that calls enumerate a checks if our volume is
-        #    in the results.
-        # 3. Returne the volume.
+        volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
+
+        def check_for_volume(volumes):
+            if volume in volumes:
+                call.stop()
+
+        def loop():
+            d = self.enumerate()
+            d.addCallback(check_for_volume)
+            return d
+
+        call = LoopingCall(loop)
+        call.clock = self._reactor
+        d = call.start(WAIT_FOR_VOLUME_INTERVAL)
+        d.addCallback(lambda _: volume)
+        return d
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
