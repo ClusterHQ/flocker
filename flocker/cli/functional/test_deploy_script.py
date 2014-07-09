@@ -81,12 +81,15 @@ class FlockerDeployConfigureSSHTests(TestCase):
             ssh_configuration=self.config, ssh_port=self.server.port)
         result = script._configure_ssh(deployment)
 
+        local_key = self.flocker_config.child('id_rsa_flocker.pub')
+        authorized_keys = (
+            self.ssh_config.child('home').child('.ssh').child('authorized_keys')
+        )
+
         def check_authorized_keys(ignored):
             self.assertIn(
-                self.flocker_config.child('id_rsa_flocker.pub').getContent(),
-                (self.ssh_config
-                 .child('home').child('.ssh').child('authorized_keys')
-                 .getContent())
+                containee=local_key.getContent(),
+                container=authorized_keys.getContent()
             )
 
         result.addCallback(check_authorized_keys)
