@@ -10,19 +10,16 @@ from os import devnull, environ, kill
 from signal import SIGKILL
 from operator import setitem, delitem
 
-from yaml import safe_dump
-
 from twisted.internet import reactor
 from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ...testtools import create_ssh_server, FakeSysModule
+from ...testtools import create_ssh_server
 from .._sshconfig import OpenSSHConfiguration
 from ...node import model_from_configuration
 
-from ..script import DeployScript, DeployOptions
-from ...common.script import FlockerScriptRunner
+from ..script import DeployScript
 
 from ... import __version__
 
