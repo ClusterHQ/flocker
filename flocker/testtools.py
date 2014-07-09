@@ -423,7 +423,7 @@ class _ConchServer(object):
     def __init__(self, base_path):
         """
         :param FilePath base_path: The path beneath which all of the temporary
-            SSH server-related files will be d.  An ``ssh`` directory
+            SSH server-related files will be created.  An ``ssh`` directory
             will be created as a child of this directory to hold the key pair
             that is generated.  An ``sshd`` directory will also be created here
             to hold the generated host key.  A ``home`` directory is also
