@@ -12,6 +12,8 @@ from yaml import safe_load
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
+from ..volume._ipc import ProcessNode
+from ._sshconfig import DEFAULT_SSH_DIRECTORY
 
 
 @flocker_standard_options
@@ -63,6 +65,35 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires with ``None``.
         """
         return succeed(None)
+
+    def _get_destinations(self, deployment):
+        """
+        Return sequence of ``INode`` to connect to for given deployment.
+
+        :param Deployment deployment: The requested already parsed
+            configuration.
+
+        :return: Iterable of ``INode`` providers.
+        """
+        # private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
+
+        # for node in deployment.nodes:
+        #     yield ProcessNode.using_ssh(node.hostname, 22, b"root",
+        #                                 private_key)
+
+    def _changestate_on_nodes(self, deployment, deployment_config,
+                              application_config):
+        """
+        Connect to all nodes and run ``flocker-changestate``.
+
+        :param Deployment deployment: The requested already parsed
+            configuration.
+        :param bytes deployment_config: YAML-encoded deployment configuration.
+        :param bytes application_config: YAML-encoded application configuration.
+        """
+        # for destination in self._get_destinations(deployment):
+        #     destination.get_output([b"flocker-changestate", deployment_config,
+        #                             application_config])
 
 
 def flocker_deploy_main():

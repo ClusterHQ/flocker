@@ -13,6 +13,7 @@ from twisted.trial.unittest import TestCase, SynchronousTestCase
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
 from ...node import Application, Deployment, DockerImage, Node
+from ...volume._ipc import FakeNode
 
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
@@ -129,3 +130,20 @@ class FlockerDeployMainTests(SynchronousTestCase):
             None,
             self.successResultOf(script.main(dummy_reactor, options))
         )
+
+    def test_get_destinations(self):
+        """
+        ``DeployScript._get_destinations`` uses the hostnames in the
+        deployment to create SSH ``INode`` destinations.
+        """
+
+    def test_calls_changestate(self):
+        """
+        ``DeployScript.main`` calls ``flocker-changestate`` using the
+        destinations from ``_get_destinations``.
+        """
+        script = DeployScript()
+        script._get_destinations = destinations = [FakeNode(), FakeNode()]
+        script.main(...)
+        self.assertEqual([node.remote_command for node in destinations],
+                         [b"flocker-changestate", ...])
