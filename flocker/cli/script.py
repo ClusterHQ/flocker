@@ -12,6 +12,7 @@ from yaml import safe_load
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
+from ._sshconfig import OpenSSHConfiguration
 
 
 @flocker_standard_options
@@ -55,12 +56,22 @@ class DeployScript(object):
     A script to start configured deployments, covered by:
        https://github.com/ClusterHQ/flocker/issues/19
     """
+    def __init__(self, ssh_configuration=None, ssh_port=22):
+        if ssh_configuration is None:
+	    ssh_configuration = OpenSSHConfiguration.defaults()
+	self.ssh_configuration = ssh_configuration
+	self.ssh_port = ssh_port
+
     def main(self, reactor, options):
         """
         Returns a ``Deferred``. This is a stub.
 
         :return: A ``Deferred`` which fires with ``None``.
         """
+        deployment = options["deployment"]
+	for node in deployment.nodes:
+	    self.ssh_configuration.configure_ssh(node.hostname, self.ssh_port)
+	print deployment
         return succeed(None)
 
 
