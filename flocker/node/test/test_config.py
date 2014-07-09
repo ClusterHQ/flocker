@@ -18,8 +18,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_missing_application_key(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``KeyError`` if the application_configuration does not contain an
-        ``u"application"`` key.
+        ``ConfigurationError`` if the application_configuration does not
+        contain an ``u"application"`` key.
         """
         config = Configuration()
         self.assertRaises(ConfigurationError,
