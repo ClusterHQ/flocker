@@ -6,6 +6,7 @@ Deploy applications on nodes.
 """
 
 from .gear import GearClient
+from ._model import Application
 
 
 class Deployment(object):
@@ -43,3 +44,23 @@ class Deployment(object):
         """
         unit_name = application.name
         return self._gear_client.remove(unit_name)
+
+    def discover_node_configuration(self):
+        """
+        List all the ``Application``\ s running on this node.
+
+        :returns: A ``Deferred`` which fires with a list of ``Application``
+            instances.
+        """
+        d = self._gear_client.list()
+
+        def applications_from_units(units):
+            applications = []
+            for unit in units:
+                # XXX: This currently only populates the Application name. The
+                # container_image will be available on the Unit when
+                # https://github.com/ClusterHQ/flocker/issues/207 is resolved.
+                applications.append(Application(name=unit.name))
+            return applications
+        d.addCallback(applications_from_units)
+        return d

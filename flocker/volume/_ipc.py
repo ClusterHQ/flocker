@@ -62,18 +62,18 @@ class ProcessNode(object):
             process.stdin.close()
             exit_code = process.wait()
             if exit_code:
-                # We should really capture this and stderr:
+                # We should really capture this and stderr better:
                 # https://github.com/ClusterHQ/flocker/issues/155
-                raise IOError("Bad exit")
+                raise IOError("Bad exit", remote_command, exit_code)
 
     def get_output(self, remote_command):
         try:
             return check_output(
                 self.initial_command_arguments + remote_command)
-        except CalledProcessError:
-            # We should really capture this and stderr:
+        except CalledProcessError as e:
+            # We should really capture this and stderr better:
             # https://github.com/ClusterHQ/flocker/issues/155
-            raise IOError("Bad exit")
+            raise IOError("Bad exit", remote_command, e.returncode, e.output)
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):

@@ -16,7 +16,8 @@ def make_inode_tests(fixture):
     """
     Create a TestCase for ``INode``.
 
-    :param fixture: A fixture that returns a :class:`INode` provider.
+    :param fixture: A fixture that returns a :class:`INode` provider which
+        will work with any arbitrary given command arguments.
     """
     class INodeTests(PyTestCase):
         """Tests for :class:`INode` implementors.
@@ -79,13 +80,13 @@ def make_inode_tests(fixture):
             with assertNoFDsLeaked(self):
                 node.get_output([b"echo", b"hello"])
 
-        def test_get_output_result(self):
+        def test_get_output_result_bytes(self):
             """
-            ``get_output()`` returns the output of the command.
+            ``get_output()`` returns a result that is ``bytes``.
             """
             node = fixture(self)
-            result = node.get_output([b"-n", b"hello"])
-            self.assertEqual(result, b"hello")
+            result = node.get_output([b"hello"])
+            self.assertIsInstance(result, bytes)
 
     return INodeTests
 
