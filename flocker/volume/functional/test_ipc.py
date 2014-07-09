@@ -9,10 +9,15 @@ from unittest import skipIf
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.threads import deferToThread
+from twisted.internet import reactor
 
-from .._ipc import ProcessNode
+from .._ipc import ProcessNode, RemoteVolumeManager
 from ..test.test_ipc import make_inode_tests
 from ...testtools import create_ssh_server
+from ..service import VolumeService
+from ..filesystems.zfs import StoragePool
+from .test_filesystems_zfs import create_zfs_pool
+from ..test.test_ipc import make_iremote_volume_manager, ServicePair
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
@@ -156,3 +161,59 @@ class SSHProcessNodeTests(TestCase):
             self.assertEqual(data, b"hello there")
         d.addCallback(got_data)
         return d
+
+
+class MutatingProcessNode(ProcessNode):
+    """Mutate the command being run in order to make tests work.
+
+    Come up with something better in
+    https://github.com/ClusterHQ/flocker/issues/125
+    """
+    def __init__(self, to_service):
+        """
+        :param to_service: The VolumeService to which a push is being done.
+        """
+        self.to_service = to_service
+        ProcessNode.__init__(self, initial_command_arguments=[])
+
+    def run(self, remote_command):
+        remote_command = remote_command[:1] + [
+            b"--pool", self.to_service._pool._name,
+            b"--mountpoint", self.to_service._pool._mount_root.path
+        ] + remote_command[1:]
+        return ProcessNode.run(self, remote_command)
+
+
+def create_realistic_servicepair(test):
+    """
+    Create a ``ServicePair`` that uses ZFS for testing
+    ``RemoteVolumeManager``.
+
+    :param TestCase test: A unit test.
+
+    :return: A new ``ServicePair``.
+    """
+    from_pool = StoragePool(reactor, create_zfs_pool(test),
+                            FilePath(test.mktemp()))
+    from_service = VolumeService(FilePath(test.mktemp()),
+                                 from_pool)
+    from_service.startService()
+    test.addCleanup(from_service.stopService)
+
+    to_pool = StoragePool(reactor, create_zfs_pool(test),
+                          FilePath(test.mktemp()))
+    to_config = FilePath(test.mktemp())
+    to_service = VolumeService(to_config, to_pool)
+    to_service.startService()
+    test.addCleanup(to_service.stopService)
+
+    return ServicePair(from_service=from_service, to_service=to_service,
+                       remote=RemoteVolumeManager(
+                           MutatingProcessNode(to_service)))
+
+
+class RemoteVolumeManagerInterfaceTests(
+        make_iremote_volume_manager(create_realistic_servicepair)):
+    """
+    Tests for ``RemoteVolumeManger`` as a ``IRemoteVolumeManager``.
+    """
