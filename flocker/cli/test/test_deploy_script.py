@@ -83,15 +83,15 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 repository=u'hybridlogic/nginx', tag=u'v1.2.3'),
         )
 
-        node1 = Node(hostname=u'node1', applications=frozenset([db]))
-        node2 = Node(hostname=u'node2', applications=frozenset([site]))
+        node1 = Node(hostname=u'node1.test', applications=frozenset([db]))
+        node2 = Node(hostname=u'node2.test', applications=frozenset([site]))
 
         options = self.options()
         deployment_configuration_path = self.mktemp()
         deployment_configuration = FilePath(deployment_configuration_path)
         deployment_configuration.setContent(safe_dump(dict(
             version=1,
-            nodes=dict(node1=[db.name], node2=[site.name]),
+            nodes={'node1.test': [db.name], 'node2.test': [site.name]},
             )))
 
         application_configuration_path = self.mktemp()
@@ -108,7 +108,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             })))
 
         options.parseOptions(
-            [application_configuration_path, deployment_configuration_path])
+            [deployment_configuration_path, application_configuration_path])
         expected = Deployment(nodes=frozenset([node1, node2]))
 
         self.assertEqual(expected, options['deployment'])

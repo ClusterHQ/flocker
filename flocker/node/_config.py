@@ -34,8 +34,17 @@ class Configuration(object):
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        if 'applications' not in application_configuration:
-            raise ConfigurationError('Missing applications key')
+        if u'applications' not in application_configuration:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'applications' key.")
+
+        if u'version' not in application_configuration:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'version' key.")
+
+        if application_configuration[u'version'] != 1:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Incorrect version specified.")
 
         applications = {}
         for application_name, config in (
@@ -84,7 +93,16 @@ class Configuration(object):
         :returns: A ``set`` of ``Node`` instances.
         """
         if 'nodes' not in deployment_configuration:
-            raise ConfigurationError('Missing nodes key')
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Missing 'nodes' key.")
+
+        if u'version' not in deployment_configuration:
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Missing 'version' key.")
+
+        if deployment_configuration[u'version'] != 1:
+            raise ConfigurationError("Deployment configuration has an error. "
+                                     "Incorrect version specified.")
 
         nodes = []
         for hostname, application_names in (

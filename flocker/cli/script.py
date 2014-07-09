@@ -46,7 +46,8 @@ class DeployOptions(Options):
         application_config = safe_load(application_config.getContent())
         try:
             self['deployment'] = model_from_configuration(
-                deployment_config, application_config)
+                application_configuration=application_config,
+                deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(str(e))
 
