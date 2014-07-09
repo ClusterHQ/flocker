@@ -30,7 +30,7 @@ Here's an example of a simple but complete configuration defining one applicatio
 
 .. code-block:: yaml
 
-  version: 1,
+  version: 1
   applications:
     - site-clusterhq.com:
         image: clusterhq/clusterhq-website
@@ -49,7 +49,7 @@ Here's an example of a simple but complete configuration defining a deployment o
 
 .. code-block:: yaml
 
-  version: 1,
+  version: 1
   nodes:
     - node017.example.com:
       - site-clusterhq.com
