@@ -34,7 +34,7 @@ class Configuration(object):
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        if 'applications' not in application_configuration:
+        if u'applications' not in application_configuration:
             raise ConfigurationError('Missing applications key')
 
         applications = {}
