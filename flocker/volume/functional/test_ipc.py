@@ -186,7 +186,7 @@ class MutatingProcessNode(ProcessNode):
 
 def create_realistic_servicepair(test):
     """
-    Create a ``ServicePair`` that uses SSH and ZFS for testing
+    Create a ``ServicePair`` that uses ZFS for testing
     ``RemoteVolumeManager``.
 
     :param TestCase test: A unit test.
