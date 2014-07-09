@@ -22,8 +22,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         contain an ``u"application"`` key.
         """
         config = Configuration()
-        self.assertRaises(ConfigurationError,
-                          config._applications_from_configuration, {})
+        exception = self.assertRaises(ConfigurationError,
+                                      config._applications_from_configuration,
+                                      {})
+        self.assertEqual(
+            "Application configuration has an error. "
+            "Missing 'Application' key.",
+            exception.message
+        )
 
     def test_error_on_missing_application_attributes(self):
         """
