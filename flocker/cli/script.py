@@ -1,7 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-deploy`` tool."""
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, DeferredList
+from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -64,15 +65,13 @@ class DeployScript(object):
 
     def main(self, reactor, options):
         """
-        Returns a ``Deferred``. This is a stub.
-
-        :return: A ``Deferred`` which fires with ``None``.
+        :return: A ``DeferredList``.
         """
         deployment = options["deployment"]
+        results = []
 	for node in deployment.nodes:
-	    self.ssh_configuration.configure_ssh(node.hostname, self.ssh_port)
-	print deployment
-        return succeed(None)
+	    results.append(deferToThread(self.ssh_configuration.configure_ssh, node.hostname, self.ssh_port))	
+        return DeferredList(results)
 
 
 def flocker_deploy_main():
