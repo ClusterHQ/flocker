@@ -199,16 +199,12 @@ class VolumeService(Service):
             errbacks on error (specifcally with a ``ValueError`` if the
             volume is not locally owned).
         """
-        # self.push(volume, destination)
-        # remote_uuid = destination.get_output(
-        #     [b"flocker-volume",
-        #      b"--config", config_path.path,
-        #      b"acquire",
-        #      volume.uuid.encode(b"ascii"),
-        #      volume.name.encode("ascii"),
-        #      mount_path.path,
-        #      ]).decode("ascii")
-        # return volume.change_owner(remote_uuid)
+        try:
+            self.push(volume, destination)
+        except ValueError:
+            return fail()
+        remote_uuid = destination.acquire(volume)
+        return volume.change_owner(remote_uuid)
 
 
 # Communication with Docker should be done via its API, not with this

@@ -20,7 +20,7 @@ from ..service import (
     VolumeService, CreateConfigurationError, Volume,
     )
 from ..filesystems.memory import FilesystemStoragePool
-from .._ipc import FakeNode, RemoteVolumeManager
+from .._ipc import FakeNode, RemoteVolumeManager, LocalVolumeManager
 from ...testtools import skip_on_broken_permissions
 
 
@@ -299,22 +299,81 @@ class VolumeServiceAPITests(TestCase):
         self.failureResultOf(service.handoff(remote_volume, None),
                              ValueError)
 
-    def test_handoff_pushes(self):
+    def test_handoff_destination_acquires(self):
         """
-        ``VolumeService.handoff()`` pushes to the given remote node.
+        ``VolumeService.handoff()`` makes the remote node owner of the volume
+        previously owned by the original owner.
         """
+        origin_service = self.create_service()
+        destination_service = self.create_service()
+
+        created = origin_service.create(u"avolume")
+
+        def got_volume(volume):
+            volume.get_filesystem().get_path().child(b"afile").setContent(
+                b"exists")
+            return origin_service.handoff(
+                volume, LocalVolumeManager(destination_service))
+        created.addCallback(got_volume)
+
+        def handed_off(_):
+            expected_volume = Volume(uuid=destination_service.uuid,
+                                     name=u"avolume",
+                                     _pool=destination_service._pool)
+            root = expected_volume.get_filesystem().get_path()
+            self.assertEqual(root.child(b"afile").getContent(), b"exists")
+        created.addCallback(handed_off)
+        return created
 
     def test_handoff_changes_uuid(self):
         """
-        ```VolumeService.handoff()`` changes the UUID of the volume's owner to
-        the output of the call to ``flocker-volume acquire``.
+        ```VolumeService.handoff()`` changes the owner UUID of the local
+        volume to the new owner's UUID.
         """
+        origin_service = self.create_service()
+        destination_service = self.create_service()
+
+        created = origin_service.create(u"avolume")
+
+        def got_volume(volume):
+            return origin_service.handoff(
+                volume, LocalVolumeManager(destination_service))
+        created.addCallback(got_volume)
+        created.addCallback(lambda _: origin_service.enumerate())
+
+        def got_origin_volumes(volumes):
+            expected_volume = Volume(uuid=destination_service.uuid,
+                                     name=u"avolume",
+                                     _pool=origin_service._pool)
+            self.assertEqual(list(volumes), [expected_volume])
+        created.addCallback(got_origin_volumes)
+        return created
 
     def test_handoff_preserves_data(self):
         """
         ``VolumeService.handoff()`` preserves the data from the relinquished
         volume in the newly owned resulting volume in the local volume manager.
         """
+        origin_service = self.create_service()
+        destination_service = self.create_service()
+
+        created = origin_service.create(u"avolume")
+
+        def got_volume(volume):
+            volume.get_filesystem().get_path().child(b"afile").setContent(
+                b"exists")
+            return origin_service.handoff(
+                volume, LocalVolumeManager(destination_service))
+        created.addCallback(got_volume)
+
+        def handed_off(volumes):
+            expected_volume = Volume(uuid=destination_service.uuid,
+                                     name=u"avolume",
+                                     _pool=origin_service._pool)
+            root = expected_volume.get_filesystem().get_path()
+            self.assertEqual(root.child(b"afile").getContent(), b"exists")
+        created.addCallback(handed_off)
+        return created
 
 
 class VolumeTests(TestCase):

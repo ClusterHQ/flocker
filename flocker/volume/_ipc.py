@@ -200,7 +200,7 @@ class RemoteVolumeManager(object):
 
 
 @implementer(IRemoteVolumeManager)
-class LocalVolumeManger(object):
+class LocalVolumeManager(object):
     """
     In-memory communication with a ``VolumeService`` instance, for testing.
     """

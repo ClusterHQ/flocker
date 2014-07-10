@@ -17,7 +17,7 @@ from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     INode, FakeNode, IRemoteVolumeManager, RemoteVolumeManager,
-    LocalVolumeManger,
+    LocalVolumeManager,
     )
 from ...testtools import assertNoFDsLeaked
 
@@ -283,7 +283,7 @@ def make_iremote_volume_manager(fixture):
 
 def create_local_servicepair(test):
     """
-    Create a ``ServicePair`` allowing testing of ``LocalVolumeManger``.
+    Create a ``ServicePair`` allowing testing of ``LocalVolumeManager``.
 
     :param TestCase test: A unit test.
 
@@ -299,13 +299,13 @@ def create_local_servicepair(test):
         return service
     to_service = create_service()
     return ServicePair(from_service=create_service(), to_service=to_service,
-                       remote=LocalVolumeManger(to_service))
+                       remote=LocalVolumeManager(to_service))
 
 
 class LocalVolumeManagerInterfaceTests(
         make_iremote_volume_manager(create_local_servicepair)):
     """
-    Tests for ``LocalVolumeManger`` as a ``IRemoteVolumeManager``.
+    Tests for ``LocalVolumeManager`` as a ``IRemoteVolumeManager``.
     """
 
 
