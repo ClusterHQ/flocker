@@ -26,7 +26,7 @@ __all__ = [
 
 
 class _ReceiveSubcommandOptions(Options):
-    """Command line options ``flocker-volume receive``."""
+    """Command line options for ``flocker-volume receive``."""
 
     longdesc = """Receive a volume pushed from another volume manager.
 
@@ -54,6 +54,40 @@ class _ReceiveSubcommandOptions(Options):
         service.receive(self["uuid"], self["name"], sys.stdin)
 
 
+class _AcquireSubcommandOptions(Options):
+    """
+    Command line options for ``flocker-volume acquire``.
+    """
+
+    longdesc = """\
+    Take ownership of a volume previously owned by another volume manager.
+
+    Reads the volume in from standard in. This is typically called
+    automatically over SSH.
+
+    Parameters:
+
+    * owner-uuid: The UUID of the volume manager that owns the volume.
+
+    * name: The name of the volume.
+    """
+
+    synopsis = "<owner-uuid> <name>"
+
+    def parseArgs(self, uuid, name):
+        self["uuid"] = uuid.decode("ascii")
+        self["name"] = name.decode("ascii")
+
+    def run(self, service):
+        """Run the action for this sub-command.
+
+        :param VolumeService service: The volume manager service to utilize.
+        """
+        service.acquire(self["uuid"], self["name"])
+        sys.stdout.write(service.uuid.encode("ascii"))
+        sys.stdout.flush()
+
+
 @flocker_standard_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
@@ -78,6 +112,8 @@ class VolumeOptions(Options):
     subCommands = [
         ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
+        ["acquire", None, _AcquireSubcommandOptions,
+         "Acquire a remotely owned volume."],
     ]
 
     def postOptions(self):
