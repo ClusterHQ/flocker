@@ -419,11 +419,24 @@ class WaitForVolumeTests(TestCase):
         self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
         self.assertEqual(self.successResultOf(wait), volume)
 
+    def test_late_created_volume(self):
+        """
+        The deferred returned by ``VolumeService.wait_for_volume`` fires
+        with the corresponding ``Volume`` after the volume has been created,
+        even if the volume is available after the first iteration.
+        """
+        wait = self.service.wait_for_volume(u'volume')
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        volume = self.successResultOf(self.service.create(u'volume'))
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        self.assertEqual(self.successResultOf(wait), volume)
+
     def test_no_volume(self):
         """
         If the volume doesn't exist, the deferred returned by
         ``VolumeService.wait_for_volume`` has not fired.
         """
+        self.assertNoResult(self.service.wait_for_volume(u'volume'))
 
     def test_remote_volume(self):
         """
