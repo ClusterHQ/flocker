@@ -178,7 +178,7 @@ class VolumeService(Service):
             ``ValueError`` If the uuid of the volume matches our own.
         """
         if volume_uuid == self.uuid:
-             return fail(ValueError())
+            return fail(ValueError())
         volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
         return volume.change_owner(self.uuid)
 
@@ -274,14 +274,15 @@ class Volume(object):
         return b"flocker-%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
-        """Create a container that will expose the volume to Docker at the given
+        """
+        Create a container that will expose the volume to Docker at the given
         mount path.
 
         Can be called multiple times. Mount paths from previous calls will
         be overridden.
 
-        :param FilePath mount_path: The path at which to mount the volume within
-            the container.
+        :param FilePath mount_path: The path at which to mount the volume
+            within the container.
 
         :return: ``Deferred`` firing when the operation is done.
         """

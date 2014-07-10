@@ -8,7 +8,6 @@ import json
 import os
 from unittest import skipIf
 from uuid import uuid4
-from io import BytesIO
 
 from zope.interface.verify import verifyObject
 
@@ -294,7 +293,8 @@ class VolumeServiceAPITests(TestCase):
         remotely-owned volume.
         """
         service = self.create_service()
-        remote_volume = Volume(uuid=u"remote", name=u"blah",_pool=service._pool)
+        remote_volume = Volume(uuid=u"remote", name=u"blah",
+                               _pool=service._pool)
 
         self.failureResultOf(service.handoff(remote_volume, None),
                              ValueError)
