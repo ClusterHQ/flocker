@@ -194,7 +194,7 @@ class MutatingProcessNode(ProcessNode):
         return ProcessNode.run(self, self._mutate(remote_command))
 
     def get_output(self, remote_command):
-        return ProcessNode.get_output(self._mutate(remote_command))
+        return ProcessNode.get_output(self, self._mutate(remote_command))
 
 
 def create_realistic_servicepair(test):
