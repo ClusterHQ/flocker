@@ -9,6 +9,7 @@ from __future__ import unicode_literals, absolute_import
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
 from .._model import Application, DockerImage, Deployment, Node
+from ..gear import PortMap
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -135,7 +136,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={
                 'mysql-hybridcluster': dict(image='flocker/mysql:v1.0.0'),
-                'site-hybridcluster': dict(image='flocker/wordpress:v1.0.0')
+                'site-hybridcluster': {
+                    'image': 'flocker/wordpress:v1.0.0',
+                    'ports': [dict(internal=80, external=8080)]
+
+                }
             }
         )
         parser = Configuration()
@@ -147,10 +152,34 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'))
+                                  tag='v1.0.0'),
+                ports=frozenset(PortMap(internal_port=80, external_port=8080)))
         }
 
         self.assertEqual(expected_applications, applications)
+
+
+    def test_ports_missing_internal(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port entry
+        that is missing the internal port.
+        """
+
+    def test_ports_missing_external(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port entry
+        that is missing the internal port.
+        """
+
+    def test_ports_extra_keys(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port entry
+        that has extra keys.
+        """
+
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):

@@ -49,7 +49,8 @@ class DeployerStartContainerTests(SynchronousTestCase):
                                    tag=u'release-14.0')
         application = Application(
             name=b'site-example.com',
-            image=docker_image
+            image=docker_image,
+            ports=frozenset(), # Put some here
         )
         start_result = api.start_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)

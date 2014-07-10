@@ -67,6 +67,11 @@ class Configuration(object):
                          application_name=application_name, message=e.message)
                 )
 
+            try:
+                config.pop('ports')
+            except ValueError as e:
+                pass
+
             applications[application_name] = Application(name=application_name,
                                                          image=image)
 

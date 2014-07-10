@@ -307,6 +307,7 @@ class FakeGearClient(object):
 
 @attributes(['internal_port', 'external_port'],)
 class PortMap(object):
+    # Move to _model.py
     """
     A record representing the mapping between a port exposed internally by a
     docker container and the corresponding external port on the host.
