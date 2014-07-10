@@ -81,6 +81,8 @@ class DeployScript(object):
 
     def main(self, reactor, options):
         """
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """

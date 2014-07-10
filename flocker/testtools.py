@@ -541,7 +541,7 @@ class _SSHAgent(object):
         os.kill(self._pid, SIGKILL)
 
 
-def create_ssh_agent(key_file):
+def create_ssh_agent(key_file, testcase=None):
     """
     :py:func:`create_ssh_agent` is a fixture which creates and runs a new SSH
     agent and stops it later.  Use the :py:meth:`restore` method of the
@@ -549,10 +549,15 @@ def create_ssh_agent(key_file):
 
     :param FilePath key_file: The path of an SSH private key which can be
         used when authenticating with SSH servers.
+    :param TestCase testcase: The ``TestCase`` object requiring the SSH
+        agent. Optional, adds a cleanup if supplied.
 
     :rtype: _SSHAgent
     """
-    return _SSHAgent(key_file)
+    agent = _SSHAgent(key_file)
+    if testcase:
+        testcase.addCleanup(agent.restore)
+    return agent
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):

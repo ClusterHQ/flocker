@@ -58,9 +58,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
         # ``configure_ssh`` expects ``ssh`` to already be able to
         # authenticate against the server.  Set up an ssh-agent to
         # help it do that against our testing server.
-        self.agent = create_ssh_agent(self.server.key_path)
-
-        self.addCleanup(self.agent.restore)
+        self.agent = create_ssh_agent(self.server.key_path, self)
 
     def test_installs_public_sshkeys(self):
         """
