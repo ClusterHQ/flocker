@@ -101,7 +101,6 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
-        "nomenclature >= 0.1.0",
         ],
 
     extras_require={
@@ -126,6 +125,9 @@ setup(
             # Some of the tests use Conch:
             "PyCrypto==2.6.1",
             "pyasn1==0.1.7",
+
+            # The test suite uses network namespaces
+            "nomenclature >= 0.1.0",
             ]
         },
 
