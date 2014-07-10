@@ -89,8 +89,8 @@ class ChangeStateScript(object):
         fake_gear = FakeGearClient(units=units)
         deployer = Deployer(gear_client=fake_gear)
         current = deployer.discover_node_configuration()
-        apps = parser._applications_from_configuration(options['app_config'])
-        deployments = parser._deployment_from_configuration(options['deployment_config'], apps)
+        apps = parser.model_from_configuration(options['app_config'],
+            options['deployment_config'])
         import pdb; pdb.set_trace()
         changes['start_containers'] = [1, 2, 3]
         changes['stop_containers'] = [4, 5, 6]
