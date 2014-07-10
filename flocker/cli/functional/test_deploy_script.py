@@ -59,6 +59,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
         # authenticate against the server.  Set up an ssh-agent to
         # help it do that against our testing server.
         self.agent = create_ssh_agent(self.server.key_path)
+
         self.addCleanup(self.agent.restore)
 
     def test_installs_public_sshkeys(self):
@@ -88,7 +89,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
             b'home', b'.ssh', b'authorized_keys'])
 
         def check_authorized_keys(ignored):
-            self.assertIn(local_key.getContent(),
+            self.assertIn(local_key.getContent().rstrip(),
                           authorized_keys.getContent().splitlines())
 
         result.addCallback(check_authorized_keys)
