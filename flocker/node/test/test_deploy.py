@@ -6,9 +6,8 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import Deployer, Application, DockerImage
+from .. import Deployer, Application, DockerImage, Deployment, Node
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
-from .._model import Application, DockerImage, Deployment, Node
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -175,7 +174,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
 
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
-    
+    """
+    #TODO Docstring
+    #TODO Improve docstrings on the tests
+    """
     def test_no_applications(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
@@ -260,7 +262,6 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        to_start = set(applications.values())
         d = api.change_node_configuration(desired_configuration=desired,
                                           hostname='node2.example.com')
         expected = {'start_containers': set(), 'stop_containers': set()}
