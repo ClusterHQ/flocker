@@ -8,6 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .. import Deployer, Application, DockerImage
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
+from .._model import PortMap
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -47,19 +48,21 @@ class DeployerStartContainerTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
+        ports = frozenset([PortMap(internal_port=80, external_port=80)])
         application = Application(
             name=b'site-example.com',
             image=docker_image,
-            ports=frozenset(), # Put some here
+            ports=ports,
         )
         start_result = api.start_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
-            (None, True, docker_image.full_name),
+            (None, True, docker_image.full_name, ports),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
-             fake_gear._units[application.name].container_image)
+             fake_gear._units[application.name].container_image,
+             fake_gear._units[application.name].ports)
         )
 
     def test_already_exists(self):

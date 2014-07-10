@@ -8,8 +8,7 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
-from .._model import Application, DockerImage, Deployment, Node
-from ..gear import PortMap
+from .._model import Application, DockerImage, Deployment, Node, PortMap
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):

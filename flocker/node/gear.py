@@ -12,10 +12,6 @@ from twisted.internet.defer import succeed, fail
 
 from treq import request, content
 
-# Backwards compat import
-from ._model import PortMap
-
-
 GEAR_PORT = 43273
 
 

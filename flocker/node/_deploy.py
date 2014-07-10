@@ -32,7 +32,9 @@ class Deployer(object):
            has started.
         """
         return self._gear_client.add(application.name,
-                                     application.image.full_name)
+                                     application.image.full_name,
+                                     ports=application.ports
+                                     )
 
     def stop_container(self, application):
         """
