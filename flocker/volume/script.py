@@ -6,7 +6,7 @@ import sys
 
 from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, maybeDeferred
 
 from zope.interface import implementer
 
@@ -83,9 +83,13 @@ class _AcquireSubcommandOptions(Options):
 
         :param VolumeService service: The volume manager service to utilize.
         """
-        service.acquire(self["uuid"], self["name"])
-        sys.stdout.write(service.uuid.encode("ascii"))
-        sys.stdout.flush()
+        d = service.acquire(self["uuid"], self["name"])
+
+        def acquired(_):
+            sys.stdout.write(service.uuid.encode("ascii"))
+            sys.stdout.flush()
+        d.addCallback(acquired)
+        return d
 
 
 @flocker_standard_options
@@ -162,8 +166,9 @@ class VolumeScript(object):
             raise SystemExit(1)
 
         if options.subCommand is not None:
-            options.subOptions.run(service)
-        return succeed(None)
+            return maybeDeferred(options.subOptions.run, service)
+        else:
+            return succeed(None)
 
 
 def flocker_volume_main():
