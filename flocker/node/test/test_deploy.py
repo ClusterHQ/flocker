@@ -271,3 +271,37 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
                                           hostname='node2.example.com')
         expected = {'start_containers': set(), 'stop_containers': set()}
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_no_change_needed(self):
+        """
+        ``Deployer.change_node_configuration`` does not specify that an
+        application must be started or stopped if the desired configuration
+        is the same as the current configuration.
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_gear = FakeGearClient(units=units)
+        api = Deployer(gear_client=fake_gear)
+        applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
+            )
+        }
+
+        nodes = frozenset([
+            Node(
+                hostname='node1.example.com',
+                applications=frozenset(applications.values())
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.change_node_configuration(desired_configuration=desired,
+                                          hostname='node1.example.com')
+        expected = {'start_containers': set(), 'stop_containers': set()}
+        self.assertEqual(expected, self.successResultOf(d))
