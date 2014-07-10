@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """Tests for :module:`flocker.node.gear`."""
+import time
 
 from zope.interface.verify import verifyObject
 
@@ -128,6 +129,26 @@ def make_igearclient_tests(fixture):
 
             def got_list(units):
                 self.assertNotIn(name, [unit.name for unit in units])
+            d.addCallback(got_list)
+            return d
+
+        def test_dead_is_listed(self):
+            """
+            A dead unit is included in the output of ``list()``.
+            """
+            client = fixture(self)
+            name = random_name()
+            self.addCleanup(client.remove, name)
+            d = client.add(name, u"busybox")
+            # XXX: Real units take a while to start up and die. I need to a way
+            # to check for the death of a unit when running these tests against
+            # the real GearClient (perhaps by calling `systemctl status`) but
+            # not when running unit tests against FakeGearClient.
+            d.addCallback(lambda ignored: time.sleep(30))
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                self.assertIn(name, [unit.name for unit in units])
             d.addCallback(got_list)
             return d
 

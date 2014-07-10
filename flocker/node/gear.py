@@ -237,7 +237,7 @@ class GearClient(object):
         return d
 
     def list(self):
-        d = self._request(b"GET", b"/containers")
+        d = self._request(b"GET", b"/containers?all=1")
         d.addCallback(content)
 
         def got_body(data):
