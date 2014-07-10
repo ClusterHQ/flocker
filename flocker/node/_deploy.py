@@ -67,9 +67,16 @@ class Deployer(object):
 
     def change_node_configuration(self, desired_configuration, hostname):
         """
-        docstring for change_node_configuration
-        # TODO docstring
-        # TODO work out the hostname, so it isn't a parameter
+        Work out which containers need to be started and stopped for the
+        configuration to match the given configuration file.
+
+        :param Deployment desired_configuration: The intended configuration
+            of all nodes.
+        :param bytes hostname: The hostname of the node that this is running
+            on.
+
+        :return: A ``Deferred`` which fires with a ``dict`` specifying which
+            containers must be started and which must be stopped.
         """
         desired_node_applications = []
         for node in desired_configuration.nodes:
