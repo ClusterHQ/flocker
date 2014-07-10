@@ -54,6 +54,48 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual('No file exists at {app}'.format(app=app),
                          str(exception))
 
+    def test_deployment_config_must_be_yaml(self):
+        """
+        A ``UsageError`` is raised if the supplied deployment
+        configuration cannot be parsed as YAML.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"{'foo':'bar', 'x':y, '':'")
+        app.setContent(b"{}")
+
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [deploy.path, app.path])
+
+        expected = (
+            "Deployment configuration at {path} could not be parsed "
+            "as YAML"
+        ).format(path=deploy.path)
+        self.assertTrue(str(e).startswith(expected))
+
+    def test_application_config_must_be_yaml(self):
+        """
+        A ``UsageError`` is raised if the supplied application
+        configuration cannot be parsed as YAML.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"{}")
+        app.setContent(b"{'foo':'bar', 'x':y, '':'")
+
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [deploy.path, app.path])
+
+        expected = (
+            "Application configuration at {path} could not be parsed "
+            "as YAML"
+        ).format(path=app.path)
+        self.assertTrue(str(e).startswith(expected))
+
     def test_config_must_be_valid(self):
         """
         A ``UsageError`` is raised if any of the configuration is invalid.
