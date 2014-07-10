@@ -69,6 +69,7 @@ class Deployer(object):
         """
         docstring for change_node_configuration
         """
+        desired_node_applications = []
         for node in desired_configuration.nodes:
             if node.hostname == hostname:
                 desired_node_applications = node.applications

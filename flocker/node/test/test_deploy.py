@@ -174,26 +174,30 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
 
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
-    """
-    ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
-    fires with a ``dict`` when there are no applications running or desired.
-    """
     def test_no_applications(self):
         """
-        When there are no applications running or desired, a ``dict`` is fired.
+        ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
+        fires with a ``dict`` when there are no applications running or
+        desired.
         """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        from .._model import Application, DockerImage, Deployment, Node
+        desired = Deployment(nodes=frozenset())
+        d = api.change_node_configuration(desired_configuration=desired, hostname='127.0.0.1')
+        self.assertEqual({'start_containers': set(), 'stop_containers': set()}, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
         """
-        docstring for test_no_applications
+        When an application is running but not desired, it must be stopped.
         """
 
     def test_application_needs_starting(self):
         """
-        docstring for test_no_applications
+        When an application is desired but not running, it must be started.
         """
 
     def test_only_this_node(self):
         """
-        docstring for test_no_applications
+        Applications running or desired on other nodes are ignored.
         """
