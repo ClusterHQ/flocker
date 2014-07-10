@@ -177,6 +177,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
     """
     #TODO Docstring
     #TODO Improve docstrings on the tests
+    #TODO test with application with no change
     """
     def test_no_applications(self):
         """
@@ -188,13 +189,14 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.change_node_configuration(desired_configuration=desired,
-                                          hostname='127.0.0.1')
+                                          hostname='node1.example.com')
         expected = {'start_containers': set(), 'stop_containers': set()}
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
         """
-        When an application is running but not desired, it must be stopped.
+        ``Deployer.discover_node_configuration`` specifies that an application
+        must be stopped when it is running but not desired.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
         units = {unit1.name: unit1}
@@ -204,13 +206,14 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
         to_stop = set([Application(name=unit.name) for unit in units.values()])
         d = api.change_node_configuration(desired_configuration=desired,
-                                          hostname='another_node.example.com')
+                                          hostname='node1.example.com')
         expected = {'start_containers': set(), 'stop_containers': to_stop}
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
         """
-        When an application is desired but not running, it must be started.
+        ``Deployer.discover_node_configuration`` specifies that an application
+        must be started when it is desired on the given node but not running.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
@@ -240,7 +243,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
     def test_only_this_node(self):
         """
-        Applications running or desired on other nodes are ignored.
+        ``Deployer.discover_node_configuration`` does not specify that an
+        application must be started if the desired changes apply to a different
+        node.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
