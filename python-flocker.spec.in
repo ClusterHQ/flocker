@@ -3,7 +3,7 @@
 Name:           python-flocker
 Version:        %{underscore_version}
 Release:        1%{?dist}
-Summary:        Docker orchestration and volume management
+Summary:        Libraries for flocker
 BuildArch:      noarch
 
 License:        ASL 2.0
@@ -40,42 +40,42 @@ Requires:       python-netifaces >= 0.8.0
 Requires:       python-ipaddr = 2.1.10
 
 %package -n flocker-cli
-Summary:        Docker orchestration and volume management
+Summary:        Docker orchestration and volume management frontend
 Requires:       python-flocker = %{version}-%{release}
 
 %package -n flocker-node
-Summary:        Docker orchestration and volume management
+Summary:        Node software for flocker.
 Requires:      	python-flocker = %{version}-%{release}
 Requires:       docker-io
 Requires:       /sbin/iptables
 Requires:       geard
 
 %description
-LIBRARIES
-
 Flocker is an open-source volume manager and multi-host Docker container
 orchestration tool.  With it you can control your data using the same tools you
 use for your stateless applications.  This means that you can run your
 databases, queues and key-value stores in Docker and move them around as easily
 as the rest of your app.
+
+This package provides the libraries for the frontend and node software.
 
 %description -n flocker-cli
-UI
-
 Flocker is an open-source volume manager and multi-host Docker container
 orchestration tool.  With it you can control your data using the same tools you
 use for your stateless applications.  This means that you can run your
 databases, queues and key-value stores in Docker and move them around as easily
 as the rest of your app.
+
+This package provides the command-line client for flocker.
 
 %description -n flocker-node
-BACKEND
-
 Flocker is an open-source volume manager and multi-host Docker container
 orchestration tool.  With it you can control your data using the same tools you
 use for your stateless applications.  This means that you can run your
 databases, queues and key-value stores in Docker and move them around as easily
 as the rest of your app.
+
+This package provides the binaries for a flocker node.
 
 
 %prep
