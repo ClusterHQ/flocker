@@ -144,7 +144,8 @@ class VolumeService(Service):
         return enumerating
 
     def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
-        """Push the latest data in the volume to a remote destination.
+        """
+        Push the latest data in the volume to a remote destination.
 
         This is a blocking API for now.
 
@@ -152,7 +153,10 @@ class VolumeService(Service):
         this service's) can be pushed.
 
         :param Volume volume: The volume to push.
-        :param Node destination: The node to push to.
+
+        :param IRemoteVolumeManager destination: The remote volume manager
+            to push to.
+
         :param FilePath config_path: Path to configuration file for the
             remote ``flocker-volume``.
 
@@ -162,11 +166,7 @@ class VolumeService(Service):
         if volume.uuid != self.uuid:
             raise ValueError()
         fs = volume.get_filesystem()
-        with destination.run([b"flocker-volume",
-                              b"--config", config_path.path,
-                              b"receive",
-                              volume.uuid.encode(b"ascii"),
-                              volume.name.encode("ascii")]) as receiver:
+        with destination.receive(volume) as receiver:
             with fs.reader() as contents:
                 for chunk in iter(lambda: contents.read(1024 * 1024), b""):
                     receiver.write(chunk)

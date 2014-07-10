@@ -17,11 +17,11 @@ from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import TestCase
 
 from ..service import (
-    VolumeService, CreateConfigurationError, Volume, DEFAULT_CONFIG_PATH,
+    VolumeService, CreateConfigurationError, Volume,
     WAIT_FOR_VOLUME_INTERVAL
     )
 from ..filesystems.memory import FilesystemStoragePool
-from .._ipc import FakeNode
+from .._ipc import FakeNode, RemoteVolumeManager
 from ...testtools import skip_on_broken_permissions
 
 
@@ -136,37 +136,8 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
 
         volume = Volume(uuid=u"wronguuid", name=u"blah", _pool=pool)
-        self.assertRaises(ValueError, service.push, volume, FakeNode())
-
-    def test_push_destination_run(self):
-        """Pushing a locally-owned volume calls ``flocker-volume`` remotely."""
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
-        node = FakeNode()
-
-        service.push(volume, node, FilePath(b"/path/to/json"))
-        self.assertEqual(node.remote_command,
-                         [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"receive", volume.uuid.encode("ascii"),
-                          b"myvolume"])
-
-    def test_push_default_config(self):
-        """Pushing by default calls ``flocker-volume`` with default config
-        path."""
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
-        node = FakeNode()
-
-        service.push(volume, node)
-        self.assertEqual(node.remote_command,
-                         [b"flocker-volume", b"--config",
-                          DEFAULT_CONFIG_PATH.path,
-                          b"receive", volume.uuid.encode("ascii"),
-                          b"myvolume"])
+        self.assertRaises(ValueError, service.push, volume,
+                          RemoteVolumeManager(FakeNode()))
 
     def test_push_writes_filesystem(self):
         """Pushing a locally-owned volume writes its filesystem to the remote
@@ -181,7 +152,7 @@ class VolumeServiceAPITests(TestCase):
             data = reader.read()
         node = FakeNode()
 
-        service.push(volume, node)
+        service.push(volume, RemoteVolumeManager(node))
         self.assertEqual(node.stdin.read(), data)
 
     def test_receive_local_uuid(self):

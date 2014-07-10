@@ -22,7 +22,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
     * Has full test coverage (unit tests and functional tests).
 
-    * The tests pass in the continuous integration system (Buildbot).
+    * The tests pass in the continuous integration system (`Buildbot`_).
 
     * Resolves the issue.
 
@@ -30,16 +30,17 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
 .. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
+.. _Buildbot: http://build.clusterhq.com/
 
 
 Talk to us
 ==========
 
 Have questions or need help?
-Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network.
+Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
-
+.. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
 Development environment
 =======================

@@ -256,8 +256,7 @@ class GearClientTests(TestCase):
         image_name = b'flocker/send_bytes_to'
         # Create a Docker image
         image = DockerImageBuilder(
-            source_dir=FilePath(
-                os.path.join(os.path.dirname(__file__), 'docker')),
+            source_dir=FilePath(__file__).sibling('docker'),
             tag=image_name,
             working_dir=FilePath(self.mktemp())
         )

@@ -9,13 +9,15 @@ well-specified communication protocol between daemon processes using
 Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 """
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 from contextlib import contextmanager
 from io import BytesIO
 
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
+
+from .service import DEFAULT_CONFIG_PATH
 
 
 class INode(Interface):
@@ -30,6 +32,15 @@ class INode(Interface):
             remotely along with its arguments.
 
         :return: file-like object that can be written to.
+        """
+
+    def get_output(remote_command):
+        """Run a remote command and return its stdout.
+
+        :param remote_command: ``list`` of ``bytes``, the command to run
+            remotely along with its arguments.
+
+        :return: ``bytes`` of stdout from the remote command.
         """
 
 
@@ -53,9 +64,18 @@ class ProcessNode(object):
             process.stdin.close()
             exit_code = process.wait()
             if exit_code:
-                # We should really capture this and stderr:
+                # We should really capture this and stderr better:
                 # https://github.com/ClusterHQ/flocker/issues/155
-                raise IOError("Bad exit")
+                raise IOError("Bad exit", remote_command, exit_code)
+
+    def get_output(self, remote_command):
+        try:
+            return check_output(
+                self.initial_command_arguments + remote_command)
+        except CalledProcessError as e:
+            # We should really capture this and stderr better:
+            # https://github.com/ClusterHQ/flocker/issues/155
+            raise IOError("Bad exit", remote_command, e.returncode, e.output)
 
     @classmethod
     def using_ssh(cls, host, port, username, private_key):
@@ -87,17 +107,95 @@ class ProcessNode(object):
 
 @implementer(INode)
 class FakeNode(object):
-    """Pretend to run a command.
+    """
+    Pretend to run a command.
 
     This is useful for testing.
 
-    :ivar remote_command: The arguments to the last call to ``run()``.
+    :ivar remote_command: The arguments to the last call to ``run()`` or
+        ``get_output()``.
+
     :ivar stdin: `BytesIO` returned from last call to ``run()``.
     """
+    def __init__(self, outputs=()):
+        """
+        :param outputs: Sequence of results for ``get_output()``.
+        """
+        self._outputs = list(outputs)
+
     @contextmanager
     def run(self, remote_command):
-        """Store arguments and in-memory "stdin"."""
+        """
+        Store arguments and in-memory "stdin".
+        """
         self.stdin = BytesIO()
         self.remote_command = remote_command
         yield self.stdin
         self.stdin.seek(0, 0)
+
+    def get_output(self, remote_command):
+        """
+        Return the outputs passed to the constructor.
+        """
+        self.remote_command = remote_command
+        return self._outputs.pop(0)
+
+
+class IRemoteVolumeManager(Interface):
+    """
+    A remote volume manager with which one can communicate somehow.
+    """
+    def receive(volume):
+        """
+        Context manager that returns a file-like object to which a volume's
+        contents can be written.
+
+        :param Volume volume: The volume which will be pushed to the
+            remote volume manager.
+
+        :return: A file-like object that can be written to, which will
+             update the volume on the remote volume manager.
+        """
+
+
+@implementer(IRemoteVolumeManager)
+class RemoteVolumeManager(object):
+    """
+    ``INode``\-based communication with a remote volume manager.
+    """
+
+    def __init__(self, destination, config_path=DEFAULT_CONFIG_PATH):
+        """
+        :param Node destination: The node to push to.
+        :param FilePath config_path: Path to configuration file for the
+            remote ``flocker-volume``.
+        """
+        self._destination = destination
+        self._config_path = config_path
+
+    def receive(self, volume):
+        return self._destination.run([b"flocker-volume",
+                                      b"--config", self._config_path.path,
+                                      b"receive",
+                                      volume.uuid.encode(b"ascii"),
+                                      volume.name.encode("ascii")])
+
+
+@implementer(IRemoteVolumeManager)
+class LocalVolumeManger(object):
+    """
+    In-memory communication with a ``VolumeService`` instance, for testing.
+    """
+
+    def __init__(self, service):
+        """
+        :param VolumeService service: The service to communicate with.
+        """
+        self._service = service
+
+    @contextmanager
+    def receive(self, volume):
+        input_file = BytesIO()
+        yield input_file
+        input_file.seek(0, 0)
+        self._service.receive(volume.uuid, volume.name, input_file)
