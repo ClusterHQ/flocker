@@ -20,9 +20,13 @@ from twisted.trial.unittest import TestCase
 
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
-from .iptables import create_network_namespace, get_iptables_rules
 from .networktests import make_proxying_tests
 
+try:
+    from .iptables import create_network_namespace, get_iptables_rules
+    NOMENCLATURE_INSTALLED = True
+except ImportError:
+    NOMENCLATURE_INSTALLED = False
 
 def connect_nonblocking(ip, port):
     """
@@ -90,6 +94,10 @@ _environment_skip = skipUnless(
     is_environment_configured(),
     "Cannot test port forwarding without suitable test environment.")
 
+_dependency_skip = skipUnless(
+    NOMENCLATURE_INSTALLED,
+    "Cannot test port forwarding without nomenclature installed.")
+
 
 class GetIPTablesTests(TestCase):
     """
@@ -115,6 +123,7 @@ class IPTablesProxyTests(make_proxying_tests(make_host_network)):
     Apply the generic ``INetwork`` test suite to the implementation which
     manipulates the actual system configuration.
     """
+    @_dependency_skip
     @_environment_skip
     def setUp(self):
         """
@@ -129,6 +138,7 @@ class CreateTests(TestCase):
     """
     Tests for the creation of new external routing rules.
     """
+    @_dependency_skip
     @_environment_skip
     def setUp(self):
         """
@@ -313,6 +323,7 @@ class EnumerateTests(TestCase):
     """
     Tests for the enumerate of Flocker-managed external routing rules.
     """
+    @_dependency_skip
     @_environment_skip
     def setUp(self):
         self.addCleanup(create_network_namespace().restore)
@@ -333,6 +344,7 @@ class DeleteTests(TestCase):
     """
     Tests for the deletion of Flocker-managed external routing rules.
     """
+    @_dependency_skip
     @_environment_skip
     def setUp(self):
         self.addCleanup(create_network_namespace().restore)
