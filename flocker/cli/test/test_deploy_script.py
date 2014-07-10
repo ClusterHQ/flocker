@@ -226,10 +226,13 @@ class FlockerDeployMainTests(SynchronousTestCase):
 
         script = DeployScript()
         script._get_destinations = destinations = [FakeNode(), FakeNode()]
-        script.main(reactor, options)
 
-        expected = [
-            b"flocker-changestate", application_config, deployment_config]
-        self.assertEqual(
-            list(node.remote_command for node in destinations),
-            [expected, expected])
+        running = script.main(reactor, options)
+        def ran(ignored):
+            expected = [
+                b"flocker-changestate", application_config, deployment_config]
+            self.assertEqual(
+                list(node.remote_command for node in destinations),
+                [expected, expected])
+        running.addCallback(ran)
+        return running

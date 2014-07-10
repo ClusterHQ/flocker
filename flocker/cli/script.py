@@ -129,7 +129,6 @@ class DeployScript(object):
         command = [b"flocker-changestate",
                    deployment_config,
                    application_config]
-        import pdb; pdb.set_trace()
         for destination in self._get_destinations(deployment):
             destination.get_output(command)
 
