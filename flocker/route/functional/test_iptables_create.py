@@ -28,6 +28,7 @@ try:
 except ImportError:
     NOMENCLATURE_INSTALLED = False
 
+
 def connect_nonblocking(ip, port):
     """
     Attempt a TCP connection to the given address without blocking.
