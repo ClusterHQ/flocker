@@ -4,12 +4,8 @@
 Tests for ``flocker.cli._sshconfig``.
 """
 
-from operator import setitem, delitem
-from os import devnull, environ, kill
 from os.path import expanduser
-from signal import SIGKILL
 from socket import socket
-from subprocess import check_output, check_call
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -18,7 +14,7 @@ from twisted.internet.threads import deferToThread
 
 from .. import configure_ssh
 from .._sshconfig import OpenSSHConfiguration
-from ...testtools import create_ssh_server
+from ...testtools import create_ssh_server, create_ssh_agent
 
 
 def goodlines(path):
@@ -47,38 +43,7 @@ class ConfigureSSHTests(TestCase):
             ssh_config_path=self.ssh_config,
             flocker_path=self.flocker_config)
         self.configure_ssh = self.config.configure_ssh
-
-        output = check_output([b"ssh-agent", b"-c"]).splitlines()
-
-        # ``configure_ssh`` expects ``ssh`` to already be able to
-        # authenticate against the server.  Set up an ssh-agent to
-        # help it do that against our testing server.
-
-        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
-        # setenv SSH_AGENT_PID 6391;
-        # echo Agent pid 6391;
-        sock = output[0].split()[2][:-1]
-        pid = output[1].split()[2][:-1]
-
-        self.addCleanup(lambda: kill(int(pid), SIGKILL))
-
-        def patchdict(k, v):
-            if k in environ:
-                self.addCleanup(
-                    lambda old=environ[k]: setitem(environ, k, old))
-            else:
-                self.addCleanup(lambda: delitem(environ, k))
-
-            environ[k] = v
-
-        patchdict(b"SSH_AUTH_SOCK", sock)
-        patchdict(b"SSH_AGENT_PID", pid)
-
-        with open(devnull, "w") as discard:
-            # See https://github.com/clusterhq/flocker/issues/192
-            check_call(
-                [b"ssh-add", self.server.key_path.path],
-                stdout=discard, stderr=discard)
+        self.agent = create_ssh_agent(self.server.key_path)
 
     def test_connection_failed(self):
         """
