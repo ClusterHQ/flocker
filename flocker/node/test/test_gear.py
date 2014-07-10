@@ -122,7 +122,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
 
-            d = client.add(name, u"openshift/busybox-http-ap")
+            d = client.add(name, u"openshift/busybox-http-app")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.list())
 
