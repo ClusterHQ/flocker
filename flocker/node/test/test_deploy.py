@@ -171,3 +171,29 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+
+
+class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
+    """
+    ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
+    fires with a ``dict`` when there are no applications running or desired.
+    """
+    def test_no_applications(self):
+        """
+        When there are no applications running or desired, a ``dict`` is fired.
+        """
+
+    def test_application_needs_stopping(self):
+        """
+        docstring for test_no_applications
+        """
+
+    def test_application_needs_starting(self):
+        """
+        docstring for test_no_applications
+        """
+
+    def test_only_this_node(self):
+        """
+        docstring for test_no_applications
+        """
