@@ -276,7 +276,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         application must be started or stopped if the desired configuration
         is the same as the current configuration.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit1 = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
         units = {unit1.name: unit1}
 
         fake_gear = FakeGearClient(units=units)
