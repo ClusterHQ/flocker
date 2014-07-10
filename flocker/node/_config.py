@@ -88,6 +88,8 @@ class Configuration(object):
             representation to load into ``Node`` instances.  See
             :ref:`Configuration` for details.
 
+        :param set all_applications: TODO set of applications I think?
+
         :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``set`` of ``Node`` instances.
