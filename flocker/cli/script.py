@@ -1,7 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """The command-line ``flocker-deploy`` tool."""
-from twisted.internet.defer import succeed
+from twisted.internet.defer import DeferredList
+from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
@@ -12,6 +13,7 @@ from yaml import safe_load
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
+from ._sshconfig import OpenSSHConfiguration
 
 
 @flocker_standard_options
@@ -56,13 +58,35 @@ class DeployScript(object):
     A script to start configured deployments, covered by:
        https://github.com/ClusterHQ/flocker/issues/19
     """
+    def __init__(self, ssh_configuration=None, ssh_port=22):
+        if ssh_configuration is None:
+            ssh_configuration = OpenSSHConfiguration.defaults()
+        self.ssh_configuration = ssh_configuration
+        self.ssh_port = ssh_port
+
+    def _configure_ssh(self, deployment):
+        """
+        :return: A ``Deferred`` which fires when all nodes have been configured
+            with ssh keys.
+        """
+        results = []
+        for node in deployment.nodes:
+            results.append(
+                deferToThread(
+                    self.ssh_configuration.configure_ssh,
+                    node.hostname, self.ssh_port
+                )
+            )
+        return DeferredList(results)
+
     def main(self, reactor, options):
         """
-        Returns a ``Deferred``. This is a stub.
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
 
-        :return: A ``Deferred`` which fires with ``None``.
+        :return: A ``Deferred`` which fires when the deployment is complete or
+                 has encountered an error.
         """
-        return succeed(None)
+        return self._configure_ssh(options['deployment'])
 
 
 def flocker_deploy_main():
