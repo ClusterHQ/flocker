@@ -202,20 +202,19 @@ def make_iremote_volume_manager(fixture):
 
         def remotely_owned_volume(self, service_pair):
             """
-            Create a volume ``u"myvolume"`` on the destination service that is
-            owned by the origin service.
+            Create a volume ``u"myvolume"`` on the origin service and a copy
+            that is pushed to the destination service.
 
             :param ServicePair service_pair: The service pair.
 
-            :return: The new ``Volume`` instance on the destination service.
+            :return: The ``Volume`` instance on the origin service.
             """
             created = service_pair.from_service.create(u"myvolume")
 
             def got_volume(volume):
                 service_pair.from_service.push(volume, service_pair.remote)
-                return service_pair.to_service.enumerate()
+                return volume
             created.addCallback(got_volume)
-            created.addCallback(lambda volumes: next(volumes))
             return created
 
         def test_acquire_changes_uuid(self):
@@ -227,12 +226,12 @@ def make_iremote_volume_manager(fixture):
             to_service = service_pair.to_service
             created = self.remotely_owned_volume(service_pair)
 
-            def got_volume(remote_volume):
-                service_pair.remote.acquire(remote_volume)
+            def got_volume(pushed_volume):
+                service_pair.remote.acquire(pushed_volume)
                 d = to_service.enumerate()
                 d.addCallback(lambda results: self.assertEqual(
                     list(results),
-                    [Volume(uuid=to_service.uuid, name=remote_volume.name,
+                    [Volume(uuid=to_service.uuid, name=pushed_volume.name,
                             _pool=to_service._pool)]))
                 return d
             created.addCallback(got_volume)
@@ -247,13 +246,17 @@ def make_iremote_volume_manager(fixture):
             to_service = service_pair.to_service
             created = self.remotely_owned_volume(service_pair)
 
-            def got_volume(remote_volume):
-                root = remote_volume.get_filesystem().get_path()
+            def got_volume(pushed_volume):
+                root = pushed_volume.get_filesystem().get_path()
                 root.child(b"test").setContent(b"some data")
-                service_pair.remote.acquire(remote_volume)
+                # Re-push with updated contents:
+                service_pair.from_service.push(pushed_volume,
+                                               service_pair.remote)
+
+                service_pair.remote.acquire(pushed_volume)
 
                 filesystem = Volume(uuid=to_service.uuid,
-                                    name=remote_volume.name,
+                                    name=pushed_volume.name,
                                     _pool=to_service._pool).get_filesystem()
                 new_root = filesystem.get_path()
                 self.assertEqual(new_root.child(b"test").getContent(),
@@ -269,8 +272,8 @@ def make_iremote_volume_manager(fixture):
             to_service = service_pair.to_service
             created = self.remotely_owned_volume(service_pair)
 
-            def got_volume(remote_volume):
-                result = service_pair.remote.acquire(remote_volume)
+            def got_volume(pushed_volume):
+                result = service_pair.remote.acquire(pushed_volume)
                 self.assertEqual(result, to_service.uuid)
             created.addCallback(got_volume)
             return created
