@@ -125,9 +125,9 @@ class FlockerDeployMainTests(SynchronousTestCase):
         """
         script = DeployScript()
         dummy_reactor = object()
-        options = {}
-        self.assertIs(
-            None,
+        options = {"deployment": Deployment(nodes=set())}
+        self.assertEqual(
+            list(),
             self.successResultOf(script.main(dummy_reactor, options))
         )
 
