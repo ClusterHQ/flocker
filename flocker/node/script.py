@@ -77,7 +77,10 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        return succeed(None)
+        changes = {}
+        changes['start'] = [1, 2, 3]
+        changes['stop'] = [4, 5, 6]
+        return succeed(changes)
 
 
 def flocker_changestate_main():

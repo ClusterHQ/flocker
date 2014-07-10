@@ -24,17 +24,17 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
     """
+    script = ChangeStateScript()
+    options = ChangeStateOptions()
 
     def test_deferred_result(self):
         """
         ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
-        script = ChangeStateScript()
-        options = ChangeStateOptions()
         dummy_reactor = object()
-        self.assertIs(
-            None,
-            self.successResultOf(script.main(dummy_reactor, options))
+        self.assertEqual(
+            {'start': [1, 2, 3], 'stop': [4, 5, 6]},
+            self.successResultOf(self.script.main(dummy_reactor, self.options))
         )
 
 
