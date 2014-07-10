@@ -191,14 +191,12 @@ class RemoteVolumeManager(object):
                                       volume.name.encode("ascii")])
 
     def acquire(self, volume):
-        # return destination.get_output(
-        #     [b"flocker-volume",
-        #      b"--config", config_path.path,
-        #      b"acquire",
-        #      volume.uuid.encode(b"ascii"),
-        #      volume.name.encode("ascii"),
-        #      ]).decode("ascii")
-        pass
+        return self._destination.get_output(
+            [b"flocker-volume",
+             b"--config", self._config_path.path,
+             b"acquire",
+             volume.uuid.encode(b"ascii"),
+             volume.name.encode("ascii")]).decode("ascii")
 
 
 @implementer(IRemoteVolumeManager)

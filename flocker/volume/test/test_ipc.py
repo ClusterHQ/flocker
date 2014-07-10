@@ -312,7 +312,7 @@ class RemoteVolumeManagerTests(TestCase):
     """
     def test_receive_destination_run(self):
         """
-        Receiving calls ``flocker-volume`` remotely.
+        Receiving calls ``flocker-volume`` remotely with ``receive`` command.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool)
@@ -346,4 +346,23 @@ class RemoteVolumeManagerTests(TestCase):
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
                           b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
+
+    def test_acquire_destination_run(self):
+        """
+        ``RemoteVolumeManager.acquire()`` calls ``flocker-volume`` remotely
+        with ``acquire`` command.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool)
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode([b"remoteuuid"])
+
+        remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
+        remote.acquire(volume)
+
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"acquire", volume.uuid.encode("ascii"),
                           b"myvolume"])
