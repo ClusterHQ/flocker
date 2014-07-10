@@ -76,25 +76,11 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        from ._config import Configuration
-        from ._deploy import Deployer
-        from .gear import FakeGearClient, Unit
-
-        parser = Configuration()
-
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
-        units = {unit1.name: unit1, unit2.name: unit2}
-
-        fake_gear = FakeGearClient(units=units)
-        deployer = Deployer(gear_client=fake_gear)
-        desired_configuration = parser.model_from_configuration(
-            options['app_config'],
-            options['deployment_config'])
-        changes = deployer.change_node_configuration(
-            desired_configuration=desired_configuration,
-            hostname='node1.example.com')
-        return changes
+        # TODO: #252
+        # changes = self._deployer.change_node_configuration(
+        #     desired_configuration=desired_configuration,
+        #     hostname='node1.example.com')
+        return succeed(None)
 
 
 def flocker_changestate_main():
