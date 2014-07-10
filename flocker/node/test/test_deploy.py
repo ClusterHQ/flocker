@@ -6,46 +6,45 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import Deployment
-from .. import Application, DockerImage
+from .. import Deployer, Application, DockerImage
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
-class DeploymentAttributesTests(SynchronousTestCase):
+class DeployerAttributesTests(SynchronousTestCase):
     """
-    Tests for attributes and initialiser arguments of `Deployment`.
+    Tests for attributes and initialiser arguments of `Deployer`.
     """
     def test_gear_client_default(self):
         """
-        ``Deployment._gear_client`` is a ``GearClient`` by default.
+        ``Deployer._gear_client`` is a ``GearClient`` by default.
         """
         self.assertIsInstance(
-            Deployment()._gear_client,
+            Deployer()._gear_client,
             GearClient
         )
 
     def test_gear_override(self):
         """
-        ``Deployment._gear_client`` can be overridden in the constructor.
+        ``Deployer._gear_client`` can be overridden in the constructor.
         """
         dummy_gear_client = object()
         self.assertIs(
             dummy_gear_client,
-            Deployment(gear_client=dummy_gear_client)._gear_client
+            Deployer(gear_client=dummy_gear_client)._gear_client
         )
 
 
-class DeploymentStartContainerTests(SynchronousTestCase):
+class DeployerStartContainerTests(SynchronousTestCase):
     """
-    Tests for `Deployment.start_container`.
+    Tests for `Deployer.start_container`.
     """
     def test_start(self):
         """
-        `Deployment.start_container` accepts an application object and returns
+        `Deployer.start_container` accepts an application object and returns
         a deferred which fires when the `gear` unit has been added and started.
         """
         fake_gear = FakeGearClient()
-        api = Deployment(gear_client=fake_gear)
+        api = Deployer(gear_client=fake_gear)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         application = Application(
@@ -64,11 +63,11 @@ class DeploymentStartContainerTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployment.start_container`` returns a deferred which errbacks with
+        ``Deployer.start_container`` returns a deferred which errbacks with
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
-        api = Deployment(gear_client=FakeGearClient())
+        api = Deployer(gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -82,17 +81,17 @@ class DeploymentStartContainerTests(SynchronousTestCase):
         self.failureResultOf(result2, AlreadyExists)
 
 
-class DeploymentStopContainerTests(SynchronousTestCase):
+class DeployerStopContainerTests(SynchronousTestCase):
     """
-    Tests for ``Deployment.stop_container``.
+    Tests for ``Deployer.stop_container``.
     """
     def test_stop(self):
         """
-        ``Deployment.stop_container`` accepts an application object and returns
+        ``Deployer.stop_container`` accepts an application object and returns
         a deferred which fires when the `gear` unit has been removed.
         """
         fake_gear = FakeGearClient()
-        api = Deployment(gear_client=fake_gear)
+        api = Deployer(gear_client=fake_gear)
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -113,10 +112,10 @@ class DeploymentStopContainerTests(SynchronousTestCase):
 
     def test_does_not_exist(self):
         """
-        ``Deployment.stop_container`` does not errback if the application does
+        ``Deployer.stop_container`` does not errback if the application does
         not exist.
         """
-        api = Deployment(gear_client=FakeGearClient())
+        api = Deployer(gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -128,38 +127,38 @@ class DeploymentStopContainerTests(SynchronousTestCase):
         self.assertIs(None, result)
 
 
-class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
+class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Deployment.discover_node_configuration``.
+    Tests for ``Deployer.discover_node_configuration``.
     """
     def test_discover_none(self):
         """
-        ``Deployment.discover_node_configuration`` returns an empty list if
+        ``Deployer.discover_node_configuration`` returns an empty list if
         there are no active `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployment(gear_client=fake_gear)
+        api = Deployer(gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual([], self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``Deployment.discover_node_configuration`` returns a list of
+        ``Deployer.discover_node_configuration`` returns a list of
         ``Application``\ s; one for each active `gear` unit.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
-        api = Deployment(gear_client=fake_gear)
+        api = Deployer(gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual([application], self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``Deployment.discover_node_configuration`` returns an ``Application``
+        ``Deployer.discover_node_configuration`` returns an ``Application``
         for every `active` `gear` ``Unit`` on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
@@ -168,7 +167,7 @@ class DeploymentDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         fake_gear = FakeGearClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
-        api = Deployment(gear_client=fake_gear)
+        api = Deployer(gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))

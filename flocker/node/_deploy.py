@@ -9,7 +9,7 @@ from .gear import GearClient
 from ._model import Application
 
 
-class Deployment(object):
+class Deployer(object):
     """
     Start and stop containers.
     """
