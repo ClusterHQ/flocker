@@ -220,9 +220,10 @@ def create_realistic_servicepair(test):
     to_service.startService()
     test.addCleanup(to_service.stopService)
 
+    remote = RemoteVolumeManager(MutatingProcessNode(to_service),
+                                 to_config)
     return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=RemoteVolumeManager(
-                           MutatingProcessNode(to_service)))
+                       remote=remote)
 
 
 class RemoteVolumeManagerInterfaceTests(
