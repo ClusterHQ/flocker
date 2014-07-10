@@ -64,3 +64,24 @@ class Deployer(object):
             return applications
         d.addCallback(applications_from_units)
         return d
+
+    def change_node_configuration(self, desired_configuration, hostname):
+        """
+        docstring for change_node_configuration
+        """
+        for node in desired_configuration.nodes:
+            if node.hostname == hostname:
+                desired_node_applications = node.applications
+
+        d = self.discover_node_configuration()
+
+        def find_differences(current_configuration):
+            changes = {}
+            current = set(current_configuration)
+            desired = set(desired_node_applications)
+            changes['start_containers'] = current.difference(desired)
+            changes['stop_containers'] = desired.difference(current)
+            return changes
+        d.addCallback(find_differences)
+        return d
+        
