@@ -175,13 +175,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
     """
-    #TODO Docstring
-    #TODO Improve docstrings on the tests
+    Tests for ``Deployer.change_node_configuration``.
+
     #TODO test with application with no change
     """
     def test_no_applications(self):
         """
-        ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
+        ``Deployer.change_node_configuration`` returns a ``Deferred`` which
         fires with a ``dict`` when there are no applications running or
         desired.
         """
@@ -195,7 +195,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
     def test_application_needs_stopping(self):
         """
-        ``Deployer.discover_node_configuration`` specifies that an application
+        ``Deployer.change_node_configuration`` specifies that an application
         must be stopped when it is running but not desired.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
@@ -212,7 +212,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
     def test_application_needs_starting(self):
         """
-        ``Deployer.discover_node_configuration`` specifies that an application
+        ``Deployer.change_node_configuration`` specifies that an application
         must be started when it is desired on the given node but not running.
         """
         fake_gear = FakeGearClient(units={})
@@ -243,7 +243,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
     def test_only_this_node(self):
         """
-        ``Deployer.discover_node_configuration`` does not specify that an
+        ``Deployer.change_node_configuration`` does not specify that an
         application must be started if the desired changes apply to a different
         node.
         """
