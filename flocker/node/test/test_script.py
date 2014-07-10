@@ -31,12 +31,28 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         """
         ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
+        from .._model import Application, DockerImage, Deployment, Node
+        
         dummy_reactor = object()
         options = self.options
-        expected_deployment = {'version': 1, 'nodes': {}}
-        expected_application = {'version': 1, 'applications': {}}
-        options["deployment_config"] = expected_deployment
-        options["app_config"] = expected_application
+
+        application_configuration = {
+            'version': 1,
+            'applications': {
+                'mysql-hybridcluster': {'image': 'flocker/mysql:v1.2.3'},
+                'site-hybridcluster': {'image': 'flocker/nginx:v1.2.3'}
+            }
+        }
+
+        deployment_configuration = {
+            'version': 1,
+            'nodes': {
+                'node1.example.com': ['mysql-hybridcluster'],
+                'node2.example.com': ['site-hybridcluster'],
+            }
+        }
+        options["deployment_config"] = deployment_configuration
+        options["app_config"] = application_configuration
 
         d = self.script.main(dummy_reactor, options)
 

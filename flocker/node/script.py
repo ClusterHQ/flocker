@@ -78,9 +78,23 @@ class ChangeStateScript(object):
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
         changes = {}
-        changes['start'] = [1, 2, 3]
-        changes['stop'] = [4, 5, 6]
-        return succeed(changes)
+        from ._config import ConfigurationError, Configuration
+        parser = Configuration()
+        from ._deploy import Deployer
+        from .gear import GearClient, FakeGearClient, AlreadyExists, Unit
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+        deployer = Deployer(gear_client=fake_gear)
+        current = deployer.discover_node_configuration()
+        apps = parser._applications_from_configuration(options['app_config'])
+        deployments = parser._deployment_from_configuration(options['deployment_config'], apps)
+        import pdb; pdb.set_trace()
+        changes['start_containers'] = [1, 2, 3]
+        changes['stop_containers'] = [4, 5, 6]
+        return current#succeed(changes)
 
 
 def flocker_changestate_main():
