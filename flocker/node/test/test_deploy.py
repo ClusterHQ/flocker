@@ -8,6 +8,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .. import Deployer, Application, DockerImage
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
+from .._model import Application, DockerImage, Deployment, Node
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -174,6 +175,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
 
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
+    
     def test_no_applications(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``Deferred`` which
@@ -182,22 +184,84 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
-        from .._model import Application, DockerImage, Deployment, Node
         desired = Deployment(nodes=frozenset())
-        d = api.change_node_configuration(desired_configuration=desired, hostname='127.0.0.1')
-        self.assertEqual({'start_containers': set(), 'stop_containers': set()}, self.successResultOf(d))
+        d = api.change_node_configuration(desired_configuration=desired,
+                                          hostname='127.0.0.1')
+        expected = {'start_containers': set(), 'stop_containers': set()}
+        self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
         """
         When an application is running but not desired, it must be stopped.
         """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_gear = FakeGearClient(units=units)
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset())
+        to_stop = set([Application(name=unit.name) for unit in units.values()])
+        d = api.change_node_configuration(desired_configuration=desired,
+                                          hostname='another_node.example.com')
+        expected = {'start_containers': set(), 'stop_containers': to_stop}
+        self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
         """
         When an application is desired but not running, it must be started.
         """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
+            )
+        }
+
+        nodes = frozenset([
+            Node(
+                hostname='node1.example.com',
+                applications=frozenset(applications.values())
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        to_start = set(applications.values())
+        d = api.change_node_configuration(desired_configuration=desired,
+                                          hostname='node1.example.com')
+        expected = {'start_containers': to_start, 'stop_containers': set()}
+        self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
         """
         Applications running or desired on other nodes are ignored.
         """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
+            )
+        }
+
+        nodes = frozenset([
+            Node(
+                hostname='node1.example.com',
+                applications=frozenset(applications.values())
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        to_start = set(applications.values())
+        d = api.change_node_configuration(desired_configuration=desired,
+                                          hostname='node2.example.com')
+        expected = {'start_containers': set(), 'stop_containers': set()}
+        self.assertEqual(expected, self.successResultOf(d))

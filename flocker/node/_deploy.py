@@ -68,6 +68,8 @@ class Deployer(object):
     def change_node_configuration(self, desired_configuration, hostname):
         """
         docstring for change_node_configuration
+        # TODO docstring
+        # TODO work out the hostname, so it isn't a parameter
         """
         desired_node_applications = []
         for node in desired_configuration.nodes:
@@ -80,8 +82,8 @@ class Deployer(object):
             changes = {}
             current = set(current_configuration)
             desired = set(desired_node_applications)
-            changes['start_containers'] = current.difference(desired)
-            changes['stop_containers'] = desired.difference(current)
+            changes['start_containers'] = desired.difference(current)
+            changes['stop_containers'] = current.difference(desired)
             return changes
         d.addCallback(find_differences)
         return d
