@@ -15,7 +15,7 @@ versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
 class cmd_generate_spec(Command):
-    description = "Generate flocker.spec with current version."
+    description = "Generate python-flocker.spec with current version."
     user_options = []
     boolean_options = []
     def initialize_options(self):
@@ -23,10 +23,10 @@ class cmd_generate_spec(Command):
     def finalize_options(self):
         pass
     def run(self):
-        with open('flocker.spec.in', 'r') as source:
+        with open('python-flocker.spec.in', 'r') as source:
             spec = source.read()
         version = "%%global flocker_version %s\n" % (versioneer.get_version(),)
-        with open('flocker.spec', 'w') as destination:
+        with open('python-flocker.spec', 'w') as destination:
             destination.write(version)
             destination.write(spec)
 
