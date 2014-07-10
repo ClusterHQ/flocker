@@ -24,39 +24,17 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
     """
-    script = ChangeStateScript()
-    options = ChangeStateOptions()
 
     def test_deferred_result(self):
         """
         ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
+        script = ChangeStateScript()
+        options = ChangeStateOptions()
         dummy_reactor = object()
-        options = self.options
-
-        application_configuration = {
-            'version': 1,
-            'applications': {
-                'mysql-hybridcluster': {'image': 'flocker/mysql:v1.2.3'},
-                'site-hybridcluster': {'image': 'flocker/nginx:v1.2.3'}
-            }
-        }
-
-        deployment_configuration = {
-            'version': 1,
-            'nodes': {
-                'node1.example.com': ['mysql-hybridcluster'],
-                'node2.example.com': ['site-hybridcluster'],
-            }
-        }
-        options["deployment_config"] = deployment_configuration
-        options["app_config"] = application_configuration
-
-        d = self.script.main(dummy_reactor, options)
-
-        self.assertEqual(
-            {'start': [], 'stop': []},
-            self.successResultOf(d)
+        self.assertIs(
+            None,
+            self.successResultOf(script.main(dummy_reactor, options))
         )
 
 

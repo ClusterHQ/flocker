@@ -6,6 +6,7 @@ The command-line ``flocker-changestate`` tool.
 """
 
 from twisted.python.usage import Options, UsageError
+from twisted.internet.defer import succeed
 
 from yaml import safe_load
 from yaml.error import YAMLError
