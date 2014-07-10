@@ -32,9 +32,17 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
         dummy_reactor = object()
+        options = self.options
+        expected_deployment = {'version': 1, 'nodes': {}}
+        expected_application = {'version': 1, 'applications': {}}
+        options["deployment_config"] = expected_deployment
+        options["app_config"] = expected_application
+
+        d = self.script.main(dummy_reactor, options)
+
         self.assertEqual(
-            {'start': [1, 2, 3], 'stop': [4, 5, 6]},
-            self.successResultOf(self.script.main(dummy_reactor, self.options))
+            {'start': [], 'stop': []},
+            self.successResultOf(d)
         )
 
 
