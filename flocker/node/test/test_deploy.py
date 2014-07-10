@@ -176,8 +176,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_configuration``.
-
-    #TODO test with application with no change
     """
     def test_no_applications(self):
         """
