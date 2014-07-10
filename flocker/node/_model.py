@@ -95,3 +95,15 @@ class Deployment(object):
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+
+
+@attributes(['internal_port', 'external_port'],)
+class PortMap(object):
+    # Move to _model.py
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """
