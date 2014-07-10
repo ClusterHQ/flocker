@@ -89,9 +89,9 @@ class ApplicationTests(SynchronousTestCase):
         """
         ``Application.__repr__`` includes the name and image and ports.
         """
-        application = Application(name=u'site-example.com', image=None)
+        application = Application(name=u'site-example.com', image=None, ports=None)
         self.assertEqual(
-            "<Application(name=u'site-example.com', image=None, ports=frozenset([...]))>",
+            "<Application(name=u'site-example.com', image=None, ports=None)>",
             repr(application)
         )
 
