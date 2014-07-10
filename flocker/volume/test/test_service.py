@@ -412,7 +412,7 @@ class WaitForVolumeTests(TestCase):
     def test_created_volume(self):
         """
         The deferred returned by ``VolumeService.wait_for_volume`` fires
-        with the corresponding ``Volume`` after the volumed has been created.
+        with the corresponding ``Volume`` after the volume has been created.
         """
         wait = self.service.wait_for_volume(u'volume')
         volume = self.successResultOf(self.service.create(u'volume'))
