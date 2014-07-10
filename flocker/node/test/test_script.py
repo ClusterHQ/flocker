@@ -31,8 +31,6 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         """
         ``ChangeStateScript.main`` returns a ``Deferred`` on success.
         """
-        from .._model import Application, DockerImage, Deployment, Node
-        
         dummy_reactor = object()
         options = self.options
 

@@ -84,4 +84,3 @@ class Deployer(object):
             return changes
         d.addCallback(find_differences)
         return d
-        

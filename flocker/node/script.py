@@ -6,7 +6,6 @@ The command-line ``flocker-changestate`` tool.
 """
 
 from twisted.python.usage import Options, UsageError
-from twisted.internet.defer import succeed
 
 from yaml import safe_load
 from yaml.error import YAMLError
@@ -77,9 +76,9 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        from ._config import ConfigurationError, Configuration
+        from ._config import Configuration
         from ._deploy import Deployer
-        from .gear import GearClient, FakeGearClient, AlreadyExists, Unit
+        from .gear import FakeGearClient, Unit
 
         parser = Configuration()
 
