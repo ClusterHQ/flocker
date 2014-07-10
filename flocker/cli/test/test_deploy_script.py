@@ -12,8 +12,9 @@ from twisted.trial.unittest import TestCase, SynchronousTestCase
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
+from .._sshconfig import DEFAULT_SSH_DIRECTORY
 from ...node import Application, Deployment, DockerImage, Node
-from ...volume._ipc import FakeNode
+from ...volume._ipc import ProcessNode, FakeNode
 
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
@@ -123,9 +124,28 @@ class FlockerDeployMainTests(SynchronousTestCase):
         """
         ``DeployScript.main`` returns a ``Deferred`` on success.
         """
+        temp = FilePath(self.mktemp())
+        temp.makedirs()
+
+        application_config_path = temp.child(b"app.yml")
+        application_config_path.setContent(safe_dump({
+            u"version": 1,
+            u"applications": {},
+        }))
+
+        deployment_config_path = temp.child(b"deploy.yml")
+        deployment_config_path.setContent(safe_dump({
+            u"version": 1,
+            u"nodes": {},
+        }))
+
+        options = DeployOptions()
+        options.parseOptions([
+            deployment_config_path.path, application_config_path.path])
+
         script = DeployScript()
         dummy_reactor = object()
-        options = {"deployment": Deployment(nodes=set())}
+
         self.assertEqual(
             list(),
             self.successResultOf(script.main(dummy_reactor, options))
@@ -136,14 +156,80 @@ class FlockerDeployMainTests(SynchronousTestCase):
         ``DeployScript._get_destinations`` uses the hostnames in the
         deployment to create SSH ``INode`` destinations.
         """
+        db = Application(
+            name=u"db-example",
+            image=DockerImage(repository=u"clusterhq/example"))
+
+        node1 = Node(
+            hostname=u"node101.example.com",
+            applications=frozenset({db}))
+        node2 = Node(
+            hostname=u"node102.example.com",
+            applications=frozenset({db}))
+
+        id_rsa_flocker = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
+
+        script = DeployScript()
+        deployment = Deployment(nodes={node1, node2})
+        destinations = script._get_destinations(deployment)
+
+        def node(hostname):
+            return ProcessNode.using_ssh(
+                hostname, 22, b"root", id_rsa_flocker)
+
+        self.assertEqual(
+            {node(node1.hostname), node(node2.hostname)},
+            set(destinations))
+
 
     def test_calls_changestate(self):
         """
         ``DeployScript.main`` calls ``flocker-changestate`` using the
         destinations from ``_get_destinations``.
         """
+        reactor = object()
+
+        site = u"site-example.com"
+        db = u"db-example.com"
+        application_config = safe_dump({
+            u"version": 1,
+            u"applications": {
+                site: {
+                    u"image": u"clusterhq/example-site",
+                },
+                db: {
+                    u"image": u"clusterhq/example-db",
+                },
+            },
+        })
+
+        deployment_config = safe_dump({
+            u"version": 1,
+            u"nodes": {
+                u"node101.example.com": [site],
+                u"node102.example.com": [db],
+            },
+        })
+
+        temp = FilePath(self.mktemp())
+        temp.makedirs()
+
+        application_config_path = temp.child(b"app.yml")
+        application_config_path.setContent(application_config)
+
+        deployment_config_path = temp.child(b"deploy.yml")
+        deployment_config_path.setContent(deployment_config)
+
+        options = DeployOptions()
+        options.parseOptions([
+            deployment_config_path.path, application_config_path.path])
+
         script = DeployScript()
         script._get_destinations = destinations = [FakeNode(), FakeNode()]
-        script.main(...)
-        self.assertEqual([node.remote_command for node in destinations],
-                         [b"flocker-changestate", ...])
+        script.main(reactor, options)
+
+        expected = [
+            b"flocker-changestate", application_config, deployment_config]
+        self.assertEqual(
+            list(node.remote_command for node in destinations),
+            [expected, expected])

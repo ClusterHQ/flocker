@@ -47,12 +47,12 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        deployment_config = safe_load(deployment_config.getContent())
-        application_config = safe_load(application_config.getContent())
+        self["deployment_config"] = safe_load(deployment_config.getContent())
+        self["application_config"] = safe_load(application_config.getContent())
         try:
             self['deployment'] = model_from_configuration(
-                application_configuration=application_config,
-                deployment_configuration=deployment_config)
+                application_configuration=self["application_config"],
+                deployment_configuration=self["deployment_config"])
         except ConfigurationError as e:
             raise UsageError(str(e))
 
@@ -91,7 +91,15 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return self._configure_ssh(options['deployment'])
+        deployment = options['deployment']
+        configuring = self._configure_ssh(deployment)
+        def configured(ignored):
+            self._changestate_on_nodes(
+                deployment,
+                options["deployment_config"],
+                options["application_config"])
+        configuring.addCallback(configured)
+        return configuring
 
     def _get_destinations(self, deployment):
         """
@@ -102,11 +110,11 @@ class DeployScript(object):
 
         :return: Iterable of ``INode`` providers.
         """
-        # private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
+        private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
 
-        # for node in deployment.nodes:
-        #     yield ProcessNode.using_ssh(node.hostname, 22, b"root",
-        #                                 private_key)
+        for node in deployment.nodes:
+            yield ProcessNode.using_ssh(node.hostname, 22, b"root",
+                                        private_key)
 
     def _changestate_on_nodes(self, deployment, deployment_config,
                               application_config):
@@ -118,9 +126,12 @@ class DeployScript(object):
         :param bytes deployment_config: YAML-encoded deployment configuration.
         :param bytes application_config: YAML-encoded application configuration.
         """
-        # for destination in self._get_destinations(deployment):
-        #     destination.get_output([b"flocker-changestate", deployment_config,
-        #                             application_config])
+        command = [b"flocker-changestate",
+                   deployment_config,
+                   application_config]
+        import pdb; pdb.set_trace()
+        for destination in self._get_destinations(deployment):
+            destination.get_output(command)
 
 
 def flocker_deploy_main():

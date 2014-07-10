@@ -49,7 +49,7 @@ class INode(Interface):
 class ProcessNode(object):
     """Communicate with a remote node using a subprocess.
 
-    :param initial_command_arguments: ``list`` of ``bytes``, initial
+    :ivar initial_command_arguments: ``tuple`` of ``bytes``, initial
         command arguments to prefix to whatever arguments get passed to
         ``run()``.
     """
@@ -89,7 +89,7 @@ class ProcessNode(object):
 
         :return: ``ProcessNode`` instance that communicates over SSH.
         """
-        return cls(initial_command_arguments=[
+        return cls(initial_command_arguments=(
             b"ssh",
             b"-q",  # suppress warnings
             b"-i", private_key.path,
@@ -102,7 +102,7 @@ class ProcessNode(object):
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
             b"-o", b"GSSAPIAuthentication=no",
-            b"-p", b"%d" % (port,), host])
+            b"-p", b"%d" % (port,), host))
 
 
 @implementer(INode)
