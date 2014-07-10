@@ -34,7 +34,7 @@ Testing
 It is possible to test this image locally before uploading.
 First add the box locally::
 
-   vagrant box add --name clusterhq/flocker-dev flocker-dev-$(python ../../setup.py --version).box``
+   vagrant box add --name clusterhq/flocker-dev flocker-dev-$(python ../../setup.py --version).box
 
 This adds the box with version 0.
 Then change ``config.vm.box_version`` to ``= 0`` in the :file:`Vagrantfile` in the base of the repository,
