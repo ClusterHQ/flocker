@@ -47,12 +47,12 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
-        self["deployment_config"] = safe_load(deployment_config.getContent())
-        self["application_config"] = safe_load(application_config.getContent())
+        self["deployment_config"] = deployment_config.getContent()
+        self["application_config"] = application_config.getContent()
         try:
             self['deployment'] = model_from_configuration(
-                application_configuration=self["application_config"],
-                deployment_configuration=self["deployment_config"])
+                application_configuration=safe_load(self["application_config"]),
+                deployment_configuration=safe_load(self["deployment_config"]))
         except ConfigurationError as e:
             raise UsageError(str(e))
 

@@ -9,6 +9,7 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
+from twisted.internet.defer import succeed
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
@@ -116,7 +117,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual(expected, options['deployment'])
 
 
-class FlockerDeployMainTests(SynchronousTestCase):
+class FlockerDeployMainTests(TestCase):
     """
     Tests for ``DeployScript.main``.
     """
@@ -147,7 +148,7 @@ class FlockerDeployMainTests(SynchronousTestCase):
         dummy_reactor = object()
 
         self.assertEqual(
-            list(),
+            None,
             self.successResultOf(script.main(dummy_reactor, options))
         )
 
@@ -181,17 +182,21 @@ class FlockerDeployMainTests(SynchronousTestCase):
             {node(node1.hostname), node(node2.hostname)},
             set(destinations))
 
-
-    def test_calls_changestate(self):
+    def run_script(self, alternate_destinations):
         """
-        ``DeployScript.main`` calls ``flocker-changestate`` using the
-        destinations from ``_get_destinations``.
+        Run ``DeployScript.main`` with overriden destinations for
+        ``flocker-changestate``.
+
+        :param list alternate_destinations: ``INode`` providers to connect
+             to instead of the default SSH-based ``ProcessNode``.
+
+        :return: ``Deferred`` that fires with result of ``DeployScript.main()``.
         """
         reactor = object()
 
         site = u"site-example.com"
         db = u"db-example.com"
-        application_config = safe_dump({
+        self.application_config = safe_dump({
             u"version": 1,
             u"applications": {
                 site: {
@@ -203,7 +208,7 @@ class FlockerDeployMainTests(SynchronousTestCase):
             },
         })
 
-        deployment_config = safe_dump({
+        self.deployment_config = safe_dump({
             u"version": 1,
             u"nodes": {
                 u"node101.example.com": [site],
@@ -215,24 +220,45 @@ class FlockerDeployMainTests(SynchronousTestCase):
         temp.makedirs()
 
         application_config_path = temp.child(b"app.yml")
-        application_config_path.setContent(application_config)
+        application_config_path.setContent(self.application_config)
 
         deployment_config_path = temp.child(b"deploy.yml")
-        deployment_config_path.setContent(deployment_config)
+        deployment_config_path.setContent(self.deployment_config)
 
         options = DeployOptions()
         options.parseOptions([
             deployment_config_path.path, application_config_path.path])
 
+        # Change destination of commands:
         script = DeployScript()
-        script._get_destinations = destinations = [FakeNode(), FakeNode()]
+        script._get_destinations = lambda nodes: alternate_destinations
 
-        running = script.main(reactor, options)
+        # Disable SSH configuration:
+        script._configure_ssh = lambda deployment: succeed(None)
+
+        return script.main(reactor, options)
+
+    def test_calls_changestate(self):
+        """
+        ``DeployScript.main`` calls ``flocker-changestate`` using the
+        destinations from ``_get_destinations``.
+        """
+        destinations = [FakeNode([b""]), FakeNode([b""])]
+        running = self.run_script(destinations)
+
         def ran(ignored):
             expected = [
-                b"flocker-changestate", application_config, deployment_config]
+                b"flocker-changestate", self.deployment_config,
+                self.application_config]
             self.assertEqual(
                 list(node.remote_command for node in destinations),
                 [expected, expected])
         running.addCallback(ran)
         return running
+
+
+    def test_calls_changestate_in_parallel(self):
+        """
+        ``DeployScript.main`` calls ``flocker-changestate`` to destination
+        nodes in parallel.
+        """
