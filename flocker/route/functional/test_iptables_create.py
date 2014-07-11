@@ -104,6 +104,7 @@ class GetIPTablesTests(TestCase):
     """
     Tests for the iptables rule preserving helper.
     """
+    @_dependency_skip
     @_environment_skip
     def test_get_iptables_rules(self):
         """
