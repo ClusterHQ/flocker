@@ -85,10 +85,22 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             options
         )
 
-    def test_invalid_deployment_configs(self):
+    def test_configuration_error(self):
         """
-        If the supplied deployment_config is not valid `YAML`, a
-        ``UsageError`` is raised.
+        If the supplied configuration files are valid `YAML` are not valid,
+        a ``UsageError`` is raised with a string representation of the error.
+        """
+        options = self.options()
+        deployment_bad_yaml = "{'nodes':'bar'}"
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [deployment_bad_yaml, b''])
+
+        self.assertEqual(str(e), 'Wrong number of arguments.')
+
+    def test_invalid_deployment_yaml(self):
+        """
+        If the supplied deployment_config is not valid `YAML`, a ``UsageError``
+        is raised.
         """
         options = self.options()
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
@@ -99,7 +111,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             str(e).startswith('Deployment config could not be parsed as YAML')
         )
 
-    def test_invalid_application_configs(self):
+    def test_invalid_application_yaml(self):
         """
         If the supplied application_config is not valid `YAML`, a
         ``UsageError`` is raised.
