@@ -44,7 +44,7 @@ Summary:        Docker orchestration and volume management frontend
 Requires:       python-flocker = %{version}-%{release}
 
 %package -n flocker-node
-Summary:        Node software for flocker.
+Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
 Requires:       docker-io
 Requires:       /sbin/iptables
