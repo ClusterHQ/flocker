@@ -215,25 +215,23 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
-        applications = {
-            'mysql-hybridcluster': Application(
+        application = Application(
+            name='mysql-hybridcluster',
+            image=Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
-            )
-        }
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0'))
+        )
 
         nodes = frozenset([
             Node(
                 hostname='node1.example.com',
-                applications=frozenset(applications.values())
+                applications=frozenset([application])
             )
         ])
 
         desired = Deployment(nodes=nodes)
-        to_start = set(applications.values())
+        to_start = set([application])
         d = api.change_node_configuration(desired_configuration=desired,
                                           hostname='node1.example.com')
         expected = {'start_containers': to_start, 'stop_containers': set()}
@@ -247,20 +245,18 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
-        applications = {
-            'mysql-hybridcluster': Application(
+        application = Application(
+            name='mysql-hybridcluster',
+            image=Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
-            )
-        }
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0'))
+        )
 
         nodes = frozenset([
             Node(
                 hostname='node1.example.com',
-                applications=frozenset(applications.values())
+                applications=frozenset([application])
             )
         ])
 
@@ -291,10 +287,18 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
             )
         }
 
+        application = Application(
+            name='mysql-hybridcluster',
+            image=Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0'))
+        )
+
         nodes = frozenset([
             Node(
                 hostname='node1.example.com',
-                applications=frozenset(applications.values())
+                applications=frozenset([application])
             )
         ])
 
