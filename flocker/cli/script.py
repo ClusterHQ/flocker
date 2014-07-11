@@ -12,6 +12,7 @@ from twisted.python.usage import Options, UsageError
 from zope.interface import implementer
 
 from yaml import safe_load
+from yaml.error import YAMLError
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
@@ -50,8 +51,26 @@ class DeployOptions(Options):
         self["deployment_config"] = deployment_config.getContent()
         self["application_config"] = application_config.getContent()
 
-        app_config_obj = safe_load(self["application_config"])
-        deploy_config_obj = safe_load(self["deployment_config"])
+        try:
+            deploy_config_obj = safe_load(self["deployment_config"])
+        except YAMLError as e:
+            raise UsageError(
+                ("Deployment configuration at {path} could not be parsed as "
+                 "YAML:\n\n{error}").format(
+                    path=deployment_config.path,
+                    error=str(e)
+                )
+            )
+        try:
+            app_config_obj = safe_load(self["application_config"])
+        except YAMLError as e:
+            raise UsageError(
+                ("Application configuration at {path} could not be parsed as "
+                 "YAML:\n\n{error}").format(
+                    path=application_config.path,
+                    error=str(e)
+                )
+            )
 
         try:
             self['deployment'] = model_from_configuration(

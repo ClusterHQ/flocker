@@ -24,8 +24,10 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
-@attributes(["name", "activation_state", "container_image", "ports", "links"],
-            defaults=dict(container_image=None, ports=(), links=()))
+@attributes(["name", "activation_state", "sub_state", "container_image",
+             "ports", "links"],
+            defaults=dict(sub_state=None, container_image=None,
+                          ports=(), links=()))
 class Unit(object):
     """
     Information about a unit managed by geard/systemd.
@@ -44,6 +46,11 @@ class Unit(object):
         ``u"inactive"`` apparently). See
         https://github.com/ClusterHQ/flocker/issues/187 about using constants
         instead of strings.
+
+    :ivar unicode sub_state: The systemd substate of the unit. Certain Unit
+        types may have a number of additional substates, which are mapped to
+        the five generalized activation states above. See
+        http://www.freedesktop.org/software/systemd/man/systemd.html#Concepts
 
     :ivar unicode container_image: The docker image name associated with this
         gear unit
@@ -237,7 +244,7 @@ class GearClient(object):
         return d
 
     def list(self):
-        d = self._request(b"GET", b"/containers")
+        d = self._request(b"GET", b"/containers?all=1")
         d.addCallback(content)
 
         def got_body(data):
@@ -248,6 +255,7 @@ class GearClient(object):
             # container_image=image_name,
             return set([Unit(name=unit[u"Id"],
                              activation_state=unit[u"ActiveState"],
+                             sub_state=unit[u"SubState"],
                              container_image=None)
                         for unit in values])
         d.addCallback(got_body)

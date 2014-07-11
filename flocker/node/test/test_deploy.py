@@ -6,7 +6,8 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import Deployer, Application, DockerImage
+from .. import (Deployer, Application, DockerImage, Deployment, Node,
+                StateChanges)
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
@@ -171,3 +172,146 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+
+
+class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer.calculate_necessary_state_changes``.
+    """
+    def test_no_applications(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
+        which fires with a :class:`StateChanges` instance indicating that no
+        changes are necessary when there are no applications running or
+        desired.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_application_needs_stopping(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        application must be stopped when it is running but not desired.
+        """
+        unit = Unit(name=u'site-example.com', activation_state=u'active')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=to_stop)
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_application_needs_starting(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        application must be started when it is desired on the given node but
+        not running.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        expected = StateChanges(containers_to_start=set([application]),
+                                containers_to_stop=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_only_this_node(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` does not specify that an
+        application must be started if the desired changes apply to a different
+        node.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(gear_client=fake_gear)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node1.example.net',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_no_change_needed(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` does not specify that an
+        application must be started or stopped if the desired configuration
+        is the same as the current configuration.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_node_not_described(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that all
+        applications on a node must be stopped if the desired configuration
+        does not include that node.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset([]))
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=to_stop)
+        self.assertEqual(expected, self.successResultOf(d))
