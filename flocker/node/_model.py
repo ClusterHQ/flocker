@@ -95,6 +95,7 @@ class Deployment(object):
         describing the configuration of each cooperating node.
     """
 
+
 @attributes(["containers_to_start", "containers_to_stop"])
 class StateChanges(object):
     """

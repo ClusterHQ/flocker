@@ -6,7 +6,8 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import (Deployer, Application, DockerImage, Deployment, Node, StateChanges)
+from .. import (Deployer, Application, DockerImage, Deployment, Node,
+                StateChanges)
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
