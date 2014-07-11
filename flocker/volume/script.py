@@ -156,7 +156,7 @@ class VolumeScript(object):
             pool = StoragePool(reactor, options["pool"],
                                FilePath(options["mountpoint"]))
         service = self._service_factory(
-            config_path=options["config"], pool=pool)
+            config_path=options["config"], pool=pool, reactor=reactor)
         try:
             service.startService()
         except CreateConfigurationError as e:
