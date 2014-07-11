@@ -244,9 +244,11 @@ class UnitTests(TestCase):
         ports and links.
         """
         self.assertEqual(
-            "<Unit(name=u'site-example.com', activation_state=u'active', "
+            "<Unit(name=u'site-example.com', "
+            "activation_state=u'active', sub_state=u'running', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
-            repr(Unit(name=u'site-example.com', activation_state=u'active',
+            repr(Unit(name=u'site-example.com',
+                      activation_state=u'active', sub_state=u'running',
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], links=[]))
         )
