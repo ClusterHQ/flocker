@@ -297,3 +297,21 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_node_not_described(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that all
+        applications on a node must be stopped if the desired configuration
+        does not include that node.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset([]))
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=b'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=to_stop)
+        self.assertEqual(expected, self.successResultOf(d))
