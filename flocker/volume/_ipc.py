@@ -12,6 +12,7 @@ Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 from subprocess import Popen, PIPE, check_output, CalledProcessError
 from contextlib import contextmanager
 from io import BytesIO
+from threading import current_thread
 
 from zope.interface import Interface, implementer
 
@@ -116,6 +117,9 @@ class FakeNode(object):
         ``get_output()``.
 
     :ivar stdin: `BytesIO` returned from last call to ``run()``.
+
+    :ivar thread_id: The ID of the thread ``run()`` or ``get_output()``
+        ran in.
     """
     def __init__(self, outputs=()):
         """
@@ -128,6 +132,7 @@ class FakeNode(object):
         """
         Store arguments and in-memory "stdin".
         """
+        self.thread_id = current_thread().ident
         self.stdin = BytesIO()
         self.remote_command = remote_command
         yield self.stdin
@@ -137,6 +142,7 @@ class FakeNode(object):
         """
         Return the outputs passed to the constructor.
         """
+        self.thread_id = current_thread().ident
         self.remote_command = remote_command
         return self._outputs.pop(0)
 

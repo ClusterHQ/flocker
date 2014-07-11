@@ -5,11 +5,13 @@ Unit tests for the implementation ``flocker-deploy``.
 """
 
 from yaml import safe_dump
+from threading import current_thread
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.internet.defer import succeed
+from twisted.internet import reactor
 
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import DeployScript, DeployOptions
@@ -192,8 +194,6 @@ class FlockerDeployMainTests(TestCase):
 
         :return: ``Deferred`` that fires with result of ``DeployScript.main()``.
         """
-        reactor = object()
-
         site = u"site-example.com"
         db = u"db-example.com"
         self.application_config = safe_dump({
@@ -257,8 +257,19 @@ class FlockerDeployMainTests(TestCase):
         return running
 
 
-    def test_calls_changestate_in_parallel(self):
+    def test_calls_changestate_in_thread_pool(self):
         """
         ``DeployScript.main`` calls ``flocker-changestate`` to destination
-        nodes in parallel.
+        nodes in a thread pool.
+
+        (Proving actual parallelism is much more difficult...)
         """
+        destinations = [FakeNode([b""]), FakeNode([b""])]
+        running = self.run_script(destinations)
+
+        def ran(ignored):
+            self.assertNotEqual(
+                set(node.thread_id for node in destinations),
+                set([current_thread().ident]))
+        running.addCallback(ran)
+        return running

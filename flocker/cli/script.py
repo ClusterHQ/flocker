@@ -60,8 +60,7 @@ class DeployOptions(Options):
 @implementer(ICommandLineScript)
 class DeployScript(object):
     """
-    A script to start configured deployments, covered by:
-       https://github.com/ClusterHQ/flocker/issues/19
+    A script to start configured deployments on a Flocker cluster.
     """
     def __init__(self, ssh_configuration=None, ssh_port=22):
         if ssh_configuration is None:
@@ -94,11 +93,12 @@ class DeployScript(object):
         deployment = options['deployment']
         configuring = self._configure_ssh(deployment)
         def configured(ignored):
-            self._changestate_on_nodes(
+            return self._changestate_on_nodes(
                 deployment,
                 options["deployment_config"],
                 options["application_config"])
         configuring.addCallback(configured)
+        configuring.addCallback(lambda _: None)
         return configuring
 
     def _get_destinations(self, deployment):
@@ -125,12 +125,19 @@ class DeployScript(object):
             configuration.
         :param bytes deployment_config: YAML-encoded deployment configuration.
         :param bytes application_config: YAML-encoded application configuration.
+
+        :return: ``Deferred`` that fires when all remote calls are finished.
         """
         command = [b"flocker-changestate",
                    deployment_config,
                    application_config]
+
+        results = []
         for destination in self._get_destinations(deployment):
-            destination.get_output(command)
+            # XXX if number of nodes is bigger than number of available
+            # threads we won't get the required parallelism...
+            results.append(deferToThread(destination.get_output, command))
+        return DeferredList(results)
 
 
 def flocker_deploy_main():
