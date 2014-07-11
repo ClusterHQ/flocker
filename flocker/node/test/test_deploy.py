@@ -176,35 +176,36 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
 class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.change_node_configuration``.
+    Tests for ``Deployer.calculate_necessary_state_changes``.
     """
     def test_no_applications(self):
         """
-        ``Deployer.change_node_configuration`` returns a ``Deferred`` which
-        fires with a :class:`StateChanges` instance indicating that no changes
-        are necessary when there are no applications running or desired.
+        ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
+        which fires with a :class:`StateChanges` instance indicating that no
+        changes are necessary when there are no applications running or
+        desired.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
-        d = api.change_node_configuration(desired_state=desired,
-                                          hostname='node1.example.com')
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname='node1.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
         """
-        ``Deployer.change_node_configuration`` specifies that an application
-        must be stopped when it is running but not desired.
+        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        application must be stopped when it is running but not desired.
         """
         unit = Unit(name=u'site-example.com', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
-        d = api.change_node_configuration(desired_state=desired,
-                                          hostname='node1.example.com')
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname='node1.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=to_stop)
@@ -212,8 +213,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
     def test_application_needs_starting(self):
         """
-        ``Deployer.change_node_configuration`` specifies that an application
-        must be started when it is desired on the given node but not running.
+        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        application must be started when it is desired on the given node but
+        not running.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
@@ -231,15 +233,15 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_configuration(desired_state=desired,
-                                          hostname='node1.example.com')
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname='node1.example.com')
         expected = StateChanges(containers_to_start=set([application]),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
         """
-        ``Deployer.change_node_configuration`` does not specify that an
+        ``Deployer.calculate_necessary_state_changes`` does not specify that an
         application must be started if the desired changes apply to a different
         node.
         """
@@ -259,15 +261,15 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_configuration(desired_state=desired,
-                                          hostname='node2.example.com')
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname='node2.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_no_change_needed(self):
         """
-        ``Deployer.change_node_configuration`` does not specify that an
+        ``Deployer.calculate_necessary_state_changes`` does not specify that an
         application must be started or stopped if the desired configuration
         is the same as the current configuration.
         """
@@ -290,8 +292,8 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_configuration(desired_state=desired,
-                                          hostname='node1.example.com')
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname='node1.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))

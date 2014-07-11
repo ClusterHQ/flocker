@@ -65,10 +65,10 @@ class Deployer(object):
         d.addCallback(applications_from_units)
         return d
 
-    def change_node_configuration(self, desired_state, hostname):
+    def calculate_necessary_state_changes(self, desired_state, hostname):
         """
-        Work out which containers need to be started and stopped for the
-        configuration to match the given configuration file.
+        Work out which changes need to happen to the local state to match
+        the given desired state.
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
