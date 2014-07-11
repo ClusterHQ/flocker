@@ -6,10 +6,11 @@ import os
 from getpass import getuser
 from unittest import skipIf
 
-from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
-from twisted.internet.threads import deferToThread
 from twisted.internet import reactor
+from twisted.internet.task import Clock
+from twisted.internet.threads import deferToThread
+from twisted.python.filepath import FilePath
+from twisted.trial.unittest import TestCase
 
 from .._ipc import ProcessNode, RemoteVolumeManager
 from ..test.test_ipc import make_inode_tests
@@ -196,14 +197,14 @@ def create_realistic_servicepair(test):
     from_pool = StoragePool(reactor, create_zfs_pool(test),
                             FilePath(test.mktemp()))
     from_service = VolumeService(FilePath(test.mktemp()),
-                                 from_pool)
+                                 from_pool, reactor=Clock())
     from_service.startService()
     test.addCleanup(from_service.stopService)
 
     to_pool = StoragePool(reactor, create_zfs_pool(test),
                           FilePath(test.mktemp()))
     to_config = FilePath(test.mktemp())
-    to_service = VolumeService(to_config, to_pool)
+    to_service = VolumeService(to_config, to_pool, reactor=Clock())
     to_service.startService()
     test.addCleanup(to_service.stopService)
 

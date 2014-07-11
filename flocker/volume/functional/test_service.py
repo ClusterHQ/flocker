@@ -9,8 +9,9 @@ import subprocess
 import os
 import json
 
-from twisted.trial.unittest import TestCase
+from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath
+from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name
 from ..service import Volume, VolumeService
@@ -68,7 +69,7 @@ class VolumeTests(TestCase):
         """``Volume.expose_to_docker`` mounts the volume's filesystem within
         this container at the given mount path."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         self.addCleanup(service.stopService)
 
@@ -96,7 +97,7 @@ class VolumeTests(TestCase):
         """If ``Volume.expose_to_docker`` is called twice, the second given
         mount path overrides the first."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         self.addCleanup(service.stopService)
 
@@ -126,7 +127,7 @@ class VolumeTests(TestCase):
         ``Volume.expose_to_docker``.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         self.addCleanup(service.stopService)
 
@@ -153,7 +154,7 @@ class VolumeTests(TestCase):
         firing with ``None``.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         self.addCleanup(service.stopService)
 

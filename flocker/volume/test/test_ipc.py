@@ -10,8 +10,9 @@ from characteristic import attributes
 
 from zope.interface.verify import verifyObject
 
-from twisted.trial.unittest import TestCase
+from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath
+from twisted.trial.unittest import TestCase
 
 from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.memory import FilesystemStoragePool
@@ -215,7 +216,7 @@ def create_local_servicepair(test):
         path = FilePath(test.mktemp())
         path.createDirectory()
         pool = FilesystemStoragePool(path)
-        service = VolumeService(FilePath(test.mktemp()), pool)
+        service = VolumeService(FilePath(test.mktemp()), pool, reactor=Clock())
         service.startService()
         test.addCleanup(service.stopService)
         return service
@@ -240,7 +241,7 @@ class RemoteVolumeManagerTests(TestCase):
         Receiving calls ``flocker-volume`` remotely.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
@@ -259,7 +260,7 @@ class RemoteVolumeManagerTests(TestCase):
         default config path.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool)
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
