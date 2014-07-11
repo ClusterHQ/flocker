@@ -36,14 +36,14 @@ cmdclass = {'generate_spec': cmd_generate_spec}
 # certain data at appropriate times.
 cmdclass.update(versioneer.get_cmdclass())
 
-# Hard linking doesn't work inside Vagrant shared folders. This means that
+# Hard linking doesn't work inside VirtualBox shared folders. This means that
 # you can't use tox in a directory that is being shared with Vagrant,
 # since tox relies on `python setup.py sdist` which uses hard links. As a
-# workaround, disable hard-linking if it looks like we're a vagrant user.
+# workaround, disable hard-linking if setup.py is a descendant of /vagrant.
 # See
 # https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
 # for more details.
-if os.environ.get('USER','') == 'vagrant':
+if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
     del os.link
 
 with open("README.rst") as readme:
