@@ -109,7 +109,8 @@ def make_igearclient_tests(fixture):
                 # XXX: GearClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                activating = Unit(name=name, activation_state=u"activating")
+                activating = Unit(name=name, activation_state=u"activating",
+                                  sub_state=u"start-pre")
                 active = Unit(name=name, activation_state=u"active")
                 self.assertTrue((activating in units) or
                                 (active in units),
