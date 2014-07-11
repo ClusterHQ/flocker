@@ -322,5 +322,14 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     Tests for ``Deployer.change_node_state``.
     """
 
-    def test_containers_started(self):
-        pass
+    def test_containers_stopped(self):
+        unit = Unit(name=u'site-example.com', activation_state=u'active')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset())
+        d = api.change_node_state(desired_state=desired, hostname=b'node.example.com')
+        
+        d.addCallback(lambda: discover_node_configuration())
+
+        self.assertEqual([], self.successResultOf(d))

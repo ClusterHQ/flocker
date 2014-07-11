@@ -107,12 +107,16 @@ class Deployer(object):
         :param bytes hostname: The hostname of the node that this is running
             on.
         """
-        necessary_state_changes = self.calculate_necessary_state_changes(
+        d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
             hostname=hostname)
 
-        for container in necessary_state_changes.containers_to_stop:
-            self.start_container(container)
+        def start_and_stop_containers(necessary_state_changes):
+            for container in necessary_state_changes.containers_to_stop:
+                self.start_container(container)
 
-        for container in necessary_state_changes.containers_to_start:
-            self.stop_container(container)
+            for container in necessary_state_changes.containers_to_start:
+                self.stop_container(container)
+
+        d.addCallback(start_and_stop_containers)
+        return d
