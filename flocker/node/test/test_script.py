@@ -9,6 +9,7 @@ from twisted.python.usage import UsageError
 from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import ChangeStateOptions, ChangeStateScript
+from .._deploy import Deployer
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -24,6 +25,13 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
     """
+
+    def test_deployer_type(self):
+        """
+        ``ChangeStateScript._deployer`` is an instance of :class:`Deployer`.
+        """
+        script = ChangeStateScript()
+        self.assertIsInstance(script._deployer, Deployer)
 
     def test_deferred_result(self):
         """

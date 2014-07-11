@@ -15,6 +15,7 @@ from zope.interface import implementer
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
+from ._deploy import Deployer
 
 __all__ = [
     "ChangeStateOptions",
@@ -73,6 +74,8 @@ class ChangeStateScript(object):
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
     """
+    _deployer = Deployer()
+
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
