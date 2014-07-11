@@ -22,9 +22,22 @@ The parameters required to define an application are:
     This is the name of the Docker image which will be used to start the container which will run the application.
     Optionally, this may include a tag using the ``<name>:<tag>`` syntax.
 
-    For example, an application which is meant to use version 1.0 of ClusterHQ's flocker-dev Docker image is configured like this::
+    For example, an application which is meant to use version 1.0 of ClusterHQ's flocker-dev Docker image is configured like this:
 
-       image: clusterhq/flocker-dev:v1.0
+    .. code-block:: yaml
+
+       "image": "clusterhq/flocker-dev:v1.0"
+
+  - ``ports``
+
+    This is an optional list of port mappings to expose to the outside world.
+    Connection to the external port on the host machine are forward to the internal port in the container.
+
+    .. code-block:: yaml
+
+       "ports":
+       - "internal": 80
+         "external": 8080
 
 Here's an example of a simple but complete configuration defining one application:
 
@@ -34,6 +47,9 @@ Here's an example of a simple but complete configuration defining one applicatio
   "applications":
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
+       "ports":
+       - "internal": 80
+         "external": 8080
 
 
 Deployment Configuration
