@@ -157,6 +157,16 @@ class IRemoteVolumeManager(Interface):
              update the volume on the remote volume manager.
         """
 
+    def acquire(volume):
+        """
+        Tell the remote volume manager to acquire the given volume.
+
+        :param Volume volume: The volume which will be acquired by the
+            remote volume manager.
+
+        :return: The UUID of the remote volume manager (as ``unicode``).
+        """
+
 
 @implementer(IRemoteVolumeManager)
 class RemoteVolumeManager(object):
@@ -180,9 +190,17 @@ class RemoteVolumeManager(object):
                                       volume.uuid.encode(b"ascii"),
                                       volume.name.encode("ascii")])
 
+    def acquire(self, volume):
+        return self._destination.get_output(
+            [b"flocker-volume",
+             b"--config", self._config_path.path,
+             b"acquire",
+             volume.uuid.encode(b"ascii"),
+             volume.name.encode("ascii")]).decode("ascii")
+
 
 @implementer(IRemoteVolumeManager)
-class LocalVolumeManger(object):
+class LocalVolumeManager(object):
     """
     In-memory communication with a ``VolumeService`` instance, for testing.
     """
@@ -199,3 +217,7 @@ class LocalVolumeManger(object):
         yield input_file
         input_file.seek(0, 0)
         self._service.receive(volume.uuid, volume.name, input_file)
+
+    def acquire(self, volume):
+        self._service.acquire(volume.uuid, volume.name)
+        return self._service.uuid

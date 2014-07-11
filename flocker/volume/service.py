@@ -16,6 +16,7 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet import reactor
+from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
@@ -171,7 +172,8 @@ class VolumeService(Service):
                     receiver.write(chunk)
 
     def receive(self, volume_uuid, volume_name, input_file):
-        """Process a volume's data that can be read from a file-lik.
+        """
+        Process a volume's data that can be read from a file-like object.
 
         This is a blocking API for now.
 
@@ -192,6 +194,50 @@ class VolumeService(Service):
         with volume.get_filesystem().writer() as writer:
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
+
+    def acquire(self, volume_uuid, volume_name):
+        """
+        Take ownership of a volume.
+
+        This is a blocking API for now.
+
+        Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
+        this service's) can be acquired.
+
+        :param unicode volume_uuid: The volume owner's UUID.
+        :param unicode volume_name: The volume's name.
+
+        :return: ``Deferred`` that fires on success, or errbacks with
+            ``ValueError`` If the uuid of the volume matches our own.
+        """
+        if volume_uuid == self.uuid:
+            return fail(ValueError("Can't acquire already-owned volume"))
+        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        return volume.change_owner(self.uuid)
+
+    def handoff(self, volume, destination):
+        """
+        Handoff a locally owned volume to a remote destination.
+
+        The remote destination will be the new owner of the volume.
+
+        This is a blocking API for now (but it does return a ``Deferred``
+        for success/failure).
+
+        :param Volume volume: The volume to handoff.
+        :param IRemoteVolumeManager destination: The remote volume manager
+            to handoff to.
+
+        :return: ``Deferred`` that fires when the handoff has finished, or
+            errbacks on error (specifcally with a ``ValueError`` if the
+            volume is not locally owned).
+        """
+        try:
+            self.push(volume, destination)
+        except ValueError:
+            return fail()
+        remote_uuid = destination.acquire(volume)
+        return volume.change_owner(remote_uuid)
 
 
 # Communication with Docker should be done via its API, not with this
@@ -261,14 +307,15 @@ class Volume(object):
         return b"flocker-%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
-        """Create a container that will expose the volume to Docker at the given
+        """
+        Create a container that will expose the volume to Docker at the given
         mount path.
 
         Can be called multiple times. Mount paths from previous calls will
         be overridden.
 
-        :param mount_path: The path at which to mount the volume within
-            the container.
+        :param FilePath mount_path: The path at which to mount the volume
+            within the container.
 
         :return: ``Deferred`` firing when the operation is done.
         """
