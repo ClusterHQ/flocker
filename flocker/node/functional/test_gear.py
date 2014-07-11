@@ -80,7 +80,8 @@ class GearClientTests(TestCase):
             reaches the expected state.
         """
         if expected_state is None:
-            expected_state = Unit(name=unit_name, activation_state=u"active")
+            expected_state = Unit(name=unit_name, activation_state=u"active",
+                                  sub_state=u"running")
         client = GearClient("127.0.0.1")
         d = client.add(
             unit_name=unit_name,
