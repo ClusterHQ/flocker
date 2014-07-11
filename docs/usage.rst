@@ -64,7 +64,7 @@ Other Keys
 ----------
 
 ``flocker-deploy`` will generate an additional SSH key.
-This key is deployed to each host you manage with Flocker and and allows the hosts to authenticate to each other.
+This key is deployed to each host you manage with Flocker and allows the hosts to authenticate to each other.
 
 .. _`installed that package`: TODO: link to our installation documentation
 .. _`generate an SSH key`: https://en.wikipedia.org/wiki/Ssh-keygen
