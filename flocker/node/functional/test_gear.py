@@ -201,7 +201,7 @@ class GearClientTests(TestCase):
         """
         name = random_name()
         expected_state = Unit(name=name, activation_state=u'inactive',
-                             sub_state=u'dead')
+                              sub_state=u'dead')
         d = self.start_container(unit_name=name, image_name="busybox",
                                  expected_state=expected_state)
         return d
