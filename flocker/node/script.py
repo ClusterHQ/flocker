@@ -46,23 +46,25 @@ class ChangeStateOptions(Options):
 
     def parseArgs(self, deployment_config, application_config):
         """
-        Parse `deployment_config` and `app_config` strings as YAML and assign
-        the resulting dictionaries to this `Options` dictionary.
+        Parse `deployment_config` and `application_config` strings as YAML and
+        assign the resulting dictionaries to this `Options` dictionary.
 
         :param bytes deployment_config: The YAML string describing the desired
             deployment configuration.
-        :param bytes app_config: The YAML string describing the desired
+        :param bytes application_config: The YAML string describing the desired
             application configuration.
         """
         try:
             deployment_config = safe_load(deployment_config)
         except YAMLError as e:
+            # TODO test not just the 'starts with
             raise UsageError(
                 "Deployment config could not be parsed as YAML:\n\n" + str(e)
             )
         try:
             application_config = safe_load(application_config)
         except YAMLError as e:
+            # TODO test not just the 'starts with
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
@@ -72,7 +74,9 @@ class ChangeStateOptions(Options):
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
         except ConfigurationError as e:
+            # TODO test this
             raise UsageError(str(e))
+
 
 @implementer(ICommandLineScript)
 class ChangeStateScript(object):

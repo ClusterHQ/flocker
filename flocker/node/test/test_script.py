@@ -64,7 +64,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 repository=u'hybridlogic/mysql5.9', tag=u'latest'),
         )
 
-        node = Node(hostname='node1.example.com', applications=frozenset([application]))
+        node = Node(hostname='node1.example.com',
+                    applications=frozenset([application]))
         options = self.options()
         deployment_config = {"nodes": {node.hostname: [application.name]},
                              "version": 1}
