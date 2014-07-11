@@ -26,6 +26,9 @@ def ssh(argv):
         check_call([b"ssh"] + argv, stdout=discard, stderr=discard)
 
 
+DEFAULT_SSH_DIRECTORY = FilePath(expanduser(b"~/.ssh/"))
+
+
 @attributes(["flocker_path", "ssh_config_path"])
 class OpenSSHConfiguration(object):
     """
@@ -48,7 +51,7 @@ class OpenSSHConfiguration(object):
         """
         return OpenSSHConfiguration(
             flocker_path=FilePath(b"/etc/flocker"),
-            ssh_config_path=FilePath(expanduser(b"~/.ssh/")))
+            ssh_config_path=DEFAULT_SSH_DIRECTORY)
 
     def configure_ssh(self, host, port):
         """
