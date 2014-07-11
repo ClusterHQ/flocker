@@ -8,15 +8,11 @@ VAGRANTFILE_API_VERSION = "2"
 $bootstrap = <<SCRIPT
 set -e
 yum install -y zfs
-
-systemctl enable docker
-systemctl start docker
-systemctl enable geard
-systemctl start geard
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-dev"
+  config.vm.box_version = "> 0.0.0.880"
 
   config.vm.provision :shell, :inline => $bootstrap, :privileged => true
 
