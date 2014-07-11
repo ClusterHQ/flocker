@@ -97,3 +97,22 @@ class Deployer(object):
             )
         d.addCallback(find_differences)
         return d
+
+    def change_node_state(self, desired_state, hostname):
+        """
+        Change the local state to match the given desired state.
+
+        :param Deployment desired_state: The intended configuration of all
+            nodes.
+        :param bytes hostname: The hostname of the node that this is running
+            on.
+        """
+        necessary_state_changes = calculate_necessary_state_changes(
+            desired_state=desired_state,
+            hostname=hostname)
+
+        for container in necessary_state_changes.containers_to_stop:
+            start_container(container)
+
+        for container in necessary_state_changes.containers_to_start:
+            stop_container(container)

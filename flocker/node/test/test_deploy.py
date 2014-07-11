@@ -174,7 +174,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
 
 
-class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
+class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     Tests for ``Deployer.calculate_necessary_state_changes``.
     """
@@ -315,3 +315,11 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
+
+class DeployerChangeNodeStateTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer.change_node_state``.
+    """
+
+    def test_containers_started(self):
+        pass
