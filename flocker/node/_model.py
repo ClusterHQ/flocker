@@ -94,3 +94,10 @@ class Deployment(object):
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+
+@attributes(["containers_to_start", "containers_to_stop"])
+class StateChanges(object):
+    """
+    ``StateChanges`` describes changes necessary to make to the current
+    state. This might be because of user-specified configuration changes.
+    """

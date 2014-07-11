@@ -6,7 +6,7 @@ Tests for ``flocker.node._deploy``.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .. import Deployer, Application, DockerImage, Deployment, Node
+from .. import (Deployer, Application, DockerImage, Deployment, Node, StateChanges)
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
 
 
@@ -186,9 +186,10 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
-        d = api.change_node_configuration(desired_configuration=desired,
+        d = api.change_node_configuration(desired_state=desired,
                                           hostname='node1.example.com')
-        expected = {'start_containers': set(), 'stop_containers': set()}
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
@@ -202,10 +203,11 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         fake_gear = FakeGearClient(units=units)
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
-        to_stop = set([Application(name=unit.name) for unit in units.values()])
-        d = api.change_node_configuration(desired_configuration=desired,
+        d = api.change_node_configuration(desired_state=desired,
                                           hostname='node1.example.com')
-        expected = {'start_containers': set(), 'stop_containers': to_stop}
+        to_stop = set([Application(name=unit1.name)])
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
@@ -229,10 +231,10 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        to_start = set([application])
-        d = api.change_node_configuration(desired_configuration=desired,
+        d = api.change_node_configuration(desired_state=desired,
                                           hostname='node1.example.com')
-        expected = {'start_containers': to_start, 'stop_containers': set()}
+        expected = StateChanges(containers_to_start=set([application]),
+                                containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -257,9 +259,10 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_configuration(desired_configuration=desired,
+        d = api.change_node_configuration(desired_state=desired,
                                           hostname='node2.example.com')
-        expected = {'start_containers': set(), 'stop_containers': set()}
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_no_change_needed(self):
@@ -288,7 +291,8 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.change_node_configuration(desired_configuration=desired,
+        d = api.change_node_configuration(desired_state=desired,
                                           hostname='node1.example.com')
-        expected = {'start_containers': set(), 'stop_containers': set()}
+        expected = StateChanges(containers_to_start=set(),
+                                containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
