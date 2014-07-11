@@ -16,7 +16,7 @@ from threading import current_thread
 
 from zope.interface import Interface, implementer
 
-from characteristic import attributes
+from characteristic import with_cmp, with_repr
 
 from .service import DEFAULT_CONFIG_PATH
 
@@ -45,7 +45,8 @@ class INode(Interface):
         """
 
 
-@attributes(["initial_command_arguments"])
+@with_cmp(["initial_command_arguments"])
+@with_repr(["initial_command_arguments"])
 @implementer(INode)
 class ProcessNode(object):
     """Communicate with a remote node using a subprocess.
@@ -54,10 +55,13 @@ class ProcessNode(object):
         command arguments to prefix to whatever arguments get passed to
         ``run()``.
     """
+    def __init__(self, initial_command_arguments):
+        self.initial_command_arguments = tuple(initial_command_arguments)
+
     @contextmanager
     def run(self, remote_command):
         process = Popen(
-            self.initial_command_arguments + remote_command,
+            self.initial_command_arguments + tuple(remote_command),
             stdin=PIPE)
         try:
             yield process.stdin
@@ -72,7 +76,7 @@ class ProcessNode(object):
     def get_output(self, remote_command):
         try:
             return check_output(
-                self.initial_command_arguments + remote_command)
+                self.initial_command_arguments + tuple(remote_command))
         except CalledProcessError as e:
             # We should really capture this and stderr better:
             # https://github.com/ClusterHQ/flocker/issues/155
