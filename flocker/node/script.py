@@ -77,10 +77,6 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        # TODO: #252
-        # changes = self._deployer.change_node_configuration(
-        #     desired_configuration=desired_configuration,
-        #     hostname='node1.example.com')
         return succeed(None)
 
 
