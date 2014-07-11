@@ -7,7 +7,7 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment, PortMap
+from ._model import Application, DockerImage, Node, Deployment, PortMap, Link
 
 
 class ConfigurationError(Exception):
@@ -92,10 +92,41 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
+            links = []
+            try:
+                for link in config.pop('links', []):
+                    try:
+                        internal_port = link.pop('internal')
+                    except KeyError:
+                        raise ValueError("Missing internal port.")
+                    try:
+                        external_port = link.pop('external')
+                    except KeyError:
+                        raise ValueError("Missing external port.")
+                    try:
+                        application = link.pop('application')
+                    except KeyError:
+                        raise ValueError("Missing application.")
+
+                    if link:
+                        raise ValueError(
+                            "Unrecognised keys: {keys}.".format(
+                                keys=', '.join(link.keys())))
+                    links.append(Link(
+                        ports=PortMap(internal_port=internal_port,
+                                      external_port=external_port),
+                        application=application))
+            except ValueError as e:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "Invalid links specification. {message}").format(
+                         application_name=application_name, message=e.message))
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
-                ports=frozenset(ports))
+                ports=frozenset(ports),
+                links=frozenset(links))
 
             if config:
                 raise ConfigurationError(

@@ -31,9 +31,15 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
+        if application.links is not None:
+            gear_links = map(lambda link: link.ports,
+                             application.links)
+        else:
+            gear_links = None
         return self._gear_client.add(application.name,
                                      application.image.full_name,
-                                     ports=application.ports
+                                     ports=application.ports,
+                                     links=gear_links
                                      )
 
     def stop_container(self, application):

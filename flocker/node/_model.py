@@ -50,15 +50,16 @@ class DockerImage(object):
 
 
 @with_cmp(["name"])
-@with_repr(["name", "image", "ports"])
-@with_init(["name", "image", "ports"], defaults=dict(image=None, ports=None))
+@with_repr(["name", "image", "ports", "links"])
+@with_init(["name", "image", "ports", "links"],
+           defaults=dict(image=None, ports=None, links=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image and ports attributes defaults to `None` until we have a way
-    to interrogate geard for the docker images associated with its containers.
-    See https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The image, ports and links attributes defaults to `None` until we have
+    a way to interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     XXX: Only the name is compared in equality checks. See
     https://github.com/ClusterHQ/flocker/issues/267
@@ -69,9 +70,11 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
-
     :ivar frozenset ports: A ``frozenset`` of ``PortMap``pings that
-        should be xposed to the outside world.
+        should be exposed to the outside world.
+
+    :ivar frozenset links: A ``frozenset`` of ``Link``s that
+        should be created between containers.
     """
 
 
@@ -122,3 +125,14 @@ class StateChanges(object):
     :ivar set containers_to_start: The containers which must be started.
     :ivar set containers_to_stop: The containers which must be stopped.
     """
+
+
+@attributes(['ports', 'application'])
+class Link(object):
+     """
+     A record representing the mapping between a port exposed internally by a
+     docker container and the corresponding external port on the host.
+
+     :ivar PortMap ports: The ports to connect.
+     :ivar unicode application: The remote application to connect to.
+     """
