@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, with_cmp
+from characteristic import attributes, with_cmp, with_repr, with_init
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -50,7 +50,8 @@ class DockerImage(object):
 
 
 @with_cmp(["name"])
-@attributes(["name", "image"], defaults=dict(image=None))
+@with_repr(["name", "image"])
+@with_init(["name", "image"], defaults=dict(image=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
