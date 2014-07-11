@@ -180,6 +180,20 @@ class GearClientTests(TestCase):
         d.addCallback(stopped)
         return d
 
+    def test_dead_is_listed(self):
+        """
+        ``GearClient.list()`` includes dead units.
+        """
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name="busybox")
+
+        def started(client):
+            self.addCleanup(client.remove, name)
+            import pdb; pdb.set_trace()
+
+        d.addCallback(started)
+        return d
+
     def request_until_response(self, port):
         """
         Resend a test HTTP request until a response is received.
