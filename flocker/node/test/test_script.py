@@ -87,15 +87,34 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_configuration_error(self):
         """
-        If the supplied configuration files are valid `YAML` are not valid,
+        If the supplied configuration files are valid `YAML` but are not valid,
         a ``UsageError`` is raised with a string representation of the error.
         """
         options = self.options()
-        deployment_bad_yaml = "{'nodes':'bar'}"
-        e = self.assertRaises(
-            UsageError, options.parseOptions, [deployment_bad_yaml, b''])
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(
+                repository=u'hybridlogic/mysql5.9', tag=u'latest'),
+        )
 
-        self.assertEqual(str(e), 'Wrong number of arguments.')
+        node = Node(hostname='node1.example.com',
+                    applications=frozenset([application]))
+        options = self.options()
+        deployment_config = {"nodes": {node.hostname: [application.name]},
+                             "version": 1}
+
+        exception = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            [safe_dump(deployment_config), safe_dump({})]
+        )
+
+        self.assertEqual(
+            str(exception),
+            ("There was an error with the configuration supplied: "
+             "Application configuration has an error. Missing "
+             "'applications' key.")
+        )
 
     def test_invalid_deployment_yaml(self):
         """

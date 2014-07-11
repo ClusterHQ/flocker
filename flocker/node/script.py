@@ -73,9 +73,13 @@ class ChangeStateOptions(Options):
             self['deployment'] = model_from_configuration(
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
-        except ConfigurationError as e:
-            # TODO test this
-            raise UsageError(str(e))
+        # TODO does this TypeError have to be tested separately, checked for
+        # elsewhere? Empty string tests
+        except (ConfigurationError, TypeError) as e:
+            raise UsageError(
+                'There was an error with the configuration supplied: {error}'
+                .format(error=str(e))
+            )
 
 
 @implementer(ICommandLineScript)
