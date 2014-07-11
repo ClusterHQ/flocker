@@ -15,6 +15,7 @@ from zope.interface import implementer
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
+from ..node import ConfigurationError, model_from_configuration
 from ._deploy import Deployer
 
 __all__ = [
@@ -43,7 +44,7 @@ class ChangeStateOptions(Options):
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
 
-    def parseArgs(self, deployment_config, app_config):
+    def parseArgs(self, deployment_config, application_config):
         """
         Parse `deployment_config` and `app_config` strings as YAML and assign
         the resulting dictionaries to this `Options` dictionary.
@@ -54,18 +55,24 @@ class ChangeStateOptions(Options):
             application configuration.
         """
         try:
-            self['deployment_config'] = safe_load(deployment_config)
+            deployment_config = safe_load(deployment_config)
         except YAMLError as e:
             raise UsageError(
                 "Deployment config could not be parsed as YAML:\n\n" + str(e)
             )
         try:
-            self['app_config'] = safe_load(app_config)
+            application_config = safe_load(application_config)
         except YAMLError as e:
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
 
+        try:
+            self['deployment'] = model_from_configuration(
+                application_configuration=application_config,
+                deployment_configuration=deployment_config)
+        except ConfigurationError as e:
+            raise UsageError(str(e))
 
 @implementer(ICommandLineScript)
 class ChangeStateScript(object):

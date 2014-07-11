@@ -10,6 +10,7 @@ from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import ChangeStateOptions, ChangeStateScript
 from .._deploy import Deployer
+from .._model import Application, Deployment, DockerImage, Node
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -54,20 +55,32 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_custom_configs(self):
         """
-        The supplied configuration strings are saved as ``dict``\ s on the
-        options instance.
+        The supplied configuration strings are parsed as a :class:`Deployment`
+        on the options instance.
         """
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(
+                repository=u'hybridlogic/mysql5.9', tag=u'latest'),
+        )
+
+        node = Node(hostname='node1.example.com', applications=frozenset([application]))
         options = self.options()
-        expected_deployment = {"foo": "bar", "spam": "eggs", "anumber": 14}
-        expected_application = {"appfoo": "appbar",
-                                "appspam": "appeggs",
-                                "appnumber": 17}
+        deployment_config = {"nodes": {node.hostname: [application.name]},
+                             "version": 1}
+
+        application_config = dict(
+            version=1,
+            applications={
+                application.name: {'image': 'hybridlogic/mysql5.9:latest'}
+            }
+        )
+
         options.parseOptions(
-            [safe_dump(expected_deployment), safe_dump(expected_application)])
+            [safe_dump(deployment_config), safe_dump(application_config)])
 
         self.assertDictContainsSubset(
-            {'deployment_config': expected_deployment,
-             'app_config': expected_application},
+            {'deployment': Deployment(nodes=frozenset([node]))},
             options
         )
 
