@@ -140,8 +140,9 @@ class GearClientTests(TestCase):
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
 
-    def test_list_everything(self):
-        """``GearClient.list()`` includes stopped units.
+    def test_stopped_is_listed(self):
+        """
+        ``GearClient.list()`` includes stopped units.
 
         In certain old versions of geard the API was such that you had to
         explicitly request stopped units to be listed, so we want to make
