@@ -180,8 +180,8 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
     def test_no_applications(self):
         """
         ``Deployer.change_node_configuration`` returns a ``Deferred`` which
-        fires with a ``dict`` when there are no applications running or
-        desired.
+        fires with a ``dict`` indicating that no changes are necessary when
+        there are no applications running or desired.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
