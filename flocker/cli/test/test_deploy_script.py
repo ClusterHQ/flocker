@@ -192,7 +192,7 @@ class FlockerDeployMainTests(TestCase):
         :param list alternate_destinations: ``INode`` providers to connect
              to instead of the default SSH-based ``ProcessNode``.
 
-        :return: ``Deferred`` that fires with result of ``DeployScript.main()``.
+        :return: ``Deferred`` that fires with result of ``DeployScript.main``.
         """
         site = u"site-example.com"
         db = u"db-example.com"
@@ -255,7 +255,6 @@ class FlockerDeployMainTests(TestCase):
                 [expected, expected])
         running.addCallback(ran)
         return running
-
 
     def test_calls_changestate_in_thread_pool(self):
         """

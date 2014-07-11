@@ -49,10 +49,14 @@ class DeployOptions(Options):
 
         self["deployment_config"] = deployment_config.getContent()
         self["application_config"] = application_config.getContent()
+
+        app_config_obj = safe_load(self["application_config"])
+        deploy_config_obj = safe_load(self["deployment_config"])
+
         try:
             self['deployment'] = model_from_configuration(
-                application_configuration=safe_load(self["application_config"]),
-                deployment_configuration=safe_load(self["deployment_config"]))
+                application_configuration=app_config_obj,
+                deployment_configuration=deploy_config_obj)
         except ConfigurationError as e:
             raise UsageError(str(e))
 
@@ -92,6 +96,7 @@ class DeployScript(object):
         """
         deployment = options['deployment']
         configuring = self._configure_ssh(deployment)
+
         def configured(ignored):
             return self._changestate_on_nodes(
                 deployment,
@@ -124,7 +129,8 @@ class DeployScript(object):
         :param Deployment deployment: The requested already parsed
             configuration.
         :param bytes deployment_config: YAML-encoded deployment configuration.
-        :param bytes application_config: YAML-encoded application configuration.
+        :param bytes application_config: YAML-encoded application
+            configuration.
 
         :return: ``Deferred`` that fires when all remote calls are finished.
         """
