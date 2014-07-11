@@ -277,15 +277,6 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
         fake_gear = FakeGearClient(units=units)
         api = Deployer(gear_client=fake_gear)
-        applications = {
-            'mysql-hybridcluster': Application(
-                name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
-            )
-        }
 
         application = Application(
             name='mysql-hybridcluster',
