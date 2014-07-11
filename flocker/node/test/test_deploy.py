@@ -316,6 +316,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 containers_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
+
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
