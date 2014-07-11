@@ -40,14 +40,13 @@ class VolumeService(Service):
         volume manager. Only available once the service has started.
     """
 
-    def __init__(self, config_path, pool, reactor=None):
+    def __init__(self, config_path, pool, reactor):
         """
         :param FilePath config_path: Path to the volume manager config file.
         :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
             provider.
+        :param reactor: A ``twisted.internet.interface.IReactorTime`` provider.
         """
-        if reactor is None:
-            from twisted.internet import reactor
         self._config_path = config_path
         self._pool = pool
         self._reactor = reactor
