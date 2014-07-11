@@ -79,7 +79,8 @@ class _AcquireSubcommandOptions(Options):
         self["name"] = name.decode("ascii")
 
     def run(self, service):
-        """Run the action for this sub-command.
+        """
+        Run the action for this sub-command.
 
         :param VolumeService service: The volume manager service to utilize.
         """
