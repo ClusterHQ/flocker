@@ -26,7 +26,7 @@ from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
 
-WAIT_FOR_VOLUME_INTERVAL = 30
+WAIT_FOR_VOLUME_INTERVAL = 0.1
 
 
 class CreateConfigurationError(Exception):
@@ -86,7 +86,7 @@ class VolumeService(Service):
 
     def wait_for_volume(self, name):
         """
-        Wait for a volume to be handed off to us.
+        Wait for a volume by the given name, owned by thus service, to exist.
 
         Polls the storage pool for the specified volume to appear.
 

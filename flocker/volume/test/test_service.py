@@ -372,7 +372,7 @@ class WaitForVolumeTests(TestCase):
 
     def test_existing_volume(self):
         """
-        If the volume already exists, the deferred returned by
+        If the volume already exists, the ``Deferred`` returned by
         ``VolumeService.wait_for_volume`` has already fired with the
         corresponding ``Volume``.
         """
@@ -382,7 +382,7 @@ class WaitForVolumeTests(TestCase):
 
     def test_created_volume(self):
         """
-        The deferred returned by ``VolumeService.wait_for_volume`` fires
+        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires
         with the corresponding ``Volume`` after the volume has been created.
         """
         wait = self.service.wait_for_volume(u'volume')
@@ -392,9 +392,9 @@ class WaitForVolumeTests(TestCase):
 
     def test_late_created_volume(self):
         """
-        The deferred returned by ``VolumeService.wait_for_volume`` fires
+        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires
         with the corresponding ``Volume`` after the volume has been created,
-        even if the volume is available after the first iteration.
+        even if the volume is unavailable after the first iteration.
         """
         wait = self.service.wait_for_volume(u'volume')
         self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
@@ -404,15 +404,15 @@ class WaitForVolumeTests(TestCase):
 
     def test_no_volume(self):
         """
-        If the volume doesn't exist, the deferred returned by
+        If the volume doesn't exist, the ``Deferred`` returned by
         ``VolumeService.wait_for_volume`` has not fired.
         """
         self.assertNoResult(self.service.wait_for_volume(u'volume'))
 
     def test_remote_volume(self):
         """
-        If the volume doesn't exist, the deferred returned by
-        The deferred returned by ``VolumeService.wait_for_volume`` does not
+        If the volume doesn't exist, the ``Deferred`` returned by
+        The ``Deferred`` returned by ``VolumeService.wait_for_volume`` does not
         fire when a remote volume with the same name is received.
         """
         other_uuid = unicode(uuid4())
