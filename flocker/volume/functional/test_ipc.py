@@ -178,7 +178,7 @@ class MutatingProcessNode(ProcessNode):
 
     def _mutate(self, remote_command):
         """
-        Add the pool and mountpoint arguments, which are't necessary in real
+        Add the pool and mountpoint arguments, which aren't necessary in real
         code.
 
         :param remote_command: Original command arguments.
