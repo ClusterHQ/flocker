@@ -22,7 +22,7 @@ The second is the path to an application configuration file.
 
 The contents of these two configuration files determine what actions Flocker actually takes.
 The configuration files completely control this: there are no other command line arguments or options.
-See `configuration`_ for details about these two files.
+See :ref:`configuration` for details about these two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
 The containers you are managing do not need to be running on the same host as ``flocker-deploy`` is run.
