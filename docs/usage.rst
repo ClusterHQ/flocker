@@ -37,13 +37,13 @@ Setup
 Before ``flocker-deploy`` can do this it needs to be able to authenticate itself to these hosts.
 Flocker uses SSH to communicate with the hosts you specify in the deployment configuration file.
 It requires that you configure this in advance.
-The recommended configuration is to generate an SSH key (if you don't already have one):
+The recommended configuration is to `generate an SSH key`_ (if you don't already have one):
 
 .. code-block:: console
 
     $ ssh-keygen
 
-Then add it to your SSH key agent:
+Then add it to your `SSH key agent`_:
 
 .. code-block:: console
 
@@ -58,10 +58,14 @@ Finally add it to the ``authorized_keys`` file of each host you want to manage:
 
 This will allow ``flocker-deploy`` to connect to these hosts (as long as the key is still available in your key agent).
 
+If you have a different preferred SSH authentication configuration which allows non-interactive SSH authentication you may use this instead.
+
 Other Keys
 ----------
 
 ``flocker-deploy`` will generate an additional SSH key.
 This key is deployed to each host you manage with Flocker and and allows the hosts to authenticate to each other.
 
-_`installed that package`: link to our installation documentation
+_`installed that package`: TODO: link to our installation documentation
+_`generate an SSH key`: https://en.wikipedia.org/wiki/Ssh-keygen
+_`SSH key agent`: https://en.wikipedia.org/wiki/Ssh-agent
