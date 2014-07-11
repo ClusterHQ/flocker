@@ -152,17 +152,17 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
-                ports=frozenset([PortMap(internal_port=80, external_port=8080)]))
+                ports=frozenset([PortMap(internal_port=80,
+                                         external_port=8080)]))
         }
 
         self.assertEqual(expected_applications, applications)
 
-
     def test_ports_missing_internal(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``ConfigurationError`` if the application_configuration has a port entry
-        that is missing the internal port.
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that is missing the internal port.
         """
         config = dict(
             version=1,
@@ -183,8 +183,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_ports_missing_external(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``ConfigurationError`` if the application_configuration has a port entry
-        that is missing the internal port.
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that is missing the internal port.
         """
         config = dict(
             version=1,
@@ -205,14 +205,15 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_ports_extra_keys(self):
         """
         ``Configuration._applications_from_configuration`` raises a
-        ``ConfigurationError`` if the application_configuration has a port entry
-        that has extra keys.
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that has extra keys.
         """
         config = dict(
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                ports=[{'internal': 90, 'external': 40, 'foo': 5, 'bar': 'six'}],
+                ports=[{'internal': 90, 'external': 40,
+                        'foo': 5, 'bar': 'six'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -223,7 +224,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Invalid ports specification. Unrecognised keys: bar, foo.",
             exception.message
         )
-
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):

@@ -92,9 +92,10 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
-            applications[application_name] = Application(name=application_name,
-                                                         image=image,
-                                                         ports=frozenset(ports))
+            applications[application_name] = Application(
+                name=application_name,
+                image=image,
+                ports=frozenset(ports))
 
             if config:
                 raise ConfigurationError(
