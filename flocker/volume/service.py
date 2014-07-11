@@ -178,7 +178,7 @@ class VolumeService(Service):
             ``ValueError`` If the uuid of the volume matches our own.
         """
         if volume_uuid == self.uuid:
-            return fail(ValueError())
+            return fail(ValueError("Can't acquire already-owned volume"))
         volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
         return volume.change_owner(self.uuid)
 
