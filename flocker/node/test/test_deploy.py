@@ -198,15 +198,14 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         ``Deployer.change_node_configuration`` specifies that an application
         must be stopped when it is running but not desired.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        units = {unit1.name: unit1}
+        unit = Unit(name=u'site-example.com', activation_state=u'active')
 
-        fake_gear = FakeGearClient(units=units)
+        fake_gear = FakeGearClient(units={unit.name: unit})
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.change_node_configuration(desired_state=desired,
                                           hostname='node1.example.com')
-        to_stop = set([Application(name=unit1.name)])
+        to_stop = set([Application(name=unit.name)])
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
@@ -272,10 +271,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         application must be started or stopped if the desired configuration
         is the same as the current configuration.
         """
-        unit1 = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
-        units = {unit1.name: unit1}
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
-        fake_gear = FakeGearClient(units=units)
+        fake_gear = FakeGearClient(units={unit.name: unit})
         api = Deployer(gear_client=fake_gear)
 
         application = Application(
