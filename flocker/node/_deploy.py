@@ -84,6 +84,8 @@ class Deployer(object):
             if node.hostname == hostname:
                 desired_node_applications = node.applications
 
+        # XXX: This includes stopped units. See
+        # https://github.com/ClusterHQ/flocker/issues/208
         d = self.discover_node_configuration()
 
         def find_differences(current_node_applications):
