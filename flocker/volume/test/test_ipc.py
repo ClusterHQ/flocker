@@ -239,7 +239,7 @@ def make_iremote_volume_manager(fixture):
 
         def test_acquire_preserves_data(self):
             """
-            ``acquire()`` preserves the data from acquired volume in the
+            ``acquire()`` preserves the data from the acquired volume in the
             renamed volume.
             """
             service_pair = fixture(self)
