@@ -60,6 +60,9 @@ class Application(object):
     interrogate geard for the docker images associated with its containers. See
     https://github.com/ClusterHQ/flocker/issues/207
 
+    XXX: Only the name is compared in equality checks. See
+    https://github.com/ClusterHQ/flocker/issues/267
+
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
         ``u"pgsql-payroll"``.
