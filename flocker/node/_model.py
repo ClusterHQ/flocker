@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes
+from characteristic import attributes, with_cmp, with_repr, with_init
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -49,7 +49,9 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["name", "image", "ports"], defaults=dict(image=None, ports=None))
+@with_cmp(["name"])
+@with_repr(["name", "image", "ports"])
+@with_init(["name", "image", "ports"], defaults=dict(image=None, ports=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -57,6 +59,9 @@ class Application(object):
     XXX: The image and ports attributes defaults to `None` until we have a way
     to interrogate geard for the docker images associated with its containers.
     See https://github.com/ClusterHQ/flocker/issues/207
+
+    XXX: Only the name is compared in equality checks. See
+    https://github.com/ClusterHQ/flocker/issues/267
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
@@ -106,4 +111,15 @@ class PortMap(object):
 
     :ivar int internal_port: The port number exposed by the container.
     :ivar int external_port: The port number exposed by the host.
+    """
+
+
+@attributes(["containers_to_start", "containers_to_stop"])
+class StateChanges(object):
+    """
+    ``StateChanges`` describes changes necessary to make to the current
+    state. This might be because of user-specified configuration changes.
+
+    :ivar set containers_to_start: The containers which must be started.
+    :ivar set containers_to_stop: The containers which must be stopped.
     """

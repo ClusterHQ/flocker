@@ -58,7 +58,7 @@ class VolumeScriptMainTests(SynchronousTestCase):
         with code 1.
         """
         class RaisingService(object):
-            def __init__(self, config_path, pool):
+            def __init__(self, config_path, pool, reactor):
                 pass
 
             def startService(self):

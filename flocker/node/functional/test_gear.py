@@ -23,7 +23,7 @@ from ...testtools import (
     ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, GEAR_PORT
+from ..gear import GearClient, GearError, GEAR_PORT, Unit
 from .._model import PortMap
 
 
@@ -62,17 +62,27 @@ class GearClientTests(TestCase):
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None):
-        """Start a unit and wait until it's up and running.
+                        ports=None, links=None, expected_state=None):
+        """
+        Start a unit and wait until it reaches the `active` state or the
+        supplied `expected_state`.
 
         :param unicode unit_name: See ``IGearClient.add``.
         :param unicode image_name: See ``IGearClient.add``.
         :param list ports: See ``IGearClient.add``.
         :param list links: See ``IGearClient.add``.
+        :param Unit expected_state: A ``Unit`` representing target state at
+            which the newly started unit will be considered started. By default
+            this is a ``Unit`` with the supplied name and an `activation_state`
+            of `active` but this can be overridden in tests for units which are
+            expected to fail.
 
         :return: ``Deferred`` that fires with the ``GearClient`` when the unit
-            is running.
+            reaches the expected state.
         """
+        if expected_state is None:
+            expected_state = Unit(name=unit_name, activation_state=u"active",
+                                  sub_state=u"running")
         client = GearClient("127.0.0.1")
         d = client.add(
             unit_name=unit_name,
@@ -83,9 +93,7 @@ class GearClientTests(TestCase):
         self.addCleanup(client.remove, unit_name)
 
         def is_started(units):
-            return [unit for unit in units if
-                    (unit.name == unit_name and
-                     unit.activation_state == u"active")]
+            return expected_state in units
 
         def check_if_started():
             responded = client.list()
@@ -141,8 +149,9 @@ class GearClientTests(TestCase):
         d = client.remove(u"!!##!!")
         return self.assertFailure(d, GearError)
 
-    def test_list_everything(self):
-        """``GearClient.list()`` includes stopped units.
+    def test_stopped_is_listed(self):
+        """
+        ``GearClient.list()`` includes stopped units.
 
         In certain old versions of geard the API was such that you had to
         explicitly request stopped units to be listed, so we want to make
@@ -178,6 +187,24 @@ class GearClientTests(TestCase):
             return loop_until(check_if_stopped)
 
         d.addCallback(stopped)
+        return d
+
+    def test_dead_is_listed(self):
+        """
+        ``GearClient.list()`` includes dead units.
+
+        We use a `busybox` image here, because it will exit immediately and
+        reach an `inactive` substate of `dead`.
+
+        There are no assertions in this test, because it will fail with a
+        timeout if the unit with that expected state is never listed or if that
+        unit never reaches that state.
+        """
+        name = random_name()
+        expected_state = Unit(name=name, activation_state=u'inactive',
+                              sub_state=u'dead')
+        d = self.start_container(unit_name=name, image_name="busybox",
+                                 expected_state=expected_state)
         return d
 
     def request_until_response(self, port):

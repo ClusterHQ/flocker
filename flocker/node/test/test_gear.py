@@ -109,7 +109,8 @@ def make_igearclient_tests(fixture):
                 # XXX: GearClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                activating = Unit(name=name, activation_state=u"activating")
+                activating = Unit(name=name, activation_state=u"activating",
+                                  sub_state=u"start-pre")
                 active = Unit(name=name, activation_state=u"active")
                 self.assertTrue((activating in units) or
                                 (active in units),
@@ -123,7 +124,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
 
-            d = client.add(name, u"openshift/busybox-http-ap")
+            d = client.add(name, u"openshift/busybox-http-app")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.list())
 
@@ -244,9 +245,11 @@ class UnitTests(TestCase):
         ports and links.
         """
         self.assertEqual(
-            "<Unit(name=u'site-example.com', activation_state=u'active', "
+            "<Unit(name=u'site-example.com', "
+            "activation_state=u'active', sub_state=u'running', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
-            repr(Unit(name=u'site-example.com', activation_state=u'active',
+            repr(Unit(name=u'site-example.com',
+                      activation_state=u'active', sub_state=u'running',
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], links=[]))
         )
