@@ -74,7 +74,7 @@ class ChangeStateOptions(Options):
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
         # TODO does this TypeError have to be tested separately, checked for
-        # elsewhere? Empty string tests
+        # elsewhere? I think it happens when
         except (ConfigurationError, TypeError) as e:
             raise UsageError(
                 'There was an error with the configuration supplied: {error}'
@@ -95,13 +95,14 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
 
-        :param unicode hostname: #TODO THIS
+        :param unicode hostname: The hostname of the node that this is running
+            on.
+        # TODO are hostnames bytes or unicode (mixture around the code)
         """
-        # Take the deployment, use _deployer.calculate_necessary_state_changes
-        # with the deployment and given hostname
-
-        # In deployer make a change_as_necessary function which calls
+        # TODO In deployer make a change_as_necessary method which calls
         # calculate_necessary_state_changes and actually makes the changes
+        # Call it with _deployer.method(self.options['deployment'], hostname)
+        # where hostname is passed to here
 
         return succeed(None)
 
