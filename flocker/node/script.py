@@ -94,7 +94,15 @@ class ChangeStateScript(object):
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
+
+        :param unicode hostname: #TODO THIS
         """
+        # Take the deployment, use _deployer.calculate_necessary_state_changes
+        # with the deployment and given hostname
+
+        # In deployer make a change_as_necessary function which calls
+        # calculate_necessary_state_changes and actually makes the changes
+
         return succeed(None)
 
 
