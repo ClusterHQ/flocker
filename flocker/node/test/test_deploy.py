@@ -279,11 +279,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
 
         application = Application(
-            name='mysql-hybridcluster',
-            image=Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql',
-                                  tag='v1.0.0'))
+            name=b'site-example.com',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
         )
 
         nodes = frozenset([
