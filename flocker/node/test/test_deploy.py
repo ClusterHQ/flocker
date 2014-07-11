@@ -323,6 +323,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
 
     def test_containers_stopped(self):
+        """
+        Containers are stopped when desided. #TODO improve this
+        """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
         application = Application(
@@ -332,7 +335,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         )
         d = api.start_container(application)
         desired = Deployment(nodes=frozenset())
-        
+
         def started(ignored):
             d = api.change_node_state(desired_state=desired,
                                       hostname=b'node.example.com')

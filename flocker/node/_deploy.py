@@ -91,7 +91,7 @@ class Deployer(object):
         def find_differences(current_node_applications):
             current_state = set(current_node_applications)
             desired_state = set(desired_node_applications)
-            
+
             return StateChanges(
                 containers_to_start=desired_state.difference(current_state),
                 containers_to_stop=current_state.difference(desired_state)
