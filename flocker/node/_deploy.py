@@ -91,6 +91,7 @@ class Deployer(object):
         def find_differences(current_node_applications):
             current_state = set(current_node_applications)
             desired_state = set(desired_node_applications)
+            
             return StateChanges(
                 containers_to_start=desired_state.difference(current_state),
                 containers_to_stop=current_state.difference(desired_state)
@@ -112,6 +113,9 @@ class Deployer(object):
             hostname=hostname)
 
         def start_and_stop_containers(necessary_state_changes):
+            # TODO this currently doesnt work because StateChanges only
+            # has the name, not the images. You can't stop a container
+            # where the image is none
             for container in necessary_state_changes.containers_to_stop:
                 self.start_container(container)
 

@@ -323,13 +323,22 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
 
     def test_containers_stopped(self):
-        unit = Unit(name=u'site-example.com', activation_state=u'active')
-
-        fake_gear = FakeGearClient(units={unit.name: unit})
+        fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        d = api.start_container(application)
         desired = Deployment(nodes=frozenset())
-        d = api.change_node_state(desired_state=desired, hostname=b'node.example.com')
         
-        d.addCallback(lambda: discover_node_configuration())
+        def started(ignored):
+            d = api.change_node_state(desired_state=desired,
+                                      hostname=b'node.example.com')
+            d.addCallback(lambda: api.discover_node_configuration())
+            return d
+
+        d.addCallback(started)
 
         self.assertEqual([], self.successResultOf(d))
