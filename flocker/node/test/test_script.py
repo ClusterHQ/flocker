@@ -96,17 +96,39 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         ``UsageError`` is raised if a hostname is not supplied.
         """
-        self.fail()
+        options = self.options()
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [b'{}', b'{}'])
+
+        self.assertEqual(
+            "Wrong number of arguments.",
+            str(e)
+        )
 
     def test_hostname_key(self):
         """
         The supplied hostname is assigned to a `hostname` key.
         """
-        self.fail()
+        expected_hostname = u'foobar.example.com'
+        options = self.options()
+        options.parseOptions([b'{}', b'{}', expected_hostname.encode('ascii')])
+        self.assertEqual(
+            (expected_hostname, unicode),
+            (options['hostname'], type(options['hostname']))
+        )
 
     def test_nonascii_hostname(self):
         """
         A ``UsageError`` is raised if the supplied hostname is not ascii
         encoded.
         """
-        self.fail()
+        hostname = u'\xa3'.encode('utf8')
+        options = self.options()
+        e = self.assertRaises(
+            UsageError,
+            options.parseOptions, [b'{}', b'{}', hostname])
+
+        self.assertEqual(
+            "Non-ascii hostname: {hostname}".format(hostname=hostname),
+            str(e)
+        )

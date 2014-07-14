@@ -42,7 +42,7 @@ class ChangeStateOptions(Options):
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
 
-    def parseArgs(self, deployment_config, app_config):
+    def parseArgs(self, deployment_config, app_config, hostname):
         """
         Parse `deployment_config` and `app_config` strings as YAML and assign
         the resulting dictionaries to this `Options` dictionary.
@@ -51,6 +51,7 @@ class ChangeStateOptions(Options):
             deployment configuration.
         :param bytes app_config: The YAML string describing the desired
             application configuration.
+        :param bytes hostname: The ascii encoded hostname of this node.
         """
         try:
             self['deployment_config'] = safe_load(deployment_config)
@@ -64,6 +65,14 @@ class ChangeStateOptions(Options):
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
+        try:
+            self['hostname'] = hostname.decode('ascii')
+        except UnicodeDecodeError:
+            raise UsageError(
+                "Non-ascii hostname: {hostname}".format(hostname=hostname)
+            )
+
+
 
 
 @implementer(ICommandLineScript)
