@@ -41,7 +41,8 @@ class ChangeStateOptions(Options):
     * hostname: The hostname of this node.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
-                "<deployment_configuration <application_configuration> <hostname>")
+                "<deployment_configuration <application_configuration> "
+                "<hostname>")
 
     def parseArgs(self, deployment_config, app_config, hostname):
         """

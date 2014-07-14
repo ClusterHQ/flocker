@@ -95,7 +95,6 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             str(e).startswith('Application config could not be parsed as YAML')
         )
 
-
     def test_missing_hostname(self):
         """
         ``UsageError`` is raised if a hostname is not supplied.
