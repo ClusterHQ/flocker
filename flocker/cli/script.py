@@ -137,8 +137,8 @@ class DeployScript(object):
         private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
 
         for node in deployment.nodes:
-            yield ProcessNode.using_ssh(node.hostname, 22, b"root",
-                                        private_key)
+            yield node.hostname, ProcessNode.using_ssh(
+                node.hostname, 22, b"root", private_key)
 
     def _changestate_on_nodes(self, deployment, deployment_config,
                               application_config):
@@ -158,10 +158,11 @@ class DeployScript(object):
                    application_config]
 
         results = []
-        for destination in self._get_destinations(deployment):
+        for hostname, destination in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
             # threads we won't get the required parallelism...
-            results.append(deferToThread(destination.get_output, command))
+            results.append(
+                deferToThread(destination.get_output, command + [hostname]))
         return DeferredList(results)
 
 

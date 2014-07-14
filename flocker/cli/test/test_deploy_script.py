@@ -199,7 +199,7 @@ class FlockerDeployMainTests(TestCase):
     def test_get_destinations(self):
         """
         ``DeployScript._get_destinations`` uses the hostnames in the
-        deployment to create SSH ``INode`` destinations.
+        deployment to create SSH ``INode`` destinations
         """
         db = Application(
             name=u"db-example",
@@ -223,7 +223,10 @@ class FlockerDeployMainTests(TestCase):
                 hostname, 22, b"root", id_rsa_flocker)
 
         self.assertEqual(
-            {node(node1.hostname), node(node2.hostname)},
+            {
+                (node1.hostname, node(node1.hostname)),
+                (node2.hostname, node(node2.hostname))
+            },
             set(destinations))
 
     def run_script(self, alternate_destinations):
@@ -285,7 +288,10 @@ class FlockerDeployMainTests(TestCase):
         ``DeployScript.main`` calls ``flocker-changestate`` using the
         destinations from ``_get_destinations``.
         """
-        destinations = [FakeNode([b""]), FakeNode([b""])]
+        destinations = [
+            (b'node101.example.com', FakeNode([b""])),
+            (b'node102.example.com', FakeNode([b""])),
+        ]
         running = self.run_script(destinations)
 
         def ran(ignored):
@@ -298,7 +304,7 @@ class FlockerDeployMainTests(TestCase):
                 self.application_config, b"node102.example.com"]
 
             self.assertEqual(
-                list(node.remote_command for node in destinations),
+                list(node.remote_command for hostname, node in destinations),
                 [expected1, expected2])
         running.addCallback(ran)
         return running
@@ -310,12 +316,16 @@ class FlockerDeployMainTests(TestCase):
 
         (Proving actual parallelism is much more difficult...)
         """
-        destinations = [FakeNode([b""]), FakeNode([b""])]
+        destinations = [
+            (b'node101.example.com', FakeNode([b""])),
+            (b'node102.example.com', FakeNode([b""])),
+        ]
+
         running = self.run_script(destinations)
 
         def ran(ignored):
             self.assertNotEqual(
-                set(node.thread_id for node in destinations),
+                set(node.thread_id for hostname, node in destinations),
                 set([current_thread().ident]))
         running.addCallback(ran)
         return running
