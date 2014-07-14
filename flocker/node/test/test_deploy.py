@@ -333,7 +333,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
-                                      hostname=b'node.example.com')
+                                  hostname=b'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
         self.assertEqual([], self.successResultOf(d))
