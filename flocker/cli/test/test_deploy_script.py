@@ -198,8 +198,9 @@ class FlockerDeployMainTests(TestCase):
 
     def test_get_destinations(self):
         """
-        ``DeployScript._get_destinations`` uses the hostnames in the
-        deployment to create SSH ``INode`` destinations.
+        ``DeployScript._get_destinations`` uses the hostnames in the deployment
+        to create SSH ``INode`` destinations, returning them along with their
+        target hostnames.
         """
         db = Application(
             name=u"db-example",
