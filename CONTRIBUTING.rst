@@ -90,25 +90,6 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 .. _Sphinx: http://sphinx-doc.org/
 
 
-Steps to contribute code - external contributors
-================================================
-
-1. Open an issue if one does not already exist.
-
-2. If the problem is non-trivial discuss the issue and best solution with the core development team via the issue.
-
-3. Fork the repository on GitHub.
-   Add a note in the issue so people know you're working on it.
-
-4. Implement your change.
-   Tests are required to get your code merged, but you can prototype a change and submit for review if you want some feedback on your design.
-
-5. Do a pull request.
-   Make sure to indicate which issue this will fix.
-
-6. Address any points raised by the reviewer.
-
-
 Requirements for contributions
 ==============================
 
@@ -134,11 +115,8 @@ Requirements for contributions
 4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 
 
-Internal developers
-===================
-
 Project development process
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+===========================
 
 The core development team uses GitHub issues to track planned work.
 Issues are organized by release milestones, and then by subcategories:
@@ -198,6 +176,10 @@ When the branch is merged the corresponding pull requests and issues will be clo
 
 Steps to contribute code
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+Github collaborators can participate in the development workflow by changing the labels on an issue.
+Github lets non-collaborators create new issues and pull requests but it does not let them change labels.
+If you are not a collaborator you may seek out assistances from a collaborator to set issue labels to reflect the issue's stage.
 
 1. Pick the next issue in the *Ready* category.
    Drag it to the *In Progress* column in Waffle (or change the label from ``ready`` to ``in progress`` in GitHub).
