@@ -46,13 +46,17 @@ class ChangeStateOptions(Options):
 
     def parseArgs(self, deployment_config, application_config):
         """
-        Parse `deployment_config` and `application_config` strings as YAML and
-        assign the resulting dictionaries to this `Options` dictionary.
+        Parse `deployment_config` and `application_config` strings as YAML, and
+        into a :class:`Deployment` instance. Assign the resulting instance
+        to this `Options` dictionary.
 
         :param bytes deployment_config: The YAML string describing the desired
             deployment configuration.
         :param bytes application_config: The YAML string describing the desired
             application configuration.
+
+        :raises UsageError: If the configuration files cannot be parsed as YAML
+            and into a :class:`Deployment` instance.
         """
         try:
             deployment_config = safe_load(deployment_config)
