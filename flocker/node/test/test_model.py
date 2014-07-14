@@ -92,7 +92,8 @@ class ApplicationTests(SynchronousTestCase):
         application = Application(name=u'site-example.com', image=None,
                                   ports=None, links=None)
         self.assertEqual(
-            "<Application(name=u'site-example.com', image=None, ports=None, links=None)>",
+            "<Application(name=u'site-example.com', image=None, "
+            "ports=None, links=None)>",
             repr(application)
         )
 

@@ -177,12 +177,25 @@ class MutatingProcessNode(ProcessNode):
         self.to_service = to_service
         ProcessNode.__init__(self, initial_command_arguments=[])
 
-    def run(self, remote_command):
-        remote_command = remote_command[:1] + [
+    def _mutate(self, remote_command):
+        """
+        Add the pool and mountpoint arguments, which aren't necessary in real
+        code.
+
+        :param remote_command: Original command arguments.
+
+        :return: Modified command arguments.
+        """
+        return remote_command[:1] + [
             b"--pool", self.to_service._pool._name,
             b"--mountpoint", self.to_service._pool._mount_root.path
         ] + remote_command[1:]
-        return ProcessNode.run(self, remote_command)
+
+    def run(self, remote_command):
+        return ProcessNode.run(self, self._mutate(remote_command))
+
+    def get_output(self, remote_command):
+        return ProcessNode.get_output(self, self._mutate(remote_command))
 
 
 def create_realistic_servicepair(test):
@@ -208,9 +221,10 @@ def create_realistic_servicepair(test):
     to_service.startService()
     test.addCleanup(to_service.stopService)
 
+    remote = RemoteVolumeManager(MutatingProcessNode(to_service),
+                                 to_config)
     return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=RemoteVolumeManager(
-                           MutatingProcessNode(to_service)))
+                       remote=remote)
 
 
 class RemoteVolumeManagerInterfaceTests(

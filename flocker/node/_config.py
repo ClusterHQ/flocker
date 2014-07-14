@@ -7,7 +7,7 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment, PortMap, Link
+from ._model import Application, DockerImage, Node, Deployment, Port, Link
 
 
 class ConfigurationError(Exception):
@@ -84,8 +84,8 @@ class Configuration(object):
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
                                 keys=', '.join(port.keys())))
-                    ports.append(PortMap(internal_port=internal_port,
-                                         external_port=external_port))
+                    ports.append(Port(internal_port=internal_port,
+                                      external_port=external_port))
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
@@ -96,13 +96,13 @@ class Configuration(object):
             try:
                 for link in config.pop('links', []):
                     try:
-                        internal_port = link.pop('internal')
+                        local_port = link.pop('local_port')
                     except KeyError:
-                        raise ValueError("Missing internal port.")
+                        raise ValueError("Missing local port.")
                     try:
-                        external_port = link.pop('external')
+                        remote_port = link.pop('remote_port')
                     except KeyError:
-                        raise ValueError("Missing external port.")
+                        raise ValueError("Missing remote port.")
                     try:
                         application = link.pop('application')
                     except KeyError:
@@ -112,10 +112,9 @@ class Configuration(object):
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
                                 keys=', '.join(link.keys())))
-                    links.append(Link(
-                        ports=PortMap(internal_port=internal_port,
-                                      external_port=external_port),
-                        application=application))
+                    links.append(Link(local_port=local_port,
+                                      remote_port=remote_port,
+                                      application=application))
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "

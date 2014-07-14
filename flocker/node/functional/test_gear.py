@@ -23,8 +23,7 @@ from ...testtools import (
     ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, GEAR_PORT, Unit
-from .._model import PortMap
+from ..gear import GearClient, GearError, GEAR_PORT, PortMap, Unit
 
 
 def _gear_running():

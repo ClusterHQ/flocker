@@ -310,3 +310,14 @@ class FakeGearClient(object):
             incomplete_units.append(
                 Unit(name=unit.name, activation_state=unit.activation_state))
         return succeed(incomplete_units)
+
+
+@attributes(['internal_port', 'external_port'])
+class PortMap(object):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """

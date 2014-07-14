@@ -18,7 +18,7 @@ from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     INode, FakeNode, IRemoteVolumeManager, RemoteVolumeManager,
-    LocalVolumeManger,
+    LocalVolumeManager,
     )
 from ...testtools import assertNoFDsLeaked
 
@@ -201,12 +201,90 @@ def make_iremote_volume_manager(fixture):
 
             return created
 
+        def remotely_owned_volume(self, service_pair):
+            """
+            Create a volume ``u"myvolume"`` on the origin service and a copy
+            that is pushed to the destination service.
+
+            :param ServicePair service_pair: The service pair.
+
+            :return: The ``Volume`` instance on the origin service.
+            """
+            created = service_pair.from_service.create(u"myvolume")
+
+            def got_volume(volume):
+                service_pair.from_service.push(volume, service_pair.remote)
+                return volume
+            created.addCallback(got_volume)
+            return created
+
+        def test_acquire_changes_uuid(self):
+            """
+            ``acquire()`` changes the UUID of the given volume on the receiving
+            side to the volume manager's.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(pushed_volume):
+                service_pair.remote.acquire(pushed_volume)
+                d = to_service.enumerate()
+                d.addCallback(lambda results: self.assertEqual(
+                    list(results),
+                    [Volume(uuid=to_service.uuid, name=pushed_volume.name,
+                            _pool=to_service._pool)]))
+                return d
+            created.addCallback(got_volume)
+            return created
+
+        def test_acquire_preserves_data(self):
+            """
+            ``acquire()`` preserves the data from the acquired volume in the
+            renamed volume.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(pushed_volume):
+                root = pushed_volume.get_filesystem().get_path()
+                root.child(b"test").setContent(b"some data")
+                # Re-push with updated contents:
+                service_pair.from_service.push(pushed_volume,
+                                               service_pair.remote)
+
+                service_pair.remote.acquire(pushed_volume)
+
+                filesystem = Volume(uuid=to_service.uuid,
+                                    name=pushed_volume.name,
+                                    _pool=to_service._pool).get_filesystem()
+                new_root = filesystem.get_path()
+                self.assertEqual(new_root.child(b"test").getContent(),
+                                 b"some data")
+            created.addCallback(got_volume)
+            return created
+
+        def test_acquire_returns_uuid(self):
+            """
+            ``acquire()`` returns the UUID of the remote volume manager.
+            """
+            service_pair = fixture(self)
+            to_service = service_pair.to_service
+            created = self.remotely_owned_volume(service_pair)
+
+            def got_volume(pushed_volume):
+                result = service_pair.remote.acquire(pushed_volume)
+                self.assertEqual(result, to_service.uuid)
+            created.addCallback(got_volume)
+            return created
+
     return IRemoteVolumeManagerTests
 
 
 def create_local_servicepair(test):
     """
-    Create a ``ServicePair`` allowing testing of ``LocalVolumeManger``.
+    Create a ``ServicePair`` allowing testing of ``LocalVolumeManager``.
 
     :param TestCase test: A unit test.
 
@@ -222,13 +300,13 @@ def create_local_servicepair(test):
         return service
     to_service = create_service()
     return ServicePair(from_service=create_service(), to_service=to_service,
-                       remote=LocalVolumeManger(to_service))
+                       remote=LocalVolumeManager(to_service))
 
 
 class LocalVolumeManagerInterfaceTests(
         make_iremote_volume_manager(create_local_servicepair)):
     """
-    Tests for ``LocalVolumeManger`` as a ``IRemoteVolumeManager``.
+    Tests for ``LocalVolumeManager`` as a ``IRemoteVolumeManager``.
     """
 
 
@@ -238,7 +316,7 @@ class RemoteVolumeManagerTests(TestCase):
     """
     def test_receive_destination_run(self):
         """
-        Receiving calls ``flocker-volume`` remotely.
+        Receiving calls ``flocker-volume`` remotely with ``receive`` command.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -272,4 +350,23 @@ class RemoteVolumeManagerTests(TestCase):
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
                           b"receive", volume.uuid.encode("ascii"),
+                          b"myvolume"])
+
+    def test_acquire_destination_run(self):
+        """
+        ``RemoteVolumeManager.acquire()`` calls ``flocker-volume`` remotely
+        with ``acquire`` command.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        node = FakeNode([b"remoteuuid"])
+
+        remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
+        remote.acquire(volume)
+
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"acquire", volume.uuid.encode("ascii"),
                           b"myvolume"])

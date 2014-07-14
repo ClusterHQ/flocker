@@ -70,11 +70,12 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
-    :ivar frozenset ports: A ``frozenset`` of ``PortMap``pings that
-        should be exposed to the outside world.
+
+    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
+        to the outside world.
 
     :ivar frozenset links: A ``frozenset`` of ``Link``s that
-        should be created between containers.
+        should be created between applications.
     """
 
 
@@ -105,14 +106,14 @@ class Deployment(object):
     """
 
 
-@attributes(['internal_port', 'external_port'],)
-class PortMap(object):
+@attributes(['internal_port', 'external_port'])
+class Port(object):
     """
-    A record representing the mapping between a port exposed internally by a
-    docker container and the corresponding external port on the host.
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
 
-    :ivar int internal_port: The port number exposed by the container.
-    :ivar int external_port: The port number exposed by the host.
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
     """
 
 
@@ -127,12 +128,14 @@ class StateChanges(object):
     """
 
 
-@attributes(['ports', 'application'])
+@attributes(['local_port', 'remote_port', 'application'])
 class Link(object):
-     """
-     A record representing the mapping between a port exposed internally by a
-     docker container and the corresponding external port on the host.
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
 
-     :ivar PortMap ports: The ports to connect.
-     :ivar unicode application: The remote application to connect to.
-     """
+    :ivar int local_port: The ports to connect.
+    :ivar int remote_port:
+    :ivar unicode application: The remote application to connect to.
+    """

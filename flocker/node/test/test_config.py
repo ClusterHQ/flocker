@@ -8,7 +8,7 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
-from .._model import Application, DockerImage, Deployment, Node, PortMap, Link
+from .._model import Application, DockerImage, Deployment, Node, Port, Link
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -148,15 +148,17 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
-                links=frozenset([Link(ports=PortMap(internal_port=30, external_port=40),
+                links=frozenset([Link(local_port=30, remote_port=40,
                                       application='site-hybridcluster')]),
             ),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
-                ports=frozenset([PortMap(internal_port=80,
-                                         external_port=8080)]))
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]),
+                links=frozenset(),
+            ),
         }
 
         self.assertEqual(expected_applications, applications)
@@ -228,17 +230,18 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_links_missing_internal(self):
+    def test_links_missing_local_port(self):
         """
         ``Configuration._applications_from_configuration`` raises a
         ``ConfigurationError`` if the application_configuration has a link
-        entry that is missing the internal port.
+        entry that is missing the remote port.
         """
         config = dict(
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'external': 90, 'application': 'mysql-hybridcluster'}],
+                links=[{'remote_port': 90,
+                        'application': 'mysql-hybridcluster'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -246,21 +249,22 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid links specification. Missing internal port.",
+            "Invalid links specification. Missing local port.",
             exception.message
         )
 
-    def test_links_missing_external(self):
+    def test_links_missing_remote_port(self):
         """
         ``Configuration._applications_from_configuration`` raises a
         ``ConfigurationError`` if the application_configuration has a link
-        entry that is missing the internal port.
+        entry that is missing the local port.
         """
         config = dict(
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'internal': 90, 'application': 'mysql-hybridcluster'}],
+                links=[{'local_port': 90,
+                        'application': 'mysql-hybridcluster'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -268,7 +272,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid links specification. Missing external port.",
+            "Invalid links specification. Missing remote port.",
             exception.message
         )
 
@@ -282,7 +286,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'internal': 90, 'external': 100}],
+                links=[{'local_port': 90, 'remote_port': 100}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -304,8 +308,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'internal': 90, 'external': 40, 'application':'otherapp',
-                        'foo': 5, 'bar': 'six'}],
+                links=[{'remote_port': 90, 'local_port': 40,
+                        'application': 'otherapp', 'foo': 5, 'bar': 'six'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -316,7 +320,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Invalid links specification. Unrecognised keys: bar, foo.",
             exception.message
         )
-
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):

@@ -5,7 +5,7 @@
 Deploy applications on nodes.
 """
 
-from .gear import GearClient
+from .gear import GearClient, PortMap
 from ._model import Application, StateChanges
 
 
@@ -31,15 +31,22 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
+        if application.ports is not None:
+            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
+                                              external_port=p.external_port),
+                            application.ports)
+        else:
+            port_maps = []
         if application.links is not None:
-            gear_links = map(lambda link: link.ports,
+            gear_links = map(lambda l: PortMap(internal_port=l.local_port,
+                                               external_port=l.remote_port),
                              application.links)
         else:
             gear_links = None
         return self._gear_client.add(application.name,
                                      application.image.full_name,
-                                     ports=application.ports,
-                                     links=gear_links
+                                     ports=port_maps,
+                                     links=gear_links,
                                      )
 
     def stop_container(self, application):

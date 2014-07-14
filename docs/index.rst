@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    flocker-intro/index
+   usage
    configuration
    volume/index
    routing/index
