@@ -93,6 +93,9 @@ class ChangeStateScript(object):
     A command to get a node into a desired state by pushing volumes, starting
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
+
+    :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
+        state of the current node.
     """
     _deployer = Deployer()
 
