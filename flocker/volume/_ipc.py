@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from io import BytesIO
 from threading import current_thread
 
-from zope.interface import Interface, implementer, Attribute
+from zope.interface import Interface, implementer
 
 from characteristic import with_cmp, with_repr
 
@@ -25,9 +25,6 @@ class INode(Interface):
     """
     A remote node with which this node can communicate.
     """
-
-    hostname = Attribute(
-        'The hostname of the node on which to run remote procedures.')
 
     def run(remote_command):
         """Context manager that runs a remote command and return its stdin.
