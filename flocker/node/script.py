@@ -43,7 +43,7 @@ class ChangeStateOptions(Options):
         applications from deployment_configuration should be running.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
-                "<deployment_configuration <application_configuration> "
+                "<deployment configuration> <application configuration> "
                 "<hostname>")
 
     def parseArgs(self, deployment_config, app_config, hostname):
