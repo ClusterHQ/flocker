@@ -8,7 +8,7 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
-from .._model import Application, DockerImage, Deployment, Node, PortMap
+from .._model import Application, DockerImage, Deployment, Node, Port
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -152,8 +152,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
-                ports=frozenset([PortMap(internal_port=80,
-                                         external_port=8080)]))
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]))
         }
 
         self.assertEqual(expected_applications, applications)

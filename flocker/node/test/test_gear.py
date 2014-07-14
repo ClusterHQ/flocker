@@ -7,8 +7,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import IGearClient, FakeGearClient, AlreadyExists, Unit
-from .. import PortMap
+from ..gear import IGearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 
 
 def make_igearclient_tests(fixture):

@@ -7,9 +7,8 @@ Tests for ``flocker.node._deploy``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges)
-from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit
-from .._model import PortMap
+                StateChanges, Port)
+from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -49,7 +48,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
-        ports = frozenset([PortMap(internal_port=80, external_port=80)])
+        ports = frozenset([Port(internal_port=80, external_port=8080)])
         application = Application(
             name=b'site-example.com',
             image=docker_image,
@@ -58,8 +57,9 @@ class DeployerStartContainerTests(SynchronousTestCase):
         start_result = api.start_container(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
+        port_maps = [PortMap(internal_port=80, external_port=8080)]
         self.assertEqual(
-            (None, True, docker_image.full_name, ports),
+            (None, True, docker_image.full_name, port_maps),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
              fake_gear._units[application.name].container_image,

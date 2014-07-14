@@ -70,8 +70,8 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    :ivar frozenset ports: A ``frozenset`` of ``PortMap``pings that
-        should be exposed to the outside world.
+    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
+        to the outside world.
     """
 
 
@@ -103,13 +103,13 @@ class Deployment(object):
 
 
 @attributes(['internal_port', 'external_port'])
-class PortMap(object):
+class Port(object):
     """
-    A record representing the mapping between a port exposed internally by a
-    docker container and the corresponding external port on the host.
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
 
-    :ivar int internal_port: The port number exposed by the container.
-    :ivar int external_port: The port number exposed by the host.
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
     """
 
 

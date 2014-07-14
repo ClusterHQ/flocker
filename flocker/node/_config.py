@@ -7,7 +7,7 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment, PortMap
+from ._model import Application, DockerImage, Node, Deployment, Port
 
 
 class ConfigurationError(Exception):
@@ -84,7 +84,7 @@ class Configuration(object):
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
                                 keys=', '.join(port.keys())))
-                    ports.append(PortMap(internal_port=internal_port,
+                    ports.append(Port(internal_port=internal_port,
                                          external_port=external_port))
             except ValueError as e:
                 raise ConfigurationError(
