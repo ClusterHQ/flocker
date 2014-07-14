@@ -60,8 +60,8 @@ class GearClientTests(TestCase):
         pass
 
     def start_application(self, unit_name,
-                        image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_state=None):
+                          image_name=u"openshift/busybox-http-app",
+                          ports=None, links=None, expected_state=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -203,7 +203,7 @@ class GearClientTests(TestCase):
         expected_state = Unit(name=name, activation_state=u'inactive',
                               sub_state=u'dead')
         d = self.start_application(unit_name=name, image_name="busybox",
-                                 expected_state=expected_state)
+                                   expected_state=expected_state)
         return d
 
     def request_until_response(self, port):
