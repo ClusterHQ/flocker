@@ -61,7 +61,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
-        gear_links = [PortMap(interal_port=90, external_port=9090)]
+        gear_links = [PortMap(internal_port=90, external_port=9090)]
         self.assertEqual(
             (None, True, docker_image.full_name, port_maps, gear_links),
             (self.successResultOf(start_result),
