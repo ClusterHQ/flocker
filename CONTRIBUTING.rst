@@ -143,10 +143,25 @@ Project development process
 The core development team uses GitHub issues to track planned work.
 Issues are organized by release milestones, and then by subcategories:
 
+Backlog
+    Issues we don't expect to do in the release.
+    These issues don't have any particular category label.
+    All issues start in the backlog when they are filed.
+    The requirements for an issue must be completely specified before it can move out of the backlog.
+
+Design
+    Issues that we expect to work on soon.
+    This is indicated by a ``design`` label.
+    A general plan for accomplishing the requirements must be specified on the issue before it can move to the *Ready* state.
+    The issue is assigned to the developer working on the plan.
+    When there is a proposed plan the ``review`` label is added to the issue (so that it has both ``design`` and ``review``).
+
 Ready
     Issues that are ready to be worked on.
     This is indicated by a ``ready`` label.
-    When someone starts work on an issue it is moved to the *In Progress* category.
+    Issues can only be *Ready* after they have been in *Design* so they include an implementation plan.
+    When someone starts work on an issue it is moved to the *In Progress* category
+    (the ``ready`` keyword is removed and the ``in progress`` label is added).
 
 In Progress
     Such issues are assigned to the developer who is currently working on them.
@@ -155,9 +170,11 @@ In Progress
     The pull request is added to the *Review* category.
 
 Ready for Review
-    A pull request that is ready to be reviewed.
+    An issue or pull request that includes work that is ready to be reviewed.
     This is indicated by a ``review`` label.
-    A reviewer can move it to the *In Progress* category or the *Approved* category.
+    Issues can either be in design review (``design`` and ``review``) or final review (just ``review``).
+    A reviewer can move a design review issue to *Ready* (to indicate the design is acceptable) or back to *Design* (to indicate it needs more work).
+    A reviewer can move a final review issue to *Approved* (to indicate the work is acceptable) or back to *In Progress* (to indicate more work is needed).
 
 Passed Review
     A pull request that has some minor problems that need addressing, and can be merged once those are dealt with and all tests pass.
@@ -170,9 +187,6 @@ Blocked
     Issues that can't be worked on because they are waiting on some other work to be completed.
     This is indicated by a ``blocked`` label.
 
-Backlog
-    Issues we don't expect to do in the release.
-    These issues don't have any particular category label.
 
 
 You can see the current status of all issues and pull requests by visiting https://waffle.io/clusterhq/flocker.
