@@ -364,3 +364,30 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         d.addCallback(lambda _: api.discover_node_configuration())
 
         self.assertEqual([application], self.successResultOf(d))
+
+    def test_one_action_fails(self):
+        unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(gear_client=fake_gear)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        from twisted.internet.defer import fail
+        self.patch(api, 'stop_application',
+                   lambda application: fail(Exception()))
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=u'node.example.com')
+        d.addCallback(lambda _: api.discover_node_configuration())
+
+        self.assertEqual([Application(name=unit.name), application], self.successResultOf(d))
