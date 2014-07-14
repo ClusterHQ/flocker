@@ -71,7 +71,7 @@ class Application(object):
         containerized application.
 
     :ivar frozenset ports: A ``frozenset`` of ``PortMap``pings that
-        should be xposed to the outside world.
+        should be exposed to the outside world.
     """
 
 
@@ -102,7 +102,7 @@ class Deployment(object):
     """
 
 
-@attributes(['internal_port', 'external_port'],)
+@attributes(['internal_port', 'external_port'])
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a

@@ -8,7 +8,7 @@ from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
 from ..gear import IGearClient, FakeGearClient, AlreadyExists, Unit
-from .._model import PortMap
+from .. import PortMap
 
 
 def make_igearclient_tests(fixture):
