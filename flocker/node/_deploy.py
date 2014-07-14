@@ -11,7 +11,7 @@ from ._model import Application, StateChanges
 
 class Deployer(object):
     """
-    Start and stop containers.
+    Start and stop applications.
     """
     def __init__(self, gear_client=None):
         """
@@ -22,7 +22,7 @@ class Deployer(object):
             gear_client = GearClient(hostname=u'127.0.0.1')
         self._gear_client = gear_client
 
-    def start_container(self, application):
+    def start_application(self, application):
         """
         Launch the supplied application as a `gear` unit.
 
@@ -34,7 +34,7 @@ class Deployer(object):
         return self._gear_client.add(application.name,
                                      application.image.full_name)
 
-    def stop_container(self, application):
+    def stop_application(self, application):
         """
         Stop and disable the application.
 
@@ -76,7 +76,7 @@ class Deployer(object):
             on.
 
         :return: A ``Deferred`` which fires with a ``StateChanges`` instance
-            specifying which containers must be started and which must be
+            specifying which applications must be started and which must be
             stopped.
         """
         desired_node_applications = []
@@ -93,8 +93,8 @@ class Deployer(object):
             desired_state = set(desired_node_applications)
 
             return StateChanges(
-                containers_to_start=desired_state.difference(current_state),
-                containers_to_stop=current_state.difference(desired_state)
+                applications_to_start=desired_state.difference(current_state),
+                applications_to_stop=current_state.difference(desired_state)
             )
         d.addCallback(find_differences)
         return d
@@ -112,12 +112,12 @@ class Deployer(object):
             desired_state=desired_state,
             hostname=hostname)
 
-        def start_and_stop_containers(necessary_state_changes):
-            for container in necessary_state_changes.containers_to_stop:
-                self.stop_container(container)
+        def start_and_stop_applications(necessary_state_changes):
+            for application in necessary_state_changes.applications_to_stop:
+                self.stop_application(application)
 
-            for container in necessary_state_changes.containers_to_start:
-                self.start_container(container)
+            for application in necessary_state_changes.applications_to_start:
+                self.start_application(application)
 
-        d.addCallback(start_and_stop_containers)
+        d.addCallback(start_and_stop_applications)
         return d

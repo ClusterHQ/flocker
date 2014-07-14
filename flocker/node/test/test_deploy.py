@@ -35,14 +35,15 @@ class DeployerAttributesTests(SynchronousTestCase):
         )
 
 
-class DeployerStartContainerTests(SynchronousTestCase):
+class DeployerStartApplicationTests(SynchronousTestCase):
     """
-    Tests for `Deployer.start_container`.
+    Tests for `Deployer.start_application`.
     """
     def test_start(self):
         """
-        `Deployer.start_container` accepts an application object and returns
-        a deferred which fires when the `gear` unit has been added and started.
+        `Deployer.start_application` accepts an application object and returns
+        a `Deferred` which fires when the `gear` unit has been added and
+        started.
         """
         fake_gear = FakeGearClient()
         api = Deployer(gear_client=fake_gear)
@@ -52,7 +53,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
             name=b'site-example.com',
             image=docker_image
         )
-        start_result = api.start_container(application=application)
+        start_result = api.start_application(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -64,7 +65,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployer.start_container`` returns a deferred which errbacks with
+        ``Deployer.start_application`` returns a `Deferred` which errbacks with
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
@@ -75,21 +76,21 @@ class DeployerStartContainerTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        result1 = api.start_container(application=application)
+        result1 = api.start_application(application=application)
         self.successResultOf(result1)
 
-        result2 = api.start_container(application=application)
+        result2 = api.start_application(application=application)
         self.failureResultOf(result2, AlreadyExists)
 
 
-class DeployerStopContainerTests(SynchronousTestCase):
+class DeployerStopApplicationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.stop_container``.
+    Tests for ``Deployer.stop_application``.
     """
     def test_stop(self):
         """
-        ``Deployer.stop_container`` accepts an application object and returns
-        a deferred which fires when the `gear` unit has been removed.
+        ``Deployer.stop_application`` accepts an application object and returns
+        a `Deferred` which fires when the `gear` unit has been removed.
         """
         fake_gear = FakeGearClient()
         api = Deployer(gear_client=fake_gear)
@@ -99,9 +100,9 @@ class DeployerStopContainerTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        api.start_container(application=application)
+        api.start_application(application=application)
         existed = fake_gear.exists(application.name)
-        stop_result = api.stop_container(application=application)
+        stop_result = api.stop_application(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -113,7 +114,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
 
     def test_does_not_exist(self):
         """
-        ``Deployer.stop_container`` does not errback if the application does
+        ``Deployer.stop_application`` does not errback if the application does
         not exist.
         """
         api = Deployer(gear_client=FakeGearClient())
@@ -122,7 +123,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
-        result = api.stop_container(application=application)
+        result = api.stop_application(application=application)
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
@@ -190,8 +191,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
@@ -207,8 +208,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=to_stop)
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
@@ -235,8 +236,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(containers_to_start=set([application]),
-                                containers_to_stop=set())
+        expected = StateChanges(applications_to_start=set([application]),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -263,8 +264,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_no_change_needed(self):
@@ -294,8 +295,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_node_not_described(self):
@@ -312,8 +313,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=to_stop)
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
 
@@ -322,9 +323,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     Tests for ``Deployer.change_node_state``.
     """
 
-    def test_containers_stopped(self):
+    def test_applications_stopped(self):
         """
-        Existing containers which are not in the desired configuration are
+        Existing applications which are not in the desired configuration are
         stopped.
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
@@ -338,9 +339,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         self.assertEqual([], self.successResultOf(d))
 
-    def test_containers_started(self):
+    def test_applications_started(self):
         """
-        Containers which are in the desired configuration are started.
+        Applications which are in the desired configuration are started.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
