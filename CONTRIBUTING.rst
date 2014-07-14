@@ -114,7 +114,7 @@ Requirements for contributions
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
-  Use the coverage.py tool with the `--branch` option to generate line and branch coverage reports.
+  Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
   This report can tell you if you missed anything.
   It does not necessarily catch everything though.
   Treat it as a helper but not the definitive indicator of success.
