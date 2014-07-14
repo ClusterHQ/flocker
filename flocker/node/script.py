@@ -97,14 +97,7 @@ class ChangeStateScript(object):
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
-
-        :param unicode hostname: The hostname of the node that this is running
-            on.
         """
-        # TODO call
-        # _deployer.change_node_state(self.options['deployment'], hostname)
-        # where hostname is passed to here
-
         return succeed(None)
 
 
