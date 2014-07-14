@@ -115,13 +115,13 @@ class Deployer(object):
             hostname=hostname)
 
         def start_and_stop_applications(necessary_state_changes):
-            dl = []
+            results = []
             for application in necessary_state_changes.applications_to_stop:
-                dl.append(self.stop_application(application))
+                results.append(self.stop_application(application))
 
             for application in necessary_state_changes.applications_to_start:
-                dl.append(self.start_application(application))
-            return DeferredList(dl)
+                results.append(self.start_application(application))
+            return DeferredList(results)
 
         d.addCallback(start_and_stop_applications)
         return d
