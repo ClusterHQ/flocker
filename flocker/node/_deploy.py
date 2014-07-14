@@ -117,10 +117,10 @@ class Deployer(object):
             # has the name, not the images. You can't stop a container
             # where the image is none
             for container in necessary_state_changes.containers_to_stop:
-                self.start_container(container)
+                self.stop_container(container)
 
             for container in necessary_state_changes.containers_to_start:
-                self.stop_container(container)
+                self.start_container(container)
 
         d.addCallback(start_and_stop_containers)
         return d

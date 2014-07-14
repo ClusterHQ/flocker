@@ -324,7 +324,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
     def test_containers_stopped(self):
         """
-        Containers are stopped when desided. #TODO improve this
+        Containers are stopped when desired. #TODO improve this
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
@@ -339,9 +339,12 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         def started(ignored):
             d = api.change_node_state(desired_state=desired,
                                       hostname=b'node.example.com')
-            d.addCallback(lambda: api.discover_node_configuration())
+            d.addCallback(lambda _: api.discover_node_configuration())
             return d
 
         d.addCallback(started)
 
         self.assertEqual([], self.successResultOf(d))
+
+# TODO:
+# test containers are started when desired
