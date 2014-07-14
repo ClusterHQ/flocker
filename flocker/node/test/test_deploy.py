@@ -68,7 +68,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
              self.successResultOf(exists_result),
              fake_gear._units[application.name].container_image,
              fake_gear._units[application.name].ports,
-             frozenset(fake_gear._units[application.name].links))
+             fake_gear._units[application.name].links)
         )
 
     def test_already_exists(self):
