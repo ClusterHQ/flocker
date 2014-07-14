@@ -49,9 +49,21 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
+@attributes(["mountpoint"])
+class AttachedVolume(object):
+    """
+    A volume attached to an application to be deployed.
+
+    :ivar FilePath mountpoint: The path within the container where this
+        volume should be mounted, or ``None`` if unknown
+        (see https://github.com/ClusterHQ/flocker/issues/289).
+    """
+
+
 @with_cmp(["name"])
-@with_repr(["name", "image"])
-@with_init(["name", "image"], defaults=dict(image=None))
+@with_repr(["name", "image", "volume"])
+@with_init(["name", "image", "volume"], defaults=dict(image=None,
+                                                      volume=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -69,6 +81,9 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
+
+    :ivar volume: ``None`` if there is no volume, otherwise a
+        ``AttachedVolume`` instance.
     """
 
 

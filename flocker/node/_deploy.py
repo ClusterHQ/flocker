@@ -13,14 +13,16 @@ class Deployer(object):
     """
     Start and stop containers.
     """
-    def __init__(self, gear_client=None):
+    def __init__(self, gear_client=None, volume_service):
         """
         :param IGearClient gear_client: The gear client API to use in
             deployment operations. Default ``GearClient``.
+        :param VolumeService volume_service: The volume manager for this node.
         """
         if gear_client is None:
             gear_client = GearClient(hostname=b'127.0.0.1')
         self._gear_client = gear_client
+        self._volume_service = VolumeService()
 
     def start_container(self, application):
         """
@@ -55,13 +57,29 @@ class Deployer(object):
         d = self._gear_client.list()
 
         def applications_from_units(units):
-            applications = []
-            for unit in units:
-                # XXX: This currently only populates the Application name. The
-                # container_image will be available on the Unit when
-                # https://github.com/ClusterHQ/flocker/issues/207 is resolved.
-                applications.append(Application(name=unit.name))
-            return applications
+            volumes = self._volume_service.enumerate()
+            volumes.addCallback(lambda volumes: set([
+                volume.name for volume in volumes
+                if volume.uuid == self._volume_service.uuid]))
+
+            def got_volumes(available_volumes):
+                applications = []
+                for unit in units:
+                    # XXX: The container_image will be available on the
+                    # Unit when
+                    # https://github.com/ClusterHQ/flocker/issues/207 is
+                    # resolved.
+                    if unit.name in available_volumes:
+                        # XXX Mountpoint is not available, see
+                        # https://github.com/ClusterHQ/flocker/issues/289
+                        volume = AttachedVolume(mountpoint=None)
+                    else:
+                        volume = None
+                    applications.append(Application(name=unit.name,
+                                                    volume=volume))
+                return applications
+            volumes.addCallback(got_volumes)
+            return volumes
         d.addCallback(applications_from_units)
         return d
 
