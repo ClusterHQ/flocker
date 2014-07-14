@@ -61,14 +61,12 @@ class ChangeStateOptions(Options):
         try:
             deployment_config = safe_load(deployment_config)
         except YAMLError as e:
-            # TODO test not just the 'starts with
             raise UsageError(
                 "Deployment config could not be parsed as YAML:\n\n" + str(e)
             )
         try:
             application_config = safe_load(application_config)
         except YAMLError as e:
-            # TODO test not just the 'starts with
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
