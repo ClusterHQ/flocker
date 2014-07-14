@@ -73,7 +73,7 @@ class ChangeStateOptions(Options):
             self['hostname'] = hostname.decode('ascii')
         except UnicodeDecodeError:
             raise UsageError(
-                "Non-ascii hostname: {hostname}".format(hostname=hostname)
+                "Non-ASCII hostname: {hostname}".format(hostname=hostname)
             )
 
 

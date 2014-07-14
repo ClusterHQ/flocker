@@ -109,7 +109,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_nonascii_hostname(self):
         """
-        A ``UsageError`` is raised if the supplied hostname is not ascii
+        A ``UsageError`` is raised if the supplied hostname is not ASCII
         encoded.
         """
         hostname = u'\xa3'.encode('utf8')
@@ -119,6 +119,6 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             options.parseOptions, [b'{}', b'{}', hostname])
 
         self.assertEqual(
-            "Non-ascii hostname: {hostname}".format(hostname=hostname),
+            "Non-ASCII hostname: {hostname}".format(hostname=hostname),
             str(e)
         )
