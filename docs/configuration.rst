@@ -41,6 +41,18 @@ The parameters required to define an application are:
        - "internal": 80
          "external": 8080
 
+  - ``links``
+
+    This is an optional list of links to make to other containers.
+    Connection to the local port in the application are forwarded to the remote port of the other application.
+
+    .. code-block:: yaml
+
+       "links":
+       - "local_port": 80
+         "remote_port": 8080
+         "application": "other-app"
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml
