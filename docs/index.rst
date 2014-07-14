@@ -18,6 +18,7 @@ Contents:
    routing/index
    roadmap/index
    infrastructure/index
+   release-process
    contributing
    authors
 
