@@ -113,9 +113,6 @@ class Deployer(object):
             hostname=hostname)
 
         def start_and_stop_containers(necessary_state_changes):
-            # TODO this currently doesnt work because StateChanges only
-            # has the name, not the images. You can't stop a container
-            # where the image is none
             for container in necessary_state_changes.containers_to_stop:
                 self.stop_container(container)
 
