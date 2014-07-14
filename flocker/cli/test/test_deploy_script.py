@@ -287,26 +287,27 @@ class FlockerDeployMainTests(TestCase):
     def test_calls_changestate(self):
         """
         ``DeployScript.main`` calls ``flocker-changestate`` using the
-        destinations from ``_get_destinations``.
+        destinations and hostnames from ``_get_destinations``.
         """
+        expected_hostname1 = b'node101.example.com'
+        expected_hostname2 = b'node102.example.com'
+
         destinations = [
-            (b'node101.example.com', FakeNode([b""])),
-            (b'node102.example.com', FakeNode([b""])),
+            (expected_hostname1, FakeNode([b""])),
+            (expected_hostname2, FakeNode([b""])),
         ]
         running = self.run_script(destinations)
 
         def ran(ignored):
-            expected1 = [
+            expected_common = [
                 b"flocker-changestate", self.deployment_config,
-                self.application_config, b"node101.example.com"]
-
-            expected2 = [
-                b"flocker-changestate", self.deployment_config,
-                self.application_config, b"node102.example.com"]
+                self.application_config]
 
             self.assertEqual(
                 list(node.remote_command for hostname, node in destinations),
-                [expected1, expected2])
+                [expected_common + [expected_hostname1],
+                 expected_common + [expected_hostname2]]
+            )
         running.addCallback(ran)
         return running
 
