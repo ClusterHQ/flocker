@@ -8,6 +8,8 @@ Deploy applications on nodes.
 from .gear import GearClient
 from ._model import Application, StateChanges
 
+from twisted.internet.defer import DeferredList
+
 
 class Deployer(object):
     """
@@ -113,11 +115,13 @@ class Deployer(object):
             hostname=hostname)
 
         def start_and_stop_applications(necessary_state_changes):
+            dl = []
             for application in necessary_state_changes.applications_to_stop:
-                self.stop_application(application)
+                dl.append(self.stop_application(application))
 
             for application in necessary_state_changes.applications_to_start:
-                self.start_application(application)
+                dl.append(self.start_application(application))
+            return DeferredList(dl)
 
         d.addCallback(start_and_stop_applications)
         return d
