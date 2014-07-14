@@ -33,14 +33,15 @@ class ChangeStateOptions(Options):
     flocker-changestate is called by flocker-deploy to set the configuration of
     a node.
 
-        DEPLOYMENT_CONFIGURATION: The YAML string describing the desired
-            deployment configuration.
+    * deployment_configuration: The YAML string describing the desired
+        deployment configuration.
 
-        APPLICATION_CONFIGURATION: The YAML string describing the desired
-            application configuration.
+    * application_configuration: The YAML string describing the desired
+        application configuration.
+    * hostname: The hostname of this node.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
+                "<deployment_configuration <application_configuration> <hostname>")
 
     def parseArgs(self, deployment_config, app_config, hostname):
         """
@@ -71,8 +72,6 @@ class ChangeStateOptions(Options):
             raise UsageError(
                 "Non-ascii hostname: {hostname}".format(hostname=hostname)
             )
-
-
 
 
 @implementer(ICommandLineScript)
