@@ -5,7 +5,8 @@ Local node manager for Flocker.
 """
 
 from ._config import ConfigurationError, model_from_configuration
-from ._model import Application, Deployment, DockerImage, Node, StateChanges, Port
+from ._model import (
+    Application, Deployment, DockerImage, Node, StateChanges, Port)
 from ._deploy import Deployer
 
 __all__ = [

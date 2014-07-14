@@ -85,7 +85,7 @@ class Configuration(object):
                             "Unrecognised keys: {keys}.".format(
                                 keys=', '.join(port.keys())))
                     ports.append(Port(internal_port=internal_port,
-                                         external_port=external_port))
+                                      external_port=external_port))
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "

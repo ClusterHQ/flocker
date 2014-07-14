@@ -32,8 +32,8 @@ class Deployer(object):
            has started.
         """
         if application.ports is not None:
-            port_maps = map(lambda port: PortMap(internal_port=port.internal_port,
-                                                 external_port=port.external_port),
+            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
+                                              external_port=p.external_port),
                             application.ports)
         else:
             port_maps = []
