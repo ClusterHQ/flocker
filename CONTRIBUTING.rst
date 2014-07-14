@@ -190,13 +190,13 @@ If you are not a collaborator you may seek out assistances from a collaborator t
 
 4. Submit the issue/branch for review.
    Create a pull request on GitHub for the branch.
+   The pull request should include a ``Fixes #123`` line referring to the issue that it resolves (to automatically close the issue when the branch is merged).
    Make sure Buildbot indicates all tests pass.
 
 5. Address any points raised by the reviewer.
    If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub`` (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
-   When the pull request is merged its commit message should include a ``Fixes #123`` line referring to the relevant issue that it is resolved and the issue will be automatically closed and move into the *Done* category.
 
 
 Steps to contribute reviews
