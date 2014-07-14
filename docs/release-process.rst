@@ -1,7 +1,7 @@
 Release Process
 ===============
 
-(cribbed partly from twisted's release process)
+(cribbed partly from twisted's `release process <https://twistedmatrix.com/trac/wiki/ReleaseProcess>`_)
 
 Outcomes
 --------
@@ -28,7 +28,7 @@ Preparing for a release
 - Make sure all tests pass.
 - Update appropriate copyright dates (years?)
 - Review?
-
+- Acceptance testing (manual and automatic)
 
 Release
 -------
@@ -47,7 +47,7 @@ Release
       That means we also need to include all the dependencies that aren't upstream, or at least automatically add them.
       We should build a package that points at the appropriate repository, so they can do::
 
-         yum localinstall http://path.to.repo/flocker-release.fc20.noarch.rmp
+         yum localinstall http://path.to.repo/flocker-release.fc20.noarch.rpm
 
       to install flocker.
 
@@ -61,8 +61,17 @@ Release
   - documentation.
     Options:
     - self-hosted
+
+      - get buildbot to upload somewhere (either a tarball that can be extracted somewhere, or directly live).
+
     - readthedocs.org: Read the docs doesn't support automatically building from new tags.
+
+      - Click the checkbox on the readthedocs `https://readthedocs.org/dashboard/flocker/versions/ <dashboard>`_.
+
   - debian/OS X packages
+
+    Perhaps for 0.1 we just want to suggest people do `pip install`?
+    If we do this, we should probably move the private scripts behind an extra flag.
 
 
 Stuff do once we have users
