@@ -38,7 +38,9 @@ class ChangeStateOptions(Options):
 
     * application_configuration: The YAML string describing the desired
         application configuration.
-    * hostname: The hostname of this node.
+
+    * hostname: The hostname of this node. Used by the node to identify which
+        applications from deployment_configuration should be running.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "<deployment_configuration <application_configuration> "
