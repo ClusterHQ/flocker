@@ -388,4 +388,4 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         d = api.change_node_state(desired_state=desired,
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
-        self.assertEqual([Application(name=unit.name), application], self.errorResultOf(d))
+        self.assertEqual([Application(name=unit.name), application], self.failureResultOf(d))
