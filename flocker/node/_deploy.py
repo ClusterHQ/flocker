@@ -19,7 +19,7 @@ class Deployer(object):
             deployment operations. Default ``GearClient``.
         """
         if gear_client is None:
-            gear_client = GearClient(hostname=b'127.0.0.1')
+            gear_client = GearClient(hostname=u'127.0.0.1')
         self._gear_client = gear_client
 
     def start_container(self, application):
@@ -72,7 +72,7 @@ class Deployer(object):
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
-        :param bytes hostname: The hostname of the node that this is running
+        :param unicode hostname: The hostname of the node that this is running
             on.
 
         :return: A ``Deferred`` which fires with a ``StateChanges`` instance
@@ -105,7 +105,7 @@ class Deployer(object):
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
-        :param bytes hostname: The hostname of the node that this is running
+        :param unicode hostname: The hostname of the node that this is running
             on.
         """
         d = self.calculate_necessary_state_changes(

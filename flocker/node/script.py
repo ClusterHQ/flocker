@@ -98,7 +98,7 @@ class ChangeStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
 
-        :param bytes hostname: The hostname of the node that this is running
+        :param unicode hostname: The hostname of the node that this is running
             on.
         """
         # TODO call

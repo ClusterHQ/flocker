@@ -189,7 +189,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
@@ -205,7 +205,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=to_stop)
@@ -234,7 +234,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         expected = StateChanges(containers_to_start=set([application]),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
@@ -262,7 +262,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
@@ -293,7 +293,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
@@ -310,7 +310,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         api = Deployer(gear_client=fake_gear)
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(containers_to_start=set(),
                                 containers_to_stop=to_stop)
@@ -333,7 +333,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
-                                  hostname=b'node.example.com')
+                                  hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
         self.assertEqual([], self.successResultOf(d))
@@ -359,7 +359,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.change_node_state(desired_state=desired,
-                                  hostname=b'node.example.com')
+                                  hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
         self.assertEqual([application], self.successResultOf(d))
