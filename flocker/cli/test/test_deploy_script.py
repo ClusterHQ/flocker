@@ -228,7 +228,7 @@ class FlockerDeployMainTests(TestCase):
 
     def run_script(self, alternate_destinations):
         """
-        Run ``DeployScript.main`` with overriden destinations for
+        Run ``DeployScript.main`` with overridden destinations for
         ``flocker-changestate``.
 
         :param list alternate_destinations: ``INode`` providers to connect
@@ -289,12 +289,17 @@ class FlockerDeployMainTests(TestCase):
         running = self.run_script(destinations)
 
         def ran(ignored):
-            expected = [
+            expected1 = [
                 b"flocker-changestate", self.deployment_config,
-                self.application_config]
+                self.application_config, b"node101.example.com"]
+
+            expected2 = [
+                b"flocker-changestate", self.deployment_config,
+                self.application_config, b"node102.example.com"]
+
             self.assertEqual(
                 list(node.remote_command for node in destinations),
-                [expected, expected])
+                [expected1, expected2])
         running.addCallback(ran)
         return running
 
