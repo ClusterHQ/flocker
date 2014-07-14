@@ -87,8 +87,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_configuration_error(self):
         """
-        If the supplied configuration files are valid `YAML` but are not valid,
-        a ``UsageError`` is raised with a string representation of the error.
+        If the supplied configuration strings are valid `YAML` but are not
+        valid, a ``UsageError`` is raised with a string representation of the
+        error.
         """
         options = self.options()
         application = Application(
