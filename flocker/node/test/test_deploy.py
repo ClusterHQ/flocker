@@ -324,7 +324,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
     def test_containers_stopped(self):
         """
-        Containers are stopped when desired. #TODO improve this
+        Existing containers which are not in the desired configuration are
+        stopped.
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
@@ -339,7 +340,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
     def test_containers_started(self):
         """
-        # TODO
+        Containers which are in the desired configuration are started.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
@@ -357,7 +358,6 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-
         d = api.change_node_state(desired_state=desired,
                                   hostname=b'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())

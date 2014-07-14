@@ -100,9 +100,8 @@ class ChangeStateScript(object):
             on.
         # TODO are hostnames bytes or unicode (mixture around the code)
         """
-        # TODO In deployer make a change_as_necessary method which calls
-        # calculate_necessary_state_changes and actually makes the changes
-        # Call it with _deployer.method(self.options['deployment'], hostname)
+        # TODO call
+        # _deployer.change_node_state(self.options['deployment'], hostname)
         # where hostname is passed to here
 
         return succeed(None)
