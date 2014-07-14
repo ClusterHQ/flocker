@@ -77,7 +77,7 @@ class ChangeStateOptions(Options):
                 deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(
-                'There was an error with the configuration supplied: {error}'
+                'Configuration Error: {error}'
                 .format(error=str(e))
             )
 

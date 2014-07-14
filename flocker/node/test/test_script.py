@@ -112,7 +112,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
         self.assertEqual(
             str(exception),
-            ("There was an error with the configuration supplied: "
+            ("Configuration Error: "
              "Application configuration has an error. Missing "
              "'applications' key.")
         )
