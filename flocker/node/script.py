@@ -74,7 +74,8 @@ class ChangeStateOptions(Options):
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
         # TODO does this TypeError have to be tested separately, checked for
-        # elsewhere? I think it happens when
+        # elsewhere? I think it happens when one given config is an empty
+        # string
         except (ConfigurationError, TypeError) as e:
             raise UsageError(
                 'There was an error with the configuration supplied: {error}'
