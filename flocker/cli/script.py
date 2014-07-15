@@ -27,7 +27,9 @@ from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 @attributes(['node', 'target'])
 class NodeTarget(object):
     """
+    A record for matching an ``INode`` implementation to its target host.
     """
+
 
 @flocker_standard_options
 class DeployOptions(Options):
