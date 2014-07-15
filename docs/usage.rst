@@ -35,7 +35,7 @@ Setup
 
 ``flocker-deploy`` lets you manage containers on one or more hosts.
 Before ``flocker-deploy`` can do this it needs to be able to authenticate itself to these hosts.
-In the current release Flocker uses SSH to communicate with the hosts you specify in the deployment configuration file.
+Flocker uses SSH to communicate with the hosts you specify in the deployment configuration file.
 It requires that you configure SSH access to the root user in advance.
 The recommended configuration is to `generate an SSH key`_ (if you don't already have one):
 
