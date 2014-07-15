@@ -350,13 +350,11 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
         """
         Validate some SSH key credentials.
 
-        Access is granted to the name of the user running the current process
-        for the key this checker was initialized with.
+        Access is granted only to root since that is the user we expect
+        for connections from ``flocker-cli`` and ``flocker-changestate``.
         """
-        # It would probably be better for the username to be another `__init__`
-        # argument.  https://github.com/ClusterHQ/flocker/issues/189
         return (self._key.blob() == credentials.blob and
-                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+                credentials.username == b"root")
 
 
 class _FixedHomeConchUser(UnixConchUser):
