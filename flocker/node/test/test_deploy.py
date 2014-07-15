@@ -4,6 +4,7 @@
 Tests for ``flocker.node._deploy``.
 """
 
+from twisted.internet.defer import fail, FirstError
 from twisted.trial.unittest import SynchronousTestCase
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
@@ -365,10 +366,15 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         self.assertEqual([application], self.successResultOf(d))
 
-    def test_one_action_fails(self):
+    def test_failure_pass_through(self):
+        """
+        Failures in the operations performed by ``Deployer.change_node_state``
+        are passed through.
+        """
         unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
         api = Deployer(gear_client=fake_gear)
+
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -383,11 +389,19 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        from twisted.internet.defer import fail, FirstError
+
         class SentinelException(Exception):
-            pass
+            """
+            An exception raised for test purposes from
+            ``Deployer.stop_application``.
+            """
+
         expected_exception = SentinelException()
-        self.patch(api, 'stop_application', lambda application: fail(expected_exception))
+
+        self.patch(
+            api, 'stop_application',
+            lambda application: fail(expected_exception))
+
         d = api.change_node_state(desired_state=desired,
                                   hostname=u'node.example.com')
 
