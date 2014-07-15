@@ -6,23 +6,23 @@ Deploy applications on nodes.
 """
 
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges
+from ._model import Application, StateChanges, AttachedVolume
 
 
 class Deployer(object):
     """
     Start and stop containers.
     """
-    def __init__(self, gear_client=None, volume_service):
+    def __init__(self, volume_service, gear_client=None):
         """
+        :param VolumeService volume_service: The volume manager for this node.
         :param IGearClient gear_client: The gear client API to use in
             deployment operations. Default ``GearClient``.
-        :param VolumeService volume_service: The volume manager for this node.
         """
         if gear_client is None:
             gear_client = GearClient(hostname=b'127.0.0.1')
         self._gear_client = gear_client
-        self._volume_service = VolumeService()
+        #self._volume_service = volume_service
 
     def start_container(self, application):
         """
@@ -65,7 +65,9 @@ class Deployer(object):
         d = self._gear_client.list()
 
         def applications_from_units(units):
-            volumes = self._volume_service.enumerate()
+            #volumes = self._volume_service.enumerate()
+            from twisted.internet.defer import succeed
+            volumes = succeed([])
             volumes.addCallback(lambda volumes: set([
                 volume.name for volume in volumes
                 if volume.uuid == self._volume_service.uuid]))
@@ -77,14 +79,14 @@ class Deployer(object):
                     # Unit when
                     # https://github.com/ClusterHQ/flocker/issues/207 is
                     # resolved.
-                    if unit.name in available_volumes:
-                        # XXX Mountpoint is not available, see
-                        # https://github.com/ClusterHQ/flocker/issues/289
-                        volume = AttachedVolume(mountpoint=None)
-                    else:
-                        volume = None
+                    # if unit.name in available_volumes:
+                    #     # XXX Mountpoint is not available, see
+                    #     # https://github.com/ClusterHQ/flocker/issues/289
+                    #     volume = AttachedVolume(name=unit.name, mountpoint=None)
+                    # else:
+                    #     volume = None
                     applications.append(Application(name=unit.name,
-                                                    volume=volume))
+                                                    volume=None))
                 return applications
             volumes.addCallback(got_volumes)
             return volumes

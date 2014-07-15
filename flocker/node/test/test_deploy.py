@@ -20,7 +20,7 @@ class DeployerAttributesTests(SynchronousTestCase):
         ``Deployer._gear_client`` is a ``GearClient`` by default.
         """
         self.assertIsInstance(
-            Deployer()._gear_client,
+            Deployer(None)._gear_client,
             GearClient
         )
 
@@ -31,7 +31,7 @@ class DeployerAttributesTests(SynchronousTestCase):
         dummy_gear_client = object()
         self.assertIs(
             dummy_gear_client,
-            Deployer(gear_client=dummy_gear_client)._gear_client
+            Deployer(None, gear_client=dummy_gear_client)._gear_client
         )
 
 
@@ -45,7 +45,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
         a deferred which fires when the `gear` unit has been added and started.
         """
         fake_gear = FakeGearClient()
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
@@ -72,7 +72,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
-        api = Deployer(gear_client=FakeGearClient())
+        api = Deployer(None, gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -96,7 +96,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
         a deferred which fires when the `gear` unit has been removed.
         """
         fake_gear = FakeGearClient()
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -120,7 +120,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
         ``Deployer.stop_container`` does not errback if the application does
         not exist.
         """
-        api = Deployer(gear_client=FakeGearClient())
+        api = Deployer(None, gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -142,7 +142,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         there are no active `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual([], self.successResultOf(d))
@@ -156,7 +156,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=expected_application_name, activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual([application], self.successResultOf(d))
@@ -172,7 +172,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         fake_gear = FakeGearClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
@@ -190,7 +190,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         desired.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=b'node.example.com')
@@ -206,7 +206,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=b'node.example.com')
@@ -222,7 +222,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         not running.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -250,7 +250,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         node.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -280,7 +280,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -312,7 +312,7 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(gear_client=fake_gear)
+        api = Deployer(None, gear_client=fake_gear)
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=b'node.example.com')
