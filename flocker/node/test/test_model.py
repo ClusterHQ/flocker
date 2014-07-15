@@ -6,7 +6,7 @@ Tests for ``flocker.node._model``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
-from .._model import Application, DockerImage, Node, Deployment
+from .._model import Application, DockerImage, Node, Deployment, StateChanges
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -118,4 +118,18 @@ class DeploymentInitTests(make_with_init_tests(
 )):
     """
     Tests for ``Deployment.__init__``.
+    """
+
+
+class StateChangesInitTests(make_with_init_tests(
+        record_type=StateChanges,
+        kwargs=dict(applications_to_start=set([
+            Application(name=u'mysql-clusterhq', image=object()),
+            Application(name=u'site-clusterhq.com', image=object())]),
+            applications_to_stop=set([
+                Application(name=u'site-example.com', image=object()),
+        ]))
+)):
+    """
+    Tests for ``StateChanges.__init__``.
     """
