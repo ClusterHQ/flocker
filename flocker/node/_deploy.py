@@ -67,9 +67,9 @@ class Deployer(object):
             instances.
         """
         volumes = self._volume_service.enumerate()
-        volumes.addCallback(lambda volumes: set([
+        volumes.addCallback(lambda volumes: set(
             volume.name for volume in volumes
-            if volume.uuid == self._volume_service.uuid]))
+            if volume.uuid == self._volume_service.uuid))
         d = gatherResults([self._gear_client.list(), volumes])
 
         def applications_from_units(result):
