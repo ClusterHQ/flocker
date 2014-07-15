@@ -123,6 +123,19 @@ class Deployer(object):
             hostname=hostname)
 
         def start_and_stop_applications(necessary_state_changes):
+            """
+            Start applications which should be running on this node. Stop those
+            that shouldn't.
+
+            XXX: Errors in these operations should be logged. See
+            https://github.com/ClusterHQ/flocker/issues/296
+
+            :param StateChanges necessary_state_changes: A record of the
+                applications which need to be started and stopped on this node.
+
+            :returns: A ``DeferredList`` which fires when all application start
+                / stop operations have completed.
+            """
             results = []
             for application in necessary_state_changes.applications_to_stop:
                 results.append(self.stop_application(application))
