@@ -6,6 +6,7 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
+from twisted.internet.defer import fail, FirstError
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
@@ -59,14 +60,15 @@ class DeployerAttributesTests(SynchronousTestCase):
         )
 
 
-class DeployerStartContainerTests(SynchronousTestCase):
+class DeployerStartApplicationTests(SynchronousTestCase):
     """
-    Tests for `Deployer.start_container`.
+    Tests for `Deployer.start_application`.
     """
     def test_start(self):
         """
-        `Deployer.start_container` accepts an application object and returns
-        a deferred which fires when the `gear` unit has been added and started.
+        `Deployer.start_application` accepts an application object and returns
+        a `Deferred` which fires when the `gear` unit has been added and
+        started.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -78,7 +80,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
             image=docker_image,
             ports=ports,
         )
-        start_result = api.start_container(application=application)
+        start_result = api.start_application(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
@@ -92,7 +94,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployer.start_container`` returns a deferred which errbacks with
+        ``Deployer.start_application`` returns a `Deferred` which errbacks with
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
@@ -103,21 +105,21 @@ class DeployerStartContainerTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        result1 = api.start_container(application=application)
+        result1 = api.start_application(application=application)
         self.successResultOf(result1)
 
-        result2 = api.start_container(application=application)
+        result2 = api.start_application(application=application)
         self.failureResultOf(result2, AlreadyExists)
 
 
-class DeployerStopContainerTests(SynchronousTestCase):
+class DeployerStopApplicationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.stop_container``.
+    Tests for ``Deployer.stop_application``.
     """
     def test_stop(self):
         """
-        ``Deployer.stop_container`` accepts an application object and returns
-        a deferred which fires when the `gear` unit has been removed.
+        ``Deployer.stop_application`` accepts an application object and returns
+        a `Deferred` which fires when the `gear` unit has been removed.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -127,9 +129,9 @@ class DeployerStopContainerTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        api.start_container(application=application)
+        api.start_application(application=application)
         existed = fake_gear.exists(application.name)
-        stop_result = api.stop_container(application=application)
+        stop_result = api.stop_application(application=application)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -141,7 +143,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
 
     def test_does_not_exist(self):
         """
-        ``Deployer.stop_container`` does not errback if the application does
+        ``Deployer.stop_application`` does not errback if the application does
         not exist.
         """
         api = Deployer(create_volume_service(self), gear_client=FakeGearClient())
@@ -150,7 +152,7 @@ class DeployerStopContainerTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
-        result = api.stop_container(application=application)
+        result = api.stop_application(application=application)
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
@@ -244,7 +246,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
 
 
-class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
+class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     Tests for ``Deployer.calculate_necessary_state_changes``.
     """
@@ -259,9 +261,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+                                                  hostname=u'node.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
@@ -275,10 +277,10 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=to_stop)
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
@@ -304,9 +306,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
-        expected = StateChanges(containers_to_start=set([application]),
-                                containers_to_stop=set())
+                                                  hostname=u'node.example.com')
+        expected = StateChanges(applications_to_start=set([application]),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -332,9 +334,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+                                                  hostname=u'node.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_no_change_needed(self):
@@ -364,9 +366,9 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=set())
+                                                  hostname=u'node.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_node_not_described(self):
@@ -381,8 +383,153 @@ class DeployerChangeNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=b'node.example.com')
+                                                  hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(containers_to_start=set(),
-                                containers_to_stop=to_stop)
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
+
+
+class DeployerChangeNodeStateTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer.change_node_state``.
+    """
+
+    def test_applications_stopped(self):
+        """
+        Existing applications which are not in the desired configuration are
+        stopped.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        desired = Deployment(nodes=frozenset())
+
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=u'node.example.com')
+        d.addCallback(lambda _: api.discover_node_configuration())
+
+        self.assertEqual([], self.successResultOf(d))
+
+    def test_applications_started(self):
+        """
+        Applications which are in the desired configuration are started.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        expected_application_name = u'mysql-hybridcluster'
+        application = Application(
+            name=expected_application_name,
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=u'node.example.com')
+        d.addCallback(lambda _: api.discover_node_configuration())
+
+        expected_application = Application(name=expected_application_name)
+        self.assertEqual([expected_application], self.successResultOf(d))
+
+    def test_first_failure_pass_through(self):
+        """
+        The first failure in the operations performed by
+        ``Deployer.change_node_state`` is passed through.
+        """
+        unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+
+        class SentinelException(Exception):
+            """
+            An exception raised for test purposes from
+            ``Deployer.stop_application``.
+            """
+
+        expected_exception = SentinelException()
+
+        self.patch(
+            api, 'stop_application',
+            lambda application: fail(expected_exception))
+
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=u'node.example.com')
+
+        failure = self.failureResultOf(d, FirstError)
+        self.assertEqual(expected_exception, failure.value.subFailure.value)
+
+    def test_continue_on_failure(self):
+        """
+        Failures in the operations performed by ``Deployer.change_node_state``
+        do not prevent further changes being made.
+
+        Two applications are configured to be started, but attempts to start
+        application1 will result in failure. We then assert that the
+        ``FakeGearClient`` has still been asked to start application2
+        """
+        local_hostname = u'node.example.com'
+        fake_gear = FakeGearClient()
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+
+        application1 = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'latest')
+        )
+
+        application2 = Application(
+            name=b'site-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/wordpress',
+                              tag=u'latest')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=local_hostname,
+                applications=frozenset([application1, application2])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+
+        real_start_application = api.start_application
+
+        def fake_start(application):
+            """
+            Return a failure for attempts to start application1
+            """
+            if application.name == application1.name:
+                return fail(Exception('First start failure.'))
+            else:
+                return real_start_application(application)
+
+        self.patch(api, 'start_application', fake_start)
+
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=local_hostname)
+
+        self.failureResultOf(d, FirstError)
+        self.assertIn(application2.name, fake_gear._units)

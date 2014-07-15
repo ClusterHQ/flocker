@@ -66,7 +66,7 @@ class AttachedVolume(object):
 
 
 @attributes(["name", "image", "ports", "volume"],
-            defaults=dict(image=None, ports=None, volume=None))
+            defaults=dict(image=None, ports=frozenset(), volume=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -131,12 +131,12 @@ class Port(object):
     """
 
 
-@attributes(["containers_to_start", "containers_to_stop"])
+@attributes(["applications_to_start", "applications_to_stop"])
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
     state. This might be because of user-specified configuration changes.
 
-    :ivar set containers_to_start: The containers which must be started.
-    :ivar set containers_to_stop: The containers which must be stopped.
+    :ivar set applications_to_start: The applications which must be started.
+    :ivar set applications_to_stop: The applications which must be stopped.
     """

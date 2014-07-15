@@ -9,6 +9,8 @@ from twisted.python.usage import UsageError
 from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ..script import ChangeStateOptions, ChangeStateScript
+from .._deploy import Deployer
+from .._model import Application, Deployment, DockerImage, Node
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -25,16 +27,41 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     Tests for ``ChangeStateScript.main``.
     """
 
-    def test_deferred_result(self):
+    def test_deployer_type(self):
         """
-        ``ChangeStateScript.main`` returns a ``Deferred`` on success.
+        ``ChangeStateScript._deployer`` is an instance of :class:`Deployer`.
         """
         script = ChangeStateScript()
-        options = ChangeStateOptions()
-        dummy_reactor = object()
-        self.assertIs(
-            None,
-            self.successResultOf(script.main(dummy_reactor, options))
+        self.assertIsInstance(script._deployer, Deployer)
+
+    def test_main_calls_deployer_change_node_state(self):
+        """
+        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
+        the ``Deployment`` and `hostname` supplied on the command line.
+        """
+        script = ChangeStateScript()
+
+        change_node_state_calls = []
+
+        def spy_change_node_state(desired_state, hostname):
+            """
+            A stand in for ``Deployer.change_node_state`` which records calls
+            made to it.
+            """
+            change_node_state_calls.append((desired_state, hostname))
+
+        self.patch(
+            script._deployer, 'change_node_state', spy_change_node_state)
+
+        expected_deployment = Deployment(nodes=frozenset())
+        expected_hostname = b'node1.example.com'
+        options = dict(deployment=expected_deployment,
+                       hostname=expected_hostname)
+        script.main(reactor=object(), options=options)
+
+        self.assertEqual(
+            [(expected_deployment, expected_hostname)],
+            change_node_state_calls
         )
 
 
@@ -46,29 +73,71 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_custom_configs(self):
         """
-        The supplied configuration strings are saved as ``dict``\ s on the
-        options instance.
+        The supplied configuration strings are parsed as a :class:`Deployment`
+        on the options instance.
         """
-        options = self.options()
-        expected_deployment = {"foo": "bar", "spam": "eggs", "anumber": 14}
-        expected_application = {"appfoo": "appbar",
-                                "appspam": "appeggs",
-                                "appnumber": 17}
-        options.parseOptions(
-            [safe_dump(expected_deployment),
-             safe_dump(expected_application),
-             b'node1.example.com'])
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(repository=u'hybridlogic/mysql5.9',
+                              tag=u'latest'))
 
-        self.assertDictContainsSubset(
-            {'deployment_config': expected_deployment,
-             'app_config': expected_application},
-            options
+        node = Node(hostname='node1.example.com',
+                    applications=frozenset([application]))
+        options = self.options()
+        deployment_config = {"nodes": {node.hostname: [application.name]},
+                             "version": 1}
+
+        application_config = dict(
+            version=1,
+            applications={
+                application.name: {'image': 'hybridlogic/mysql5.9:latest'}
+            }
         )
 
-    def test_invalid_deployment_configs(self):
+        options.parseOptions(
+            [safe_dump(deployment_config),
+             safe_dump(application_config),
+             b'node1.example.com'])
+
+        self.assertEqual(
+            Deployment(nodes=frozenset([node])), options['deployment'])
+
+    def test_configuration_error(self):
         """
-        If the supplied deployment_config is not valid `YAML`, a
-        ``UsageError`` is raised.
+        If the supplied configuration strings are valid `YAML` but are not
+        valid, a ``UsageError`` is raised with a string representation of the
+        error.
+        """
+        options = self.options()
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(
+                repository=u'hybridlogic/mysql5.9', tag=u'latest'),
+        )
+
+        node = Node(hostname='node1.example.com',
+                    applications=frozenset([application]))
+        options = self.options()
+        deployment_config = {"nodes": {node.hostname: [application.name]},
+                             "version": 1}
+
+        exception = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            [safe_dump(deployment_config), safe_dump({}), b'node1.example.com']
+        )
+
+        self.assertEqual(
+            str(exception),
+            ("Configuration Error: "
+             "Application configuration has an error. Missing "
+             "'applications' key.")
+        )
+
+    def test_invalid_deployment_yaml(self):
+        """
+        If the supplied deployment_config is not valid `YAML`, a ``UsageError``
+        is raised.
         """
         options = self.options()
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
@@ -76,11 +145,13 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [deployment_bad_yaml, b'', b'node1.example.com'])
 
+        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # testing of this string.
         self.assertTrue(
             str(e).startswith('Deployment config could not be parsed as YAML')
         )
 
-    def test_invalid_application_configs(self):
+    def test_invalid_application_yaml(self):
         """
         If the supplied application_config is not valid `YAML`, a
         ``UsageError`` is raised.
@@ -91,6 +162,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', application_bad_yaml, b'node1.example.com'])
 
+        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
         )
@@ -101,7 +174,10 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         expected_hostname = u'foobar.example.com'
         options = self.options()
-        options.parseOptions([b'{}', b'{}', expected_hostname.encode('ascii')])
+        options.parseOptions(
+            [b'{nodes: {}, version: 1}',
+             b'{applications: {}, version: 1}',
+             expected_hostname.encode('ascii')])
         self.assertEqual(
             (expected_hostname, unicode),
             (options['hostname'], type(options['hostname']))
@@ -116,7 +192,11 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         e = self.assertRaises(
             UsageError,
-            options.parseOptions, [b'{}', b'{}', hostname])
+            options.parseOptions,
+            [b'{nodes: {}, version: 1}',
+             b'{applications: {}, version: 1}',
+             hostname]
+        )
 
         self.assertEqual(
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),

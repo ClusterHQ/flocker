@@ -20,7 +20,7 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
 
-from ..volume._ipc import ProcessNode
+from ..common import ProcessNode
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
 
