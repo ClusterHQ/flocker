@@ -98,8 +98,6 @@ def _default_volume_service():
     """
     Create a ``VolumeService`` using the default configuration.
 
-    :param reactor: The reactor to use.
-
     :return: A ``VolumeService``.
     """
     options = VolumeOptions()
