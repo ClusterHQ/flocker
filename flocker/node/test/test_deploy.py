@@ -351,8 +351,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(gear_client=fake_gear)
+        expected_application_name = u'mysql-hybridcluster'
         application = Application(
-            name=b'mysql-hybridcluster',
+            name=expected_application_name,
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
@@ -369,7 +370,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
-        self.assertEqual([application], self.successResultOf(d))
+        expected_application = Application(name=expected_application_name)
+        self.assertEqual([expected_application], self.successResultOf(d))
 
     def test_first_failure_pass_through(self):
         """
