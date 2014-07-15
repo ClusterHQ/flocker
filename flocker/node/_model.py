@@ -88,7 +88,7 @@ class Application(object):
     :ivar frozenset ports: A ``frozenset`` of ``Port`` instances that
         should be exposed to the outside world.
 
-    :ivar volume: ``None`` if there is no volume, otherwise a
+    :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
     """
 
