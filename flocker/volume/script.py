@@ -170,7 +170,8 @@ class VolumeScript(object):
         """
         Run a volume management operation.
 
-        The volume manager will be configured according to the supplied options.
+        The volume manager will be configured according to the supplied
+        options.
 
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
