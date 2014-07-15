@@ -85,8 +85,8 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
-        to the outside world.
+    :ivar frozenset ports: A ``frozenset`` of ``Port`` instances that
+        should be exposed to the outside world.
 
     :ivar volume: ``None`` if there is no volume, otherwise a
         ``AttachedVolume`` instance.
