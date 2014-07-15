@@ -10,7 +10,6 @@ import socket
 import sys
 import os
 from operator import setitem, delitem
-import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
