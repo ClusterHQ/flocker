@@ -167,9 +167,10 @@ class VolumeScript(object):
         return service
 
     def main(self, reactor, options):
-        """Run a volume management server
+        """
+        Run a volume management operation.
 
-        The server will be configured according to the supplied options.
+        The volume manager will be configured according to the supplied options.
 
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
