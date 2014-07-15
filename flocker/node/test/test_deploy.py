@@ -366,10 +366,10 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         self.assertEqual([application], self.successResultOf(d))
 
-    def test_failure_pass_through(self):
+    def test_first_failure_pass_through(self):
         """
-        Failures in the operations performed by ``Deployer.change_node_state``
-        are passed through.
+        The first failure in the operations performed by
+        ``Deployer.change_node_state`` is passed through.
         """
         unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
@@ -407,3 +407,56 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         failure = self.failureResultOf(d, FirstError)
         self.assertEqual(expected_exception, failure.value.subFailure.value)
+
+
+    def test_continue_on_failure(self):
+        """
+        Failures in the operations performed by ``Deployer.change_node_state``
+        do not prevent further changes being made.
+
+        Two applications are configured to be started, but attempts to start
+        application1 will result in failure. We then assert that the
+        ``FakeGearClient`` has still been asked to start application2
+        """
+        local_hostname = u'node.example.com'
+        fake_gear = FakeGearClient()
+        api = Deployer(gear_client=fake_gear)
+
+        application1 = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'latest')
+        )
+
+        application2 = Application(
+            name=b'site-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/wordpress',
+                              tag=u'latest')
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=local_hostname,
+                applications=frozenset([application1, application2])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+
+        real_start_application = api.start_application
+        def fake_start(application):
+            """
+            Return a failure for attempts to start application1
+            """
+            if application.name == application1.name:
+                return fail(Exception('First start failure.'))
+            else:
+                return real_start_application(application)
+
+        self.patch(api, 'start_application', fake_start)
+
+        d = api.change_node_state(desired_state=desired,
+                                  hostname=local_hostname)
+
+        self.failureResultOf(d, FirstError)
+        self.assertIn(application2.name, fake_gear._units)
