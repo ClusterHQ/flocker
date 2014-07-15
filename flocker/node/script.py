@@ -48,7 +48,6 @@ class ChangeStateOptions(Options):
                 "<deployment configuration> <application configuration> "
                 "<hostname>")
 
-
     def parseArgs(self, deployment_config, application_config, hostname):
         """
         Parse `deployment_config` and `application_config` strings as YAML, and

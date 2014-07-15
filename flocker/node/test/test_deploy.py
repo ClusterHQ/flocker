@@ -412,7 +412,6 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         failure = self.failureResultOf(d, FirstError)
         self.assertEqual(expected_exception, failure.value.subFailure.value)
 
-
     def test_continue_on_failure(self):
         """
         Failures in the operations performed by ``Deployer.change_node_state``
@@ -448,6 +447,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
 
         real_start_application = api.start_application
+
         def fake_start(application):
             """
             Return a failure for attempts to start application1
