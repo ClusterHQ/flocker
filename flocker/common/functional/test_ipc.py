@@ -6,19 +6,13 @@ import os
 from getpass import getuser
 from unittest import skipIf
 
-from twisted.internet import reactor
-from twisted.internet.task import Clock
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from .._ipc import ProcessNode, RemoteVolumeManager
+from .. import ProcessNode
 from ..test.test_ipc import make_inode_tests
 from ...testtools import create_ssh_server
-from ..service import VolumeService
-from ..filesystems.zfs import StoragePool
-from .test_filesystems_zfs import create_zfs_pool
-from ..test.test_ipc import make_iremote_volume_manager, ServicePair
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
@@ -196,39 +190,3 @@ class MutatingProcessNode(ProcessNode):
 
     def get_output(self, remote_command):
         return ProcessNode.get_output(self, self._mutate(remote_command))
-
-
-def create_realistic_servicepair(test):
-    """
-    Create a ``ServicePair`` that uses ZFS for testing
-    ``RemoteVolumeManager``.
-
-    :param TestCase test: A unit test.
-
-    :return: A new ``ServicePair``.
-    """
-    from_pool = StoragePool(reactor, create_zfs_pool(test),
-                            FilePath(test.mktemp()))
-    from_service = VolumeService(FilePath(test.mktemp()),
-                                 from_pool, reactor=Clock())
-    from_service.startService()
-    test.addCleanup(from_service.stopService)
-
-    to_pool = StoragePool(reactor, create_zfs_pool(test),
-                          FilePath(test.mktemp()))
-    to_config = FilePath(test.mktemp())
-    to_service = VolumeService(to_config, to_pool, reactor=Clock())
-    to_service.startService()
-    test.addCleanup(to_service.stopService)
-
-    remote = RemoteVolumeManager(MutatingProcessNode(to_service),
-                                 to_config)
-    return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=remote)
-
-
-class RemoteVolumeManagerInterfaceTests(
-        make_iremote_volume_manager(create_realistic_servicepair)):
-    """
-    Tests for ``RemoteVolumeManger`` as a ``IRemoteVolumeManager``.
-    """
