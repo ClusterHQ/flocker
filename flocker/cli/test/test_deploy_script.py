@@ -23,7 +23,7 @@ from ...volume._ipc import ProcessNode, FakeNode
 class NodeTargetInitTests(
     make_with_init_tests(
         record_type=NodeTarget,
-        kwargs=dict(node=FakeNode(b''), target=u'node1.example.com')
+        kwargs=dict(node=FakeNode(b''), hostname=u'node1.example.com')
     )
 ):
     """
@@ -36,11 +36,11 @@ class NodeTargetTests(SynchronousTestCase):
     """
     def test_repr(self):
         """
-        ``NodeTarget.__repr__`` includes the node and target.
+        ``NodeTarget.__repr__`` includes the node and hostname.
         """
         self.assertEqual(
-            "<NodeTarget(node=None, target=u'node1.example.com')>",
-            repr(NodeTarget(node=None, target=u'node1.example.com'))
+            "<NodeTarget(node=None, hostname=u'node1.example.com')>",
+            repr(NodeTarget(node=None, hostname=u'node1.example.com'))
         )
 
 
@@ -244,14 +244,13 @@ class FlockerDeployMainTests(TestCase):
         destinations = script._get_destinations(deployment)
 
         def node(hostname):
-            return ProcessNode.using_ssh(
-                hostname, 22, b"root", id_rsa_flocker)
+            return NodeTarget(
+                node=ProcessNode.using_ssh(
+                    hostname, 22, b"root", id_rsa_flocker),
+                hostname=hostname)
 
         self.assertEqual(
-            {
-                (node1.hostname, node(node1.hostname)),
-                (node2.hostname, node(node2.hostname))
-            },
+            {node(node1.hostname), node(node2.hostname)},
             set(destinations))
 
     def run_script(self, alternate_destinations):
@@ -317,8 +316,8 @@ class FlockerDeployMainTests(TestCase):
         expected_hostname2 = b'node102.example.com'
 
         destinations = [
-            (expected_hostname1, FakeNode([b""])),
-            (expected_hostname2, FakeNode([b""])),
+            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname1),
+            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname2),
         ]
         running = self.run_script(destinations)
 
@@ -328,7 +327,7 @@ class FlockerDeployMainTests(TestCase):
                 self.application_config]
 
             self.assertEqual(
-                list(node.remote_command for hostname, node in destinations),
+                list(target.node.remote_command for target in destinations),
                 [expected_common + [expected_hostname1],
                  expected_common + [expected_hostname2]]
             )
@@ -343,15 +342,15 @@ class FlockerDeployMainTests(TestCase):
         (Proving actual parallelism is much more difficult...)
         """
         destinations = [
-            (b'node101.example.com', FakeNode([b""])),
-            (b'node102.example.com', FakeNode([b""])),
+            NodeTarget(node=FakeNode([b""]), hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b""]), hostname=b'node102.example.com'),
         ]
 
         running = self.run_script(destinations)
 
         def ran(ignored):
             self.assertNotEqual(
-                set(node.thread_id for hostname, node in destinations),
+                set(target.node.thread_id for target in destinations),
                 set([current_thread().ident]))
         running.addCallback(ran)
         return running
