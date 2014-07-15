@@ -49,7 +49,8 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["name", "image", "ports"], defaults=dict(image=None, ports=None))
+@attributes(
+    ["name", "image", "ports"], defaults=dict(image=None, ports=frozenset()))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.

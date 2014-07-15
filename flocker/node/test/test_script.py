@@ -78,9 +78,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         application = Application(
             name=u'mysql-hybridcluster',
-            image=DockerImage(
-                repository=u'hybridlogic/mysql5.9', tag=u'latest'),
-        )
+            image=DockerImage(repository=u'hybridlogic/mysql5.9',
+                              tag=u'latest'))
 
         node = Node(hostname='node1.example.com',
                     applications=frozenset([application]))
@@ -100,10 +99,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
              safe_dump(application_config),
              b'node1.example.com'])
 
-        self.assertDictContainsSubset(
-            {'deployment': Deployment(nodes=frozenset([node]))},
-            options
-        )
+        self.assertEqual(
+            Deployment(nodes=frozenset([node])), options['deployment'])
 
     def test_configuration_error(self):
         """
