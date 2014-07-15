@@ -30,6 +30,19 @@ class NodeTargetInitTests(
     Tests for ``NodeTarget`` initialiser and attributes.
     """
 
+class NodeTargetTests(SynchronousTestCase):
+    """
+    Tests for ``NodeTarget``.
+    """
+    def test_repr(self):
+        """
+        ``NodeTarget.__repr__`` includes the node and target.
+        """
+        self.assertEqual(
+            "<NodeTarget(node=None, target=u'node1.example.com')>",
+            repr(NodeTarget(node=None, target=u'node1.example.com'))
+        )
+
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
     """Tests for ``flocker-deploy``."""
