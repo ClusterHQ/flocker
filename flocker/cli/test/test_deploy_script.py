@@ -18,7 +18,7 @@ from ...testtools import (
 from ..script import DeployScript, DeployOptions, NodeTarget
 from .._sshconfig import DEFAULT_SSH_DIRECTORY
 from ...node import Application, Deployment, DockerImage, Node
-from ...volume._ipc import ProcessNode, FakeNode
+from ...common import ProcessNode, FakeNode
 
 
 class NodeTargetInitTests(

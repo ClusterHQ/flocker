@@ -21,7 +21,8 @@ from ..service import (
     WAIT_FOR_VOLUME_INTERVAL
     )
 from ..filesystems.memory import FilesystemStoragePool
-from .._ipc import FakeNode, RemoteVolumeManager, LocalVolumeManager
+from .._ipc import RemoteVolumeManager, LocalVolumeManager
+from ...common import FakeNode
 from ...testtools import skip_on_broken_permissions
 
 
