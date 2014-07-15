@@ -109,7 +109,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         exception = self.assertRaises(
             UsageError,
             options.parseOptions,
-            [safe_dump(deployment_config), safe_dump({})]
+            [safe_dump(deployment_config), safe_dump({}), b'node1.example.com']
         )
 
         self.assertEqual(
@@ -159,7 +159,10 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         """
         expected_hostname = u'foobar.example.com'
         options = self.options()
-        options.parseOptions([b'{}', b'{}', expected_hostname.encode('ascii')])
+        options.parseOptions(
+            [b'{nodes: {}, version: 1}',
+             b'{applications: {}, version: 1}',
+             expected_hostname.encode('ascii')])
         self.assertEqual(
             (expected_hostname, unicode),
             (options['hostname'], type(options['hostname']))
@@ -174,7 +177,11 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         e = self.assertRaises(
             UsageError,
-            options.parseOptions, [b'{}', b'{}', hostname])
+            options.parseOptions,
+            [b'{nodes: {}, version: 1}',
+             b'{applications: {}, version: 1}',
+             hostname]
+        )
 
         self.assertEqual(
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),
