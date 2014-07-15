@@ -92,9 +92,27 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
+            # XXX probably will also refactor this function so there's less duplication.
+
+            # volume = None
+            # if "volume" in config:
+            #     try:
+            #         try:
+            #             mountpoint = config['volume']['mountpoint']
+            #         except KeyError:
+            #             raise ValueError("Missing mountpoint.")
+            #         if not os.path.abspath(mountpount):
+            #             raise ValueError("Mountpoint must be an absolute path.")
+            #         volume = AttachedVolume(name=application_name,
+            #                                 mountpoint=FilePath(mountpoint.encode("ascii")))
+            #     except ValueError as e:
+            #         raise ConfigurationError("...")
+
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
+                #volume=volume,
                 ports=frozenset(ports))
 
             if config:
