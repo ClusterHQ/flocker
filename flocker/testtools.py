@@ -20,7 +20,7 @@ from subprocess import check_call, check_output
 from functools import wraps
 
 from zope.interface import implementer
-from zope.interface.verify import verifyClass
+from zope.interface.verify import verifyClass, verifyObject
 
 from ipaddr import IPAddress
 
@@ -222,7 +222,7 @@ class FlockerScriptTestsMixin(object):
         A script that is meant to be run by ``FlockerScriptRunner`` must
         implement ``ICommandLineScript``.
         """
-        self.assertTrue(verifyClass(ICommandLineScript, self.script))
+        self.assertTrue(verifyObject(ICommandLineScript, self.script()))
 
     def test_incorrect_arguments(self):
         """
