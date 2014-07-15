@@ -15,9 +15,9 @@ from .._model import Application, Deployment, DockerImage, Node
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     """
-    Tests for L{ChangeStateScript}.
+    Tests for ``ChangeStateScript``.
     """
-    script = ChangeStateScript
+    script = staticmethod(lambda: ChangeStateScript(lambda: None))
     options = ChangeStateOptions
     command_name = u'flocker-changestate'
 
@@ -26,20 +26,28 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
     """
-
     def test_deployer_type(self):
         """
         ``ChangeStateScript._deployer`` is an instance of :class:`Deployer`.
         """
-        script = ChangeStateScript()
+        script = ChangeStateScript(lambda: None)
         self.assertIsInstance(script._deployer, Deployer)
+
+    def test_deployer_volume_service(self):
+        """
+        ``ChangeStateScript._deployer`` is configured with a volume service
+        created by the given callable.
+        """
+        service = object()
+        script = ChangeStateScript(lambda: service)
+        self.assertIs(script._deployer._volume_service, service)
 
     def test_main_calls_deployer_change_node_state(self):
         """
         ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
-        script = ChangeStateScript()
+        script = ChangeStateScript(lambda: None)
 
         change_node_state_calls = []
 

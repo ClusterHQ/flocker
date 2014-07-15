@@ -6,12 +6,14 @@ The command-line ``flocker-changestate`` tool.
 """
 
 from twisted.python.usage import Options, UsageError
+from twisted.internet import reactor
 
 from yaml import safe_load
 from yaml.error import YAMLError
 
 from zope.interface import implementer
 
+from ..volume.script import VolumeOptions, VolumeScript
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 from . import ConfigurationError, model_from_configuration, Deployer
@@ -92,6 +94,17 @@ class ChangeStateOptions(Options):
             )
 
 
+def _default_volume_service():
+    """
+    Create a ``VolumeService`` using the default configuration.
+
+    :return: A ``VolumeService``.
+    """
+    options = VolumeOptions()
+    options.postOptions()
+    return VolumeScript().create_volume_service(reactor, options)
+
+
 @implementer(ICommandLineScript)
 class ChangeStateScript(object):
     """
@@ -102,13 +115,18 @@ class ChangeStateScript(object):
     :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
         state of the current node.
     """
-    _deployer = Deployer()
+    def __init__(self, create_volume_service=_default_volume_service):
+        """
+        :param create_volume_service: Callable that returns a
+            ``VolumeService``, defaulting to a standard production-configured
+            service.
+        """
+        self._deployer = Deployer(create_volume_service())
 
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-
         return self._deployer.change_node_state(
             desired_state=options['deployment'],
             hostname=options['hostname']
