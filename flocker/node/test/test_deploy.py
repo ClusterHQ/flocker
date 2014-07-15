@@ -219,6 +219,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.successResultOf(volume_service.create(u"site-example.com"))
         self.successResultOf(volume_service.create(u"site-example.net"))
 
+        # Eventually when https://github.com/ClusterHQ/flocker/issues/289
+        # is fixed the mountpoint should actually be specified.
         fake_gear = FakeGearClient(units=units)
         applications = [Application(name=unit.name,
                                     volume=AttachedVolume(name=unit.name,
