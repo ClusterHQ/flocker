@@ -383,9 +383,13 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        from twisted.internet.defer import fail, Deferred
-        self.patch(api, 'stop_application', lambda application: fail(Exception("Hello")))
+        from twisted.internet.defer import fail, FirstError
+        class SentinelException(Exception):
+            pass
+        expected_exception = SentinelException()
+        self.patch(api, 'stop_application', lambda application: fail(expected_exception))
         d = api.change_node_state(desired_state=desired,
                                   hostname=u'node.example.com')
-        d.addCallback(lambda _: api.discover_node_configuration())
-        self.assertEqual([Application(name=unit.name), application], self.failureResultOf(d))
+
+        failure = self.failureResultOf(d, FirstError)
+        self.assertEqual(expected_exception, failure.value.subFailure.value)

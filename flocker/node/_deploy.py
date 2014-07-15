@@ -121,7 +121,9 @@ class Deployer(object):
 
             for application in necessary_state_changes.applications_to_start:
                 results.append(self.start_application(application))
-            return DeferredList(results, fireOnOneErrback=True)
+
+            return DeferredList(
+                results, fireOnOneErrback=True, consumeErrors=True)
 
         d.addCallback(start_and_stop_applications)
         return d
