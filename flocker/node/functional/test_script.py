@@ -39,7 +39,6 @@ class FlockerChangeStateTests(TestCase):
         self.assertEqual(result, b"%s\n" % (__version__,))
 
 
-
 class ChangeStateScriptTests(TestCase):
     """
     Tests for ``ChangeStateScript``.

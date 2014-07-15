@@ -56,7 +56,8 @@ class DeployerAttributesTests(SynchronousTestCase):
         dummy_gear_client = object()
         self.assertIs(
             dummy_gear_client,
-            Deployer(create_volume_service(self), gear_client=dummy_gear_client)._gear_client
+            Deployer(create_volume_service(self),
+                     gear_client=dummy_gear_client)._gear_client
         )
 
 
@@ -98,7 +99,8 @@ class DeployerStartApplicationTests(SynchronousTestCase):
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
-        api = Deployer(create_volume_service(self), gear_client=FakeGearClient())
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -146,7 +148,8 @@ class DeployerStopApplicationTests(SynchronousTestCase):
         ``Deployer.stop_application`` does not errback if the application does
         not exist.
         """
-        api = Deployer(create_volume_service(self), gear_client=FakeGearClient())
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
