@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, with_cmp, with_repr, with_init
+from characteristic import attributes
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -49,10 +49,15 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["mountpoint"])
+@attributes(["name", "mountpoint"])
 class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
+
+    :ivar unicode name: A short, human-readable identifier for this
+        volume. For now this is always the same as the name of the
+        application it is attached to (see
+        https://github.com/ClusterHQ/flocker/issues/49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted, or ``None`` if unknown
@@ -60,17 +65,15 @@ class AttachedVolume(object):
     """
 
 
-@with_cmp(["name"])
-@with_repr(["name", "image", "volume"])
-@with_init(["name", "image", "volume"], defaults=dict(image=None,
-                                                      volume=None))
+@attributes(["name", "image", "ports", "volume"],
+            defaults=dict(image=None, ports=None, volume=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image attribute defaults to `None` until we have a way to
-    interrogate geard for the docker images associated with its containers. See
-    https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The image and ports attributes defaults to `None` until we have a way
+    to interrogate geard for the docker images associated with its containers.
+    See https://github.com/ClusterHQ/flocker/issues/207
 
     XXX: Only the name is compared in equality checks. See
     https://github.com/ClusterHQ/flocker/issues/267
@@ -81,6 +84,9 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
+
+    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
+        to the outside world.
 
     :ivar volume: ``None`` if there is no volume, otherwise a
         ``AttachedVolume`` instance.
@@ -111,6 +117,17 @@ class Deployment(object):
 
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
+    """
+
+
+@attributes(['internal_port', 'external_port'])
+class Port(object):
+    """
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
+
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
     """
 
 

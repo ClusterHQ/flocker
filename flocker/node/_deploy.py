@@ -5,7 +5,7 @@
 Deploy applications on nodes.
 """
 
-from .gear import GearClient
+from .gear import GearClient, PortMap
 from ._model import Application, StateChanges
 
 
@@ -33,8 +33,16 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
+        if application.ports is not None:
+            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
+                                              external_port=p.external_port),
+                            application.ports)
+        else:
+            port_maps = []
         return self._gear_client.add(application.name,
-                                     application.image.full_name)
+                                     application.image.full_name,
+                                     ports=port_maps,
+                                     )
 
     def stop_container(self, application):
         """
@@ -107,11 +115,26 @@ class Deployer(object):
         d = self.discover_node_configuration()
 
         def find_differences(current_node_applications):
-            current_state = set(current_node_applications)
-            desired_state = set(desired_node_applications)
+            # Compare the applications being changed by name only.  Other
+            # configuration changes aren't important at this point.
+            current_state = {app.name for app in current_node_applications}
+            desired_state = {app.name for app in desired_node_applications}
+
+            start_names = desired_state.difference(current_state)
+            stop_names = current_state.difference(desired_state)
+
+            start_containers = {
+                app for app in desired_node_applications
+                if app.name in start_names
+            }
+            stop_containers = {
+                app for app in current_node_applications
+                if app.name in stop_names
+            }
+
             return StateChanges(
-                containers_to_start=desired_state.difference(current_state),
-                containers_to_stop=current_state.difference(desired_state)
+                containers_to_start=start_containers,
+                containers_to_stop=stop_containers,
             )
         d.addCallback(find_differences)
         return d

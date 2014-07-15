@@ -33,16 +33,20 @@ class ChangeStateOptions(Options):
     flocker-changestate is called by flocker-deploy to set the configuration of
     a node.
 
-        DEPLOYMENT_CONFIGURATION: The YAML string describing the desired
-            deployment configuration.
+    * deployment_configuration: The YAML string describing the desired
+        deployment configuration.
 
-        APPLICATION_CONFIGURATION: The YAML string describing the desired
-            application configuration.
+    * application_configuration: The YAML string describing the desired
+        application configuration.
+
+    * hostname: The hostname of this node. Used by the node to identify which
+        applications from deployment_configuration should be running.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION APPLICATION_CONFIGURATION")
+                "<deployment configuration> <application configuration> "
+                "<hostname>")
 
-    def parseArgs(self, deployment_config, app_config):
+    def parseArgs(self, deployment_config, app_config, hostname):
         """
         Parse `deployment_config` and `app_config` strings as YAML and assign
         the resulting dictionaries to this `Options` dictionary.
@@ -51,6 +55,7 @@ class ChangeStateOptions(Options):
             deployment configuration.
         :param bytes app_config: The YAML string describing the desired
             application configuration.
+        :param bytes hostname: The ascii encoded hostname of this node.
         """
         try:
             self['deployment_config'] = safe_load(deployment_config)
@@ -63,6 +68,12 @@ class ChangeStateOptions(Options):
         except YAMLError as e:
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
+            )
+        try:
+            self['hostname'] = hostname.decode('ascii')
+        except UnicodeDecodeError:
+            raise UsageError(
+                "Non-ASCII hostname: {hostname}".format(hostname=hostname)
             )
 
 
