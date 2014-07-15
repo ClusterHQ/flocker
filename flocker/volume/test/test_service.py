@@ -425,11 +425,14 @@ class VolumeTests(TestCase):
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
 
     def test_container_name(self):
-        """The volume's container name adds a ``"flocker-"`` prefix and
-        ``"-data"`` suffix.
+        """
+        The volume's container name adds ``"-data"`` suffix to the volume name.
+
+        This ensures that geard will automatically mount it into a
+        container whose name matches that of the volume.
         """
         volume = Volume(uuid=u"123", name=u"456", _pool=object())
-        self.assertEqual(volume._container_name, b"flocker-456-data")
+        self.assertEqual(volume._container_name, b"456-data")
 
 
 class VolumeOwnerChangeTests(TestCase):

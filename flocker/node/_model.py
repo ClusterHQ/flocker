@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, with_cmp, with_repr, with_init
+from characteristic import attributes
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -49,9 +49,8 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@with_cmp(["name"])
-@with_repr(["name", "image", "ports"])
-@with_init(["name", "image", "ports"], defaults=dict(image=None, ports=None))
+@attributes(
+    ["name", "image", "ports"], defaults=dict(image=None, ports=frozenset()))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -113,12 +112,12 @@ class Port(object):
     """
 
 
-@attributes(["containers_to_start", "containers_to_stop"])
+@attributes(["applications_to_start", "applications_to_stop"])
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
     state. This might be because of user-specified configuration changes.
 
-    :ivar set containers_to_start: The containers which must be started.
-    :ivar set containers_to_stop: The containers which must be stopped.
+    :ivar set applications_to_start: The applications which must be started.
+    :ivar set applications_to_stop: The applications which must be stopped.
     """
