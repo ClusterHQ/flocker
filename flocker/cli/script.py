@@ -14,6 +14,8 @@ from zope.interface import implementer
 from yaml import safe_load
 from yaml.error import YAMLError
 
+from characteristic import attributes
+
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
@@ -21,6 +23,11 @@ from ..node import ConfigurationError, model_from_configuration
 from ..volume._ipc import ProcessNode
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
+
+@attributes(['node', 'target'])
+class NodeTarget(object):
+    """
+    """
 
 @flocker_standard_options
 class DeployOptions(Options):
