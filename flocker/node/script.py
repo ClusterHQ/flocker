@@ -14,8 +14,7 @@ from zope.interface import implementer
 
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
-from ..node import ConfigurationError, model_from_configuration
-from ._deploy import Deployer
+from . import ConfigurationError, model_from_configuration, Deployer
 
 __all__ = [
     "ChangeStateOptions",
