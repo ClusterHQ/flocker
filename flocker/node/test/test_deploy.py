@@ -50,7 +50,7 @@ class DeployerStartContainerTests(SynchronousTestCase):
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
         links = frozenset([Link(local_port=90, remote_port=9090,
-                                application='otherapp')])
+                                application=u'otherapp')])
         application = Application(
             name=b'site-example.com',
             image=docker_image,
