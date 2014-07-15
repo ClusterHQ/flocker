@@ -31,6 +31,9 @@ Fedora
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
    yum install flocker-cli
 
+::
+   flocker-deploy <...>
+
 
 Ubuntu
 ^^^^^^
@@ -43,7 +46,7 @@ Ubuntu
 
 ::
 
-   ~/flocker/bin/flocker-deploy
+   ~/flocker/bin/flocker-deploy <...>
 
 
 OS X
@@ -55,3 +58,7 @@ OS X
    ./bootstrap.sh
    mkvirtualenv flocker
    pip install flocker
+
+::
+   workon flocker
+   flocker-deploy <...>
