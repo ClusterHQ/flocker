@@ -1,6 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""The command-line ``flocker-deploy`` tool."""
+"""
+The command-line ``flocker-deploy`` tool.
+"""
+
 from twisted.internet.defer import DeferredList
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
@@ -14,7 +17,9 @@ from yaml.error import YAMLError
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
-from ._sshconfig import OpenSSHConfiguration
+
+from ..volume._ipc import ProcessNode
+from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
 
 @flocker_standard_options
@@ -43,8 +48,11 @@ class DeployOptions(Options):
             raise UsageError('No file exists at {path}'
                              .format(path=application_config.path))
 
+        self["deployment_config"] = deployment_config.getContent()
+        self["application_config"] = application_config.getContent()
+
         try:
-            deployment_config = safe_load(deployment_config.getContent())
+            deploy_config_obj = safe_load(self["deployment_config"])
         except YAMLError as e:
             raise UsageError(
                 ("Deployment configuration at {path} could not be parsed as "
@@ -54,7 +62,7 @@ class DeployOptions(Options):
                 )
             )
         try:
-            application_config = safe_load(application_config.getContent())
+            app_config_obj = safe_load(self["application_config"])
         except YAMLError as e:
             raise UsageError(
                 ("Application configuration at {path} could not be parsed as "
@@ -63,10 +71,11 @@ class DeployOptions(Options):
                     error=str(e)
                 )
             )
+
         try:
             self['deployment'] = model_from_configuration(
-                application_configuration=application_config,
-                deployment_configuration=deployment_config)
+                application_configuration=app_config_obj,
+                deployment_configuration=deploy_config_obj)
         except ConfigurationError as e:
             raise UsageError(str(e))
 
@@ -74,8 +83,7 @@ class DeployOptions(Options):
 @implementer(ICommandLineScript)
 class DeployScript(object):
     """
-    A script to start configured deployments, covered by:
-       https://github.com/ClusterHQ/flocker/issues/19
+    A script to start configured deployments on a Flocker cluster.
     """
     def __init__(self, ssh_configuration=None, ssh_port=22):
         if ssh_configuration is None:
@@ -105,7 +113,56 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when the deployment is complete or
                  has encountered an error.
         """
-        return self._configure_ssh(options['deployment'])
+        deployment = options['deployment']
+        configuring = self._configure_ssh(deployment)
+
+        def configured(ignored):
+            return self._changestate_on_nodes(
+                deployment,
+                options["deployment_config"],
+                options["application_config"])
+        configuring.addCallback(configured)
+        configuring.addCallback(lambda _: None)
+        return configuring
+
+    def _get_destinations(self, deployment):
+        """
+        Return sequence of ``INode`` to connect to for given deployment.
+
+        :param Deployment deployment: The requested already parsed
+            configuration.
+
+        :return: Iterable of ``INode`` providers.
+        """
+        private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
+
+        for node in deployment.nodes:
+            yield ProcessNode.using_ssh(node.hostname, 22, b"root",
+                                        private_key)
+
+    def _changestate_on_nodes(self, deployment, deployment_config,
+                              application_config):
+        """
+        Connect to all nodes and run ``flocker-changestate``.
+
+        :param Deployment deployment: The requested already parsed
+            configuration.
+        :param bytes deployment_config: YAML-encoded deployment configuration.
+        :param bytes application_config: YAML-encoded application
+            configuration.
+
+        :return: ``Deferred`` that fires when all remote calls are finished.
+        """
+        command = [b"flocker-changestate",
+                   deployment_config,
+                   application_config]
+
+        results = []
+        for destination in self._get_destinations(deployment):
+            # XXX if number of nodes is bigger than number of available
+            # threads we won't get the required parallelism...
+            results.append(deferToThread(destination.get_output, command))
+        return DeferredList(results)
 
 
 def flocker_deploy_main():

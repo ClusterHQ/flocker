@@ -1,9 +1,9 @@
 %global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
 
-Name:           flocker
+Name:           python-flocker
 Version:        %{underscore_version}
 Release:        1%{?dist}
-Summary:        Docker orchestration and volume management
+Summary:        Libraries for flocker
 BuildArch:      noarch
 
 License:        ASL 2.0
@@ -38,6 +38,14 @@ Requires:       PyYAML = 3.10
 Requires:       python-treq = 0.2.1
 Requires:       python-netifaces >= 0.8.0
 Requires:       python-ipaddr = 2.1.10
+
+%package -n flocker-cli
+Summary:        Docker orchestration and volume management frontend
+Requires:       python-flocker = %{version}-%{release}
+
+%package -n flocker-node
+Summary:        Node software for flocker
+Requires:       python-flocker = %{version}-%{release}
 Requires:       docker-io
 Requires:       /sbin/iptables
 Requires:       geard
@@ -48,6 +56,26 @@ orchestration tool.  With it you can control your data using the same tools you
 use for your stateless applications.  This means that you can run your
 databases, queues and key-value stores in Docker and move them around as easily
 as the rest of your app.
+
+This package provides the libraries for the frontend and node software.
+
+%description -n flocker-cli
+Flocker is an open-source volume manager and multi-host Docker container
+orchestration tool.  With it you can control your data using the same tools you
+use for your stateless applications.  This means that you can run your
+databases, queues and key-value stores in Docker and move them around as easily
+as the rest of your app.
+
+This package provides the command-line client for flocker.
+
+%description -n flocker-node
+Flocker is an open-source volume manager and multi-host Docker container
+orchestration tool.  With it you can control your data using the same tools you
+use for your stateless applications.  This means that you can run your
+databases, queues and key-value stores in Docker and move them around as easily
+as the rest of your app.
+
+This package provides the binaries for a flocker node.
 
 
 %prep
@@ -72,11 +100,19 @@ trial flocker
 %files
 %doc README.rst
 
-%{_bindir}/flocker-volume
-%{_bindir}/flocker-deploy
-%{_bindir}/flocker-changestate
 %{python2_sitelib}/flocker
 %{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
+
+%files -n flocker-cli
+%doc README.rst
+
+%{_bindir}/flocker-deploy
+
+%files -n flocker-node
+%doc README.rst
+
+%{_bindir}/flocker-volume
+%{_bindir}/flocker-changestate
 
 %changelog
 * Tue Jun 10 2014 Tom Prince - %{underscore_version}-1%{?dist}
