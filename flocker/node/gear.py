@@ -12,7 +12,6 @@ from twisted.internet.defer import succeed, fail
 
 from treq import request, content
 
-
 GEAR_PORT = 43273
 
 
@@ -313,7 +312,7 @@ class FakeGearClient(object):
         return succeed(incomplete_units)
 
 
-@attributes(['internal_port', 'external_port'],)
+@attributes(['internal_port', 'external_port'])
 class PortMap(object):
     """
     A record representing the mapping between a port exposed internally by a

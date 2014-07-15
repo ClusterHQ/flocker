@@ -14,12 +14,21 @@ from zope.interface import implementer
 from yaml import safe_load
 from yaml.error import YAMLError
 
+from characteristic import attributes
+
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
 
 from ..volume._ipc import ProcessNode
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
+
+
+@attributes(['node', 'hostname'])
+class NodeTarget(object):
+    """
+    A record for matching an ``INode`` implementation to its target host.
+    """
 
 
 @flocker_standard_options
@@ -127,18 +136,23 @@ class DeployScript(object):
 
     def _get_destinations(self, deployment):
         """
-        Return sequence of ``INode`` to connect to for given deployment.
+        Return iterable of ``NodeTargets`` to connect to for given deployment.
 
         :param Deployment deployment: The requested already parsed
             configuration.
 
-        :return: Iterable of ``INode`` providers.
+        :return: Iterable of ``NodeTarget``\ s containing the node hostname and
+            corresponding ``INode`` provider with which to issue remote
+            procedures on that node.
         """
         private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
 
         for node in deployment.nodes:
-            yield ProcessNode.using_ssh(node.hostname, 22, b"root",
-                                        private_key)
+            yield NodeTarget(
+                node=ProcessNode.using_ssh(
+                    node.hostname, 22, b"root", private_key),
+                hostname=node.hostname
+            )
 
     def _changestate_on_nodes(self, deployment, deployment_config,
                               application_config):
@@ -158,10 +172,12 @@ class DeployScript(object):
                    application_config]
 
         results = []
-        for destination in self._get_destinations(deployment):
+        for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
             # threads we won't get the required parallelism...
-            results.append(deferToThread(destination.get_output, command))
+            results.append(
+                deferToThread(
+                    target.node.get_output, command + [target.hostname]))
         return DeferredList(results)
 
 

@@ -8,7 +8,7 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
-from .._model import Application, DockerImage, Deployment, Node
+from .._model import Application, DockerImage, Deployment, Node, Port
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -135,7 +135,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={
                 'mysql-hybridcluster': dict(image='flocker/mysql:v1.0.0'),
-                'site-hybridcluster': dict(image='flocker/wordpress:v1.0.0')
+                'site-hybridcluster': {
+                    'image': 'flocker/wordpress:v1.0.0',
+                    'ports': [dict(internal=80, external=8080)]
+                }
             }
         )
         parser = Configuration()
@@ -143,14 +146,84 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         expected_applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0')),
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset()),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'))
+                                  tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]))
         }
 
         self.assertEqual(expected_applications, applications)
+
+    def test_ports_missing_internal(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that is missing the internal port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                ports=[{'external': 90}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid ports specification. Missing internal port.",
+            exception.message
+        )
+
+    def test_ports_missing_external(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that is missing the internal port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                ports=[{'internal': 90}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid ports specification. Missing external port.",
+            exception.message
+        )
+
+    def test_ports_extra_keys(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a port
+        entry that has extra keys.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                ports=[{'internal': 90, 'external': 40,
+                        'foo': 5, 'bar': 'six'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid ports specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
@@ -334,7 +407,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                             image=DockerImage(
                                 repository='flocker/mysql',
                                 tag='v1.2.3'
-                            )
+                            ),
+                            ports=frozenset(),
                         ),
                     ])
                 ),
@@ -346,7 +420,8 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                             image=DockerImage(
                                 repository='flocker/nginx',
                                 tag='v1.2.3'
-                            )
+                            ),
+                            ports=frozenset(),
                         ),
                     ])
                 )

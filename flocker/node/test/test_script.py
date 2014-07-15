@@ -78,7 +78,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         )
 
         options.parseOptions(
-            [safe_dump(deployment_config), safe_dump(application_config)])
+            [safe_dump(deployment_config),
+             safe_dump(application_config),
+             b'node1.example.com'])
 
         self.assertDictContainsSubset(
             {'deployment': Deployment(nodes=frozenset([node]))},
@@ -125,7 +127,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
         e = self.assertRaises(
-            UsageError, options.parseOptions, [deployment_bad_yaml, b''])
+            UsageError, options.parseOptions,
+            [deployment_bad_yaml, b'', b'node1.example.com'])
 
         # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
         # testing of this string.
@@ -141,10 +144,39 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options = self.options()
         application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
         e = self.assertRaises(
-            UsageError, options.parseOptions, [b'', application_bad_yaml])
+            UsageError, options.parseOptions,
+            [b'', application_bad_yaml, b'node1.example.com'])
 
         # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
+        )
+
+    def test_hostname_key(self):
+        """
+        The supplied hostname is assigned to a `hostname` key.
+        """
+        expected_hostname = u'foobar.example.com'
+        options = self.options()
+        options.parseOptions([b'{}', b'{}', expected_hostname.encode('ascii')])
+        self.assertEqual(
+            (expected_hostname, unicode),
+            (options['hostname'], type(options['hostname']))
+        )
+
+    def test_nonascii_hostname(self):
+        """
+        A ``UsageError`` is raised if the supplied hostname is not ASCII
+        encoded.
+        """
+        hostname = u'\xa3'.encode('utf8')
+        options = self.options()
+        e = self.assertRaises(
+            UsageError,
+            options.parseOptions, [b'{}', b'{}', hostname])
+
+        self.assertEqual(
+            "Non-ASCII hostname: {hostname}".format(hostname=hostname),
+            str(e)
         )

@@ -50,15 +50,15 @@ class DockerImage(object):
 
 
 @with_cmp(["name"])
-@with_repr(["name", "image"])
-@with_init(["name", "image"], defaults=dict(image=None))
+@with_repr(["name", "image", "ports"])
+@with_init(["name", "image", "ports"], defaults=dict(image=None, ports=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image attribute defaults to `None` until we have a way to
-    interrogate geard for the docker images associated with its containers. See
-    https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The image and ports attributes defaults to `None` until we have a way
+    to interrogate geard for the docker images associated with its containers.
+    See https://github.com/ClusterHQ/flocker/issues/207
 
     XXX: Only the name is compared in equality checks. See
     https://github.com/ClusterHQ/flocker/issues/267
@@ -69,6 +69,9 @@ class Application(object):
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
+
+    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
+        to the outside world.
     """
 
 
@@ -96,6 +99,17 @@ class Deployment(object):
 
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
+    """
+
+
+@attributes(['internal_port', 'external_port'])
+class Port(object):
+    """
+    A record representing the mapping between a port exposed internally by an
+    application and the corresponding port exposed to the outside world.
+
+    :ivar int internal_port: The port number exposed by the application.
+    :ivar int external_port: The port number exposed to the outside world.
     """
 
 

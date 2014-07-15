@@ -5,7 +5,7 @@
 Deploy applications on nodes.
 """
 
-from .gear import GearClient
+from .gear import GearClient, PortMap
 from ._model import Application, StateChanges
 
 from twisted.internet.defer import DeferredList
@@ -33,8 +33,16 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
+        if application.ports is not None:
+            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
+                                              external_port=p.external_port),
+                            application.ports)
+        else:
+            port_maps = []
         return self._gear_client.add(application.name,
-                                     application.image.full_name)
+                                     application.image.full_name,
+                                     ports=port_maps,
+                                     )
 
     def stop_application(self, application):
         """

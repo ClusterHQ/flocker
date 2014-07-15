@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.node.test.test_config -*-
 
 """
 APIs for parsing and validating configuration.
@@ -6,7 +7,7 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment
+from ._model import Application, DockerImage, Node, Deployment, Port
 
 
 class ConfigurationError(Exception):
@@ -67,8 +68,34 @@ class Configuration(object):
                          application_name=application_name, message=e.message)
                 )
 
-            applications[application_name] = Application(name=application_name,
-                                                         image=image)
+            ports = []
+            try:
+                for port in config.pop('ports', []):
+                    try:
+                        internal_port = port.pop('internal')
+                    except KeyError:
+                        raise ValueError("Missing internal port.")
+                    try:
+                        external_port = port.pop('external')
+                    except KeyError:
+                        raise ValueError("Missing external port.")
+
+                    if port:
+                        raise ValueError(
+                            "Unrecognised keys: {keys}.".format(
+                                keys=', '.join(port.keys())))
+                    ports.append(Port(internal_port=internal_port,
+                                      external_port=external_port))
+            except ValueError as e:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "Invalid ports specification. {message}").format(
+                         application_name=application_name, message=e.message))
+
+            applications[application_name] = Application(
+                name=application_name,
+                image=image,
+                ports=frozenset(ports))
 
             if config:
                 raise ConfigurationError(
