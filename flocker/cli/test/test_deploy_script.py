@@ -13,7 +13,8 @@ from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.internet.defer import succeed
 from twisted.internet import reactor
 
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin, make_with_init_tests
+from ...testtools import (
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, make_with_init_tests)
 from ..script import DeployScript, DeployOptions, NodeTarget
 from .._sshconfig import DEFAULT_SSH_DIRECTORY
 from ...node import Application, Deployment, DockerImage, Node
@@ -29,6 +30,7 @@ class NodeTargetInitTests(
     """
     Tests for ``NodeTarget`` initialiser and attributes.
     """
+
 
 class NodeTargetTests(SynchronousTestCase):
     """
