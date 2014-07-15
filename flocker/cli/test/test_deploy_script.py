@@ -13,11 +13,37 @@ from twisted.trial.unittest import TestCase, SynchronousTestCase
 from twisted.internet.defer import succeed
 from twisted.internet import reactor
 
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import DeployScript, DeployOptions
+from ...testtools import (
+    FlockerScriptTestsMixin, StandardOptionsTestsMixin, make_with_init_tests)
+from ..script import DeployScript, DeployOptions, NodeTarget
 from .._sshconfig import DEFAULT_SSH_DIRECTORY
 from ...node import Application, Deployment, DockerImage, Node
 from ...volume._ipc import ProcessNode, FakeNode
+
+
+class NodeTargetInitTests(
+    make_with_init_tests(
+        record_type=NodeTarget,
+        kwargs=dict(node=FakeNode(b''), hostname=u'node1.example.com')
+    )
+):
+    """
+    Tests for ``NodeTarget`` initialiser and attributes.
+    """
+
+
+class NodeTargetTests(SynchronousTestCase):
+    """
+    Tests for ``NodeTarget``.
+    """
+    def test_repr(self):
+        """
+        ``NodeTarget.__repr__`` includes the node and hostname.
+        """
+        self.assertEqual(
+            "<NodeTarget(node=None, hostname=u'node1.example.com')>",
+            repr(NodeTarget(node=None, hostname=u'node1.example.com'))
+        )
 
 
 class FlockerDeployTests(FlockerScriptTestsMixin, TestCase):
@@ -198,8 +224,9 @@ class FlockerDeployMainTests(TestCase):
 
     def test_get_destinations(self):
         """
-        ``DeployScript._get_destinations`` uses the hostnames in the
-        deployment to create SSH ``INode`` destinations.
+        ``DeployScript._get_destinations`` uses the hostnames in the deployment
+        to create SSH ``INode`` destinations, returning them along with their
+        target hostnames.
         """
         db = Application(
             name=u"db-example",
@@ -219,8 +246,10 @@ class FlockerDeployMainTests(TestCase):
         destinations = script._get_destinations(deployment)
 
         def node(hostname):
-            return ProcessNode.using_ssh(
-                hostname, 22, b"root", id_rsa_flocker)
+            return NodeTarget(
+                node=ProcessNode.using_ssh(
+                    hostname, 22, b"root", id_rsa_flocker),
+                hostname=hostname)
 
         self.assertEqual(
             {node(node1.hostname), node(node2.hostname)},
@@ -228,7 +257,7 @@ class FlockerDeployMainTests(TestCase):
 
     def run_script(self, alternate_destinations):
         """
-        Run ``DeployScript.main`` with overriden destinations for
+        Run ``DeployScript.main`` with overridden destinations for
         ``flocker-changestate``.
 
         :param list alternate_destinations: ``INode`` providers to connect
@@ -283,18 +312,27 @@ class FlockerDeployMainTests(TestCase):
     def test_calls_changestate(self):
         """
         ``DeployScript.main`` calls ``flocker-changestate`` using the
-        destinations from ``_get_destinations``.
+        destinations and hostnames from ``_get_destinations``.
         """
-        destinations = [FakeNode([b""]), FakeNode([b""])]
+        expected_hostname1 = b'node101.example.com'
+        expected_hostname2 = b'node102.example.com'
+
+        destinations = [
+            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname1),
+            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname2),
+        ]
         running = self.run_script(destinations)
 
         def ran(ignored):
-            expected = [
+            expected_common = [
                 b"flocker-changestate", self.deployment_config,
                 self.application_config]
+
             self.assertEqual(
-                list(node.remote_command for node in destinations),
-                [expected, expected])
+                list(target.node.remote_command for target in destinations),
+                [expected_common + [expected_hostname1],
+                 expected_common + [expected_hostname2]]
+            )
         running.addCallback(ran)
         return running
 
@@ -305,12 +343,16 @@ class FlockerDeployMainTests(TestCase):
 
         (Proving actual parallelism is much more difficult...)
         """
-        destinations = [FakeNode([b""]), FakeNode([b""])]
+        destinations = [
+            NodeTarget(node=FakeNode([b""]), hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b""]), hostname=b'node102.example.com'),
+        ]
+
         running = self.run_script(destinations)
 
         def ran(ignored):
             self.assertNotEqual(
-                set(node.thread_id for node in destinations),
+                set(target.node.thread_id for target in destinations),
                 set([current_thread().ident]))
         running.addCallback(ran)
         return running

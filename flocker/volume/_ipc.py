@@ -22,7 +22,9 @@ from .service import DEFAULT_CONFIG_PATH
 
 
 class INode(Interface):
-    """A remote node with which this node can communicate."""
+    """
+    A remote node with which this node can communicate.
+    """
 
     def run(remote_command):
         """Context manager that runs a remote command and return its stdin.
