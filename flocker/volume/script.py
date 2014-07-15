@@ -147,6 +147,9 @@ class VolumeScript(object):
         """
         Create a ``VolumeService`` for the given arguments.
 
+        This should probably be elsewhere:
+        https://github.com/ClusterHQ/flocker/issues/305
+
         :return: The started ``VolumeService``.
         """
         pool = StoragePool(reactor, options["pool"],
