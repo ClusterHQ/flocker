@@ -10,6 +10,7 @@ from unittest import skipUnless
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
+from twisted.internet import reactor
 
 from ...volume.service import VolumeService, DEFAULT_CONFIG_PATH
 from ...volume.filesystems.zfs import StoragePool
@@ -74,4 +75,4 @@ class ChangeStateScriptTests(TestCase):
         """
         self.assertEqual(
             ChangeStateScript()._deployer._volume_service._pool,
-            StoragePool(b"flocker", FilePath(b"/flocker")))
+            StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
