@@ -36,21 +36,22 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
 
     def test_main_calls_deployer_change_node_state(self):
         """
-        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with the
-        ``Deployment`` and `hostname` supplied on the command line.
+        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
+        the ``Deployment`` and `hostname` supplied on the command line.
         """
+        script = ChangeStateScript()
+
         change_node_state_calls = []
 
-        class SpyDeployer(object):
+        def spy_change_node_state(desired_state, hostname):
             """
-            A stand in for ``Deployer`` which records calls made to its
-            ``change_node_state`` method.
+            A stand in for ``Deployer.change_node_state`` which records calls
+            made to it.
             """
-            def change_node_state(self, desired_state, hostname):
-                change_node_state_calls.append((desired_state, hostname))
+            change_node_state_calls.append((desired_state, hostname))
 
-        script = ChangeStateScript()
-        script._deployer = SpyDeployer()
+        self.patch(
+            script._deployer, 'change_node_state', spy_change_node_state)
 
         expected_deployment = Deployment(nodes=frozenset())
         expected_hostname = b'node1.example.com'
