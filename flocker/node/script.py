@@ -51,8 +51,9 @@ class ChangeStateOptions(Options):
     def parseArgs(self, deployment_config, application_config, hostname):
         """
         Parse `deployment_config` and `application_config` strings as YAML, and
-        into a :class:`Deployment` instance. Assign the resulting instance
-        to this `Options` dictionary.
+        into a :class:`Deployment` instance. Assign the resulting instance to
+        this `Options` dictionary. Decode a supplied hostname as ASCII and
+        assign to a `hostname` key.
 
         :param bytes deployment_config: The YAML string describing the desired
             deployment configuration.
@@ -61,7 +62,7 @@ class ChangeStateOptions(Options):
         :param bytes hostname: The ascii encoded hostname of this node.
 
         :raises UsageError: If the configuration files cannot be parsed as YAML
-            and into a :class:`Deployment` instance.
+            or if the hostname can not be decoded as ASCII.
         """
         try:
             deployment_config = safe_load(deployment_config)
