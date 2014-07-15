@@ -34,16 +34,33 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         script = ChangeStateScript()
         self.assertIsInstance(script._deployer, Deployer)
 
-    def test_deferred_result(self):
+    def test_main_calls_deployer_change_node_state(self):
         """
-        ``ChangeStateScript.main`` returns a ``Deferred`` on success.
+        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with the
+        ``Deployment`` and `hostname` supplied on the command line.
         """
+        change_node_state_calls = []
+
+        class SpyDeployer(object):
+            """
+            A stand in for ``Deployer`` which records calls made to its
+            ``change_node_state`` method.
+            """
+            def change_node_state(self, desired_state, hostname):
+                change_node_state_calls.append((desired_state, hostname))
+
         script = ChangeStateScript()
-        options = ChangeStateOptions()
-        dummy_reactor = object()
-        self.assertIs(
-            None,
-            self.successResultOf(script.main(dummy_reactor, options))
+        script._deployer = SpyDeployer()
+
+        expected_deployment = Deployment(nodes=frozenset())
+        expected_hostname = b'node1.example.com'
+        options = dict(deployment=expected_deployment,
+                       hostname=expected_hostname)
+        script.main(reactor=object(), options=options)
+
+        self.assertEqual(
+            [(expected_deployment, expected_hostname)],
+            change_node_state_calls
         )
 
 
