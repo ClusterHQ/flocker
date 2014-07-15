@@ -59,7 +59,7 @@ class GearClientTests(TestCase):
     def setUp(self):
         pass
 
-    def start_application(self, unit_name,
+    def start_container(self, unit_name,
                           image_name=u"openshift/busybox-http-app",
                           ports=None, links=None, expected_state=None):
         """
@@ -108,13 +108,13 @@ class GearClientTests(TestCase):
     def test_add_starts_container(self):
         """``GearClient.add`` starts the container."""
         name = random_name()
-        return self.start_application(name)
+        return self.start_container(name)
 
     @_if_root
     def test_correct_image_used(self):
         """``GearClient.add`` creates a container with the specified image."""
         name = random_name()
-        d = self.start_application(name)
+        d = self.start_container(name)
 
         def started(_):
             data = subprocess.check_output(
@@ -157,7 +157,7 @@ class GearClientTests(TestCase):
         sure this keeps working.
         """
         name = random_name()
-        d = self.start_application(name)
+        d = self.start_container(name)
 
         def started(client):
             self.addCleanup(client.remove, name)
@@ -202,7 +202,7 @@ class GearClientTests(TestCase):
         name = random_name()
         expected_state = Unit(name=name, activation_state=u'inactive',
                               sub_state=u'dead')
-        d = self.start_application(unit_name=name, image_name="busybox",
+        d = self.start_container(unit_name=name, image_name="busybox",
                                    expected_state=expected_state)
         return d
 
@@ -259,7 +259,7 @@ class GearClientTests(TestCase):
         expected_response = b'Hello world!\n'
         external_port = find_free_port()[1]
         name = random_name()
-        d = self.start_application(
+        d = self.start_container(
             name, ports=[PortMap(internal_port=8080,
                                  external_port=external_port)])
 
@@ -307,16 +307,16 @@ class GearClientTests(TestCase):
         factory = ProtocolPoppingFactory(protocols=[protocol])
         d = server.listen(factory)
 
-        def start_application(port):
+        def start_container(port):
             self.addCleanup(port.stopListening)
             host_port = port.getHost().port
-            return self.start_application(
+            return self.start_container(
                 unit_name=random_name(),
                 image_name=image_name,
                 links=[PortMap(internal_port=internal_port,
                                external_port=host_port)]
             )
-        d.addCallback(start_application)
+        d.addCallback(start_container)
 
         def started(ignored):
             return capture_finished
