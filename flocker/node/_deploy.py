@@ -99,12 +99,26 @@ class Deployer(object):
         d = self.discover_node_configuration()
 
         def find_differences(current_node_applications):
-            current_state = set(current_node_applications)
-            desired_state = set(desired_node_applications)
+            # Compare the applications being changed by name only.  Other
+            # configuration changes aren't important at this point.
+            current_state = {app.name for app in current_node_applications}
+            desired_state = {app.name for app in desired_node_applications}
+
+            start_names = desired_state.difference(current_state)
+            stop_names = current_state.difference(desired_state)
+
+            start_containers = {
+                app for app in desired_node_applications
+                if app.name in start_names
+            }
+            stop_containers = {
+                app for app in current_node_applications
+                if app.name in stop_names
+            }
 
             return StateChanges(
-                applications_to_start=desired_state.difference(current_state),
-                applications_to_stop=current_state.difference(desired_state)
+                applications_to_start=start_containers,
+                applications_to_stop=stop_containers,
             )
         d.addCallback(find_differences)
         return d
