@@ -15,7 +15,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
-from ...route import INetwork
+from ...route import INetwork, Proxy
 from ...volume.service import VolumeService, Volume
 from ...volume.filesystems.memory import FilesystemStoragePool
 
@@ -318,9 +318,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node2.example.com')
+        proxy = Proxy(ip=expected_destination_host, port=expected_destination_port)
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
-                                proxies_to_create=set(),
+                                proxies_to_create=frozenset([proxy]),
                                 proxies_to_delete=set(),)
         self.assertEqual(expected, self.successResultOf(d))
         # on node2 run calculate_necessary_state_changes

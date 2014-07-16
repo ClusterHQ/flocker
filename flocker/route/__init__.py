@@ -16,7 +16,7 @@ this allows easy, transparent migration of containers between any of the
 cooperating nodes.
 """
 
-__all__ = ["INetwork", "make_host_network", "make_memory_network"]
+__all__ = ["INetwork", "make_host_network", "make_memory_network", "Proxy"]
 
 
 from ._interfaces import INetwork
