@@ -22,6 +22,7 @@ _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
 _require_root = skipUnless(getuid() == 0,
                            "Root required to run these tests.")
+from .test_gear import _gear_running
 
 
 class FlockerChangeStateTests(TestCase):
@@ -75,3 +76,13 @@ class ChangeStateScriptTests(TestCase):
         self.assertEqual(
             ChangeStateScript()._deployer._volume_service._pool,
             StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
+
+    @_gear_running
+    def test_deployer_discovery(self):
+        """
+        ``ChangeState._deployer`` can discover the node configuration without
+        failing.
+
+        This is a very broad smoke test, essentially.
+        """
+        return ChangeStateScript()._deployer.discover_node_configuration()
