@@ -11,9 +11,11 @@ VAGRANTFILE_API_VERSION = "2"
 $bootstrap = <<SCRIPT
 set -e
 
-mv clusterhq-flocker.repo /etc/yum.repos.d/
 
 yum install -y zfs
+
+# Make it possible to install flocker-node
+mv clusterhq-flocker.repo /etc/yum.repos.d/
 
 yum install -y flocker-node
 
@@ -21,6 +23,11 @@ systemctl enable docker
 systemctl start docker
 systemctl enable geard
 systemctl start geard
+
+# Make it easy to authenticate as root
+mkdir /root/.ssh
+cp ~/.ssh/authorized_keys /root/.ssh
+
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
