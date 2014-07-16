@@ -281,7 +281,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired, and no proxies exist or are desired.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
@@ -296,10 +297,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # TODO docstring
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
-        port = Port(internal_port=3306, external_port=expected_destination_port)
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/mysql',
@@ -315,9 +318,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
 
         desired = Deployment(nodes=nodes)
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=u'node2.example.com')
-        proxy = Proxy(ip=expected_destination_host, port=expected_destination_port)
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired, hostname=u'node2.example.com')
+        proxy = Proxy(ip=expected_destination_host,
+                      port=expected_destination_port)
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 proxies_to_create=frozenset([proxy]),
