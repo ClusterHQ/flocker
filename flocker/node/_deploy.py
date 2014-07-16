@@ -5,7 +5,7 @@
 Deploy applications on nodes.
 """
 
-from twisted.internet.defer import gatherResults, fail, succeed
+from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
 from ._model import Application, StateChanges, AttachedVolume
