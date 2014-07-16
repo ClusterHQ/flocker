@@ -475,14 +475,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         self.assertEqual(expected, self.successResultOf(d))
 
 
-class DeployerApplyStateChangesTests(SynchronousTestCase):
+class DeployerApplyChangesTests(SynchronousTestCase):
     """
-    Tests for ``Deployer._apply_state_changes``.
+    Tests for ``Deployer._apply_changes``.
     """
-    def test_proxies_unchanged(self):
-        """
-        """
-
     def test_proxies_added(self):
         """
         Proxies which are required are added.
@@ -498,7 +494,7 @@ class DeployerApplyStateChangesTests(SynchronousTestCase):
             applications_to_stop=frozenset(),
             proxies=frozenset([expected_proxy])
         )
-        api._apply_state_changes(desired_changes)
+        api._apply_changes(desired_changes)
         self.assertEqual(
             [expected_proxy],
             fake_network.enumerate_proxies()
@@ -518,7 +514,7 @@ class DeployerApplyStateChangesTests(SynchronousTestCase):
             applications_to_start=frozenset(),
             applications_to_stop=frozenset(),
         )
-        api._apply_state_changes(desired_changes)
+        api._apply_changes(desired_changes)
         self.assertEqual(
             [],
             fake_network.enumerate_proxies()

@@ -155,15 +155,6 @@ class Deployer(object):
         d.addCallback(find_differences)
         return d
 
-    def _apply_state_changes(self, state_changes):
-        """
-        TODO
-        """
-        for proxy in self._network.enumerate_proxies():
-            self._network.delete_proxy(proxy)
-        for proxy in state_changes.proxies:
-            self._network.create_proxy_to(ip=proxy.ip, port=proxy.port)
-
     def change_node_state(self, desired_state, hostname):
         """
         Change the local state to match the given desired state.
@@ -191,10 +182,10 @@ class Deployer(object):
         :return: A ``Deferred`` that fires when all application start/stop
             operations have finished.
         """
-        # for proxy in self._network.enumerate():
-        #     self._network.remove(proxy)
-        # for proxy in necessary_state_changes.proxies:
-        #     self.network.create_proxy_to(proxy.ip, proxy.port)
+        for proxy in self._network.enumerate_proxies():
+            self._network.delete_proxy(proxy)
+        for proxy in necessary_state_changes.proxies:
+            self._network.create_proxy_to(proxy.ip, proxy.port)
 
         # XXX: Errors in these operations should be logged. See
         # https://github.com/ClusterHQ/flocker/issues/296
