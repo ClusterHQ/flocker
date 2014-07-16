@@ -294,8 +294,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     def test_proxy_needs_creating(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a
-        ``StateChanges`` instance containing a list of ``Proxy``
-        objects that need creating on the node.
+        ``StateChanges`` instance containing a list of ``Proxy`` objects. One
+        for each port exposed by ``Application``\ s hosted on a remote nodes.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear,
@@ -323,8 +323,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             desired_state=desired, hostname=u'node2.example.com')
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set(),
+        expected = StateChanges(applications_to_start=frozenset(),
+                                applications_to_stop=frozenset(),
                                 proxies=frozenset([proxy]))
         self.assertEqual(expected, self.successResultOf(d))
 
