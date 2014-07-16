@@ -330,14 +330,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         fake_gear = FakeGearClient(units={})
         network = make_memory_network()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=network)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=network)
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
-        ports = Port(internal_port=3306, external_port=expected_destination_port)
-        proxy = network.create_proxy_to(ip=expected_destination_host, port=expected_destination_port)
+        proxy = network.create_proxy_to(ip=expected_destination_host,
+                                        port=expected_destination_port)
         desired = Deployment(nodes=frozenset())
-        d = api.calculate_necessary_state_changes(desired_state=desired,
-                                                  hostname=u'node2.example.com')
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired, hostname=u'node2.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 proxies_to_create=set(),
@@ -352,7 +353,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
@@ -368,7 +370,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         not running.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -396,7 +399,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
