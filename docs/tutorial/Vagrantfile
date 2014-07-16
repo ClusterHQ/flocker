@@ -25,8 +25,8 @@ systemctl enable geard
 systemctl start geard
 
 # Make it easy to authenticate as root
-mkdir /root/.ssh
-cp ~/.ssh/authorized_keys /root/.ssh
+mkdir -p /root/.ssh
+cp ~vagrant/.ssh/authorized_keys /root/.ssh
 
 SCRIPT
 
