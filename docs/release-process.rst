@@ -20,8 +20,8 @@ By the end of the release process we will have:
 Prequesites
 -----------
 
-- A pypi account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`_),
-  with `maintainer access<https://pypi.python.org/pypi?:action=role_form&package_name=flocker>` to the flocker package.
+- A pypi account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`__),
+  with `maintainer access <https://pypi.python.org/pypi?:action=role_form&package_name=flocker>`__ to the flocker package.
   Configure the account in file:`~/.pypirc`::
 
      [distutils]
@@ -32,8 +32,8 @@ Prequesites
      username: <username>
      password: <password>
 
-- A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`_),
-  with `maintainer access<https://readthedocs.org/dashboard/flocker/users/>`_ to the flocker project.
+- A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
+  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the flocker project.
 
 Preparing for a release
 -----------------------
@@ -45,7 +45,7 @@ Preparing for a release
 2. Make sure the release notes in :file:`NEWS` are up-to-date.
 3. Update appropriate copyright dates as appropriate.
 4. Make sure all the tests pass on buildbot.
-   Go to the `buildbot<http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
+   Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
    XXX: buildbot needs to not merge forward on release branches
 5. Do the acceptance tests.
 
