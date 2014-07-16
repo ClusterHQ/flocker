@@ -485,11 +485,28 @@ class DeployerApplyStateChangesTests(SynchronousTestCase):
 
     def test_proxies_added(self):
         """
+        Proxies which are required are added.
         """
 
     def test_proxies_removed(self):
         """
+        Proxies which are no longer required on the node are removed.
         """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+        )
+        api._apply_state_changes(desired_changes)
+        self.assertEqual(
+            [],
+            fake_network.enumerate_proxies()
+        )
 
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):

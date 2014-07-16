@@ -155,6 +155,13 @@ class Deployer(object):
         d.addCallback(find_differences)
         return d
 
+    def _apply_state_changes(self, state_changes):
+        """
+        TODO
+        """
+        for proxy in self._network.enumerate_proxies():
+            self._network.delete_proxy(proxy)
+
     def change_node_state(self, desired_state, hostname):
         """
         Change the local state to match the given desired state.
