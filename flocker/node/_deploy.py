@@ -161,6 +161,8 @@ class Deployer(object):
         """
         for proxy in self._network.enumerate_proxies():
             self._network.delete_proxy(proxy)
+        for proxy in state_changes.proxies:
+            self._network.create_proxy_to(ip=proxy.ip, port=proxy.port)
 
     def change_node_state(self, desired_state, hostname):
         """
