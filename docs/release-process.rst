@@ -71,7 +71,9 @@ Release
      git tag -a $VERSION release/flocker-${VERSION%.*}
      git push origin $VERSION
 
-2. Build python packages and upload to pypi::
+2.  Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+
+3. Build python packages and upload to pypi::
 
      python sdist bdist_wheel
      twine upload dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl}
@@ -80,7 +82,7 @@ Release
 
      gsutil -a public-read cp dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
 
-3. Upload RPMs.
+4. Upload RPMs.
 
    .. note::
 
@@ -90,7 +92,6 @@ Release
      To do this, we download the current repository, add the new package, update the metadata, and then upload the repository.
 
    XXX We need a procedure in place to update the dependencies hosted here.
-   XXX Probably need to force a build to get properly named RPMs.
 
    1. Download existing RPM repo::
 
@@ -102,19 +103,19 @@ Release
          cat > flocker-$VERSION.repo <<EOF
          [flocker-$VERSION]
          name=flocker-$VERSION
-         baseurl=http://build.clusterhq.com/results/fedora/20/x86_64/flocker-$VERSION/
+         baseurl=http://build.clusterhq.com/results/fedora/20/x86_64/$VERSION/
          EOF
          yumdownloader -c flocker-$VERSION.repo --disablerepo='*' --enablerepo=flocker-$VERSION --destdir=repo python-flocker flocker-cli flocker-node
 
-   3. Create repository data::
+   3. Update repository metadata::
 
          createrepo repo
 
-   4. Upload::
+   4. Upload updated repository::
 
          gsutil cp -R -a public-read repo/ gs://archive.clusterhq.com/fedora/20/x86_64/
 
-4. Build tagged docs at readthedocs.org.
+5. Build tagged docs at readthedocs.org.
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
