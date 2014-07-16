@@ -53,7 +53,7 @@ Preparing for a release
 4. Make sure all the tests pass on buildbot.
    Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
    XXX: buildbot needs to not merge forward on release branches
-5. Do the acceptance tests.
+5. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
 Release
 -------
