@@ -294,7 +294,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_proxy_needs_creating(self):
         """
-        # TODO docstring
+        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``StateChanges`` instance containing a list of ``Proxy``
+        objects that need creating on the node.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear,
@@ -330,7 +332,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_proxy_needs_deleting(self):
         """
-        # TODO docstring
+        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``StateChanges`` instance containing a list of ``Proxy``
+        objects that need should be deleted from the node.
         """
         fake_gear = FakeGearClient(units={})
         network = make_memory_network()
