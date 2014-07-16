@@ -524,7 +524,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
 
     def test_delete_proxy_errors_as_errbacks(self):
         """
-        Exceptions raise in `delete_proxy` operations are reported as
+        Exceptions raised in `delete_proxy` operations are reported as
         failures in the returned deferred.
         """
         fake_network = make_memory_network()
@@ -546,10 +546,9 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             ZeroDivisionError
         )
 
-
     def test_create_proxy_errors_as_errbacks(self):
         """
-        Exceptions raise in `create_proxy_to` operations are reported as
+        Exceptions raised in `create_proxy_to` operations are reported as
         failures in the returned deferred.
         """
         fake_network = make_memory_network()

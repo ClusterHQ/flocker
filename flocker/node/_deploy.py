@@ -184,6 +184,8 @@ class Deployer(object):
         # https://github.com/ClusterHQ/flocker/issues/296
         results = []
 
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
         for proxy in self._network.enumerate_proxies():
             try:
                 self._network.delete_proxy(proxy)
