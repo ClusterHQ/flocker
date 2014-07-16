@@ -97,6 +97,8 @@ Release
 
 4. Build tagged docs at readthedocs.org.
 
+   XXX Need to get docs.clusterhq.com pointing at readthedocs, and tell readthedocs that docs.clusterhq.com is the appropriate cannonical URL.
+
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
     1. Enable the version being released.
@@ -108,6 +110,7 @@ Announcing Releases
 
 - Annoucment on mailing list, blog, IRC (others?)
 - Update download links on clusterhq.com
+  XXX We need a page with the download links first.
 
 
 Stuff do once we have users
