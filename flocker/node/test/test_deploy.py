@@ -273,7 +273,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     Tests for ``Deployer.calculate_necessary_state_changes``.
     """
-    def test_no_applications(self):
+    def test_no_state_changes(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
         which fires with a :class:`StateChanges` instance indicating that no

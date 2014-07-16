@@ -113,6 +113,9 @@ class Deployer(object):
             specifying which applications must be started and which must be
             stopped.
         """
+        # TODO Proxies should not just be a set of desired proxies, but a set
+        # of proxies to create / proxies to delete.
+        # Get existing proxies with INetwork.enumerate_proxies
         #proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
