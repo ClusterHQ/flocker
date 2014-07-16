@@ -117,7 +117,6 @@ class Deployer(object):
         # of proxies to create / proxies to delete.
         # Get existing proxies with INetwork.enumerate_proxies
         existing_proxies = self._network.enumerate_proxies()
-        import pdb; pdb.set_trace()
         proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
@@ -127,7 +126,7 @@ class Deployer(object):
                 for application in node.applications:
                     for port in application.ports:
                         # XXX also need to do DNS resolution
-                        proxies.add(Proxy(node.hostname, port.external_port))
+                        proxies.add(Proxy(ip=node.hostname, port=port.external_port))
 
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
