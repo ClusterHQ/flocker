@@ -113,9 +113,6 @@ class Deployer(object):
             specifying which applications must be started and which must be
             stopped.
         """
-        # TODO Proxies should not just be a set of desired proxies, but a set
-        # of proxies to create / proxies to delete.
-        # Get existing proxies with INetwork.enumerate_proxies
         existing_proxies = self._network.enumerate_proxies()
         proxies = set()
         desired_node_applications = []
@@ -127,6 +124,8 @@ class Deployer(object):
                     for port in application.ports:
                         # XXX also need to do DNS resolution
                         proxies.add(Proxy(ip=node.hostname, port=port.external_port))
+                        # XXX this is all the proxies needed - before putting it in StateChanges
+                        # figure out the difference between this and existing_proxies
 
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
