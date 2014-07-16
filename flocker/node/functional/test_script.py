@@ -78,11 +78,9 @@ class ChangeStateScriptTests(TestCase):
             StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
 
     @_if_gear_configured
-    def test_deployer_discovery(self):
+    def test_deployer_gear_client(self):
         """
-        ``ChangeState._deployer`` can discover the node configuration without
-        failing.
+        ``ChangeState._deployer`` is configured with a gear client that works.
+        """
+        return ChangeStateScript()._deployer._gear_client.list()
 
-        This is a very broad smoke test, essentially.
-        """
-        return ChangeStateScript()._deployer.discover_node_configuration()
