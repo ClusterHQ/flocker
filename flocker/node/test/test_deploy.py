@@ -426,7 +426,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -458,7 +459,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
@@ -480,7 +482,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
@@ -494,7 +497,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         Applications which are in the desired configuration are started.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         expected_application_name = u'mysql-hybridcluster'
         application = Application(
             name=expected_application_name,
@@ -524,7 +528,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application = Application(
             name=b'mysql-hybridcluster',
@@ -570,7 +575,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         local_hostname = u'node.example.com'
         fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear, network=make_memory_network())
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application1 = Application(
             name=b'mysql-hybridcluster',
