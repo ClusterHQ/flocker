@@ -59,7 +59,7 @@ Release
 
 1. Tag the version being released::
 
-     git tag $VERSION release/flocker-${VERSION%.*}
+     git tag -a $VERSION release/flocker-${VERSION%.*}
      git push origin $VERSION
 
 2. Build python packages and upload to pypi::
@@ -99,8 +99,6 @@ Release
          gsutil cp -R -a public-read repo/ gs://archive.clusterhq.com/fedora/20/x86_64/
 
 4. Build tagged docs at readthedocs.org.
-
-   XXX Need to get docs.clusterhq.com pointing at readthedocs, and tell readthedocs that docs.clusterhq.com is the appropriate cannonical URL.
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
