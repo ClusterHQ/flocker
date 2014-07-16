@@ -17,8 +17,9 @@ Fedora
 
 Create a zfs pool. The following create a pool as a file in ``/``::
 
-   truncate -s 2G /flocker-pool
-   zpool create flocker /flocker-pool
+   mkdir -p /opt/flocker
+   truncate --size 1G /opt/flocker/pool-vdev
+   zpool create flocker /opt/flocker/pool-vdev
 
 Client
 ------
