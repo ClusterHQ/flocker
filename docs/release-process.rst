@@ -35,6 +35,15 @@ Prequesites
 - A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the flocker project.
 
+- Ability to change topic in ``#clusterhq``.
+  Ensure that you have `+t` next to your nickname, in the output of::
+
+     /msg ChanServ access list #clusterhq
+
+  Somebody with ``+f`` can grant access, by running::
+
+     /msg ChanServ access add #clusterhq <nickname> +t
+
 Preparing for a release
 -----------------------
 1. Checkout the branch for the release.
@@ -112,15 +121,6 @@ Announcing Releases
 - Annoucment on mailing list, blog, IRC (others?)
 - Update download links on clusterhq.com
   XXX We need a page with the download links first.
-
-
-Stuff do once we have users
----------------------------
-Do prereleases
-
-GPG Signing Key?
-
-
 
 
 Stuff needed to get ready for initial release
