@@ -15,7 +15,6 @@ By the end of the release process we will have:
 - Documentation on docs.clusterhq.com or clusterhq.com/docs
 - Annoucment on mailing list, blog, IRC (others?)
 - Download links on clusterhq.com
-- Packages of cli for debian-derivatives and OS X.
 
 
 Prequesites
@@ -69,6 +68,11 @@ Release
 
 3. Upload RPMs.
 
+   XXX This needs to be pre-populated with the dependencies we need.
+   XXX We need a clusterhq-release package that adds this repository (so that people can ``yum localinstall $URL`` to get the repository.
+   XXX We need a procedure in place to update the dependencies hosted here.
+   XXX Probably need to force a build to get properly named RPMs.
+
    1. Download existing RPM repo::
 
          mkdir repo
@@ -97,6 +101,13 @@ Release
 
     1. Enable the version being released.
     2. Set the default version to that version.
+
+
+Announcing Releases
+-------------------
+
+- Annoucment on mailing list, blog, IRC (others?)
+- Update download links on clusterhq.com
 
 
 Stuff do once we have users
