@@ -17,15 +17,17 @@ from ...testtools import create_ssh_server
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
-def make_echo_processnode(test_case):
-    """Create a ``ProcessNode`` that just runs ``echo``.
-
-    :return: ``ProcessNode`` that runs ``echo``.
+def make_prefixless_processnode(test_case):
     """
-    return ProcessNode(initial_command_arguments=[b"echo"])
+    Create a ``ProcessNode`` that just runs the given command with no
+    prefix.
+
+    :return: ``ProcessNode`` instance.
+    """
+    return ProcessNode(initial_command_arguments=[])
 
 
-class ProcessINodeTests(make_inode_tests(make_echo_processnode)):
+class ProcessINodeTests(make_inode_tests(make_prefixless_processnode)):
     """``INode`` tests for ``ProcessNode``."""
 
 
