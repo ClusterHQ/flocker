@@ -522,6 +522,39 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             fake_network.enumerate_proxies()
         )
 
+    def test_desired_proxies_remain(self):
+        """
+        Proxies which exist on the node and which are still required are not
+        removed.
+        """
+        fake_network = make_memory_network()
+
+        # A proxy which will be removed
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        # And some proxies which are still required
+        required_proxy1 = fake_network.create_proxy_to(ip=u'192.0.2.101',
+                                                       port=3306)
+        required_proxy2 = fake_network.create_proxy_to(ip=u'192.0.2.101',
+                                                       port=8080)
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            proxies=frozenset([required_proxy1, required_proxy2])
+        )
+
+        d = api._apply_changes(desired_changes)
+
+        self.successResultOf(d)
+        self.assertEqual(
+            set([required_proxy1, required_proxy2]),
+            set(fake_network.enumerate_proxies())
+        )
+
     def test_delete_proxy_errors_as_errbacks(self):
         """
         Exceptions raised in `delete_proxy` operations are reported as
