@@ -119,6 +119,9 @@ class OpenSSHConfiguration(object):
              # this leads for mDNS lookups on every SSH, which can slow down
              # connections very noticeably
              b"-oGSSAPIAuthentication=no",
+             # Connect as root, since we need superuser permissions for
+             # ZFS and Docker:
+             b"-l", b"root",
              host, commands.encode("ascii")])
 
 configure_ssh = OpenSSHConfiguration.defaults().configure_ssh

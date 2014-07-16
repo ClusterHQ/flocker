@@ -5,8 +5,10 @@
 Deploy applications on nodes.
 """
 
+from twisted.internet.defer import gatherResults
+
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges
+from ._model import Application, StateChanges, AttachedVolume
 from ..routes import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
@@ -16,8 +18,9 @@ class Deployer(object):
     """
     Start and stop applications.
     """
-    def __init__(self, gear_client=None, network=None):
+    def __init__(self, volume_service, gear_client=None, network=None):
         """
+        :param VolumeService volume_service: The volume manager for this node.
         :param IGearClient gear_client: The gear client API to use in
             deployment operations. Default ``GearClient``.
         :param INetwork network: The network routing API to use in
@@ -29,6 +32,7 @@ class Deployer(object):
         # if network is None:
         #     network = make_host_network()
         # self._network = network
+        self._volume_service = volume_service
 
     def start_application(self, application):
         """
@@ -68,15 +72,29 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with a list of ``Application``
             instances.
         """
-        d = self._gear_client.list()
+        volumes = self._volume_service.enumerate()
+        volumes.addCallback(lambda volumes: set(
+            volume.name for volume in volumes
+            if volume.uuid == self._volume_service.uuid))
+        d = gatherResults([self._gear_client.list(), volumes])
 
-        def applications_from_units(units):
+        def applications_from_units(result):
+            units, available_volumes = result
+
             applications = []
             for unit in units:
-                # XXX: This currently only populates the Application name. The
-                # container_image will be available on the Unit when
-                # https://github.com/ClusterHQ/flocker/issues/207 is resolved.
-                applications.append(Application(name=unit.name))
+                # XXX: The container_image will be available on the
+                # Unit when
+                # https://github.com/ClusterHQ/flocker/issues/207 is
+                # resolved.
+                if unit.name in available_volumes:
+                    # XXX Mountpoint is not available, see
+                    # https://github.com/ClusterHQ/flocker/issues/289
+                    volume = AttachedVolume(name=unit.name, mountpoint=None)
+                else:
+                    volume = None
+                applications.append(Application(name=unit.name,
+                                                volume=volume))
             return applications
         d.addCallback(applications_from_units)
         return d
