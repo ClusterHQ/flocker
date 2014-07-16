@@ -133,7 +133,7 @@ class Port(object):
 
 @attributes(
     ["applications_to_start", "applications_to_stop", "proxies"],
-    defaults=dict(proxies=set()) # XXX: Is it dangerous to give this a default?
+    defaults=dict(proxies=set())
 )
 class StateChanges(object):
     """
