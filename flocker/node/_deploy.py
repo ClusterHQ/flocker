@@ -113,7 +113,6 @@ class Deployer(object):
             specifying which applications must be started and which must be
             stopped.
         """
-        existing_proxies = set(self._network.enumerate_proxies())
         desired_proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
@@ -125,14 +124,7 @@ class Deployer(object):
                         # XXX also need to do DNS resolution
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
-                        # XXX this is all the proxies needed - before putting
-                        # it in StateChanges figure out the difference between
-                        # this and existing_proxies
 
-
-
-        proxies_to_create = desired_proxies - existing_proxies
-        proxies_to_delete = existing_proxies - desired_proxies
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
         d = self.discover_node_configuration()
@@ -158,8 +150,7 @@ class Deployer(object):
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
-                proxies_to_create=proxies_to_create,
-                proxies_to_delete=proxies_to_delete
+                proxies=desired_proxies
             )
         d.addCallback(find_differences)
         return d

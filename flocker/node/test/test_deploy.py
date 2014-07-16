@@ -288,8 +288,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
-                                proxies_to_create=set(),
-                                proxies_to_delete=set())
+                                proxies=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_proxy_needs_creating(self):
@@ -326,31 +325,25 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                       port=expected_destination_port)
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
-                                proxies_to_create=frozenset([proxy]),
-                                proxies_to_delete=set(),)
+                                proxies=frozenset([proxy]))
         self.assertEqual(expected, self.successResultOf(d))
 
-    def test_proxy_needs_deleting(self):
+    def test_proxy_empty(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a
-        ``StateChanges`` instance containing a list of ``Proxy``
-        objects that need should be deleted from the node.
+        ``StateChanges`` instance containing an empty `proxies`
+        list if there are no remote applications that need proxies.
         """
-        fake_gear = FakeGearClient(units={})
         network = make_memory_network()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
                        network=network)
-        expected_destination_port = 1001
-        expected_destination_host = u'node1.example.com'
-        proxy = network.create_proxy_to(ip=expected_destination_host,
-                                        port=expected_destination_port)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(
             desired_state=desired, hostname=u'node2.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
-                                proxies_to_create=set(),
-                                proxies_to_delete=frozenset([proxy]))
+                                proxies=frozenset())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
