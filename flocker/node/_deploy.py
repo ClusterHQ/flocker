@@ -29,9 +29,9 @@ class Deployer(object):
         if gear_client is None:
             gear_client = GearClient(hostname=u'127.0.0.1')
         self._gear_client = gear_client
-        # if network is None:
-        #     network = make_host_network()
-        # self._network = network
+        if network is None:
+            network = make_host_network()
+        self._network = network
         self._volume_service = volume_service
 
     def start_application(self, application):

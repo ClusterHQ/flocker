@@ -15,6 +15,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
+from ...route import INetwork
 from ...volume.service import VolumeService, Volume
 from ...volume.filesystems.memory import FilesystemStoragePool
 
@@ -58,6 +59,23 @@ class DeployerAttributesTests(SynchronousTestCase):
             dummy_gear_client,
             Deployer(create_volume_service(self),
                      gear_client=dummy_gear_client)._gear_client
+        )
+
+    def test_network_default(self):
+        """
+        ``Deployer._network`` is an ``INetwork`` by default.
+        """
+        self.assertTrue(INetwork.providedBy(Deployer(None)._network))
+
+    def test_network_override(self):
+        """
+        ``Deployer._network`` can be overridden in the constructor.
+        """
+        dummy_network = object()
+        self.assertIs(
+            dummy_network,
+            Deployer(create_volume_service(self),
+                     network=dummy_network)._network
         )
 
 
