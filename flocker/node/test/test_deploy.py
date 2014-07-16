@@ -574,8 +574,12 @@ class DeployerApplyChangesTests(SynchronousTestCase):
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
-    """
 
+    XXX: Many of these tests are exercising code which has now been refactored
+    into `Deployer._apply_changes`. As such, they can be moved to the
+    `DeployerApplyChangesTests` testcase and simplified. See
+    https://github.com/ClusterHQ/flocker/issues/321
+    """
     def test_applications_stopped(self):
         """
         Existing applications which are not in the desired configuration are
