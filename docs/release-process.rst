@@ -87,7 +87,9 @@ Release
 
      gsutil -a public-read cp dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
 
-4. Upload RPMs.
+4. Upload RPMs::
+
+      admin/upload-rpms upload-scratch 0.1.0
 
    .. note::
 
