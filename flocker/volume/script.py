@@ -143,18 +143,17 @@ class VolumeScript(object):
             sys_module = sys
         self._sys_module = sys_module
 
-    def main(self, reactor, options):
-        """Run a volume management server
-
-        The server will be configured according to the supplied options.
-
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+    def create_volume_service(self, reactor, options):
         """
-        if options.subCommand is None:
-            pool = None
-        else:
-            pool = StoragePool(reactor, options["pool"],
-                               FilePath(options["mountpoint"]))
+        Create a ``VolumeService`` for the given arguments.
+
+        This should probably be elsewhere:
+        https://github.com/ClusterHQ/flocker/issues/305
+
+        :return: The started ``VolumeService``.
+        """
+        pool = StoragePool(reactor, options["pool"],
+                           FilePath(options["mountpoint"]))
         service = self._service_factory(
             config_path=options["config"], pool=pool, reactor=reactor)
         try:
@@ -165,7 +164,18 @@ class VolumeScript(object):
                     options["config"].path, e)
             )
             raise SystemExit(1)
+        return service
 
+    def main(self, reactor, options):
+        """
+        Run a volume management operation.
+
+        The volume manager will be configured according to the supplied
+        options.
+
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+        """
+        service = self.create_volume_service(reactor, options)
         if options.subCommand is not None:
             return maybeDeferred(options.subOptions.run, service)
         else:

@@ -47,16 +47,15 @@ Docker Integration
 ******************
 
 Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-Since Flocker adds a ``"flocker-"`` prefix to containers it creates, this prefix will also be added to the data container.
-For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"flocker-myapp-mongodb-data"`` will be created that has the volume mounted at that path.
+For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
 You can then use this volume manually using ``--volumes-from``::
 
-    $ docker run --volumes-from flocker-myapp-mongodb-data --name mongodb openshift/centos-mongodb
+    $ docker run --volumes-from myapp-mongodb-data --name myapp-mongodb openshift/centos-mongodb
 
-The ``mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
+The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
 
-Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"flocker-myapp-mongodb-data"`` if you create a unit called ``"flocker-myapp-mongodb"``.
+Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
 
 
 Push and Handoff

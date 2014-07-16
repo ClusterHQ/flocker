@@ -214,6 +214,7 @@ def volume_to_dataset(volume):
 
 @implementer(IStoragePool)
 @with_repr(["_name"])
+@with_cmp(["_name", "_mount_root"])
 class StoragePool(object):
     """A ZFS storage pool."""
 

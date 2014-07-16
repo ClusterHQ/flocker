@@ -118,7 +118,7 @@ class GearClient(object):
 
     def __init__(self, hostname):
         """
-        :param bytes hostname: Gear host to connect to.
+        :param unicode hostname: Gear host to connect to.
         """
         self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
 

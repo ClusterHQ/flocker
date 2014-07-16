@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, with_cmp, with_repr, with_init
+from characteristic import attributes
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -49,9 +49,24 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@with_cmp(["name"])
-@with_repr(["name", "image", "ports"])
-@with_init(["name", "image", "ports"], defaults=dict(image=None, ports=None))
+@attributes(["name", "mountpoint"])
+class AttachedVolume(object):
+    """
+    A volume attached to an application to be deployed.
+
+    :ivar unicode name: A short, human-readable identifier for this
+        volume. For now this is always the same as the name of the
+        application it is attached to (see
+        https://github.com/ClusterHQ/flocker/issues/49).
+
+    :ivar FilePath mountpoint: The path within the container where this
+        volume should be mounted, or ``None`` if unknown
+        (see https://github.com/ClusterHQ/flocker/issues/289).
+    """
+
+
+@attributes(["name", "image", "ports", "volume"],
+            defaults=dict(image=None, ports=frozenset(), volume=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -70,8 +85,11 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
-        to the outside world.
+    :ivar frozenset ports: A ``frozenset`` of ``Port`` instances that
+        should be exposed to the outside world.
+
+    :ivar volume: ``None`` if there is no volume, otherwise an
+        ``AttachedVolume`` instance.
     """
 
 
@@ -113,12 +131,12 @@ class Port(object):
     """
 
 
-@attributes(["containers_to_start", "containers_to_stop"])
+@attributes(["applications_to_start", "applications_to_stop"])
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
     state. This might be because of user-specified configuration changes.
 
-    :ivar set containers_to_start: The containers which must be started.
-    :ivar set containers_to_stop: The containers which must be stopped.
+    :ivar set applications_to_start: The applications which must be started.
+    :ivar set applications_to_stop: The applications which must be stopped.
     """

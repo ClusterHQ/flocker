@@ -10,7 +10,6 @@ import socket
 import sys
 import os
 from operator import setitem, delitem
-import pwd
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
@@ -20,7 +19,7 @@ from subprocess import check_call, check_output
 from functools import wraps
 
 from zope.interface import implementer
-from zope.interface.verify import verifyClass
+from zope.interface.verify import verifyClass, verifyObject
 
 from ipaddr import IPAddress
 
@@ -222,7 +221,7 @@ class FlockerScriptTestsMixin(object):
         A script that is meant to be run by ``FlockerScriptRunner`` must
         implement ``ICommandLineScript``.
         """
-        self.assertTrue(verifyClass(ICommandLineScript, self.script))
+        self.assertTrue(verifyObject(ICommandLineScript, self.script()))
 
     def test_incorrect_arguments(self):
         """
@@ -350,13 +349,11 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
         """
         Validate some SSH key credentials.
 
-        Access is granted to the name of the user running the current process
-        for the key this checker was initialized with.
+        Access is granted only to root since that is the user we expect
+        for connections from ``flocker-cli`` and ``flocker-changestate``.
         """
-        # It would probably be better for the username to be another `__init__`
-        # argument.  https://github.com/ClusterHQ/flocker/issues/189
         return (self._key.blob() == credentials.blob and
-                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+                credentials.username == b"root")
 
 
 class _FixedHomeConchUser(UnixConchUser):
