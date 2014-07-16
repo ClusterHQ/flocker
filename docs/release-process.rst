@@ -37,10 +37,16 @@ Prequesites
 
 Preparing for a release
 -----------------------
-1. Create a branch for the release::
+1. Checkout the branch for the release.
 
-      git checkout -b flocker-$VERSION origin/master
-      git push origin --set-upstream flocker-$VERSION
+   - If this is a major or minor release, create the branch for the minor version::
+
+      git checkout -b release/flocker-${VERSION%.*} origin/master
+      git push origin --set-upstream release/flocker-${VERSION%.*}
+
+   - If this is a patch release, there will already be a branch::
+
+      git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-${VERSION%.*}
 
 2. Make sure the release notes in :file:`NEWS` are up-to-date.
 3. Update appropriate copyright dates as appropriate.
@@ -54,7 +60,7 @@ Release
 
 1. Tag the version being released::
 
-     git tag $VERSION
+     git tag $VERSION release/flocker-${VERSION%.*}
      git push origin $VERSION
 
 2. Build python packages and upload to pypi::
