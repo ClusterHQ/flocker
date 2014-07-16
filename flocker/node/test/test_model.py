@@ -7,6 +7,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
 from .._model import Application, DockerImage, Node, Deployment, StateChanges
+from ...route import Proxy
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -124,12 +125,16 @@ class DeploymentInitTests(make_with_init_tests(
 
 class StateChangesInitTests(make_with_init_tests(
         record_type=StateChanges,
-        kwargs=dict(applications_to_start=set([
-            Application(name=u'mysql-clusterhq', image=object()),
-            Application(name=u'site-clusterhq.com', image=object())]),
+        kwargs=dict(
+            applications_to_start=set([
+                Application(name=u'mysql-clusterhq', image=object()),
+                Application(name=u'site-clusterhq.com', image=object())]),
             applications_to_stop=set([
                 Application(name=u'site-example.com', image=object()),
-        ]))
+            ]),
+            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
+        ),
+        expected_defaults=dict(proxies=frozenset())
 )):
     """
     Tests for ``StateChanges.__init__``.

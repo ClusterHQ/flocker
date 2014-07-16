@@ -132,10 +132,8 @@ class Port(object):
 
 
 @attributes(
-    ["applications_to_start", "applications_to_stop",
-     "proxies_to_create", "proxies_to_delete"],
-    # TODO test this default
-    defaults=dict(proxies_to_create=set(), proxies_to_delete=set())
+    ["applications_to_start", "applications_to_stop", "proxies"],
+    defaults=dict(proxies=set()) # XXX: Is it dangerous to give this a default?
 )
 class StateChanges(object):
     """
