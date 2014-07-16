@@ -85,8 +85,8 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    :ivar frozenset ports: A ``frozenset`` of ``Port``\ s that should be exposed
-        to the outside world.
+    :ivar frozenset ports: A ``frozenset`` of ``Port``\ s that should be
+        exposed to the outside world.
 
     :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
@@ -131,8 +131,12 @@ class Port(object):
     """
 
 
-@attributes(["applications_to_start", "applications_to_stop", "proxies_to_create", "proxies_to_delete"],
-            defaults=dict(proxies_to_create=set(), proxies_to_delete=set())) # TODO test this default
+@attributes(
+    ["applications_to_start", "applications_to_stop",
+     "proxies_to_create", "proxies_to_delete"],
+    # TODO test this default
+    defaults=dict(proxies_to_create=set(), proxies_to_delete=set())
+)
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
