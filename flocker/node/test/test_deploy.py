@@ -482,6 +482,23 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         self.assertEqual(expected, self.successResultOf(d))
 
 
+class DeployerApplyStateChangesTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer._apply_state_changes``.
+    """
+    def test_proxies_unchanged(self):
+        """
+        """
+
+    def test_proxies_added(self):
+        """
+        """
+
+    def test_proxies_removed(self):
+        """
+        """
+
+
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
