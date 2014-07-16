@@ -9,7 +9,7 @@ from twisted.internet.defer import gatherResults
 
 from .gear import GearClient, PortMap
 from ._model import Application, StateChanges, AttachedVolume
-from ..routes import make_host_network, Proxy
+from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
 
