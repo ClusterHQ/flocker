@@ -15,7 +15,8 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
-from ...route import INetwork, Proxy, make_memory_network
+from ...route import Proxy, make_memory_network
+from ...route._iptables import HostNetwork
 from ...volume.service import VolumeService, Volume
 from ...volume.filesystems.memory import FilesystemStoragePool
 
@@ -63,9 +64,9 @@ class DeployerAttributesTests(SynchronousTestCase):
 
     def test_network_default(self):
         """
-        ``Deployer._network`` is an ``INetwork`` by default.
+        ``Deployer._network`` is a ``HostNetwork`` by default.
         """
-        self.assertTrue(INetwork.providedBy(Deployer(None)._network))
+        self.assertIsInstance(Deployer(None)._network, HostNetwork)
 
     def test_network_override(self):
         """
