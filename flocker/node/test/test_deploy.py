@@ -494,7 +494,8 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             applications_to_stop=frozenset(),
             proxies=frozenset([expected_proxy])
         )
-        api._apply_changes(desired_changes)
+        d = api._apply_changes(desired_changes)
+        self.successResultOf(d)
         self.assertEqual(
             [expected_proxy],
             fake_network.enumerate_proxies()
@@ -514,7 +515,8 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             applications_to_start=frozenset(),
             applications_to_stop=frozenset(),
         )
-        api._apply_changes(desired_changes)
+        d = api._apply_changes(desired_changes)
+        self.successResultOf(d)
         self.assertEqual(
             [],
             fake_network.enumerate_proxies()

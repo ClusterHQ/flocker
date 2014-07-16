@@ -170,8 +170,6 @@ class Deployer(object):
         d.addCallback(self._apply_changes)
         return d
 
-    # XXX moved this into its own method so we can test with StateChanges
-    # instances directly.
     def _apply_changes(self, necessary_state_changes):
         """
         Apply desired changes.
