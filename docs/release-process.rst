@@ -18,60 +18,85 @@ By the end of the release process we will have:
 - Packages of cli for debian-derivatives and OS X.
 
 
+Prequesites
+-----------
+
+- A pypi account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`_),
+  with `maintainer access<https://pypi.python.org/pypi?:action=role_form&package_name=flocker>` to the flocker package.
+  Configure the account in file:`~/.pypirc`::
+
+     [distutils]
+     index-servers =
+         pypi
+
+     [pypi]
+     username: <username>
+     password: <password>
+
+- A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`_),
+  with `maintainer access<https://readthedocs.org/dashboard/flocker/users/>`_ to the flocker project.
 
 Preparing for a release
 -----------------------
-- Branch for release: ``flocker-$VERSION``.
-- Relase notes: ``NEWS``
-  - Check that release notes are up-to-date for new features
-  - Make sure all incompatible changes and deprecations are documented
-- Make sure all tests pass.
-- Update appropriate copyright dates (years?)
-- Review?
-- Acceptance testing (manual and automatic)
+1. Create a branch for the release::
+
+      git checkout -b flocker-$VERSION origin/master
+      git push origin --set-upstream flocker-$VERSION
+
+2. Make sure the release notes in :file:`NEWS` are up-to-date.
+3. Update appropriate copyright dates as appropriate.
+4. Make sure all the tests pass on buildbot.
+   Go to the `buildbot<http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
+   XXX: buildbot needs to not merge forward on release branches
+5. Do the acceptance tests.
 
 Release
 -------
-- Tag release
-- Build and publish:
-  - sdist::
 
-      python sdist bdist_wheel
-      twine upload dist dist/Flocker-$VERSION*.{tar.gz,whl}
+1. Tag the version being released::
 
-    Also upload to clusterhq.com dowloand site.
+     git tag $VERSION
+     git push origin $VERSION
 
-  - RPMs
+2. Build python packages and upload to pypi::
 
-    - We probably want our users to only point there machine a single repository.
-      That means we also need to include all the dependencies that aren't upstream, or at least automatically add them.
-      We should build a package that points at the appropriate repository, so they can do::
+     python sdist bdist_wheel
+     twine upload dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl}
 
-         yum localinstall http://path.to.repo/flocker-release.fc20.noarch.rpm
+   Also upload to clusterhq.com dowloand site::
 
-      to install flocker.
+     gsutil -a public-read cp dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
 
-      We need at least:
+3. Upload RPMs.
 
-      - flocker itself
-      - Updated gear package
-      - python dependencies
-      - zfs packages
+   1. Download existing RPM repo::
 
-  - documentation.
-    Options:
-    - self-hosted
+         mkdir repo
+         gsutil cp -R gs://archive.clusterhq.com/fedora/20/x86_64/ repo
 
-      - get buildbot to upload somewhere (either a tarball that can be extracted somewhere, or directly live).
+   2. Download release RPMs::
 
-    - readthedocs.org: Read the docs doesn't support automatically building from new tags.
+         cat > flocker-$VERSION.repo <<EOF
+         [flocker-$VERSION]
+         name=flocker-$VERSION
+         baseurl=http://build.clusterhq.com/results/fedora/20/x86_64/flocker-$VERSION/
+         EOF
+         yumdownloader -c flocker-$VERSION.repo --disablerepo='*' --enablerepo=flocker-$VERSION --destdir=repo python-flocker flocker-cli flocker-node
 
-      - Click the checkbox on the readthedocs `https://readthedocs.org/dashboard/flocker/versions/ <dashboard>`_.
+   3. Create repository data::
 
-  - debian/OS X packages
+         createrepo repo
 
-    Perhaps for 0.1 we just want to suggest people do `pip install`?
-    If we do this, we should probably move the private scripts behind an extra flag.
+   4. Upload::
+
+         gsutil cp -R -a public-read repo/ gs://archive.clusterhq.com/fedora/20/x86_64/
+
+4. Build tagged docs at readthedocs.org.
+
+   Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+
+    1. Enable the version being released.
+    2. Set the default version to that version.
 
 
 Stuff do once we have users
