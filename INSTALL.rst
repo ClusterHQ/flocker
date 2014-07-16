@@ -41,13 +41,15 @@ Ubuntu
 
 ::
 
-   sudo apt-get install python-virtualenv
-   virtualenv ~/flocker
-   ~/flocker/bin/pip install flocker
+   sudo apt-get install virtualenvwrapper
+   source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
+   mkvirtualenv flocker
+   pip install flocker
 
 ::
 
-   ~/flocker/bin/flocker-deploy <...>
+   workon flocker
+   flocker-deploy <...>
 
 
 OS X
