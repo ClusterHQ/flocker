@@ -116,16 +116,18 @@ class Deployer(object):
         # TODO Proxies should not just be a set of desired proxies, but a set
         # of proxies to create / proxies to delete.
         # Get existing proxies with INetwork.enumerate_proxies
-        #proxies = set()
+        existing_proxies = self._network.enumerate_proxies()
+        import pdb; pdb.set_trace()
+        proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
             if node.hostname == hostname:
                 desired_node_applications = node.applications
-            # else:
-            #     for application in node.applications:
-            #         for port in application.ports:
-            #             # XXX also need to do DNS resolution
-            #             proxies.add(Proxy(node.hostname, port.external_port))
+            else:
+                for application in node.applications:
+                    for port in application.ports:
+                        # XXX also need to do DNS resolution
+                        proxies.add(Proxy(node.hostname, port.external_port))
 
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
