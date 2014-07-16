@@ -123,9 +123,11 @@ class Deployer(object):
                 for application in node.applications:
                     for port in application.ports:
                         # XXX also need to do DNS resolution
-                        proxies.add(Proxy(ip=node.hostname, port=port.external_port))
-                        # XXX this is all the proxies needed - before putting it in StateChanges
-                        # figure out the difference between this and existing_proxies
+                        proxies.add(Proxy(ip=node.hostname,
+                                          port=port.external_port))
+                        # XXX this is all the proxies needed - before putting
+                        # it in StateChanges figure out the difference between
+                        # this and existing_proxies
 
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
