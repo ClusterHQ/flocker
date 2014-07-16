@@ -15,7 +15,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
-from ...route import INetwork, Proxy
+from ...route import INetwork, Proxy, make_memory_network
 from ...volume.service import VolumeService, Volume
 from ...volume.filesystems.memory import FilesystemStoragePool
 
@@ -291,11 +291,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 proxies_to_delete=set())
         self.assertEqual(expected, self.successResultOf(d))
 
-    def test_proxy_needs_adding(self):
+    def test_proxy_needs_creating(self):
         """
         # TODO docstring
         """
-        # Have an application on node1
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         expected_destination_port = 1001
@@ -324,8 +323,26 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 proxies_to_create=frozenset([proxy]),
                                 proxies_to_delete=set(),)
         self.assertEqual(expected, self.successResultOf(d))
-        # on node2 run calculate_necessary_state_changes
 
+    def test_proxy_needs_deleting(self):
+        """
+        # TODO docstring
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        expected_destination_port = 1001
+        expected_destination_host = u'node1.example.com'
+        ports = Port(internal_port=3306, external_port=expected_destination_port)
+        network = make_memory_network()
+        proxy = network.create_proxy_to(ip=expected_destination_host, port=expected_destination_port)
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node2.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                proxies_to_create=set(),
+                                proxies_to_delete=frozenset([proxy]))
+        self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
         """
