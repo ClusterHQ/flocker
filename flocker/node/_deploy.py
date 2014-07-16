@@ -190,7 +190,10 @@ class Deployer(object):
             except:
                 results.append(fail())
         for proxy in necessary_state_changes.proxies:
-            self._network.create_proxy_to(proxy.ip, proxy.port)
+            try:
+                self._network.create_proxy_to(proxy.ip, proxy.port)
+            except:
+                results.append(fail())
 
         for application in necessary_state_changes.applications_to_stop:
             results.append(self.stop_application(application))

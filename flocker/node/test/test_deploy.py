@@ -545,7 +545,31 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
-        
+
+
+    def test_create_proxy_errors_as_errbacks(self):
+        """
+        Exceptions raise in `create_proxy_to` operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to = lambda ip, port: 1/0
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
+        )
+        d = api._apply_changes(desired_changes)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            exception.value.subFailure.value,
+            ZeroDivisionError
+        )
 
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
