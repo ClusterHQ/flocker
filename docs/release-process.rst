@@ -91,8 +91,6 @@ Release
       When doing a release, we want to add the new flocker packages, while preserving the existing packages in the repository.
       To do this, we download the current repository, add the new package, update the metadata, and then upload the repository.
 
-   XXX We need a procedure in place to update the dependencies hosted here.
-
    1. Download existing RPM repo::
 
          mkdir repo
