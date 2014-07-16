@@ -32,6 +32,8 @@ Prequesites
      username: <username>
      password: <password>
 
+  You will also need `twine <https://pypi.python.org/pypi/twine>`_ installed to upload to pypi.
+
 - A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the flocker project.
 
@@ -43,6 +45,9 @@ Prequesites
   Somebody with ``+f`` can grant access, by running::
 
      /msg ChanServ access add #clusterhq <nickname> +t
+
+- Access to `google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/>`,
+  using `gsutil <https://developers.google.com/storage/docs/gsutil>`_.
 
 Preparing for a release
 -----------------------
