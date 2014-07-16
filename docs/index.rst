@@ -11,6 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   tutorial/index
    flocker-intro/index
    volume/index
    routing/index
