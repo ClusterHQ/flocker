@@ -120,7 +120,7 @@ class GearClient(object):
         """
         :param unicode hostname: Gear host to connect to.
         """
-        self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
+        self._base_url = b"http://%s:%d" % (hostname.encode("ascii"), GEAR_PORT)
 
     def _container_request(self, method, unit_name, operation=None, data=None):
         """Send HTTP request to gear.
