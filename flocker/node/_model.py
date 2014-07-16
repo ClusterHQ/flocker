@@ -131,7 +131,10 @@ class Port(object):
     """
 
 
-@attributes(["applications_to_start", "applications_to_stop"])
+@attributes(
+    ["applications_to_start", "applications_to_stop", "proxies"],
+    defaults=dict(proxies=frozenset())
+)
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
@@ -139,4 +142,7 @@ class StateChanges(object):
 
     :ivar set applications_to_start: The applications which must be started.
     :ivar set applications_to_stop: The applications which must be stopped.
+    :ivar set proxies: The required full ``set`` of
+        :class:`flocker.route.Proxy` routes to application on other
+        nodes. Defaults to an empty ``frozenset``.
     """
