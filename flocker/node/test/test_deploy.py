@@ -278,7 +278,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
         which fires with a :class:`StateChanges` instance indicating that no
         changes are necessary when there are no applications running or
-        desired.
+        desired, and no proxies exist or are desired.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -286,7 +286,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set())
+                                applications_to_stop=set(),
+                                proxies=set())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
