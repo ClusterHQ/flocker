@@ -96,7 +96,6 @@ class ProcessNodeTests(TestCase):
         self.assertRaises(IOError, node.get_output, [b"ls", nonexistent])
 
 
-@_if_root
 def make_sshnode(test_case):
     """
     Create a ``ProcessNode`` that can SSH into the local machine.
@@ -110,7 +109,7 @@ def make_sshnode(test_case):
 
     return ProcessNode.using_ssh(
         host=unicode(server.ip).encode("ascii"), port=server.port,
-        username=getuser(), private_key=server.key_path)
+        username=b"root", private_key=server.key_path)
 
 
 class SSHProcessNodeTests(TestCase):
@@ -123,10 +122,8 @@ class SSHProcessNodeTests(TestCase):
         temp_file = FilePath(self.mktemp())
 
         def go():
-            # Commands are run with a shell... but I verified separately
-            # that opensshd at least DTRT with multiple arguments,
-            # including quoting.
-            with node.run([b"/bin/echo -n hello > " + temp_file.path]):
+            with node.run([b"python", b"-c",
+                           b"file('%s').write(b'hello')" % (temp_file.path,)]):
                 pass
             return temp_file.getContent()
         d = deferToThread(go)
@@ -143,10 +140,9 @@ class SSHProcessNodeTests(TestCase):
         temp_file = FilePath(self.mktemp())
 
         def go():
-            # Commands are run with a shell... but I verified separately
-            # that opensshd at least DTRT with multiple arguments,
-            # including quoting.
-            with node.run([b"cat > " + temp_file.path]) as stdin:
+            with node.run([b"python", b"-c",
+                           "import sys; file('%s').write(sys.stdin.read())" % (
+                               temp_file.path,)]) as stdin:
                 stdin.write(b"hello ")
                 stdin.write(b"there")
             return temp_file.getContent()
