@@ -28,6 +28,13 @@ systemctl start geard
 mkdir -p /root/.ssh
 cp ~vagrant/.ssh/authorized_keys /root/.ssh
 
+# Create a ZFS storage pool backed by a normal filesystem file.  This
+# is a bad way to configure ZFS for production use but it is
+# convenient for a demo in a VM.
+mkdir -p /opt/flocker
+truncate --size 1G /opt/flocker/pool-vdev
+zpool create flocker /opt/flocker/pool-vdev
+
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
