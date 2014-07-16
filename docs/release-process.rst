@@ -52,7 +52,6 @@ Preparing for a release
 3. Update appropriate copyright dates as appropriate.
 4. Make sure all the tests pass on buildbot.
    Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
-   XXX: buildbot needs to not merge forward on release branches
 5. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
 Release
@@ -74,8 +73,6 @@ Release
 
 3. Upload RPMs.
 
-   XXX This needs to be pre-populated with the dependencies we need.
-   XXX We need a clusterhq-release package that adds this repository (so that people can ``yum localinstall $URL`` to get the repository.
    XXX We need a procedure in place to update the dependencies hosted here.
    XXX Probably need to force a build to get properly named RPMs.
 
@@ -133,3 +130,35 @@ Stuff needed to get ready for initial release
 
 
 1. ``INSTALL`` file: installing from git, from tarball, for pypi, from RPM?
+
+
+clusterhq-release package
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is a metapackage that contians the yum repository definitions.
+
+::
+   rpmbuild -D "_sourcedir $PWD" -D "_rpmdir $PWD/results" -ba clusterhq-release.spec
+   gsutil cp -a public-read results/noarch/clusterhq-release-1-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
+
+
+
+Pre-polating rpm repository
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+with copr repo installed
+
+::
+
+   mkdir repo
+   yumdownloader --destdir=repo geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   createrepo repo
+   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
+
+
+::
+
+   mkdir srpm
+   yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   createrepo srpm
+   gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
