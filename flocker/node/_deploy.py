@@ -129,6 +129,8 @@ class Deployer(object):
                         # it in StateChanges figure out the difference between
                         # this and existing_proxies
 
+        proxies_to_create = set() # XXX use set difference like with start_names below
+        proxies_to_delete = set()
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
         d = self.discover_node_configuration()
