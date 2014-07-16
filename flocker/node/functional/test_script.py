@@ -83,4 +83,3 @@ class ChangeStateScriptTests(TestCase):
         ``ChangeState._deployer`` is configured with a gear client that works.
         """
         return ChangeStateScript()._deployer._gear_client.list()
-
