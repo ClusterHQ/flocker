@@ -287,8 +287,44 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
-                                proxies=set())
+                                proxies_to_create=set(),
+                                proxies_to_delete=set())
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_proxy_needs_adding(self):
+        """
+        # TODO docstring
+        """
+        # Have an application on node1
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        expected_destination_port = 1001
+        expected_destination_host = u'node1.example.com'
+        ports = Port(internal_port=3306, external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=ports,
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=expected_destination_host,
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node2.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                proxies_to_create=set(),
+                                proxies_to_delete=set(),)
+        self.assertEqual(expected, self.successResultOf(d))
+        # on node2 run calculate_necessary_state_changes
+
 
     def test_application_needs_stopping(self):
         """
