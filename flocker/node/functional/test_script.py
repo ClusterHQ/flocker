@@ -82,4 +82,6 @@ class ChangeStateScriptTests(TestCase):
         """
         ``ChangeState._deployer`` is configured with a gear client that works.
         """
+        # Trial will fail the test if the returned Deferred fires with an
+        # exception:
         return ChangeStateScript()._deployer._gear_client.list()
