@@ -131,7 +131,8 @@ class Port(object):
     """
 
 
-@attributes(["applications_to_start", "applications_to_stop", "proxies"])
+@attributes(["applications_to_start", "applications_to_stop", "proxies"],
+            defaults=dict(proxies=set())) # TODO test this default
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current
