@@ -522,6 +522,31 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             fake_network.enumerate_proxies()
         )
 
+    def test_proxy_errors_as_errbacks(self):
+        """
+        Exceptions raise in proxy manipulation operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        fake_network.delete_proxy = lambda proxy: 1/0
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+        )
+        d = api._apply_changes(desired_changes)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            RuntimeError,
+            exception.value.subValue.value
+        )
+        
+
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
