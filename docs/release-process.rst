@@ -129,13 +129,6 @@ Announcing Releases
   XXX We need a page with the download links first.
 
 
-Stuff needed to get ready for initial release
----------------------------------------------
-
-
-1. ``INSTALL`` file: installing from git, from tarball, for pypi, from RPM?
-
-
 clusterhq-release package
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
