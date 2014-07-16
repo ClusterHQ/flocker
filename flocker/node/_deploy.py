@@ -5,7 +5,7 @@
 Deploy applications on nodes.
 """
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import gatherResults, fail, succeed
 
 from .gear import GearClient, PortMap
 from ._model import Application, StateChanges, AttachedVolume
@@ -180,14 +180,18 @@ class Deployer(object):
         :return: A ``Deferred`` that fires when all application start/stop
             operations have finished.
         """
-        for proxy in self._network.enumerate_proxies():
-            self._network.delete_proxy(proxy)
-        for proxy in necessary_state_changes.proxies:
-            self._network.create_proxy_to(proxy.ip, proxy.port)
-
         # XXX: Errors in these operations should be logged. See
         # https://github.com/ClusterHQ/flocker/issues/296
         results = []
+
+        for proxy in self._network.enumerate_proxies():
+            try:
+                self._network.delete_proxy(proxy)
+            except:
+                results.append(fail())
+        for proxy in necessary_state_changes.proxies:
+            self._network.create_proxy_to(proxy.ip, proxy.port)
+
         for application in necessary_state_changes.applications_to_stop:
             results.append(self.stop_application(application))
 

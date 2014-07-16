@@ -522,9 +522,9 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             fake_network.enumerate_proxies()
         )
 
-    def test_proxy_errors_as_errbacks(self):
+    def test_delete_proxy_errors_as_errbacks(self):
         """
-        Exceptions raise in proxy manipulation operations are reported as
+        Exceptions raise in `delete_proxy` operations are reported as
         failures in the returned deferred.
         """
         fake_network = make_memory_network()
@@ -542,8 +542,8 @@ class DeployerApplyChangesTests(SynchronousTestCase):
         d = api._apply_changes(desired_changes)
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
-            RuntimeError,
-            exception.value.subValue.value
+            exception.value.subFailure.value,
+            ZeroDivisionError
         )
         
 
