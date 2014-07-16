@@ -39,7 +39,7 @@ class Deployer(object):
         """
         # if application.volume is not None:
         #     volume = self._volume_service.get(application.volume.name)
-        #     d = volume.expose_to_docker()
+        #     d = volume.expose_to_docker(application.volume.mountpoint)
         # else:
         #     d = succeed(None)
 
