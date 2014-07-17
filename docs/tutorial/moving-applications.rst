@@ -65,19 +65,26 @@ The only change necessary to indicate this is to change the original IP address,
 Note that nothing in the application configuration file needs to change.
 *Moving* the application only involves updating the deployment configuration.
 
-Now use ``flocker-deploy`` again to enact the change and take a look at what containers are running where:
-
-#TODO Make it more clear that the two commands below are talking to docker on two different hosts
+Use ``flocker-deploy`` again to enact the change:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment-moved.yml minimal-application.yml
+
+``docker-ps`` can show that no applications are running on ``172.16.255.250``:
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
+
+and that MongoDB has been successfully moved to ``172.16.255.251``:
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
    4d117c7e653e    dockerfile/mongodb:latest   mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
-   alice@mercury:~/flocker-tutorial$
 
 At this point you have successfully deployed a MongoDB server in a container on your VM.
 You've also seen how Flocker provides basic orchestration functionality
