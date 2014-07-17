@@ -9,8 +9,10 @@ from __future__ import unicode_literals, absolute_import
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration
-from .._model import Application, AttachedVolume, Deployment
-from .._model import DockerImage, Node, Port
+from .._model import (
+    Application, AttachedVolume, Deployment,
+    DockerImage, Node, Port
+)
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -138,7 +140,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(
                     image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': '/var/www/data'}
+                    volume={'mountpoint': b'/var/mysql/data'}
                 ),
                 'site-hybridcluster': {
                     'image': 'flocker/wordpress:v1.0.0',
@@ -155,7 +157,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
-                    mountpoint=FilePath('/var/www/data'))),
+                    mountpoint=FilePath(b'/var/mysql/data'))),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -242,8 +244,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                ports=[{'internal': 90, 'external': 40}],
-                volume={'mountpoint': '/var/www/data',
+                volume={'mountpoint': b'/var/mysql/data',
                         'bar': 'baz',
                         'foo': 215},
             )}
@@ -268,7 +269,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                ports=[{'internal': 90, 'external': 40}],
                 volume={},
             )}
         )
@@ -292,8 +292,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                ports=[{'internal': 90, 'external': 40}],
-                volume={'mountpoint': './.././var//'},
+                volume={'mountpoint': b'./.././var//'},
             )}
         )
         parser = Configuration()
@@ -307,6 +306,31 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_volume_mountpoint_not_ascii(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` error if the specified volume mountpoint is
+        not a byte string.
+        """
+        mountpoint_unicode = u'\u2603'
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume={'mountpoint': mountpoint_unicode},
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Mountpoint {mount} is not "
+            "ASCII encoded.".format(mount=mountpoint_unicode),
+            exception.message
+        )
+
     def test_error_on_invalid_volume_yaml(self):
         """
         ``Configuration._applications_from_configuration`` raises a
@@ -316,7 +340,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                ports=[{'internal': 90, 'external': 40}],
                 volume='a random string',
             )}
         )

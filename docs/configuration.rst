@@ -30,6 +30,8 @@ The parameters required to define an application are:
 
        "image": "clusterhq/flocker-dev:v1.0"
 
+The following parameters are optional when defining an application:
+
   - ``ports``
 
     This is an optional list of port mappings to expose to the outside world.
@@ -41,13 +43,9 @@ The parameters required to define an application are:
        - "internal": 80
          "external": 8080
 
-The following parameters are optional when defining an application:
-
   - ``volume``
 
-    This specifies that the application container requires a volume and allows you to specify
-    where in the container the volume should be mounted via the ``mountpoint`` key, which
-    should take the form of an absolute path.
+    This specifies that the application container requires a volume and allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key, which must be given in the form of an absolute path.
 
 Here's an example of a simple but complete configuration defining one application:
 
@@ -58,12 +56,12 @@ Here's an example of a simple but complete configuration defining one applicatio
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
       "ports":
-        "internal": 80
-        "external": 8080
+        - "internal": 80
+        - "external": 8080
       "volume":
-        "mountpoint": "/var/www/data"
+        "mountpoint": "/var/mysql/data"
 
-  
+
 Deployment Configuration
 ------------------------
 

@@ -9,8 +9,10 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.python.filepath import FilePath
 
-from ._model import Application, AttachedVolume, Deployment
-from ._model import DockerImage, Node, Port
+from ._model import (
+    Application, AttachedVolume, Deployment,
+    DockerImage, Node, Port
+)
 
 import os
 
@@ -97,9 +99,6 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
-            # XXX probably will also refactor this function
-            # so there's less duplication.
-
             volume = None
             if "volume" in config:
                 try:
@@ -108,10 +107,16 @@ class Configuration(object):
                         mountpoint = configured_volume['mountpoint']
                     except TypeError:
                         raise ValueError(
-                            "Unexpected value: "+str(configured_volume)
+                            "Unexpected value: " + str(configured_volume)
                         )
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
+                    if not isinstance(mountpoint, str):
+                        raise ValueError(
+                            "Mountpoint {path} is not ASCII encoded.".format(
+                                path=mountpoint
+                            )
+                        )
                     if not os.path.isabs(mountpoint):
                         raise ValueError(
                             "Mountpoint {path} is not an absolute path."
@@ -126,7 +131,7 @@ class Configuration(object):
                         ))
                     volume = AttachedVolume(
                         name=application_name,
-                        mountpoint=FilePath(mountpoint.encode("ascii"))
+                        mountpoint=FilePath(mountpoint)
                         )
                 except ValueError as e:
                     raise ConfigurationError(
