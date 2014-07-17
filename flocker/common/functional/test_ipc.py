@@ -116,8 +116,10 @@ class SSHProcessNodeTests(TestCase):
     """Tests for ``ProcessNode.with_ssh``."""
 
     def test_runs_command(self):
-        """``run()`` on a SSH ``ProcessNode`` runs the command on the machine
-        being ssh'd into."""
+        """
+        ``run()`` on a SSH ``ProcessNode`` runs the command on the machine
+        being ssh'd into.
+        """
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
 
@@ -133,16 +135,18 @@ class SSHProcessNodeTests(TestCase):
         d.addCallback(got_data)
         return d
 
-    def test_stdin(self):
-        """``run()`` on a SSH ``ProcessNode`` writes to the remote command's
-        stdin."""
+    def test_run_stdin(self):
+        """
+        ``run()`` on a SSH ``ProcessNode`` writes to the remote command's
+        stdin.
+        """
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
 
         def go():
             with node.run([b"python", b"-c",
-                           "import sys; file('%s').write(sys.stdin.read())" % (
-                               temp_file.path,)]) as stdin:
+                           b"import sys; file('%s').write(sys.stdin.read())"
+                           % (temp_file.path,)]) as stdin:
                 stdin.write(b"hello ")
                 stdin.write(b"there")
             return temp_file.getContent()
@@ -150,6 +154,25 @@ class SSHProcessNodeTests(TestCase):
 
         def got_data(data):
             self.assertEqual(data, b"hello there")
+        d.addCallback(got_data)
+        return d
+
+    def test_get_output(self):
+        """
+        ``get_output()`` returns the commands output.
+        """
+        node = make_sshnode(self)
+        temp_file = FilePath(self.mktemp())
+        temp_file.setContent(b"hello!")
+
+        def go():
+            return node.get_output([b"python", b"-c",
+                                    b"import sys; sys.stdout.write(file('%s'))"
+                                    % (temp_file.path,)])
+        d = deferToThread(go)
+
+        def got_data(data):
+            self.assertEqual(data, b"hello!")
         d.addCallback(got_data)
         return d
 
