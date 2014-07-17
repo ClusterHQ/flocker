@@ -12,6 +12,8 @@ Let's look at an extremely simple Flocker configuration for one node running a c
 
 Next take a look at what containers Docker is running on the VM you just created:
 
+# TODO syntax highlight the literalincludes
+# TODO emphasize-lines for the changed IP
 #TODO Talk about where the IP addresses come from
 
 .. code-block:: console
