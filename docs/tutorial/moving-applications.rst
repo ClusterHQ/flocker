@@ -20,8 +20,6 @@ Let's look at an extremely simple Flocker configuration for one node running a c
 Next take a look at what containers Docker is running on the VM you just created.
 The node IPs are those which were specified earlier in the ``Vagrantfile``:
 
-# TODO emphasize-lines for the changed IP
-
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -62,6 +60,7 @@ The only change necessary to indicate this is to change the original IP address,
 
 .. literalinclude:: minimal-deployment-moved.yml
    :language: yaml
+   :emphasize-lines: 3
 
 Note that nothing in the application configuration file needs to change.
 *Moving* the application only involves updating the deployment configuration.
