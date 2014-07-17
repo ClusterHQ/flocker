@@ -3,16 +3,35 @@ Flocker Tutorial
 
 TODO: tease the data functionality up front before going through the long boring process of introducing all the non-data features
 
+Requirements
+~~~~~~~~~~~~
+
+To replicate the steps demonstrated in this tutorial, you will need:
+
+  * Linux, FreeBSD, or OS X
+  * `Vagrant`_ (1.6.2 or newer)
+  * `VirtualBox`_
+  * The OpenSSH client (the ``ssh`` and ``ssh-agent`` command-line programs)
+
+#TODO Add a variation which works on Windows
+#TODO Split dependencies into OS-specific buckets that users can focus on to figure out what *they* need
+#TODO Automatically generate an archive of the downloads for this tutorial so the user doesn't have to download 50 different things
+
 Setup
 ~~~~~
 
+Flocker 
+
+#TODO Talk about the purpose of this setup.  Vagrant is one way to get nodes but probably not an interesting way except in the tutorial.  Auth for non-Vagrant machines will be different, eg.
+# TODO make it clear that mongoDB is the special case and this can be done with any application
+
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
-To make this easier, this tutorial includes and assumes the use of a Vagrant configuration which will provide you with VMs that can serve as Flocker nodes.
-For this basic example, use this ``Vagrantfile`` to create one VM:
+To make this easier, this tutorial includes and assumes the use of a Vagrant configuration which will boot some VMs that can serve as Flocker nodes.
+Use this :download:`Vagrantfile` to create one VM:
 
-.. include:: Vagrantfile
+.. literalinclude:: Vagrantfile
 
-.. code-block:: shell
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ vagrant up node1
    Bringing machine 'node1' up with 'virtualbox' provider...
@@ -29,7 +48,7 @@ Fortunately this extra work is only necessary the first time you bring up a node
 
 After the ``vagrant`` command completes you may want to verify that the VM is really running and accepting SSH connections:
 
-.. code-block:: shell
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ vagrant status node1
    Current machine states:
@@ -45,15 +64,15 @@ If all goes well, the next step is to configure your SSH agent.
 This will allow Flocker to authenticate itself to the VM.
 Make sure you have an SSH agent running:
 
-.. code-block:: shell
+.. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ kill -0 ${SSH_AGENT_PID} && echo "yes"
-   yes
+   alice@mercury:~/flocker-tutorial$ kill -0 ${SSH_AGENT_PID} && echo "ssh-agent running" || "ssh-agent not running"
+   ssh-agent running
    alice@mercury:~/flocker-tutorial$
 
-If you aren't then start one now:
+If you see ``ssh-agent not running`` as the output of this command then you need to start one:
 
-.. code-block:: shell
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
    Agent pid 27233
@@ -71,12 +90,14 @@ Starting an Application
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB database.
 
-.. include:: minimal-application.yml
-.. include:: minimal-deployment.yml
+.. literalinclude:: minimal-application.yml
+.. literalinclude:: minimal-deployment.yml
 
 Next take a look at what containers Docker is running on the VM you just created:
 
-.. code-block:: shell
+#TODO Talk about where the IP addresses come from
+
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
@@ -85,7 +106,7 @@ Next take a look at what containers Docker is running on the VM you just created
 From this you can see that there are no running containers.
 To fix this, use ``flocker-deploy`` with the simple configuration files given above and then check again:
 
-.. code-block:: shell
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -96,9 +117,9 @@ To fix this, use ``flocker-deploy`` with the simple configuration files given ab
 ``flocker-deploy`` has made the necessary changes to make your node match the state described in the configuration files you supplied.
 
 Let's see how ``flocker-deploy`` can move this application to a different VM.
-Start a second node so you have someplace to move it to:
+Start a second node so you have somewhere to move it to:
 
-.. code-block:: shell
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ vagrant up node2
    Bringing machine 'node2' up with 'virtualbox' provider...
@@ -107,16 +128,19 @@ Start a second node so you have someplace to move it to:
    ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
    alice@mercury:~/flocker-tutorial$
 
-Now edit the *deployment* configuration file so that it indicates the application should run on this new node:
+Now edit the *deployment* configuration file so that it indicates the application should run on this new node.
+The only change necessary to indicate this is to change the original IP address, ``172.16.255.250``, to the address of the other node, ``172.16.255.251``.
 
-.. include:: minimal-deployment-moved.yml
+.. literalinclude:: minimal-deployment-moved.yml
 
 Note that nothing in the application configuration file needs to change.
 *Moving* the application only involves updating the deployment configuration.
 
 Now use ``flocker-deploy`` again to enact the change and take a look at what containers are running where:
 
-.. code-block:: shell
+#TODO Make it more clear that the two commands below are talking to docker on two different hosts
+
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment-moved.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
