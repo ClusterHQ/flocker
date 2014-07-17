@@ -125,7 +125,8 @@ class SSHProcessNodeTests(TestCase):
 
         def go():
             with node.run([b"python", b"-c",
-                           b"file('%s').write(b'hello')" % (temp_file.path,)]):
+                           b"file('%s', 'w').write(b'hello')"
+                           % (temp_file.path,)]):
                 pass
             return temp_file.getContent()
         d = deferToThread(go)
@@ -145,7 +146,8 @@ class SSHProcessNodeTests(TestCase):
 
         def go():
             with node.run([b"python", b"-c",
-                           b"import sys; file('%s').write(sys.stdin.read())"
+                           b"import sys; "
+                           b"file('%s', 'wb').write(sys.stdin.read())"
                            % (temp_file.path,)]) as stdin:
                 stdin.write(b"hello ")
                 stdin.write(b"there")
@@ -159,7 +161,7 @@ class SSHProcessNodeTests(TestCase):
 
     def test_get_output(self):
         """
-        ``get_output()`` returns the commands output.
+        ``get_output()`` returns the command's output.
         """
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
@@ -167,7 +169,8 @@ class SSHProcessNodeTests(TestCase):
 
         def go():
             return node.get_output([b"python", b"-c",
-                                    b"import sys; sys.stdout.write(file('%s'))"
+                                    b"import sys; "
+                                    b"sys.stdout.write(file('%s').read())"
                                     % (temp_file.path,)])
         d = deferToThread(go)
 
