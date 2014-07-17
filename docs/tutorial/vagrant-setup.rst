@@ -6,7 +6,9 @@ To replicate the steps demonstrated in this tutorial, you will need:
   * Linux, FreeBSD, or OS X
   * `Vagrant`_ (1.6.2 or newer)
   * `VirtualBox`_
-  * The OpenSSH client (the ``ssh`` and ``ssh-agent`` command-line programs)
+  * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
+
+You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 
 #TODO Add a variation which works on Windows
 #TODO Split dependencies into OS-specific buckets that users can focus on to figure out what *they* need
