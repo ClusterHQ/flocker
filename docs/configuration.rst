@@ -56,7 +56,7 @@ Here's an example of a simple but complete configuration defining one applicatio
   "version": 1
   "applications":
     "site-clusterhq.com":
-      "image": "clusterhq/clusterhq-websit"
+      "image": "clusterhq/clusterhq-website"
       "ports":
         "internal": 80
         "external": 8080
