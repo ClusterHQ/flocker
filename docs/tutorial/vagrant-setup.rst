@@ -20,11 +20,11 @@ Setup
 # TODO make it clear that mongoDB is the special case and this can be done with any application
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
-To make this easier, this tutorial includes and assumes the use of a Vagrant configuration which will boot some VMs that can serve as Flocker nodes.
-Use this :download:`Vagrantfile` to create one VM:
+To make this easier, this tutorial includes and assumes the use of a :download:`Vagrant configuration <Vagrantfile>` which will boot two VMs that can serve as Flocker nodes.
+One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
+These two IP addresses will be used throughout the tutorial.
 
-.. literalinclude:: Vagrantfile
-   :language: ruby
+#TODO: Recommend doing `export NODE1=172.16.255.250` etc and then use ${NODE1} throughout the rest of the tutorial text.
 
 .. code-block:: console
 
