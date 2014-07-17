@@ -7,11 +7,13 @@ Starting an Application
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 
-# TODO It is not clear (maybe archive will solve) what the filenames of these
-# should be when I save them.
+:download:`minimal-application.yml`
 
 .. literalinclude:: minimal-application.yml
    :language: yaml
+
+:download:`minimal-deployment.yml`
+
 .. literalinclude:: minimal-deployment.yml
    :language: yaml
 
