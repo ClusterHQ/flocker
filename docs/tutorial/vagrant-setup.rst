@@ -11,6 +11,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 #TODO Add a variation which works on Windows
 #TODO Split dependencies into OS-specific buckets that users can focus on to figure out what *they* need
 #TODO Automatically generate an archive of the downloads for this tutorial so the user doesn't have to download 50 different things
+# TODO actually make the links link somewhere
 
 Setup
 =====
@@ -23,6 +24,7 @@ To make this easier, this tutorial includes and assumes the use of a Vagrant con
 Use this :download:`Vagrantfile` to create one VM:
 
 .. literalinclude:: Vagrantfile
+   :language: ruby
 
 .. code-block:: console
 
