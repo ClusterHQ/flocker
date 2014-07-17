@@ -56,8 +56,8 @@ Here's an example of a simple but complete configuration defining one applicatio
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
       "ports":
-        - "internal": 80
-        - "external": 8080
+      - "internal": 80
+        "external": 8080
       "volume":
         "mountpoint": "/var/mysql/data"
 
