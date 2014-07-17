@@ -89,29 +89,7 @@ Release
 
 4. Upload RPMs::
 
-      admin/upload-rpms upload-scratch 0.1.0
-
-   1. Download existing RPM repo::
-
-         mkdir repo
-         gsutil cp -R gs://archive.clusterhq.com/fedora/20/x86_64/ repo
-
-   2. Download release RPMs::
-
-         cat > flocker-$VERSION.repo <<EOF
-         [flocker-$VERSION]
-         name=flocker-$VERSION
-         baseurl=http://build.clusterhq.com/results/fedora/20/x86_64/$VERSION/
-         EOF
-         yumdownloader -c flocker-$VERSION.repo --disablerepo='*' --enablerepo=flocker-$VERSION --destdir=repo python-flocker flocker-cli flocker-node
-
-   3. Update repository metadata::
-
-         createrepo repo
-
-   4. Upload updated repository::
-
-         gsutil cp -R -a public-read repo/ gs://archive.clusterhq.com/fedora/20/x86_64/
+      admin/upload-rpms upload-scratch $VERSION
 
 5. Build tagged docs at readthedocs.org.
 

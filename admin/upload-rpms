@@ -12,16 +12,32 @@ metadata, and then upload the repository.
 
 from __future__ import print_function
 
+import os
+
 from subprocess import check_call
 from pipes import quote
+import tempfile
 
 from twisted.python.filepath import FilePath
+from twisted.python.usage import Options, UsageError
+from textwrap import dedent
 
-def release_branch(version):
-    stream = '.'.join(version.split('.')[:2])
-    return 'release/flocker-%s' % (stream,)
+class UploadOptions(Options):
 
-FLOCKER_PACKAGES = ['python-flocker', 'flocker-cli', 'flocker-node']
+    optParameters = [
+        ["target", None, b'gs://archive.clusterhq.com/',
+         "The URL of the download server."],
+        ["build-server", None, b'http://build.clusterhq.com/results/fedora/20/x86_64/%s',
+         "The URL of the build-server."]
+    ]
+
+
+    def parseArgs(self, version):
+        self['version'] = version
+
+
+FLOCKER_PACKAGES = [b'python-flocker', b'flocker-cli', b'flocker-node']
+SOURCE_PACKAGES = [b'python-flocker']
 
 def run_command(args):
     """
@@ -36,45 +52,65 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     """
     rpm_directory.createDirectory()
     # Download existing repository
-    check_call(['gsutil', 'cp', '-R', target_repo + '/**', rpm_directory.path])
+    check_call([b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
 
     # Download requrested packages from source repository
-    yum_repo_config = rpm_directory.child('build.repo')
-    yum_repo_config.setContent(dedent("""
+    yum_repo_config = rpm_directory.child(b'build.repo')
+    yum_repo_config.setContent(dedent(b"""
          [flocker]
          name=flocker
          baseurl=%s
          """) % (source_repo,))
-    check_call(['yumdownloader', '-c', yum_repo_config.path, '--disablerepo=*', '--enablerepo=flocker', '--destdir', rpm_directory.path] + packages)
+    check_call([b'yumdownloader', b'-c', yum_repo_config.path, b'--disablerepo=*', b'--enablerepo=flocker', b'--destdir', rpm_directory.path] + packages)
     yum_repo_config.remove()
 
     # Update repository metatdata
-    check_call(['createrepo', '--update', rpm_directory.path])
+    check_call([b'createrepo', b'--update', rpm_directory.path])
 
     # Upload updated repository
-    check_call(['gsutil', 'cp', '-R', rpm_directory.path + '/**', target_repo])
+    check_call([b'gsutil', b'cp', b'-R', rpm_directory.path + b'/**', target_repo])
 
-def upload_rpms(scratch_directory, version):
-    update_repo(rpm_directory=scratch_directory.child('x86_64'),
-                target_repo='gs://archive.clusterhq.com/test/fedora/20/x86_64',
-                source_repo='http://build.staging.clusterhq.com/results/fedora/20/x86_64/%s' % (version,),
+def upload_rpms(scratch_directory, version, target_server, build_server):
+    """
+    Upload RPMS from build server to yum repository.
+
+    :param FilePath scratch_directory: Temporary directory to download repository to.
+    :param bytes version: Version to download RPMs for.
+    :param bytes target_server: Server to upload RPMs to.
+    :param bytes build_server: Server to download new RPMs from.
+    """
+    target_base = os.path.join(target_server, b'fedora/20/')
+    source_repo = os.path.join(build_server, b'results/fedora/20/x86_64', version)
+    update_repo(rpm_directory=scratch_directory.child(b'x86_64'),
+                target_repo=os.path.join(target_base, b'x86_64'),
+                source_repo=source_repo,
                 packages=FLOCKER_PACKAGES)
-    update_repo(rpm_directory=scratch_directory.child('SRPMS'),
-                target_repo='gs://archive.clusterhq.com/test/fedora/20/SRPMS',
-                source_repo='http://build.staging.clusterhq.com/results/fedora/20/x86_64/%s' % (version,),
-                packages=['--source', 'python-flocker'])
+    update_repo(rpm_directory=scratch_directory.child(b'SRPMS'),
+                target_repo=os.path.join(target_base, b'SRPMS'),
+                source_repo=source_repo,
+                packages=[b'--source'] + SOURCE_PACKAGES)
 
 
-def main(scratch_directory, version):
-    scratch_directory = FilePath(scratch_directory)
-    if scratch_directory.exists():
-        assert scratch_directory.isdir() and len(scratch_directory.listdir()) == 0
-    else:
-        scratch_directory.createDirectory()
+def main(options):
+    version = options['version']
 
-    upload_rpms(scratch_directory, version)
+    scratch_directory = FilePath(tempfile.mkdtemp())
+
+    try:
+        upload_rpms(scratch_directory, version,
+                    target_server=options['target'],
+                    build_server=options['build-server'])
+
+    finally:
+        scratch_directory.remove()
 
 
 if __name__ == '__main__':
-    from sys import argv
-    main(*argv[1:])
+    import sys
+    options = UploadOptions()
+    try:
+        options.parseOptions(sys.argv[1:])
+    except UsageError as e:
+        print('%s: %s' % (sys.argv[0], e))
+        raise SystemExit(1)
+    main(options)
