@@ -7,12 +7,16 @@ Starting an Application
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB database.
 
+# TODO It is not clear (maybe archive will solve) what the filenames of these
+# should be when I save them.
+
 .. literalinclude:: minimal-application.yml
+   :language: yaml
 .. literalinclude:: minimal-deployment.yml
+   :language: yaml
 
 Next take a look at what containers Docker is running on the VM you just created:
 
-# TODO syntax highlight the literalincludes
 # TODO emphasize-lines for the changed IP
 #TODO Talk about where the IP addresses come from
 
@@ -35,6 +39,7 @@ To fix this, use ``flocker-deploy`` with the simple configuration files given ab
 
 ``flocker-deploy`` has made the necessary changes to make your node match the state described in the configuration files you supplied.
 
+# TODO subtitle = title, doesn't look great
 Moving Applications
 ===================
 
@@ -54,6 +59,7 @@ Now edit the *deployment* configuration file so that it indicates the applicatio
 The only change necessary to indicate this is to change the original IP address, ``172.16.255.250``, to the address of the other node, ``172.16.255.251``.
 
 .. literalinclude:: minimal-deployment-moved.yml
+   :language: yaml
 
 Note that nothing in the application configuration file needs to change.
 *Moving* the application only involves updating the deployment configuration.
