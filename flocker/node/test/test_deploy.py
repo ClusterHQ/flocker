@@ -15,6 +15,8 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
+from ...route import Proxy, make_memory_network
+from ...route._iptables import HostNetwork
 from ...volume.service import VolumeService, Volume
 from ...volume.filesystems.memory import FilesystemStoragePool
 
@@ -58,6 +60,23 @@ class DeployerAttributesTests(SynchronousTestCase):
             dummy_gear_client,
             Deployer(create_volume_service(self),
                      gear_client=dummy_gear_client)._gear_client
+        )
+
+    def test_network_default(self):
+        """
+        ``Deployer._network`` is a ``HostNetwork`` by default.
+        """
+        self.assertIsInstance(Deployer(None)._network, HostNetwork)
+
+    def test_network_override(self):
+        """
+        ``Deployer._network`` can be overridden in the constructor.
+        """
+        dummy_network = object()
+        self.assertIs(
+            dummy_network,
+            Deployer(create_volume_service(self),
+                     network=dummy_network)._network
         )
 
 
@@ -255,20 +274,77 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     Tests for ``Deployer.calculate_necessary_state_changes``.
     """
-    def test_no_applications(self):
+    def test_no_state_changes(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
         which fires with a :class:`StateChanges` instance indicating that no
         changes are necessary when there are no applications running or
-        desired.
+        desired, and no proxies exist or are desired.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set())
+                                applications_to_stop=set(),
+                                proxies=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_proxy_needs_creating(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``StateChanges`` instance containing a list of ``Proxy`` objects. One
+        for each port exposed by ``Application``\ s hosted on a remote nodes.
+        """
+        fake_gear = FakeGearClient(units={})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+        expected_destination_port = 1001
+        expected_destination_host = u'node1.example.com'
+        port = Port(internal_port=3306,
+                    external_port=expected_destination_port)
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'release-14.0'),
+            ports=frozenset([port]),
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=expected_destination_host,
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired, hostname=u'node2.example.com')
+        proxy = Proxy(ip=expected_destination_host,
+                      port=expected_destination_port)
+        expected = StateChanges(applications_to_start=frozenset(),
+                                applications_to_stop=frozenset(),
+                                proxies=frozenset([proxy]))
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_proxy_empty(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``StateChanges`` instance containing an empty `proxies`
+        list if there are no remote applications that need proxies.
+        """
+        network = make_memory_network()
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
+                       network=network)
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired, hostname=u'node2.example.com')
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                proxies=frozenset())
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
@@ -279,7 +355,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
@@ -295,7 +372,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         not running.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -323,7 +401,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         node.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -353,7 +432,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application = Application(
             name=u'mysql-hybridcluster',
@@ -385,7 +465,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
@@ -395,11 +476,144 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         self.assertEqual(expected, self.successResultOf(d))
 
 
+class DeployerApplyChangesTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer._apply_changes``.
+    """
+    def test_proxies_added(self):
+        """
+        Proxies which are required are added.
+        """
+        fake_network = make_memory_network()
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            proxies=frozenset([expected_proxy])
+        )
+        d = api._apply_changes(desired_changes)
+        self.successResultOf(d)
+        self.assertEqual(
+            [expected_proxy],
+            fake_network.enumerate_proxies()
+        )
+
+    def test_proxies_removed(self):
+        """
+        Proxies which are no longer required on the node are removed.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+        )
+        d = api._apply_changes(desired_changes)
+        self.successResultOf(d)
+        self.assertEqual(
+            [],
+            fake_network.enumerate_proxies()
+        )
+
+    def test_desired_proxies_remain(self):
+        """
+        Proxies which exist on the node and which are still required are not
+        removed.
+        """
+        fake_network = make_memory_network()
+
+        # A proxy which will be removed
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        # And some proxies which are still required
+        required_proxy1 = fake_network.create_proxy_to(ip=u'192.0.2.101',
+                                                       port=3306)
+        required_proxy2 = fake_network.create_proxy_to(ip=u'192.0.2.101',
+                                                       port=8080)
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            proxies=frozenset([required_proxy1, required_proxy2])
+        )
+
+        d = api._apply_changes(desired_changes)
+
+        self.successResultOf(d)
+        self.assertEqual(
+            set([required_proxy1, required_proxy2]),
+            set(fake_network.enumerate_proxies())
+        )
+
+    def test_delete_proxy_errors_as_errbacks(self):
+        """
+        Exceptions raised in `delete_proxy` operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+        fake_network.delete_proxy = lambda proxy: 1/0
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+        )
+        d = api._apply_changes(desired_changes)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            exception.value.subFailure.value,
+            ZeroDivisionError
+        )
+
+    def test_create_proxy_errors_as_errbacks(self):
+        """
+        Exceptions raised in `create_proxy_to` operations are reported as
+        failures in the returned deferred.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to = lambda ip, port: 1/0
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
+        )
+        d = api._apply_changes(desired_changes)
+        exception = self.failureResultOf(d, FirstError)
+        self.assertIsInstance(
+            exception.value.subFailure.value,
+            ZeroDivisionError
+        )
+
+
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
-    """
 
+    XXX: Many of these tests are exercising code which has now been refactored
+    into `Deployer._apply_changes`. As such, they can be moved to the
+    `DeployerApplyChangesTests` testcase and simplified. See
+    https://github.com/ClusterHQ/flocker/issues/321
+    """
     def test_applications_stopped(self):
         """
         Existing applications which are not in the desired configuration are
@@ -407,7 +621,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
@@ -421,7 +636,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         Applications which are in the desired configuration are started.
         """
         fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
         expected_application_name = u'mysql-hybridcluster'
         application = Application(
             name=expected_application_name,
@@ -451,7 +667,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
         fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application = Application(
             name=b'mysql-hybridcluster',
@@ -497,7 +714,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         local_hostname = u'node.example.com'
         fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
 
         application1 = Application(
             name=b'mysql-hybridcluster',
