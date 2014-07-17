@@ -18,21 +18,27 @@ To replicate the steps demonstrated in this tutorial, you will need:
 Setup
 =====
 
-# TODO Talk about the purpose of this setup.  Vagrant is one way to get nodes but probably not an interesting way except in the tutorial.  Auth for non-Vagrant machines will be different, eg.
-
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
-To make this easier, this tutorial includes and assumes the use of a :download:`Vagrant configuration <Vagrantfile>` which will boot two VMs that can serve as Flocker nodes.
+To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
+These VMs serve as hosts on which Flocker can run Docker.
+Flocker does not require Vagrant or VirtualBox.
+You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
+
+For your convenience, this tutorial includes a :download:`Vagrant configuration <Vagrantfile>` which will boot the necessary VMs.
+These VMs already have Flocker and its dependencies installed.
 One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
 These two IP addresses will be used throughout the tutorial.
+If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
+Note that you will need to make the same substitution in commands used throughout the tutorial.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant up node1
+   alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
    ... lots of output ...
-   ==> node1: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
-   ==> node1: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
+   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
+   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
    alice@mercury:~/flocker-tutorial$
 
 This step may take several minutes or more.
@@ -48,11 +54,15 @@ After the ``vagrant`` command completes you may want to verify that the VM is re
    Current machine states:
 
    node1                     running (virtualbox)
+   node2                     running (virtualbox)
    ...
-   alice@mercury:~/flocker-tutorial$ vagrant ssh node1
-   Last login: Wed Jul 16 07:51:58 2014 from 10.0.2.2
-   Welcome to your Packer-built virtual machine.
-   [vagrant@node1 ~]$
+   alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node1
+   node1
+   Connection to 127.0.0.1 closed.
+   alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node2
+   node2
+   Connection to 127.0.0.1 closed.
+   alice@mercury:~/flocker-tutorial$
 
 If all goes well, the next step is to configure your SSH agent.
 This will allow Flocker to authenticate itself to the VM.
@@ -77,4 +87,5 @@ Then add the Vagrant key to your agent:
    alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
    alice@mercury:~/flocker-tutorial$
 
+You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.

@@ -44,18 +44,8 @@ Moving an Application
 =====================
 
 Let's see how ``flocker-deploy`` can move this application to a different VM.
-Start a second node so you have somewhere to move it to:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ vagrant up node2
-   Bringing machine 'node2' up with 'virtualbox' provider...
-   ...
-   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
-   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
-   alice@mercury:~/flocker-tutorial$
-
-Now edit the *deployment* configuration file so that it indicates the application should run on this new node.
+Recall that the Vagrant configuration supplied in the setup portion of the tutorial started two VMs.
+Edit the *deployment* configuration file so that it indicates the application should run on the second VM instead of the first.
 The only change necessary to indicate this is to change the original IP address, ``172.16.255.250``, to the address of the other node, ``172.16.255.251``.
 
 .. literalinclude:: minimal-deployment-moved.yml
