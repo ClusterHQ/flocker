@@ -16,10 +16,10 @@ Of course, this process can be done with any application.
 .. literalinclude:: minimal-deployment.yml
    :language: yaml
 
-Next take a look at what containers Docker is running on the VM you just created:
+Next take a look at what containers Docker is running on the VM you just created.
+The node IPs are those which were specified earlier in the ``Vagrantfile``:
 
 # TODO emphasize-lines for the changed IP
-# TODO Talk about where the IP addresses come from
 
 .. code-block:: console
 
