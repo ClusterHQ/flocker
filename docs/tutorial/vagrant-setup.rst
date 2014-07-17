@@ -48,7 +48,7 @@ Beyond just booting a virtual machine to use as a node for the tutorial, it will
 Your network connectivity and CPU speed will affect how long this takes.
 Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
-After the ``vagrant`` command completes you may want to verify that the VM is really running and accepting SSH connections:
+After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
 
 .. code-block:: console
 
