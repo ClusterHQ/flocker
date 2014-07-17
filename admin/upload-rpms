@@ -10,7 +10,11 @@ this, we download the current repository, add the new package, update the
 metadata, and then upload the repository.
 """
 
+from __future__ import print_function
+
 from subprocess import check_call
+from pipes import quote
+
 from twisted.python.filepath import FilePath
 
 def release_branch(version):
@@ -19,8 +23,10 @@ def release_branch(version):
 
 FLOCKER_PACKAGES = ['python-flocker', 'flocker-cli', 'flocker-node']
 
-def check_call(args):
-    print args
+def run_command(args):
+    from subprocess import check_call
+    print('Running: %s' % (' '.join(map(quote, args))))
+    check_call(args)
 
 def update_repo(rpm_directory, target_repo, source_repo, packages):
     """
@@ -53,7 +59,6 @@ def upload_rpms(scratch_directory, version):
 
 
 def main(scratch_directory, version):
-    print "HI"
     scratch_directory = FilePath(scratch_directory)
     if scratch_directory.exists():
         assert scratch_directory.isdir() and len(scratch_directory.listdir()) == 0
