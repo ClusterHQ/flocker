@@ -7,14 +7,14 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import os
+
 from twisted.python.filepath import FilePath
 
 from ._model import (
     Application, AttachedVolume, Deployment,
     DockerImage, Node, Port
 )
-
-import os
 
 
 class ConfigurationError(Exception):
