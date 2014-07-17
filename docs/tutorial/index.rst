@@ -133,6 +133,3 @@ The next step is to expose it in the host's network interface.
 
 Exposing an Application
 ~~~~~~~~~~~~~~~~~~~~~~~
-
-A
-
