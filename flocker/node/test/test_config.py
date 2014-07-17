@@ -326,8 +326,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid volume specification. Mountpoint {mount} is not "
-            "ASCII encoded.".format(mount=mountpoint_unicode),
+            "Invalid volume specification. Mountpoint {mount} contains "
+            "non-ASCII (unsupported).".format(mount=mountpoint_unicode),
             exception.message
         )
 
