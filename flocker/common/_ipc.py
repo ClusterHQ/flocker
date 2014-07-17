@@ -112,8 +112,7 @@ class ProcessNode(object):
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
             b"-o", b"GSSAPIAuthentication=no",
-            b"-p", b"%d" % (port,), host),
-                   quote=quote)
+            b"-p", b"%d" % (port,), host), quote=quote)
 
 
 @implementer(INode)

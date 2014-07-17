@@ -3,7 +3,6 @@
 """Functional tests for IPC."""
 
 import os
-from getpass import getuser
 from unittest import skipIf
 
 from twisted.internet.threads import deferToThread
