@@ -5,8 +5,7 @@ Moving Applications
 Starting an Application
 =======================
 
-Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB database.
-Of course, this process can be done with any application.
+Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 
 # TODO It is not clear (maybe archive will solve) what the filenames of these
 # should be when I save them.
