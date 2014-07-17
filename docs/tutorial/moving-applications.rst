@@ -6,6 +6,7 @@ Starting an Application
 =======================
 
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB database.
+Of course, this process can be done with any application.
 
 # TODO It is not clear (maybe archive will solve) what the filenames of these
 # should be when I save them.
@@ -18,7 +19,7 @@ Let's look at an extremely simple Flocker configuration for one node running a c
 Next take a look at what containers Docker is running on the VM you just created:
 
 # TODO emphasize-lines for the changed IP
-#TODO Talk about where the IP addresses come from
+# TODO Talk about where the IP addresses come from
 
 .. code-block:: console
 

@@ -18,8 +18,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 Setup
 =====
 
-#TODO Talk about the purpose of this setup.  Vagrant is one way to get nodes but probably not an interesting way except in the tutorial.  Auth for non-Vagrant machines will be different, eg.
-# TODO make it clear that mongoDB is the special case and this can be done with any application
+# TODO Talk about the purpose of this setup.  Vagrant is one way to get nodes but probably not an interesting way except in the tutorial.  Auth for non-Vagrant machines will be different, eg.
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial includes and assumes the use of a :download:`Vagrant configuration <Vagrantfile>` which will boot two VMs that can serve as Flocker nodes.
