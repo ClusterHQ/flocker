@@ -57,7 +57,7 @@ OS X
 
 ::
 
-   wget(?) https://glyph.im/pip/bootstrap.sh
+   curl https://glyph.im/pip/bootstrap.sh
    ./bootstrap.sh
    mkvirtualenv flocker
    pip install flocker
