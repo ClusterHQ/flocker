@@ -24,7 +24,9 @@ def release_branch(version):
 FLOCKER_PACKAGES = ['python-flocker', 'flocker-cli', 'flocker-node']
 
 def run_command(args):
-    from subprocess import check_call
+    """
+    Run a command, while reporting the command being run.
+    """
     print('Running: %s' % (' '.join(map(quote, args))))
     check_call(args)
 
@@ -33,8 +35,10 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     Update ``target_repo`` yum repository with ``packages`` from ``source_repo`` repository.
     """
     rpm_directory.createDirectory()
+    # Download existing repository
     check_call(['gsutil', 'cp', '-R', target_repo + '/**', rpm_directory.path])
 
+    # Download requrested packages from source repository
     yum_repo_config = rpm_directory.child('build.repo')
     yum_repo_config.setContent(dedent("""
          [flocker]
@@ -44,17 +48,20 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     check_call(['yumdownloader', '-c', yum_repo_config.path, '--disablerepo=*', '--enablerepo=flocker', '--destdir', rpm_directory.path] + packages)
     yum_repo_config.remove()
 
+    # Update repository metatdata
     check_call(['createrepo', '--update', rpm_directory.path])
+
+    # Upload updated repository
     check_call(['gsutil', 'cp', '-R', rpm_directory.path + '/**', target_repo])
 
 def upload_rpms(scratch_directory, version):
     update_repo(rpm_directory=scratch_directory.child('x86_64'),
-                target_repo='gs://archive.clusterhq.com/fedora/20/x86_64/',
-                source_repo='http://build.clusterhq.com/results/fedora/20/x86_64/%s/' % (version,),
+                target_repo='gs://archive.clusterhq.com/test/fedora/20/x86_64',
+                source_repo='http://build.staging.clusterhq.com/results/fedora/20/x86_64/%s' % (version,),
                 packages=FLOCKER_PACKAGES)
     update_repo(rpm_directory=scratch_directory.child('SRPMS'),
-                target_repo='gs://archive.clusterhq.com/fedora/20/SRPMS/',
-                source_repo='http://build.clusterhq.com/results/fedora/20/x86_64/%s/' % (version,),
+                target_repo='gs://archive.clusterhq.com/test/fedora/20/SRPMS',
+                source_repo='http://build.staging.clusterhq.com/results/fedora/20/x86_64/%s' % (version,),
                 packages=['--source', 'python-flocker'])
 
 
