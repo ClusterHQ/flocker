@@ -40,6 +40,7 @@ To fix this, use ``flocker-deploy`` with the simple configuration files given ab
 ``flocker-deploy`` has made the necessary changes to make your node match the state described in the configuration files you supplied.
 
 # TODO subtitle = title, doesn't look great
+
 Moving Applications
 ===================
 
