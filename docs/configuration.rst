@@ -45,7 +45,9 @@ The following parameters are optional when defining an application:
 
   - ``volume``
 
-    This specifies that the application container requires a volume and allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key, which must be given in the form of an absolute path.
+    This specifies that the application container requires a volume.
+    It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
+    The value for this key must be a string giving an absolute path.
 
 Here's an example of a simple but complete configuration defining one application:
 
