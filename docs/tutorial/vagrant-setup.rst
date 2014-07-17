@@ -10,10 +10,6 @@ To replicate the steps demonstrated in this tutorial, you will need:
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 
-#TODO Add a variation which works on Windows
-#TODO Split dependencies into OS-specific buckets that users can focus on to figure out what *they* need
-#TODO Automatically generate an archive of the downloads for this tutorial so the user doesn't have to download 50 different things
-
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 
