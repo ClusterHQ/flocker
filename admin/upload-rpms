@@ -17,18 +17,19 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     Update ``target_repo`` yum repository with ``packages`` from ``source_repo`` repository.
     """
     rpm_directory.createDirectory()
-    check_call(['gsutil', 'cp', '-R', target_repo, rpm_directory.path])
+    check_call(['gsutil', 'cp', '-R', target_repo + '/**', rpm_directory.path])
 
     yum_repo_config = rpm_directory.child('build.repo')
-    yum_repo_config.setContent("""
+    yum_repo_config.setContent(dedent("""
          [flocker]
          name=flocker
          baseurl=%s
-         """ % (source_repo,))
-    check_call(['yumdownloader', '-c', yum_repo_config.path, '--disable-repo=*', '--enablerepo=flocker', '--destdir', rpm_directory.path] + packages)
+         """) % (source_repo,))
+    check_call(['yumdownloader', '-c', yum_repo_config.path, '--disablerepo=*', '--enablerepo=flocker', '--destdir', rpm_directory.path] + packages)
+    yum_repo_config.remove()
 
     check_call(['createrepo', '--update', rpm_directory.path])
-    check_call(['gsutil', 'cp', '-R', rpm_directory.path, target_repo])
+    check_call(['gsutil', 'cp', '-R', rpm_directory.path + '/**', target_repo])
 
 def upload_rpms(scratch_directory, version):
     update_repo(rpm_directory=scratch_directory.child('x86_64'),
