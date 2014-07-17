@@ -1,4 +1,14 @@
 #!/usr/bin/env python
+"""
+Update the ClusterHQ yum repository with new flocker packages.
+
+The ClusterHQ yum repository contains packages for flocker, as well as the
+depenencies which aren't available in fedora 20.  It is currently hosted in
+google's cloud storage.  When doing a release, we want to add the new flocker
+packages, while preserving the existing packages in the repository.  To do
+this, we download the current repository, add the new package, update the
+metadata, and then upload the repository.
+"""
 
 from subprocess import check_call
 from twisted.python.filepath import FilePath

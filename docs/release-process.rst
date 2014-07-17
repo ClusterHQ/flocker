@@ -91,13 +91,6 @@ Release
 
       admin/upload-rpms upload-scratch 0.1.0
 
-   .. note::
-
-      The ClusterHQ yum repository contains packages for flocker, as well as the depenencies which aren't available in fedora 20.
-      It is currently hosted in google's cloud storage.
-      When doing a release, we want to add the new flocker packages, while preserving the existing packages in the repository.
-      To do this, we download the current repository, add the new package, update the metadata, and then upload the repository.
-
    1. Download existing RPM repo::
 
          mkdir repo
