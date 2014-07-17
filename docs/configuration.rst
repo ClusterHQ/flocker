@@ -41,6 +41,14 @@ The parameters required to define an application are:
        - "internal": 80
          "external": 8080
 
+The following parameters are optional when defining an application:
+
+  - ``volume``
+
+    This specifies that the application container requires a volume and allows you to specify
+    where in the container the volume should be mounted via the ``mountpoint`` key, which
+    should take the form of an absolute path.
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml
@@ -49,9 +57,11 @@ Here's an example of a simple but complete configuration defining one applicatio
   "applications":
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
-       "ports":
-       - "internal": 80
-         "external": 8080
+      "ports":
+      - "internal": 80
+        "external": 8080
+      "volume":
+      - "mountpoint": "/var/www/data"
 
 
 Deployment Configuration
