@@ -113,7 +113,7 @@ class Configuration(object):
                         raise ValueError("Missing mountpoint.")
                     if not isinstance(mountpoint, str):
                         raise ValueError(
-                            "Mountpoint {path} is not ASCII encoded.".format(
+                            "Mountpoint {path} contains non-ASCII (unsupported).".format(
                                 path=mountpoint
                             )
                         )
