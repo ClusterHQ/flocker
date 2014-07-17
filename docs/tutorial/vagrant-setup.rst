@@ -25,8 +25,6 @@ To make this easier, this tutorial includes and assumes the use of a :download:`
 One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
 These two IP addresses will be used throughout the tutorial.
 
-#TODO: Recommend doing `export NODE1=172.16.255.250` etc and then use ${NODE1} throughout the rest of the tutorial text.
-
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ vagrant up node1
