@@ -1,0 +1,119 @@
+%global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
+
+Name:           python-flocker
+Version:        %{underscore_version}
+Release:        1%{?dist}
+Summary:        Libraries for flocker
+BuildArch:      noarch
+
+License:        ASL 2.0
+URL:            https://hybridcluster.github.io/
+Source0:        Flocker-%{flocker_version}.tar.gz
+
+BuildRequires:  python-devel
+
+BuildRequires:  python
+BuildRequires:  python-setuptools
+# For tests
+BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
+BuildRequires:  pytz
+BuildRequires:  python-characteristic = 0.1.0
+BuildRequires:  python-twisted = 14.0.0
+BuildRequires:  PyYAML = 3.10
+BuildRequires:  python-treq = 0.2.1
+BuildRequires:  python-netifaces >= 0.8.0
+BuildRequires:  python-ipaddr = 2.1.10
+# The test suite runs the ssh command-line client and uses other utilities such
+# as ssh-keygen.
+BuildRequires: openssh-clients
+# See https://github.com/ClusterHQ/flocker/issues/85
+BuildRequires:  docker-io
+
+Requires:       python
+Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
+Requires:       pytz
+Requires:       python-characteristic = 0.1.0
+Requires:       python-twisted = 14.0.0
+Requires:       PyYAML = 3.10
+Requires:       python-treq = 0.2.1
+Requires:       python-netifaces >= 0.8.0
+Requires:       python-ipaddr = 2.1.10
+
+%package -n flocker-cli
+Summary:        Docker orchestration and volume management frontend
+Requires:       python-flocker = %{version}-%{release}
+
+%package -n flocker-node
+Summary:        Node software for flocker
+Requires:       python-flocker = %{version}-%{release}
+Requires:       docker-io
+Requires:       /sbin/iptables
+Requires:       geard
+
+%description
+Flocker is an open-source volume manager and multi-host Docker container
+orchestration tool.  With it you can control your data using the same tools you
+use for your stateless applications.  This means that you can run your
+databases, queues and key-value stores in Docker and move them around as easily
+as the rest of your app.
+
+This package provides the libraries for the frontend and node software.
+
+%description -n flocker-cli
+Flocker is an open-source volume manager and multi-host Docker container
+orchestration tool.  With it you can control your data using the same tools you
+use for your stateless applications.  This means that you can run your
+databases, queues and key-value stores in Docker and move them around as easily
+as the rest of your app.
+
+This package provides the command-line client for flocker.
+
+%description -n flocker-node
+Flocker is an open-source volume manager and multi-host Docker container
+orchestration tool.  With it you can control your data using the same tools you
+use for your stateless applications.  This means that you can run your
+databases, queues and key-value stores in Docker and move them around as easily
+as the rest of your app.
+
+This package provides the binaries for a flocker node.
+
+
+%prep
+%setup -q -n Flocker-%{flocker_version}
+# Remove bundled egg-info
+rm -rf %{pypi_name}.egg-info
+
+
+
+%build
+CFLAGS="$RPM_OPT_FLAGS" %{__python2} setup.py build
+
+
+%install
+%{__python2} setup.py install --skip-build --root %{buildroot}
+
+
+%check
+trial flocker
+
+
+%files
+%doc README.rst
+
+%{python2_sitelib}/flocker
+%{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
+
+%files -n flocker-cli
+%doc README.rst
+
+%{_bindir}/flocker-deploy
+
+%files -n flocker-node
+%doc README.rst
+
+%{_bindir}/flocker-volume
+%{_bindir}/flocker-changestate
+
+%changelog
+* Tue Jun 10 2014 Tom Prince - %{underscore_version}-1%{?dist}
+- Development version

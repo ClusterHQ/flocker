@@ -6,7 +6,7 @@ import sys
 
 from twisted.python.usage import Options
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, maybeDeferred
 
 from zope.interface import implementer
 
@@ -26,7 +26,7 @@ __all__ = [
 
 
 class _ReceiveSubcommandOptions(Options):
-    """Command line options ``flocker-volume receive``."""
+    """Command line options for ``flocker-volume receive``."""
 
     longdesc = """Receive a volume pushed from another volume manager.
 
@@ -54,6 +54,45 @@ class _ReceiveSubcommandOptions(Options):
         service.receive(self["uuid"], self["name"], sys.stdin)
 
 
+class _AcquireSubcommandOptions(Options):
+    """
+    Command line options for ``flocker-volume acquire``.
+    """
+
+    longdesc = """\
+    Take ownership of a volume previously owned by another volume manager.
+
+    Reads the volume in from standard in. This is typically called
+    automatically over SSH.
+
+    Parameters:
+
+    * owner-uuid: The UUID of the volume manager that owns the volume.
+
+    * name: The name of the volume.
+    """
+
+    synopsis = "<owner-uuid> <name>"
+
+    def parseArgs(self, uuid, name):
+        self["uuid"] = uuid.decode("ascii")
+        self["name"] = name.decode("ascii")
+
+    def run(self, service):
+        """
+        Run the action for this sub-command.
+
+        :param VolumeService service: The volume manager service to utilize.
+        """
+        d = service.acquire(self["uuid"], self["name"])
+
+        def acquired(_):
+            sys.stdout.write(service.uuid.encode("ascii"))
+            sys.stdout.flush()
+        d.addCallback(acquired)
+        return d
+
+
 @flocker_standard_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
@@ -78,6 +117,8 @@ class VolumeOptions(Options):
     subCommands = [
         ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
+        ["acquire", None, _AcquireSubcommandOptions,
+         "Acquire a remotely owned volume."],
     ]
 
     def postOptions(self):
@@ -102,20 +143,19 @@ class VolumeScript(object):
             sys_module = sys
         self._sys_module = sys_module
 
-    def main(self, reactor, options):
-        """Run a volume management server
-
-        The server will be configured according to the supplied options.
-
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+    def create_volume_service(self, reactor, options):
         """
-        if options.subCommand is None:
-            pool = None
-        else:
-            pool = StoragePool(reactor, options["pool"],
-                               FilePath(options["mountpoint"]))
+        Create a ``VolumeService`` for the given arguments.
+
+        This should probably be elsewhere:
+        https://github.com/ClusterHQ/flocker/issues/305
+
+        :return: The started ``VolumeService``.
+        """
+        pool = StoragePool(reactor, options["pool"],
+                           FilePath(options["mountpoint"]))
         service = self._service_factory(
-            config_path=options["config"], pool=pool)
+            config_path=options["config"], pool=pool, reactor=reactor)
         try:
             service.startService()
         except CreateConfigurationError as e:
@@ -124,10 +164,22 @@ class VolumeScript(object):
                     options["config"].path, e)
             )
             raise SystemExit(1)
+        return service
 
+    def main(self, reactor, options):
+        """
+        Run a volume management operation.
+
+        The volume manager will be configured according to the supplied
+        options.
+
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+        """
+        service = self.create_volume_service(reactor, options)
         if options.subCommand is not None:
-            options.subOptions.run(service)
-        return succeed(None)
+            return maybeDeferred(options.subOptions.run, service)
+        else:
+            return succeed(None)
 
 
 def flocker_volume_main():

@@ -66,6 +66,9 @@ docs/_build/
 # Vagrant
 .vagrant
 
+# RPM stuff
+python-flocker.spec
+
 # Mac stuff
 .DS_Store
 .DS_Store?

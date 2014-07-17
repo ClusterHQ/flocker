@@ -15,7 +15,7 @@ versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
 class cmd_generate_spec(Command):
-    description = "Generate flocker.spec with current version."
+    description = "Generate python-flocker.spec with current version."
     user_options = []
     boolean_options = []
     def initialize_options(self):
@@ -23,10 +23,10 @@ class cmd_generate_spec(Command):
     def finalize_options(self):
         pass
     def run(self):
-        with open('flocker.spec.in', 'r') as source:
+        with open('python-flocker.spec.in', 'r') as source:
             spec = source.read()
         version = "%%global flocker_version %s\n" % (versioneer.get_version(),)
-        with open('flocker.spec', 'w') as destination:
+        with open('python-flocker.spec', 'w') as destination:
             destination.write(version)
             destination.write(spec)
 
@@ -36,14 +36,14 @@ cmdclass = {'generate_spec': cmd_generate_spec}
 # certain data at appropriate times.
 cmdclass.update(versioneer.get_cmdclass())
 
-# Hard linking doesn't work inside Vagrant shared folders. This means that
+# Hard linking doesn't work inside VirtualBox shared folders. This means that
 # you can't use tox in a directory that is being shared with Vagrant,
 # since tox relies on `python setup.py sdist` which uses hard links. As a
-# workaround, disable hard-linking if it looks like we're a vagrant user.
+# workaround, disable hard-linking if setup.py is a descendant of /vagrant.
 # See
 # https://stackoverflow.com/questions/7719380/python-setup-py-sdist-error-operation-not-permitted
 # for more details.
-if os.environ.get('USER','') == 'vagrant':
+if os.path.abspath(__file__).split(os.path.sep)[1] == 'vagrant':
     del os.link
 
 with open("README.rst") as readme:
@@ -101,7 +101,6 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
-        "nomenclature >= 0.1.0",
         ],
 
     extras_require={
@@ -126,6 +125,9 @@ setup(
             # Some of the tests use Conch:
             "PyCrypto==2.6.1",
             "pyasn1==0.1.7",
+
+            # The test suite uses network namespaces
+            "nomenclature >= 0.1.0",
             ]
         },
 

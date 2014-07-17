@@ -13,6 +13,8 @@ Contents:
 
    tutorial/index
    flocker-intro/index
+   usage
+   configuration
    volume/index
    routing/index
    roadmap/index

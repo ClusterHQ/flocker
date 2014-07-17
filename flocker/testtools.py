@@ -9,16 +9,17 @@ import io
 import socket
 import sys
 import os
-import pwd
+from operator import setitem, delitem
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call
+from signal import SIGKILL
+from subprocess import check_call, check_output
 from functools import wraps
 
 from zope.interface import implementer
-from zope.interface.verify import verifyClass
+from zope.interface.verify import verifyClass, verifyObject
 
 from ipaddr import IPAddress
 
@@ -220,7 +221,7 @@ class FlockerScriptTestsMixin(object):
         A script that is meant to be run by ``FlockerScriptRunner`` must
         implement ``ICommandLineScript``.
         """
-        self.assertTrue(verifyClass(ICommandLineScript, self.script))
+        self.assertTrue(verifyObject(ICommandLineScript, self.script()))
 
     def test_incorrect_arguments(self):
         """
@@ -348,13 +349,11 @@ class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
         """
         Validate some SSH key credentials.
 
-        Access is granted to the name of the user running the current process
-        for the key this checker was initialized with.
+        Access is granted only to root since that is the user we expect
+        for connections from ``flocker-cli`` and ``flocker-changestate``.
         """
-        # It would probably be better for the username to be another `__init__`
-        # argument.  https://github.com/ClusterHQ/flocker/issues/189
         return (self._key.blob() == credentials.blob and
-                pwd.getpwuid(os.getuid()).pw_name == credentials.username)
+                credentials.username == b"root")
 
 
 class _FixedHomeConchUser(UnixConchUser):
@@ -486,6 +485,78 @@ def create_ssh_server(base_path):
     return _ConchServer(base_path)
 
 
+class _SSHAgent(object):
+    """
+    A helper for a test fixture to run an `ssh-agent` process.
+
+    :ivar FilePath key_path: The path of an SSH private key which can be used
+        to authenticate against the server.
+    """
+    def __init__(self, key_file):
+        """
+        Start an `ssh-agent` and add its socket path and pid to the global
+        environment so that SSH sub-processes can use it for authentication.
+
+        :param FilePath key_file: An SSH private key file which can be used
+            when authenticating with SSH servers.
+        """
+        self._cleanups = []
+
+        output = check_output([b"ssh-agent", b"-c"]).splitlines()
+        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
+        # setenv SSH_AGENT_PID 6391;
+        # echo Agent pid 6391;
+        sock = output[0].split()[2][:-1]
+        pid = output[1].split()[2][:-1]
+        self._pid = int(pid)
+
+        def patchdict(k, v):
+            if k in os.environ:
+                self._cleanups.append(
+                    lambda old=os.environ[k]: setitem(os.environ, k, old))
+            else:
+                self._cleanups.append(lambda: delitem(os.environ, k))
+
+            os.environ[k] = v
+
+        patchdict(b"SSH_AUTH_SOCK", sock)
+        patchdict(b"SSH_AGENT_PID", pid)
+
+        with open(os.devnull, "w") as discard:
+            # See https://github.com/clusterhq/flocker/issues/192
+            check_call(
+                [b"ssh-add", key_file.path],
+                stdout=discard, stderr=discard)
+
+    def restore(self):
+        """
+        Shut down the SSH agent and restore the test environment to its
+        previous state.
+        """
+        for cleanup in self._cleanups:
+            cleanup()
+        os.kill(self._pid, SIGKILL)
+
+
+def create_ssh_agent(key_file, testcase=None):
+    """
+    :py:func:`create_ssh_agent` is a fixture which creates and runs a new SSH
+    agent and stops it later.  Use the :py:meth:`restore` method of the
+    returned object to stop the server.
+
+    :param FilePath key_file: The path of an SSH private key which can be
+        used when authenticating with SSH servers.
+    :param TestCase testcase: The ``TestCase`` object requiring the SSH
+        agent. Optional, adds a cleanup if supplied.
+
+    :rtype: _SSHAgent
+    """
+    agent = _SSHAgent(key_file)
+    if testcase:
+        testcase.addCleanup(agent.restore)
+    return agent
+
+
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
     """
     Return a ``TestCase`` which tests that ``record_type.__init__`` accepts the
@@ -531,11 +602,15 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             """
             The record type initialiser has arguments which may be omitted.
             """
-            required_kwargs = kwargs.copy()
-            for k, v in expected_defaults.items():
-                required_kwargs.pop(k)
+            try:
+                record = record_type(**required_kwargs)
+            except ValueError as e:
+                self.fail(
+                    'One of the following arguments was expected to be '
+                    'optional but appears to be required: %r. '
+                    'Error was: %r' % (
+                        expected_defaults.keys(), e))
 
-            record = record_type(**required_kwargs)
             self.assertEqual(
                 required_kwargs.values(),
                 [getattr(record, key) for key in required_kwargs.keys()]
@@ -545,7 +620,14 @@ def make_with_init_tests(record_type, kwargs, expected_defaults=None):
             """
             The optional arguments have the expected defaults.
             """
-            record = record_type(**required_kwargs)
+            try:
+                record = record_type(**required_kwargs)
+            except ValueError as e:
+                self.fail(
+                    'One of the following arguments was expected to be '
+                    'optional but appears to be required: %r. '
+                    'Error was: %r' % (
+                        expected_defaults.keys(), e))
             self.assertEqual(
                 expected_defaults.values(),
                 [getattr(record, key) for key in expected_defaults.keys()]

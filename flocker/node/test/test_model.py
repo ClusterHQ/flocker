@@ -6,7 +6,8 @@ Tests for ``flocker.node._model``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
-from .._model import Application, DockerImage
+from .._model import Application, DockerImage, Node, Deployment, StateChanges
+from ...route import Proxy
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -55,6 +56,23 @@ class DockerImageTests(SynchronousTestCase):
         )
 
 
+class DockerImageFromStringTests(SynchronousTestCase):
+    """
+    Tests for ``DockerImage.from_string``.
+    """
+    def test_error_on_empty_repository(self):
+        """
+        A ``ValueError`` is raised if repository is empty.
+        """
+        exception = self.assertRaises(
+            ValueError, DockerImage.from_string, b':foo')
+        self.assertEqual(
+            "Docker image names must have format 'repository[:tag]'. "
+            "Found ':foo'.",
+            exception.message
+        )
+
+
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(name=u'site-example.com', image=object())
@@ -70,10 +88,54 @@ class ApplicationTests(SynchronousTestCase):
     """
     def test_repr(self):
         """
-        ``Application.__repr__`` includes the name and image.
+        ``Application.__repr__`` includes the name and image and ports.
         """
-        application = Application(name=u'site-example.com', image=None)
+        application = Application(name=u'site-example.com', image=None,
+                                  ports=None)
         self.assertEqual(
-            "<Application(name=u'site-example.com', image=None)>",
+            "<Application(name=u'site-example.com', image=None, ports=None, "
+            "volume=None)>",
             repr(application)
         )
+
+
+class NodeInitTests(make_with_init_tests(
+        record_type=Node,
+        kwargs=dict(hostname=u'example.com', applications=frozenset([
+            Application(name=u'mysql-clusterhq', image=object()),
+            Application(name=u'site-clusterhq.com', image=object()),
+        ]))
+)):
+    """
+    Tests for ``Node.__init__``.
+    """
+
+
+class DeploymentInitTests(make_with_init_tests(
+        record_type=Deployment,
+        kwargs=dict(nodes=frozenset([
+            Node(hostname=u'node1.example.com', applications=frozenset()),
+            Node(hostname=u'node2.example.com', applications=frozenset())
+        ]))
+)):
+    """
+    Tests for ``Deployment.__init__``.
+    """
+
+
+class StateChangesInitTests(make_with_init_tests(
+        record_type=StateChanges,
+        kwargs=dict(
+            applications_to_start=set([
+                Application(name=u'mysql-clusterhq', image=object()),
+                Application(name=u'site-clusterhq.com', image=object())]),
+            applications_to_stop=set([
+                Application(name=u'site-example.com', image=object()),
+            ]),
+            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
+        ),
+        expected_defaults=dict(proxies=frozenset())
+)):
+    """
+    Tests for ``StateChanges.__init__``.
+    """

@@ -22,7 +22,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
     * Has full test coverage (unit tests and functional tests).
 
-    * The tests pass in the continuous integration system (Buildbot).
+    * The tests pass in the continuous integration system (`Buildbot`_).
 
     * Resolves the issue.
 
@@ -30,6 +30,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
 .. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
+.. _Buildbot: http://build.clusterhq.com/
 
 
 Talk to us
@@ -46,7 +47,8 @@ Development environment
 
 * To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
   ``geard`` requires an operating system with ``systemd``.
-  The easiest way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
+  The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
+  Vagrant 1.6.2 or later is required.
   Once you have Vagrant installed (see the `vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going::
 
    $ vagrant up

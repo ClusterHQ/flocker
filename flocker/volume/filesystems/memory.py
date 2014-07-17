@@ -88,6 +88,8 @@ class FilesystemStoragePool(object):
         :param FilePath root: The root directory.
         """
         self._root = root
+        if not self._root.exists():
+            self._root.createDirectory()
 
     def create(self, volume):
         filesystem = self.get(volume)

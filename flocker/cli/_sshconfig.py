@@ -26,6 +26,9 @@ def ssh(argv):
         check_call([b"ssh"] + argv, stdout=discard, stderr=discard)
 
 
+DEFAULT_SSH_DIRECTORY = FilePath(expanduser(b"~/.ssh/"))
+
+
 @attributes(["flocker_path", "ssh_config_path"])
 class OpenSSHConfiguration(object):
     """
@@ -48,7 +51,7 @@ class OpenSSHConfiguration(object):
         """
         return OpenSSHConfiguration(
             flocker_path=FilePath(b"/etc/flocker"),
-            ssh_config_path=FilePath(expanduser(b"~/.ssh/")))
+            ssh_config_path=DEFAULT_SSH_DIRECTORY)
 
     def configure_ssh(self, host, port):
         """
@@ -116,6 +119,9 @@ class OpenSSHConfiguration(object):
              # this leads for mDNS lookups on every SSH, which can slow down
              # connections very noticeably
              b"-oGSSAPIAuthentication=no",
+             # Connect as root, since we need superuser permissions for
+             # ZFS and Docker:
+             b"-l", b"root",
              host, commands.encode("ascii")])
 
 configure_ssh = OpenSSHConfiguration.defaults().configure_ssh

@@ -16,9 +16,10 @@ this allows easy, transparent migration of containers between any of the
 cooperating nodes.
 """
 
-__all__ = ["INetwork", "make_host_network", "make_memory_network"]
+__all__ = ["INetwork", "make_host_network", "make_memory_network", "Proxy"]
 
 
 from ._interfaces import INetwork
 from ._iptables import make_host_network
 from ._memory import make_memory_network
+from ._model import Proxy
