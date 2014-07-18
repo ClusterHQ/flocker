@@ -99,12 +99,15 @@ class Deployer(object):
         d.addCallback(applications_from_units)
         return d
 
-    def calculate_necessary_state_changes(self, desired_state, hostname):
+    def calculate_necessary_state_changes(self, desired_state, current_state,
+                                          hostname):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.
 
         :param Deployment desired_state: The intended configuration of all
+            nodes.
+        :param Deployment current_state: The current configuration of all
             nodes.
         :param unicode hostname: The hostname of the node that this is running
             on.
@@ -127,7 +130,7 @@ class Deployer(object):
                                                   port=port.external_port))
 
         # XXX: This includes stopped units. See
-        # https://github.com/ClusterHQ/flocker/issues/208
+        # https://github.com/ClusterHQ/flocker/issues/326
         d = self.discover_node_configuration()
 
         def find_differences(current_node_applications):
@@ -156,17 +159,20 @@ class Deployer(object):
         d.addCallback(find_differences)
         return d
 
-    def change_node_state(self, desired_state, hostname):
+    def change_node_state(self, desired_state, current_state, hostname):
         """
         Change the local state to match the given desired state.
 
         :param Deployment desired_state: The intended configuration of all
+            nodes.
+        :param Deployment current_state: The current configuration of all
             nodes.
         :param unicode hostname: The hostname of the node that this is running
             on.
         """
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
+            current_state=current_state,
             hostname=hostname)
         d.addCallback(self._apply_changes)
         return d

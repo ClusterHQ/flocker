@@ -29,6 +29,15 @@ class Configuration(object):
     """
     Validate and parse configurations.
     """
+    def __init__(self, lenient=False):
+        """
+        :param bool lenient: If ``True`` don't complain about certain
+            deficiencies in the output of ``flocker-reportstate``, In
+            particular https://github.com/ClusterHQ/flocker/issues/289 means
+            the mountpoint is unknown.
+        """
+        self._lenient = lenient
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -111,6 +120,10 @@ class Configuration(object):
                         )
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
+
+                    # XXX add some code here to allow mountpoint of None
+                    # if self._lenient is True.
+
                     if not isinstance(mountpoint, str):
                         raise ValueError(
                             "Mountpoint {path} contains non-ASCII "
@@ -226,9 +239,7 @@ class Configuration(object):
         :param dict deployment_configuration: Map of node names to application
             names.
 
-        :raises ValueError: if there are validation errors.
-
-        :raises KeyError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``Deployment`` object.
         """
@@ -240,3 +251,25 @@ class Configuration(object):
 
 
 model_from_configuration = Configuration().model_from_configuration
+
+
+def current_from_configuration(current_configuration):
+    """
+    Validate and coerce the supplied current cluster configuration into a
+    ``Deployment`` instance.
+
+    :param dict current_configuration: Map of node names to list of
+        application maps.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``Deployment`` object.
+    """
+    configuration = Configuration(lenient=True)
+    nodes = []
+    for hostname, applications in current_configuration.items():
+        node_applications = configuration._applications_from_configuration(
+            applications)
+        nodes.append(Node(hostname=hostname,
+                          applications=frozenset(node_applications)))
+    return Deployment(nodes=frozenset(nodes))

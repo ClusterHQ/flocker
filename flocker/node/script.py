@@ -16,7 +16,8 @@ from zope.interface import implementer
 from ..volume.script import VolumeOptions, VolumeScript
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
-from . import ConfigurationError, model_from_configuration, Deployer
+from . import (ConfigurationError, model_from_configuration, Deployer,
+               current_from_configuration)
 
 __all__ = [
     "ChangeStateOptions",
@@ -41,24 +42,30 @@ class ChangeStateOptions(Options):
     * application_configuration: The YAML string describing the desired
         application configuration.
 
+    * current_configuration: The YAML string describing the current
+        cluster configuration.
+
     * hostname: The hostname of this node. Used by the node to identify which
         applications from deployment_configuration should be running.
     """
     synopsis = ("Usage: flocker-changestate [OPTIONS] "
                 "<deployment configuration> <application configuration> "
-                "<hostname>")
+                "<cluster configuration> <hostname>")
 
-    def parseArgs(self, deployment_config, application_config, hostname):
+    def parseArgs(self, deployment_config, application_config, current_config,
+                  hostname):
         """
-        Parse `deployment_config` and `application_config` strings as YAML, and
-        into a :class:`Deployment` instance. Assign the resulting instance to
-        this `Options` dictionary. Decode a supplied hostname as ASCII and
-        assign to a `hostname` key.
+        Parse `deployment_config`, `application_config` and `current_config`
+        strings as YAML, and into a :class:`Deployment` instance. Assign
+        the resulting instance to this `Options` dictionary. Decode a
+        supplied hostname as ASCII and assign to a `hostname` key.
 
         :param bytes deployment_config: The YAML string describing the desired
             deployment configuration.
         :param bytes application_config: The YAML string describing the desired
             application configuration.
+        :param bytes application_config: The YAML string describing the current
+            cluster configuration.
         :param bytes hostname: The ascii encoded hostname of this node.
 
         :raises UsageError: If the configuration files cannot be parsed as YAML
@@ -77,6 +84,12 @@ class ChangeStateOptions(Options):
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
         try:
+            current_config = safe_load(current_config)
+        except YAMLError as e:
+            raise UsageError(
+                "Current config could not be parsed as YAML:\n\n" + str(e)
+            )
+        try:
             self['hostname'] = hostname.decode('ascii')
         except UnicodeDecodeError:
             raise UsageError(
@@ -87,6 +100,7 @@ class ChangeStateOptions(Options):
             self['deployment'] = model_from_configuration(
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
+            self["current"] = current_from_configuration(current_config)
         except ConfigurationError as e:
             raise UsageError(
                 'Configuration Error: {error}'
@@ -129,6 +143,7 @@ class ChangeStateScript(object):
         """
         return self._deployer.change_node_state(
             desired_state=options['deployment'],
+            current_state=options['current'],
             hostname=options['hostname']
         )
 
