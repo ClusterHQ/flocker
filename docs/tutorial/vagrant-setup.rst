@@ -7,6 +7,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
   * `Vagrant`_ (1.6.2 or newer)
   * `VirtualBox`_
   * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
+  * bash
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 
@@ -70,15 +71,21 @@ After ``vagrant up`` completes you may want to verify that the two VMs are reall
 
 If all goes well, the next step is to configure your SSH agent.
 This will allow Flocker to authenticate itself to the VM.
-Make sure you have an SSH agent running:
+If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
+If you don't, you'll see an error:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ kill -0 ${SSH_AGENT_PID} && echo "ssh-agent running" || "ssh-agent not running"
-   ssh-agent running
+   alice@mercury:~/flocker-tutorial$ ssh-add
+   Could not open a connection to your authentication agent.
    alice@mercury:~/flocker-tutorial$
 
-If you see ``ssh-agent not running`` as the output of this command then you need to start one:
+If you do, you'll see no output:
+
+   alice@mercury:~/flocker-tutorial$ ssh-add
+   alice@mercury:~/flocker-tutorial$
+
+If you don't have an SSH agent running, start one:
 
 .. code-block:: console
 
