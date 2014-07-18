@@ -30,9 +30,20 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
-First, download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
+The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
+You will probably want to install this plugin:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
+   Installing the 'vagrant-cachier' plugin. This can take a few minutes...
+   Installed the plugin 'vagrant-cachier (0.7.2)'!
+   ...
+   alice@mercury:~/flocker-tutorial$
+
+Next download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
 Save these in the same directory and preserve their filenames.
-Next, use ``vagrant up`` to start and provision the VMs:
+Then use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
 
@@ -93,7 +104,7 @@ If you don't have an SSH agent running, start one:
    Agent pid 27233
    alice@mercury:~/flocker-tutorial$
 
-Then add the Vagrant key to your agent:
+Finally, add the Vagrant key to your agent:
 
    alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
    alice@mercury:~/flocker-tutorial$
