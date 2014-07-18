@@ -21,6 +21,8 @@ Let's start a MongoDB container that exposes the database to the external world.
 .. literalinclude:: port-deployment.yml
    :language: yaml
 
+Notice that this time we mention the node that has no applications deployed on it.
+This will ensure that ``flocker-deploy`` knows that it exists.
 We will once again run these configuration files with ``flocker-deploy``:
 
 .. code-block:: console
@@ -46,4 +48,15 @@ This time we can communicate with the MongoDB application by connecting to the n
 
 We can also connect to the other node where it isn't running and the traffic will get to correct node:
 
-   # XXX not working yet.
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
+   MongoDB shell version: 2.4.9
+   connecting to: 172.16.255.251/test
+   > use example;
+   switched to db example
+   > db.records.find({})
+   { "_id" : ObjectId("53c958e8e571d2046d9b9df9"), "flocker" : "tested" }
+
+Since the node is transparently accessible from both nodes you can configure a DNS record that points at both IPs and access the application regardless of its location.
+See :doc:`../routing/index` for more details.
