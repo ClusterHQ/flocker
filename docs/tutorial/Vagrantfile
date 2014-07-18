@@ -19,6 +19,12 @@ mv clusterhq-flocker.repo /etc/yum.repos.d/
 
 yum install -y flocker-node
 
+# At the end of this bootstrap we'll (indirectly) ask Docker to write a very
+# large file to its temporary directory.  /tmp is a small tmpfs mount which
+# can't hold the file.  Convince Docker to write somewhere else instead.
+echo "# Flocker-defined alternate temporary path to provide more temporary space." >> /etc/sysconfig/docker
+echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
+
 systemctl enable docker
 systemctl start docker
 systemctl enable geard
