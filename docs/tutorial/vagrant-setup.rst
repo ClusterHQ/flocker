@@ -11,9 +11,6 @@ To replicate the steps demonstrated in this tutorial, you will need:
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 
-.. _`Vagrant`: https://docs.vagrantup.com/
-.. _`VirtualBox`: https://www.virtualbox.org/
-
 Setup
 =====
 
@@ -111,3 +108,7 @@ Finally, add the Vagrant key to your agent:
 
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
+
+.. _`Vagrant`: https://docs.vagrantup.com/
+.. _`VirtualBox`: https://www.virtualbox.org/
+.. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
