@@ -105,6 +105,8 @@ If you don't have an SSH agent running, start one:
 
 Finally, add the Vagrant key to your agent:
 
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
    alice@mercury:~/flocker-tutorial$
 
