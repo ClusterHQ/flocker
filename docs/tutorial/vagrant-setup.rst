@@ -25,7 +25,7 @@ You can run it on other virtualization technology (e.g., VMware), on clouds (e.g
 For your convenience, this tutorial includes ``Vagrantfile`` which will boot the necessary VMs.
 Flocker and its dependencies will be installed on these VMs the first time you start them.
 One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
-These two IP addresses will be used throughout the tutorial.
+These two IP addresses will be used throughout the tutorial and configuration files.
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
