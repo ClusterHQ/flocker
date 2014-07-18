@@ -90,6 +90,8 @@ If you don't, you'll see an error:
 
 If you do, you'll see no output:
 
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ ssh-add
    alice@mercury:~/flocker-tutorial$
 
