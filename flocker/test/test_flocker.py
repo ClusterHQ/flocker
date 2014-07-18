@@ -7,6 +7,7 @@ from subprocess import check_output, STDOUT
 
 from twisted.trial.unittest import SynchronousTestCase
 
+
 class WarningsTests(SynchronousTestCase):
     """
     Tests for warning suppression.
