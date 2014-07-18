@@ -17,6 +17,6 @@ class WarningsTests(SynchronousTestCase):
         """
         result = check_output(
             [executable, b"-c", (b"import flocker; import warnings; " +
-                                 b"warnings.warn(Warning())")],
+                                 b"warnings.warn('ohno')")],
             stderr=STDOUT)
         self.assertEqual(result, b"")
