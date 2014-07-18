@@ -138,3 +138,43 @@ def flocker_changestate_main():
         script=ChangeStateScript(),
         options=ChangeStateOptions()
     ).main()
+
+
+@flocker_standard_options
+class ReportStateOptions(Options):
+    """
+    Command line options for ``flocker-reportstate`` management tool.
+    """
+
+    longdesc = """\
+    flocker-reportstate is called by flocker-deploy to get the configuration of
+    a node.
+    """
+    synopsis = ("Usage: flocker-reportstate [OPTIONS]")
+
+
+@implementer(ICommandLineScript)
+class ReportStateScript(object):
+    """
+    A command to return the state of a node.
+
+    :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
+        state of the current node.
+    """
+    def __init__(self, create_volume_service=_default_volume_service):
+        """
+        """
+        self._deployer = Deployer(create_volume_service())
+
+    def main(self, reactor, options):
+        """
+        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+        """
+        return self._deployer.report_node_state()
+
+
+def flocker_reportstate_main():
+    return FlockerScriptRunner(
+        script=ReportStateScript(),
+        options=ReportStateOptions()
+    ).main()

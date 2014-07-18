@@ -8,7 +8,9 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import ChangeStateOptions, ChangeStateScript
+from ..script import (
+    ChangeStateOptions, ChangeStateScript,
+    ReportStateScript, ReportStateOptions)
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node
 
@@ -210,3 +212,31 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),
             str(e)
         )
+
+
+class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+    """
+    Tests for :class:`ReportStateOptions`.
+    """
+    options = ReportStateOptions
+
+
+class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript``.
+    """
+    script = staticmethod(lambda: ReportStateScript(lambda: None))
+    options = ReportStateOptions
+    command_name = u'flocker-reportstate'
+
+
+class ReportStateScriptMainTests(SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript.main``.
+    """
+    def test_deployer_type(self):
+        """
+        ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
+        """
+        script = ChangeStateScript(lambda: None)
+        self.assertIsInstance(script._deployer, Deployer)
