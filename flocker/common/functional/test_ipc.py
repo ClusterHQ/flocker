@@ -3,7 +3,6 @@
 """Functional tests for IPC."""
 
 import os
-from getpass import getuser
 from unittest import skipIf
 
 from twisted.internet.threads import deferToThread
@@ -98,7 +97,6 @@ class ProcessNodeTests(TestCase):
         self.assertRaises(IOError, node.get_output, [b"ls", nonexistent])
 
 
-@_if_root
 def make_sshnode(test_case):
     """
     Create a ``ProcessNode`` that can SSH into the local machine.
@@ -112,23 +110,24 @@ def make_sshnode(test_case):
 
     return ProcessNode.using_ssh(
         host=unicode(server.ip).encode("ascii"), port=server.port,
-        username=getuser(), private_key=server.key_path)
+        username=b"root", private_key=server.key_path)
 
 
 class SSHProcessNodeTests(TestCase):
     """Tests for ``ProcessNode.with_ssh``."""
 
     def test_runs_command(self):
-        """``run()`` on a SSH ``ProcessNode`` runs the command on the machine
-        being ssh'd into."""
+        """
+        ``run()`` on a SSH ``ProcessNode`` runs the command on the machine
+        being ssh'd into.
+        """
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
 
         def go():
-            # Commands are run with a shell... but I verified separately
-            # that opensshd at least DTRT with multiple arguments,
-            # including quoting.
-            with node.run([b"/bin/echo -n hello > " + temp_file.path]):
+            with node.run([b"python", b"-c",
+                           b"file('%s', 'w').write(b'hello')"
+                           % (temp_file.path,)]):
                 pass
             return temp_file.getContent()
         d = deferToThread(go)
@@ -138,17 +137,19 @@ class SSHProcessNodeTests(TestCase):
         d.addCallback(got_data)
         return d
 
-    def test_stdin(self):
-        """``run()`` on a SSH ``ProcessNode`` writes to the remote command's
-        stdin."""
+    def test_run_stdin(self):
+        """
+        ``run()`` on a SSH ``ProcessNode`` writes to the remote command's
+        stdin.
+        """
         node = make_sshnode(self)
         temp_file = FilePath(self.mktemp())
 
         def go():
-            # Commands are run with a shell... but I verified separately
-            # that opensshd at least DTRT with multiple arguments,
-            # including quoting.
-            with node.run([b"cat > " + temp_file.path]) as stdin:
+            with node.run([b"python", b"-c",
+                           b"import sys; "
+                           b"file('%s', 'wb').write(sys.stdin.read())"
+                           % (temp_file.path,)]) as stdin:
                 stdin.write(b"hello ")
                 stdin.write(b"there")
             return temp_file.getContent()
@@ -156,6 +157,26 @@ class SSHProcessNodeTests(TestCase):
 
         def got_data(data):
             self.assertEqual(data, b"hello there")
+        d.addCallback(got_data)
+        return d
+
+    def test_get_output(self):
+        """
+        ``get_output()`` returns the command's output.
+        """
+        node = make_sshnode(self)
+        temp_file = FilePath(self.mktemp())
+        temp_file.setContent(b"hello!")
+
+        def go():
+            return node.get_output([b"python", b"-c",
+                                    b"import sys; "
+                                    b"sys.stdout.write(file('%s').read())"
+                                    % (temp_file.path,)])
+        d = deferToThread(go)
+
+        def got_data(data):
+            self.assertEqual(data, b"hello!")
         d.addCallback(got_data)
         return d
 
