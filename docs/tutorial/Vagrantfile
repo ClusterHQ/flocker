@@ -19,6 +19,12 @@ mv clusterhq-flocker.repo /etc/yum.repos.d/
 
 yum install -y flocker-node
 
+# At the end of this bootstrap we'll (indirectly) ask Docker to write a very
+# large file to its temporary directory.  /tmp is a small tmpfs mount which
+# can't hold the file.  Convince Docker to write somewhere else instead.
+echo "# Flocker-defined alternate temporary path to provide more temporary space." >> /etc/sysconfig/docker
+echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
+
 systemctl enable docker
 systemctl start docker
 systemctl enable geard
@@ -34,6 +40,22 @@ cp ~vagrant/.ssh/authorized_keys /root/.ssh
 mkdir -p /opt/flocker
 truncate --size 1G /opt/flocker/pool-vdev
 zpool create flocker /opt/flocker/pool-vdev
+
+TAR="/tmp/vagrant-cache/dockerfile_mongodb.tar"
+IMAGE="dockerfile/mongodb"
+# Get the images needed for the tutorial.  This has to happen eventually and
+# doing it now aggregates all of the waiting in one place.
+if [ -e "${TAR}" ]; then
+  # Load a cached version.
+  docker load < "${TAR}"
+else
+  # Get it from the internet.
+  docker pull "${IMAGE}"
+  # Cache it if possible
+  if [ -d /tmp/vagrant-cache ]; then
+    docker save "${IMAGE}" > "${TAR}"
+  fi
+fi
 
 SCRIPT
 
