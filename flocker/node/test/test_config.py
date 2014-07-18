@@ -428,3 +428,30 @@ class ModelFromConfigurationTests(SynchronousTestCase):
             ])
         )
         self.assertEqual(expected_result, result)
+
+
+class ConfigurationToYamlTests(SynchronousTestCase):
+    """
+    Tests for ``Configuration.configuration_to_yaml``.
+    """
+    def test_no_applications(self):
+        """
+        A dict with a version and empty applications list are returned if no
+        applications are supplied.
+        """
+
+    def test_one_application(self):
+        """
+        A dictionary of application name -> image is produced.
+        """
+
+    def test_multiple_applications(self):
+        """
+        The dictionary includes a representation of each supplied application.
+        """
+
+    def test_application_with_volume_includes_mountpoint(self):
+        """
+        If the supplied applications have a volume, the resulting yaml will also
+        include the volume mountpoint.
+        """
