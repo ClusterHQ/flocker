@@ -48,7 +48,7 @@ After ``vagrant up`` completes you may want to verify that the two VMs are reall
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant status node1
+   alice@mercury:~/flocker-tutorial$ vagrant status
    Current machine states:
 
    node1                     running (virtualbox)
