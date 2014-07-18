@@ -1,4 +1,4 @@
 "version": 1
 "nodes":
-  "172.16.255.250":
-    - "mongodb-example"
+  "172.16.255.250": ["mongodb-example"]
+  "172.16.255.251": []
