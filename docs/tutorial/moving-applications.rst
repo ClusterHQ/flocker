@@ -62,7 +62,7 @@ Use ``flocker-deploy`` again to enact the change:
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment-moved.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$
 
-``docker-ps`` can show that no applications are running on ``172.16.255.250``:
+``docker ps`` shows that no containers are running on ``172.16.255.250``:
 
 .. code-block:: console
 
@@ -80,6 +80,6 @@ and that MongoDB has been successfully moved to ``172.16.255.251``:
    alice@mercury:~/flocker-tutorial$
 
 At this point you have successfully deployed a MongoDB server in a container on your VM.
-You've also seen how Flocker provides basic orchestration functionality
-There's no way to interact with it apart from looking at the ``docker ps`` output yet, though.
-The next step is to expose it in the host's network interface.
+You've also seen how Flocker can move an existing container between hosts.
+There's no way to interact with it apart from looking at the ``docker ps`` output yet.
+In the next section of the tutorial you'll see how to expose container services on the host's network interface.
