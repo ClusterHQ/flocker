@@ -22,15 +22,21 @@ These VMs serve as hosts on which Flocker can run Docker.
 Flocker does not require Vagrant or VirtualBox.
 You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
 
-For your convenience, this tutorial includes a :download:`Vagrant configuration <Vagrantfile>` which will boot the necessary VMs.
-These VMs already have Flocker and its dependencies installed.
+For your convenience, this tutorial includes ``Vagrantfile`` which will boot the necessary VMs.
+Flocker and its dependencies will be installed on these VMs the first time you start them.
 One important thing to note is that these VMs are statically assigned the IPs ``172.16.255.250`` (node1) and ``172.16.255.251`` (node2).
 These two IP addresses will be used throughout the tutorial.
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
+First, download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
+Save these in the same directory and preserve their filenames.
+Next, use ``vagrant up`` to start and provision the VMs:
+
 .. code-block:: console
 
+   alice@mercury:~/flocker-tutorial$ ls
+   clusterhq-flocker.repo  Vagrantfile
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
