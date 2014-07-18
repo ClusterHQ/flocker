@@ -240,3 +240,11 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         """
         script = ChangeStateScript(lambda: None)
         self.assertIsInstance(script._deployer, Deployer)
+
+    def test_yaml_callback(self):
+        """
+        ``ReportStateScript.main`` returns a deferred which fires with the YAML
+        representation of the applications from
+        ``Deployer.discover_node_configuration``
+        """
+        self.fail('Not implemented')

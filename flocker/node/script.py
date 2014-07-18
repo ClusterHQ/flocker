@@ -170,7 +170,9 @@ class ReportStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        return self._deployer.report_node_state()
+        # d = self._deployer.discover_node_configuration()
+        # d.addCallback(configuration_to_yaml)
+        # return d
 
 
 def flocker_reportstate_main():
