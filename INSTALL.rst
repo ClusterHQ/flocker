@@ -33,8 +33,9 @@ Configure ``yum`` with the Flocker package repository and install the Flocker cl
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
    yum install flocker-cli
 
-::
-   flocker-deploy <...>
+Verify the client is installed::
+
+   flocker-deploy --version
 
 
 Ubuntu
