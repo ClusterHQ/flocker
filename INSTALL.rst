@@ -1,10 +1,11 @@
 Installation Instructions
-========================
+=========================
 
-Server
-------
+Installing a Flocker node
+-------------------------
 
-The only supported node system is Fedora 20.
+Flocker nodes host containers.
+The only supported node operating system is Fedora 20.
 
 Fedora
 ^^^^^^
@@ -24,6 +25,8 @@ For testing purposes, you can create a pool on a loopback device on your existin
 
 Client
 ------
+
+The Flocker client provides a user interface for managing a cluster of Flocker nodes.
 
 Fedora
 ^^^^^^
