@@ -83,7 +83,7 @@ Release
      python sdist bdist_wheel
      twine upload dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl}
 
-   Also upload to clusterhq.com dowloand site::
+   Also upload to clusterhq.com download site::
 
      gsutil -a public-read cp dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
 
@@ -102,7 +102,7 @@ Release
 Announcing Releases
 -------------------
 
-- Annoucment on mailing list, blog, IRC (others?)
+- Announcement on mailing list, blog, IRC (others?)
 - Update download links on clusterhq.com
   XXX We need a page with the download links first.
 
