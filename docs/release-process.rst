@@ -65,7 +65,7 @@ Preparing for a release
 2. Make sure the release notes in :file:`NEWS` are up-to-date.
 3. Update appropriate copyright dates as appropriate.
 4. Make sure all the tests pass on buildbot.
-   Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just create branch.
+   Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 5. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
 Release
