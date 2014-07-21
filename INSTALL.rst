@@ -63,6 +63,7 @@ OS X
 Create a Python virtualenv and install Flocker into it::
 
    curl -O https://glyph.im/pip/bootstrap.sh
+   chmod u+x ./bootstrap.sh
    ./bootstrap.sh
    mkvirtualenv flocker
    pip install flocker
