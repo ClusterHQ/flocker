@@ -4,7 +4,7 @@ Installation Instructions
 Server
 ------
 
-The only supported node system is fedora 20.
+The only supported node system is Fedora 20.
 
 Fedora
 ^^^^^^
