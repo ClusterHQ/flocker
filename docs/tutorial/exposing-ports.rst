@@ -65,8 +65,8 @@ Data Isn't Moved (Yet)
 ======================
 
 While MongoDB is running and available on the cluster this configuration is still not sufficient: if the application is moved from one node to another the data will not be moved.
-
-To demonstrate this we'll use a new configuration file that moves the application to a different node.
+Unlike many other Docker frameworks Flocker has a solution for this problem, but before proceeding let's see in more detail what it is we're trying to solve.
+We'll use a new configuration file that moves the application to a different node.
 
 :download:`port-deployment-moved.yml`
 
@@ -81,7 +81,8 @@ To demonstrate this we'll use a new configuration file that moves the applicatio
    4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
    alice@mercury:~/flocker-tutorial$
 
-If we query the database the records we've previously inserted have disappeared.
+If we query the database the records we've previously inserted have disappeared!
+The application has moved but the data has been left behind.
 
 .. code-block:: console
 
