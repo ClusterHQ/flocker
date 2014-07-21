@@ -74,7 +74,7 @@ Release
 1. Tag the version being released::
 
      git tag -a ${VERSION} release/flocker-${VERSION%.*}
-     git push origin $VERSION
+     git push origin ${VERSION}
 
 2.  Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
