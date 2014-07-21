@@ -22,6 +22,7 @@ from ..service import (
     )
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
+from ..testtools import create_volume_service
 from ...common import FakeNode
 from ...testtools import skip_on_broken_permissions
 
@@ -131,6 +132,16 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
+
+    def test_get(self):
+        """
+        ``VolumeService.get`` creates a ``Volume`` instance owned by that
+        service and with given name.
+        """
+        service = create_volume_service(self)
+        self.assertEqual(service.get(u"somevolume"),
+                         Volume(uuid=service.uuid, name=u"somevolume",
+                                _pool=service._pool))
 
     def test_push_different_uuid(self):
         """Pushing a remotely-owned volume results in a ``ValueError``."""

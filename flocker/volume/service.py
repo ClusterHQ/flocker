@@ -84,15 +84,18 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    # def get(self, name):
-    #     """
-    #     Return a locally-owned ``Volume`` with the given name.
+    def get(self, name):
+        """
+        Return a locally-owned ``Volume`` with the given name.
 
-    #     :param unicode name: The name of the volume.
+        Whether or not this volume actually exists is not checked in any
+        way.
 
-    #     :return: A ``Volume``.
-    #     """
-    #     return Volume(uuid=self.uuid, name=name, _pool=self._pool)
+        :param unicode name: The name of the volume.
+
+        :return: A ``Volume``.
+        """
+        return Volume(uuid=self.uuid, name=name, _pool=self._pool)
 
     def wait_for_volume(self, name):
         """
