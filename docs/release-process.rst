@@ -118,8 +118,8 @@ This is a metapackage that contians the yum repository definitions.
 
 
 
-Pre-polating rpm repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Pre-populating rpm repository
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 with copr repo installed
 
