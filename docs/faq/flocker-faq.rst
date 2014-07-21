@@ -25,14 +25,17 @@ This also makes it really fast to create database clones.
 If I clone a database five times, how does maintaining five different versions of the database work? 
 **************************************************************************************************************
 
-The idea will be that cloning the app and the database together in some sense allows the containers to maintain what we call independent "links" between 10 instances of the app server (deployed at different staging URLs) and the respective 10 different instances of the cloned database. This works because eg port 3306 inside one app server gets routed via an ephemeral port on the host(s) to 3306 inside the corresponding specific instance of the database.
+The idea will be that cloning the app and the database together in some sense allows the containers to maintain what we call independent "links" between 10 instances of the app server (deployed at different staging URLs) and the respective 10 different instances of the cloned database. 
+This works because eg port 3306 inside one app server gets routed via an ephemeral port on the host(s) to 3306 inside the corresponding specific instance of the database.
 
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
 
-Flocker / Another topic
+Flocker / Integrations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Another question
+How does Flocker integrate with Kubernetes/Mesos/CoreOS/my favorite orchestration framework?
 **************************************************************************************************************
-
-Another answer.
+Overtime, we hope that Flocker becomes the de facto way for managing storage volumes with your favorite orchestration framework.  
+We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
+If you'd like work with us on integration, get in touch on our IRC #flocker or .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users.
+You can also submit a pull request if you have a specific integration that you'd like to propose.
