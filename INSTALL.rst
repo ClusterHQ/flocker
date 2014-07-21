@@ -15,7 +15,8 @@ Fedora
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
    yum install flocker-node
 
-Create a zfs pool. The following create a pool as a file in ``/``::
+Create a ZFS pool.
+For testing purposes, you can create a pool on a loopback device on your existing filesystem::
 
    mkdir -p /opt/flocker
    truncate --size 1G /opt/flocker/pool-vdev
