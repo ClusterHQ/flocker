@@ -43,13 +43,12 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
-        # if application.volume is not None:
-        #     volume = self._volume_service.get(application.volume.name)
-        #     d = volume.expose_to_docker(application.volume.mountpoint)
-        # else:
-        #     d = succeed(None)
+        if application.volume is not None:
+            volume = self._volume_service.get(application.volume.name)
+            d = volume.expose_to_docker(application.volume.mountpoint)
+        else:
+            d = succeed(None)
 
-        d = succeed(None)
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
                                               external_port=p.external_port),
