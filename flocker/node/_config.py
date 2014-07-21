@@ -7,7 +7,14 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment, Port
+import os
+
+from twisted.python.filepath import FilePath
+
+from ._model import (
+    Application, AttachedVolume, Deployment,
+    DockerImage, Node, Port
+)
 
 
 class ConfigurationError(Exception):
@@ -92,9 +99,55 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
+            volume = None
+            if "volume" in config:
+                try:
+                    configured_volume = config.pop('volume')
+                    try:
+                        mountpoint = configured_volume['mountpoint']
+                    except TypeError:
+                        raise ValueError(
+                            "Unexpected value: " + str(configured_volume)
+                        )
+                    except KeyError:
+                        raise ValueError("Missing mountpoint.")
+                    if not isinstance(mountpoint, str):
+                        raise ValueError(
+                            "Mountpoint {path} contains non-ASCII "
+                            "(unsupported).".format(
+                                path=mountpoint
+                            )
+                        )
+                    if not os.path.isabs(mountpoint):
+                        raise ValueError(
+                            "Mountpoint {path} is not an absolute path."
+                            .format(
+                                path=mountpoint
+                            )
+                        )
+                    configured_volume.pop('mountpoint')
+                    if configured_volume:
+                        raise ValueError("Unrecognised keys: {keys}.".format(
+                            keys=', '.join(sorted(configured_volume.keys()))
+                        ))
+                    volume = AttachedVolume(
+                        name=application_name,
+                        mountpoint=FilePath(mountpoint)
+                        )
+                except ValueError as e:
+                    raise ConfigurationError(
+                        ("Application '{application_name}' has a config "
+                         "error. Invalid volume specification. {message}")
+                        .format(
+                            application_name=application_name,
+                            message=e.message
+                        )
+                    )
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
+                volume=volume,
                 ports=frozenset(ports))
 
             if config:
