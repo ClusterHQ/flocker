@@ -5,6 +5,8 @@
 The command-line ``flocker-changestate`` tool.
 """
 
+import sys
+
 from twisted.python.usage import Options, UsageError
 from twisted.internet import reactor
 
@@ -170,9 +172,12 @@ class ReportStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        # d = self._deployer.discover_node_configuration()
-        # d.addCallback(configuration_to_yaml)
-        # return d
+        d = self._deployer.discover_node_configuration()
+        d.addCallback(configuration_to_yaml)
+        def print_yaml(result):
+            sys.stdout.write result
+        d.addCallback(self.print_yaml)
+        return d
 
 
 def flocker_reportstate_main():

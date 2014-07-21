@@ -191,30 +191,35 @@ class Configuration(object):
 model_from_configuration = Configuration().model_from_configuration
 
 
-# def configuration_to_yaml(applications):
-#     """
-#     Generate YAML representation of a node's applications.
+def configuration_to_yaml(applications):
+    """
+    Generate YAML representation of a node's applications.
 
-#     A bunch of information is missing, but this is sufficient for the
-#     initial requirement of determining what to do about volumes when
-#     applying configuration changes.
-#     XXX link to relevant issues
+    A bunch of information is missing, but this is sufficient for the
+    initial requirement of determining what to do about volumes when
+    applying configuration changes.
+    XXX link to relevant issues
 
-#     :param applications: ``list`` of ``Application``, typically the
-#         current configuration on a node as determined by
-#         ``Deployer.discover_node_configuration()``.
+    :param applications: ``list`` of ``Application``, typically the
+        current configuration on a node as determined by
+        ``Deployer.discover_node_configuration()``.
 
-#     :return: YAML serialized configuration in the application
-#         configuration format.
-#     """
-#     result = {}
-#     for application in applications:
-#         # XXX image unknown, link to issue
-#         result[application.name] =  {"image": "unknown"}
-#         if application.volume:
-#             # Until multiple volumes are supported, assume volume name
-#             # matches application name (XXX add link):
-#             # XXX mountpoint is unknown at this point
-#             result[application.name]["volume"] = {"mountinpoint": None}
-#     return yaml.dumps({"version": 1,
-#                        "applications": result})
+    :return: YAML serialized configuration in the application
+        configuration format.
+    """
+    result = {}
+    for application in applications:
+        # XXX image unknown, see
+        # https://github.com/ClusterHQ/flocker/issues/207
+        result[application.name] =  {"image": "unknown"}
+        if application.ports:
+            ports = []
+            for port in application.ports:
+                ports.append({'internal_port': port.internal_port, 'external_port': port.external_port})
+            result[application.name]["ports"] = ports
+        if application.volume:
+            # Until multiple volumes are supported, assume volume name
+            # matches application name (XXX add link):
+            result[application.name]["volume"] = {"mountpoint": application.volume.mountpoint.path}
+    return yaml.safe_dump({"version": 1,
+                       "applications": result})

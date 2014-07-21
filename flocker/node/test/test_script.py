@@ -238,7 +238,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         """
         ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
         """
-        script = ChangeStateScript(lambda: None)
+        script = ReportStateScript(lambda: None)
         self.assertIsInstance(script._deployer, Deployer)
 
     def test_yaml_callback(self):

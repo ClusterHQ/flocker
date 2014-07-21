@@ -6,9 +6,12 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
+from yaml import safe_load
+
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
-from .._config import ConfigurationError, Configuration
-from .._model import Application, DockerImage, Deployment, Node, Port
+from .._config import ConfigurationError, Configuration, configuration_to_yaml
+from .._model import Application, AttachedVolume, DockerImage, Deployment, Node, Port
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -439,23 +442,74 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        self.fail('Not implemented')
+        applications = set()
+        result = configuration_to_yaml(applications)
+        expected = {'applications': {}, 'version': 1}
+        self.assertEqual(safe_load(result), expected)
 
     def test_one_application(self):
         """
         A dictionary of application name -> image is produced.
         """
-        self.fail('Not implemented')
-
+        applications = {
+            Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
+            )
+        }
+        result = configuration_to_yaml(applications)
+        expected = {'applications': {'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1}
+        self.assertEqual(safe_load(result), expected)
+ 
     def test_multiple_applications(self):
         """
         The dictionary includes a representation of each supplied application.
         """
-        self.fail('Not implemented')
-
+        applications = {
+            Application(
+                name='mysql-hybridcluster',
+                image=Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage(repository='flocker/mysql',
+                                      tag='v1.0.0'))
+            ),
+            Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)])            
+            )
+        }
+        result = configuration_to_yaml(applications)
+        expected = {'applications': {'site-hybridcluster': {'image': 'unknown', 'ports': [{'internal_port': 80, 'external_port': 8080}]}, 'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1}
+        self.assertEqual(safe_load(result), expected)
+ 
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
         also include the volume mountpoint.
         """
-        self.fail('Not implemented')
+        applications = {
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    name='mysql-hybridcluster',
+                    mountpoint=FilePath(b'/var/mysql/data'))
+            ),
+            Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)])
+           )
+        }
+        result = configuration_to_yaml(applications)
+        expected = {'applications': {'site-hybridcluster': {'image': 'unknown', 'ports': [{'internal_port': 80, 'external_port': 8080}]}, 'mysql-hybridcluster': {'volume': {'mountpoint': '/var/mysql/data'}, 'image': 'unknown'}}, 'version': 1}
+        self.assertEqual(safe_load(result), expected)
