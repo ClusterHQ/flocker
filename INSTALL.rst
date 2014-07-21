@@ -44,29 +44,30 @@ Verify the client is installed::
 Debian / Ubuntu
 ^^^^^^^^^^^^^^^
 
-::
+Create a Python virtualenv and install Flocker into it::
 
    sudo apt-get install virtualenvwrapper
    source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
    mkvirtualenv flocker
    pip install flocker
 
-::
+Activate the virtualenv and verify the client is working::
 
    workon flocker
-   flocker-deploy <...>
+   flocker-deploy --version
 
 
 OS X
 ^^^^
 
-::
+Create a Python virtualenv and install Flocker into it::
 
-   curl https://glyph.im/pip/bootstrap.sh
+   curl -O https://glyph.im/pip/bootstrap.sh
    ./bootstrap.sh
    mkvirtualenv flocker
    pip install flocker
 
-::
+Activate the virtualenv and verify the client is working::
+
    workon flocker
    flocker-deploy <...>
