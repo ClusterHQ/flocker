@@ -6,11 +6,17 @@ Tests for :module:`flocker.node.script`.
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
+from twisted.python.filepath import FilePath
+from twisted.internet.task import Clock
+
 from yaml import safe_dump
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...volume.filesystems.memory import FilesystemStoragePool
+from ...volume.service import VolumeService
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
+from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node
 
@@ -249,6 +255,23 @@ class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     command_name = u'flocker-reportstate'
 
 
+def create_volume_service(test):
+    """
+    Create a new ``VolumeService``.
+
+    :param TestCase test: A unit test which will shut down the service
+        when done.
+
+    :return: The ``VolumeService`` created.
+    """
+    service = VolumeService(FilePath(test.mktemp()),
+                            FilesystemStoragePool(FilePath(test.mktemp())),
+                            reactor=Clock())
+    service.startService()
+    test.addCleanup(service.stopService)
+    return service
+
+
 class ReportStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ReportStateScript.main``.
@@ -266,5 +289,11 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         representation of the applications from
         ``Deployer.discover_node_configuration``
         """
-        script = ReportStateScript()
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+
+        script = ReportStateScript(create_volume_service, [self], fake_gear)
         script.main(reactor=object(), options=[])

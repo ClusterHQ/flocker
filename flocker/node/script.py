@@ -168,10 +168,16 @@ class ReportStateScript(object):
     :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
         state of the current node.
     """
-    def __init__(self, create_volume_service=_default_volume_service):
+    def __init__(self,
+                 create_volume_service=_default_volume_service,
+                 create_volume_service_args=[],
+                 gear_client=None):
         """
         """
-        self._deployer = Deployer(create_volume_service())
+        self._deployer = Deployer(
+            create_volume_service(*create_volume_service_args),
+            gear_client
+        )
 
     def main(self, reactor, options):
         """
