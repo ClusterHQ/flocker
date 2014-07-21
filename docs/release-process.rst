@@ -73,7 +73,7 @@ Release
 
 1. Tag the version being released::
 
-     git tag -a $VERSION release/flocker-${VERSION%.*}
+     git tag -a ${VERSION} release/flocker-${VERSION%.*}
      git push origin $VERSION
 
 2.  Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
@@ -81,15 +81,15 @@ Release
 3. Build python packages and upload to pypi::
 
      python sdist bdist_wheel
-     twine upload dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl}
+     twine upload dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl}
 
    Also upload to clusterhq.com dowloand site::
 
-     gsutil -a public-read cp dist/Flocker-$VERSION{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
+     gsutil -a public-read cp dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
 
 4. Upload RPMs::
 
-      admin/upload-rpms upload-scratch $VERSION
+      admin/upload-rpms upload-scratch ${VERSION}
 
 5. Build tagged docs at readthedocs.org.
 
@@ -113,7 +113,7 @@ clusterhq-release package
 This is a metapackage that contians the yum repository definitions.
 
 ::
-   rpmbuild -D "_sourcedir $PWD" -D "_rpmdir $PWD/results" -ba clusterhq-release.spec
+   rpmbuild -D "_sourcedir ${PWD}" -D "_rpmdir ${PWD}/results" -ba clusterhq-release.spec
    gsutil cp -a public-read results/noarch/clusterhq-release-1-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
 
 
