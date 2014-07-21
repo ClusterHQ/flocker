@@ -23,8 +23,8 @@ For testing purposes, you can create a pool on a loopback device on your existin
    truncate --size 1G /opt/flocker/pool-vdev
    zpool create flocker /opt/flocker/pool-vdev
 
-Client
-------
+Installing the Flocker client
+-----------------------------
 
 The Flocker client provides a user interface for managing a cluster of Flocker nodes.
 
