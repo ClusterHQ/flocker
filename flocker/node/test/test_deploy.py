@@ -133,6 +133,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
         # This would be better to test with a verified fake:
         # https://github.com/ClusterHQ/flocker/issues/234
         exposed = []
+
         def expose_to_docker(volume, mount_path):
             # We check for existence of unit so we can ensure exposure
             # happens *before* the unit is started:
@@ -212,6 +213,7 @@ class DeployerStopApplicationTests(SynchronousTestCase):
         # https://github.com/ClusterHQ/flocker/issues/234
         self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
         removed = []
+
         def remove_from_docker(volume):
             # We check for existence of unit so we can ensure exposure
             # happens *after* the unit is stopped:
