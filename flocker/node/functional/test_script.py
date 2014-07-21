@@ -85,3 +85,28 @@ class ChangeStateScriptTests(TestCase):
         # Trial will fail the test if the returned Deferred fires with an
         # exception:
         return ChangeStateScript()._deployer._gear_client.list()
+
+
+class ReportStateScriptTests(TestCase):
+    """
+    Tests for ``ReportStateScript``.
+    """
+
+    @_require_root
+    def setUp(self):
+        pass
+
+
+class FlockerReportStateTests(TestCase):
+    """Tests for ``flocker-reportstate``."""
+
+    @_require_installed
+    def setUp(self):
+        pass
+
+    def test_version(self):
+        """
+        ``flocker-reportstate`` is a command available on the system path
+        """
+        result = check_output([b"flocker-reportstate"] + [b"--version"])
+        self.assertEqual(result, b"%s\n" % (__version__,))
