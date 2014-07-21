@@ -10,7 +10,7 @@ The only supported node operating system is Fedora 20.
 Fedora
 ^^^^^^
 
-::
+Configure ``yum`` with the Flocker package repository and install the Flocker node package::
 
    yum localinstall http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
