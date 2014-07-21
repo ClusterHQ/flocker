@@ -73,11 +73,11 @@ class Deployer(object):
         unit_name = application.name
         result = self._gear_client.remove(unit_name)
 
-        # def unit_removed(_):
-        #     if application.volume is not None:
-        #         volume = self._volume_service.get(application.volume.name)
-        #         return volume.remove_from_docker()
-        # result.addCallback(unit_removed)
+        def unit_removed(_):
+            if application.volume is not None:
+                volume = self._volume_service.get(application.volume.name)
+                return volume.remove_from_docker()
+        result.addCallback(unit_removed)
         return result
 
     def discover_node_configuration(self):

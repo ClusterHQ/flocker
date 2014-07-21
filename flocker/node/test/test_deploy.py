@@ -192,6 +192,39 @@ class DeployerStopApplicationTests(SynchronousTestCase):
 
         self.assertIs(None, result)
 
+    def test_volume_unexposed(self):
+        """
+        ``Deployer.stop_application`` removes an application's volume from
+        Docker after it is stopped.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+        docker_image = DockerImage.from_string(u"busybox")
+        application = Application(
+            name=u'site-example.com',
+            image=docker_image,
+            volume=AttachedVolume(name=u'site-example.com',
+                                  mountpoint=FilePath(b"/var"))
+        )
+
+        # This would be better to test with a verified fake:
+        # https://github.com/ClusterHQ/flocker/issues/234
+        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
+        removed = []
+        def remove_from_docker(volume):
+            # We check for existence of unit so we can ensure exposure
+            # happens *after* the unit is stopped:
+            removed.append((volume, self.successResultOf(
+                fake_gear.exists(u"site-example.com"))))
+            return succeed(None)
+        self.patch(Volume, "remove_from_docker", remove_from_docker)
+
+        self.successResultOf(deployer.start_application(application))
+        self.successResultOf(deployer.stop_application(application))
+        self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
+                                    False)])
+
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
