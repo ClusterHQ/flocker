@@ -41,8 +41,8 @@ Verify the client is installed::
    flocker-deploy --version
 
 
-Ubuntu
-^^^^^^
+Debian / Ubuntu
+^^^^^^^^^^^^^^^
 
 ::
 
