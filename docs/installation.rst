@@ -10,12 +10,22 @@ Flocker has two components that need installing:
    This should be installed on a machine with SSH credentials to control the cluster nodes, e.g. the machine which is running Vagrant.
 
 
-Ubuntu 14.04
-============
+Ubuntu
+======
 
-To install ``flocker-cli`` on Ubuntu 14.04 you can run the following script:
+To install ``flocker-cli`` on Ubuntu you can run the following script:
 
 :download:`ubuntu-install.sh`
 
 .. literalinclude:: ubuntu-install.sh
    :language: shell
+
+The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
+   0.1.0
+   alice@mercury:~/flocker-tutorial$ export PATH=$PATH:`pwd`/bin
+   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
+   0.1.0
