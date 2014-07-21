@@ -1,7 +1,7 @@
 Release Process
 ===============
 
-(cribbed partly from twisted's `release process <https://twistedmatrix.com/trac/wiki/ReleaseProcess>`_)
+(cribbed partly from Twisted's `release process <https://twistedmatrix.com/trac/wiki/ReleaseProcess>`_)
 
 Outcomes
 --------
@@ -11,17 +11,17 @@ By the end of the release process we will have:
 - Tag in version control
 - tarball.
 - Fedora 20 RPMs for software on the node and client.
-- Release on pypi
+- Release on PyPI
 - Documentation on docs.clusterhq.com or clusterhq.com/docs
-- Annoucment on mailing list, blog, IRC (others?)
+- Announcement on mailing list, blog, IRC (others?)
 - Download links on clusterhq.com
 
 
-Prequesites
+Prerequisites
 -----------
 
-- A pypi account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`__),
-  with `maintainer access <https://pypi.python.org/pypi?:action=role_form&package_name=flocker>`__ to the flocker package.
+- A PyPI account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`__),
+  with `maintainer access <https://pypi.python.org/pypi?:action=role_form&package_name=flocker>`__ to the Flocker package.
   Configure the account in file:`~/.pypirc`::
 
      [distutils]
@@ -32,10 +32,10 @@ Prequesites
      username: <username>
      password: <password>
 
-  You will also need `twine <https://pypi.python.org/pypi/twine>`_ installed to upload to pypi.
+  You will also need `twine <https://pypi.python.org/pypi/twine>`_ installed to upload to PyPI.
 
 - A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
-  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the flocker project.
+  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
   Ensure that you have `+t` next to your nickname, in the output of::
@@ -46,7 +46,7 @@ Prequesites
 
      /msg ChanServ access add #clusterhq <nickname> +t
 
-- Access to `google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/>`,
+- Access to `Google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/>`,
   using `gsutil <https://developers.google.com/storage/docs/gsutil>`_.
 
 Preparing for a release
@@ -64,8 +64,8 @@ Preparing for a release
 
 2. Make sure the release notes in :file:`NEWS` are up-to-date.
 3. Update appropriate copyright dates as appropriate.
-4. Make sure all the tests pass on buildbot.
-   Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
+4. Make sure all the tests pass on BuildBot.
+   Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 5. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
 Release
@@ -76,9 +76,9 @@ Release
      git tag -a ${VERSION} release/flocker-${VERSION%.*}
      git push origin ${VERSION}
 
-2.  Go to the `buildbot <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+2.  Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
-3. Build python packages and upload to pypi::
+3. Build python packages and upload to PyPI::
 
      python sdist bdist_wheel
      twine upload dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl}
@@ -110,7 +110,7 @@ Announcing Releases
 clusterhq-release package
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is a metapackage that contians the yum repository definitions.
+This is a meta-package that contains the yum repository definitions.
 
 ::
    rpmbuild -D "_sourcedir ${PWD}" -D "_rpmdir ${PWD}/results" -ba clusterhq-release.spec
