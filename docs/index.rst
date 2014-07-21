@@ -11,6 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   whatsnew.rst
    tutorial/index
    flocker-intro/index
    usage
