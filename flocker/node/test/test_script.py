@@ -4,6 +4,8 @@
 Tests for :module:`flocker.node.script`.
 """
 
+from StringIO import StringIO
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
@@ -296,4 +298,15 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         fake_gear = FakeGearClient(units=units)
 
         script = ReportStateScript(create_volume_service, [self], fake_gear)
+        content = StringIO()
+
+        def content_capture(data):
+            content.write(data)
+            content.seek(0)
+        self.patch(script, 'print_yaml', content_capture)
         script.main(reactor=object(), options=[])
+        self.assertEqual(
+            content.read(),
+            (b'applications:\n  site-example.com: {image: unknown}\n  '
+             b'site-example.net: {image: unknown}\nversion: 1\n')
+        )

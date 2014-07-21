@@ -179,17 +179,16 @@ class ReportStateScript(object):
             gear_client
         )
 
+    def print_yaml(self, result):
+        sys.stdout.write(result)
+
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
-
-        def print_yaml(result):
-            sys.stdout.write(result)
-
-        d.addCallback(print_yaml)
+        d.addCallback(self.print_yaml)
         return d
 
 
