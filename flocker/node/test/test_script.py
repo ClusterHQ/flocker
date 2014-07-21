@@ -219,6 +219,7 @@ class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     Tests for :class:`ReportStateOptions`.
     """
     options = ReportStateOptions
+
     def test_no_options(self):
         """
         ``ReportStateOptions`` does not take any (non-standard) options.
@@ -231,7 +232,11 @@ class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         If any additional arguments are supplied, a ``UsageError`` is raised.
         """
         options = self.options()
-        e = self.assertRaises(UsageError, options.parseOptions, ['someparameter'])
+        e = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ['someparameter']
+        )
         self.assertEqual(str(e), b"Wrong number of arguments.")
 
 
@@ -263,4 +268,3 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         """
         script = ReportStateScript()
         script.main(reactor=object(), options=[])
-

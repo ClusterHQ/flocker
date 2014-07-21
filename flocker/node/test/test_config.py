@@ -11,7 +11,9 @@ from yaml import safe_load
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import ConfigurationError, Configuration, configuration_to_yaml
-from .._model import Application, AttachedVolume, DockerImage, Deployment, Node, Port
+from .._model import (
+    Application, AttachedVolume, DockerImage, Deployment, Node, Port
+)
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
@@ -461,9 +463,13 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             )
         }
         result = configuration_to_yaml(applications)
-        expected = {'applications': {'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1}
+        expected = {
+            'applications':
+                {'mysql-hybridcluster': {'image': 'unknown'}},
+                'version': 1
+        }
         self.assertEqual(safe_load(result), expected)
- 
+
     def test_multiple_applications(self):
         """
         The dictionary includes a representation of each supplied application.
@@ -481,13 +487,20 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])            
+                                      external_port=8080)])
             )
         }
         result = configuration_to_yaml(applications)
-        expected = {'applications': {'site-hybridcluster': {'image': 'unknown', 'ports': [{'internal_port': 80, 'external_port': 8080}]}, 'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1}
+        expected = {
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [{'internal_port': 80, 'external_port': 8080}]
+                },
+                'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1
+        }
         self.assertEqual(safe_load(result), expected)
- 
+
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
@@ -508,8 +521,20 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
-           )
+            )
         }
         result = configuration_to_yaml(applications)
-        expected = {'applications': {'site-hybridcluster': {'image': 'unknown', 'ports': [{'internal_port': 80, 'external_port': 8080}]}, 'mysql-hybridcluster': {'volume': {'mountpoint': '/var/mysql/data'}, 'image': 'unknown'}}, 'version': 1}
+        expected = {
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [{'internal_port': 80, 'external_port': 8080}]
+                },
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'image': 'unknown'
+                }
+            },
+            'version': 1
+        }
         self.assertEqual(safe_load(result), expected)

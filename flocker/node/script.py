@@ -179,10 +179,10 @@ class ReportStateScript(object):
         """
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
-        import pdb;pdb.set_trace()
+
         def print_yaml(result):
-            import pdb;pdb.set_trace()
             sys.stdout.write(result)
+
         d.addCallback(print_yaml)
         return d
 

@@ -211,16 +211,19 @@ def configuration_to_yaml(applications):
     for application in applications:
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
-        result[application.name] =  {"image": "unknown"}
+        result[application.name] = {"image": "unknown"}
         if application.ports:
             ports = []
             for port in application.ports:
-                ports.append({'internal_port': port.internal_port, 'external_port': port.external_port})
+                ports.append(
+                    {'internal_port': port.internal_port,
+                     'external_port': port.external_port}
+                )
             result[application.name]["ports"] = ports
         if application.volume:
             # Until multiple volumes are supported, assume volume name
             # matches application name (XXX add link):
-            result[application.name]["volume"] = {"mountpoint": application.volume.mountpoint.path}
-    import pdb;pdb.set_trace()
-    return yaml.safe_dump({"version": 1,
-                       "applications": result})
+            result[application.name]["volume"] = {
+                "mountpoint": application.volume.mountpoint.path
+            }
+    return yaml.safe_dump({"version": 1, "applications": result})
