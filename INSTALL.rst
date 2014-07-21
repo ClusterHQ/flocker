@@ -28,7 +28,7 @@ Client
 Fedora
 ^^^^^^
 
-::
+Configure ``yum`` with the Flocker package repository and install the Flocker client package::
 
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
    yum install flocker-cli
