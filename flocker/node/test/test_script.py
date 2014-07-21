@@ -219,6 +219,20 @@ class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
     Tests for :class:`ReportStateOptions`.
     """
     options = ReportStateOptions
+    def test_no_options(self):
+        """
+        ``ReportStateOptions`` does not take any (non-standard) options.
+        """
+        options = self.options()
+        options.parseOptions([])
+
+    def test_wrong_number_options(self):
+        """
+        If any additional arguments are supplied, a ``UsageError`` is raised.
+        """
+        options = self.options()
+        e = self.assertRaises(UsageError, options.parseOptions, ['someparameter'])
+        self.assertEqual(str(e), b"Wrong number of arguments.")
 
 
 class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -247,4 +261,6 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         representation of the applications from
         ``Deployer.discover_node_configuration``
         """
-        self.fail('Not implemented')
+        script = ReportStateScript()
+        script.main(reactor=object(), options=[])
+

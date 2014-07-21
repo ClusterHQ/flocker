@@ -15,6 +15,8 @@ from yaml.error import YAMLError
 
 from zope.interface import implementer
 
+from ._config import configuration_to_yaml
+
 from ..volume.script import VolumeOptions, VolumeScript
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
@@ -24,6 +26,9 @@ __all__ = [
     "ChangeStateOptions",
     "ChangeStateScript",
     "flocker_changestate_main",
+    "ReportStateOptions",
+    "ReportStateScript",
+    "flocker_reportstate_main",
 ]
 
 
@@ -174,9 +179,11 @@ class ReportStateScript(object):
         """
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
+        import pdb;pdb.set_trace()
         def print_yaml(result):
-            sys.stdout.write result
-        d.addCallback(self.print_yaml)
+            import pdb;pdb.set_trace()
+            sys.stdout.write(result)
+        d.addCallback(print_yaml)
         return d
 
 

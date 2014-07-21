@@ -221,5 +221,6 @@ def configuration_to_yaml(applications):
             # Until multiple volumes are supported, assume volume name
             # matches application name (XXX add link):
             result[application.name]["volume"] = {"mountpoint": application.volume.mountpoint.path}
+    import pdb;pdb.set_trace()
     return yaml.safe_dump({"version": 1,
                        "applications": result})
