@@ -288,8 +288,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 
     def test_yaml_callback(self):
         """
-        ``ReportStateScript.main`` returns a deferred which fires with the YAML
-        representation of the applications from
+        ``ReportStateScript.main`` returns a deferred which writes out
+        the YAML representation of the applications from
         ``Deployer.discover_node_configuration``
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
@@ -304,7 +304,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         def content_capture(data):
             content.write(data)
             content.seek(0)
-        self.patch(script, 'print_yaml', content_capture)
+        self.patch(script, '_print_yaml', content_capture)
         script.main(reactor=object(), options=[])
         self.assertEqual(
             content.read(),

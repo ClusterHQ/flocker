@@ -188,7 +188,7 @@ class ReportStateScript(object):
             gear_client
         )
 
-    def print_yaml(self, result):
+    def _print_yaml(self, result):
         sys.stdout.write(result)
 
     def main(self, reactor, options):
@@ -197,7 +197,7 @@ class ReportStateScript(object):
         """
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
-        d.addCallback(self.print_yaml)
+        d.addCallback(self._print_yaml)
         return d
 
 
