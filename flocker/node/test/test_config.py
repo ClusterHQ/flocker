@@ -139,10 +139,13 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         config = dict(
             version=1,
             applications={
-                'mysql-hybridcluster': dict(image='flocker/mysql:v1.0.0'),
+                'mysql-hybridcluster': dict(
+                    image='flocker/mysql:v1.0.0',
+                    volume={'mountpoint': b'/var/mysql/data'}
+                ),
                 'site-hybridcluster': {
                     'image': 'flocker/wordpress:v1.0.0',
-                    'ports': [dict(internal=80, external=8080)]
+                    'ports': [dict(internal=80, external=8080)],
                 }
             }
         )
@@ -152,7 +155,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset()),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    name='mysql-hybridcluster',
+                    mountpoint=FilePath(b'/var/mysql/data'))),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -160,7 +166,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]))
         }
-
         self.assertEqual(expected_applications, applications)
 
     def test_ports_missing_internal(self):
@@ -227,6 +232,125 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
+
+    def test_error_on_volume_extra_keys(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` error if the volume dictionary contains
+        extra keys.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume={'mountpoint': b'/var/mysql/data',
+                        'bar': 'baz',
+                        'foo': 215},
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
+
+    def test_error_on_volume_missing_mountpoint(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` error if the volume key does not
+        contain a mountpoint.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume={},
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Missing mountpoint.",
+            exception.message
+        )
+
+    def test_error_on_volume_invalid_mountpoint(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` error if the specified volume mountpoint is
+        not a valid absolute path.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume={'mountpoint': b'./.././var//'},
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Mountpoint ./.././var// is not an "
+            "absolute path.",
+            exception.message
+        )
+
+    def test_error_on_volume_mountpoint_not_ascii(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` error if the specified volume mountpoint is
+        not a byte string.
+        """
+        mountpoint_unicode = u'\u2603'
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume={'mountpoint': mountpoint_unicode},
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Mountpoint {mount} contains "
+            "non-ASCII (unsupported).".format(mount=mountpoint_unicode),
+            exception.message
+        )
+
+    def test_error_on_invalid_volume_yaml(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the volume key is not a dictionary.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                volume='a random string',
+            )}
+        )
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid volume specification. Unexpected value: a random string",
             exception.message
         )
 
