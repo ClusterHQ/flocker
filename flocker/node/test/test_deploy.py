@@ -12,7 +12,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges, Port)
+                StateChanges, Port, NodeState)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
@@ -186,19 +186,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     def test_discover_none(self):
         """
-        ``Deployer.discover_node_configuration`` returns an empty list if
-        there are no active `geard` units on the host.
+        ``Deployer.discover_node_configuration`` returns an empty
+        ``NodeState`` if there are no `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``Deployer.discover_node_configuration`` returns a list of
-        ``Application``\ s; one for each active `gear` unit.
+        ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
+        a list of running ``Application``\ s; one for each active `gear`
+        unit.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
@@ -207,12 +209,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([application], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[application], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``Deployer.discover_node_configuration`` returns an ``Application``
-        for every `active` `gear` ``Unit`` on the host.
+        ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
+        a running ``Application`` for every `active` `gear` ``Unit`` on
+        the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
         unit2 = Unit(name=u'site-example.net', activation_state=u'active')
@@ -223,7 +227,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -248,7 +253,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -267,7 +273,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         applications = [Application(name=unit.name)]
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
@@ -629,7 +636,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_applications_started(self):
         """
@@ -658,7 +666,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         d.addCallback(lambda _: api.discover_node_configuration())
 
         expected_application = Application(name=expected_application_name)
-        self.assertEqual([expected_application], self.successResultOf(d))
+        self.assertEqual(
+            NodeState(running=[expected_application], not_running=[]),
+            self.successResultOf(d))
 
     def test_first_failure_pass_through(self):
         """

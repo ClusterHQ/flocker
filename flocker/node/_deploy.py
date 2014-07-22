@@ -21,9 +21,9 @@ class NodeState(object):
     """
     The current state of a node.
 
-    :ivar running: A ``set`` of ``Application`` instances on this node
+    :ivar running: A ``list`` of ``Application`` instances on this node
         that are currently running or starting up.
-    :ivar not_running: A ``set`` of ``Application`` instances on this
+    :ivar not_running: A ``list`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
     """
 
@@ -114,9 +114,7 @@ class Deployer(object):
                 running.append(application)
                 #else:
                 #    not_running.append(application)
-            #return NodeState(running=frozenset(running),
-            #                 not_running=frozenset(not_running))
-            return running
+            return NodeState(running=running, not_running=not_running)
         d.addCallback(applications_from_units)
         return d
 
@@ -151,7 +149,9 @@ class Deployer(object):
         # https://github.com/ClusterHQ/flocker/issues/208
         d = self.discover_node_configuration()
 
-        def find_differences(current_node_applications):
+        def find_differences(current_node_state):
+            current_node_applications = current_node_state.running
+
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
             current_state = {app.name for app in current_node_applications}
