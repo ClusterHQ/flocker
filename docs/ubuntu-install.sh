@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Install required system packages:
-sudo apt-get install python2.7 python-virtualenv python-pip python2.7-dev
+sudo apt-get install python2.7 python-virtualenv python2.7-dev
 
 # Create a virtualenv, an isolated Python environment, in a new directory called
 # "flocker-tutorial":
