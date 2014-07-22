@@ -12,4 +12,5 @@ virtualenv --python=/usr/bin/python2.7 flocker-tutorial
 flocker-tutorial/bin/pip install --upgrade pip
 
 # Install flocker-cli and dependencies inside the virtualenv:
-flocker-tutorial/bin/pip install https://github.com/ClusterHQ/flocker/archive/0.1.0.tar.gz
+# XXX change to real 0.1.0 URL as part of https://github.com/ClusterHQ/flocker/issues/359:
+flocker-tutorial/bin/pip install https://github.com/ClusterHQ/flocker/archive/master.zip
