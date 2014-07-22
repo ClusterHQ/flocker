@@ -250,7 +250,8 @@ def configuration_to_yaml(applications):
     A bunch of information is missing, but this is sufficient for the
     initial requirement of determining what to do about volumes when
     applying configuration changes.
-    XXX link to relevant issues
+    https://github.com/ClusterHQ/flocker/issues/289
+    
 
     :param applications: ``list`` of ``Application``\ s, typically the
         current configuration on a node as determined by
@@ -274,7 +275,8 @@ def configuration_to_yaml(applications):
             result[application.name]["ports"] = ports
         if application.volume:
             # Until multiple volumes are supported, assume volume name
-            # matches application name (XXX add link):
+            # matches application name, aee:
+            # https://github.com/ClusterHQ/flocker/issues/49
             result[application.name]["volume"] = {
                 "mountpoint": application.volume.mountpoint.path
             }
