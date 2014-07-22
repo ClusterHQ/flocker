@@ -110,12 +110,13 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                if unit.activation_state in (u"active", u"activating"):
-                    running.append(application)
-                else:
-                    not_running.append(application)
-            return NodeState(running=frozenset(running),
-                             not_running=frozenset(not_running))
+                #if unit.activation_state in (u"active", u"activating"):
+                running.append(application)
+                #else:
+                #    not_running.append(application)
+            #return NodeState(running=frozenset(running),
+            #                 not_running=frozenset(not_running))
+            return running
         d.addCallback(applications_from_units)
         return d
 
@@ -146,20 +147,15 @@ class Deployer(object):
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
 
+        # XXX: This includes stopped units. See
+        # https://github.com/ClusterHQ/flocker/issues/208
         d = self.discover_node_configuration()
 
-        def find_differences(node_state):
-            current_node_applications = (
-                node_state.running | node_state.not_running)
-            not_running_names = {app.name for app in node_state.not_running}
-
+        def find_differences(current_node_applications):
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
-            # See https://github.com/ClusterHQ/flocker/issues?milestone=4
             current_state = {app.name for app in current_node_applications}
             desired_state = {app.name for app in desired_node_applications}
-            need_restart = {app.name for app in desired_node_applications if
-                            app.name in not_running_names}
 
             start_names = desired_state.difference(current_state)
             stop_names = current_state.difference(desired_state)
@@ -168,12 +164,10 @@ class Deployer(object):
                 app for app in desired_node_applications
                 if app.name in start_names
             }
-            start_containers |= need_restart
             stop_containers = {
                 app for app in current_node_applications
                 if app.name in stop_names
             }
-            stop_containers |= need_restart
 
             return StateChanges(
                 applications_to_start=start_containers,
