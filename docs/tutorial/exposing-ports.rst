@@ -2,9 +2,6 @@
 Exposing Ports
 ==============
 
-Exposing Application Ports
-==========================
-
 Each application running in a Docker container has its own isolated networking stack.
 To communicate with an application running inside the container we need to forward traffic from a network port in the node where the container is located to the appropriate port within the container.
 Flocker takes this one step further: an application is reachable on all nodes in the cluster, no matter where it is currently located.
@@ -60,40 +57,6 @@ We can also connect to the other node where it isn't running and the traffic wil
 Since the application is transparently accessible from both nodes you can configure a DNS record that points at both IPs and access the application regardless of its location.
 See :doc:`../routing/index` for more details.
 
-
-Data Isn't Moved (Yet)
-======================
-
-While MongoDB is running and available on the cluster this configuration is still not sufficient: if the application is moved from one node to another the data will not be moved.
-Unlike many other Docker frameworks Flocker has a solution for this problem, but before proceeding let's see in more detail what it is we're trying to solve.
-We'll use a new configuration file that moves the application to a different node.
-
-:download:`port-deployment-moved.yml`
-
-.. literalinclude:: port-deployment-moved.yml
-   :language: yaml
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ flocker-deploy port-deployment-moved.yml port-application.yml
-   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
-   CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
-   alice@mercury:~/flocker-tutorial$
-
-If we query the database the records we've previously inserted have disappeared!
-The application has moved but the data has been left behind.
-
-.. code-block:: console
-
-    alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
-    MongoDB shell version: 2.4.9
-    connecting to: 172.16.255.251/test
-    > use example;
-    switched to db example
-    > db.records.find({})
-    >
-
 At this point you have successfully deployed a MongoDB server and communicated with it.
 You've also seen how external users don't need to worry about applications' location within the cluster.
-In the next section of the tutorial you'll see how to ensure that the application's data moves along with it, the final step to running stateful applications on a cluster.
+In the next section of the tutorial you'll learn how to ensure that the application's data moves along with it, the final step to running stateful applications on a cluster.
