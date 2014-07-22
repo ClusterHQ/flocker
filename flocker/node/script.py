@@ -181,7 +181,7 @@ class ReportStateScript(object):
             passed to the create_volume_service callable, optional.
 
         :param gear_client: A ``GearClient`` instance, optional.
-        
+
         """
         self._deployer = Deployer(
             create_volume_service(*create_volume_service_args),
