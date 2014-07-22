@@ -297,7 +297,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Units that are neither active nor activating are considered to be not
         running by ``discover_node_configuration().
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'deactivating')
+        unit1 = Unit(name=u'site-example.com',
+                     activation_state=u'deactivating')
         unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
         unit3 = Unit(name=u'site-example.net', activation_state=u'inactive')
         unit4 = Unit(name=u'site-example.net', activation_state=u'madeup')
