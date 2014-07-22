@@ -13,7 +13,7 @@ from twisted.internet.task import Clock
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
-from .._model import AttachedVolume
+from .._model import VolumeHandoff, AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
@@ -178,6 +178,21 @@ class DeployerStopApplicationTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
+
+
+# This models an application that has a volume.
+APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage(repository=u'clusterhq/flocker',
+                      tag=u'release-14.0'),
+    volume=AttachedVolume(
+        # See https://github.com/ClusterHQ/flocker/issues/49
+        name=name,
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    )
+)
 
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
@@ -474,6 +489,193 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_volume_created(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a new
+        volume must be created if the desired configuration specifies that an
+        application which was previously running nowhere is going to be running
+        on *this* node and that application requires a volume.
+        """
+        hostname = u"node1.example.com"
+
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        # The discovered current configuration of the cluster also reflects
+        # this.
+        current = Deployment(nodes=frozenset({
+                    Node(hostname=hostname, applications=frozenset()),
+        }))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        node = Node(
+            hostname=hostname,
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # This completely expresses the configuration for a cluster of one node
+        # with one application which requires a volume.  It's the state we
+        # should get to with the changes calculated below.
+        desired = Deployment(nodes=frozenset({node}))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired ,
+            current_state=current,
+            hostname=hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                Application(name=APPLICATION_WITH_VOLUME_NAME)
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_acquire=set(),
+            volumes_to_create={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
+                ),
+            },
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_acquired(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on another node
+        must be acquired.
+        """
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running somewhere else.
+        current = Deployment(nodes=frozenset(node, another_node))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+                    Node(hostname=node.hostname,
+                         applications=another_node.applications),
+                    Node(hostname=another_node.hostname,
+                         applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired ,
+            current_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                Application(name=APPLICATION_WITH_VOLUME_NAME),
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_acquire={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                ),
+            },
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_handoff(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on this node but
+        is now running on another node must be handed off.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset(node, another_node))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+                    Node(hostname=node.hostname,
+                         applications=another_node.applications),
+                    Node(hostname=another_node.hostname,
+                         applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+
+        expected = StateChanges(
+            # The application is running here so it needs to be stopped.
+            applications_to_start=set(),
+            applications_to_stop={
+                Application(name=APPLICATION_WITH_VOLUME_NAME),
+            },
+            # And the volume for the application needs to be handed off.
+            volumes_to_handoff={
+                VolumeHandoff(volume=volume, node=another_node),
+            },
+            volumes_to_acquire=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
 
 
 class DeployerApplyChangesTests(SynchronousTestCase):

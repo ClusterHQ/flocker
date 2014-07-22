@@ -131,6 +131,16 @@ class Port(object):
     """
 
 
+@attributes(["volume", "node"])
+class VolumeHandoff(object):
+    """
+    A record representing a volume handoff that needs to be performed from this
+    node.
+
+    :ivar Node node: The node to which the volume is meant to be handed off.
+
+    """
+
 @attributes(
     ["applications_to_start", "applications_to_stop", "proxies"],
     defaults=dict(proxies=frozenset())
@@ -145,4 +155,24 @@ class StateChanges(object):
     :ivar set proxies: The required full ``set`` of
         :class:`flocker.route.Proxy` routes to application on other
         nodes. Defaults to an empty ``frozenset``.
+    """
+
+
+@attributes(["going", "coming", "creating"])
+class VolumeChanges(object):
+    """
+    ``VolumeChanges`` describes the volume-related changes necessary to change
+    the current state to the desired state.
+
+    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
+        nodes take over hosting of any volume-having applications being moved
+        away from a node.  These must be handed off.
+
+    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
+        node take over hosting of any volume-having applications being moved to
+        this node.  These must be acquired.
+
+    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
+        node create any new volume-having applications meant to be hosted on
+        this node.  These must be created.
     """

@@ -8,7 +8,7 @@ Deploy applications on nodes.
 from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges, AttachedVolume
+from ._model import Application, StateChanges, VolumeChanges, AttachedVolume
 from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
@@ -151,9 +151,17 @@ class Deployer(object):
                 if app.name in stop_names
             }
 
+            # Find any applications with volumes that are moving to or from
+            # this node - or that are being newly created by this new
+            # configuration.
+            volumes = find_volume_changes(hostname, current_state, desired_state)
+
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
+                volumes_to_handoff=volumes.going,
+                volumes_to_acquire=volumes.coming,
+                volumes_to_create=volumes.creating
                 proxies=desired_proxies
             )
         d.addCallback(find_differences)
@@ -212,3 +220,31 @@ class Deployer(object):
 
         return DeferredList(
             results, fireOnOneErrback=True, consumeErrors=True)
+
+
+def find_volume_changes(hostname, current_state, desired_state):
+    """
+    :param unicode hostname: The name of the node for which to find changes.
+
+    :param Deployment current_state: The old state of the cluster on which the
+        changes are based.
+
+    :param Deployment desired_state: The new state of the cluster towards which
+        the changes are working.
+    """
+    going = set()
+    coming = set()
+    creating = set()
+
+    # Look at each application that is going to be stopped on this node.  If it
+    # is being started somewhere else, add a VolumeHandoff for it to `going`.
+
+    # Look at each application that is going to be started on this node.  If it
+    # was running somewhere else, add an AttachedVolume for it to `coming`.
+
+    # For each application that is going to be started on this node that was
+    # not running somewhere else, add an AttachedVolume for it to `creating`.
+
+    # TOD Later on, think about deletion.  Not for this issue though.
+
+    return VolumeChanges(going=going, coming=coming, creating=creating)
