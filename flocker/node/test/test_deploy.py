@@ -700,6 +700,35 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             ZeroDivisionError
         )
 
+    def test_restarts(self):
+        """
+        Applications listed in ``StateChanges.applications_to_restart`` are
+        stopped and then started.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(
+            create_volume_service(self), gear_client=fake_gear,
+            network=make_memory_network())
+
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage.from_string(u'clusterhq/flocker'),
+        )
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            applications_to_restart=frozenset([application]))
+        api._apply_changes(desired_changes)
+
+        # The activation state tells us the unit was started. We know a
+        # stop preceded the starting of the unit, because otherwise
+        # starting would complain with an AlreadyExists.
+        self.assertEqual(self.successResultOf(fake_gear.list()),
+                         set([Unit(name=u'mysql-hybridcluster',
+                                   activation_state=u'active')]))
+
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """

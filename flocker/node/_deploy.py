@@ -236,5 +236,9 @@ class Deployer(object):
         for application in necessary_state_changes.applications_to_start:
             results.append(self.start_application(application))
 
+        for application in necessary_state_changes.applications_to_restart:
+            d = self.stop_application(application)
+            d.addCallback(lambda _: self.start_application(application))
+            results.append(d)
         return DeferredList(
             results, fireOnOneErrback=True, consumeErrors=True)
