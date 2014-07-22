@@ -8,7 +8,8 @@ sudo apt-get install python2.7 python-virtualenv python2.7-dev
 virtualenv --python=/usr/bin/python2.7 flocker-tutorial
 
 # Upgrade the pip Python package manager to its latest version inside the
-# virtualenv:
+# virtualenv. Some older versions of pip have issues installing Python wheel
+# packages.
 flocker-tutorial/bin/pip install --upgrade pip
 
 # Install flocker-cli and dependencies inside the virtualenv:
