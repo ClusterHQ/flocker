@@ -20,11 +20,11 @@ To install ``flocker-cli`` on Ubuntu you can run the following script:
 .. literalinclude:: ubuntu-install.sh
    :language: sh
 
-You can download and run it manually, or just do:
+Save the script to a file, and then run it:
 
 .. code-block:: console
 
-   alice@mercury:~$ curl http://docs.clusterhq.com/ubuntu-install.sh | sh
+   alice@mercury:~$ sh ubuntu-install.sh
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
