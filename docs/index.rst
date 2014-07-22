@@ -6,7 +6,7 @@
 Flocker Documentation
 =====================
 
-Flocker is a volume manager and multi-host Docker container orchestration tool.
+Flocker is a volume manager and multi-host Docker cluster.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 
@@ -18,10 +18,10 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-   whatsnew
    installation
    tutorial/index
    flocker-intro/index
+   whatsnew
    usage
    configuration
    volume/index
