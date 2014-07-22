@@ -252,7 +252,7 @@ def configuration_to_yaml(applications):
     applying configuration changes.
     XXX link to relevant issues
 
-    :param applications: ``list`` of ``Application``, typically the
+    :param applications: ``list`` of ``Application``\ s, typically the
         current configuration on a node as determined by
         ``Deployer.discover_node_configuration()``.
 

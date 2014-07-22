@@ -230,7 +230,8 @@ class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_no_options(self):
         """
-        ``ReportStateOptions`` does not take any (non-standard) options.
+        ``ReportStateOptions`` can instantiate and successfully parse
+        without any (non-standard) options.
         """
         options = self.options()
         options.parseOptions([])
