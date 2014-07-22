@@ -264,17 +264,16 @@ def configuration_to_yaml(applications):
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
-        if application.ports:
-            ports = []
-            for port in application.ports:
-                ports.append(
-                    {'internal_port': port.internal_port,
-                     'external_port': port.external_port}
-                )
-            result[application.name]["ports"] = ports
+        ports = []
+        for port in application.ports:
+            ports.append(
+                {'internal_port': port.internal_port,
+                 'external_port': port.external_port}
+            )
+        result[application.name]["ports"] = ports
         if application.volume:
             # Until multiple volumes are supported, assume volume name
-            # matches application name, aee:
+            # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
             result[application.name]["volume"] = {
                 "mountpoint": application.volume.mountpoint.path

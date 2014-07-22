@@ -589,7 +589,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         result = configuration_to_yaml(applications)
         expected = {
             'applications':
-                {'mysql-hybridcluster': {'image': 'unknown'}},
+                {'mysql-hybridcluster': {'image': 'unknown', 'ports': []}},
                 'version': 1
         }
         self.assertEqual(safe_load(result), expected)
@@ -621,7 +621,9 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     'image': 'unknown',
                     'ports': [{'internal_port': 80, 'external_port': 8080}]
                 },
-                'mysql-hybridcluster': {'image': 'unknown'}}, 'version': 1
+                'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
+            },
+            'version': 1
         }
         self.assertEqual(safe_load(result), expected)
 
@@ -656,7 +658,8 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': '/var/mysql/data'},
-                    'image': 'unknown'
+                    'image': 'unknown',
+                    'ports': []
                 }
             },
             'version': 1

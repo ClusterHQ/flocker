@@ -11,7 +11,7 @@ from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.task import Clock
 
-from yaml import safe_dump
+from yaml import safe_dump, safe_load
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
 from ...volume.filesystems.memory import FilesystemStoragePool
 from ...volume.service import VolumeService
@@ -298,6 +298,14 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 
         fake_gear = FakeGearClient(units=units)
 
+        expected = {
+            'applications': {
+                'site-example.net': {'image': 'unknown', 'ports': []},
+                'site-example.com': {'image': 'unknown', 'ports': []}
+            },
+            'version': 1
+        }
+
         script = ReportStateScript(create_volume_service, [self], fake_gear)
         content = StringIO()
 
@@ -306,8 +314,4 @@ class ReportStateScriptMainTests(SynchronousTestCase):
             content.seek(0)
         self.patch(script, '_print_yaml', content_capture)
         script.main(reactor=object(), options=[])
-        self.assertEqual(
-            content.read(),
-            (b'applications:\n  site-example.com: {image: unknown}\n  '
-             b'site-example.net: {image: unknown}\nversion: 1\n')
-        )
+        self.assertEqual(safe_load(content.read()), expected)

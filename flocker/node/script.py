@@ -2,7 +2,8 @@
 # -*- test-case-name: flocker.node.test.test_script -*-
 
 """
-The command-line ``flocker-changestate`` tool.
+The command-line ``flocker-changestate`` and ``flocker-reportstate``
+tools.
 """
 
 import sys
