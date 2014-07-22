@@ -173,6 +173,15 @@ class ReportStateScript(object):
                  create_volume_service_args=[],
                  gear_client=None):
         """
+        :param create_volume_service: Callable that returns a
+            ``VolumeService``, defaulting to a standard production-configured
+            service.
+
+        :param create_volume_service_args: A ``list`` of arguments to be
+            passed to the create_volume_service callable, optional.
+
+        :param gear_client: A ``GearClient`` instance, optional.
+        
         """
         self._deployer = Deployer(
             create_volume_service(*create_volume_service_args),
