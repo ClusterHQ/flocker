@@ -521,6 +521,56 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_local_not_running_applications_restarted(self):
+        """
+        Applications that are not running but are supposed to be on the local
+        node are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node.example.com')
+        to_restart = set([Application(name=unit.name)])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                applications_to_restart=to_restart)
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_not_local_not_running_applications_stopped(self):
+        """
+        Applications that are not running and are supposed to be on the local
+        node are added to the list of applications to stop.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop,
+                                applications_to_restart=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
 
 class DeployerApplyChangesTests(SynchronousTestCase):
     """

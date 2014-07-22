@@ -151,27 +151,38 @@ class Deployer(object):
 
         def find_differences(current_node_state):
             current_node_applications = current_node_state.running
+            all_applications = (current_node_state.running +
+                                current_node_state.not_running)
 
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
             current_state = {app.name for app in current_node_applications}
             desired_state = {app.name for app in desired_node_applications}
+            not_running = {app.name for app in current_node_state.not_running}
 
-            start_names = desired_state.difference(current_state)
-            stop_names = current_state.difference(desired_state)
+            # Don't start applications that exist on this node but aren't
+            # running; instead they should be restarted:
+            start_names = desired_state.difference(current_state | not_running)
+            stop_names = {app.name for app in all_applications}.difference(
+                desired_state)
 
             start_containers = {
                 app for app in desired_node_applications
                 if app.name in start_names
             }
             stop_containers = {
-                app for app in current_node_applications
+                app for app in all_applications
                 if app.name in stop_names
+            }
+            restart_containers = {
+                app for app in current_node_state.not_running
+                if app.name in desired_state
             }
 
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
+                applications_to_restart=restart_containers,
                 proxies=desired_proxies
             )
         d.addCallback(find_differences)
