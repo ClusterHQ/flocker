@@ -276,6 +276,45 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_discover_activating_units(self):
+        """
+        Units that are currently not active but are starting up are considered
+        to be running by ``discover_node_configuration().
+        """
+        unit = Unit(name=u'site-example.com', activation_state=u'activating')
+        units = {unit.name: unit}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name)]
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual(NodeState(running=applications, not_running=[]),
+                         self.successResultOf(d))
+
+    def test_not_running_units(self):
+        """
+        Units that are neither active nor activating are considered to be not
+        running by ``discover_node_configuration().
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'deactivating')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
+        unit3 = Unit(name=u'site-example.net', activation_state=u'inactive')
+        unit4 = Unit(name=u'site-example.net', activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
+                 unit4.name: unit4}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        applications.sort()
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+        result = self.successResultOf(d)
+        result.not_running.sort()
+
+        self.assertEqual(NodeState(running=[], not_running=applications),
+                         result)
+
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """

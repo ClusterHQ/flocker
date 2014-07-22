@@ -110,10 +110,10 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                #if unit.activation_state in (u"active", u"activating"):
-                running.append(application)
-                #else:
-                #    not_running.append(application)
+                if unit.activation_state in (u"active", u"activating"):
+                    running.append(application)
+                else:
+                    not_running.append(application)
             return NodeState(running=running, not_running=not_running)
         d.addCallback(applications_from_units)
         return d
