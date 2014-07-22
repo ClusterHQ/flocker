@@ -251,7 +251,6 @@ def configuration_to_yaml(applications):
     initial requirement of determining what to do about volumes when
     applying configuration changes.
     https://github.com/ClusterHQ/flocker/issues/289
-    
 
     :param applications: ``list`` of ``Application``\ s, typically the
         current configuration on a node as determined by
