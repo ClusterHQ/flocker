@@ -2,21 +2,6 @@
 What's New in v0.1
 ==================
 
-Introducing Flocker
-===================
-
-The most notable feature in our first release is the ability to move data along with containers.
-By default Docker and therefore Docker orchestration frameworks are not well-suited to running stateful applications that store data on disk: moving a container from one machine to another does not move the data along with it.
-Standard advice is therefore not to use Docker for any applications that rely on disk storage for anything beyond logging.
-Needless to say this is a rather significant restriction.
-
-Flocker in contrast is all about supporting your on-disk data.
-When you move an application from machine A to machine B the data in the Flocker volume is moved along with your container.
-This is done on the filesystem level by utilizing `ZFS`_.
-
-.. _ZFS: https://en.wikipedia.org/wiki/ZFS
-
-
 Known Limitations
 =================
 
