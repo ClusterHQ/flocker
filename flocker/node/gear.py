@@ -310,7 +310,7 @@ class FakeGearClient(object):
         for unit in self._units.values():
             incomplete_units.append(
                 Unit(name=unit.name, activation_state=unit.activation_state))
-        return succeed(incomplete_units)
+        return succeed(set(incomplete_units))
 
 
 @attributes(['internal_port', 'external_port'])
