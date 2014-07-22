@@ -21,8 +21,6 @@ You shouldn't use it in production.
 Contributions are welcome.
 We're looking forward to working on this project with you.
 
-.. include:: CONTRIBUTING.rst
-
 
 Documentation
 -------------
