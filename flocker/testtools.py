@@ -46,7 +46,7 @@ from .volume.service import VolumeService
 from .volume.filesystems.memory import FilesystemStoragePool
 
 
-def create_volume_service(test, options=dict()):
+def create_volume_service(test):
     """
     Create a new ``VolumeService``.
 
