@@ -765,6 +765,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                        gear_client=FakeGearClient(),
                        network=make_memory_network())
         arguments = []
+
         def calculate(desired_state, current_cluster_state, hostname):
             arguments.extend([desired_state, current_cluster_state, hostname])
             return succeed(StateChanges(applications_to_start=[],

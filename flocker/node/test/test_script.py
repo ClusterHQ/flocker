@@ -123,21 +123,6 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'version': 1
         }}
 
-        expected_current_config = Deployment(nodes=frozenset([
-            Node(hostname='node2.example.com', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    volume=AttachedVolume(
-                        name='mysql-something',
-                        mountpoint=None,
-                    )
-                ),
-            ]))]))
-
-        # XXX CONTINUE HERE
-
         options.parseOptions(
             [safe_dump(deployment_config),
              safe_dump(application_config),

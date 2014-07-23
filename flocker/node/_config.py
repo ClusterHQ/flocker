@@ -143,7 +143,7 @@ class Configuration(object):
                                 "Unrecognised keys: {keys}.".format(
                                     keys=', '.join(sorted(
                                         configured_volume.keys()))
-                            ))
+                                ))
                         mountpoint = FilePath(mountpoint)
 
                     volume = AttachedVolume(

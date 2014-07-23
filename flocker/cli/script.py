@@ -202,8 +202,7 @@ class DeployScript(object):
         command = [b"flocker-changestate",
                    deployment_config,
                    application_config,
-                   cluster_config,
-        ]
+                   cluster_config]
         results = []
         for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available

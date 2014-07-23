@@ -10,7 +10,7 @@ from threading import current_thread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
-from twisted.internet.defer import succeed, FirstError
+from twisted.internet.defer import succeed
 from twisted.internet import reactor
 
 from ...testtools import (
@@ -349,8 +349,10 @@ class FlockerDeployMainTests(TestCase):
         self.patch(DeployScript, "_changestate_on_nodes", lambda *args: None)
 
         destinations = [
-            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node101.example.com'),
-            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node102.example.com'),
+            NodeTarget(node=FakeNode([b"{}"]),
+                       hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b"{}"]),
+                       hostname=b'node102.example.com'),
         ]
 
         running = self.run_script(destinations)
@@ -374,7 +376,8 @@ class FlockerDeployMainTests(TestCase):
         destinations = [
             NodeTarget(node=FakeNode([exception]),
                        hostname=b'node101.example.com'),
-            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node102.example.com'),
+            NodeTarget(node=FakeNode([b"{}"]),
+                       hostname=b'node102.example.com'),
         ]
         running = self.run_script(destinations)
         self.assertFailure(running, RuntimeError)
