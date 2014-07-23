@@ -733,7 +733,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
-                    mountpoint=FilePath(b'/var/mysql/data'))
+                    # Mountpoint will only be available once
+                    # https://github.com/ClusterHQ/flocker/issues/289 is
+                    # fixed.
+                    mountpoint=None)
             ),
             Application(
                 name='site-hybridcluster',
