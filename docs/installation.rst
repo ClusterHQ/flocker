@@ -27,7 +27,7 @@ If you would like to install ``flocker-node`` on a Fedora 20 host you are managi
         yum install flocker-node
 
   2. Create a ZFS pool.
-     For testing purposes, you can create a pool on a loopback device on your existing filesystem::
+     For testing purposes, you can create a pool on a loopback device on your existing filesystem:
 
      .. code-block:: sh
 
