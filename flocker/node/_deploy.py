@@ -5,10 +5,11 @@
 Deploy applications on nodes.
 """
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
 from ._model import Application, StateChanges, AttachedVolume
+from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
 
@@ -17,15 +18,20 @@ class Deployer(object):
     """
     Start and stop applications.
     """
-    def __init__(self, volume_service, gear_client=None):
+    def __init__(self, volume_service, gear_client=None, network=None):
         """
         :param VolumeService volume_service: The volume manager for this node.
         :param IGearClient gear_client: The gear client API to use in
             deployment operations. Default ``GearClient``.
+        :param INetwork network: The network routing API to use in
+            deployment operations. Default is iptables-based implementation.
         """
         if gear_client is None:
             gear_client = GearClient(hostname=u'127.0.0.1')
         self._gear_client = gear_client
+        if network is None:
+            network = make_host_network()
+        self._network = network
         self._volume_service = volume_service
 
     def start_application(self, application):
@@ -107,10 +113,18 @@ class Deployer(object):
             specifying which applications must be started and which must be
             stopped.
         """
+        desired_proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
             if node.hostname == hostname:
                 desired_node_applications = node.applications
+            else:
+                for application in node.applications:
+                    for port in application.ports:
+                        # XXX: also need to do DNS resolution. See
+                        # https://github.com/ClusterHQ/flocker/issues/322
+                        desired_proxies.add(Proxy(ip=node.hostname,
+                                                  port=port.external_port))
 
         # XXX: This includes stopped units. See
         # https://github.com/ClusterHQ/flocker/issues/208
@@ -137,6 +151,7 @@ class Deployer(object):
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
+                proxies=desired_proxies
             )
         d.addCallback(find_differences)
         return d
@@ -153,30 +168,41 @@ class Deployer(object):
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
             hostname=hostname)
-
-        def start_and_stop_applications(necessary_state_changes):
-            """
-            Start applications which should be running on this node. Stop those
-            that shouldn't.
-
-            XXX: Errors in these operations should be logged. See
-            https://github.com/ClusterHQ/flocker/issues/296
-
-            :param StateChanges necessary_state_changes: A record of the
-                applications which need to be started and stopped on this node.
-
-            :returns: A ``DeferredList`` which fires when all application start
-                / stop operations have completed.
-            """
-            results = []
-            for application in necessary_state_changes.applications_to_stop:
-                results.append(self.stop_application(application))
-
-            for application in necessary_state_changes.applications_to_start:
-                results.append(self.start_application(application))
-
-            return DeferredList(
-                results, fireOnOneErrback=True, consumeErrors=True)
-
-        d.addCallback(start_and_stop_applications)
+        d.addCallback(self._apply_changes)
         return d
+
+    def _apply_changes(self, necessary_state_changes):
+        """
+        Apply desired changes.
+
+        :param StateChanges necessary_state_changes: A record of the
+            applications which need to be started and stopped on this node.
+
+        :return: A ``Deferred`` that fires when all application start/stop
+            operations have finished.
+        """
+        # XXX: Errors in these operations should be logged. See
+        # https://github.com/ClusterHQ/flocker/issues/296
+        results = []
+
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
+        for proxy in self._network.enumerate_proxies():
+            try:
+                self._network.delete_proxy(proxy)
+            except:
+                results.append(fail())
+        for proxy in necessary_state_changes.proxies:
+            try:
+                self._network.create_proxy_to(proxy.ip, proxy.port)
+            except:
+                results.append(fail())
+
+        for application in necessary_state_changes.applications_to_stop:
+            results.append(self.stop_application(application))
+
+        for application in necessary_state_changes.applications_to_start:
+            results.append(self.start_application(application))
+
+        return DeferredList(
+            results, fireOnOneErrback=True, consumeErrors=True)

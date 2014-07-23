@@ -1,0 +1,7 @@
+[flocker]
+name=flocker
+# https://github.com/ClusterHQ/flocker/issues/306
+baseurl=http://build.clusterhq.com/results/fedora/$releasever/$basearch/master
+skip_if_unavailable=False
+gpgcheck=0
+enabled=1
