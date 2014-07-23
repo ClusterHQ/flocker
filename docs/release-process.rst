@@ -17,6 +17,24 @@ By the end of the release process we will have:
 Prerequisites
 -----------
 
+Software
+~~~~~~~~
+
+- Fedora 20 (rpmbuild, createrepo, yumdownloader)
+
+- a web browser
+
+- an IRC client
+
+- an up-to-date clone of the Flocker repository
+
+- `gsutil`_
+
+- `wheel`_
+
+Access
+~~~~~~
+
 - A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
@@ -29,8 +47,7 @@ Prerequisites
 
      /msg ChanServ access add #clusterhq <nickname> +t
 
-- Access to `Google cloud storage <https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/>`,
-  using `gsutil <https://developers.google.com/storage/docs/gsutil>`_.
+- Access to `Google cloud storage`_ using `gsutil`_.
 
 Preparing for a release
 -----------------------
@@ -122,3 +139,7 @@ with copr repo installed
    yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
+
+.. _gsutil: https://developers.google.com/storage/docs/gsutil
+.. _wheel: https://pypi.python.org/pypi/wheel
+.. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
