@@ -29,6 +29,10 @@ class FlockerChangeStateTests(TestCase):
     """Tests for ``flocker-changestate``."""
 
     @_require_installed
+    # We really shouldn't need root, except there's a bug in this code
+    # such that it overwrites /etc/flocker/volume.json - see
+    # https://github.com/ClusterHQ/flocker/issues/301
+    @_require_root
     def setUp(self):
         pass
 
@@ -101,6 +105,10 @@ class FlockerReportStateTests(TestCase):
     """Tests for ``flocker-reportstate``."""
 
     @_require_installed
+    # We really shouldn't need root, except there's a bug in this code
+    # such that it overwrites /etc/flocker/volume.json - see
+    # https://github.com/ClusterHQ/flocker/issues/301
+    @_require_root
     def setUp(self):
         pass
 
