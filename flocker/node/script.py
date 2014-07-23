@@ -111,7 +111,7 @@ def _default_volume_service(options=dict()):
     volume_options = VolumeOptions()
     config = options.pop('config', None)
     if config:
-         volume_options.parseOptions([b"--config", config])
+        volume_options.parseOptions([b"--config", config])
     else:
         volume_options.postOptions()
     return VolumeScript().create_volume_service(reactor, volume_options)
@@ -197,7 +197,7 @@ class ReportStateScript(object):
         """
         self._deployer = Deployer(
             create_volume_service(*create_volume_service_args,
-                options=options),
+                                  options=options),
             gear_client
         )
 
@@ -208,7 +208,6 @@ class ReportStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
-        #import pdb;pdb.set_trace()
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
         d.addCallback(self._print_yaml)
