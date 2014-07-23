@@ -42,6 +42,25 @@ from characteristic import attributes
 from . import __version__
 from .common.script import (
     FlockerScriptRunner, ICommandLineScript)
+from .volume.service import VolumeService
+from .volume.filesystems.memory import FilesystemStoragePool
+
+
+def create_volume_service(test):
+    """
+    Create a new ``VolumeService``.
+
+    :param TestCase test: A unit test which will shut down the service
+        when done.
+
+    :return: The ``VolumeService`` created.
+    """
+    service = VolumeService(FilePath(test.mktemp()),
+                            FilesystemStoragePool(FilePath(test.mktemp())),
+                            reactor=Clock())
+    service.startService()
+    test.addCleanup(service.stopService)
+    return service
 
 
 @implementer(IProcessTransport)

@@ -8,8 +8,6 @@ from uuid import uuid4
 
 from twisted.internet.defer import fail, FirstError
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
-from twisted.internet.task import Clock
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port)
@@ -17,25 +15,8 @@ from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...volume.service import VolumeService, Volume
-from ...volume.filesystems.memory import FilesystemStoragePool
-
-
-def create_volume_service(test):
-    """
-    Create a new ``VolumeService``.
-
-    :param TestCase test: A unit test which will shut down the service
-        when done.
-
-    :return: The ``VolumeService`` created.
-    """
-    service = VolumeService(FilePath(test.mktemp()),
-                            FilesystemStoragePool(FilePath(test.mktemp())),
-                            reactor=Clock())
-    service.startService()
-    test.addCleanup(service.stopService)
-    return service
+from ...testtools import create_volume_service
+from ...volume.service import Volume
 
 
 class DeployerAttributesTests(SynchronousTestCase):
