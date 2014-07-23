@@ -181,7 +181,7 @@ class ReportStateScript(object):
                  create_volume_service=_default_volume_service,
                  create_volume_service_args=[],
                  gear_client=None,
-                 options=None):
+                 options=dict()):
         """
         :param create_volume_service: Callable that returns a
             ``VolumeService``, defaulting to a standard production-configured
