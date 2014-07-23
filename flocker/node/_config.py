@@ -122,31 +122,33 @@ class Configuration(object):
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
 
-                    # XXX add some code here to allow mountpoint of None
-                    # if self._lenient is True.
+                    if not (self._lenient and mountpoint is None):
+                        if not isinstance(mountpoint, str):
+                            raise ValueError(
+                                "Mountpoint {path} contains non-ASCII "
+                                "(unsupported).".format(
+                                    path=mountpoint
+                                )
+                            )
+                        if not os.path.isabs(mountpoint):
+                            raise ValueError(
+                                "Mountpoint {path} is not an absolute path."
+                                .format(
+                                    path=mountpoint
+                                )
+                            )
+                        configured_volume.pop('mountpoint')
+                        if configured_volume:
+                            raise ValueError(
+                                "Unrecognised keys: {keys}.".format(
+                                    keys=', '.join(sorted(
+                                        configured_volume.keys()))
+                            ))
+                        mountpoint = FilePath(mountpoint)
 
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint {path} contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
-                            )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint {path} is not an absolute path."
-                            .format(
-                                path=mountpoint
-                            )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError("Unrecognised keys: {keys}.".format(
-                            keys=', '.join(sorted(configured_volume.keys()))
-                        ))
                     volume = AttachedVolume(
                         name=application_name,
-                        mountpoint=FilePath(mountpoint)
+                        mountpoint=mountpoint
                         )
                 except ValueError as e:
                     raise ConfigurationError(
@@ -309,6 +311,6 @@ def configuration_to_yaml(applications):
             # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
             result[application.name]["volume"] = {
-                "mountpoint": b'/unknown'
+                "mountpoint": None,
             }
     return yaml.safe_dump({"version": 1, "applications": result})

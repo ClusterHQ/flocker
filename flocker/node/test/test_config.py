@@ -354,6 +354,33 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_lenient_mode(self):
+        """
+        ``Configuration._applications_from_configuration`` in lenient mode
+        accepts a volume with a null mountpoint.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': dict(
+                    image='flocker/mysql:v1.0.0',
+                    volume={'mountpoint': None}
+                ),
+            }
+        )
+        parser = Configuration(lenient=True)
+        applications = parser._applications_from_configuration(config)
+        expected_applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    name='mysql-hybridcluster',
+                    mountpoint=None)),
+        }
+        self.assertEqual(expected_applications, applications)
+
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
@@ -684,7 +711,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/unknown'},
+                    'volume': {'mountpoint': None},
                     'image': 'unknown',
                     'ports': []
                 }
@@ -723,7 +750,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
-                    mountpoint=FilePath(b'/unknown')
+                    mountpoint=None,
                 )
             ),
             b'site-hybridcluster': Application(
@@ -734,6 +761,6 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             )
         }
         result = configuration_to_yaml(applications)
-        config = Configuration()
+        config = Configuration(lenient=True)
         apps = config._applications_from_configuration(safe_load(result))
         self.assertEqual(apps, expected_applications)
