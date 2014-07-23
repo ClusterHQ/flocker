@@ -8,19 +8,16 @@ from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
-from twisted.python.filepath import FilePath
-from twisted.internet.task import Clock
 
 from yaml import safe_dump, safe_load
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ...volume.filesystems.memory import FilesystemStoragePool
-from ...volume.service import VolumeService
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
 from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node
+from ...testtools import create_volume_service
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -256,23 +253,6 @@ class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     script = staticmethod(lambda: ReportStateScript(lambda: None))
     options = ReportStateOptions
     command_name = u'flocker-reportstate'
-
-
-def create_volume_service(test):
-    """
-    Create a new ``VolumeService``.
-
-    :param TestCase test: A unit test which will shut down the service
-        when done.
-
-    :return: The ``VolumeService`` created.
-    """
-    service = VolumeService(FilePath(test.mktemp()),
-                            FilesystemStoragePool(FilePath(test.mktemp())),
-                            reactor=Clock())
-    service.startService()
-    test.addCleanup(service.stopService)
-    return service
 
 
 class ReportStateScriptMainTests(SynchronousTestCase):

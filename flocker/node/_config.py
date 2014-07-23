@@ -267,8 +267,8 @@ def configuration_to_yaml(applications):
         ports = []
         for port in application.ports:
             ports.append(
-                {'internal_port': port.internal_port,
-                 'external_port': port.external_port}
+                {'internal': port.internal_port,
+                 'external': port.external_port}
             )
         result[application.name]["ports"] = ports
         if application.volume:
