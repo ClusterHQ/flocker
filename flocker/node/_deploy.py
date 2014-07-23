@@ -99,7 +99,7 @@ class Deployer(object):
         d.addCallback(applications_from_units)
         return d
 
-    def calculate_necessary_state_changes(self, desired_state, current_state,
+    def calculate_necessary_state_changes(self, desired_state,# current_state,
                                           hostname):
         """
         Work out which changes need to happen to the local state to match
@@ -159,7 +159,9 @@ class Deployer(object):
         d.addCallback(find_differences)
         return d
 
-    def change_node_state(self, desired_state, current_state, hostname):
+    def change_node_state(self, desired_state,
+                          #current_state,
+                          hostname):
         """
         Change the local state to match the given desired state.
 
@@ -172,7 +174,7 @@ class Deployer(object):
         """
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
-            current_state=current_state,
+            #current_state=current_state,
             hostname=hostname)
         d.addCallback(self._apply_changes)
         return d

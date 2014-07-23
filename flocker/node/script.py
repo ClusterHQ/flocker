@@ -60,7 +60,7 @@ class ChangeStateOptions(Options):
                 "<deployment configuration> <application configuration> "
                 "<cluster configuration> <hostname>")
 
-    def parseArgs(self, deployment_config, application_config, current_config,
+    def parseArgs(self, deployment_config, application_config, #current_config,
                   hostname):
         """
         Parse `deployment_config`, `application_config` and `current_config`
@@ -91,12 +91,12 @@ class ChangeStateOptions(Options):
             raise UsageError(
                 "Application config could not be parsed as YAML:\n\n" + str(e)
             )
-        try:
-            current_config = safe_load(current_config)
-        except YAMLError as e:
-            raise UsageError(
-                "Current config could not be parsed as YAML:\n\n" + str(e)
-            )
+        #try:
+        #    current_config = safe_load(current_config)
+        #except YAMLError as e:
+        #    raise UsageError(
+        #        "Current config could not be parsed as YAML:\n\n" + str(e)
+        #    )
         try:
             self['hostname'] = hostname.decode('ascii')
         except UnicodeDecodeError:
@@ -108,7 +108,7 @@ class ChangeStateOptions(Options):
             self['deployment'] = model_from_configuration(
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
-            self["current"] = current_from_configuration(current_config)
+            #self["current"] = current_from_configuration(current_config)
         except ConfigurationError as e:
             raise UsageError(
                 'Configuration Error: {error}'
@@ -151,7 +151,7 @@ class ChangeStateScript(object):
         """
         return self._deployer.change_node_state(
             desired_state=options['deployment'],
-            current_state=options['current'],
+            #current_state=options['current'],
             hostname=options['hostname']
         )
 
