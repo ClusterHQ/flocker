@@ -102,21 +102,15 @@ class ChangeStateOptions(Options):
             )
 
 
-def _default_volume_service(options=None):
+def _default_volume_service():
     """
     Create a ``VolumeService`` using the default configuration.
 
     :return: A ``VolumeService``.
     """
-    volume_options = VolumeOptions()
-    config = None
-    if options:
-        config = options.pop('config', None)
-    if config:
-        volume_options.parseOptions([b"--config", config])
-    else:
-        volume_options.postOptions()
-    return VolumeScript().create_volume_service(reactor, volume_options)
+    options = VolumeOptions()
+    options.postOptions()
+    return VolumeScript().create_volume_service(reactor, options)
 
 
 @implementer(ICommandLineScript)
@@ -182,8 +176,7 @@ class ReportStateScript(object):
     def __init__(self,
                  create_volume_service=_default_volume_service,
                  create_volume_service_args=[],
-                 gear_client=None,
-                 options=None):
+                 gear_client=None):
         """
         :param create_volume_service: Callable that returns a
             ``VolumeService``, defaulting to a standard production-configured
@@ -194,12 +187,9 @@ class ReportStateScript(object):
 
         :param gear_client: A ``GearClient`` instance, optional.
 
-        :param options: Parsed ``dict`` of CLI options, optional.
-
         """
         self._deployer = Deployer(
-            create_volume_service(*create_volume_service_args,
-                                  options=options),
+            create_volume_service(*create_volume_service_args),
             gear_client
         )
 
@@ -218,6 +208,6 @@ class ReportStateScript(object):
 
 def flocker_reportstate_main():
     return FlockerScriptRunner(
-        script=ReportStateScript,
+        script=ReportStateScript(),
         options=ReportStateOptions()
     ).main()

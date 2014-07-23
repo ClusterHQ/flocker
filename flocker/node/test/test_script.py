@@ -250,7 +250,7 @@ class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
     """
     Tests for ``ReportStateScript``.
     """
-    script = staticmethod(lambda: ReportStateScript(lambda options: None))
+    script = staticmethod(lambda: ReportStateScript(lambda: None))
     options = ReportStateOptions
     command_name = u'flocker-reportstate'
 
@@ -263,7 +263,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         """
         ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
         """
-        script = ReportStateScript(lambda options: None)
+        script = ReportStateScript(lambda: None)
         self.assertIsInstance(script._deployer, Deployer)
 
     def test_yaml_callback(self):
