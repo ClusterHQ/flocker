@@ -19,6 +19,7 @@ Contents:
    routing/index
    roadmap/index
    infrastructure/index
+   faq/index
    contributing
    authors
 
