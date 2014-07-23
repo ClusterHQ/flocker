@@ -85,6 +85,7 @@ setup(
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
+            'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
         ],
     },
 
