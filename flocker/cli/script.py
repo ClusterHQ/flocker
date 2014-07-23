@@ -11,7 +11,7 @@ from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 
-from yaml import safe_load, dump
+from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
 from characteristic import attributes
@@ -171,16 +171,16 @@ class DeployScript(object):
         results = []
         for target in self._get_destinations(deployment):
             results.append(deferToThread(target.node.get_output, command))
-        d = DeferredList(results)
+        d = DeferredList(results, fireOnOneErrback=False, consumeErrors=True)
 
         def got_results(node_states):
             # Bail on errors:
             for succeeded, value in node_states:
                 if not succeeded:
                     return value
-            result = {node.name: safe_load(value) for node, (_, value) in
+            result = {node.hostname: safe_load(value) for node, (_, value) in
                       zip(deployment.nodes, node_states)}
-            return dump(result)
+            return safe_dump(result)
         d.addCallback(got_results)
         return d
 
@@ -202,7 +202,8 @@ class DeployScript(object):
         command = [b"flocker-changestate",
                    deployment_config,
                    application_config,
-                   cluster_config]
+                   cluster_config,
+        ]
         results = []
         for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available

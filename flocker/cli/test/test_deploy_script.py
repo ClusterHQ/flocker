@@ -10,7 +10,7 @@ from threading import current_thread
 from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase, SynchronousTestCase
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, FirstError
 from twisted.internet import reactor
 
 from ...testtools import (
@@ -260,7 +260,7 @@ class FlockerDeployMainTests(TestCase):
     def run_script(self, alternate_destinations):
         """
         Run ``DeployScript.main`` with overridden destinations for
-        ``flocker-changestate``.
+        ``flocker-changestate`` and ``flocker-reportstate``.
 
         :param list alternate_destinations: ``INode`` providers to connect
              to instead of the default SSH-based ``ProcessNode``.
@@ -311,24 +311,115 @@ class FlockerDeployMainTests(TestCase):
 
         return script.main(reactor, options)
 
-    def test_calls_changestate(self):
+    def test_calls_reportstate(self):
         """
-        ``DeployScript.main`` calls ``flocker-changestate`` using the
+        ``DeployScript.main`` calls ``flocker-reportstatestate`` using the
         destinations and hostnames from ``_get_destinations``.
         """
+        # Make sure we're inspecting results on reportstate calls only:
+        self.patch(DeployScript, "_changestate_on_nodes", lambda *args: None)
+
         expected_hostname1 = b'node101.example.com'
         expected_hostname2 = b'node102.example.com'
 
         destinations = [
-            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname1),
-            NodeTarget(node=FakeNode([b""]), hostname=expected_hostname2),
+            NodeTarget(node=FakeNode([b"{}"]), hostname=expected_hostname1),
+            NodeTarget(node=FakeNode([b"{}"]), hostname=expected_hostname2),
+        ]
+        running = self.run_script(destinations)
+
+        def ran(ignored):
+            expected_command = [b"flocker-reportstate"]
+
+            self.assertEqual(
+                list(target.node.remote_command for target in destinations),
+                [expected_command, expected_command],
+            )
+        running.addCallback(ran)
+        return running
+
+    def test_calls_reportstate_in_thread_pool(self):
+        """
+        ``DeployScript.main`` calls ``flocker-reportstate`` to destination
+        nodes in a thread pool.
+
+        (Proving actual parallelism is much more difficult...)
+        """
+        # Make sure we're inspecting results on reportstate calls only:
+        self.patch(DeployScript, "_changestate_on_nodes", lambda *args: None)
+
+        destinations = [
+            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node102.example.com'),
+        ]
+
+        running = self.run_script(destinations)
+
+        def ran(ignored):
+            self.assertNotEqual(
+                set(target.node.thread_id for target in destinations),
+                set([current_thread().ident]))
+        running.addCallback(ran)
+        return running
+
+    def test_reportstate_failure_means_no_changestate(self):
+        """
+        If ``flocker-reportstate`` fails to respond for some reason,
+        ``flocker-changestate`` is not called.
+        """
+        # If this is ever called we'll get a ZeroDivisionError:
+        self.patch(DeployScript, "_changestate_on_nodes", lambda *args: 1/0)
+
+        exception = RuntimeError()
+        destinations = [
+            NodeTarget(node=FakeNode([exception]),
+                       hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b"{}"]), hostname=b'node102.example.com'),
+        ]
+        running = self.run_script(destinations)
+        self.assertFailure(running, RuntimeError)
+        return running
+
+    def test_calls_changestate(self):
+        """
+        ``DeployScript.main`` calls ``flocker-changestate`` using the
+        destinations and hostnames from ``_get_destinations`` and the
+        aggreggated result for ``lfocker-reportstate``.
+        """
+        expected_hostname1 = b'node101.example.com'
+        expected_hostname2 = b'node102.example.com'
+
+        actual_config_host1 = {
+            u"version": 1,
+            u"applications": {
+                u"db-example.com": {
+                    u"image": u"clusterhq/example-db",
+                },
+            },
+        }
+        actual_config_host2 = {
+            u"version": 1,
+            u"applications": {
+                u"site-example.com": {
+                    u"image": u"clusterhq/example-site",
+                },
+            },
+        }
+
+        destinations = [
+            NodeTarget(node=FakeNode([safe_dump(actual_config_host1), b""]),
+                       hostname=expected_hostname1),
+            NodeTarget(node=FakeNode([safe_dump(actual_config_host2), b""]),
+                       hostname=expected_hostname2),
         ]
         running = self.run_script(destinations)
 
         def ran(ignored):
             expected_common = [
                 b"flocker-changestate", self.deployment_config,
-                self.application_config]
+                self.application_config,
+                safe_dump({expected_hostname1: actual_config_host1,
+                           expected_hostname2: actual_config_host2})]
 
             self.assertEqual(
                 list(target.node.remote_command for target in destinations),
@@ -346,8 +437,10 @@ class FlockerDeployMainTests(TestCase):
         (Proving actual parallelism is much more difficult...)
         """
         destinations = [
-            NodeTarget(node=FakeNode([b""]), hostname=b'node101.example.com'),
-            NodeTarget(node=FakeNode([b""]), hostname=b'node102.example.com'),
+            NodeTarget(node=FakeNode([b"{}", b""]),
+                       hostname=b'node101.example.com'),
+            NodeTarget(node=FakeNode([b"{}", b""]),
+                       hostname=b'node102.example.com'),
         ]
 
         running = self.run_script(destinations)

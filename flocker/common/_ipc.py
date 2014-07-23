@@ -132,7 +132,9 @@ class FakeNode(object):
     """
     def __init__(self, outputs=()):
         """
-        :param outputs: Sequence of results for ``get_output()``.
+        :param outputs: Sequence of results for ``get_output()``, either
+            exceptions or ``bytes``. Exceptions will be raised, otherwise the
+            object will be returned.
         """
         self._outputs = list(outputs)
 
@@ -153,4 +155,8 @@ class FakeNode(object):
         """
         self.thread_id = current_thread().ident
         self.remote_command = remote_command
-        return self._outputs.pop(0)
+        result = self._outputs.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        else:
+            return result
