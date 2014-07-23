@@ -102,14 +102,16 @@ class ChangeStateOptions(Options):
             )
 
 
-def _default_volume_service(options=dict()):
+def _default_volume_service(options=None):
     """
     Create a ``VolumeService`` using the default configuration.
 
     :return: A ``VolumeService``.
     """
     volume_options = VolumeOptions()
-    config = options.pop('config', None)
+    config = None
+    if options:
+        config = options.pop('config', None)
     if config:
         volume_options.parseOptions([b"--config", config])
     else:
@@ -181,7 +183,7 @@ class ReportStateScript(object):
                  create_volume_service=_default_volume_service,
                  create_volume_service_args=[],
                  gear_client=None,
-                 options=dict()):
+                 options=None):
         """
         :param create_volume_service: Callable that returns a
             ``VolumeService``, defaulting to a standard production-configured
@@ -195,17 +197,11 @@ class ReportStateScript(object):
         :param options: Parsed ``dict`` of CLI options, optional.
 
         """
-        if options:
-            self._deployer = Deployer(
-                create_volume_service(*create_volume_service_args,
-                                      options=options),
-                gear_client
-            )
-        else:
-            self._deployer = Deployer(
-                create_volume_service(*create_volume_service_args),
-                gear_client
-            )
+        self._deployer = Deployer(
+            create_volume_service(*create_volume_service_args,
+                                  options=options),
+            gear_client
+        )
 
     def _print_yaml(self, result):
         sys.stdout.write(result)
