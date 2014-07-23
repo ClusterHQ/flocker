@@ -261,6 +261,9 @@ def current_from_configuration(current_configuration):
     Validate and coerce the supplied current cluster configuration into a
     ``Deployment`` instance.
 
+    The passed in configuration is the aggregated output of
+    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+
     :param dict current_configuration: Map of node names to list of
         application maps.
 
@@ -274,7 +277,7 @@ def current_from_configuration(current_configuration):
         node_applications = configuration._applications_from_configuration(
             applications)
         nodes.append(Node(hostname=hostname,
-                          applications=frozenset(node_applications)))
+                          applications=frozenset(node_applications.values())))
     return Deployment(nodes=frozenset(nodes))
 
 
