@@ -1,48 +1,31 @@
 Release Process
 ===============
 
-(cribbed partly from Twisted's `release process <https://twistedmatrix.com/trac/wiki/ReleaseProcess>`_)
-
 Outcomes
 --------
 
 By the end of the release process we will have:
 
-- Tag in version control
-- tarball.
-- Fedora 20 RPMs for software on the node and client.
-- Release on PyPI
-- Documentation on docs.clusterhq.com or clusterhq.com/docs
-- Announcement on mailing list, blog, IRC (others?)
-- Download links on clusterhq.com
+- a tag in version control
+- a Python wheel on archive.clusterhq.com
+- Fedora 20 RPMs for software on the node and client
+- documentation on clusterhq.com/docs
+- announcement on mailing list, blog, IRC (others?)
+- download links on clusterhq.com
 
 
 Prerequisites
 -----------
 
-- A PyPI account (`registration <https://pypi.python.org/pypi?%3Aaction=register_form>`__),
-  with `maintainer access <https://pypi.python.org/pypi?:action=role_form&package_name=flocker>`__ to the Flocker package.
-  Configure the account in file:`~/.pypirc`::
-
-     [distutils]
-     index-servers =
-         pypi
-
-     [pypi]
-     username: <username>
-     password: <password>
-
-  You will also need `twine <https://pypi.python.org/pypi/twine>`_ installed to upload to PyPI.
-
 - A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
-  Ensure that you have `+t` next to your nickname, in the output of::
+  Ensure that you have `+t` next to your nickname in the output of::
 
      /msg ChanServ access list #clusterhq
 
-  Somebody with ``+f`` can grant access, by running::
+  Somebody with ``+f`` can grant access by running::
 
      /msg ChanServ access add #clusterhq <nickname> +t
 
@@ -53,12 +36,12 @@ Preparing for a release
 -----------------------
 1. Checkout the branch for the release.
 
-   - If this is a major or minor release, create the branch for the minor version::
+   - If this is a major or minor release then create the branch for the minor version::
 
       git checkout -b release/flocker-${VERSION%.*} origin/master
       git push origin --set-upstream release/flocker-${VERSION%.*}
 
-   - If this is a patch release, there will already be a branch::
+   - If this is a patch release then there will already be a branch::
 
       git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-${VERSION%.*}
 
@@ -76,20 +59,19 @@ Release
      git tag -a ${VERSION} release/flocker-${VERSION%.*}
      git push origin ${VERSION}
 
-2.  Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+2. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
-3. Build python packages and upload to PyPI::
+3. Build python packages for upload::
 
-     python sdist bdist_wheel
-     twine upload dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl}
+     python setup.py bdist_wheel
 
-   Also upload to clusterhq.com download site::
+   Also upload to archive.clusterhq.com::
 
-     gsutil -a public-read cp dist/Flocker-${VERSION}{.tar.gz,-py2-none-any.whl} gs://archive.clusterhq.com/downloads/flocker/
+     gsutil -a public-read cp dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
 
 4. Upload RPMs::
 
-      admin/upload-rpms upload-scratch ${VERSION}
+      admin/upload-rpms upload-scratch "${VERSION}"
 
 5. Build tagged docs at readthedocs.org.
 
@@ -102,9 +84,12 @@ Release
 Announcing Releases
 -------------------
 
-- Announcement on mailing list, blog, IRC (others?)
+- Announcement
+  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
+  - on the blog - https://clusterhq.com/blog/
+  - on the IRC channel - #clusterhq on freenode
 - Update download links on clusterhq.com
-  XXX We need a page with the download links first.
+  XXX Arrange to have download links on a page on clusterhq.com somewhere
 
 
 clusterhq-release package
