@@ -2,6 +2,7 @@
 
 """Helpers for flocker shell commands."""
 
+import inspect
 import sys
 
 from twisted.internet import task
@@ -113,4 +114,6 @@ class FlockerScriptRunner(object):
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
+        if inspect.isclass(self.script):
+            self.script = self.script(options=options)
         self._react(self.script.main, (options,), _reactor=self._reactor)

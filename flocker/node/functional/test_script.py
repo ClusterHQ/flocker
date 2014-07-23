@@ -110,3 +110,12 @@ class FlockerReportStateTests(TestCase):
         """
         result = check_output([b"flocker-reportstate"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
+
+    def test_yaml_output(self):
+        """
+        ``flocker-reportstate`` outputs the local node configuration as
+        YAML when run without any parameters, or with the --config
+        parameter to specify a custom config file path.
+        """
+        result = check_output([b"flocker-reportstate"] + [b"--config", FilePath(self.mktemp()).path])
+        import pdb;pdb.set_trace()

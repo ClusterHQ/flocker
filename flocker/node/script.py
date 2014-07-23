@@ -102,15 +102,19 @@ class ChangeStateOptions(Options):
             )
 
 
-def _default_volume_service():
+def _default_volume_service(options=dict()):
     """
     Create a ``VolumeService`` using the default configuration.
 
     :return: A ``VolumeService``.
     """
-    options = VolumeOptions()
-    options.postOptions()
-    return VolumeScript().create_volume_service(reactor, options)
+    volume_options = VolumeOptions()
+    config = options.pop('config', None)
+    if config:
+         volume_options.parseOptions([b"--config", config])
+    else:
+        volume_options.postOptions()
+    return VolumeScript().create_volume_service(reactor, volume_options)
 
 
 @implementer(ICommandLineScript)
@@ -160,6 +164,10 @@ class ReportStateOptions(Options):
     """
     synopsis = ("Usage: flocker-reportstate [OPTIONS]")
 
+    optParameters = [
+        ["config", None, None, "Configuration file path"],
+    ]
+
 
 @implementer(ICommandLineScript)
 class ReportStateScript(object):
@@ -172,7 +180,8 @@ class ReportStateScript(object):
     def __init__(self,
                  create_volume_service=_default_volume_service,
                  create_volume_service_args=[],
-                 gear_client=None):
+                 gear_client=None,
+                 options=None):
         """
         :param create_volume_service: Callable that returns a
             ``VolumeService``, defaulting to a standard production-configured
@@ -183,9 +192,12 @@ class ReportStateScript(object):
 
         :param gear_client: A ``GearClient`` instance, optional.
 
+        :param options: Parsed ``dict`` of CLI options, optional.
+
         """
         self._deployer = Deployer(
-            create_volume_service(*create_volume_service_args),
+            create_volume_service(*create_volume_service_args,
+                options=options),
             gear_client
         )
 
@@ -196,6 +208,7 @@ class ReportStateScript(object):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
+        #import pdb;pdb.set_trace()
         d = self._deployer.discover_node_configuration()
         d.addCallback(configuration_to_yaml)
         d.addCallback(self._print_yaml)
@@ -204,6 +217,6 @@ class ReportStateScript(object):
 
 def flocker_reportstate_main():
     return FlockerScriptRunner(
-        script=ReportStateScript(),
+        script=ReportStateScript,
         options=ReportStateOptions()
     ).main()
