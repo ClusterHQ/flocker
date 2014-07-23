@@ -286,7 +286,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
             'version': 1
         }
 
-        script = ReportStateScript(create_volume_service, [self], fake_gear)
+        script = ReportStateScript(lambda: create_volume_service(self),
+                                   fake_gear)
         content = StringIO()
 
         def content_capture(data):
