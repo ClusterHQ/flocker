@@ -20,6 +20,7 @@ from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
 
 
+
 class DeployerAttributesTests(SynchronousTestCase):
     """
     Tests for attributes and initialiser arguments of `Deployer`.
