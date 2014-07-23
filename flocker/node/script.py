@@ -195,11 +195,17 @@ class ReportStateScript(object):
         :param options: Parsed ``dict`` of CLI options, optional.
 
         """
-        self._deployer = Deployer(
-            create_volume_service(*create_volume_service_args,
-                                  options=options),
-            gear_client
-        )
+        if options:
+            self._deployer = Deployer(
+                create_volume_service(*create_volume_service_args,
+                                      options=options),
+                gear_client
+            )
+        else:
+            self._deployer = Deployer(
+                create_volume_service(*create_volume_service_args),
+                gear_client
+            )
 
     def _print_yaml(self, result):
         sys.stdout.write(result)
