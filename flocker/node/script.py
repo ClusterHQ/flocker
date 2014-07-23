@@ -160,10 +160,6 @@ class ReportStateOptions(Options):
     """
     synopsis = ("Usage: flocker-reportstate [OPTIONS]")
 
-    optParameters = [
-        ["config", None, None, "Configuration file path"],
-    ]
-
 
 @implementer(ICommandLineScript)
 class ReportStateScript(object):

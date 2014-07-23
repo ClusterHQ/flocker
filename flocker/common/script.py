@@ -2,7 +2,6 @@
 
 """Helpers for flocker shell commands."""
 
-import inspect
 import sys
 
 from twisted.internet import task
