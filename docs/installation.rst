@@ -20,7 +20,7 @@ If you would like to install ``flocker-node`` on a Fedora 20 host you are managi
 
   1. Configure ``yum`` with the Flocker package repository and install the Flocker node package:
 
-     .. code-block::
+     .. code-block:: sh
 
         yum localinstall http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
         yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
@@ -29,15 +29,17 @@ If you would like to install ``flocker-node`` on a Fedora 20 host you are managi
   2. Create a ZFS pool.
      For testing purposes, you can create a pool on a loopback device on your existing filesystem::
 
-     .. code-block::
+     .. code-block:: sh
 
         mkdir -p /opt/flocker
         truncate --size 1G /opt/flocker/pool-vdev
         zpool create flocker /opt/flocker/pool-vdev
 
+Installing flocker-cli
+======================
 
 Fedora 20
-=========
+---------
 
 To install ``flocker-cli`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository::
 
@@ -55,7 +57,7 @@ Verify the client is installed::
 
 
 Debian / Ubuntu
-===============
+---------------
 
 To install ``flocker-cli`` on Debian or Ubuntu you can run the following script:
 
@@ -82,7 +84,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
    0.1.0
 
 OS X
-====
+----
 
 To install ``flocker-cli`` on OS X you can run the following script:
 
