@@ -41,14 +41,14 @@ Installing flocker-cli
 Fedora 20
 ---------
 
-To install ``flocker-cli`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository::
+To install ``flocker-cli`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository:
 
 .. code-block::
 
    yum localinstall http://archive.clusterhq.com/fedora/flocker-release$(rpm -E %dist).noarch.rpm
    yum install flocker-cli
 
-Verify the client is installed::
+Verify the client is installed:
 
 .. code-block:: console
 
