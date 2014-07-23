@@ -18,11 +18,11 @@ import os
 
 from subprocess import check_call
 from pipes import quote
+from textwrap import dedent
 import tempfile
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
-from textwrap import dedent
 
 class UploadOptions(Options):
 
