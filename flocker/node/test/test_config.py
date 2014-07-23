@@ -684,7 +684,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'volume': {'mountpoint': '/unknown'},
                     'image': 'unknown',
                     'ports': []
                 }
@@ -723,7 +723,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
-                    mountpoint=FilePath(b'/var/mysql/data')
+                    mountpoint=FilePath(b'/unknown')
                 )
             ),
             b'site-hybridcluster': Application(

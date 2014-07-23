@@ -276,6 +276,6 @@ def configuration_to_yaml(applications):
             # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
             result[application.name]["volume"] = {
-                "mountpoint": application.volume.mountpoint.path
+                "mountpoint": b'/unknown'
             }
     return yaml.safe_dump({"version": 1, "applications": result})
