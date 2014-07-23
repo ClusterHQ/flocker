@@ -8,6 +8,7 @@ APIs for parsing and validating configuration.
 from __future__ import unicode_literals, absolute_import
 
 import os
+import yaml
 
 from twisted.python.filepath import FilePath
 
@@ -273,3 +274,41 @@ def current_from_configuration(current_configuration):
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications)))
     return Deployment(nodes=frozenset(nodes))
+
+
+def configuration_to_yaml(applications):
+    """
+    Generate YAML representation of a node's applications.
+
+    A bunch of information is missing, but this is sufficient for the
+    initial requirement of determining what to do about volumes when
+    applying configuration changes.
+    https://github.com/ClusterHQ/flocker/issues/289
+
+    :param applications: ``list`` of ``Application``\ s, typically the
+        current configuration on a node as determined by
+        ``Deployer.discover_node_configuration()``.
+
+    :return: YAML serialized configuration in the application
+        configuration format.
+    """
+    result = {}
+    for application in applications:
+        # XXX image unknown, see
+        # https://github.com/ClusterHQ/flocker/issues/207
+        result[application.name] = {"image": "unknown"}
+        ports = []
+        for port in application.ports:
+            ports.append(
+                {'internal': port.internal_port,
+                 'external': port.external_port}
+            )
+        result[application.name]["ports"] = ports
+        if application.volume:
+            # Until multiple volumes are supported, assume volume name
+            # matches application name, see:
+            # https://github.com/ClusterHQ/flocker/issues/49
+            result[application.name]["volume"] = {
+                "mountpoint": b'/unknown'
+            }
+    return yaml.safe_dump({"version": 1, "applications": result})
