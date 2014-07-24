@@ -134,9 +134,11 @@ Announcing Releases
 ~~~~~~~~~~~~~~~~~~~
 
 - Announcement
+
  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
  - on the blog - https://clusterhq.com/blog/
  - on the IRC channel - #clusterhq on freenode
+
 - Update download links on clusterhq.com
   XXX Arrange to have download links on a page on clusterhq.com somewhere
 
