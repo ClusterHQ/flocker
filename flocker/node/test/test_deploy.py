@@ -279,7 +279,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_activating_units(self):
         """
         Units that are currently not active but are starting up are considered
-        to be running by ``discover_node_configuration().
+        to be running by ``discover_node_configuration()``.
         """
         unit = Unit(name=u'site-example.com', activation_state=u'activating')
         units = {unit.name: unit}
@@ -295,7 +295,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_not_running_units(self):
         """
         Units that are neither active nor activating are considered to be not
-        running by ``discover_node_configuration().
+        running by ``discover_node_configuration()``.
         """
         unit1 = Unit(name=u'site-example.com',
                      activation_state=u'deactivating')
