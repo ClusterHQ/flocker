@@ -22,7 +22,7 @@ _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
 _require_root = skipUnless(getuid() == 0,
                            "Root required to run these tests.")
-from .test_gear import _if_gear_configured
+from ..testtools import if_gear_configured
 
 
 class FlockerChangeStateTests(TestCase):
@@ -81,7 +81,7 @@ class ChangeStateScriptTests(TestCase):
             ChangeStateScript()._deployer._volume_service._pool,
             StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
 
-    @_if_gear_configured
+    @if_gear_configured
     def test_deployer_gear_client(self):
         """
         ``ChangeState._deployer`` is configured with a gear client that works.

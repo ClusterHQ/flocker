@@ -10,7 +10,7 @@ from twisted.internet.defer import fail, FirstError, succeed
 from twisted.trial.unittest import SynchronousTestCase
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges, Port)
+                StateChanges, Port, NodeState)
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
@@ -167,19 +167,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     def test_discover_none(self):
         """
-        ``Deployer.discover_node_configuration`` returns an empty list if
-        there are no active `geard` units on the host.
+        ``Deployer.discover_node_configuration`` returns an empty
+        ``NodeState`` if there are no `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``Deployer.discover_node_configuration`` returns a list of
-        ``Application``\ s; one for each active `gear` unit.
+        ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
+        a list of running ``Application``\ s; one for each active `gear`
+        unit.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
@@ -188,15 +190,17 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([application], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[application], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``Deployer.discover_node_configuration`` returns an ``Application``
-        for every `active` `gear` ``Unit`` on the host.
+        ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
+        a running ``Application`` for every active or activating gear
+        ``Unit`` on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_gear = FakeGearClient(units=units)
@@ -204,7 +208,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -229,7 +234,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -248,7 +254,48 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         applications = [Application(name=unit.name)]
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
+    def test_discover_activating_units(self):
+        """
+        Units that are currently not active but are starting up are considered
+        to be running by ``discover_node_configuration()``.
+        """
+        unit = Unit(name=u'site-example.com', activation_state=u'activating')
+        units = {unit.name: unit}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name)]
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual(NodeState(running=applications, not_running=[]),
+                         self.successResultOf(d))
+
+    def test_not_running_units(self):
+        """
+        Units that are neither active nor activating are considered to be not
+        running by ``discover_node_configuration()``.
+        """
+        unit1 = Unit(name=u'site-example.com',
+                     activation_state=u'deactivating')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
+        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
+                 unit4.name: unit4}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        applications.sort()
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+        result = self.successResultOf(d)
+        result.not_running.sort()
+
+        self.assertEqual(NodeState(running=[], not_running=applications),
+                         result)
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
@@ -467,6 +514,56 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_local_not_running_applications_restarted(self):
+        """
+        Applications that are not running but are supposed to be on the local
+        node are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node.example.com')
+        to_restart = set([application])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                applications_to_restart=to_restart)
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_not_local_not_running_applications_stopped(self):
+        """
+        Applications that are not running and are supposed to be on the local
+        node are added to the list of applications to stop.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  hostname=u'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop,
+                                applications_to_restart=set())
+        self.assertEqual(expected, self.successResultOf(d))
+
 
 class DeployerApplyChangesTests(SynchronousTestCase):
     """
@@ -596,6 +693,35 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             ZeroDivisionError
         )
 
+    def test_restarts(self):
+        """
+        Applications listed in ``StateChanges.applications_to_restart`` are
+        reactivated.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(
+            create_volume_service(self), gear_client=fake_gear,
+            network=make_memory_network())
+
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage.from_string(u'clusterhq/flocker'),
+        )
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            applications_to_restart=frozenset([application]))
+        api._apply_changes(desired_changes)
+
+        # The activation state tells us the unit was started. We know a
+        # stop preceded the starting of the unit, because otherwise
+        # starting would complain with an AlreadyExists.
+        self.assertEqual(self.successResultOf(fake_gear.list()),
+                         set([Unit(name=u'mysql-hybridcluster',
+                                   activation_state=u'active')]))
+
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
@@ -622,7 +748,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_applications_started(self):
         """
@@ -652,7 +779,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         d.addCallback(lambda _: api.discover_node_configuration())
 
         expected_application = Application(name=expected_application_name)
-        self.assertEqual([expected_application], self.successResultOf(d))
+        self.assertEqual(
+            NodeState(running=[expected_application], not_running=[]),
+            self.successResultOf(d))
 
     def test_first_failure_pass_through(self):
         """

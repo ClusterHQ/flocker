@@ -9,7 +9,7 @@ from ._config import (
     )
 from ._model import (
     Application, Deployment, DockerImage, Node, StateChanges, Port)
-from ._deploy import Deployer
+from ._deploy import Deployer, NodeState
 
 __all__ = [
     'ConfigurationError',
@@ -22,4 +22,5 @@ __all__ = [
     'Node',
     'StateChanges',
     'Port',
+    'NodeState',
 ]
