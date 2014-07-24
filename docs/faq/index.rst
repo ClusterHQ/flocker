@@ -11,6 +11,19 @@ Flocker is under active deployment and we receive a lot of questions about how t
 
 If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our IRC #clusterhq or `the flocker Google group`.
 
+Flocker / ZFS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Flocker uses ZFS. What about the ZFS licensing issues?
+**************************************************************************************************************
+There is a `good write up of the ZFS and Linux license issues`_ on the ZFS on Linux website.  In short, while ZFS won't be able to make it into mainline Linux proper due to licensing issues, "there is nothing in either license that prevents distributing it in the form of a binary module or in the form of source code."  
+
+
+But if ZFS isn't part of mainline Linux proper, it won't benefit from rigorous testing.  How do you know it's stable?
+********************************************************************************************************************
+ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.  We are also rigorously testing ZFS on Linux to make sure it is stable. ZFS is production quality code and only the glue between it and the linux kernel needs fixing, in comparison to btrfs the ZFS core is far more stable and well tested, and has automated regression suites. 
+
+
 Future / ZFS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -47,4 +60,5 @@ You can also submit an issue or a pull request if you have a specific integratio
 
 .. _ideas for future releases: https://github.com/ClusterHQ/flocker/blob/master/docs/roadmap/index.rst
 .. _user stories for upcoming features: tbd
+.. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
