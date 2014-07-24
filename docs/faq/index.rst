@@ -7,7 +7,7 @@ FAQ
     :local:
     :backlinks: none
 	
-Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  You can find these questions in the Future section below.  You can also view `ideas for future releases`_  and `user stories for upcoming features`_.
+Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  You can find these questions in the Future Functionality section below.  You can also view `ideas for future releases`_  and `user stories for upcoming features`_.
 
 If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our IRC #clusterhq or `the flocker Google group`.
 
@@ -23,7 +23,7 @@ But if ZFS isn't part of mainline Linux proper, it won't benefit from rigorous t
 ********************************************************************************************************************
 ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.  We are also rigorously testing ZFS on Linux to make sure it is stable. ZFS is production quality code and only the glue between it and the linux kernel needs fixing, in comparison to btrfs the ZFS core is far more stable and well tested, and has automated regression suites. 
 
-Future
+Future Functionality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 How does Flocker integrate with Kubernetes/Mesos/Deis/CoreOS/my favorite orchestration framework?
