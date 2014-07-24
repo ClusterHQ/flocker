@@ -10,7 +10,9 @@ from characteristic import attributes
 from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges, VolumeChanges, AttachedVolume
+from ._model import (
+    Application, StateChanges, VolumeChanges, AttachedVolume, VolumeHandoff,
+    )
 from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
@@ -196,7 +198,7 @@ class Deployer(object):
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
                 applications_to_restart=restart_containers,
-                #volumes_to_handoff=volumes.going,
+                volumes_to_handoff=volumes.going,
                 volumes_to_wait_for=volumes.coming,
                 volumes_to_create=volumes.creating,
                 proxies=desired_proxies,
@@ -282,8 +284,6 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
-    going = set()
-
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)
@@ -293,27 +293,27 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
-    remote_desired_volumes = set()
-    for volume_hostname, desired in desired_volumes.items():
-        if volume_hostname != hostname:
-            remote_desired_volumes |= desired
     local_current_volumes = current_volumes.get(hostname, set())
     remote_current_volumes = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
             remote_current_volumes |= current
 
-    # Look at each application volume that is going to be stopped on this
-    # node.  If it is being started somewhere else, add a VolumeHandoff
-    # for it to `going`.
+    # Look at each application volume that is going to be running
+    # elsewhere and is currently running here, and add a VolumeHandoff for
+    # it to `going`.
+    going = set()
+    for volume_hostname, desired in desired_volumes.items():
+        if volume_hostname != hostname:
+            for volume in desired:
+                if volume in local_current_volumes:
+                    going.add(VolumeHandoff(volume=volume,
+                                            hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
     # node.  If it was running somewhere else, add an AttachedVolume for
     # it to `coming`.
-    print "local desired", local_desired_volumes
-    print "remote current", remote_current_volumes
     coming = local_desired_volumes.intersection(remote_current_volumes)
-    print "coming", coming
 
     # For each application volume that is going to be started on this node
     # that was not running somewhere else, add an AttachedVolume for it to

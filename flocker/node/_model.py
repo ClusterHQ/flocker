@@ -131,14 +131,15 @@ class Port(object):
     """
 
 
-@attributes(["volume", "node"])
+@attributes(["volume", "hostname"])
 class VolumeHandoff(object):
     """
     A record representing a volume handoff that needs to be performed from this
     node.
 
     :ivar AttachedVolume volume: The volume to hand off.
-    :ivar Node node: The node to which the volume is meant to be handed off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
     """
 
 

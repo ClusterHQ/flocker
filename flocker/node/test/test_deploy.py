@@ -682,7 +682,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
                     Node(hostname=node.hostname,
-                         applications=another_node.applications),
+                         applications=frozenset()),
                     Node(hostname=another_node.hostname,
                          applications=node.applications),
         }))
@@ -708,7 +708,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             },
             # And the volume for the application needs to be handed off.
             volumes_to_handoff={
-                VolumeHandoff(volume=volume, node=another_node),
+                VolumeHandoff(volume=volume, hostname=another_node.hostname),
             },
             volumes_to_wait_for=set(),
             volumes_to_create=set(),
