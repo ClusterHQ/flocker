@@ -162,14 +162,16 @@ class Deployer(object):
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
             current_state = {app.name for app in current_node_applications}
-            desired_state = {app.name for app in desired_node_applications}
+            desired_local_state = {app.name for app in
+                                   desired_node_applications}
             not_running = {app.name for app in current_node_state.not_running}
 
             # Don't start applications that exist on this node but aren't
             # running; instead they should be restarted:
-            start_names = desired_state.difference(current_state | not_running)
+            start_names = desired_local_state.difference(
+                current_state | not_running)
             stop_names = {app.name for app in all_applications}.difference(
-                desired_state)
+                desired_local_state)
 
             start_containers = {
                 app for app in desired_node_applications
@@ -187,8 +189,8 @@ class Deployer(object):
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
-            #volumes = find_volume_changes(hostname, current_state,
-            #     desired_state)
+            volumes = find_volume_changes(hostname, current_cluster_state,
+                                          desired_state)
 
             return StateChanges(
                 applications_to_start=start_containers,
@@ -196,7 +198,7 @@ class Deployer(object):
                 applications_to_restart=restart_containers,
                 #volumes_to_handoff=volumes.going,
                 #volumes_to_wait_for=volumes.coming,
-                #xvolumes_to_create=volumes.creating,
+                volumes_to_create=volumes.creating,
                 proxies=desired_proxies,
             )
         d.addCallback(find_differences)
@@ -277,15 +279,37 @@ def find_volume_changes(hostname, current_state, desired_state):
     coming = set()
     creating = set()
 
+    desired_volumes = {node.hostname: set(application.volume for application
+                                          in node.applications
+                                          if application.volume)
+                       for node in desired_state.nodes}
+    current_volumes = {node.hostname: set(application.volume for application
+                                          in node.applications
+                                          if application.volume)
+                       for node in current_state.nodes}
+    local_desired_volumes = desired_volumes.get(hostname, set())
+    remote_desired_volumes = set()
+    for hostname, desired in desired_volumes.items():
+        if hostname != hostname:
+            remote_desired_volumes |= desired
+    local_current_volumes = current_volumes.get(hostname, set())
+    remote_current_volumes = set()
+    for hostname, current in current_volumes.items():
+        if hostname != hostname:
+            remote_current_volumes |= current
+
     # Look at each application that is going to be stopped on this node.  If it
     # is being started somewhere else, add a VolumeHandoff for it to `going`.
 
-    # Look at each application that is going to be started on this node.  If it
-    # was running somewhere else, add an AttachedVolume for it to `coming`.
+    # Look at each application that is going to be started on this node.  If
+    # it was running somewhere else, add an AttachedVolume for it to
+    # `coming`.
 
-    # For each application that is going to be started on this node that was
-    # not running somewhere else, add an AttachedVolume for it to `creating`.
-
-    # TOD Later on, think about deletion.  Not for this issue though.
+    # For each application that is going to be started on this node
+    # that was not running somewhere else, add an AttachedVolume for
+    # it to `creating`.
+    creating = local_desired_volumes.difference(
+        #local_current_volumes |
+        remote_current_volumes)
 
     return VolumeChanges(going=going, coming=coming, creating=creating)

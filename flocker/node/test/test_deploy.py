@@ -574,7 +574,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = StateChanges(
             # The application isn't running here so it needs to be started.
             applications_to_start={
-                Application(name=APPLICATION_WITH_VOLUME_NAME)
+                APPLICATION_WITH_VOLUME,
             },
             applications_to_stop=set(),
             volumes_to_handoff=set(),
@@ -589,11 +589,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, changes)
 
-    def test_volume_acquired(self):
+    def test_volume_wait(self):
         """
         ``Deployer.calculate_necessary_state_changes`` specifies that the
         volume for an application which was previously running on another node
-        must be acquired.
+        must be waited for, in anticipation of that node handing it off to us.
         """
         # The application is not running here - therefore there is no gear unit
         # for it.
