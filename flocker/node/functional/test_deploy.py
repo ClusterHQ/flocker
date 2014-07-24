@@ -9,7 +9,7 @@ from subprocess import check_call
 from twisted.trial.unittest import TestCase
 
 from .. import Deployer, Deployment, Application, DockerImage, Node
-from ..routes import make_memory_network
+from ..route import make_memory_network
 from ..gear import GearClient
 from ..testtools import wait_for_unit_state, if_gear_configured
 from ...testtools import create_volume_service, random_name
