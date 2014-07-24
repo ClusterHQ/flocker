@@ -716,6 +716,54 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, changes)
 
+    def test_no_volume_changes(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies no work for
+        the volume of an application which was previously running on this
+        node continues to run on this node.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=current,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            applications_to_start=set(),
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
     def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
