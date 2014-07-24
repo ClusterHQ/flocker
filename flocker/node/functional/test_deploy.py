@@ -45,7 +45,8 @@ class DeployerTests(TestCase):
         def started(_):
             # Now that it's running, stop it behind our back:
             check_call([b"gear", b"stop", name])
-            return wait_for_unit_state(gear_client, name, u'inactive')
+            return wait_for_unit_state(gear_client, name,
+                                       [u'inactive', u'failed'])
         d.addCallback(started)
 
         def stopped(_):
