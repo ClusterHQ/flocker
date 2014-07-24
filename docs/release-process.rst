@@ -84,7 +84,7 @@ Release
 
    Also upload to archive.clusterhq.com::
 
-     gsutil -a public-read cp dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
+     gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
 
 4. Upload RPMs::
 
