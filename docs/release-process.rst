@@ -28,10 +28,6 @@ Software
 
 - an up-to-date clone of the Flocker repository
 
-- `gsutil`_
-
-- `wheel`_
-
 Access
 ~~~~~~
 
@@ -71,14 +67,22 @@ Preparing for a release
 Release
 -------
 
-1. Tag the version being released::
+1. Change your working directory to be the Flocker release branch checkout.
+
+2. Create (if necessary) and activate the Flocker release virtual environment::
+
+     virtualenv ~/Environments/flocker-release
+     . ~/Environments/flocker-release/bin/activate
+     pip install -e .[release]
+
+3. Tag the version being released::
 
      git tag -a "${VERSION}" release/flocker-"${VERSION%.*}"
      git push origin "${VERSION}"
 
-2. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+4. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
-3. Build python packages for upload::
+5. Build python packages for upload::
 
      python setup.py bdist_wheel
 
@@ -86,11 +90,11 @@ Release
 
      gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
 
-4. Upload RPMs::
+6. Upload RPMs::
 
       admin/upload-rpms upload-scratch "${VERSION}"
 
-5. Build tagged docs at readthedocs.org.
+7. Build tagged docs at readthedocs.org.
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
