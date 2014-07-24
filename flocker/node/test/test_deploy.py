@@ -537,6 +537,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_restart = set([application])
         expected = StateChanges(applications_to_start=set(),
@@ -557,6 +558,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
