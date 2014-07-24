@@ -4,7 +4,7 @@
 Unit tests for the implementation ``flocker-deploy``.
 """
 
-from yaml import safe_dump
+from yaml import safe_dump, safe_load
 from threading import current_thread
 
 from twisted.python.filepath import FilePath
@@ -419,15 +419,20 @@ class FlockerDeployMainTests(TestCase):
 
         def ran(ignored):
             expected_common = [
-                b"flocker-changestate", self.deployment_config,
-                self.application_config,
-                safe_dump({expected_hostname1: actual_config_host1,
-                           expected_hostname2: actual_config_host2})]
+                b"flocker-changestate",
+                safe_load(self.deployment_config),
+                safe_load(self.application_config),
+                {expected_hostname1: actual_config_host1,
+                 expected_hostname2: actual_config_host2}]
 
+            actual = []
+            for target in destinations:
+                command = target.node.remote_command
+                actual.append(map(safe_load, command[:-1]) + [command[-1]])
             self.assertEqual(
-                list(target.node.remote_command for target in destinations),
-                [expected_common + [expected_hostname1],
-                 expected_common + [expected_hostname2]]
+                sorted(actual),
+                sorted([expected_common + [expected_hostname1],
+                        expected_common + [expected_hostname2]])
             )
         running.addCallback(ran)
         return running
