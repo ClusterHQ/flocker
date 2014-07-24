@@ -170,7 +170,7 @@ APPLICATION_WITH_VOLUME = Application(
                       tag=u'release-14.0'),
     volume=AttachedVolume(
         # See https://github.com/ClusterHQ/flocker/issues/49
-        name=name,
+        name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     )
 )
@@ -529,7 +529,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                 applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
 
-<<<<<<< HEAD
     def test_volume_created(self):
         """
         ``Deployer.calculate_necessary_state_changes`` specifies that a new
@@ -566,7 +565,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         calculating = api.calculate_necessary_state_changes(
             desired_state=desired ,
-            current_state=current,
+            current_cluster_state=current,
             hostname=hostname,
         )
 
@@ -579,7 +578,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             },
             applications_to_stop=set(),
             volumes_to_handoff=set(),
-            volumes_to_acquire=set(),
+            volumes_to_wait_for=set(),
             volumes_to_create={
                 AttachedVolume(
                     name=APPLICATION_WITH_VOLUME_NAME,
@@ -611,7 +610,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         # The discovered current configuration of the cluster reveals the
         # application is running somewhere else.
-        current = Deployment(nodes=frozenset(node, another_node))
+        current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
             create_volume_service(self), gear_client=gear,
@@ -627,7 +626,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         calculating = api.calculate_necessary_state_changes(
             desired_state=desired ,
-            current_state=current,
+            current_cluster_state=current,
             hostname=node.hostname,
         )
 
@@ -640,7 +639,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             },
             applications_to_stop=set(),
             volumes_to_handoff=set(),
-            volumes_to_acquire={
+            volumes_to_wait_for={
                 AttachedVolume(
                     name=APPLICATION_WITH_VOLUME_NAME,
                     mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
@@ -674,7 +673,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         # The discovered current configuration of the cluster reveals the
         # application is running here.
-        current = Deployment(nodes=frozenset(node, another_node))
+        current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
             create_volume_service(self), gear_client=gear,
@@ -690,7 +689,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         calculating = api.calculate_necessary_state_changes(
             desired_state=desired,
-            current_state=current,
+            current_cluster_state=current,
             hostname=node.hostname,
         )
 
@@ -711,7 +710,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             volumes_to_handoff={
                 VolumeHandoff(volume=volume, node=another_node),
             },
-            volumes_to_acquire=set(),
+            volumes_to_wait_for=set(),
             volumes_to_create=set(),
         )
 
