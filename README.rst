@@ -24,7 +24,7 @@ We're looking forward to working on this project with you.
 
 Documentation
 -------------
-You can read more about the `features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
+You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
 
 
 Tests
@@ -40,8 +40,10 @@ Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://www.twistedmatrix.com
-.. _features of Flocker and its architecture: docs/flocker-intro/index.rst
-.. _areas for potential future development: docs/roadmap/index.rst
+.. _installing Flocker: http://doc-dev.clusterhq.com/installation.html
+.. _tutorial: http://doc-dev.clusterhq.com/tutorial/
+.. _features of Flocker and its architecture: http://doc-dev.clusterhq.com/flocker-intro/
+.. _areas for potential future development: http://doc-dev.clusterhq.com/roadmap/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/

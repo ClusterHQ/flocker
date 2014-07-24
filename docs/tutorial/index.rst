@@ -16,3 +16,4 @@ Any application you can deploy into Docker you can manage with Flocker.
 
    vagrant-setup
    moving-applications
+   exposing-ports
