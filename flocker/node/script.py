@@ -188,7 +188,9 @@ class ReportStateScript(object):
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
         d = self._deployer.discover_node_configuration()
-        d.addCallback(configuration_to_yaml)
+        d.addCallback(lambda state: configuration_to_yaml(list(state.running +
+                                                               state.not_running
+                                                           )))
         d.addCallback(self._print_yaml)
         return d
 
