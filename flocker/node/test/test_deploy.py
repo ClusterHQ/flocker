@@ -527,7 +527,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        to_restart = set([Application(name=unit.name)])
+        to_restart = set([application])
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 applications_to_restart=to_restart)
