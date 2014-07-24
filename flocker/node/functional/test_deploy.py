@@ -38,7 +38,9 @@ class DeployerTests(TestCase):
                      image=DockerImage.from_string(
                          u"openshift/busybox-http-app"))]))]))
 
-        d = deployer.change_node_state(desired_state, u"localhost")
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
         d.addCallback(lambda _: wait_for_unit_state(gear_client, name,
                                                     [u'active']))
 
@@ -51,7 +53,8 @@ class DeployerTests(TestCase):
 
         def stopped(_):
             # Redeploy, which should restart it:
-            return deployer.change_node_state(desired_state, u"localhost")
+            return deployer.change_node_state(desired_state, desired_state,
+                                              u"localhost")
         d.addCallback(stopped)
         d.addCallback(lambda _: wait_for_unit_state(gear_client, name,
                                                     [u'active']))
