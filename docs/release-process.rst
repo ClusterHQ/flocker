@@ -47,7 +47,7 @@ Access
 
 Preparing for a release
 -----------------------
-1. Checkout the branch for the release.
+#. Checkout the branch for the release.
 
    - If this is a major or minor release then create the branch for the minor version::
 
@@ -58,31 +58,31 @@ Preparing for a release
 
       git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-2. Make sure the release notes in :file:`NEWS` are up-to-date.
-3. Update appropriate copyright dates as appropriate.
-4. Make sure all the tests pass on BuildBot.
+#. Make sure the release notes in :file:`NEWS` are up-to-date.
+#. Update appropriate copyright dates as appropriate.
+#. Make sure all the tests pass on BuildBot.
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
-5. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
+#. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
 Release
 -------
 
-1. Change your working directory to be the Flocker release branch checkout.
+#. Change your working directory to be the Flocker release branch checkout.
 
-2. Create (if necessary) and activate the Flocker release virtual environment::
+#. Create (if necessary) and activate the Flocker release virtual environment::
 
      virtualenv ~/Environments/flocker-release
      . ~/Environments/flocker-release/bin/activate
      pip install -e .[release]
 
-3. Tag the version being released::
+#. Tag the version being released::
 
      git tag -a "${VERSION}" release/flocker-"${VERSION%.*}"
      git push origin "${VERSION}"
 
-4. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
-5. Build python packages for upload::
+#. Build python packages for upload::
 
      python setup.py bdist_wheel
 
@@ -90,16 +90,16 @@ Release
 
      gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
 
-6. Upload RPMs::
+#. Upload RPMs::
 
-      admin/upload-rpms upload-scratch "${VERSION}"
+      admin/upload-rpms "${VERSION}"
 
-7. Build tagged docs at readthedocs.org.
+#. Build tagged docs at readthedocs.org.
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
-    1. Enable the version being released.
-    2. Set the default version to that version.
+    #. Enable the version being released.
+    #. Set the default version to that version.
 
 
 clusterhq-release package
