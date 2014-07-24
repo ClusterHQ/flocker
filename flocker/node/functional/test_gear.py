@@ -21,7 +21,7 @@ from ...testtools import (
     ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, PortMap, Unit
+from ..gear import GearClient, GearError, PortMap
 from ..testtools import if_gear_configured, wait_for_unit_state
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
