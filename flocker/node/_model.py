@@ -150,9 +150,7 @@ class VolumeHandoff(object):
     defaults=dict(proxies=frozenset(), applications_to_restart=frozenset(),
                   volumes_to_handoff=frozenset(),
                   volumes_to_wait_for=frozenset(),
-                  volumes_to_create=frozenset(),
-              )
-)
+                  volumes_to_create=frozenset()))
 class StateChanges(object):
     """
     ``StateChanges`` describes changes necessary to make to the current

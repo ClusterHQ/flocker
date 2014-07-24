@@ -545,7 +545,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # The discovered current configuration of the cluster also reflects
         # this.
         current = Deployment(nodes=frozenset({
-                    Node(hostname=hostname, applications=frozenset()),
+            Node(hostname=hostname, applications=frozenset()),
         }))
 
         api = Deployer(
@@ -564,7 +564,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset({node}))
 
         calculating = api.calculate_necessary_state_changes(
-            desired_state=desired ,
+            desired_state=desired,
             current_cluster_state=current,
             hostname=hostname,
         )
@@ -618,14 +618,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         desired = Deployment(nodes=frozenset({
-                    Node(hostname=node.hostname,
-                         applications=another_node.applications),
-                    Node(hostname=another_node.hostname,
-                         applications=frozenset()),
+            Node(hostname=node.hostname,
+                 applications=another_node.applications),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
         }))
 
         calculating = api.calculate_necessary_state_changes(
-            desired_state=desired ,
+            desired_state=desired,
             current_cluster_state=current,
             hostname=node.hostname,
         )
@@ -681,10 +681,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         desired = Deployment(nodes=frozenset({
-                    Node(hostname=node.hostname,
-                         applications=frozenset()),
-                    Node(hostname=another_node.hostname,
-                         applications=node.applications),
+            Node(hostname=node.hostname,
+                 applications=frozenset()),
+            Node(hostname=another_node.hostname,
+                 applications=node.applications),
         }))
 
         calculating = api.calculate_necessary_state_changes(
