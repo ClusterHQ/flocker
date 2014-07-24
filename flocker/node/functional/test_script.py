@@ -3,7 +3,7 @@
 """
 Functional tests for the ``flocker-changestate`` command line tool.
 """
-from os import getuid
+from os import getuid, putenv, environ
 from subprocess import check_output
 from unittest import skipUnless
 
@@ -40,6 +40,7 @@ class FlockerChangeStateTests(TestCase):
         """
         ``flocker-changestate`` is a command available on the system path
         """
+        putenv('CONFIG_PATH', FilePath(self.mktemp()).path)
         result = check_output([b"flocker-changestate"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
 
@@ -71,6 +72,17 @@ class ChangeStateScriptTests(TestCase):
         self.assertEqual(
             ChangeStateScript()._deployer._volume_service._config_path,
             DEFAULT_CONFIG_PATH)
+
+    def test_volume_service_custom_config_path(self):
+        """
+        ``ChangeStateScript._deployer`` is created with a ``VolumeService``
+        with a config path which can be using with an environment variable.
+        """
+        path = self.mktemp()
+        environ['CONFIG_PATH'] = path
+        self.assertEqual(
+            ChangeStateScript()._deployer._volume_service._config_path,
+            FilePath(path))
 
     def test_volume_service_pool(self):
         """

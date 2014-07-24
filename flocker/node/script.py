@@ -5,6 +5,7 @@
 The command-line ``flocker-changestate`` and ``flocker-reportstate``
 tools.
 """
+from os import getenv
 
 import sys
 
@@ -109,7 +110,13 @@ def _default_volume_service():
     :return: A ``VolumeService``.
     """
     options = VolumeOptions()
-    options.postOptions()
+
+    config = getenv('CONFIG_PATH', None)
+    if config is None:
+        options.postOptions()
+    else:
+        options.parseOptions([b"--config", config])
+
     return VolumeScript().create_volume_service(reactor, options)
 
 
