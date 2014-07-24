@@ -46,5 +46,5 @@ You can also submit an issue or a pull request if you have a specific integratio
 
 
 .. _ideas for future releases: https://github.com/ClusterHQ/flocker/blob/master/docs/roadmap/index.rst
-.. _user stories for upcoming features: [link]
+.. _user stories for upcoming features: tbd
 .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
