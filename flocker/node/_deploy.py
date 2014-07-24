@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+from characteristic import attributes
+
 from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
@@ -12,6 +14,18 @@ from ._model import Application, StateChanges, VolumeChanges, AttachedVolume
 from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList
+
+
+@attributes(["running", "not_running"])
+class NodeState(object):
+    """
+    The current state of a node.
+
+    :ivar running: A ``list`` of ``Application`` instances on this node
+        that are currently running or starting up.
+    :ivar not_running: A ``list`` of ``Application`` instances on this
+        node that are currently shutting down or stopped.
+    """
 
 
 class Deployer(object):
@@ -69,8 +83,8 @@ class Deployer(object):
         """
         List all the ``Application``\ s running on this node.
 
-        :returns: A ``Deferred`` which fires with a list of ``Application``
-            instances.
+        :returns: A ``Deferred`` which fires with a ``NodeState``
+            instance.
         """
         volumes = self._volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
@@ -81,7 +95,8 @@ class Deployer(object):
         def applications_from_units(result):
             units, available_volumes = result
 
-            applications = []
+            running = []
+            not_running = []
             for unit in units:
                 # XXX: The container_image will be available on the
                 # Unit when
@@ -93,22 +108,28 @@ class Deployer(object):
                     volume = AttachedVolume(name=unit.name, mountpoint=None)
                 else:
                     volume = None
-                applications.append(Application(name=unit.name,
-                                                volume=volume))
-            return applications
+                application = Application(name=unit.name,
+                                          volume=volume)
+                if unit.activation_state in (u"active", u"activating"):
+                    running.append(application)
+                else:
+                    not_running.append(application)
+            return NodeState(running=running, not_running=not_running)
         d.addCallback(applications_from_units)
         return d
 
-    def calculate_necessary_state_changes(self, desired_state, current_state,
-                                          hostname):
+    def calculate_necessary_state_changes(self, desired_state,
+                                          current_cluster_state, hostname):
         """
         Work out which changes need to happen to the local state to match
         the given desired state.
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
-        :param Deployment current_state: The current configuration of all
-            nodes.
+        :param Deployment current_cluster_state: The current configuration
+            of all nodes. While technically this also includes the current
+            node's state, this information may be out of date so we check
+            again to ensure we have absolute latest information.
         :param unicode hostname: The hostname of the node that this is running
             on.
 
@@ -133,54 +154,70 @@ class Deployer(object):
         # https://github.com/ClusterHQ/flocker/issues/326
         d = self.discover_node_configuration()
 
-        def find_differences(current_node_applications):
+        def find_differences(current_node_state):
+            current_node_applications = current_node_state.running
+            all_applications = (current_node_state.running +
+                                current_node_state.not_running)
+
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
             current_state = {app.name for app in current_node_applications}
             desired_state = {app.name for app in desired_node_applications}
+            not_running = {app.name for app in current_node_state.not_running}
 
-            start_names = desired_state.difference(current_state)
-            stop_names = current_state.difference(desired_state)
+            # Don't start applications that exist on this node but aren't
+            # running; instead they should be restarted:
+            start_names = desired_state.difference(current_state | not_running)
+            stop_names = {app.name for app in all_applications}.difference(
+                desired_state)
 
             start_containers = {
                 app for app in desired_node_applications
                 if app.name in start_names
             }
             stop_containers = {
-                app for app in current_node_applications
+                app for app in all_applications
                 if app.name in stop_names
+            }
+            restart_containers = {
+                app for app in desired_node_applications
+                if app.name in not_running
             }
 
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
-            volumes = find_volume_changes(hostname, current_state, desired_state)
+            volumes = find_volume_changes(hostname, current_state,
+                                          desired_state)
 
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
+                applications_to_restart=restart_containers,
                 volumes_to_handoff=volumes.going,
                 volumes_to_acquire=volumes.coming,
-                volumes_to_create=volumes.creating
-                proxies=desired_proxies
+                volumes_to_create=volumes.creating,
+                proxies=desired_proxies,
             )
         d.addCallback(find_differences)
         return d
 
-    def change_node_state(self, desired_state, current_state, hostname):
+    def change_node_state(self, desired_state,
+                          current_cluster_state,
+                          hostname):
         """
         Change the local state to match the given desired state.
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
-        :param Deployment current_state: The current configuration of all
-            nodes.
+        :param Deployment current_cluster_state: The current configuration
+            of all nodes.
         :param unicode hostname: The hostname of the node that this is running
             on.
         """
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
-            current_state=current_state,
+            current_cluster_state=current_cluster_state,
             hostname=hostname)
         d.addCallback(self._apply_changes)
         return d
@@ -218,6 +255,10 @@ class Deployer(object):
         for application in necessary_state_changes.applications_to_start:
             results.append(self.start_application(application))
 
+        for application in necessary_state_changes.applications_to_restart:
+            d = self.stop_application(application)
+            d.addCallback(lambda _: self.start_application(application))
+            results.append(d)
         return DeferredList(
             results, fireOnOneErrback=True, consumeErrors=True)
 
