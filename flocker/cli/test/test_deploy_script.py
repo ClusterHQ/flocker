@@ -387,7 +387,7 @@ class FlockerDeployMainTests(TestCase):
         """
         ``DeployScript.main`` calls ``flocker-changestate`` using the
         destinations and hostnames from ``_get_destinations`` and the
-        aggreggated result for ``lfocker-reportstate``.
+        aggreggated result for ``flocker-reportstate``.
         """
         expected_hostname1 = b'node101.example.com'
         expected_hostname2 = b'node102.example.com'

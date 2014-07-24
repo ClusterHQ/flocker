@@ -100,7 +100,7 @@ class Configuration(object):
                     if port:
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(port.keys())))
+                                keys=', '.join(sorted(port.keys()))))
                     ports.append(Port(internal_port=internal_port,
                                       external_port=external_port))
             except ValueError as e:
@@ -171,7 +171,7 @@ class Configuration(object):
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
                          application_name=application_name,
-                         keys=', '.join(config.keys()))
+                         keys=', '.join(sorted(config.keys())))
                 )
         return applications
 

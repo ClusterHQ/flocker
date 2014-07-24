@@ -106,7 +106,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Unrecognised keys: foo, baz.",
+            "Unrecognised keys: baz, foo.",
             exception.message
         )
 
