@@ -6,8 +6,13 @@ FAQ
 .. contents::
     :local:
     :backlinks: none
+	
+Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  You can find these questions in the Future section below.  You can also view .. _ideas for future releases: https://github.com/ClusterHQ/flocker/blob/master/docs/roadmap/index.rst
+and .. _users stories for upcoming features: [link]
 
-Flocker / ZFS
+If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our IRC #clusterhq or .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users.
+
+Future / ZFS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If I clone a 2GB database five times, won't I need a really large server with 10 GB of disk?
@@ -30,10 +35,10 @@ This works because eg port 3306 inside one app server gets routed via an ephemer
 
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
 
-Flocker / Integrations
+Future / Integrations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-How does Flocker integrate with Kubernetes/Mesos/CoreOS/my favorite orchestration framework?
+How does Flocker integrate with Kubernetes/Mesos/Deis/CoreOS/my favorite orchestration framework?
 **************************************************************************************************************
 Over time, we hope that Flocker becomes the de facto way for managing storage volumes with your favorite orchestration framework.  
 We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
