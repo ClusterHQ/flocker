@@ -11,7 +11,7 @@ Flocker is under active deployment and we receive a lot of questions about how t
 
 If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our IRC #clusterhq or `the flocker Google group`.
 
-Flocker / ZFS
+ZFS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Flocker uses ZFS. What about the ZFS licensing issues?
@@ -23,7 +23,7 @@ But if ZFS isn't part of mainline Linux proper, it won't benefit from rigorous t
 ********************************************************************************************************************
 ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.  We are also rigorously testing ZFS on Linux to make sure it is stable. ZFS is production quality code and only the glue between it and the linux kernel needs fixing, in comparison to btrfs the ZFS core is far more stable and well tested, and has automated regression suites. 
 
-Future / Integrations
+Future
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 How does Flocker integrate with Kubernetes/Mesos/Deis/CoreOS/my favorite orchestration framework?
@@ -32,9 +32,6 @@ Over time, we hope that Flocker becomes the de facto way for managing storage vo
 We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
 If you'd like work with us on integration, get in touch on our IRC #clusterhq or `the flocker Google group`.
 You can also submit an issue or a pull request if you have a specific integration that you'd like to propose.
-
-Future / ZFS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If I clone a 2GB database five times, won't I need a really large server with 10 GB of disk?
 **************************************************************************************************************
@@ -55,9 +52,6 @@ The idea will be that cloning the app and the database together in some sense al
 This works because eg port 3306 inside one app server gets routed via an ephemeral port on the host(s) to 3306 inside the corresponding specific instance of the database.
 
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
-
-
-
 
 .. _ideas for future releases: https://github.com/ClusterHQ/flocker/blob/master/docs/roadmap/index.rst
 .. _user stories for upcoming features: tbd
