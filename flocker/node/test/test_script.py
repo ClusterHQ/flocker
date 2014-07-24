@@ -268,12 +268,12 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 
     def test_yaml_callback(self):
         """
-        ``ReportStateScript.main`` returns a deferred which writes out
-        the YAML representation of the applications from
+        ``ReportStateScript.main`` returns a deferred which writes out the
+        YAML representation of all the applications (running or not) from
         ``Deployer.discover_node_configuration``
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_gear = FakeGearClient(units=units)

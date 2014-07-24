@@ -306,9 +306,9 @@ class FakeGearClient(object):
         # GearClient.list can pass until the real GearClient.list can also
         # return container_image information, ports and links.
         # See https://github.com/ClusterHQ/flocker/issues/207
-        incomplete_units = []
+        incomplete_units = set()
         for unit in self._units.values():
-            incomplete_units.append(
+            incomplete_units.add(
                 Unit(name=unit.name, activation_state=unit.activation_state))
         return succeed(incomplete_units)
 
