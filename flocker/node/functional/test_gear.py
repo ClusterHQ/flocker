@@ -158,7 +158,7 @@ class GearClientTests(TestCase):
         """
         name = random_name()
         d = self.start_container(unit_name=name, image_name="busybox",
-                                 expected_states=('inactive',))
+                                 expected_states=(u'inactive',))
         return d
 
     def request_until_response(self, port):
