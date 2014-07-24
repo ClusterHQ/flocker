@@ -300,8 +300,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit1 = Unit(name=u'site-example.com',
                      activation_state=u'deactivating')
         unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
-        unit3 = Unit(name=u'site-example.net', activation_state=u'inactive')
-        unit4 = Unit(name=u'site-example.net', activation_state=u'madeup')
+        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
                  unit4.name: unit4}
 
