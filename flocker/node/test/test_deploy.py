@@ -621,7 +621,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     Node(hostname=node.hostname,
                          applications=another_node.applications),
                     Node(hostname=another_node.hostname,
-                         applications=node.applications),
+                         applications=frozenset()),
         }))
 
         calculating = api.calculate_necessary_state_changes(
@@ -635,7 +635,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = StateChanges(
             # The application isn't running here so it needs to be started.
             applications_to_start={
-                Application(name=APPLICATION_WITH_VOLUME_NAME),
+                APPLICATION_WITH_VOLUME,
             },
             applications_to_stop=set(),
             volumes_to_handoff=set(),

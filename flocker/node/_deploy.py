@@ -197,7 +197,7 @@ class Deployer(object):
                 applications_to_stop=stop_containers,
                 applications_to_restart=restart_containers,
                 #volumes_to_handoff=volumes.going,
-                #volumes_to_wait_for=volumes.coming,
+                volumes_to_wait_for=volumes.coming,
                 volumes_to_create=volumes.creating,
                 proxies=desired_proxies,
             )
@@ -267,6 +267,13 @@ class Deployer(object):
 
 def find_volume_changes(hostname, current_state, desired_state):
     """
+    Find what actions need to be taking to deal with changes in volume
+    location between current state and desired state of the cluster.
+
+    Note that the logic here presumes the mountpoints have not changed,
+    and will act unexpectedly if that is the case. See
+    https://github.com/ClusterHQ/flocker/issues/351 for more details.
+
     :param unicode hostname: The name of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
@@ -276,8 +283,6 @@ def find_volume_changes(hostname, current_state, desired_state):
         the changes are working.
     """
     going = set()
-    coming = set()
-    creating = set()
 
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
@@ -289,25 +294,30 @@ def find_volume_changes(hostname, current_state, desired_state):
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
     remote_desired_volumes = set()
-    for hostname, desired in desired_volumes.items():
-        if hostname != hostname:
+    for volume_hostname, desired in desired_volumes.items():
+        if volume_hostname != hostname:
             remote_desired_volumes |= desired
     local_current_volumes = current_volumes.get(hostname, set())
     remote_current_volumes = set()
-    for hostname, current in current_volumes.items():
-        if hostname != hostname:
+    for volume_hostname, current in current_volumes.items():
+        if volume_hostname != hostname:
             remote_current_volumes |= current
 
-    # Look at each application that is going to be stopped on this node.  If it
-    # is being started somewhere else, add a VolumeHandoff for it to `going`.
+    # Look at each application volume that is going to be stopped on this
+    # node.  If it is being started somewhere else, add a VolumeHandoff
+    # for it to `going`.
 
-    # Look at each application that is going to be started on this node.  If
-    # it was running somewhere else, add an AttachedVolume for it to
-    # `coming`.
+    # Look at each application volume that is going to be started on this
+    # node.  If it was running somewhere else, add an AttachedVolume for
+    # it to `coming`.
+    print "local desired", local_desired_volumes
+    print "remote current", remote_current_volumes
+    coming = local_desired_volumes.intersection(remote_current_volumes)
+    print "coming", coming
 
-    # For each application that is going to be started on this node
-    # that was not running somewhere else, add an AttachedVolume for
-    # it to `creating`.
+    # For each application volume that is going to be started on this node
+    # that was not running somewhere else, add an AttachedVolume for it to
+    # `creating`.
     creating = local_desired_volumes.difference(
         #local_current_volumes |
         remote_current_volumes)
