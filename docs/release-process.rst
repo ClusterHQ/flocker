@@ -15,7 +15,7 @@ By the end of the release process we will have:
 
 
 Prerequisites
------------
+-------------
 
 Software
 ~~~~~~~~
@@ -60,7 +60,7 @@ Preparing for a release
 
    - If this is a patch release then there will already be a branch::
 
-      git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-${VERSION%.*}
+      git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 2. Make sure the release notes in :file:`NEWS` are up-to-date.
 3. Update appropriate copyright dates as appropriate.
@@ -73,8 +73,8 @@ Release
 
 1. Tag the version being released::
 
-     git tag -a ${VERSION} release/flocker-${VERSION%.*}
-     git push origin ${VERSION}
+     git tag -a "${VERSION}" release/flocker-"${VERSION%.*}"
+     git push origin "${VERSION}"
 
 2. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
@@ -98,30 +98,19 @@ Release
     2. Set the default version to that version.
 
 
-Announcing Releases
--------------------
-
-- Announcement
-  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
-  - on the blog - https://clusterhq.com/blog/
-  - on the IRC channel - #clusterhq on freenode
-- Update download links on clusterhq.com
-  XXX Arrange to have download links on a page on clusterhq.com somewhere
-
-
 clusterhq-release package
-^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is a meta-package that contains the yum repository definitions.
 
 ::
+
    rpmbuild -D "_sourcedir ${PWD}" -D "_rpmdir ${PWD}/results" -ba clusterhq-release.spec
    gsutil cp -a public-read results/noarch/clusterhq-release-1-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
 
 
-
 Pre-populating rpm repository
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 with copr repo installed
 
@@ -139,6 +128,18 @@ with copr repo installed
    yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
+
+
+Announcing Releases
+~~~~~~~~~~~~~~~~~~~
+
+- Announcement
+  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
+  - on the blog - https://clusterhq.com/blog/
+  - on the IRC channel - #clusterhq on freenode
+- Update download links on clusterhq.com
+  XXX Arrange to have download links on a page on clusterhq.com somewhere
+
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
