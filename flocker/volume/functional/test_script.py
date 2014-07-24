@@ -2,18 +2,18 @@
 
 """Functional tests for the ``flocker-volume`` command line tool."""
 
+from functools import wraps
 from subprocess import check_output, Popen, PIPE
 import json
 import os
 from unittest import skipIf, skipUnless
 
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import TestCase, SkipTest
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ... import __version__
 from ...testtools import skip_on_broken_permissions
-
 
 _require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
@@ -49,6 +49,29 @@ def run_expecting_error(*args):
 class FlockerVolumeTests(TestCase):
     """Tests for ``flocker-volume``."""
 
+    def change_uid(test_method):
+        """
+        Skips the wrapped test when the temporary directory is on a
+        filesystem with broken permissions.
+
+        Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
+        respect changing permissions. For example, this test detects running on a
+        shared folder by the fact that all permissions can't be removed from a
+        file.
+
+        :param callable test_method: Test method to wrap.
+        :return: The wrapped method.
+        :raise SkipTest: when the temporary directory is on a filesystem with
+            broken permissions.
+        """
+        @wraps(test_method)
+        def wrapper(case, *args, **kwargs):
+            if os.getuid() == 0:
+                raise SkipTest(
+                    "Can't run test on filesystem with broken permissions.")
+            return test_method(case, *args, **kwargs)
+        return wrapper
+
     @_require_installed
     def setUp(self):
         pass
@@ -64,7 +87,8 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    # @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    @change_uid
     @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
