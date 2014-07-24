@@ -704,7 +704,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
     def test_restarts(self):
         """
         Applications listed in ``StateChanges.applications_to_restart`` are
-        stopped and then started.
+        reactivated.
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
         fake_gear = FakeGearClient(units={unit.name: unit})
