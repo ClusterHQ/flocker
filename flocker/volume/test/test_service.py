@@ -23,7 +23,7 @@ from ..service import (
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ...common import FakeNode
-from ...testtools import skip_on_broken_permissions
+from ...testtools import skip_on_broken_permissions, run_as_nonprivileged_user
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -61,8 +61,8 @@ class VolumeServiceStartupTests(TestCase):
         service.startService()
         self.assertTrue(path.exists())
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
+    @run_as_nonprivileged_user
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -74,8 +74,8 @@ class VolumeServiceStartupTests(TestCase):
         service = VolumeService(path, None, reactor=Clock())
         self.assertRaises(CreateConfigurationError, service.startService)
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
+    @run_as_nonprivileged_user
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
