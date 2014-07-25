@@ -812,20 +812,23 @@ def skip_on_broken_permissions(test_method):
 
 def run_as_nonprivileged_user(test_method):
     """
-    s
+    Temporarily gives the user, if ``root`` the priveledges of the ``nobody``
+    user.
+
+    :param callable test_method: Test method to wrap.
+    :return: The wrapped method.
     """
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
-        if os.getuid() != 0:
-            return test_method(case, *args, **kwargs)
-        running_uid = pwd.getpwnam('nobody').pw_uid
-        result = case.mktemp()
-        path = FilePath(result)
-        for p in path.parents():
-            if os.getcwd() in p.path:
-                p.chmod(0o777)
         if os.getuid() == 0:
-            os.seteuid(running_uid)
+            path = FilePath(case.mktemp())
+            # Change the permissions of all files from the test directory
+            # upwards, until the current working directory
+            for directory in path.parents():
+                if os.getcwd() in directory.path:
+                    directory.chmod(0o777)
+            nobody_uid = pwd.getpwnam('nobody').pw_uid
+            os.seteuid(nobody_uid)
             case.addCleanup(os.seteuid, 0)
         return test_method(case, *args, **kwargs)
     return wrapper
