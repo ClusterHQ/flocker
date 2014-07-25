@@ -51,17 +51,29 @@ class FlockerVolumeTests(TestCase):
 
     def change_uid(test_method):
         """
-        Changes UID so root can pretend that it is not roo.
+        Skips the wrapped test when the temporary directory is on a
+        filesystem with broken permissions.
+
+        Virtualbox's shared folder (as used for :file:`/vagrant`) doesn't entirely
+        respect changing permissions. For example, this test detects running on a
+        shared folder by the fact that all permissions can't be removed from a
+        file.
 
         :param callable test_method: Test method to wrap.
         :return: The wrapped method.
+        :raise SkipTest: when the temporary directory is on a filesystem with
+            broken permissions.
         """
         @wraps(test_method)
         def wrapper(case, *args, **kwargs):
             from twisted.python.util import switchUID
             if os.getuid() == 0:
                 pass
-                # Do some magic here
+                # os.setuid(65534)
+                # os.setuid(65534)
+                # a
+            # test_method.addCleanup(os.seteuid(0))
+            # test_method.addCleanup(os.setuid(0))
             return test_method(case, *args, **kwargs)
         return wrapper
 
@@ -80,12 +92,14 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    @change_uid
-    @skip_on_broken_permissions
+    # @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    # @change_uid
+    # @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.
         """
+        # import pdb; pdb.set_trace()
         if os.getuid() == 0:
             os.seteuid(1)
             self.addCleanup(os.seteuid, 0)
