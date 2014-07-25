@@ -11,6 +11,7 @@ yum install -y zfs
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.ssh.forward_agent = true
   config.vm.box = "clusterhq/flocker-dev"
   config.vm.box_version = "> 0.0.0.880"
 
