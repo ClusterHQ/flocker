@@ -64,7 +64,6 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    #@skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
     @run_as_user("vagrant")
     def test_no_permission(self):
