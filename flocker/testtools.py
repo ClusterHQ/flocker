@@ -811,20 +811,25 @@ def skip_on_broken_permissions(test_method):
     return wrapper
 
 
-class run_as_user(object):
-    def __init__(self, user='nobody'):
-        self.uid_name = user
+class run_as_nonprivileged_user(object):
+    def __init__(self, user=None):
+        if user is not None:
+            os.environ['FLOCKER_NONPRIVILEGED_USER'] = user
 
     def __call__(self, test_method):
         @wraps(test_method)
         def wrapper(case, *args, **kwargs):
             if os.getuid() != 0:
                 return test_method(case, *args, **kwargs)
+            try:
+                self.uid_name = os.environ['FLOCKER_NONPRIVILEGED_USER']
+            except KeyError:
+                case.fail('Please set the FLOCKER_NONPRIVILEGED_USER environment variable.')
             running_uid = pwd.getpwnam(self.uid_name).pw_uid
             result = case.mktemp()
             path = FilePath(result)
             for p in path.parents():
-                if os.getcwd().split(os.sep)[-1] in p.path:
+                if os.getcwd() in p.path:
                     p.chmod(0o777)
             if os.getuid() == 0:
                 os.seteuid(running_uid)
