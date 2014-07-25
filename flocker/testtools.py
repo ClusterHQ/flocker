@@ -821,11 +821,13 @@ def run_as_nonprivileged_user(test_method):
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
         if os.getuid() == 0:
-            nobody_uid = pwd.getpwnam('nobody').pw_uid
             path = FilePath(case.mktemp())
-            for p in path.parents():
-                if os.getcwd() in p.path:
-                    p.chmod(0o777)
+            # Change the permissions of all files from the test directory
+            # upwards, until the current working directory
+            for directory in path.parents():
+                if os.getcwd() in directory.path:
+                    directory.chmod(0o777)
+            nobody_uid = pwd.getpwnam('nobody').pw_uid
             os.seteuid(nobody_uid)
             case.addCleanup(os.seteuid, 0)
         return test_method(case, *args, **kwargs)
