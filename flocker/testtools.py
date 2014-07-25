@@ -10,7 +10,6 @@ import socket
 import sys
 import os
 import pwd
-import grp
 from operator import setitem, delitem
 from collections import namedtuple
 from contextlib import contextmanager
@@ -809,6 +808,7 @@ def skip_on_broken_permissions(test_method):
                 "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
+
 
 def run_as_nonprivileged_user(test_method):
     """

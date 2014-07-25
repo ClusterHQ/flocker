@@ -2,13 +2,11 @@
 
 """Functional tests for the ``flocker-volume`` command line tool."""
 
-from functools import wraps
 from subprocess import check_output, Popen, PIPE
 import json
-import os
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 
-from twisted.trial.unittest import TestCase, SkipTest
+from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
