@@ -812,7 +812,7 @@ def skip_on_broken_permissions(test_method):
 
 
 class run_as_nonprivileged_user(object):
-    def __init__(self, user='nobody'):
+    def __init__(self, user=None):
         if user is not None:
             os.environ['FLOCKER_NONPRIVILEGED_USER'] = user
 
