@@ -236,35 +236,62 @@ class Deployer(object):
         :return: A ``Deferred`` that fires when all application start/stop
             operations have finished.
         """
+        # XXX https://github.com/ClusterHQ/flocker/issues/373 will mean we
+        # do a preliminary step of pushing all volumes that are supposed
+        # to be handed off.
+
         # XXX: Errors in these operations should be logged. See
         # https://github.com/ClusterHQ/flocker/issues/296
-        results = []
 
-        # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
-        for proxy in self._network.enumerate_proxies():
-            try:
-                self._network.delete_proxy(proxy)
-            except:
-                results.append(fail())
-        for proxy in necessary_state_changes.proxies:
-            try:
-                self._network.create_proxy_to(proxy.ip, proxy.port)
-            except:
-                results.append(fail())
-
+        # Stop all applicable containers, and restart anything that needs
+        # restarting:
+        stops = []
         for application in necessary_state_changes.applications_to_stop:
-            results.append(self.stop_application(application))
-
-        for application in necessary_state_changes.applications_to_start:
-            results.append(self.start_application(application))
-
+            stops.append(self.stop_application(application))
         for application in necessary_state_changes.applications_to_restart:
             d = self.stop_application(application)
             d.addCallback(lambda _: self.start_application(application))
-            results.append(d)
-        return DeferredList(
-            results, fireOnOneErrback=True, consumeErrors=True)
+            stops.append(d)
+
+        result = DeferredList(
+            stops, fireOnOneErrback=True, consumeErrors=True)
+
+        # Now that everything is in a quiescent state we move data around:
+        def move_data(_):
+            volume_changes = []
+            # In parallel:
+            # * Push all volumes
+            # * Handoff all volumes
+            # * Create all volumes
+            # If we don't have data we can't proceed, so stop if anything fail
+            return DeferredList(volume_changes, fireOnOneErrback=True,
+                                consumeErrors=True)
+        result.addCallback(move_data)
+
+        # Finally, start up all containers and redo networking:
+        def start_up(_):
+            results = []
+            # XXX: The proxy manipulation operations are blocking. Convert to a
+            # non-blocking API. See
+            # https://github.com/ClusterHQ/flocker/issues/320
+            for proxy in self._network.enumerate_proxies():
+                try:
+                    self._network.delete_proxy(proxy)
+                except:
+                    results.append(fail())
+            for proxy in necessary_state_changes.proxies:
+                try:
+                    self._network.create_proxy_to(proxy.ip, proxy.port)
+                except:
+                    results.append(fail())
+
+            for application in necessary_state_changes.applications_to_start:
+                results.append(self.start_application(application))
+
+            return DeferredList(
+                results, fireOnOneErrback=True, consumeErrors=True)
+        result.addCallback(start_up)
+        return result
 
 
 def find_volume_changes(hostname, current_state, desired_state):
