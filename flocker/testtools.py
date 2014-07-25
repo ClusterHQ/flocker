@@ -810,9 +810,7 @@ def skip_on_broken_permissions(test_method):
         return test_method(case, *args, **kwargs)
     return wrapper
 
-
-
-def run_as_user(test_method):
+def run_as_nonprivileged_user(test_method):
     """
     s
     """
