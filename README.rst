@@ -47,4 +47,4 @@ Flocker is also tested using `continuous integration`_.
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
-.. _continuous integration: http://build.flocker.hybridcluster.net/
+.. _continuous integration: http://build.clusterhq.com/
