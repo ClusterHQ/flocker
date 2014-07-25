@@ -34,6 +34,8 @@ class INode(Interface):
     def get_output(remote_command):
         """Run a remote command and return its stdout.
 
+        May raise an exception if an error of some sort occured.
+
         :param remote_command: ``list`` of ``bytes``, the command to run
             remotely along with its arguments.
 
@@ -151,7 +153,8 @@ class FakeNode(object):
 
     def get_output(self, remote_command):
         """
-        Return the outputs passed to the constructor.
+        Return (or if an exception, raise) the next remaining output of the
+        ones passed to the constructor.
         """
         self.thread_id = current_thread().ident
         self.remote_command = remote_command
