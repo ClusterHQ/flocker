@@ -2,6 +2,9 @@
 What's New in v0.1
 ==================
 
+Everything is new since this is our first release.
+
+
 Known Limitations
 =================
 
