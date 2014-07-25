@@ -824,7 +824,7 @@ class run_as_user(object):
             result = case.mktemp()
             path = FilePath(result)
             for p in path.parents():
-                if '_trial_temp' in p.path:
+                if os.getcwd().split(os.sep)[-1] in p.path:
                     p.chmod(0o777)
             if os.getuid() == 0:
                 os.seteuid(running_uid)
