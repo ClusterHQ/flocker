@@ -12,7 +12,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ... import __version__
-from ...testtools import skip_on_broken_permissions
+from ...testtools import skip_on_broken_permissions, run_as_user
 
 
 _require_installed = skipUnless(which("flocker-volume"),
@@ -64,8 +64,9 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
+    #@skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
+    @run_as_user("vagrant", "vagrant")
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.

@@ -9,6 +9,8 @@ import io
 import socket
 import sys
 import os
+import pwd
+import grp
 from operator import setitem, delitem
 from collections import namedtuple
 from contextlib import contextmanager
@@ -807,3 +809,36 @@ def skip_on_broken_permissions(test_method):
                 "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
+
+
+class run_as_user(object):
+    def __init__(self, user='nobody', group='nobody'):
+        self.uid_name = user
+        self.gid_name = group
+
+    def __call__(self, test_method):
+        @wraps(test_method)
+        def wrapper(case, *args, **kwargs):
+            if os.getuid() != 0:
+                return test_method(case, *args, **kwargs)
+            running_uid = pwd.getpwnam(self.uid_name).pw_uid
+            running_gid = grp.getgrnam(self.gid_name).gr_gid
+            def new_mktemp():
+                os.setegid(0)
+                os.seteuid(0)
+                result = super(case.__class__, case).mktemp()
+                path = FilePath(result)
+                for p in path.parents():
+                    if '_trial_temp' in p.path:
+                        p.chmod(0o777)
+                os.setegid(running_gid)
+                os.seteuid(running_uid)
+                return result
+            if os.getuid() == 0:
+                case.mktemp = new_mktemp
+                os.setegid(running_uid)
+                os.seteuid(running_gid)
+                case.addCleanup(os.seteuid, 0)
+                case.addCleanup(os.setegid, 0)
+            return test_method(case, *args, **kwargs)
+        return wrapper
