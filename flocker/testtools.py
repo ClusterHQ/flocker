@@ -812,7 +812,11 @@ def skip_on_broken_permissions(test_method):
 
 def run_as_nonprivileged_user(test_method):
     """
-    s
+    Temporarily gives the user, if ``root`` the priveledges of the ``nobody``
+    user.
+
+    :param callable test_method: Test method to wrap.
+    :return: The wrapped method.
     """
     @wraps(test_method)
     def wrapper(case, *args, **kwargs):
