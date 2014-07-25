@@ -64,18 +64,18 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-@skip_on_broken_permissions
-@run_as_nonprivileged_user
-def test_no_permission(self):
-    """If the config file is not writeable a meaningful response is
-    written.
-    """
-    path = FilePath(self.mktemp())
-    path.makedirs()
-    path.chmod(0)
-    self.addCleanup(path.chmod, 0o777)
-    config = path.child(b"out.json")
-    result = run_expecting_error(b"--config", config.path)
-    self.assertEqual(result,
-                     b"Writing config file %s failed: Permission denied\n"
-                     % (config.path,))
+    @skip_on_broken_permissions
+    @run_as_nonprivileged_user
+    def test_no_permission(self):
+        """If the config file is not writeable a meaningful response is
+        written.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.chmod(0)
+        self.addCleanup(path.chmod, 0o777)
+        config = path.child(b"out.json")
+        result = run_expecting_error(b"--config", config.path)
+        self.assertEqual(result,
+                         b"Writing config file %s failed: Permission denied\n"
+                         % (config.path,))
