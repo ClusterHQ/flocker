@@ -10,7 +10,10 @@ from yaml import safe_load
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
-from .._config import ConfigurationError, Configuration, configuration_to_yaml
+from .._config import (
+    ConfigurationError, Configuration, configuration_to_yaml,
+    current_from_configuration,
+    )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port
 )
@@ -103,7 +106,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Unrecognised keys: foo, baz.",
+            "Unrecognised keys: baz, foo.",
             exception.message
         )
 
@@ -353,6 +356,33 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Invalid volume specification. Unexpected value: a random string",
             exception.message
         )
+
+    def test_lenient_mode(self):
+        """
+        ``Configuration._applications_from_configuration`` in lenient mode
+        accepts a volume with a null mountpoint.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': dict(
+                    image='flocker/mysql:v1.0.0',
+                    volume={'mountpoint': None}
+                ),
+            }
+        )
+        parser = Configuration(lenient=True)
+        applications = parser._applications_from_configuration(config)
+        expected_applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    name='mysql-hybridcluster',
+                    mountpoint=None)),
+        }
+        self.assertEqual(expected_applications, applications)
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
@@ -684,7 +714,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': '/unknown'},
+                    'volume': {'mountpoint': None},
                     'image': 'unknown',
                     'ports': []
                 }
@@ -706,7 +736,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
-                    mountpoint=FilePath(b'/var/mysql/data'))
+                    # Mountpoint will only be available once
+                    # https://github.com/ClusterHQ/flocker/issues/289 is
+                    # fixed.
+                    mountpoint=None)
             ),
             Application(
                 name='site-hybridcluster',
@@ -723,7 +756,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
-                    mountpoint=FilePath(b'/unknown')
+                    mountpoint=None,
                 )
             ),
             b'site-hybridcluster': Application(
@@ -734,6 +767,109 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             )
         }
         result = configuration_to_yaml(applications)
-        config = Configuration()
+        config = Configuration(lenient=True)
         apps = config._applications_from_configuration(safe_load(result))
         self.assertEqual(apps, expected_applications)
+
+
+class CurrentFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``current_from_configuration``.
+    """
+    def test_deployment(self):
+        """
+        ``current_from_configuration`` creates a ``Deployment`` object with
+        the appropriate configuration for each included node.
+        """
+        config = {'example.com': {
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                },
+                'mysql-hybridcluster': {
+                    'image': 'unknown',
+                }
+            },
+            'version': 1
+        }}
+        expected = Deployment(nodes=frozenset([
+            Node(hostname='example.com', applications=frozenset([
+                Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                ),
+                Application(
+                    name='site-hybridcluster',
+                    image=DockerImage.from_string('unknown'),
+                )]))]))
+        self.assertEqual(expected,
+                         current_from_configuration(config))
+
+    def test_multiple_hosts(self):
+        """
+        ``current_from_configuration`` can handle information from multiple
+        hosts.
+        """
+        config = {
+            'example.com': {
+                'applications': {
+                    'site-hybridcluster': {
+                        'image': 'unknown',
+                    },
+                },
+                'version': 1,
+            },
+            'example.net': {
+                'applications': {
+                    'mysql-hybridcluster': {
+                        'image': 'unknown',
+                    }
+                },
+                'version': 1,
+            },
+        }
+        expected = Deployment(nodes=frozenset([
+            Node(hostname='example.com', applications=frozenset([
+                Application(
+                    name='site-hybridcluster',
+                    image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                )])),
+            Node(hostname='example.net', applications=frozenset([
+                Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage.from_string('unknown'),
+                )]))]))
+        self.assertEqual(expected,
+                         current_from_configuration(config))
+
+    def test_lenient(self):
+        """
+        Until https://github.com/ClusterHQ/flocker/issues/289 is fixed,
+        ``current_from_configuration`` accepts ``None`` for volume
+        mountpoints.
+        """
+        config = {'example.com': {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'unknown',
+                    'volume': {'mountpoint': None},
+                }
+            },
+            'version': 1
+        }}
+        expected = Deployment(nodes=frozenset([
+            Node(hostname='example.com', applications=frozenset([
+                Application(
+                    name='mysql-hybridcluster',
+                    image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    volume=AttachedVolume(
+                        name='mysql-hybridcluster',
+                        mountpoint=None,
+                    )
+                ),
+            ]))]))
+        self.assertEqual(expected,
+                         current_from_configuration(config))

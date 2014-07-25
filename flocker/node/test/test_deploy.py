@@ -6,7 +6,7 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from twisted.internet.defer import fail, FirstError
+from twisted.internet.defer import fail, FirstError, succeed
 from twisted.trial.unittest import SynchronousTestCase
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
@@ -297,6 +297,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
 
+# A deployment with no information:
+EMPTY = Deployment(nodes=frozenset())
+
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
@@ -314,6 +317,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
@@ -349,7 +353,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(
-            desired_state=desired, hostname=u'node2.example.com')
+            desired_state=desired, current_cluster_state=EMPTY,
+            hostname=u'node2.example.com')
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = StateChanges(applications_to_start=frozenset(),
@@ -369,7 +374,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=network)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(
-            desired_state=desired, hostname=u'node2.example.com')
+            desired_state=desired, current_cluster_state=EMPTY,
+            hostname=u'node2.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 proxies=frozenset())
@@ -387,6 +393,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
@@ -417,6 +424,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set([application]),
                                 applications_to_stop=set())
@@ -446,6 +454,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set())
@@ -479,6 +488,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set())
@@ -497,6 +507,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
@@ -526,6 +537,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_restart = set([application])
         expected = StateChanges(applications_to_start=set(),
@@ -546,6 +558,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
@@ -733,6 +746,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
@@ -762,6 +776,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
@@ -808,6 +823,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
             lambda application: fail(expected_exception))
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
 
         failure = self.failureResultOf(d, FirstError)
@@ -862,7 +878,29 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         self.patch(api, 'start_application', fake_start)
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=local_hostname)
 
         self.failureResultOf(d, FirstError)
         self.assertIn(application2.name, fake_gear._units)
+
+    def test_arguments(self):
+        """
+        The passed in arguments passed on in turn to
+        ``calculate_necessary_state_changes``.
+        """
+        desired = object()
+        state = object()
+        host = object()
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
+                       network=make_memory_network())
+        arguments = []
+
+        def calculate(desired_state, current_cluster_state, hostname):
+            arguments.extend([desired_state, current_cluster_state, hostname])
+            return succeed(StateChanges(applications_to_start=[],
+                                        applications_to_stop=[]))
+        api.calculate_necessary_state_changes = calculate
+        api.change_node_state(desired, state, host)
+        self.assertEqual(arguments, [desired, state, host])
