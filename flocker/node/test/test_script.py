@@ -4,13 +4,20 @@
 Tests for :module:`flocker.node.script`.
 """
 
+from StringIO import StringIO
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
-from yaml import safe_dump
+
+from yaml import safe_dump, safe_load
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import ChangeStateOptions, ChangeStateScript
+from ..script import (
+    ChangeStateOptions, ChangeStateScript,
+    ReportStateScript, ReportStateOptions)
+from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node
+from ...testtools import create_volume_service
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -210,3 +217,82 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),
             str(e)
         )
+
+
+class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+    """
+    Tests for :class:`ReportStateOptions`.
+    """
+    options = ReportStateOptions
+
+    def test_no_options(self):
+        """
+        ``ReportStateOptions`` can instantiate and successfully parse
+        without any (non-standard) options.
+        """
+        options = self.options()
+        options.parseOptions([])
+
+    def test_wrong_number_options(self):
+        """
+        If any additional arguments are supplied, a ``UsageError`` is raised.
+        """
+        options = self.options()
+        e = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ['someparameter']
+        )
+        self.assertEqual(str(e), b"Wrong number of arguments.")
+
+
+class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript``.
+    """
+    script = staticmethod(lambda: ReportStateScript(lambda: None))
+    options = ReportStateOptions
+    command_name = u'flocker-reportstate'
+
+
+class ReportStateScriptMainTests(SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript.main``.
+    """
+    def test_deployer_type(self):
+        """
+        ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
+        """
+        script = ReportStateScript(lambda: None)
+        self.assertIsInstance(script._deployer, Deployer)
+
+    def test_yaml_callback(self):
+        """
+        ``ReportStateScript.main`` returns a deferred which writes out the
+        YAML representation of all the applications (running or not) from
+        ``Deployer.discover_node_configuration``
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+
+        expected = {
+            'applications': {
+                'site-example.net': {'image': 'unknown', 'ports': []},
+                'site-example.com': {'image': 'unknown', 'ports': []}
+            },
+            'version': 1
+        }
+
+        script = ReportStateScript(lambda: create_volume_service(self),
+                                   fake_gear)
+        content = StringIO()
+
+        def content_capture(data):
+            content.write(data)
+            content.seek(0)
+        self.patch(script, '_print_yaml', content_capture)
+        script.main(reactor=object(), options=[])
+        self.assertEqual(safe_load(content.read()), expected)

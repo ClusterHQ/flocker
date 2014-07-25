@@ -175,8 +175,8 @@ class Deployer(object):
                 if app.name in stop_names
             }
             restart_containers = {
-                app for app in current_node_state.not_running
-                if app.name in desired_state
+                app for app in desired_node_applications
+                if app.name in not_running
             }
 
             return StateChanges(

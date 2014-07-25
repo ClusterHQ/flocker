@@ -17,6 +17,9 @@ Let's look at an extremely simple Flocker configuration for one node running a c
 .. literalinclude:: minimal-deployment.yml
    :language: yaml
 
+Notice that we mention the node that has no applications deployed on it to ensure that ``flocker-deploy`` knows that it exists.
+If we hadn't done that certain actions that might need to be taken on that node will not happen, e.g. stopping currently running applications.
+
 Next take a look at what containers Docker is running on the VM you just created.
 The node IPs are those which were specified earlier in the ``Vagrantfile``:
 

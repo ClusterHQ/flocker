@@ -8,8 +8,6 @@ from uuid import uuid4
 
 from twisted.internet.defer import fail, FirstError
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.python.filepath import FilePath
-from twisted.internet.task import Clock
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port, NodeState)
@@ -17,25 +15,8 @@ from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...volume.service import VolumeService, Volume
-from ...volume.filesystems.memory import FilesystemStoragePool
-
-
-def create_volume_service(test):
-    """
-    Create a new ``VolumeService``.
-
-    :param TestCase test: A unit test which will shut down the service
-        when done.
-
-    :return: The ``VolumeService`` created.
-    """
-    service = VolumeService(FilePath(test.mktemp()),
-                            FilesystemStoragePool(FilePath(test.mktemp())),
-                            reactor=Clock())
-    service.startService()
-    test.addCleanup(service.stopService)
-    return service
+from ...testtools import create_volume_service
+from ...volume.service import Volume
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -215,11 +196,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_multiple(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
-        a running ``Application`` for every `active` `gear` ``Unit`` on
-        the host.
+        a running ``Application`` for every active or activating gear
+        ``Unit`` on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_gear = FakeGearClient(units=units)
@@ -279,7 +260,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_activating_units(self):
         """
         Units that are currently not active but are starting up are considered
-        to be running by ``discover_node_configuration().
+        to be running by ``discover_node_configuration()``.
         """
         unit = Unit(name=u'site-example.com', activation_state=u'activating')
         units = {unit.name: unit}
@@ -295,13 +276,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_not_running_units(self):
         """
         Units that are neither active nor activating are considered to be not
-        running by ``discover_node_configuration().
+        running by ``discover_node_configuration()``.
         """
         unit1 = Unit(name=u'site-example.com',
                      activation_state=u'deactivating')
         unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
-        unit3 = Unit(name=u'site-example.net', activation_state=u'inactive')
-        unit4 = Unit(name=u'site-example.net', activation_state=u'madeup')
+        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
                  unit4.name: unit4}
 
@@ -546,7 +527,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   hostname=u'node.example.com')
-        to_restart = set([Application(name=unit.name)])
+        to_restart = set([application])
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 applications_to_restart=to_restart)
@@ -704,7 +685,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
     def test_restarts(self):
         """
         Applications listed in ``StateChanges.applications_to_restart`` are
-        stopped and then started.
+        reactivated.
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
         fake_gear = FakeGearClient(units={unit.name: unit})

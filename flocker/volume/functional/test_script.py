@@ -13,7 +13,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ... import __version__
-from ...testtools import skip_on_broken_permissions
+from ...testtools import skip_on_broken_permissions, run_as_user
 
 _require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
@@ -49,22 +49,6 @@ def run_expecting_error(*args):
 class FlockerVolumeTests(TestCase):
     """Tests for ``flocker-volume``."""
 
-    def change_uid(test_method):
-        """
-        Changes UID so root can pretend that it is not root.
-
-        :param callable test_method: Test method to wrap.
-        :return: The wrapped method.
-        """
-        @wraps(test_method)
-        def wrapper(case, *args, **kwargs):
-            from twisted.python.util import switchUID
-            if os.getuid() == 0:
-                pass
-                # Do some magic here
-            return test_method(case, *args, **kwargs)
-        return wrapper
-
     @_require_installed
     def setUp(self):
         pass
@@ -80,24 +64,17 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    @change_uid
     @skip_on_broken_permissions
+    @run_as_user("vagrant", "vagrant")
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.
         """
-        if os.getuid() == 0:
-            os.seteuid(1)
-            self.addCleanup(os.seteuid, 0)
-
         path = FilePath(self.mktemp())
         path.makedirs()
         path.chmod(0)
         self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
-        if os.getuid() == 0:
-            os.seteuid(1)
-            self.addCleanup(os.seteuid, 0)
         result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
