@@ -5,8 +5,6 @@
 from __future__ import absolute_import
 
 import json
-import os
-from unittest import skipIf
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
