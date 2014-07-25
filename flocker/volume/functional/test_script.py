@@ -66,9 +66,14 @@ class FlockerVolumeTests(TestCase):
         """
         @wraps(test_method)
         def wrapper(case, *args, **kwargs):
+            from twisted.python.util import switchUID
             if os.getuid() == 0:
-                raise SkipTest(
-                    "Can't run test on filesystem with broken permissions.")
+                pass
+                # os.setuid(65534)
+                # os.setuid(65534)
+                # a
+            # test_method.addCleanup(os.seteuid(0))
+            # test_method.addCleanup(os.setuid(0))
             return test_method(case, *args, **kwargs)
         return wrapper
 
@@ -88,17 +93,26 @@ class FlockerVolumeTests(TestCase):
         self.assertTrue(json.loads(path.getContent()))
 
     # @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
-    @change_uid
-    @skip_on_broken_permissions
+    # @change_uid
+    # @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
         written.
         """
+        # import pdb; pdb.set_trace()
+        if os.getuid() == 0:
+            os.seteuid(1)
+            self.addCleanup(os.seteuid, 0)
+            # os.setuid(1)
+            # self.addCleanup(os.setuid, 0)
         path = FilePath(self.mktemp())
         path.makedirs()
         path.chmod(0)
         self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
+        if os.getuid() == 0:
+            os.seteuid(1)
+            self.addCleanup(os.seteuid, 0)
         result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
