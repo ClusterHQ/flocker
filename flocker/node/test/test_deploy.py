@@ -17,7 +17,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 Port, NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    )
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
 from .._model import VolumeHandoff, AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
@@ -112,6 +112,16 @@ StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication, dict(application=1), dict(application=2))
 StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication, dict(application=1), dict(application=2))
+SetProxiesIStateChangeTests = make_istatechange_tests(
+    SetProxies, dict(ports=[1]), dict(ports=[2]))
+WaitForVolumeIStateChangeTests = make_istatechange_tests(
+    WaitForVolume, dict(volume=1), dict(volume=2))
+CreateVolumeIStateChangeTests = make_istatechange_tests(
+    CreateVolume, dict(volume=1), dict(volume=2))
+HandoffVolumeIStateChangeTests = make_istatechange_tests(
+    HandoffVolume, dict(volume=1, hostname=b"123"),
+    dict(volume=2, hostname=b"123"))
+
 
 NOT_CALLED = object()
 
@@ -1297,6 +1307,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
             NodeState(running=[expected_application], not_running=[]),
             self.successResultOf(d))
 
+    # XXX change this to "the result of calling change_node_state is the
+    # result of run() on result of calculate_necessary_state_changes.
     def test_first_failure_pass_through(self):
         """
         The first failure in the operations performed by
@@ -1340,61 +1352,6 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         failure = self.failureResultOf(d, FirstError)
         self.assertEqual(expected_exception, failure.value.subFailure.value)
-
-    def test_continue_on_failure(self):
-        """
-        Failures in the operations performed by ``Deployer.change_node_state``
-        do not prevent further changes being made.
-
-        Two applications are configured to be started, but attempts to start
-        application1 will result in failure. We then assert that the
-        ``FakeGearClient`` has still been asked to start application2
-        """
-        local_hostname = u'node.example.com'
-        fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
-                       network=make_memory_network())
-
-        application1 = Application(
-            name=b'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/mysql',
-                              tag=u'latest')
-        )
-
-        application2 = Application(
-            name=b'site-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/wordpress',
-                              tag=u'latest')
-        )
-
-        nodes = frozenset([
-            Node(
-                hostname=local_hostname,
-                applications=frozenset([application1, application2])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-
-        real_start_application = api.start_application
-
-        def fake_start(application):
-            """
-            Return a failure for attempts to start application1
-            """
-            if application.name == application1.name:
-                return fail(Exception('First start failure.'))
-            else:
-                return real_start_application(application)
-
-        self.patch(api, 'start_application', fake_start)
-
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=local_hostname)
-
-        self.failureResultOf(d, FirstError)
-        self.assertIn(application2.name, fake_gear._units)
 
     def test_arguments(self):
         """

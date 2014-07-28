@@ -134,8 +134,55 @@ class StopApplication(object):
         return result
 
 
-# SetProxies change
-# CreateVolume, HandoffVolume, WaitForVolume changes
+@implementer(IStateChange)
+@attributes(["volume"])
+class CreateVolume(object):
+    """
+    Create a new locally-owned volume.
+
+    :ivar AttachedVolume volume: Volume to create.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["volume"])
+class WaitForVolume(object):
+    """
+    Wait for a volume to exist and be owned locally.
+
+    :ivar AttachedVolume volume: Volume to wait for.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["volume", "hostname"])
+class HandoffVolume(object):
+    """
+    A volume handoff that needs to be performed from this node to another
+    node.
+
+    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["ports"])
+class SetProxies(object):
+    """
+    Set the ports which will be forwarded to other nodes.
+
+    :ivar ports: A collection of ``Port`` objects.
+    """
+    def run(self, deployer):
+        pass
 
 
 class Deployer(object):
@@ -173,11 +220,11 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
-        volumes = self._volume_service.enumerate()
+        volumes = self.volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
             volume.name for volume in volumes
-            if volume.uuid == self._volume_service.uuid))
-        d = gatherResults([self._gear_client.list(), volumes])
+            if volume.uuid == self.volume_service.uuid))
+        d = gatherResults([self.gear_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result
