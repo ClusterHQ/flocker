@@ -129,3 +129,35 @@ class Port(object):
     :ivar int internal_port: The port number exposed by the application.
     :ivar int external_port: The port number exposed to the outside world.
     """
+
+
+@attributes(["volume", "hostname"])
+class VolumeHandoff(object):
+    """
+    A record representing a volume handoff that needs to be performed from this
+    node.
+
+    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
+    """
+
+
+@attributes(["going", "coming", "creating"])
+class VolumeChanges(object):
+    """
+    ``VolumeChanges`` describes the volume-related changes necessary to change
+    the current state to the desired state.
+
+    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
+        nodes take over hosting of any volume-having applications being moved
+        away from a node.  These must be handed off.
+
+    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
+        node take over hosting of any volume-having applications being moved to
+        this node.  These must be acquired.
+
+    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
+        node create any new volume-having applications meant to be hosted on
+        this node.  These must be created.
+    """
