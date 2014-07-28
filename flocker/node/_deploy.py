@@ -83,16 +83,57 @@ class InParallel(object):
 
 
 @implementer(IStateChange)
-@attributes(["app"])
+@attributes(["application"])
 class StartApplication(object):
     """
-    Start an application.
+    Launch the supplied application as a gear unit.
+
+    :ivar Application application: The ``Application`` to create and
+        start.
     """
     def run(self, deployer):
-        # Logic currently in Deployer.start_application is moved here
-        pass
+        application = self.application
+        if application.volume is not None:
+            volume = deployer.volume_service.get(application.volume.name)
+            d = volume.expose_to_docker(application.volume.mountpoint)
+        else:
+            d = succeed(None)
 
-# StopApplication change
+        if application.ports is not None:
+            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
+                                              external_port=p.external_port),
+                            application.ports)
+        else:
+            port_maps = []
+        d.addCallback(lambda _: deployer.gear_client.add(
+            application.name,
+            application.image.full_name,
+            ports=port_maps,
+        ))
+        return d
+
+
+@implementer(IStateChange)
+@attributes(["application"])
+class StopApplication(object):
+    """
+    Stop and disable the given application.
+
+    :ivar Application application: The ``Application`` to stop.
+    """
+    def run(self, deployer):
+        application = self.application
+        unit_name = application.name
+        result = deployer.gear_client.remove(unit_name)
+
+        def unit_removed(_):
+            if application.volume is not None:
+                volume = deployer.volume_service.get(application.volume.name)
+                return volume.remove_from_docker()
+        result.addCallback(unit_removed)
+        return result
+
+
 # SetProxies change
 # CreateVolume, HandoffVolume, WaitForVolume changes
 
@@ -110,39 +151,11 @@ class Deployer(object):
     def __init__(self, volume_service, gear_client=None, network=None):
         if gear_client is None:
             gear_client = GearClient(hostname=u'127.0.0.1')
-        self._gear_client = gear_client
+        self.gear_client = gear_client
         if network is None:
             network = make_host_network()
-        self._network = network
-        self._volume_service = volume_service
-
-    def start_application(self, application):
-        """
-        Launch the supplied application as a `gear` unit.
-
-        :param Application application: The ``Application`` to create and
-            start.
-        :returns: A ``Deferred`` which fires with ``None`` when the application
-           has started.
-        """
-        if application.volume is not None:
-            volume = self._volume_service.get(application.volume.name)
-            d = volume.expose_to_docker(application.volume.mountpoint)
-        else:
-            d = succeed(None)
-
-        if application.ports is not None:
-            port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
-                                              external_port=p.external_port),
-                            application.ports)
-        else:
-            port_maps = []
-        d.addCallback(lambda _: self._gear_client.add(
-            application.name,
-            application.image.full_name,
-            ports=port_maps,
-        ))
-        return d
+        self.network = network
+        self.volume_service = volume_service
 
     def stop_application(self, application):
         """
@@ -152,15 +165,6 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
             has stopped.
         """
-        unit_name = application.name
-        result = self._gear_client.remove(unit_name)
-
-        def unit_removed(_):
-            if application.volume is not None:
-                volume = self._volume_service.get(application.volume.name)
-                return volume.remove_from_docker()
-        result.addCallback(unit_removed)
-        return result
 
     def discover_node_configuration(self):
         """

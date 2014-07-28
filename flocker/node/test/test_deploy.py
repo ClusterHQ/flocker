@@ -16,7 +16,7 @@ from twisted.python.filepath import FilePath
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 Port, NodeState)
 from .._deploy import (
-    IStateChange, Sequentially, InParallel, StartApplication,
+    IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     )
 from .._model import VolumeHandoff, AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
@@ -68,15 +68,15 @@ class DeployerAttributesTests(SynchronousTestCase):
         )
 
 
-class DeployerStartApplicationTests(SynchronousTestCase):
+class StartApplicationTests(SynchronousTestCase):
     """
-    Tests for `Deployer.start_application`.
+    Tests for ``StartApplication``.
     """
     def test_start(self):
         """
-        `Deployer.start_application` accepts an application object and returns
-        a `Deferred` which fires when the `gear` unit has been added and
-        started.
+        ``StartApplication`` accepts an application object and when ``run()``
+        is called returns a ``Deferred`` which fires when the gear unit
+        has been added and started.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -88,7 +88,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
             image=docker_image,
             ports=ports,
         )
-        start_result = api.start_application(application=application)
+        start_result = StartApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
@@ -102,7 +102,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployer.start_application`` returns a `Deferred` which errbacks with
+        ``StartApplication.run`` returns a `Deferred` which errbacks with
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
@@ -114,15 +114,15 @@ class DeployerStartApplicationTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        result1 = api.start_application(application=application)
+        result1 = StartApplication(application=application).run(api)
         self.successResultOf(result1)
 
-        result2 = api.start_application(application=application)
+        result2 = StartApplication(application=application).run(api)
         self.failureResultOf(result2, AlreadyExists)
 
     def test_volume_exposed_on_start(self):
         """
-        ``Deployer.start_application`` exposes an application's volume before
+        ``StartApplication.run()`` exposes an application's volume before
         it is started.
         """
         volume_service = create_volume_service(self)
@@ -148,19 +148,20 @@ class DeployerStartApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "expose_to_docker", expose_to_docker)
 
-        deployer.start_application(application)
+        StartApplication(application=application).run(deployer)
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
 
 
-class DeployerStopApplicationTests(SynchronousTestCase):
+class StopApplicationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.stop_application``.
+    Tests for ``StopApplication``.
     """
     def test_stop(self):
         """
-        ``Deployer.stop_application`` accepts an application object and returns
-        a `Deferred` which fires when the `gear` unit has been removed.
+        ``StopApplication`` accepts an application object and when ``run()``
+        is called returns a ``Deferred`` which fires when the gear unit
+        has been removed.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -170,9 +171,9 @@ class DeployerStopApplicationTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        api.start_application(application=application)
+        StartApplication(application=application).run(api)
         existed = fake_gear.exists(application.name)
-        stop_result = api.stop_application(application=application)
+        stop_result = StopApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -184,7 +185,7 @@ class DeployerStopApplicationTests(SynchronousTestCase):
 
     def test_does_not_exist(self):
         """
-        ``Deployer.stop_application`` does not errback if the application does
+        ``StopApplication.run()`` does not errback if the application does
         not exist.
         """
         api = Deployer(create_volume_service(self),
@@ -194,14 +195,14 @@ class DeployerStopApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
-        result = api.stop_application(application=application)
+        result = StopApplication(application=application).run(api)
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
 
     def test_volume_unexposed(self):
         """
-        ``Deployer.stop_application`` removes an application's volume from
+        ``StopApplication.run()`` removes an application's volume from
         Docker after it is stopped.
         """
         volume_service = create_volume_service(self)
@@ -228,8 +229,10 @@ class DeployerStopApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "remove_from_docker", remove_from_docker)
 
-        self.successResultOf(deployer.start_application(application))
-        self.successResultOf(deployer.stop_application(application))
+        self.successResultOf(StartApplication(application=application).run(
+            deployer))
+        self.successResultOf(StopApplication(application=application).run(
+            deployer))
         self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
                                     False)])
 
@@ -1270,8 +1273,9 @@ SequentiallyIStateChangeTests = make_istatechange_tests(
 InParallelIStateChangeTests = make_istatechange_tests(
     InParallel, dict(changes=[1]), dict(changes=[2]))
 StartApplicationIStateChangeTests = make_istatechange_tests(
-    StartApplication, dict(app=1), dict(app=2))
-
+    StartApplication, dict(application=1), dict(application=2))
+StopApplicationIStageChangeTests = make_istatechange_tests(
+    StopApplication, dict(application=1), dict(application=2))
 
 NOT_CALLED = object()
 
