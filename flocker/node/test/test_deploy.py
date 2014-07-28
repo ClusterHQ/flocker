@@ -1251,9 +1251,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
 
-    XXX: Many of these tests are exercising code which has now been refactored
-    into `Deployer._apply_changes`. As such, they can be moved to the
-    `DeployerApplyChangesTests` testcase and simplified. See
+    XXX: Some of these tests are exercising code which has now been
+    refactored into ``IStateChange`` objects. As such they can be
+    refactored to not be based on side-effects. See
     https://github.com/ClusterHQ/flocker/issues/321
     """
     def test_applications_stopped(self):
@@ -1307,55 +1307,42 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
             NodeState(running=[expected_application], not_running=[]),
             self.successResultOf(d))
 
-    # XXX change this to "the result of calling change_node_state is the
-    # result of run() on result of calculate_necessary_state_changes.
-    def test_first_failure_pass_through(self):
+    def test_result(self):
         """
-        The first failure in the operations performed by
-        ``Deployer.change_node_state`` is passed through.
+        The result of calling ``change_node_state()`` is the result of calling
+        ``run()`` on the result of ``calculate_necessary_state_changes``.
         """
-        unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        deferred = Deferred()
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
                        network=make_memory_network())
+        self.patch(api, "calculate_necessary_state_changes",
+                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+        result = api.change_node_state(desired_state=EMPTY,
+                                       current_cluster_state=EMPTY,
+                                       hostname=u'node.example.com')
+        deferred.callback(123)
+        self.assertEqual(self.successResultOf(result), 123)
 
-        application = Application(
-            name=b'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
-        )
-
-        nodes = frozenset([
-            Node(
-                hostname=u'node.example.com',
-                applications=frozenset([application])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-
-        class SentinelException(Exception):
-            """
-            An exception raised for test purposes from
-            ``Deployer.stop_application``.
-            """
-
-        expected_exception = SentinelException()
-
-        self.patch(
-            api, 'stop_application',
-            lambda application: fail(expected_exception))
-
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=u'node.example.com')
-
-        failure = self.failureResultOf(d, FirstError)
-        self.assertEqual(expected_exception, failure.value.subFailure.value)
+    def test_deployer(self):
+        """
+        The result of ``calculate_necessary_state_changes`` is called with the
+        deployer.
+        """
+        change = FakeChange(succeed(None))
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
+                       network=make_memory_network())
+        self.patch(api, "calculate_necessary_state_changes",
+                   lambda *args, **kwargs: succeed(change))
+        api.change_node_state(desired_state=EMPTY,
+                              current_cluster_state=EMPTY,
+                              hostname=u'node.example.com')
+        self.assertIs(change.deployer, api)
 
     def test_arguments(self):
         """
-        The passed in arguments passed on in turn to
+        The passed in arguments are passed on in turn to
         ``calculate_necessary_state_changes``.
         """
         desired = object()
@@ -1368,8 +1355,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         def calculate(desired_state, current_cluster_state, hostname):
             arguments.extend([desired_state, current_cluster_state, hostname])
-            return succeed(StateChanges(applications_to_start=[],
-                                        applications_to_stop=[]))
+            return succeed(FakeChange(succeed(None)))
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])

@@ -351,12 +351,14 @@ class Deployer(object):
             of all nodes.
         :param unicode hostname: The hostname of the node that this is running
             on.
+
+        :return: ``Deferred`` that fires when the necessary changes are done.
         """
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
             current_cluster_state=current_cluster_state,
             hostname=hostname)
-        d.addCallback(self._apply_changes)
+        d.addCallback(lambda change: change.run(self))
         return d
 
     def _apply_changes(self, necessary_state_changes):
