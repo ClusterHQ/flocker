@@ -13,7 +13,7 @@ from .gear import GearClient, PortMap
 from ._model import Application, StateChanges, AttachedVolume
 from ..route import make_host_network, Proxy
 
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, succeed
 
 
 @attributes(["running", "not_running"])
@@ -57,16 +57,24 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with ``None`` when the application
            has started.
         """
+        if application.volume is not None:
+            volume = self._volume_service.get(application.volume.name)
+            d = volume.expose_to_docker(application.volume.mountpoint)
+        else:
+            d = succeed(None)
+
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
                                               external_port=p.external_port),
                             application.ports)
         else:
             port_maps = []
-        return self._gear_client.add(application.name,
-                                     application.image.full_name,
-                                     ports=port_maps,
-                                     )
+        d.addCallback(lambda _: self._gear_client.add(
+            application.name,
+            application.image.full_name,
+            ports=port_maps,
+        ))
+        return d
 
     def stop_application(self, application):
         """
@@ -77,7 +85,14 @@ class Deployer(object):
             has stopped.
         """
         unit_name = application.name
-        return self._gear_client.remove(unit_name)
+        result = self._gear_client.remove(unit_name)
+
+        def unit_removed(_):
+            if application.volume is not None:
+                volume = self._volume_service.get(application.volume.name)
+                return volume.remove_from_docker()
+        result.addCallback(unit_removed)
+        return result
 
     def discover_node_configuration(self):
         """

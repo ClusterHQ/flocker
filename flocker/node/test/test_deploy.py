@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from twisted.internet.defer import fail, FirstError, succeed
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port, NodeState)
@@ -15,8 +16,8 @@ from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...testtools import create_volume_service
 from ...volume.service import Volume
+from ...volume.testtools import create_volume_service
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -77,7 +78,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
         application = Application(
-            name=b'site-example.com',
+            name=u'site-example.com',
             image=docker_image,
             ports=ports,
         )
@@ -112,6 +113,38 @@ class DeployerStartApplicationTests(SynchronousTestCase):
 
         result2 = api.start_application(application=application)
         self.failureResultOf(result2, AlreadyExists)
+
+    def test_volume_exposed_on_start(self):
+        """
+        ``Deployer.start_application`` exposes an application's volume before
+        it is started.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+        docker_image = DockerImage.from_string(u"busybox")
+        application = Application(
+            name=u'site-example.com',
+            image=docker_image,
+            volume=AttachedVolume(name=u'site-example.com',
+                                  mountpoint=FilePath(b"/var"))
+        )
+
+        # This would be better to test with a verified fake:
+        # https://github.com/ClusterHQ/flocker/issues/234
+        exposed = []
+
+        def expose_to_docker(volume, mount_path):
+            # We check for existence of unit so we can ensure exposure
+            # happens *before* the unit is started:
+            exposed.append((volume, mount_path, self.successResultOf(
+                fake_gear.exists(u"site-example.com"))))
+            return succeed(None)
+        self.patch(Volume, "expose_to_docker", expose_to_docker)
+
+        deployer.start_application(application)
+        self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
+                                    FilePath(b"/var"), False)])
 
 
 class DeployerStopApplicationTests(SynchronousTestCase):
@@ -159,6 +192,40 @@ class DeployerStopApplicationTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
+
+    def test_volume_unexposed(self):
+        """
+        ``Deployer.stop_application`` removes an application's volume from
+        Docker after it is stopped.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+        docker_image = DockerImage.from_string(u"busybox")
+        application = Application(
+            name=u'site-example.com',
+            image=docker_image,
+            volume=AttachedVolume(name=u'site-example.com',
+                                  mountpoint=FilePath(b"/var"))
+        )
+
+        # This would be better to test with a verified fake:
+        # https://github.com/ClusterHQ/flocker/issues/234
+        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
+        removed = []
+
+        def remove_from_docker(volume):
+            # We check for existence of unit so we can ensure exposure
+            # happens *after* the unit is stopped:
+            removed.append((volume, self.successResultOf(
+                fake_gear.exists(u"site-example.com"))))
+            return succeed(None)
+        self.patch(Volume, "remove_from_docker", remove_from_docker)
+
+        self.successResultOf(deployer.start_application(application))
+        self.successResultOf(deployer.stop_application(application))
+        self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
+                                    False)])
 
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):

@@ -17,7 +17,7 @@ from ..script import (
 from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
-from ...testtools import create_volume_service
+from ...volume.testtools import create_volume_service
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
