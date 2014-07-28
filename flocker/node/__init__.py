@@ -8,7 +8,7 @@ from ._config import (
     ConfigurationError, model_from_configuration, current_from_configuration,
     )
 from ._model import (
-    Application, Deployment, DockerImage, Node, StateChanges, Port)
+    Application, Deployment, DockerImage, Node, Port)
 from ._deploy import Deployer, NodeState
 
 __all__ = [
@@ -20,7 +20,6 @@ __all__ = [
     'Deployer',
     'DockerImage',
     'Node',
-    'StateChanges',
     'Port',
     'NodeState',
 ]

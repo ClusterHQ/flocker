@@ -12,7 +12,7 @@ from characteristic import attributes
 from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges, AttachedVolume
+from ._model import Application, AttachedVolume
 from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList, succeed
@@ -59,6 +59,8 @@ class IStateChange(Interface):
 class Sequentially(object):
     """
     Run a series of changes in sequence, one after the other.
+
+    Failures in earlier changes stop later changes.
     """
     def run(self, deployer):
         d = succeed(None)
@@ -72,14 +74,16 @@ class Sequentially(object):
 class InParallel(object):
     """
     Run a series of changes in parallel.
+
+    Failures in one change do not prevent other changes from continuing.
     """
     def run(self, deployer):
-        return DeferredList(change.run(deployer) for change in self.changes,
+        return DeferredList((change.run(deployer) for change in self.changes),
                             fireOnOneErrback=True, consumeErrors=True)
 
 
 @implementer(IStateChange)
-@attributes(["application"])
+@attributes(["app"])
 class StartApplication(object):
     """
     Start an application.

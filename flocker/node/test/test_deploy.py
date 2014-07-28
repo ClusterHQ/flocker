@@ -6,12 +6,17 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
+from zope.interface.verify import verifyObject
+
 from twisted.internet.defer import fail, FirstError, succeed
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges, Port, NodeState)
+                Port, NodeState)
+from .._deploy import (
+    IStateChange, Sequentially, InParallel, StartApplication,
+    )
 from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
@@ -971,3 +976,47 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])
+
+
+def make_istatechange_tests(klass, kwargs1, kwargs2):
+    """
+    Create tests to verify a class provides ``IStateChange``.
+
+    :param klass: Class that implements ``IStateChange``.
+    :param kwargs1: Keyword arguments to ``klass``.
+    :param kwargs2: Keyword arguments to ``klass`` that create different
+        change than ``kwargs1``.
+
+    :return: ``SynchronousTestCase`` subclass named
+        ``<klassname>IStateChangeTests``.
+    """
+    class Tests(SynchronousTestCase):
+        def test_interface(self):
+            """
+            The class implements ``IStateChange``.
+            """
+            self.assertTrue(verifyObject(klass(**kwargs1)))
+
+        def test_equality(self):
+            """
+            Instances with the same arguments are equal.
+            """
+            self.assertTrue(klass(**kwargs1) == klass(**kwargs1))
+            self.assertFalse(klass(**kwargs1) == klass(**kwargs2))
+
+        def test_notequality(self):
+            """
+            Instance with different arguments are not equal.
+            """
+            self.assertTrue(klass(**kwargs1) != klass(**kwargs2))
+            self.assertFalse(klass(**kwargs1) != klass(**kwargs1))
+    Tests.__name__ = klass.__name__ + "IStateChangeTests"
+    return Tests
+
+
+SequentiallyIStateChangeTests = make_istatechange_tests(
+    Sequentially, dict(changes=[1]), dict(changes=[2]))
+InParallelIStateChangeTests = make_istatechange_tests(
+    InParallel, dict(changes=[1]), dict(changes=[2]))
+StartApplicationIStateChangeTests = make_istatechange_tests(
+    StartApplication, dict(app=1), dict(app=2))
