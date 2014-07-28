@@ -32,29 +32,29 @@ class DeployerAttributesTests(SynchronousTestCase):
     """
     def test_gear_client_default(self):
         """
-        ``Deployer._gear_client`` is a ``GearClient`` by default.
+        ``Deployer.gear_client`` is a ``GearClient`` by default.
         """
         self.assertIsInstance(
-            Deployer(None)._gear_client,
+            Deployer(None).gear_client,
             GearClient
         )
 
     def test_gear_override(self):
         """
-        ``Deployer._gear_client`` can be overridden in the constructor.
+        ``Deployer.gear_client`` can be overridden in the constructor.
         """
         dummy_gear_client = object()
         self.assertIs(
             dummy_gear_client,
             Deployer(create_volume_service(self),
-                     gear_client=dummy_gear_client)._gear_client
+                     gear_client=dummy_gear_client).gear_client
         )
 
     def test_network_default(self):
         """
         ``Deployer._network`` is a ``HostNetwork`` by default.
         """
-        self.assertIsInstance(Deployer(None)._network, HostNetwork)
+        self.assertIsInstance(Deployer(None).network, HostNetwork)
 
     def test_network_override(self):
         """
@@ -64,7 +64,7 @@ class DeployerAttributesTests(SynchronousTestCase):
         self.assertIs(
             dummy_network,
             Deployer(create_volume_service(self),
-                     network=dummy_network)._network
+                     network=dummy_network).network
         )
 
 
