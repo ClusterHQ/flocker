@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+from zope.interface import Interface, implementer
+
 from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail
@@ -28,18 +30,80 @@ class NodeState(object):
     """
 
 
+class IStateChange(Interface):
+    """
+    An operation that changes the state of the local node.
+    """
+    def run(deployer):
+        """
+        Run the change.
+
+        :param Deployer deployer: The ``Deployer`` to use.
+
+        :return: ``Deferred`` firing when the change is done.
+        """
+
+    def __eq__(other):
+        """
+        Return whether this change is equivalent to another.
+        """
+
+    def __ne__(other):
+        """
+        Return whether this change is not equivalent to another.
+        """
+
+
+@implementer(IStateChange)
+@attributes(["changes"])
+class Sequentially(object):
+    """
+    Run a series of changes in sequence, one after the other.
+    """
+    def run(self, deployer):
+        d = succeed(None)
+        for change in self.changes:
+            d.addCallback(lambda _, change=change: change.run(deployer))
+        return d
+
+
+@implementer(IStateChange)
+@attributes(["changes"])
+class InParallel(object):
+    """
+    Run a series of changes in parallel.
+    """
+    def run(self, deployer):
+        return DeferredList(change.run(deployer) for change in self.changes,
+                            fireOnOneErrback=True, consumeErrors=True)
+
+
+@implementer(IStateChange)
+@attributes(["application"])
+class StartApplication(object):
+    """
+    Start an application.
+    """
+    def run(self, deployer):
+        # Logic currently in Deployer.start_application is moved here
+        pass
+
+# StopApplication change
+# SetProxies change
+# CreateVolume, HandoffVolume, WaitForVolume changes
+
+
 class Deployer(object):
     """
     Start and stop applications.
+
+    :ivar VolumeService volume_service: The volume manager for this node.
+    :ivar IGearClient gear_client: The gear client API to use in
+        deployment operations. Default ``GearClient``.
+    :ivar INetwork network: The network routing API to use in
+        deployment operations. Default is iptables-based implementation.
     """
     def __init__(self, volume_service, gear_client=None, network=None):
-        """
-        :param VolumeService volume_service: The volume manager for this node.
-        :param IGearClient gear_client: The gear client API to use in
-            deployment operations. Default ``GearClient``.
-        :param INetwork network: The network routing API to use in
-            deployment operations. Default is iptables-based implementation.
-        """
         if gear_client is None:
             gear_client = GearClient(hostname=u'127.0.0.1')
         self._gear_client = gear_client
@@ -148,10 +212,11 @@ class Deployer(object):
         :param unicode hostname: The hostname of the node that this is running
             on.
 
-        :return: A ``Deferred`` which fires with a ``StateChanges`` instance
-            specifying which applications must be started and which must be
-            stopped.
+        :return: A ``Deferred`` which fires with a ``IStateChange``
+            provider.
         """
+        # Change to create a tree of IStateChange providers, using
+        # Sequantially and InParallel for overall structure.
         desired_proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
@@ -238,6 +303,9 @@ class Deployer(object):
         :return: A ``Deferred`` that fires when all application start/stop
             operations have finished.
         """
+        # All logic here gets moved to either IStageChange.run
+        # implementations or calculate_necessary_state_changes.
+
         # XXX: Errors in these operations should be logged. See
         # https://github.com/ClusterHQ/flocker/issues/296
         results = []

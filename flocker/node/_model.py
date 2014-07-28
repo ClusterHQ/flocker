@@ -129,23 +129,3 @@ class Port(object):
     :ivar int internal_port: The port number exposed by the application.
     :ivar int external_port: The port number exposed to the outside world.
     """
-
-
-@attributes(
-    ["applications_to_start", "applications_to_stop",
-     "applications_to_restart", "proxies"],
-    defaults=dict(proxies=frozenset(), applications_to_restart=frozenset())
-)
-class StateChanges(object):
-    """
-    ``StateChanges`` describes changes necessary to make to the current
-    state. This might be because of user-specified configuration changes.
-
-    :ivar set applications_to_start: The applications which must be started.
-    :ivar set applications_to_restart: The applications which must be
-        restarted.
-    :ivar set applications_to_stop: The applications which must be stopped.
-    :ivar set proxies: The required full ``set`` of
-        :class:`flocker.route.Proxy` routes to application on other
-        nodes. Defaults to an empty ``frozenset``.
-    """
