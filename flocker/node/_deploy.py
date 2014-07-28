@@ -9,15 +9,13 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from twisted.internet.defer import gatherResults, fail
+from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
 
 from .gear import GearClient, PortMap
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
-
-from twisted.internet.defer import DeferredList, succeed
 
 
 @attributes(["running", "not_running"])
@@ -80,8 +78,8 @@ class InParallel(object):
     Failures in one change do not prevent other changes from continuing.
     """
     def run(self, deployer):
-        return DeferredList((change.run(deployer) for change in self.changes),
-                            fireOnOneErrback=True, consumeErrors=True)
+        return gatherResults((change.run(deployer) for change in self.changes),
+                             consumeErrors=True)
 
 
 @implementer(IStateChange)

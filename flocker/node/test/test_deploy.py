@@ -7,8 +7,9 @@ Tests for ``flocker.node._deploy``.
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
+from zope.interface import implementer
 
-from twisted.internet.defer import fail, FirstError, succeed
+from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
@@ -1245,7 +1246,7 @@ def make_istatechange_tests(klass, kwargs1, kwargs2):
             """
             The class implements ``IStateChange``.
             """
-            self.assertTrue(verifyObject(klass(**kwargs1)))
+            self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
 
         def test_equality(self):
             """
@@ -1270,3 +1271,144 @@ InParallelIStateChangeTests = make_istatechange_tests(
     InParallel, dict(changes=[1]), dict(changes=[2]))
 StartApplicationIStateChangeTests = make_istatechange_tests(
     StartApplication, dict(app=1), dict(app=2))
+
+
+NOT_CALLED = object()
+
+@implementer(IStateChange)
+class FakeChange(object):
+    """
+    A change that returns the given result and records the deployer.
+
+    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
+        before that.
+    """
+    def __init__(self, result):
+        """
+        :param Deferred result: The result to return from ``run()``.
+        """
+        self.result = result
+        self.deployer = NOT_CALLED
+
+    def run(self, deployer):
+        self.deployer = deployer
+        return self.result
+
+    def __eq__(self, other):
+        return False
+
+    def __ne__(self, other):
+        return True
+
+
+class SequentiallyTests(SynchronousTestCase):
+    """
+    Tests for ``Sequentially``.
+    """
+    def test_subchanges_get_deployer(self):
+        """
+        ``Sequentially.run`` runs sub-changes with the given deployer.
+        """
+        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        self.assertEqual([c.deployer for c in subchanges], [deployer, deployer])
+
+    def test_result(self):
+        """
+        The result of ``Sequentially.run`` fires when all changes are done.
+        """
+        not_done1, not_done2 = Deferred(), Deferred()
+        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        self.assertNoResult(result)
+        not_done1.callback(None)
+        self.assertNoResult(result)
+        not_done2.callback(None)
+        self.successResultOf(result)
+
+    def test_in_order(self):
+        """
+        ``Sequentially.run`` runs sub-changes in order.
+        """
+        not_done = Deferred()
+        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        called = [subchanges[0].deployer, subchanges[1].deployer]
+        not_done.callback(None)
+        called.extend([subchanges[0].deployer, subchanges[1].deployer])
+        self.assertEqual(called, [deployer, NOT_CALLED, deployer, deployer])
+
+    def test_failure_stops_later_change(self):
+        """
+        ``Sequentially.run`` fails with the first failed change, rather than
+        continuing to run later changes.
+        """
+        not_done = Deferred()
+        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        called = [subchanges[0].deployer, subchanges[1].deployer]
+        exception = RuntimeError()
+        not_done.errback(exception)
+        called.extend([subchanges[0].deployer, subchanges[1].deployer,
+                       self.failureResultOf(result).value])
+        self.assertEqual(called, [deployer, NOT_CALLED, deployer, NOT_CALLED,
+                                  exception])
+
+
+class InParallelTests(SynchronousTestCase):
+    """
+    Tests for ``InParallel``.
+    """
+    def test_subchanges_get_deployer(self):
+        """
+        ``InParallel.run`` runs sub-changes with the given deployer.
+        """
+        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        self.assertEqual([c.deployer for c in subchanges], [deployer, deployer])
+
+    def test_result(self):
+        """
+        The result of ``InParallel.run`` fires when all changes are done.
+        """
+        not_done1, not_done2 = Deferred(), Deferred()
+        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        self.assertNoResult(result)
+        not_done1.callback(None)
+        self.assertNoResult(result)
+        not_done2.callback(None)
+        self.successResultOf(result)
+
+    def test_in_parallel(self):
+        """
+        ``InParallel.run`` runs sub-changes in parallel.
+        """
+        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        called = [subchanges[0].deployer, subchanges[1].deployer]
+        self.assertEqual(called, [deployer, deployer])
+
+    def test_failure_result(self):
+        """
+        ``InParallel.run`` returns the first failure.
+        """
+        subchanges = [FakeChange(fail(RuntimeError()))]
+        change = InParallel(changes=subchanges)
+        result = change.run(object())
+        failure = self.failureResultOf(result, FirstError)
+        self.assertEqual(failure.value.subFailure.type, RuntimeError)
