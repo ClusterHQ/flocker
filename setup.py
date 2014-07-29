@@ -57,11 +57,11 @@ setup(
     version=versioneer.get_version(),
     # This identifies the creators of this software.  This is left symbolic for
     # ease of maintenance.
-    author="HybridCluster Team",
+    author="ClusterHQ Team",
     # This is contact information for the authors.
-    author_email="support@hybridcluster.com",
+    author_email="support@clusterhq.com",
     # Here is a website where more information about the software is available.
-    url="http://hybridcluster.com/",
+    url="https://clusterhq.com/",
 
     # A short identifier for the license under which the project is released.
     license="Apache License, Version 2.0",

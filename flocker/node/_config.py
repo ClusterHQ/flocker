@@ -30,6 +30,15 @@ class Configuration(object):
     """
     Validate and parse configurations.
     """
+    def __init__(self, lenient=False):
+        """
+        :param bool lenient: If ``True`` don't complain about certain
+            deficiencies in the output of ``flocker-reportstate``, In
+            particular https://github.com/ClusterHQ/flocker/issues/289 means
+            the mountpoint is unknown.
+        """
+        self._lenient = lenient
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -91,7 +100,7 @@ class Configuration(object):
                     if port:
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(port.keys())))
+                                keys=', '.join(sorted(port.keys()))))
                     ports.append(Port(internal_port=internal_port,
                                       external_port=external_port))
             except ValueError as e:
@@ -112,28 +121,34 @@ class Configuration(object):
                         )
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint {path} contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
+
+                    if not (self._lenient and mountpoint is None):
+                        if not isinstance(mountpoint, str):
+                            raise ValueError(
+                                "Mountpoint {path} contains non-ASCII "
+                                "(unsupported).".format(
+                                    path=mountpoint
+                                )
                             )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint {path} is not an absolute path."
-                            .format(
-                                path=mountpoint
+                        if not os.path.isabs(mountpoint):
+                            raise ValueError(
+                                "Mountpoint {path} is not an absolute path."
+                                .format(
+                                    path=mountpoint
+                                )
                             )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError("Unrecognised keys: {keys}.".format(
-                            keys=', '.join(sorted(configured_volume.keys()))
-                        ))
+                        configured_volume.pop('mountpoint')
+                        if configured_volume:
+                            raise ValueError(
+                                "Unrecognised keys: {keys}.".format(
+                                    keys=', '.join(sorted(
+                                        configured_volume.keys()))
+                                ))
+                        mountpoint = FilePath(mountpoint)
+
                     volume = AttachedVolume(
                         name=application_name,
-                        mountpoint=FilePath(mountpoint)
+                        mountpoint=mountpoint
                         )
                 except ValueError as e:
                     raise ConfigurationError(
@@ -156,7 +171,7 @@ class Configuration(object):
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
                          application_name=application_name,
-                         keys=', '.join(config.keys()))
+                         keys=', '.join(sorted(config.keys())))
                 )
         return applications
 
@@ -227,9 +242,7 @@ class Configuration(object):
         :param dict deployment_configuration: Map of node names to application
             names.
 
-        :raises ValueError: if there are validation errors.
-
-        :raises KeyError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``Deployment`` object.
         """
@@ -241,6 +254,31 @@ class Configuration(object):
 
 
 model_from_configuration = Configuration().model_from_configuration
+
+
+def current_from_configuration(current_configuration):
+    """
+    Validate and coerce the supplied current cluster configuration into a
+    ``Deployment`` instance.
+
+    The passed in configuration is the aggregated output of
+    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+
+    :param dict current_configuration: Map of node names to list of
+        application maps.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``Deployment`` object.
+    """
+    configuration = Configuration(lenient=True)
+    nodes = []
+    for hostname, applications in current_configuration.items():
+        node_applications = configuration._applications_from_configuration(
+            applications)
+        nodes.append(Node(hostname=hostname,
+                          applications=frozenset(node_applications.values())))
+    return Deployment(nodes=frozenset(nodes))
 
 
 def configuration_to_yaml(applications):
@@ -276,6 +314,6 @@ def configuration_to_yaml(applications):
             # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
             result[application.name]["volume"] = {
-                "mountpoint": b'/unknown'
+                "mountpoint": None,
             }
     return yaml.safe_dump({"version": 1, "applications": result})

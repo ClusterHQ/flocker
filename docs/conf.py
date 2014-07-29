@@ -38,7 +38,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Flocker'
-copyright = u'2014, HybridCluster'
+copyright = u'2014, ClusterHQ'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -184,7 +184,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'Flocker.tex', u'Flocker Documentation',
-   u'HybridCluster', 'manual'),
+   u'ClusterHQ', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -214,7 +214,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'flocker', u'Flocker Documentation',
-     [u'HybridCluster'], 1)
+     [u'ClusterHQ'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -228,7 +228,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'Flocker', u'Flocker Documentation',
-   u'HybridCluster', 'Flocker', 'One line description of project.',
+   u'ClusterHQ', 'Flocker', 'Data-oriented Docker clustering.',
    'Miscellaneous'),
 ]
 

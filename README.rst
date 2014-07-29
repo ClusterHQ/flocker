@@ -5,7 +5,7 @@
 =======
 Flocker
 =======
-Flocker is a volume manager and multi-host Docker container orchestration tool.
+Flocker is a data volume manager and multi-host Docker cluster management tool.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 
@@ -47,4 +47,4 @@ Flocker is also tested using `continuous integration`_.
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
-.. _continuous integration: http://build.flocker.hybridcluster.net/
+.. _continuous integration: http://build.clusterhq.com/

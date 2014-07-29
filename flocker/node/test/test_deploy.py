@@ -6,17 +6,18 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from twisted.internet.defer import fail, FirstError
+from twisted.internet.defer import fail, FirstError, succeed
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges, Port)
-from .._model import AttachedVolume
+                StateChanges, Port, NodeState)
+from .._model import VolumeHandoff, AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...testtools import create_volume_service
 from ...volume.service import Volume
+from ...volume.testtools import create_volume_service
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -77,7 +78,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
         application = Application(
-            name=b'site-example.com',
+            name=u'site-example.com',
             image=docker_image,
             ports=ports,
         )
@@ -112,6 +113,38 @@ class DeployerStartApplicationTests(SynchronousTestCase):
 
         result2 = api.start_application(application=application)
         self.failureResultOf(result2, AlreadyExists)
+
+    def test_volume_exposed_on_start(self):
+        """
+        ``Deployer.start_application`` exposes an application's volume before
+        it is started.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+        docker_image = DockerImage.from_string(u"busybox")
+        application = Application(
+            name=u'site-example.com',
+            image=docker_image,
+            volume=AttachedVolume(name=u'site-example.com',
+                                  mountpoint=FilePath(b"/var"))
+        )
+
+        # This would be better to test with a verified fake:
+        # https://github.com/ClusterHQ/flocker/issues/234
+        exposed = []
+
+        def expose_to_docker(volume, mount_path):
+            # We check for existence of unit so we can ensure exposure
+            # happens *before* the unit is started:
+            exposed.append((volume, mount_path, self.successResultOf(
+                fake_gear.exists(u"site-example.com"))))
+            return succeed(None)
+        self.patch(Volume, "expose_to_docker", expose_to_docker)
+
+        deployer.start_application(application)
+        self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
+                                    FilePath(b"/var"), False)])
 
 
 class DeployerStopApplicationTests(SynchronousTestCase):
@@ -160,6 +193,56 @@ class DeployerStopApplicationTests(SynchronousTestCase):
 
         self.assertIs(None, result)
 
+    def test_volume_unexposed(self):
+        """
+        ``Deployer.stop_application`` removes an application's volume from
+        Docker after it is stopped.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+        docker_image = DockerImage.from_string(u"busybox")
+        application = Application(
+            name=u'site-example.com',
+            image=docker_image,
+            volume=AttachedVolume(name=u'site-example.com',
+                                  mountpoint=FilePath(b"/var"))
+        )
+
+        # This would be better to test with a verified fake:
+        # https://github.com/ClusterHQ/flocker/issues/234
+        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
+        removed = []
+
+        def remove_from_docker(volume):
+            # We check for existence of unit so we can ensure exposure
+            # happens *after* the unit is stopped:
+            removed.append((volume, self.successResultOf(
+                fake_gear.exists(u"site-example.com"))))
+            return succeed(None)
+        self.patch(Volume, "remove_from_docker", remove_from_docker)
+
+        self.successResultOf(deployer.start_application(application))
+        self.successResultOf(deployer.stop_application(application))
+        self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
+                                    False)])
+
+
+# This models an application that has a volume.
+APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage(repository=u'clusterhq/postgresql',
+                      tag=u'9.1'),
+    volume=AttachedVolume(
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
+        name=APPLICATION_WITH_VOLUME_NAME,
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    )
+)
+
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
@@ -167,19 +250,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     def test_discover_none(self):
         """
-        ``Deployer.discover_node_configuration`` returns an empty list if
-        there are no active `geard` units on the host.
+        ``Deployer.discover_node_configuration`` returns an empty
+        ``NodeState`` if there are no `geard` units on the host.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_one(self):
         """
-        ``Deployer.discover_node_configuration`` returns a list of
-        ``Application``\ s; one for each active `gear` unit.
+        ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
+        a list of running ``Application``\ s; one for each active `gear`
+        unit.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
@@ -188,15 +273,17 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual([application], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[application], not_running=[]),
+                         self.successResultOf(d))
 
     def test_discover_multiple(self):
         """
-        ``Deployer.discover_node_configuration`` returns an ``Application``
-        for every `active` `gear` ``Unit`` on the host.
+        ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
+        a running ``Application`` for every active or activating gear
+        ``Unit`` on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_gear = FakeGearClient(units=units)
@@ -204,7 +291,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_locally_owned_volume(self):
         """
@@ -229,7 +317,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
 
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
     def test_discover_remotely_owned_volumes_ignored(self):
         """
@@ -248,7 +337,51 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         applications = [Application(name=unit.name)]
         api = Deployer(volume_service, gear_client=fake_gear)
         d = api.discover_node_configuration()
-        self.assertEqual(sorted(applications), sorted(self.successResultOf(d)))
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
+    def test_discover_activating_units(self):
+        """
+        Units that are currently not active but are starting up are considered
+        to be running by ``discover_node_configuration()``.
+        """
+        unit = Unit(name=u'site-example.com', activation_state=u'activating')
+        units = {unit.name: unit}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name)]
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+
+        self.assertEqual(NodeState(running=applications, not_running=[]),
+                         self.successResultOf(d))
+
+    def test_not_running_units(self):
+        """
+        Units that are neither active nor activating are considered to be not
+        running by ``discover_node_configuration()``.
+        """
+        unit1 = Unit(name=u'site-example.com',
+                     activation_state=u'deactivating')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
+        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
+                 unit4.name: unit4}
+
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        applications.sort()
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+        result = self.successResultOf(d)
+        result.not_running.sort()
+
+        self.assertEqual(NodeState(running=[], not_running=applications),
+                         result)
+
+# A deployment with no information:
+EMPTY = Deployment(nodes=frozenset())
 
 
 class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
@@ -267,6 +400,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
@@ -302,7 +436,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(
-            desired_state=desired, hostname=u'node2.example.com')
+            desired_state=desired, current_cluster_state=EMPTY,
+            hostname=u'node2.example.com')
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
         expected = StateChanges(applications_to_start=frozenset(),
@@ -322,7 +457,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=network)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(
-            desired_state=desired, hostname=u'node2.example.com')
+            desired_state=desired, current_cluster_state=EMPTY,
+            hostname=u'node2.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set(),
                                 proxies=frozenset())
@@ -340,6 +476,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
@@ -370,6 +507,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set([application]),
                                 applications_to_stop=set())
@@ -399,6 +537,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set())
@@ -432,6 +571,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=set())
@@ -450,10 +590,298 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset([]))
         d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = set([Application(name=unit.name)])
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=to_stop)
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_volume_created(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a new
+        volume must be created if the desired configuration specifies that an
+        application which was previously running nowhere is going to be running
+        on *this* node and that application requires a volume.
+        """
+        hostname = u"node1.example.com"
+
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        # The discovered current configuration of the cluster also reflects
+        # this.
+        current = Deployment(nodes=frozenset({
+            Node(hostname=hostname, applications=frozenset()),
+        }))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        node = Node(
+            hostname=hostname,
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # This completely expresses the configuration for a cluster of one node
+        # with one application which requires a volume.  It's the state we
+        # should get to with the changes calculated below.
+        desired = Deployment(nodes=frozenset({node}))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                APPLICATION_WITH_VOLUME,
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for=set(),
+            volumes_to_create={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
+                ),
+            },
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_wait(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on another node
+        must be waited for, in anticipation of that node handing it off to us.
+        """
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running somewhere else.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=another_node.applications),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                APPLICATION_WITH_VOLUME,
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                ),
+            },
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_handoff(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on this node but
+        is now running on another node must be handed off.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset()),
+            Node(hostname=another_node.hostname,
+                 applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+
+        expected = StateChanges(
+            # The application is running here so it needs to be stopped.
+            applications_to_start=set(),
+            applications_to_stop={
+                Application(name=APPLICATION_WITH_VOLUME_NAME),
+            },
+            # And the volume for the application needs to be handed off.
+            volumes_to_handoff={
+                VolumeHandoff(volume=volume, hostname=another_node.hostname),
+            },
+            volumes_to_wait_for=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_no_volume_changes(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies no work for
+        the volume if an application which was previously running on this
+        node continues to run on this node.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=current,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            applications_to_start=set(),
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_local_not_running_applications_restarted(self):
+        """
+        Applications that are not running but are supposed to be on the local
+        node are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+        application = Application(
+            name=b'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0')
+        )
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
+                                                  hostname=u'node.example.com')
+        to_restart = set([application])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=set(),
+                                applications_to_restart=to_restart)
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_not_local_not_running_applications_stopped(self):
+        """
+        Applications that are not running and are supposed to be on the local
+        node are added to the list of applications to stop.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+
+        desired = Deployment(nodes=frozenset())
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
+                                                  hostname=u'node.example.com')
+        to_stop = set([Application(name=unit.name)])
+        expected = StateChanges(applications_to_start=set(),
+                                applications_to_stop=to_stop,
+                                applications_to_restart=set())
         self.assertEqual(expected, self.successResultOf(d))
 
 
@@ -585,6 +1013,35 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             ZeroDivisionError
         )
 
+    def test_restarts(self):
+        """
+        Applications listed in ``StateChanges.applications_to_restart`` are
+        reactivated.
+        """
+        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(
+            create_volume_service(self), gear_client=fake_gear,
+            network=make_memory_network())
+
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage.from_string(u'clusterhq/flocker'),
+        )
+
+        desired_changes = StateChanges(
+            applications_to_start=frozenset(),
+            applications_to_stop=frozenset(),
+            applications_to_restart=frozenset([application]))
+        api._apply_changes(desired_changes)
+
+        # The activation state tells us the unit was started. We know a
+        # stop preceded the starting of the unit, because otherwise
+        # starting would complain with an AlreadyExists.
+        self.assertEqual(self.successResultOf(fake_gear.list()),
+                         set([Unit(name=u'mysql-hybridcluster',
+                                   activation_state=u'active')]))
+
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
@@ -607,10 +1064,12 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
-        self.assertEqual([], self.successResultOf(d))
+        self.assertEqual(NodeState(running=[], not_running=[]),
+                         self.successResultOf(d))
 
     def test_applications_started(self):
         """
@@ -635,11 +1094,14 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         desired = Deployment(nodes=nodes)
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
         expected_application = Application(name=expected_application_name)
-        self.assertEqual([expected_application], self.successResultOf(d))
+        self.assertEqual(
+            NodeState(running=[expected_application], not_running=[]),
+            self.successResultOf(d))
 
     def test_first_failure_pass_through(self):
         """
@@ -679,6 +1141,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
             lambda application: fail(expected_exception))
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=u'node.example.com')
 
         failure = self.failureResultOf(d, FirstError)
@@ -733,7 +1196,29 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         self.patch(api, 'start_application', fake_start)
 
         d = api.change_node_state(desired_state=desired,
+                                  current_cluster_state=EMPTY,
                                   hostname=local_hostname)
 
         self.failureResultOf(d, FirstError)
         self.assertIn(application2.name, fake_gear._units)
+
+    def test_arguments(self):
+        """
+        The passed in arguments passed on in turn to
+        ``calculate_necessary_state_changes``.
+        """
+        desired = object()
+        state = object()
+        host = object()
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
+                       network=make_memory_network())
+        arguments = []
+
+        def calculate(desired_state, current_cluster_state, hostname):
+            arguments.extend([desired_state, current_cluster_state, hostname])
+            return succeed(StateChanges(applications_to_start=[],
+                                        applications_to_stop=[]))
+        api.calculate_necessary_state_changes = calculate
+        api.change_node_state(desired, state, host)
+        self.assertEqual(arguments, [desired, state, host])
