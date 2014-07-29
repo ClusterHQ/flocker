@@ -272,9 +272,14 @@ def find_volume_changes(hostname, current_state, desired_state):
     Find what actions need to be taken to deal with changes in volume
     location between current state and desired state of the cluster.
 
-    Note that the logic here presumes the mountpoints have not changed,
+    XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
     https://github.com/ClusterHQ/flocker/issues/351 for more details.
+
+    XXX The logic here assumes volumes are never added or removed to
+    existing applications, merely moved across nodes. As a result test
+    coverage for those situations is not implemented. See
+    https://github.com/ClusterHQ/flocker/issues/352 for more details.
 
     :param unicode hostname: The name of the node for which to find changes.
 
