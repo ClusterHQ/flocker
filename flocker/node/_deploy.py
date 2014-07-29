@@ -342,18 +342,10 @@ class Deployer(object):
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
-            volumes = find_volume_changes(hostname, current_cluster_state,
-                                          desired_state)
-
-            return StateChanges(
-                applications_to_start=start_containers,
-                applications_to_stop=stop_containers,
-                applications_to_restart=restart_containers,
-                volumes_to_handoff=volumes.going,
-                volumes_to_wait_for=volumes.coming,
-                volumes_to_create=volumes.creating,
-                proxies=desired_proxies,
-            )
+            # XXX Use this in https://github.com/ClusterHQ/flocker/issues/368
+            #volumes = find_volume_changes(hostname, current_cluster_state,
+            #                              desired_state)
+            return Sequentially(changes=[])
         d.addCallback(find_differences)
         return d
 
