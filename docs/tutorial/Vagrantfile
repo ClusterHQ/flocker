@@ -57,6 +57,10 @@ else
   fi
 fi
 
+mkdir /tmp/dockerbuild
+cd /tmp/dockerbuild
+echo "FROM dockerfile/mongodb\nCMD mongod --noprealloc --smallfiles" > Dockerfile
+docker build --tag mongodb-tutorial .
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
