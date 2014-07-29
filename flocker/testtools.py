@@ -851,19 +851,17 @@ def attempt_effective_uid(username, suppress_errors=False):
     """
     original_euid = os.geteuid()
     new_euid = pwd.getpwnam(username).pw_uid
-
-    if original_euid == new_euid:
-        return
-
     restore_euid = False
-    try:
-        os.seteuid(new_euid)
-    except OSError as e:
-        # Only handle "Operation not permitted" errors.
-        if not suppress_errors or e.errno != 1:
-            raise
-    else:
-        restore_euid = True
+
+    if original_euid != new_euid:
+        try:
+            os.seteuid(new_euid)
+        except OSError as e:
+            # Only handle "Operation not permitted" errors.
+            if not suppress_errors or e.errno != 1:
+                raise
+        else:
+            restore_euid = True
 
     yield
 
