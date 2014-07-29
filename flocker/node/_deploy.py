@@ -311,13 +311,13 @@ def find_volume_changes(hostname, current_state, desired_state):
                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
-    # node.  If it was running somewhere else, add an AttachedVolume for
-    # it to `coming`.
+    # node.  If it was running somewhere else, we want that Volume to be
+    # in `coming`.
     coming = local_desired_volumes.intersection(remote_current_volumes)
 
     # For each application volume that is going to be started on this node
-    # that was not running anywhere previously, add an AttachedVolume for
-    # it to `creating`.
+    # that was not running anywhere previously, make sure that Volume is
+    # in `creating`.
     creating = local_desired_volumes.difference(
         local_current_volumes | remote_current_volumes)
 
