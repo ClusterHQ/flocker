@@ -1003,11 +1003,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
-    # Temporarily failing to minimize new code in #361 branch.
-    test_volume_wait.todo = "to be resurrected in #368"
-    test_volume_created.todo = "to be resurrected in #368"
-    test_volume_handoff.todo = "to be resurrected in #368"
-
     def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
