@@ -269,7 +269,7 @@ class Deployer(object):
 
 def find_volume_changes(hostname, current_state, desired_state):
     """
-    Find what actions need to be taking to deal with changes in volume
+    Find what actions need to be taken to deal with changes in volume
     location between current state and desired state of the cluster.
 
     Note that the logic here presumes the mountpoints have not changed,
