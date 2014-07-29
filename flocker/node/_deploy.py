@@ -165,6 +165,8 @@ class HandoffVolume(object):
     A volume handoff that needs to be performed from this node to another
     node.
 
+    See :cls:`flocker.volume.VolumeService.handoff` for more details.
+
     :ivar AttachedVolume volume: The volume to hand off.
     :ivar bytes hostname: The hostname of the node to which the volume is
          meant to be handed off.
