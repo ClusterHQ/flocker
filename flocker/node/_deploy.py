@@ -222,15 +222,6 @@ class Deployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def stop_application(self, application):
-        """
-        Stop and disable the application.
-
-        :param Application application: The ``Application`` to stop.
-        :returns: A ``Deferred`` which fires with ``None`` when the application
-            has stopped.
-        """
-
     def discover_node_configuration(self):
         """
         List all the ``Application``\ s running on this node.
@@ -370,36 +361,6 @@ class Deployer(object):
             hostname=hostname)
         d.addCallback(lambda change: change.run(self))
         return d
-
-    def _apply_changes(self, necessary_state_changes):
-        """
-        Apply desired changes.
-
-        :param StateChanges necessary_state_changes: A record of the
-            applications which need to be started and stopped on this node.
-
-        :return: A ``Deferred`` that fires when all application start/stop
-            operations have finished.
-        """
-        # All logic here gets moved to either IStageChange.run
-        # implementations or calculate_necessary_state_changes.
-
-        # XXX: Errors in these operations should be logged. See
-        # https://github.com/ClusterHQ/flocker/issues/296
-        results = []
-
-        for application in necessary_state_changes.applications_to_stop:
-            results.append(self.stop_application(application))
-
-        for application in necessary_state_changes.applications_to_start:
-            results.append(self.start_application(application))
-
-        for application in necessary_state_changes.applications_to_restart:
-            d = self.stop_application(application)
-            d.addCallback(lambda _: self.start_application(application))
-            results.append(d)
-        return DeferredList(
-            results, fireOnOneErrback=True, consumeErrors=True)
 
 
 def find_volume_changes(hostname, current_state, desired_state):
