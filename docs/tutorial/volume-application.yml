@@ -1,0 +1,11 @@
+"version": 1
+"applications":
+  "mongodb-port-example":
+    "image": "dockerfile/mongodb"
+    "ports":
+    - "internal": 27017
+      "external": 27017
+    "volume":
+      # The location within the container where the data volume will be
+      # mounted:
+      "mountpoint": "/var/lib/mongodb"
