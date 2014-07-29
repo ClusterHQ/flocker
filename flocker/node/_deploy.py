@@ -143,7 +143,7 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        pass
+        return deployer.volume_service.create(self.volume.name)
 
 
 @implementer(IStateChange)

@@ -1276,3 +1276,38 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])
+
+
+class CreateVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``CreateVolume``.
+    """
+    def test_creates(self):
+        """
+        ``CreateVolume.run()`` creates the named volume.
+        """
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        create.run(deployer)
+        self.assertIn(
+            volume_service.get(u"myvol"),
+            list(self.successResultOf(volume_service.enumerate())))
+
+    def test_return(self):
+        """
+        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        created volume.
+        """
+        deployer = Deployer(create_volume_service(self),
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        result = self.successResultOf(create.run(deployer))
+        self.assertEqual(result, deployer.volume_service.get(u"myvol"))
