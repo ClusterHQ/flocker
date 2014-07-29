@@ -2,12 +2,14 @@
 Installing Flocker
 ==================
 
-Flocker has two components that need installing:
+As a user of Flocker there are two components you will need to install:
 
 1. The ``flocker-node`` package that runs on each node in the cluster.
    For now we recommend running the cluster using a pre-packaged Vagrant setup; see :doc:`tutorial/vagrant-setup`.
 2. The ``flocker-cli`` package which provides command line tools to controls the cluster.
    This should be installed on a machine with SSH credentials to control the cluster nodes, e.g. the machine which is running Vagrant.
+
+If you're interested in developing Flocker (as opposed to simply using it) see :doc:`contributing`.
 
 
 Ubuntu
