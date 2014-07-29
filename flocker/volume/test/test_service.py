@@ -21,7 +21,7 @@ from ..service import (
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ...common import FakeNode
-from ...testtools import skip_on_broken_permissions, run_as_nonprivileged_user
+from ...testtools import skip_on_broken_permissions, attempt_effective_uid
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -60,7 +60,6 @@ class VolumeServiceStartupTests(TestCase):
         self.assertTrue(path.exists())
 
     @skip_on_broken_permissions
-    @run_as_nonprivileged_user
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
         is raised."""
@@ -70,10 +69,10 @@ class VolumeServiceStartupTests(TestCase):
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"dir").child(b"config.json")
         service = VolumeService(path, None, reactor=Clock())
-        self.assertRaises(CreateConfigurationError, service.startService)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(CreateConfigurationError, service.startService)
 
     @skip_on_broken_permissions
-    @run_as_nonprivileged_user
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
         is raised."""
@@ -83,7 +82,8 @@ class VolumeServiceStartupTests(TestCase):
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"config.json")
         service = VolumeService(path, None, reactor=Clock())
-        self.assertRaises(CreateConfigurationError, service.startService)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(CreateConfigurationError, service.startService)
 
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""

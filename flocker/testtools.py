@@ -838,3 +838,34 @@ def run_as_nonprivileged_user(test_method):
             case.addCleanup(os.seteuid, 0)
         return test_method(case, *args, **kwargs)
     return wrapper
+
+
+@contextmanager
+def attempt_effective_uid(username, suppress_errors=False):
+    """
+    A context manager to temporarily change the effective user id.
+
+    :param unicode username: The username whose uid will take effect.
+    :param bool suppress_errors: Set to `True` to suppress "Operation not
+        permitted" errors.
+    """
+    original_euid = os.geteuid()
+    new_euid = pwd.getpwnam(username).pw_uid
+
+    if original_euid == new_euid:
+        return
+
+    restore_euid = False
+    try:
+        os.seteuid(new_euid)
+    except OSError as e:
+        # Only handle "Operation not permitted" errors.
+        if not suppress_errors or e.errno != 1:
+            raise
+    else:
+        restore_euid = True
+
+    yield
+
+    if restore_euid:
+        os.seteuid(original_euid)
