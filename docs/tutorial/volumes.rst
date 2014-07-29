@@ -57,6 +57,8 @@ We'll create a new configuration for the cluster, this time adding a volume to t
 
 Then we'll run these configuration files with ``flocker-deploy``:
 
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
@@ -65,6 +67,8 @@ Then we'll run these configuration files with ``flocker-deploy``:
 
 Once again we'll insert some data into the database:
 
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
    connecting to: 172.16.255.250/test
@@ -72,7 +76,7 @@ Once again we'll insert some data into the database:
    switched to db example
    > db.records.insert({"the data": "it moves"})
    > db.records.find({})
-   { "_id" : ObjectId("53c958e8e571d2046d9b9df9"), "the data" : "it moves" }
+   { "_id" : ObjectId("53d80b08a3ad4df94a2a72d6"), "the data" : "it moves" }
 
 Next we'll move the application to the other node.
 
@@ -99,7 +103,7 @@ This time however the data has moved with the application:
    > use example;
    switched to db example
    > db.records.find({})
-   { "_id" : ObjectId("53c958e8e571d2046d9b9df9"), "the data" : "it moves" }
+   { "_id" : ObjectId("53d80b08a3ad4df94a2a72d6"), "the data" : "it moves" }
 
 At this point you have successfully deployed a MongoDB server and communicated with it.
 You've also seen how Flocker allows you to move an application's data to different locations in cluster as the application is moved.
