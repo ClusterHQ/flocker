@@ -407,12 +407,17 @@ class Deployer(object):
 
 def find_volume_changes(hostname, current_state, desired_state):
     """
-    Find what actions need to be taking to deal with changes in volume
+    Find what actions need to be taken to deal with changes in volume
     location between current state and desired state of the cluster.
 
-    Note that the logic here presumes the mountpoints have not changed,
+    XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
     https://github.com/ClusterHQ/flocker/issues/351 for more details.
+
+    XXX The logic here assumes volumes are never added or removed to
+    existing applications, merely moved across nodes. As a result test
+    coverage for those situations is not implemented. See
+    https://github.com/ClusterHQ/flocker/issues/352 for more details.
 
     :param unicode hostname: The name of the node for which to find changes.
 
@@ -449,13 +454,13 @@ def find_volume_changes(hostname, current_state, desired_state):
                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
-    # node.  If it was running somewhere else, add an AttachedVolume for
-    # it to `coming`.
+    # node.  If it was running somewhere else, we want that Volume to be
+    # in `coming`.
     coming = local_desired_volumes.intersection(remote_current_volumes)
 
     # For each application volume that is going to be started on this node
-    # that was not running anywhere previously, add an AttachedVolume for
-    # it to `creating`.
+    # that was not running anywhere previously, make sure that Volume is
+    # in `creating`.
     creating = local_desired_volumes.difference(
         local_current_volumes | remote_current_volumes)
 

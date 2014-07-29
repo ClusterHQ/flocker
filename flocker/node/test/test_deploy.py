@@ -438,10 +438,11 @@ APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage(repository=u'clusterhq/flocker',
-                      tag=u'release-14.0'),
+    image=DockerImage(repository=u'clusterhq/postgresql',
+                      tag=u'9.1'),
     volume=AttachedVolume(
-        # See https://github.com/ClusterHQ/flocker/issues/49
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     )
@@ -991,7 +992,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     def test_no_volume_changes(self):
         """
         ``Deployer.calculate_necessary_state_changes`` specifies no work for
-        the volume of an application which was previously running on this
+        the volume if an application which was previously running on this
         node continues to run on this node.
         """
         # The application is running here.
