@@ -18,7 +18,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
-from .._model import VolumeHandoff, AttachedVolume
+from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
@@ -125,6 +125,7 @@ HandoffVolumeIStateChangeTests = make_istatechange_tests(
 
 NOT_CALLED = object()
 
+
 @implementer(IStateChange)
 class FakeChange(object):
     """
@@ -163,7 +164,8 @@ class SequentiallyTests(SynchronousTestCase):
         change = Sequentially(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        self.assertEqual([c.deployer for c in subchanges], [deployer, deployer])
+        self.assertEqual([c.deployer for c in subchanges],
+                         [deployer, deployer])
 
     def test_result(self):
         """
@@ -225,7 +227,8 @@ class InParallelTests(SynchronousTestCase):
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        self.assertEqual([c.deployer for c in subchanges], [deployer, deployer])
+        self.assertEqual([c.deployer for c in subchanges],
+                         [deployer, deployer])
 
     def test_result(self):
         """
@@ -606,7 +609,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
-                                          hostname=u'node.example.com')
+                                                  hostname=u'node.example.com')
         expected = Sequentially(changes=[])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -952,8 +955,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
-            InParallel(changes=[HandoffVolume(volume=volume,
-                                              hostname=another_node.hostname)]),
+            InParallel(changes=[HandoffVolume(
+                volume=volume, hostname=another_node.hostname)]),
         ])
         self.assertEqual(expected, changes)
 
@@ -1031,8 +1034,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application)])]),
-                                     ])
+                                  StartApplication(application=application)]),
+        ])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_not_local_not_running_applications_stopped(self):
@@ -1133,7 +1136,6 @@ class SetProxiesTests(SynchronousTestCase):
         api = Deployer(
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
-
 
         d = SetProxies(ports=[]).run(api)
         exception = self.failureResultOf(d, FirstError)

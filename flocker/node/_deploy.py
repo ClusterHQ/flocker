@@ -346,8 +346,8 @@ class Deployer(object):
             # this node - or that are being newly created by this new
             # configuration.
             # XXX Use this in https://github.com/ClusterHQ/flocker/issues/368
-            #volumes = find_volume_changes(hostname, current_cluster_state,
-            #                              desired_state)
+            # volumes = find_volume_changes(hostname, current_cluster_state,
+            #                               desired_state)
         d.addCallback(find_differences)
         d.addCallback(lambda _: Sequentially(changes=phases))
         return d
