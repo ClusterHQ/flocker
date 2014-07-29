@@ -169,7 +169,8 @@ APPLICATION_WITH_VOLUME = Application(
     image=DockerImage(repository=u'clusterhq/flocker',
                       tag=u'release-14.0'),
     volume=AttachedVolume(
-        # See https://github.com/ClusterHQ/flocker/issues/49
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     )
