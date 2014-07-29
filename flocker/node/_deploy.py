@@ -10,12 +10,15 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
+from twisted.python.filepath import FilePath
 
 from .gear import GearClient, PortMap
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
+from ..volume._ipc import RemoteVolumeManager
+from ..common._ipc import ProcessNode
 
 
 @attributes(["running", "not_running"])
@@ -172,7 +175,12 @@ class HandoffVolume(object):
          meant to be handed off.
     """
     def run(self, deployer):
-        pass
+        service = deployer.volume_service
+        destination = ProcessNode.using_ssh(
+            self.hostname, 22, b"root",
+            FilePath(b"/etc/flocker/id_rsa_flocker"))
+        return service.handoff(service.get(self.volume.name),
+                               RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)

@@ -24,6 +24,8 @@ from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
+from ...volume._ipc import RemoteVolumeManager
+from ...common._ipc import ProcessNode
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -1317,7 +1319,7 @@ class WaitForVolumeTests(SynchronousTestCase):
     """
     Tests for ``WaitForVolume``.
     """
-    def test_creates(self):
+    def test_waits(self):
         """
         ``WaitForVolume.run()`` waits for the named volume.
         """
@@ -1352,3 +1354,54 @@ class WaitForVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         wait_result = wait.run(deployer)
         self.assertIs(wait_result, result)
+
+
+class HandoffVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``HandoffVolume``.
+    """
+    def test_handoff(self):
+        """
+        ``HandoffVolume.run()`` hands off the named volume to the given
+        destination nodex.
+        """
+        volume_service = create_volume_service(self)
+
+        result = []
+
+        def _handoff(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "handoff", _handoff)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=b"dest.example.com")
+        handoff.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(ProcessNode.using_ssh(
+                 b"dest.example.com", 22, b"root",
+                 FilePath(b"/etc/flocker/id_rsa_flocker")))])
+
+    def test_return(self):
+        """
+        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "handoff",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        handoff_result = handoff.run(deployer)
+        self.assertIs(handoff_result, result)
