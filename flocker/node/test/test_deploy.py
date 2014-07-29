@@ -1119,7 +1119,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         volume2 = AttachedVolume(
             name=u"another",
-            mountpoint=FilePath(b"blah"),
+            mountpoint=FilePath(b"/blah"),
         )
         expected = Sequentially(changes=[
             InParallel(changes=[StopApplication(
@@ -1128,7 +1128,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
             InParallel(changes=[
-                StopApplication(application=another_application)]),
+                StartApplication(application=another_application)]),
         ])
         self.assertEqual(expected, changes)
 
