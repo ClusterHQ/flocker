@@ -73,7 +73,6 @@ class FlockerVolumeTests(TestCase):
         self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
         with attempt_effective_uid('nobody', suppress_errors=True):
-            import pdb; pdb.set_trace()
             result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
