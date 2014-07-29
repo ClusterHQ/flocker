@@ -12,7 +12,7 @@ from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 StateChanges, Port, NodeState)
-from .._model import AttachedVolume
+from .._model import VolumeHandoff, AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
@@ -226,6 +226,22 @@ class DeployerStopApplicationTests(SynchronousTestCase):
         self.successResultOf(deployer.stop_application(application))
         self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
                                     False)])
+
+
+# This models an application that has a volume.
+APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage(repository=u'clusterhq/postgresql',
+                      tag=u'9.1'),
+    volume=AttachedVolume(
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
+        name=APPLICATION_WITH_VOLUME_NAME,
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    )
+)
 
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
@@ -580,6 +596,241 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = StateChanges(applications_to_start=set(),
                                 applications_to_stop=to_stop)
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_volume_created(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a new
+        volume must be created if the desired configuration specifies that an
+        application which was previously running nowhere is going to be running
+        on *this* node and that application requires a volume.
+        """
+        hostname = u"node1.example.com"
+
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        # The discovered current configuration of the cluster also reflects
+        # this.
+        current = Deployment(nodes=frozenset({
+            Node(hostname=hostname, applications=frozenset()),
+        }))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        node = Node(
+            hostname=hostname,
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # This completely expresses the configuration for a cluster of one node
+        # with one application which requires a volume.  It's the state we
+        # should get to with the changes calculated below.
+        desired = Deployment(nodes=frozenset({node}))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                APPLICATION_WITH_VOLUME,
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for=set(),
+            volumes_to_create={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
+                ),
+            },
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_wait(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on another node
+        must be waited for, in anticipation of that node handing it off to us.
+        """
+        # The application is not running here - therefore there is no gear unit
+        # for it.
+        gear = FakeGearClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running somewhere else.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=another_node.applications),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            # The application isn't running here so it needs to be started.
+            applications_to_start={
+                APPLICATION_WITH_VOLUME,
+            },
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for={
+                AttachedVolume(
+                    name=APPLICATION_WITH_VOLUME_NAME,
+                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                ),
+            },
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_volume_handoff(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        volume for an application which was previously running on this node but
+        is now running on another node must be handed off.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset()),
+            Node(hostname=another_node.hostname,
+                 applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+
+        expected = StateChanges(
+            # The application is running here so it needs to be stopped.
+            applications_to_start=set(),
+            applications_to_stop={
+                Application(name=APPLICATION_WITH_VOLUME_NAME),
+            },
+            # And the volume for the application needs to be handed off.
+            volumes_to_handoff={
+                VolumeHandoff(volume=volume, hostname=another_node.hostname),
+            },
+            volumes_to_wait_for=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
+
+    def test_no_volume_changes(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies no work for
+        the volume if an application which was previously running on this
+        node continues to run on this node.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=current,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = StateChanges(
+            applications_to_start=set(),
+            applications_to_stop=set(),
+            volumes_to_handoff=set(),
+            volumes_to_wait_for=set(),
+            volumes_to_create=set(),
+        )
+
+        self.assertEqual(expected, changes)
 
     def test_local_not_running_applications_restarted(self):
         """

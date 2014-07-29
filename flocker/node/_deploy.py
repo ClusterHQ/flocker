@@ -10,7 +10,9 @@ from characteristic import attributes
 from twisted.internet.defer import gatherResults, fail
 
 from .gear import GearClient, PortMap
-from ._model import Application, StateChanges, AttachedVolume
+from ._model import (
+    Application, StateChanges, VolumeChanges, AttachedVolume, VolumeHandoff,
+    )
 from ..route import make_host_network, Proxy
 
 from twisted.internet.defer import DeferredList, succeed
@@ -177,14 +179,16 @@ class Deployer(object):
             # Compare the applications being changed by name only.  Other
             # configuration changes aren't important at this point.
             current_state = {app.name for app in current_node_applications}
-            desired_state = {app.name for app in desired_node_applications}
+            desired_local_state = {app.name for app in
+                                   desired_node_applications}
             not_running = {app.name for app in current_node_state.not_running}
 
             # Don't start applications that exist on this node but aren't
             # running; instead they should be restarted:
-            start_names = desired_state.difference(current_state | not_running)
+            start_names = desired_local_state.difference(
+                current_state | not_running)
             stop_names = {app.name for app in all_applications}.difference(
-                desired_state)
+                desired_local_state)
 
             start_containers = {
                 app for app in desired_node_applications
@@ -199,11 +203,20 @@ class Deployer(object):
                 if app.name in not_running
             }
 
+            # Find any applications with volumes that are moving to or from
+            # this node - or that are being newly created by this new
+            # configuration.
+            volumes = find_volume_changes(hostname, current_cluster_state,
+                                          desired_state)
+
             return StateChanges(
                 applications_to_start=start_containers,
                 applications_to_stop=stop_containers,
                 applications_to_restart=restart_containers,
-                proxies=desired_proxies
+                volumes_to_handoff=volumes.going,
+                volumes_to_wait_for=volumes.coming,
+                volumes_to_create=volumes.creating,
+                proxies=desired_proxies,
             )
         d.addCallback(find_differences)
         return d
@@ -267,3 +280,65 @@ class Deployer(object):
             results.append(d)
         return DeferredList(
             results, fireOnOneErrback=True, consumeErrors=True)
+
+
+def find_volume_changes(hostname, current_state, desired_state):
+    """
+    Find what actions need to be taken to deal with changes in volume
+    location between current state and desired state of the cluster.
+
+    XXX The logic here assumes the mountpoints have not changed,
+    and will act unexpectedly if that is the case. See
+    https://github.com/ClusterHQ/flocker/issues/351 for more details.
+
+    XXX The logic here assumes volumes are never added or removed to
+    existing applications, merely moved across nodes. As a result test
+    coverage for those situations is not implemented. See
+    https://github.com/ClusterHQ/flocker/issues/352 for more details.
+
+    :param unicode hostname: The name of the node for which to find changes.
+
+    :param Deployment current_state: The old state of the cluster on which the
+        changes are based.
+
+    :param Deployment desired_state: The new state of the cluster towards which
+        the changes are working.
+    """
+    desired_volumes = {node.hostname: set(application.volume for application
+                                          in node.applications
+                                          if application.volume)
+                       for node in desired_state.nodes}
+    current_volumes = {node.hostname: set(application.volume for application
+                                          in node.applications
+                                          if application.volume)
+                       for node in current_state.nodes}
+    local_desired_volumes = desired_volumes.get(hostname, set())
+    local_current_volumes = current_volumes.get(hostname, set())
+    remote_current_volumes = set()
+    for volume_hostname, current in current_volumes.items():
+        if volume_hostname != hostname:
+            remote_current_volumes |= current
+
+    # Look at each application volume that is going to be running
+    # elsewhere and is currently running here, and add a VolumeHandoff for
+    # it to `going`.
+    going = set()
+    for volume_hostname, desired in desired_volumes.items():
+        if volume_hostname != hostname:
+            for volume in desired:
+                if volume in local_current_volumes:
+                    going.add(VolumeHandoff(volume=volume,
+                                            hostname=volume_hostname))
+
+    # Look at each application volume that is going to be started on this
+    # node.  If it was running somewhere else, we want that Volume to be
+    # in `coming`.
+    coming = local_desired_volumes.intersection(remote_current_volumes)
+
+    # For each application volume that is going to be started on this node
+    # that was not running anywhere previously, make sure that Volume is
+    # in `creating`.
+    creating = local_desired_volumes.difference(
+        local_current_volumes | remote_current_volumes)
+
+    return VolumeChanges(going=going, coming=coming, creating=creating)
