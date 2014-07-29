@@ -1060,6 +1060,83 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_push_precedes_wait(self):
+        """
+        Volume handoffs happen before volume waits, to prevent deadlocks
+        between two nodes that are swapping volumes.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        another_application = Application(
+            name=u"another",
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.1'),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=u"another",
+                mountpoint=FilePath(b"/blah"),
+            )
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({another_application}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here, and another application is running
+        # at the other node.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        # We're swapping the location of applications:
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=another_node.applications),
+            Node(hostname=another_node.hostname,
+                 applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+        volume2 = AttachedVolume(
+            name=u"another",
+            mountpoint=FilePath(b"blah"),
+        )
+        expected = Sequentially(changes=[
+            InParallel(changes=[StopApplication(
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+            InParallel(changes=[HandoffVolume(
+                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[WaitForVolume(volume=volume2)]),
+            InParallel(changes=[
+                StopApplication(application=another_application)]),
+        ])
+        self.assertEqual(expected, changes)
+
 
 class SetProxiesTests(SynchronousTestCase):
     """
