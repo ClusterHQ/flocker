@@ -184,7 +184,23 @@ class SetProxies(object):
     :ivar ports: A collection of ``Port`` objects.
     """
     def run(self, deployer):
-        pass
+        results = []
+        # XXX: Errors in these operations should be logged. See
+        # https://github.com/ClusterHQ/flocker/issues/296
+
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
+        for proxy in deployer.network.enumerate_proxies():
+            try:
+                deployer.network.delete_proxy(proxy)
+            except:
+                results.append(fail())
+        for proxy in self.ports:
+            try:
+                deployer.network.create_proxy_to(proxy.ip, proxy.port)
+            except:
+                results.append(fail())
+        return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
 
 
 class Deployer(object):
@@ -379,19 +395,6 @@ class Deployer(object):
         # XXX: Errors in these operations should be logged. See
         # https://github.com/ClusterHQ/flocker/issues/296
         results = []
-
-        # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
-        for proxy in self._network.enumerate_proxies():
-            try:
-                self._network.delete_proxy(proxy)
-            except:
-                results.append(fail())
-        for proxy in necessary_state_changes.proxies:
-            try:
-                self._network.create_proxy_to(proxy.ip, proxy.port)
-            except:
-                results.append(fail())
 
         for application in necessary_state_changes.applications_to_stop:
             results.append(self.stop_application(application))

@@ -1090,9 +1090,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         self.assertEqual(expected, self.successResultOf(d))
 
 
-class DeployerApplyChangesTests(SynchronousTestCase):
+class SetProxiesTests(SynchronousTestCase):
     """
-    Tests for ``Deployer._apply_changes``.
+    Tests for ``SetProxies``.
     """
     def test_proxies_added(self):
         """
@@ -1104,12 +1104,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([expected_proxy])
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[expected_proxy]).run(api)
         self.successResultOf(d)
         self.assertEqual(
             [expected_proxy],
@@ -1126,11 +1121,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[]).run(api)
         self.successResultOf(d)
         self.assertEqual(
             [],
@@ -1156,13 +1147,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([required_proxy1, required_proxy2])
-        )
-
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[required_proxy1, required_proxy2]).run(api)
 
         self.successResultOf(d)
         self.assertEqual(
@@ -1183,11 +1168,8 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-        )
-        d = api._apply_changes(desired_changes)
+
+        d = SetProxies(ports=[]).run(api)
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -1206,18 +1188,18 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(api)
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
             ZeroDivisionError
         )
 
+
+class CalculateNecessaryStateChangesTests(SynchronousTestCase):
+    """
+    Tests for ``Deployer.calculate_necessary_state_changes``. Maybe. Or maybe deletable.
+    """
     def test_restarts(self):
         """
         Applications listed in ``StateChanges.applications_to_restart`` are
