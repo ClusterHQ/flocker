@@ -1311,3 +1311,44 @@ class CreateVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(u"myvol"))
+
+
+class WaitForVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``WaitForVolume``.
+    """
+    def test_creates(self):
+        """
+        ``WaitForVolume.run()`` waits for the named volume.
+        """
+        volume_service = create_volume_service(self)
+        result = []
+
+        def wait(name):
+            result.append(name)
+        self.patch(volume_service, "wait_for_volume", wait)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait.run(deployer)
+        self.assertEqual(result, [u"myvol"])
+
+    def test_return(self):
+        """
+        ``WaitVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "wait_for_volume", lambda name: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait_result = wait.run(deployer)
+        self.assertIs(wait_result, result)

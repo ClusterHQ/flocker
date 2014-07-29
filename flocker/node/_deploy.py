@@ -155,7 +155,7 @@ class WaitForVolume(object):
     :ivar AttachedVolume volume: Volume to wait for.
     """
     def run(self, deployer):
-        pass
+        return deployer.volume_service.wait_for_volume(self.volume.name)
 
 
 @implementer(IStateChange)
