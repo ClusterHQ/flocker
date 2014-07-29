@@ -267,6 +267,11 @@ class Deployer(object):
         Work out which changes need to happen to the local state to match
         the given desired state.
 
+        Currently this involves two phases:
+
+        1. Change proxies to point to new addresses.
+        2. Start/stop/restart all relevent containers.
+
         :param Deployment desired_state: The intended configuration of all
             nodes.
         :param Deployment current_cluster_state: The current configuration
@@ -279,8 +284,8 @@ class Deployer(object):
         :return: A ``Deferred`` which fires with a ``IStateChange``
             provider.
         """
-        # Change to create a tree of IStateChange providers, using
-        # Sequantially and InParallel for overall structure.
+        phases = []
+
         desired_proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
@@ -293,9 +298,9 @@ class Deployer(object):
                         # https://github.com/ClusterHQ/flocker/issues/322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
+        if desired_proxies != set(self.network.enumerate_proxies()):
+            phases.append(SetProxies(ports=desired_proxies))
 
-        # XXX: This includes stopped units. See
-        # https://github.com/ClusterHQ/flocker/issues/326
         d = self.discover_node_configuration()
 
         def find_differences(current_node_state):
@@ -317,27 +322,34 @@ class Deployer(object):
             stop_names = {app.name for app in all_applications}.difference(
                 desired_local_state)
 
-            start_containers = {
-                app for app in desired_node_applications
+            start_containers = [
+                StartApplication(application=app)
+                for app in desired_node_applications
                 if app.name in start_names
-            }
-            stop_containers = {
-                app for app in all_applications
+            ]
+            stop_containers = [
+                StopApplication(application=app) for app in all_applications
                 if app.name in stop_names
-            }
-            restart_containers = {
-                app for app in desired_node_applications
+            ]
+            restart_containers = [
+                Sequentially(changes=[StopApplication(application=app),
+                                      StartApplication(application=app)])
+                for app in desired_node_applications
                 if app.name in not_running
-            }
-
+            ]
+            all_changes = (
+                start_containers + stop_containers + restart_containers)
+            if all_changes:
+                phases.append(InParallel(changes=(
+                    start_containers + stop_containers + restart_containers)))
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
             # XXX Use this in https://github.com/ClusterHQ/flocker/issues/368
             #volumes = find_volume_changes(hostname, current_cluster_state,
             #                              desired_state)
-            return Sequentially(changes=[])
         d.addCallback(find_differences)
+        d.addCallback(lambda _: Sequentially(changes=phases))
         return d
 
     def change_node_state(self, desired_state,

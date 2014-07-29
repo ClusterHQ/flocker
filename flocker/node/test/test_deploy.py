@@ -606,7 +606,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+                                          hostname=u'node.example.com')
         expected = Sequentially(changes=[])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -654,6 +654,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         list if there are no remote applications that need proxies.
         """
         network = make_memory_network()
+        network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+
         api = Deployer(create_volume_service(self),
                        gear_client=FakeGearClient(),
                        network=network)
@@ -679,7 +681,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = StopApplication(application=Application(name=unit.name))
-        expected = Sequentially(changes=[InParallel(changes=to_stop)])
+        expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
