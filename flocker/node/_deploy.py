@@ -275,10 +275,15 @@ class Deployer(object):
         Work out which changes need to happen to the local state to match
         the given desired state.
 
-        Currently this involves two phases:
+        Currently this involves the following phases:
 
-        1. Change proxies to point to new addresses.
-        2. Start/stop/restart all relevent containers.
+        1. Change proxies to point to new addresses (should really be
+           last, see https://github.com/ClusterHQ/flocker/issues/380)
+        2. Stop all relevant containers.
+        3. Handoff volumes.
+        4. Wait for volumes.
+        5. Create volumes.
+        6. Start and restart any relevant containers.
 
         :param Deployment desired_state: The intended configuration of all
             nodes.
@@ -345,17 +350,31 @@ class Deployer(object):
                 for app in desired_node_applications
                 if app.name in not_running
             ]
-            all_changes = (
-                start_containers + stop_containers + restart_containers)
-            if all_changes:
-                phases.append(InParallel(changes=(
-                    start_containers + stop_containers + restart_containers)))
+
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
-            # XXX Use this in https://github.com/ClusterHQ/flocker/issues/368
-            # volumes = find_volume_changes(hostname, current_cluster_state,
-            #                               desired_state)
+            volumes = find_volume_changes(hostname, current_cluster_state,
+                                          desired_state)
+
+            if stop_containers:
+                phases.append(InParallel(changes=stop_containers))
+            if volumes.going:
+                phases.append(InParallel(changes=[
+                    HandoffVolume(volume=handoff.volume,
+                                  hostname=handoff.hostname)
+                    for handoff in volumes.going]))
+            if volumes.coming:
+                phases.append(InParallel(changes=[
+                    WaitForVolume(volume=volume) for volume in volumes.coming]))
+            if volumes.creating:
+                phases.append(InParallel(changes=[
+                    CreateVolume(volume=volume)
+                    for volume in volumes.creating]))
+            start_restart = start_containers + restart_containers
+            if start_restart:
+                phases.append(InParallel(changes=start_restart))
+
         d.addCallback(find_differences)
         d.addCallback(lambda _: Sequentially(changes=phases))
         return d
