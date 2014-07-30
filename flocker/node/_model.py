@@ -137,36 +137,11 @@ class VolumeHandoff(object):
     A record representing a volume handoff that needs to be performed from this
     node.
 
+    See :cls:`flocker.volume.service.VolumeService.handoff`` for more details.
+
     :ivar AttachedVolume volume: The volume to hand off.
     :ivar bytes hostname: The hostname of the node to which the volume is
          meant to be handed off.
-    """
-
-
-@attributes(
-    ["applications_to_start", "applications_to_stop",
-     "applications_to_restart", "proxies",
-     "volumes_to_handoff", "volumes_to_wait_for", "volumes_to_create"],
-    defaults=dict(proxies=frozenset(), applications_to_restart=frozenset(),
-                  volumes_to_handoff=frozenset(),
-                  volumes_to_wait_for=frozenset(),
-                  volumes_to_create=frozenset()))
-class StateChanges(object):
-    """
-    ``StateChanges`` describes changes necessary to make to the current
-    state. This might be because of user-specified configuration changes.
-
-    :ivar set applications_to_start: The applications which must be started.
-    :ivar set applications_to_restart: The applications which must be
-        restarted.
-    :ivar set applications_to_stop: The applications which must be stopped.
-    :ivar set volumes_to_handoff: ``VolumeHandoff`` instances.
-    :ivar set volumes_to_wait_for: ``AttachedVolume`` we expect to be handed
-        off to us by other nodes.
-    :ivar set volumes_to_create: ``AttachedVolume`` to create.
-    :ivar set proxies: The required full ``set`` of
-        :class:`flocker.route.Proxy` routes to application on other
-        nodes. Defaults to an empty ``frozenset``.
     """
 
 

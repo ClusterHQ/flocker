@@ -60,7 +60,7 @@ class ChangeStateScriptTests(TestCase):
         ``ChangeStateScript._deployer`` is created by default with a
         ``VolumeService``.
         """
-        self.assertIsInstance(ChangeStateScript()._deployer._volume_service,
+        self.assertIsInstance(ChangeStateScript()._deployer.volume_service,
                               VolumeService)
 
     def test_volume_service_config_path(self):
@@ -69,7 +69,7 @@ class ChangeStateScriptTests(TestCase):
         ``VolumeService`` with the default config path.
         """
         self.assertEqual(
-            ChangeStateScript()._deployer._volume_service._config_path,
+            ChangeStateScript()._deployer.volume_service._config_path,
             DEFAULT_CONFIG_PATH)
 
     def test_volume_service_pool(self):
@@ -78,7 +78,7 @@ class ChangeStateScriptTests(TestCase):
         ``VolumeService`` whose pool is the default ZFS pool.
         """
         self.assertEqual(
-            ChangeStateScript()._deployer._volume_service._pool,
+            ChangeStateScript()._deployer.volume_service._pool,
             StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
 
     @if_gear_configured
@@ -88,7 +88,7 @@ class ChangeStateScriptTests(TestCase):
         """
         # Trial will fail the test if the returned Deferred fires with an
         # exception:
-        return ChangeStateScript()._deployer._gear_client.list()
+        return ChangeStateScript()._deployer.gear_client.list()
 
 
 class ReportStateScriptTests(TestCase):
