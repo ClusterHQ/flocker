@@ -263,7 +263,9 @@ class InParallelTests(SynchronousTestCase):
         """
         ``InParallel.run`` runs sub-changes in parallel.
         """
-        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        # The first change will not finish immediately when run(), but we
+        # expect the second one to be run() nonetheless.
+        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
