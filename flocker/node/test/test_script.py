@@ -47,7 +47,7 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         """
         service = object()
         script = ChangeStateScript(lambda: service)
-        self.assertIs(script._deployer._volume_service, service)
+        self.assertIs(script._deployer.volume_service, service)
 
     def test_main_calls_deployer_change_node_state(self):
         """

@@ -5,17 +5,17 @@
 Deploy applications on nodes.
 """
 
+from zope.interface import Interface, implementer
+
 from characteristic import attributes
 
-from twisted.internet.defer import gatherResults, fail
+from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
 
 from .gear import GearClient, PortMap
 from ._model import (
-    Application, StateChanges, VolumeChanges, AttachedVolume, VolumeHandoff,
+    Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
-
-from twisted.internet.defer import DeferredList, succeed
 
 
 @attributes(["running", "not_running"])
@@ -30,37 +30,71 @@ class NodeState(object):
     """
 
 
-class Deployer(object):
+class IStateChange(Interface):
     """
-    Start and stop applications.
+    An operation that changes the state of the local node.
     """
-    def __init__(self, volume_service, gear_client=None, network=None):
+    def run(deployer):
         """
-        :param VolumeService volume_service: The volume manager for this node.
-        :param IGearClient gear_client: The gear client API to use in
-            deployment operations. Default ``GearClient``.
-        :param INetwork network: The network routing API to use in
-            deployment operations. Default is iptables-based implementation.
-        """
-        if gear_client is None:
-            gear_client = GearClient(hostname=u'127.0.0.1')
-        self._gear_client = gear_client
-        if network is None:
-            network = make_host_network()
-        self._network = network
-        self._volume_service = volume_service
+        Run the change.
 
-    def start_application(self, application):
-        """
-        Launch the supplied application as a `gear` unit.
+        :param Deployer deployer: The ``Deployer`` to use.
 
-        :param Application application: The ``Application`` to create and
-            start.
-        :returns: A ``Deferred`` which fires with ``None`` when the application
-           has started.
+        :return: ``Deferred`` firing when the change is done.
         """
+
+    def __eq__(other):
+        """
+        Return whether this change is equivalent to another.
+        """
+
+    def __ne__(other):
+        """
+        Return whether this change is not equivalent to another.
+        """
+
+
+@implementer(IStateChange)
+@attributes(["changes"])
+class Sequentially(object):
+    """
+    Run a series of changes in sequence, one after the other.
+
+    Failures in earlier changes stop later changes.
+    """
+    def run(self, deployer):
+        d = succeed(None)
+        for change in self.changes:
+            d.addCallback(lambda _, change=change: change.run(deployer))
+        return d
+
+
+@implementer(IStateChange)
+@attributes(["changes"])
+class InParallel(object):
+    """
+    Run a series of changes in parallel.
+
+    Failures in one change do not prevent other changes from continuing.
+    """
+    def run(self, deployer):
+        return gatherResults((change.run(deployer) for change in self.changes),
+                             consumeErrors=True)
+
+
+@implementer(IStateChange)
+@attributes(["application"])
+class StartApplication(object):
+    """
+    Launch the supplied application as a gear unit.
+
+    :ivar Application application: The ``Application`` to create and
+        start.
+    """
+    def run(self, deployer):
+        application = self.application
         if application.volume is not None:
-            volume = self._volume_service.get(application.volume.name)
+            volume = deployer.volume_service.get(application.volume.name)
             d = volume.expose_to_docker(application.volume.mountpoint)
         else:
             d = succeed(None)
@@ -71,30 +105,122 @@ class Deployer(object):
                             application.ports)
         else:
             port_maps = []
-        d.addCallback(lambda _: self._gear_client.add(
+        d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
         ))
         return d
 
-    def stop_application(self, application):
-        """
-        Stop and disable the application.
 
-        :param Application application: The ``Application`` to stop.
-        :returns: A ``Deferred`` which fires with ``None`` when the application
-            has stopped.
-        """
+@implementer(IStateChange)
+@attributes(["application"])
+class StopApplication(object):
+    """
+    Stop and disable the given application.
+
+    :ivar Application application: The ``Application`` to stop.
+    """
+    def run(self, deployer):
+        application = self.application
         unit_name = application.name
-        result = self._gear_client.remove(unit_name)
+        result = deployer.gear_client.remove(unit_name)
 
         def unit_removed(_):
             if application.volume is not None:
-                volume = self._volume_service.get(application.volume.name)
+                volume = deployer.volume_service.get(application.volume.name)
                 return volume.remove_from_docker()
         result.addCallback(unit_removed)
         return result
+
+
+@implementer(IStateChange)
+@attributes(["volume"])
+class CreateVolume(object):
+    """
+    Create a new locally-owned volume.
+
+    :ivar AttachedVolume volume: Volume to create.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["volume"])
+class WaitForVolume(object):
+    """
+    Wait for a volume to exist and be owned locally.
+
+    :ivar AttachedVolume volume: Volume to wait for.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["volume", "hostname"])
+class HandoffVolume(object):
+    """
+    A volume handoff that needs to be performed from this node to another
+    node.
+
+    See :cls:`flocker.volume.VolumeService.handoff` for more details.
+
+    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
+    """
+    def run(self, deployer):
+        pass
+
+
+@implementer(IStateChange)
+@attributes(["ports"])
+class SetProxies(object):
+    """
+    Set the ports which will be forwarded to other nodes.
+
+    :ivar ports: A collection of ``Port`` objects.
+    """
+    def run(self, deployer):
+        results = []
+        # XXX: Errors in these operations should be logged. See
+        # https://github.com/ClusterHQ/flocker/issues/296
+
+        # XXX: The proxy manipulation operations are blocking. Convert to a
+        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
+        for proxy in deployer.network.enumerate_proxies():
+            try:
+                deployer.network.delete_proxy(proxy)
+            except:
+                results.append(fail())
+        for proxy in self.ports:
+            try:
+                deployer.network.create_proxy_to(proxy.ip, proxy.port)
+            except:
+                results.append(fail())
+        return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+
+
+class Deployer(object):
+    """
+    Start and stop applications.
+
+    :ivar VolumeService volume_service: The volume manager for this node.
+    :ivar IGearClient gear_client: The gear client API to use in
+        deployment operations. Default ``GearClient``.
+    :ivar INetwork network: The network routing API to use in
+        deployment operations. Default is iptables-based implementation.
+    """
+    def __init__(self, volume_service, gear_client=None, network=None):
+        if gear_client is None:
+            gear_client = GearClient(hostname=u'127.0.0.1')
+        self.gear_client = gear_client
+        if network is None:
+            network = make_host_network()
+        self.network = network
+        self.volume_service = volume_service
 
     def discover_node_configuration(self):
         """
@@ -103,11 +229,11 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
-        volumes = self._volume_service.enumerate()
+        volumes = self.volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
             volume.name for volume in volumes
-            if volume.uuid == self._volume_service.uuid))
-        d = gatherResults([self._gear_client.list(), volumes])
+            if volume.uuid == self.volume_service.uuid))
+        d = gatherResults([self.gear_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result
@@ -141,6 +267,11 @@ class Deployer(object):
         Work out which changes need to happen to the local state to match
         the given desired state.
 
+        Currently this involves two phases:
+
+        1. Change proxies to point to new addresses.
+        2. Start/stop/restart all relevent containers.
+
         :param Deployment desired_state: The intended configuration of all
             nodes.
         :param Deployment current_cluster_state: The current configuration
@@ -150,10 +281,11 @@ class Deployer(object):
         :param unicode hostname: The hostname of the node that this is running
             on.
 
-        :return: A ``Deferred`` which fires with a ``StateChanges`` instance
-            specifying which applications must be started and which must be
-            stopped.
+        :return: A ``Deferred`` which fires with a ``IStateChange``
+            provider.
         """
+        phases = []
+
         desired_proxies = set()
         desired_node_applications = []
         for node in desired_state.nodes:
@@ -166,9 +298,9 @@ class Deployer(object):
                         # https://github.com/ClusterHQ/flocker/issues/322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
+        if desired_proxies != set(self.network.enumerate_proxies()):
+            phases.append(SetProxies(ports=desired_proxies))
 
-        # XXX: This includes stopped units. See
-        # https://github.com/ClusterHQ/flocker/issues/326
         d = self.discover_node_configuration()
 
         def find_differences(current_node_state):
@@ -190,35 +322,34 @@ class Deployer(object):
             stop_names = {app.name for app in all_applications}.difference(
                 desired_local_state)
 
-            start_containers = {
-                app for app in desired_node_applications
+            start_containers = [
+                StartApplication(application=app)
+                for app in desired_node_applications
                 if app.name in start_names
-            }
-            stop_containers = {
-                app for app in all_applications
+            ]
+            stop_containers = [
+                StopApplication(application=app) for app in all_applications
                 if app.name in stop_names
-            }
-            restart_containers = {
-                app for app in desired_node_applications
+            ]
+            restart_containers = [
+                Sequentially(changes=[StopApplication(application=app),
+                                      StartApplication(application=app)])
+                for app in desired_node_applications
                 if app.name in not_running
-            }
-
+            ]
+            all_changes = (
+                start_containers + stop_containers + restart_containers)
+            if all_changes:
+                phases.append(InParallel(changes=(
+                    start_containers + stop_containers + restart_containers)))
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
-            volumes = find_volume_changes(hostname, current_cluster_state,
-                                          desired_state)
-
-            return StateChanges(
-                applications_to_start=start_containers,
-                applications_to_stop=stop_containers,
-                applications_to_restart=restart_containers,
-                volumes_to_handoff=volumes.going,
-                volumes_to_wait_for=volumes.coming,
-                volumes_to_create=volumes.creating,
-                proxies=desired_proxies,
-            )
+            # XXX Use this in https://github.com/ClusterHQ/flocker/issues/368
+            # volumes = find_volume_changes(hostname, current_cluster_state,
+            #                               desired_state)
         d.addCallback(find_differences)
+        d.addCallback(lambda _: Sequentially(changes=phases))
         return d
 
     def change_node_state(self, desired_state,
@@ -233,53 +364,15 @@ class Deployer(object):
             of all nodes.
         :param unicode hostname: The hostname of the node that this is running
             on.
+
+        :return: ``Deferred`` that fires when the necessary changes are done.
         """
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
             current_cluster_state=current_cluster_state,
             hostname=hostname)
-        d.addCallback(self._apply_changes)
+        d.addCallback(lambda change: change.run(self))
         return d
-
-    def _apply_changes(self, necessary_state_changes):
-        """
-        Apply desired changes.
-
-        :param StateChanges necessary_state_changes: A record of the
-            applications which need to be started and stopped on this node.
-
-        :return: A ``Deferred`` that fires when all application start/stop
-            operations have finished.
-        """
-        # XXX: Errors in these operations should be logged. See
-        # https://github.com/ClusterHQ/flocker/issues/296
-        results = []
-
-        # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
-        for proxy in self._network.enumerate_proxies():
-            try:
-                self._network.delete_proxy(proxy)
-            except:
-                results.append(fail())
-        for proxy in necessary_state_changes.proxies:
-            try:
-                self._network.create_proxy_to(proxy.ip, proxy.port)
-            except:
-                results.append(fail())
-
-        for application in necessary_state_changes.applications_to_stop:
-            results.append(self.stop_application(application))
-
-        for application in necessary_state_changes.applications_to_start:
-            results.append(self.start_application(application))
-
-        for application in necessary_state_changes.applications_to_restart:
-            d = self.stop_application(application)
-            d.addCallback(lambda _: self.start_application(application))
-            results.append(d)
-        return DeferredList(
-            results, fireOnOneErrback=True, consumeErrors=True)
 
 
 def find_volume_changes(hostname, current_state, desired_state):
