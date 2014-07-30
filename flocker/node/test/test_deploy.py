@@ -470,10 +470,10 @@ APPLICATION_WITH_VOLUME = Application(
     )
 )
 
-# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the current
-# state passed to calculate_necessary_state_changes won't know mountpoint.
-# Until https://github.com/ClusterHQ/flocker/issues/207 is fixed the image will
-# be unknown.
+# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
+# current state passed to calculate_necessary_state_changes won't know
+# mountpoint. Until https://github.com/ClusterHQ/flocker/issues/207 is
+# fixed the image will be unknown.
 DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string('unknown'),
