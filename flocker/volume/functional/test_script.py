@@ -4,16 +4,14 @@
 
 from subprocess import check_output, Popen, PIPE
 import json
-import os
-from unittest import skipIf, skipUnless
+from unittest import skipUnless
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from ... import __version__
-from ...testtools import skip_on_broken_permissions
-
+from ...testtools import skip_on_broken_permissions, attempt_effective_uid
 
 _require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
@@ -64,7 +62,6 @@ class FlockerVolumeTests(TestCase):
         run(b"--config", path.path)
         self.assertTrue(json.loads(path.getContent()))
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
     def test_no_permission(self):
         """If the config file is not writeable a meaningful response is
@@ -75,7 +72,8 @@ class FlockerVolumeTests(TestCase):
         path.chmod(0)
         self.addCleanup(path.chmod, 0o777)
         config = path.child(b"out.json")
-        result = run_expecting_error(b"--config", config.path)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            result = run_expecting_error(b"--config", config.path)
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
                          % (config.path,))
