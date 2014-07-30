@@ -117,7 +117,7 @@ class IStoragePool(Interface):
         :return: A :class:`IFilesystem` provider.
         """
 
-    def change_owner(volume, new_owner_uuid):
+    def change_owner(volume, new_volume):
         """
         Make necessary changes to a filesystem whose volume's owner UUID is
         being changed.
