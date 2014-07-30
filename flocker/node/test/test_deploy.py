@@ -145,6 +145,14 @@ class FakeChange(object):
         self.deployer = deployer
         return self.result
 
+    def was_run_called(self):
+        """
+        Return whether or not run() has been called yet.
+
+        :return: ``True`` if ``run()`` was called, otherwise ``False``.
+        """
+        return self.deployer != NOT_CALLED
+
     def __eq__(self, other):
         return False
 
@@ -186,15 +194,22 @@ class SequentiallyTests(SynchronousTestCase):
         """
         ``Sequentially.run`` runs sub-changes in order.
         """
+        # We have two changes; the first one will not finish until we fire
+        # not_done, the second one will finish as soon as its run() is
+        # called.
         not_done = Deferred()
         subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
         change = Sequentially(changes=subchanges)
         deployer = object()
+        # Run the sequential change. We expect the first FakeChange's
+        # run() to be called, but we expect second one *not* to be called
+        # yet, since first one has finished.
         change.run(deployer)
-        called = [subchanges[0].deployer, subchanges[1].deployer]
+        called = [subchanges[0].was_run_called(),
+                  subchanges[1].was_run_called()]
         not_done.callback(None)
-        called.extend([subchanges[0].deployer, subchanges[1].deployer])
-        self.assertEqual(called, [deployer, NOT_CALLED, deployer, deployer])
+        called.append(subchanges[1].was_run_called())
+        self.assertEqual(called, [True, False, True])
 
     def test_failure_stops_later_change(self):
         """
@@ -206,13 +221,12 @@ class SequentiallyTests(SynchronousTestCase):
         change = Sequentially(changes=subchanges)
         deployer = object()
         result = change.run(deployer)
-        called = [subchanges[0].deployer, subchanges[1].deployer]
+        called = [subchanges[1].was_run_called()]
         exception = RuntimeError()
         not_done.errback(exception)
-        called.extend([subchanges[0].deployer, subchanges[1].deployer,
+        called.extend([subchanges[1].was_run_called(),
                        self.failureResultOf(result).value])
-        self.assertEqual(called, [deployer, NOT_CALLED, deployer, NOT_CALLED,
-                                  exception])
+        self.assertEqual(called, [False, False, exception])
 
 
 class InParallelTests(SynchronousTestCase):
@@ -253,8 +267,9 @@ class InParallelTests(SynchronousTestCase):
         change = InParallel(changes=subchanges)
         deployer = object()
         change.run(deployer)
-        called = [subchanges[0].deployer, subchanges[1].deployer]
-        self.assertEqual(called, [deployer, deployer])
+        called = [subchanges[0].was_run_called(),
+                  subchanges[1].was_run_called()]
+        self.assertEqual(called, [True, True])
 
     def test_failure_result(self):
         """
