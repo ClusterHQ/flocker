@@ -816,9 +816,9 @@ def attempt_effective_uid(username, suppress_errors=False):
     """
     A context manager to temporarily change the effective user id.
 
-    :param unicode username: The username whose uid will take effect.
-    :param bool suppress_errors: Set to `True` to suppress "Operation not
-        permitted" errors.
+    :param bytes username: The username whose uid will take effect.
+    :param bool suppress_errors: Set to `True` to suppress `OSError`
+        ("Operation not permitted") when running as a non-root user.
     """
     original_euid = os.geteuid()
     new_euid = pwd.getpwnam(username).pw_uid
