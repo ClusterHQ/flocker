@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, NodeState)
+                Port, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
@@ -24,6 +24,8 @@ from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
+from ...volume._ipc import RemoteVolumeManager
+from ...common._ipc import ProcessNode
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -1018,11 +1020,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
-    # Temporarily failing to minimize new code in #361 branch.
-    test_volume_wait.todo = "to be resurrected in #368"
-    test_volume_created.todo = "to be resurrected in #368"
-    test_volume_handoff.todo = "to be resurrected in #368"
-
     def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
@@ -1074,6 +1071,83 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
+
+    def test_handoff_precedes_wait(self):
+        """
+        Volume handoffs happen before volume waits, to prevent deadlocks
+        between two nodes that are swapping volumes.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
+
+        another_application = Application(
+            name=u"another",
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.1'),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=u"another",
+                mountpoint=FilePath(b"/blah"),
+            )
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({another_application}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here, and another application is running
+        # at the other node.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        # We're swapping the location of applications:
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=another_node.applications),
+            Node(hostname=another_node.hostname,
+                 applications=node.applications),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+        volume2 = AttachedVolume(
+            name=u"another",
+            mountpoint=FilePath(b"/blah"),
+        )
+        expected = Sequentially(changes=[
+            InParallel(changes=[StopApplication(
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+            InParallel(changes=[HandoffVolume(
+                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[WaitForVolume(volume=volume2)]),
+            InParallel(changes=[
+                StartApplication(application=another_application)]),
+        ])
+        self.assertEqual(expected, changes)
 
 
 class SetProxiesTests(SynchronousTestCase):
@@ -1293,3 +1367,130 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])
+
+
+class CreateVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``CreateVolume``.
+    """
+    def test_creates(self):
+        """
+        ``CreateVolume.run()`` creates the named volume.
+        """
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        create.run(deployer)
+        self.assertIn(
+            volume_service.get(u"myvol"),
+            list(self.successResultOf(volume_service.enumerate())))
+
+    def test_return(self):
+        """
+        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        created volume.
+        """
+        deployer = Deployer(create_volume_service(self),
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        result = self.successResultOf(create.run(deployer))
+        self.assertEqual(result, deployer.volume_service.get(u"myvol"))
+
+
+class WaitForVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``WaitForVolume``.
+    """
+    def test_waits(self):
+        """
+        ``WaitForVolume.run()`` waits for the named volume.
+        """
+        volume_service = create_volume_service(self)
+        result = []
+
+        def wait(name):
+            result.append(name)
+        self.patch(volume_service, "wait_for_volume", wait)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait.run(deployer)
+        self.assertEqual(result, [u"myvol"])
+
+    def test_return(self):
+        """
+        ``WaitVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "wait_for_volume", lambda name: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait_result = wait.run(deployer)
+        self.assertIs(wait_result, result)
+
+
+class HandoffVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``HandoffVolume``.
+    """
+    def test_handoff(self):
+        """
+        ``HandoffVolume.run()`` hands off the named volume to the given
+        destination nodex.
+        """
+        volume_service = create_volume_service(self)
+
+        result = []
+
+        def _handoff(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "handoff", _handoff)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=b"dest.example.com")
+        handoff.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(ProcessNode.using_ssh(
+                 b"dest.example.com", 22, b"root",
+                 SSH_PRIVATE_KEY_PATH))])
+
+    def test_return(self):
+        """
+        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "handoff",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        handoff_result = handoff.run(deployer)
+        self.assertIs(handoff_result, result)
