@@ -1072,7 +1072,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
 
-    def test_push_precedes_wait(self):
+    def test_handoff_precedes_wait(self):
         """
         Volume handoffs happen before volume waits, to prevent deadlocks
         between two nodes that are swapping volumes.
