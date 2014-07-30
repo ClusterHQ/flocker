@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, NodeState)
+                Port, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
@@ -1474,7 +1474,7 @@ class HandoffVolumeTests(SynchronousTestCase):
             [volume_service.get(u"myvol"),
              RemoteVolumeManager(ProcessNode.using_ssh(
                  b"dest.example.com", 22, b"root",
-                 FilePath(b"/etc/flocker/id_rsa_flocker")))])
+                 SSH_PRIVATE_KEY_PATH))])
 
     def test_return(self):
         """

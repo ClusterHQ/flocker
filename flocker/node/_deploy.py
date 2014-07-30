@@ -21,6 +21,13 @@ from ..volume._ipc import RemoteVolumeManager
 from ..common._ipc import ProcessNode
 
 
+# Path to SSH private key available on nodes and used to communicate
+# across nodes.
+# XXX duplicate of same information in flocker.cli:
+# https://github.com/ClusterHQ/flocker/issues/390
+SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+
+
 @attributes(["running", "not_running"])
 class NodeState(object):
     """
@@ -178,7 +185,7 @@ class HandoffVolume(object):
         service = deployer.volume_service
         destination = ProcessNode.using_ssh(
             self.hostname, 22, b"root",
-            FilePath(b"/etc/flocker/id_rsa_flocker"))
+            SSH_PRIVATE_KEY_PATH)
         return service.handoff(service.get(self.volume.name),
                                RemoteVolumeManager(destination))
 
