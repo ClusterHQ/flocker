@@ -9,7 +9,6 @@ import io
 import socket
 import sys
 import os
-import tempfile
 import pwd
 from operator import setitem, delitem
 from collections import namedtuple
