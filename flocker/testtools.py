@@ -811,35 +811,6 @@ def skip_on_broken_permissions(test_method):
     return wrapper
 
 
-def run_as_nonprivileged_user(test_method):
-    """
-    Temporarily gives the user, if ``root`` the privileges of the ``nobody``
-    user.
-
-    :param callable test_method: Test method to wrap.
-    :return: The wrapped method.
-    """
-    @wraps(test_method)
-    def wrapper(case, *args, **kwargs):
-        if os.getuid() == 0:
-            def new_mktemp():
-                MAX_FILENAME = 32
-                base = os.path.join(tempfile.gettempdir(),
-                                    case.__class__.__module__[:MAX_FILENAME],
-                                    case.__class__.__name__[:MAX_FILENAME],
-                                    case._testMethodName[:MAX_FILENAME])
-                if not os.path.exists(base):
-                    os.makedirs(base)
-                dirname = tempfile.mkdtemp('', '', base)
-                return os.path.join(dirname, 'temp')
-            case.mktemp = new_mktemp
-            nobody_uid = pwd.getpwnam('nobody').pw_uid
-            os.seteuid(nobody_uid)
-            case.addCleanup(os.seteuid, 0)
-        return test_method(case, *args, **kwargs)
-    return wrapper
-
-
 @contextmanager
 def attempt_effective_uid(username, suppress_errors=False):
     """
