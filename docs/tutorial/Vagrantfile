@@ -59,7 +59,7 @@ fi
 
 mkdir /tmp/dockerbuild
 cd /tmp/dockerbuild
-echo "FROM dockerfile/mongodb\nCMD mongod --noprealloc --smallfiles" > Dockerfile
+echo "FROM dockerfile/mongodb\nCMD mongod --dbpath=/data --noprealloc --smallfiles" > Dockerfile
 docker build --tag mongodb-tutorial .
 SCRIPT
 
