@@ -424,6 +424,9 @@ def find_volume_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://github.com/ClusterHQ/flocker/issues/352 for more details.
 
+    XXX Comparison is done via volume name, rather than AttachedVolume
+    objects, until https://github.com/ClusterHQ/flocker/issues/289 is fixed.
+
     :param unicode hostname: The name of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
@@ -441,11 +444,15 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
-    local_current_volumes = current_volumes.get(hostname, set())
-    remote_current_volumes = set()
+    local_desired_volume_names = set(volume.name for volume in
+                                     local_desired_volumes)
+    local_current_volume_names = set(volume.name for volume in
+                                     current_volumes.get(hostname, set()))
+    remote_current_volume_names = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
-            remote_current_volumes |= current
+            remote_current_volume_names |= set(
+                volume.name for volume in current)
 
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for
@@ -454,19 +461,24 @@ def find_volume_changes(hostname, current_state, desired_state):
     for volume_hostname, desired in desired_volumes.items():
         if volume_hostname != hostname:
             for volume in desired:
-                if volume in local_current_volumes:
+                if volume.name in local_current_volume_names:
                     going.add(VolumeHandoff(volume=volume,
                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
     # node.  If it was running somewhere else, we want that Volume to be
     # in `coming`.
-    coming = local_desired_volumes.intersection(remote_current_volumes)
+    coming_names = local_desired_volume_names.intersection(
+        remote_current_volume_names)
+    coming = set(volume for volume in local_desired_volumes
+                 if volume.name in coming_names)
 
     # For each application volume that is going to be started on this node
     # that was not running anywhere previously, make sure that Volume is
     # in `creating`.
-    creating = local_desired_volumes.difference(
-        local_current_volumes | remote_current_volumes)
+    creating_names = local_desired_volume_names.difference(
+        local_current_volume_names | remote_current_volume_names)
+    creating = set(volume for volume in local_desired_volumes
+                   if volume.name in creating_names)
 
     return VolumeChanges(going=going, coming=coming, creating=creating)

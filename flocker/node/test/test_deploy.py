@@ -470,6 +470,21 @@ APPLICATION_WITH_VOLUME = Application(
     )
 )
 
+# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
+# current state passed to calculate_necessary_state_changes won't know
+# mountpoint. Until https://github.com/ClusterHQ/flocker/issues/207 is
+# fixed the image will be unknown.
+DISCOVERED_APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string('unknown'),
+    volume=AttachedVolume(
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
+        name=APPLICATION_WITH_VOLUME_NAME,
+        mountpoint=None,
+    )
+)
+
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
@@ -885,7 +900,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -899,7 +914,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=another_node.applications),
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -935,7 +950,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -955,7 +970,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset()),
             Node(hostname=another_node.hostname,
-                 applications=node.applications),
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
         }))
 
         calculating = api.calculate_necessary_state_changes(
@@ -991,7 +1006,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         gear = FakeGearClient(units={unit.name: unit})
 
-        node = Node(
+        current_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+        )
+        desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
@@ -1002,7 +1021,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         # The discovered current configuration of the cluster reveals the
         # application is running here.
-        current = Deployment(nodes=frozenset([node, another_node]))
+        current = Deployment(nodes=frozenset([current_node, another_node]))
+        desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
         api = Deployer(
             create_volume_service(self), gear_client=gear,
@@ -1010,9 +1030,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         calculating = api.calculate_necessary_state_changes(
-            desired_state=current,
+            desired_state=desired,
             current_cluster_state=current,
-            hostname=node.hostname,
+            hostname=current_node.hostname,
         )
 
         changes = self.successResultOf(calculating)
@@ -1094,14 +1114,27 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 mountpoint=FilePath(b"/blah"),
             )
         )
+        # XXX don't know image or volume because of
+        # https://github.com/ClusterHQ/flocker/issues/289
+        # https://github.com/ClusterHQ/flocker/issues/207
+        discovered_another_application = Application(
+            name=u"another",
+            image=DockerImage.from_string(u'unknown'),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=u"another",
+                mountpoint=None,
+            )
+        )
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({another_application}),
+            applications=frozenset({discovered_another_application}),
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1117,9 +1150,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # We're swapping the location of applications:
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=another_node.applications),
+                 applications=frozenset({another_application})),
             Node(hostname=another_node.hostname,
-                 applications=node.applications),
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
         }))
 
         calculating = api.calculate_necessary_state_changes(
