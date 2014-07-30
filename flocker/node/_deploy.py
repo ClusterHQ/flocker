@@ -366,7 +366,8 @@ class Deployer(object):
                     for handoff in volumes.going]))
             if volumes.coming:
                 phases.append(InParallel(changes=[
-                    WaitForVolume(volume=volume) for volume in volumes.coming]))
+                    WaitForVolume(volume=volume)
+                    for volume in volumes.coming]))
             if volumes.creating:
                 phases.append(InParallel(changes=[
                     CreateVolume(volume=volume)
