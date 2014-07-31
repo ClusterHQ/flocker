@@ -66,9 +66,9 @@ Preparing for a release
 
       git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Make sure the release notes in :file:`NEWS` are up-to-date.
-#. Update appropriate copyright dates as appropriate.
-#. Make sure all the tests pass on BuildBot.
+#. Ensure the release notes in :file:`NEWS` are up-to-date.
+#. Ensure copyright dates in :file:`LICENSE` are up-to-date.
+#. Ensure all the tests pass on BuildBot.
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 #. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
 
