@@ -114,6 +114,9 @@ Release
     #. Enable the version being released.
     #. Set the default version to that version.
 
+    .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
+              If it does not appear, you can force readthedocs.org to reload the repository by running
+              ``curl -X POST http://readthedocs.org/build/flocker``
 
 clusterhq-release package
 ~~~~~~~~~~~~~~~~~~~~~~~~~
