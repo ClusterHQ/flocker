@@ -10,6 +10,9 @@ Google's cloud storage.  When doing a release, we want to add the new Flocker
 packages, while preserving the existing packages in the repository.  To do
 this, we download the current repository, add the new package, update the
 metadata, and then upload the repository.
+
+XXX This script is not automatically checked by buildbot. See
+https://github.com/ClusterHQ/flocker/issues/397
 """
 
 from __future__ import print_function
