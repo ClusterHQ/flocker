@@ -36,10 +36,12 @@ class ConfigureSSHTests(TestCase):
     """
     def setUp(self):
         self.ssh_config = FilePath(self.mktemp())
+        self.server = create_ssh_server(self.ssh_config)
         # Create a fake local keypair
+        # Must come after `create_ssh_server` since that will create the parent
+        # directory for us.
         self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
         self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
-        self.server = create_ssh_server(self.ssh_config)
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
         self.config = OpenSSHConfiguration(
