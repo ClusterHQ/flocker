@@ -105,6 +105,7 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when all nodes have been configured
             with ssh keys.
         """
+        self.ssh_configuration.create_keypair()
         results = []
         for node in deployment.nodes:
             results.append(
