@@ -36,6 +36,9 @@ class ConfigureSSHTests(TestCase):
     """
     def setUp(self):
         self.ssh_config = FilePath(self.mktemp())
+        # Create a fake local keypair
+        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
+        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
         self.server = create_ssh_server(self.ssh_config)
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
@@ -62,9 +65,6 @@ class ConfigureSSHTests(TestCase):
         When the SSH connection is established, the ``~/.ssh/authorized_keys``
         file has the public part of the generated key pair appended to it.
         """
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
-
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
 
@@ -84,9 +84,6 @@ class ConfigureSSHTests(TestCase):
         ``~/.ssh/authorized_keys`` file already has the public part of the key
         pair then it is not appended again.
         """
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
-
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
         configuring.addCallback(
@@ -106,9 +103,6 @@ class ConfigureSSHTests(TestCase):
         Any unrelated content in the ``~/.ssh/authorized_keys`` file is left in
         place by ``configure_ssh``.
         """
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
-
         existing_keys = (
             b"ssh-dss AAAAB3Nz1234567890 comment\n"
             b"ssh-dss AAAAB3Nz0987654321 comment\n"
@@ -131,8 +125,6 @@ class ConfigureSSHTests(TestCase):
         ``configure_ssh`` writes the keypair to ``id_rsa_flocker`` and
         ``id_rsa_flocker.pub`` remotely.
         """
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
         configuring = deferToThread(
             self.configure_ssh, self.server.ip, self.server.port)
 
