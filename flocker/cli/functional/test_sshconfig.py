@@ -179,7 +179,6 @@ class CreateKeyPairTests(TestCase):
         configurator = OpenSSHConfiguration(
             ssh_config_path=ssh_config, flocker_path=None)
 
-
         id_rsa = ssh_config.child(b"id_rsa_flocker")
 
         configuring = deferToThread(configurator.create_keypair)
