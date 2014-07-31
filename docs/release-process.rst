@@ -118,16 +118,6 @@ Release
               If it does not appear, you can force readthedocs.org to reload the repository by running
               ``curl -X POST http://readthedocs.org/build/flocker``
 
-clusterhq-release package
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This is a meta-package that contains the yum repository definitions.
-
-::
-
-   rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
-   gsutil cp -a public-read results/noarch/clusterhq-release-1-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
-
 
 Pre-populating rpm repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
