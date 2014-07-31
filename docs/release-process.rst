@@ -51,7 +51,7 @@ Preparing for a release
 #. Choose a version number
    - Releases numbers should be of the form x.y.z eg::
 
-      export VERSION="0.0.3"
+      export VERSION=0.0.3
 
 #. Checkout the branch for the release.
 
@@ -81,11 +81,11 @@ Release
 
      virtualenv ~/Environments/flocker-release
      . ~/Environments/flocker-release/bin/activate
-     pip install -e .[release]
+     pip install --editable .[release]
 
 #. Tag the version being released::
 
-     git tag -a "${VERSION}" release/flocker-"${VERSION%.*}"
+     git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}"
      git push origin "${VERSION}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
@@ -117,7 +117,7 @@ This is a meta-package that contains the yum repository definitions.
 
 ::
 
-   rpmbuild -D "_sourcedir ${PWD}" -D "_rpmdir ${PWD}/results" -ba clusterhq-release.spec
+   rpmbuild --define="_sourcedir ${PWD}" --define="_rpmdir ${PWD}/results" -ba clusterhq-release.spec
    gsutil cp -a public-read results/noarch/clusterhq-release-1-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/clusterhq-release.fc20.noarch.rpm
 
 
