@@ -8,7 +8,7 @@ from os.path import expanduser
 from socket import socket
 
 from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.conch.ssh.keys import Key
 from twisted.internet.threads import deferToThread
 
@@ -194,6 +194,30 @@ class CreateKeyPairTests(TestCase):
         def not_regenerated(expected_key):
             self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
         configuring.addCallback(not_regenerated)
+        return configuring
+
+    def test_key_permissions(self):
+        """
+        ``create_keypair`` sets secure permissions on
+        ``id_rsa_flocker`` and ``id_rsa_flocker.pub``.
+        """
+        ssh_config = FilePath(self.mktemp())
+        configurator = OpenSSHConfiguration(
+            ssh_config_path=ssh_config, flocker_path=None)
+
+        configuring = deferToThread(configurator.create_keypair)
+
+        expected_private_key_permissions = Permissions(0600)
+        expected_public_key_permissions = Permissions(0644)
+
+        def generated(ignored):
+            id_rsa = ssh_config.child(b"id_rsa_flocker")
+            id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
+            self.assertEqual(
+                (expected_private_key_permissions,
+                 expected_public_key_permissions),
+                (id_rsa.getPermissions(), id_rsa_pub.getPermissions()))
+        configuring.addCallback(generated)
         return configuring
 
 
