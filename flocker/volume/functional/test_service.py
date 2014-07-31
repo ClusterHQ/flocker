@@ -16,6 +16,7 @@ from twisted.trial.unittest import TestCase
 from ...testtools import random_name
 from ..service import Volume, VolumeService
 from ..filesystems.memory import FilesystemStoragePool
+from ..testtools import create_realistic_servicepair
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
@@ -162,4 +163,25 @@ class VolumeTests(TestCase):
 
         d.addCallback(lambda volume: volume.remove_from_docker())
         d.addCallback(self.assertEqual, None)
+        return d
+
+
+class RealisticTests(TestCase):
+    """
+    Tests for realistic scenarios, used to catch integration issues.
+    """
+    def test_handoff(self):
+        """
+        Handoff of a previously unpushed volume between two ZFS-based volume
+        managers does not fail.
+        """
+        service_pair = create_realistic_servicepair(self)
+
+        d = service_pair.from_service.create(u"myvolume")
+
+        def created(volume):
+            return service_pair.from_service.handoff(
+                volume, service_pair.remote)
+        d.addCallback(created)
+        # If the Deferred errbacks the test will fail:
         return d
