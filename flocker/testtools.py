@@ -9,6 +9,7 @@ import io
 import socket
 import sys
 import os
+import pwd
 from operator import setitem, delitem
 from collections import namedtuple
 from contextlib import contextmanager
@@ -788,3 +789,32 @@ def skip_on_broken_permissions(test_method):
                 "Can't run test on filesystem with broken permissions.")
         return test_method(case, *args, **kwargs)
     return wrapper
+
+
+@contextmanager
+def attempt_effective_uid(username, suppress_errors=False):
+    """
+    A context manager to temporarily change the effective user id.
+
+    :param bytes username: The username whose uid will take effect.
+    :param bool suppress_errors: Set to `True` to suppress `OSError`
+        ("Operation not permitted") when running as a non-root user.
+    """
+    original_euid = os.geteuid()
+    new_euid = pwd.getpwnam(username).pw_uid
+    restore_euid = False
+
+    if original_euid != new_euid:
+        try:
+            os.seteuid(new_euid)
+        except OSError as e:
+            # Only handle "Operation not permitted" errors.
+            if not suppress_errors or e.errno != 1:
+                raise
+        else:
+            restore_euid = True
+
+    yield
+
+    if restore_euid:
+        os.seteuid(original_euid)

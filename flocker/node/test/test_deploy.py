@@ -6,18 +6,26 @@ Tests for ``flocker.node._deploy``.
 
 from uuid import uuid4
 
-from twisted.internet.defer import fail, FirstError, succeed
+from zope.interface.verify import verifyObject
+from zope.interface import implementer
+
+from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                StateChanges, Port, NodeState)
-from .._model import VolumeHandoff, AttachedVolume
+                Port, NodeState, SSH_PRIVATE_KEY_PATH)
+from .._deploy import (
+    IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
+from .._model import AttachedVolume
 from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
+from ...volume._ipc import RemoteVolumeManager
+from ...common._ipc import ProcessNode
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -26,29 +34,29 @@ class DeployerAttributesTests(SynchronousTestCase):
     """
     def test_gear_client_default(self):
         """
-        ``Deployer._gear_client`` is a ``GearClient`` by default.
+        ``Deployer.gear_client`` is a ``GearClient`` by default.
         """
         self.assertIsInstance(
-            Deployer(None)._gear_client,
+            Deployer(None).gear_client,
             GearClient
         )
 
     def test_gear_override(self):
         """
-        ``Deployer._gear_client`` can be overridden in the constructor.
+        ``Deployer.gear_client`` can be overridden in the constructor.
         """
         dummy_gear_client = object()
         self.assertIs(
             dummy_gear_client,
             Deployer(create_volume_service(self),
-                     gear_client=dummy_gear_client)._gear_client
+                     gear_client=dummy_gear_client).gear_client
         )
 
     def test_network_default(self):
         """
         ``Deployer._network`` is a ``HostNetwork`` by default.
         """
-        self.assertIsInstance(Deployer(None)._network, HostNetwork)
+        self.assertIsInstance(Deployer(None).network, HostNetwork)
 
     def test_network_override(self):
         """
@@ -58,19 +66,235 @@ class DeployerAttributesTests(SynchronousTestCase):
         self.assertIs(
             dummy_network,
             Deployer(create_volume_service(self),
-                     network=dummy_network)._network
+                     network=dummy_network).network
         )
 
 
-class DeployerStartApplicationTests(SynchronousTestCase):
+def make_istatechange_tests(klass, kwargs1, kwargs2):
     """
-    Tests for `Deployer.start_application`.
+    Create tests to verify a class provides ``IStateChange``.
+
+    :param klass: Class that implements ``IStateChange``.
+    :param kwargs1: Keyword arguments to ``klass``.
+    :param kwargs2: Keyword arguments to ``klass`` that create different
+        change than ``kwargs1``.
+
+    :return: ``SynchronousTestCase`` subclass named
+        ``<klassname>IStateChangeTests``.
+    """
+    class Tests(SynchronousTestCase):
+        def test_interface(self):
+            """
+            The class implements ``IStateChange``.
+            """
+            self.assertTrue(verifyObject(IStateChange, klass(**kwargs1)))
+
+        def test_equality(self):
+            """
+            Instances with the same arguments are equal.
+            """
+            self.assertTrue(klass(**kwargs1) == klass(**kwargs1))
+            self.assertFalse(klass(**kwargs1) == klass(**kwargs2))
+
+        def test_notequality(self):
+            """
+            Instance with different arguments are not equal.
+            """
+            self.assertTrue(klass(**kwargs1) != klass(**kwargs2))
+            self.assertFalse(klass(**kwargs1) != klass(**kwargs1))
+    Tests.__name__ = klass.__name__ + "IStateChangeTests"
+    return Tests
+
+
+SequentiallyIStateChangeTests = make_istatechange_tests(
+    Sequentially, dict(changes=[1]), dict(changes=[2]))
+InParallelIStateChangeTests = make_istatechange_tests(
+    InParallel, dict(changes=[1]), dict(changes=[2]))
+StartApplicationIStateChangeTests = make_istatechange_tests(
+    StartApplication, dict(application=1), dict(application=2))
+StopApplicationIStageChangeTests = make_istatechange_tests(
+    StopApplication, dict(application=1), dict(application=2))
+SetProxiesIStateChangeTests = make_istatechange_tests(
+    SetProxies, dict(ports=[1]), dict(ports=[2]))
+WaitForVolumeIStateChangeTests = make_istatechange_tests(
+    WaitForVolume, dict(volume=1), dict(volume=2))
+CreateVolumeIStateChangeTests = make_istatechange_tests(
+    CreateVolume, dict(volume=1), dict(volume=2))
+HandoffVolumeIStateChangeTests = make_istatechange_tests(
+    HandoffVolume, dict(volume=1, hostname=b"123"),
+    dict(volume=2, hostname=b"123"))
+
+
+NOT_CALLED = object()
+
+
+@implementer(IStateChange)
+class FakeChange(object):
+    """
+    A change that returns the given result and records the deployer.
+
+    :ivar deployer: The deployer passed to ``run()``, or ``NOT_CALLED``
+        before that.
+    """
+    def __init__(self, result):
+        """
+        :param Deferred result: The result to return from ``run()``.
+        """
+        self.result = result
+        self.deployer = NOT_CALLED
+
+    def run(self, deployer):
+        self.deployer = deployer
+        return self.result
+
+    def was_run_called(self):
+        """
+        Return whether or not run() has been called yet.
+
+        :return: ``True`` if ``run()`` was called, otherwise ``False``.
+        """
+        return self.deployer != NOT_CALLED
+
+    def __eq__(self, other):
+        return False
+
+    def __ne__(self, other):
+        return True
+
+
+class SequentiallyTests(SynchronousTestCase):
+    """
+    Tests for ``Sequentially``.
+    """
+    def test_subchanges_get_deployer(self):
+        """
+        ``Sequentially.run`` runs sub-changes with the given deployer.
+        """
+        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        self.assertEqual([c.deployer for c in subchanges],
+                         [deployer, deployer])
+
+    def test_result(self):
+        """
+        The result of ``Sequentially.run`` fires when all changes are done.
+        """
+        not_done1, not_done2 = Deferred(), Deferred()
+        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        self.assertNoResult(result)
+        not_done1.callback(None)
+        self.assertNoResult(result)
+        not_done2.callback(None)
+        self.successResultOf(result)
+
+    def test_in_order(self):
+        """
+        ``Sequentially.run`` runs sub-changes in order.
+        """
+        # We have two changes; the first one will not finish until we fire
+        # not_done, the second one will finish as soon as its run() is
+        # called.
+        not_done = Deferred()
+        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        # Run the sequential change. We expect the first FakeChange's
+        # run() to be called, but we expect second one *not* to be called
+        # yet, since first one has finished.
+        change.run(deployer)
+        called = [subchanges[0].was_run_called(),
+                  subchanges[1].was_run_called()]
+        not_done.callback(None)
+        called.append(subchanges[1].was_run_called())
+        self.assertEqual(called, [True, False, True])
+
+    def test_failure_stops_later_change(self):
+        """
+        ``Sequentially.run`` fails with the first failed change, rather than
+        continuing to run later changes.
+        """
+        not_done = Deferred()
+        subchanges = [FakeChange(not_done), FakeChange(succeed(None))]
+        change = Sequentially(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        called = [subchanges[1].was_run_called()]
+        exception = RuntimeError()
+        not_done.errback(exception)
+        called.extend([subchanges[1].was_run_called(),
+                       self.failureResultOf(result).value])
+        self.assertEqual(called, [False, False, exception])
+
+
+class InParallelTests(SynchronousTestCase):
+    """
+    Tests for ``InParallel``.
+    """
+    def test_subchanges_get_deployer(self):
+        """
+        ``InParallel.run`` runs sub-changes with the given deployer.
+        """
+        subchanges = [FakeChange(succeed(None)), FakeChange(succeed(None))]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        self.assertEqual([c.deployer for c in subchanges],
+                         [deployer, deployer])
+
+    def test_result(self):
+        """
+        The result of ``InParallel.run`` fires when all changes are done.
+        """
+        not_done1, not_done2 = Deferred(), Deferred()
+        subchanges = [FakeChange(not_done1), FakeChange(not_done2)]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        result = change.run(deployer)
+        self.assertNoResult(result)
+        not_done1.callback(None)
+        self.assertNoResult(result)
+        not_done2.callback(None)
+        self.successResultOf(result)
+
+    def test_in_parallel(self):
+        """
+        ``InParallel.run`` runs sub-changes in parallel.
+        """
+        # The first change will not finish immediately when run(), but we
+        # expect the second one to be run() nonetheless.
+        subchanges = [FakeChange(Deferred()), FakeChange(succeed(None))]
+        change = InParallel(changes=subchanges)
+        deployer = object()
+        change.run(deployer)
+        called = [subchanges[0].was_run_called(),
+                  subchanges[1].was_run_called()]
+        self.assertEqual(called, [True, True])
+
+    def test_failure_result(self):
+        """
+        ``InParallel.run`` returns the first failure.
+        """
+        subchanges = [FakeChange(fail(RuntimeError()))]
+        change = InParallel(changes=subchanges)
+        result = change.run(object())
+        failure = self.failureResultOf(result, FirstError)
+        self.assertEqual(failure.value.subFailure.type, RuntimeError)
+
+
+class StartApplicationTests(SynchronousTestCase):
+    """
+    Tests for ``StartApplication``.
     """
     def test_start(self):
         """
-        `Deployer.start_application` accepts an application object and returns
-        a `Deferred` which fires when the `gear` unit has been added and
-        started.
+        ``StartApplication`` accepts an application object and when ``run()``
+        is called returns a ``Deferred`` which fires when the gear unit
+        has been added and started.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -82,7 +306,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
             image=docker_image,
             ports=ports,
         )
-        start_result = api.start_application(application=application)
+        start_result = StartApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
@@ -96,7 +320,7 @@ class DeployerStartApplicationTests(SynchronousTestCase):
 
     def test_already_exists(self):
         """
-        ``Deployer.start_application`` returns a `Deferred` which errbacks with
+        ``StartApplication.run`` returns a `Deferred` which errbacks with
         an ``AlreadyExists`` error if there is already a unit with the supplied
         application name.
         """
@@ -108,15 +332,15 @@ class DeployerStartApplicationTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        result1 = api.start_application(application=application)
+        result1 = StartApplication(application=application).run(api)
         self.successResultOf(result1)
 
-        result2 = api.start_application(application=application)
+        result2 = StartApplication(application=application).run(api)
         self.failureResultOf(result2, AlreadyExists)
 
     def test_volume_exposed_on_start(self):
         """
-        ``Deployer.start_application`` exposes an application's volume before
+        ``StartApplication.run()`` exposes an application's volume before
         it is started.
         """
         volume_service = create_volume_service(self)
@@ -142,19 +366,20 @@ class DeployerStartApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "expose_to_docker", expose_to_docker)
 
-        deployer.start_application(application)
+        StartApplication(application=application).run(deployer)
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
 
 
-class DeployerStopApplicationTests(SynchronousTestCase):
+class StopApplicationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.stop_application``.
+    Tests for ``StopApplication``.
     """
     def test_stop(self):
         """
-        ``Deployer.stop_application`` accepts an application object and returns
-        a `Deferred` which fires when the `gear` unit has been removed.
+        ``StopApplication`` accepts an application object and when ``run()``
+        is called returns a ``Deferred`` which fires when the gear unit
+        has been removed.
         """
         fake_gear = FakeGearClient()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
@@ -164,9 +389,9 @@ class DeployerStopApplicationTests(SynchronousTestCase):
                               tag=u'release-14.0')
         )
 
-        api.start_application(application=application)
+        StartApplication(application=application).run(api)
         existed = fake_gear.exists(application.name)
-        stop_result = api.stop_application(application=application)
+        stop_result = StopApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         self.assertEqual(
@@ -178,7 +403,7 @@ class DeployerStopApplicationTests(SynchronousTestCase):
 
     def test_does_not_exist(self):
         """
-        ``Deployer.stop_application`` does not errback if the application does
+        ``StopApplication.run()`` does not errback if the application does
         not exist.
         """
         api = Deployer(create_volume_service(self),
@@ -188,14 +413,14 @@ class DeployerStopApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0')
         )
-        result = api.stop_application(application=application)
+        result = StopApplication(application=application).run(api)
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
 
     def test_volume_unexposed(self):
         """
-        ``Deployer.stop_application`` removes an application's volume from
+        ``StopApplication.run()`` removes an application's volume from
         Docker after it is stopped.
         """
         volume_service = create_volume_service(self)
@@ -222,8 +447,10 @@ class DeployerStopApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "remove_from_docker", remove_from_docker)
 
-        self.successResultOf(deployer.start_application(application))
-        self.successResultOf(deployer.stop_application(application))
+        self.successResultOf(StartApplication(application=application).run(
+            deployer))
+        self.successResultOf(StopApplication(application=application).run(
+            deployer))
         self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
                                     False)])
 
@@ -240,6 +467,21 @@ APPLICATION_WITH_VOLUME = Application(
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    )
+)
+
+# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
+# current state passed to calculate_necessary_state_changes won't know
+# mountpoint. Until https://github.com/ClusterHQ/flocker/issues/207 is
+# fixed the image will be unknown.
+DISCOVERED_APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string('unknown'),
+    volume=AttachedVolume(
+        # XXX For now we require volume names match application names,
+        # see https://github.com/ClusterHQ/flocker/issues/49
+        name=APPLICATION_WITH_VOLUME_NAME,
+        mountpoint=None,
     )
 )
 
@@ -391,7 +633,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     def test_no_state_changes(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
-        which fires with a :class:`StateChanges` instance indicating that no
+        which fires with a :class:`IStateChange` instance indicating that no
         changes are necessary when there are no applications running or
         desired, and no proxies exist or are desired.
         """
@@ -402,16 +644,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set(),
-                                proxies=set())
+        expected = Sequentially(changes=[])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_proxy_needs_creating(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a
-        ``StateChanges`` instance containing a list of ``Proxy`` objects. One
-        for each port exposed by ``Application``\ s hosted on a remote nodes.
+        ``IStateChange``, specifically a ``SetProxies`` with a list of
+        ``Proxy`` objects. One for each port exposed by ``Application``\ s
+        hosted on a remote nodes.
         """
         fake_gear = FakeGearClient(units={})
         api = Deployer(create_volume_service(self), gear_client=fake_gear,
@@ -440,18 +681,18 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             hostname=u'node2.example.com')
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port)
-        expected = StateChanges(applications_to_start=frozenset(),
-                                applications_to_stop=frozenset(),
-                                proxies=frozenset([proxy]))
+        expected = Sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_proxy_empty(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a
-        ``StateChanges`` instance containing an empty `proxies`
+        ``SetProxies`` instance containing an empty `proxies`
         list if there are no remote applications that need proxies.
         """
         network = make_memory_network()
+        network.create_proxy_to(ip=u'192.0.2.100', port=3306)
+
         api = Deployer(create_volume_service(self),
                        gear_client=FakeGearClient(),
                        network=network)
@@ -459,9 +700,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(
             desired_state=desired, current_cluster_state=EMPTY,
             hostname=u'node2.example.com')
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set(),
-                                proxies=frozenset())
+        expected = Sequentially(changes=[SetProxies(ports=frozenset())])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_stopping(self):
@@ -478,9 +717,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=to_stop)
+        to_stop = StopApplication(application=Application(name=unit.name))
+        expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_application_needs_starting(self):
@@ -509,8 +747,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(applications_to_start=set([application]),
-                                applications_to_stop=set())
+        expected = Sequentially(changes=[InParallel(
+            changes=[StartApplication(application=application)])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -539,8 +777,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set())
+        expected = Sequentially(changes=[])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_no_change_needed(self):
@@ -573,8 +810,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set())
+        expected = Sequentially(changes=[])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_node_not_described(self):
@@ -592,9 +828,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=to_stop)
+        to_stop = StopApplication(application=Application(name=unit.name))
+        expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_volume_created(self):
@@ -639,22 +874,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         changes = self.successResultOf(calculating)
 
-        expected = StateChanges(
-            # The application isn't running here so it needs to be started.
-            applications_to_start={
-                APPLICATION_WITH_VOLUME,
-            },
-            applications_to_stop=set(),
-            volumes_to_handoff=set(),
-            volumes_to_wait_for=set(),
-            volumes_to_create={
-                AttachedVolume(
-                    name=APPLICATION_WITH_VOLUME_NAME,
-                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
-                ),
-            },
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
         )
-
+        expected = Sequentially(changes=[
+            InParallel(changes=[CreateVolume(volume=volume)]),
+            InParallel(changes=[StartApplication(
+                application=APPLICATION_WITH_VOLUME)])])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
@@ -673,7 +900,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -687,7 +914,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
-                 applications=another_node.applications),
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
             Node(hostname=another_node.hostname,
                  applications=frozenset()),
         }))
@@ -699,23 +926,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = self.successResultOf(calculating)
-
-        expected = StateChanges(
-            # The application isn't running here so it needs to be started.
-            applications_to_start={
-                APPLICATION_WITH_VOLUME,
-            },
-            applications_to_stop=set(),
-            volumes_to_handoff=set(),
-            volumes_to_wait_for={
-                AttachedVolume(
-                    name=APPLICATION_WITH_VOLUME_NAME,
-                    mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                ),
-            },
-            volumes_to_create=set(),
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
         )
-
+        expected = Sequentially(changes=[
+            InParallel(changes=[WaitForVolume(volume=volume)]),
+            InParallel(changes=[StartApplication(
+                application=APPLICATION_WITH_VOLUME)])])
         self.assertEqual(expected, changes)
 
     def test_volume_handoff(self):
@@ -732,7 +950,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -752,7 +970,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             Node(hostname=node.hostname,
                  applications=frozenset()),
             Node(hostname=another_node.hostname,
-                 applications=node.applications),
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
         }))
 
         calculating = api.calculate_necessary_state_changes(
@@ -768,20 +986,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
         )
 
-        expected = StateChanges(
-            # The application is running here so it needs to be stopped.
-            applications_to_start=set(),
-            applications_to_stop={
-                Application(name=APPLICATION_WITH_VOLUME_NAME),
-            },
-            # And the volume for the application needs to be handed off.
-            volumes_to_handoff={
-                VolumeHandoff(volume=volume, hostname=another_node.hostname),
-            },
-            volumes_to_wait_for=set(),
-            volumes_to_create=set(),
-        )
-
+        expected = Sequentially(changes=[
+            InParallel(changes=[StopApplication(
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+            InParallel(changes=[HandoffVolume(
+                volume=volume, hostname=another_node.hostname)]),
+        ])
         self.assertEqual(expected, changes)
 
     def test_no_volume_changes(self):
@@ -796,7 +1006,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         gear = FakeGearClient(units={unit.name: unit})
 
-        node = Node(
+        current_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+        )
+        desired_node = Node(
             hostname=u"node1.example.com",
             applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
@@ -807,7 +1021,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         # The discovered current configuration of the cluster reveals the
         # application is running here.
-        current = Deployment(nodes=frozenset([node, another_node]))
+        current = Deployment(nodes=frozenset([current_node, another_node]))
+        desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
         api = Deployer(
             create_volume_service(self), gear_client=gear,
@@ -815,21 +1030,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         calculating = api.calculate_necessary_state_changes(
-            desired_state=current,
+            desired_state=desired,
             current_cluster_state=current,
-            hostname=node.hostname,
+            hostname=current_node.hostname,
         )
 
         changes = self.successResultOf(calculating)
 
-        expected = StateChanges(
-            applications_to_start=set(),
-            applications_to_stop=set(),
-            volumes_to_handoff=set(),
-            volumes_to_wait_for=set(),
-            volumes_to_create=set(),
-        )
-
+        expected = Sequentially(changes=[])
         self.assertEqual(expected, changes)
 
     def test_local_not_running_applications_restarted(self):
@@ -857,10 +1065,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_restart = set([application])
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=set(),
-                                applications_to_restart=to_restart)
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[StopApplication(application=application),
+                                  StartApplication(application=application)]),
+        ])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_not_local_not_running_applications_stopped(self):
@@ -878,16 +1087,105 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = set([Application(name=unit.name)])
-        expected = StateChanges(applications_to_start=set(),
-                                applications_to_stop=to_stop,
-                                applications_to_restart=set())
+        to_stop = Application(name=unit.name)
+        expected = Sequentially(changes=[InParallel(changes=[
+            StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_handoff_precedes_wait(self):
+        """
+        Volume handoffs happen before volume waits, to prevent deadlocks
+        between two nodes that are swapping volumes.
+        """
+        # The application is running here.
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+        )
+        gear = FakeGearClient(units={unit.name: unit})
 
-class DeployerApplyChangesTests(SynchronousTestCase):
+        another_application = Application(
+            name=u"another",
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.1'),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=u"another",
+                mountpoint=FilePath(b"/blah"),
+            )
+        )
+        # XXX don't know image or volume because of
+        # https://github.com/ClusterHQ/flocker/issues/289
+        # https://github.com/ClusterHQ/flocker/issues/207
+        discovered_another_application = Application(
+            name=u"another",
+            image=DockerImage.from_string(u'unknown'),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=u"another",
+                mountpoint=None,
+            )
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({discovered_another_application}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here, and another application is running
+        # at the other node.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), gear_client=gear,
+            network=make_memory_network()
+        )
+
+        # We're swapping the location of applications:
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({another_application})),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset({APPLICATION_WITH_VOLUME})),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+        )
+        volume2 = AttachedVolume(
+            name=u"another",
+            mountpoint=FilePath(b"/blah"),
+        )
+        expected = Sequentially(changes=[
+            InParallel(changes=[StopApplication(
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+            InParallel(changes=[HandoffVolume(
+                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[WaitForVolume(volume=volume2)]),
+            InParallel(changes=[
+                StartApplication(application=another_application)]),
+        ])
+        self.assertEqual(expected, changes)
+
+
+class SetProxiesTests(SynchronousTestCase):
     """
-    Tests for ``Deployer._apply_changes``.
+    Tests for ``SetProxies``.
     """
     def test_proxies_added(self):
         """
@@ -899,12 +1197,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([expected_proxy])
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[expected_proxy]).run(api)
         self.successResultOf(d)
         self.assertEqual(
             [expected_proxy],
@@ -921,11 +1214,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[]).run(api)
         self.successResultOf(d)
         self.assertEqual(
             [],
@@ -951,13 +1240,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([required_proxy1, required_proxy2])
-        )
-
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[required_proxy1, required_proxy2]).run(api)
 
         self.successResultOf(d)
         self.assertEqual(
@@ -978,11 +1261,7 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[]).run(api)
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
@@ -1001,55 +1280,21 @@ class DeployerApplyChangesTests(SynchronousTestCase):
             create_volume_service(self), gear_client=FakeGearClient(),
             network=fake_network)
 
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            proxies=frozenset([Proxy(ip=u'192.0.2.100', port=3306)])
-        )
-        d = api._apply_changes(desired_changes)
+        d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(api)
         exception = self.failureResultOf(d, FirstError)
         self.assertIsInstance(
             exception.value.subFailure.value,
             ZeroDivisionError
         )
 
-    def test_restarts(self):
-        """
-        Applications listed in ``StateChanges.applications_to_restart`` are
-        reactivated.
-        """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'failed')
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(
-            create_volume_service(self), gear_client=fake_gear,
-            network=make_memory_network())
-
-        application = Application(
-            name=u'mysql-hybridcluster',
-            image=DockerImage.from_string(u'clusterhq/flocker'),
-        )
-
-        desired_changes = StateChanges(
-            applications_to_start=frozenset(),
-            applications_to_stop=frozenset(),
-            applications_to_restart=frozenset([application]))
-        api._apply_changes(desired_changes)
-
-        # The activation state tells us the unit was started. We know a
-        # stop preceded the starting of the unit, because otherwise
-        # starting would complain with an AlreadyExists.
-        self.assertEqual(self.successResultOf(fake_gear.list()),
-                         set([Unit(name=u'mysql-hybridcluster',
-                                   activation_state=u'active')]))
-
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
     Tests for ``Deployer.change_node_state``.
 
-    XXX: Many of these tests are exercising code which has now been refactored
-    into `Deployer._apply_changes`. As such, they can be moved to the
-    `DeployerApplyChangesTests` testcase and simplified. See
+    XXX: Some of these tests are exercising code which has now been
+    refactored into ``IStateChange`` objects. As such they can be
+    refactored to not be based on side-effects. See
     https://github.com/ClusterHQ/flocker/issues/321
     """
     def test_applications_stopped(self):
@@ -1103,108 +1348,42 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
             NodeState(running=[expected_application], not_running=[]),
             self.successResultOf(d))
 
-    def test_first_failure_pass_through(self):
+    def test_result(self):
         """
-        The first failure in the operations performed by
-        ``Deployer.change_node_state`` is passed through.
+        The result of calling ``change_node_state()`` is the result of calling
+        ``run()`` on the result of ``calculate_necessary_state_changes``.
         """
-        unit = Unit(name=u'site-hybridcluster.com', activation_state=u'active')
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        deferred = Deferred()
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
                        network=make_memory_network())
+        self.patch(api, "calculate_necessary_state_changes",
+                   lambda *args, **kwargs: succeed(FakeChange(deferred)))
+        result = api.change_node_state(desired_state=EMPTY,
+                                       current_cluster_state=EMPTY,
+                                       hostname=u'node.example.com')
+        deferred.callback(123)
+        self.assertEqual(self.successResultOf(result), 123)
 
-        application = Application(
-            name=b'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
-        )
-
-        nodes = frozenset([
-            Node(
-                hostname=u'node.example.com',
-                applications=frozenset([application])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-
-        class SentinelException(Exception):
-            """
-            An exception raised for test purposes from
-            ``Deployer.stop_application``.
-            """
-
-        expected_exception = SentinelException()
-
-        self.patch(
-            api, 'stop_application',
-            lambda application: fail(expected_exception))
-
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=u'node.example.com')
-
-        failure = self.failureResultOf(d, FirstError)
-        self.assertEqual(expected_exception, failure.value.subFailure.value)
-
-    def test_continue_on_failure(self):
+    def test_deployer(self):
         """
-        Failures in the operations performed by ``Deployer.change_node_state``
-        do not prevent further changes being made.
-
-        Two applications are configured to be started, but attempts to start
-        application1 will result in failure. We then assert that the
-        ``FakeGearClient`` has still been asked to start application2
+        The result of ``calculate_necessary_state_changes`` is called with the
+        deployer.
         """
-        local_hostname = u'node.example.com'
-        fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        change = FakeChange(succeed(None))
+        api = Deployer(create_volume_service(self),
+                       gear_client=FakeGearClient(),
                        network=make_memory_network())
-
-        application1 = Application(
-            name=b'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/mysql',
-                              tag=u'latest')
-        )
-
-        application2 = Application(
-            name=b'site-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/wordpress',
-                              tag=u'latest')
-        )
-
-        nodes = frozenset([
-            Node(
-                hostname=local_hostname,
-                applications=frozenset([application1, application2])
-            )
-        ])
-
-        desired = Deployment(nodes=nodes)
-
-        real_start_application = api.start_application
-
-        def fake_start(application):
-            """
-            Return a failure for attempts to start application1
-            """
-            if application.name == application1.name:
-                return fail(Exception('First start failure.'))
-            else:
-                return real_start_application(application)
-
-        self.patch(api, 'start_application', fake_start)
-
-        d = api.change_node_state(desired_state=desired,
-                                  current_cluster_state=EMPTY,
-                                  hostname=local_hostname)
-
-        self.failureResultOf(d, FirstError)
-        self.assertIn(application2.name, fake_gear._units)
+        self.patch(api, "calculate_necessary_state_changes",
+                   lambda *args, **kwargs: succeed(change))
+        api.change_node_state(desired_state=EMPTY,
+                              current_cluster_state=EMPTY,
+                              hostname=u'node.example.com')
+        self.assertIs(change.deployer, api)
 
     def test_arguments(self):
         """
-        The passed in arguments passed on in turn to
+        The passed in arguments are passed on in turn to
         ``calculate_necessary_state_changes``.
         """
         desired = object()
@@ -1217,8 +1396,134 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
 
         def calculate(desired_state, current_cluster_state, hostname):
             arguments.extend([desired_state, current_cluster_state, hostname])
-            return succeed(StateChanges(applications_to_start=[],
-                                        applications_to_stop=[]))
+            return succeed(FakeChange(succeed(None)))
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])
+
+
+class CreateVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``CreateVolume``.
+    """
+    def test_creates(self):
+        """
+        ``CreateVolume.run()`` creates the named volume.
+        """
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        create.run(deployer)
+        self.assertIn(
+            volume_service.get(u"myvol"),
+            list(self.successResultOf(volume_service.enumerate())))
+
+    def test_return(self):
+        """
+        ``CreateVolume.run()`` returns a ``Deferred`` that fires with the
+        created volume.
+        """
+        deployer = Deployer(create_volume_service(self),
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        result = self.successResultOf(create.run(deployer))
+        self.assertEqual(result, deployer.volume_service.get(u"myvol"))
+
+
+class WaitForVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``WaitForVolume``.
+    """
+    def test_waits(self):
+        """
+        ``WaitForVolume.run()`` waits for the named volume.
+        """
+        volume_service = create_volume_service(self)
+        result = []
+
+        def wait(name):
+            result.append(name)
+        self.patch(volume_service, "wait_for_volume", wait)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait.run(deployer)
+        self.assertEqual(result, [u"myvol"])
+
+    def test_return(self):
+        """
+        ``WaitVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "wait_for_volume", lambda name: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        wait = WaitForVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")))
+        wait_result = wait.run(deployer)
+        self.assertIs(wait_result, result)
+
+
+class HandoffVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``HandoffVolume``.
+    """
+    def test_handoff(self):
+        """
+        ``HandoffVolume.run()`` hands off the named volume to the given
+        destination nodex.
+        """
+        volume_service = create_volume_service(self)
+
+        result = []
+
+        def _handoff(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "handoff", _handoff)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=b"dest.example.com")
+        handoff.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(ProcessNode.using_ssh(
+                 b"dest.example.com", 22, b"root",
+                 SSH_PRIVATE_KEY_PATH))])
+
+    def test_return(self):
+        """
+        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
+        named volume is available.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "handoff",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        handoff = HandoffVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        handoff_result = handoff.run(deployer)
+        self.assertIs(handoff_result, result)
