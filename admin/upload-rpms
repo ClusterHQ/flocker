@@ -24,15 +24,16 @@ import tempfile
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
 
+
 class UploadOptions(Options):
 
     optParameters = [
         ["target", None, b'gs://archive.clusterhq.com/',
          "The URL of the download server."],
-        ["build-server", None, b'http://build.clusterhq.com/results/fedora/20/x86_64/%s',
+        ["build-server", None,
+         b'http://build.clusterhq.com/results/fedora/20/x86_64/%s',
          "The URL of the build-server."]
     ]
-
 
     def parseArgs(self, version):
         self['version'] = version
@@ -41,6 +42,7 @@ class UploadOptions(Options):
 FLOCKER_PACKAGES = [b'python-flocker', b'flocker-cli', b'flocker-node']
 SOURCE_PACKAGES = [b'python-flocker']
 
+
 def run_command(args):
     """
     Run a command, while reporting the command being run.
@@ -48,13 +50,16 @@ def run_command(args):
     print('Running: %s' % (' '.join(map(quote, args))))
     check_call(args)
 
+
 def update_repo(rpm_directory, target_repo, source_repo, packages):
     """
-    Update ``target_repo`` yum repository with ``packages`` from ``source_repo`` repository.
+    Update ``target_repo`` yum repository with ``packages`` from
+    ``source_repo`` repository.
     """
     rpm_directory.createDirectory()
     # Download existing repository
-    check_call([b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
+    check_call([
+        b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
 
     # Download requrested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
@@ -63,26 +68,35 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
          name=flocker
          baseurl=%s
          """) % (source_repo,))
-    check_call([b'yumdownloader', b'-c', yum_repo_config.path, b'--disablerepo=*', b'--enablerepo=flocker', b'--destdir', rpm_directory.path] + packages)
+    check_call([
+        b'yumdownloader',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'--destdir', rpm_directory.path] + packages)
     yum_repo_config.remove()
 
     # Update repository metatdata
     check_call([b'createrepo', b'--update', rpm_directory.path])
 
     # Upload updated repository
-    check_call([b'gsutil', b'cp', b'-R', rpm_directory.path + b'/**', target_repo])
+    check_call(
+        [b'gsutil', b'cp', b'-R', rpm_directory.path + b'/**', target_repo])
+
 
 def upload_rpms(scratch_directory, version, target_server, build_server):
     """
     Upload RPMS from build server to yum repository.
 
-    :param FilePath scratch_directory: Temporary directory to download repository to.
+    :param FilePath scratch_directory: Temporary directory to download
+        repository to.
     :param bytes version: Version to download RPMs for.
     :param bytes target_server: Server to upload RPMs to.
     :param bytes build_server: Server to download new RPMs from.
     """
     target_base = os.path.join(target_server, b'fedora/20/')
-    source_repo = os.path.join(build_server, b'results/fedora/20/x86_64', version)
+    source_repo = os.path.join(
+        build_server, b'results/fedora/20/x86_64', version)
     update_repo(rpm_directory=scratch_directory.child(b'x86_64'),
                 target_repo=os.path.join(target_base, b'x86_64'),
                 source_repo=source_repo,
