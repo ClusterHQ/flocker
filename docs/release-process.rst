@@ -90,6 +90,11 @@ Release
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
+   .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
+             Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
+
+   You force a build on a tag by putting the tag name into the branch box (without any prefix).
+
 #. Build python packages for upload::
 
      python setup.py bdist_wheel
