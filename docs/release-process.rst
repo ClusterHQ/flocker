@@ -47,7 +47,15 @@ Access
 
 Preparing for a release
 -----------------------
+
+#. Choose a version number
+   - Releases numbers should be of the form x.y.z eg::
+
+      export VERSION="0.0.3"
+
 #. Checkout the branch for the release.
+
+   .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
 
    - If this is a major or minor release then create the branch for the minor version::
 
