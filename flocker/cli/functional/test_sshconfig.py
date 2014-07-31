@@ -143,7 +143,6 @@ class ConfigureSSHTests(TestCase):
         configuring.addCallback(configured)
         return configuring
 
-
     def test_flocker_keypair_permissions(self):
         """
         ``configure_ssh`` writes the remote keypair with secure permissions.
@@ -161,7 +160,8 @@ class ConfigureSSHTests(TestCase):
             )
             actual = (
                 self.flocker_config.child(b"id_rsa_flocker").getPermissions(),
-                self.flocker_config.child(b"id_rsa_flocker.pub").getPermissions()
+                self.flocker_config.child(
+                    b"id_rsa_flocker.pub").getPermissions()
             )
             self.assertEqual(expected, actual)
         configuring.addCallback(configured)
