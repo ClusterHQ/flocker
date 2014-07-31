@@ -34,7 +34,7 @@ class UploadOptions(Options):
         ["target", None, b'gs://archive.clusterhq.com/',
          "The URL of the download server."],
         ["build-server", None,
-         b'http://build.clusterhq.com/results/fedora/20/x86_64/%s',
+         b'http://build.clusterhq.com',
          "The URL of the build-server."]
     ]
 
