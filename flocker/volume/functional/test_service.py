@@ -185,3 +185,24 @@ class RealisticTests(TestCase):
         d.addCallback(created)
         # If the Deferred errbacks the test will fail:
         return d
+
+    def test_handoff_roundtrip(self):
+        """
+        Handoff of a volume from A to B and then B to A between two ZFS-based
+        volume managers does not fail.
+        """
+        service_pair = create_realistic_servicepair(self)
+
+        d = service_pair.from_service.create(u"myvolume")
+
+        def created(volume):
+            return service_pair.from_service.handoff(
+                volume, service_pair.remote)
+        d.addCallback(created)
+
+        def handed_off(volume):
+            return service_pair.to_service.handoff(
+                service_pair.to_service.get(u"myvolume"),
+                service_pair.origin_remote)
+        # If the Deferred errbacks the test will fail:
+        return d

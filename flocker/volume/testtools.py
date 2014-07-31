@@ -97,7 +97,7 @@ class MutatingProcessNode(ProcessNode):
         return ProcessNode.get_output(self, self._mutate(remote_command))
 
 
-@attributes(["from_service", "to_service", "remote"])
+@attributes(["from_service", "to_service", "remote", "origin_remote"])
 class ServicePair(object):
     """
     A configuration for testing ``IRemoteVolumeManager``.
@@ -105,6 +105,7 @@ class ServicePair(object):
     :param VolumeService from_service: The origin service.
     :param VolumeService to_service: The destination service.
     :param IRemoteVolumeManager remote: Talks to ``to_service``.
+    :param IRemoteVolumeManager origin_remote: Talks to ``from_service``.
     """
 
 
@@ -133,5 +134,7 @@ def create_realistic_servicepair(test):
 
     remote = RemoteVolumeManager(MutatingProcessNode(to_service),
                                  to_config)
+    origin_remote = RemoteVolumeManager(MutatingProcessNode(from_service),
+                                        from_service._config_path)
     return ServicePair(from_service=from_service, to_service=to_service,
-                       remote=remote)
+                       remote=remote, origin_remote=origin_remote)
