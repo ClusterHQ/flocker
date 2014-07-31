@@ -9,7 +9,7 @@ By the end of the release process we will have:
 - a tag in version control
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
-- documentation on `http://doc-dev.clusterhq.com/`__
+- documentation on `doc-dev.clusterhq.com <http://doc-dev.clusterhq.com>`__
 - announcement on mailing list, blog, IRC (others?)
 - download links on clusterhq.com
 
