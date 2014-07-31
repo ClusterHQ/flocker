@@ -15,6 +15,35 @@ You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` c
 Setup
 =====
 
+Installing MongoDB
+------------------
+
+The MongoDB client can be installed through the various package managers for Linux, FreeBSD and OS X.
+If you do not already have the client on your machine, you can install it by running the appropriate command for your system.
+
+Ubuntu
+^^^^^^
+
+``sudo apt-get install mongodb-clients``
+
+Red Hat / Fedora
+^^^^^^^^^^^^^^^^
+
+``sudo yum install mongodb``
+
+OS X
+^^^^
+
+``brew install mongodb``
+
+Other Systems
+^^^^^^^^^^^^^
+
+See the official `MongoDB installation guide`_ for your system.
+
+Creating the VirtualBox VMs
+---------------------------
+
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
 These VMs serve as hosts on which Flocker can run Docker.
@@ -117,3 +146,4 @@ This completes the Vagrant-related setup.
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
+.. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
