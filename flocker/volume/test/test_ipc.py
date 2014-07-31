@@ -6,8 +6,6 @@ Unit tests for IPC.
 
 from __future__ import absolute_import
 
-from characteristic import attributes
-
 from zope.interface.verify import verifyObject
 
 from twisted.internet.task import Clock
@@ -18,18 +16,8 @@ from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager)
+from ..testtools import ServicePair
 from ...common import FakeNode
-
-
-@attributes(["from_service", "to_service", "remote"])
-class ServicePair(object):
-    """
-    A configuration for testing ``IRemoteVolumeManager``.
-
-    :param VolumeService from_service: The origin service.
-    :param VolumeService to_service: The destination service.
-    :param IRemoteVolumeManager remote: Talks to ``to_service``.
-    """
 
 
 def make_iremote_volume_manager(fixture):
