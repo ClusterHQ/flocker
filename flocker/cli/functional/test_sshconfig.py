@@ -144,6 +144,30 @@ class ConfigureSSHTests(TestCase):
         return configuring
 
 
+    def test_flocker_keypair_permissions(self):
+        """
+        ``configure_ssh`` writes the remote keypair with secure permissions.
+        """
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+
+        expected_private_key_permissions = Permissions(0600)
+        expected_public_key_permissions = Permissions(0644)
+
+        def configured(ignored):
+            expected = (
+                expected_private_key_permissions,
+                expected_public_key_permissions
+            )
+            actual = (
+                self.flocker_config.child(b"id_rsa_flocker").getPermissions(),
+                self.flocker_config.child(b"id_rsa_flocker.pub").getPermissions()
+            )
+            self.assertEqual(expected, actual)
+        configuring.addCallback(configured)
+        return configuring
+
+
 class CreateKeyPairTests(TestCase):
     """
     Tests for ``create_keypair``.
