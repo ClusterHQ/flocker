@@ -291,25 +291,12 @@ class VolumeServiceAPITests(TestCase):
     # Further tests for acquire() are done in
     # test_ipc.make_iremote_volume_manager.
 
-    def create_service(self):
-        """
-        Create a new ``VolumeService``.
-
-        :return: The ``VolumeService`` created.
-        """
-        service = VolumeService(FilePath(self.mktemp()),
-                                FilesystemStoragePool(FilePath(self.mktemp())),
-                                reactor=Clock())
-        service.startService()
-        self.addCleanup(service.stopService)
-        return service
-
     def test_handoff_rejects_remote_volume(self):
         """
         ``VolumeService.handoff()`` errbacks with a ``ValueError`` if given a
         remotely-owned volume.
         """
-        service = self.create_service()
+        service = create_volume_service(self)
         remote_volume = Volume(uuid=u"remote", name=u"blah",
                                _pool=service._pool)
 
@@ -321,8 +308,8 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.handoff()`` makes the remote node owner of the volume
         previously owned by the original owner.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
@@ -347,8 +334,8 @@ class VolumeServiceAPITests(TestCase):
         ```VolumeService.handoff()`` changes the owner UUID of the local
         volume to the new owner's UUID.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
@@ -371,8 +358,8 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.handoff()`` preserves the data from the relinquished
         volume in the newly owned resulting volume in the local volume manager.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
