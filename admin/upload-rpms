@@ -5,7 +5,7 @@
 Update the ClusterHQ yum repository with new Flocker packages.
 
 The ClusterHQ yum repository contains packages for Flocker, as well as the
-depenencies which aren't available in Fedora 20.  It is currently hosted in
+dependencies which aren't available in Fedora 20.  It is currently hosted in
 Google's cloud storage.  When doing a release, we want to add the new Flocker
 packages, while preserving the existing packages in the repository.  To do
 this, we download the current repository, add the new package, update the
@@ -61,7 +61,7 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     check_call([
         b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
 
-    # Download requrested packages from source repository
+    # Download requested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
     yum_repo_config.setContent(dedent(b"""
          [flocker]
