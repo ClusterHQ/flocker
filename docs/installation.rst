@@ -14,8 +14,8 @@ Installing flocker-node
 =======================
 If you're interested in developing Flocker (as opposed to simply using it) see :doc:`contributing`.
 
-For now we strongly recommend running the cluster using our pre-packaged Vagrant setup;
-see :doc:`tutorial/vagrant-setup` for details.
+.. note:: For now we strongly recommend running the cluster using our custom Fedora 20 virtual machine, which can be built using Vagrant.
+          See :doc:`tutorial/vagrant-setup` for details.
 
 If you would like to install ``flocker-node`` on a Fedora 20 host you are managing some other way, you can do so:
 
