@@ -109,12 +109,16 @@ class OpenSSHConfiguration(object):
         generate_flocker_key = (
             u"mkdir -p {}; "
             u"echo '{}' > '{}'; "
-            u"echo '{}' > '{}';".format(
+            u"echo '{}' > '{}'; "
+            u"chmod 600 {}; "
+            u"chmod 644 {}".format(
                 remote_public_path.parent().path,
                 local_public_path.getContent().strip(),
                 remote_public_path.path,
                 local_private_path.getContent().strip(),
-                remote_private_path.path)
+                remote_private_path.path,
+                remote_private_path.path,
+                remote_public_path.path,)
             )
 
         commands = write_authorized_key + generate_flocker_key
