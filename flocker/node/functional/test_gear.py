@@ -235,14 +235,12 @@ class GearClientTests(TestCase):
         """
         internal_port = 31337
         expected_bytes = b'foo bar baz'
-        image_name = b'flocker/send_bytes_to'
         # Create a Docker image
         image = DockerImageBuilder(
+            test=self,
             source_dir=FilePath(__file__).sibling('docker'),
-            tag=image_name,
-            working_dir=FilePath(self.mktemp())
         )
-        image.build(
+        image_name = image.build(
             dockerfile_variables=dict(
                 host=b'127.0.0.1',
                 port=internal_port,

@@ -703,14 +703,14 @@ class ProtocolPoppingFactory(Factory):
         return self.protocols.pop()
 
 
-@attributes(['source_dir', 'tag', 'working_dir'])
+@attributes(['test', 'source_dir'])
 class DockerImageBuilder(object):
     """
-    Build a docker image, tag it, and optionally remove the image later.
+    Build a docker image, tag it, and remove the image later.
 
+    :ivar TestCase test: The test the builder is being used in.
     :ivar bytes docker_dir: The path to the directory containing a
         `Dockerfile`.
-    :ivar bytes tag: The tag name to be applied to the built image.
     """
     def _process_template(self, template_file, target_file, replacements):
         """
@@ -734,20 +734,24 @@ class DockerImageBuilder(object):
         :param dict dockerfile_variables: A dictionary of replacements which
             will be applied to a `Dockerfile.in` template file if such a file
             exists.
+
+        :return: ``bytes`` with the tag name applied to the built image.
         """
         if dockerfile_variables is None:
             dockerfile_variables = {}
 
-        if not self.working_dir.exists():
-            self.working_dir.makedirs()
+        working_dir = FilePath(self.test.mktemp())
+        working_dir.makedirs()
 
-        docker_dir = self.working_dir.child('docker')
+        docker_dir = working_dir.child('docker')
         shutil.copytree(self.source_dir.path, docker_dir.path)
         template_file = docker_dir.child('Dockerfile.in')
         docker_file = docker_dir.child('Dockerfile')
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
+        tag = b"flocker-local-tests/" + random_name()
+
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
         # so it would be better to send it to the test.log file. See
@@ -756,10 +760,12 @@ class DockerImageBuilder(object):
             b'docker', b'build',
             # Always clean up intermediate containers in case of failures.
             b'--force-rm',
-            b'--tag=%s' % (self.tag,),
+            b'--tag=%s' % (tag,),
             docker_dir.path
         ]
         check_call(command)
+        self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
+        return tag
 
 
 def skip_on_broken_permissions(test_method):
