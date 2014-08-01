@@ -709,8 +709,8 @@ class DockerImageBuilder(object):
     Build a docker image, tag it, and remove the image later.
 
     :ivar TestCase test: The test the builder is being used in.
-    :ivar bytes docker_dir: The path to the directory containing a
-        `Dockerfile`.
+    :ivar FilePath source_dir: The path to the directory containing a
+        ``Dockerfile.in`` file.
     """
     def _process_template(self, template_file, target_file, replacements):
         """

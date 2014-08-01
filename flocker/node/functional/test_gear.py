@@ -29,7 +29,7 @@ _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 class IGearClientTests(make_igearclient_tests(
         lambda test_case: GearClient("127.0.0.1"))):
-    """``IGearClient`` tests for ``FakeGearClient``."""
+    """``IGearClient`` tests for ``GearClient``."""
 
     @if_gear_configured
     def setUp(self):
@@ -238,7 +238,7 @@ class GearClientTests(TestCase):
         # Create a Docker image
         image = DockerImageBuilder(
             test=self,
-            source_dir=FilePath(__file__).sibling('docker'),
+            source_dir=FilePath(__file__).sibling('sendbytes-docker'),
         )
         image_name = image.build(
             dockerfile_variables=dict(
@@ -276,3 +276,50 @@ class GearClientTests(TestCase):
         d.addCallback(started)
 
         return d
+
+        def build_slow_shutdown_image(self):
+            """
+            Create a Docker image that takes a while to shut down.
+
+            :return: The name of created Docker image.
+            """
+            path = FilePath(self.mktemp())
+            path.makedirs()
+            path.child(b"Dockerfile.in").setContent("""\
+FROM busybox
+CMD ["sh", "-c", "trap \"\" 2; sleep 3"]
+""")
+            image = DockerImageBuilder(test=self, source_dir=path)
+            return image.build()
+
+        def test_slow_removed_unit_does_not_exist(self):
+            """
+            A removed unit does not exist even if takes a while for it to shut
+            down.
+            """
+            client = GearClient(b"127.0.0.1")
+            name = random_name()
+            image = self.build_slow_shutdown_image()
+            d = client.add(name, image)
+            d.addCallback(lambda _: client.remove(name))
+            d.addCallback(lambda _: client.exists(name))
+            d.addCallback(self.assertFalse)
+            return d
+
+        def test_slow_removed_is_not_listed(self):
+            """
+            A removed unit is not included in the output of ``list()`` even if
+            it takes it a while to shut down.
+            """
+            client = GearClient(b"127.0.0.1")
+            name = random_name()
+            image = self.build_slow_shutdown_image()
+
+            d = client.add(name, image)
+            d.addCallback(lambda _: client.remove(name))
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                self.assertNotIn(name, [unit.name for unit in units])
+            d.addCallback(got_list)
+            return d
