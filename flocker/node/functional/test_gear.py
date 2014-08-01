@@ -301,6 +301,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = self.build_slow_shutdown_image()
         d = self.start_container(name, image)
         d.addCallback(lambda _: client.remove(name))
+
         def removed(_):
             process = subprocess.Popen(
                 [b"docker", b"inspect", name.encode("ascii")])
