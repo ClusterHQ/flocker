@@ -287,7 +287,7 @@ class GearClientTests(TestCase):
         path.makedirs()
         path.child(b"Dockerfile.in").setContent("""\
 FROM busybox
-CMD ["sh", "-c", "trap \"\" 2; sleep 3"]
+CMD sh -c "trap \"\" 2; sleep 3"
 """)
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
