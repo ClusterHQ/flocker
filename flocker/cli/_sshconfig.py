@@ -107,11 +107,12 @@ class OpenSSHConfiguration(object):
             )
 
         generate_flocker_key = (
+            u"umask umask u=rwx,g=,o=; "
             u"mkdir -p {}; "
             u"echo '{}' > '{}'; "
             u"echo '{}' > '{}'; "
-            u"chmod 600 {}; "
-            u"chmod 644 {}".format(
+            u"chmod u=rw,g=,o= {}; "
+            u"chmod u=rw,g=r,o=r {}".format(
                 remote_public_path.parent().path,
                 local_public_path.getContent().strip(),
                 remote_public_path.path,
