@@ -63,10 +63,16 @@ class Unit(object):
 
 
 class IGearClient(Interface):
-    """A client for the geard HTTP API."""
+    """
+    A client for the geard HTTP API.
+    """
 
     def add(unit_name, image_name, ports=None, links=None):
-        """Install and start a new unit.
+        """
+        Install and start a new unit.
+
+        Note that callers should not assume success indicates the
+        operation is finished; gear is asynchronous.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -84,7 +90,8 @@ class IGearClient(Interface):
         """
 
     def exists(unit_name):
-        """Check whether the unit exists.
+        """
+        Check whether the unit exists.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -93,9 +100,13 @@ class IGearClient(Interface):
         """
 
     def remove(unit_name):
-        """Stop and delete the given unit.
+        """
+        Stop and delete the given unit.
 
         This can be done multiple times in a row for the same unit.
+
+        Note that callers should not assume success indicates the
+        operation is finished; gear is asynchronous.
 
         :param unicode unit_name: The name of the unit to stop.
 
@@ -103,7 +114,8 @@ class IGearClient(Interface):
         """
 
     def list():
-        """List all known units.
+        """
+        List all known units.
 
         :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
