@@ -750,7 +750,7 @@ class DockerImageBuilder(object):
         if template_file.exists() and not docker_file.exists():
             self._process_template(
                 template_file, docker_file, dockerfile_variables)
-        tag = b"flocker-local-tests/" + random_name()
+        tag = b"flockerlocaltests/" + random_name()
 
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
