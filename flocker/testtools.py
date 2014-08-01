@@ -764,7 +764,10 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         check_call(command)
-        self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
+        # XXX until https://github.com/ClusterHQ/flocker/issues/409 is
+        #fixed we will often have a container lying around which is still
+        #using the new image, so removing the image will fail.
+        #self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
         return tag
 
 
