@@ -6,12 +6,10 @@ Further coverage is provided in
 :module:`flocker.volume.test.test_filesystems_zfs`.
 """
 
-import os
 import subprocess
-import uuid
 
 from twisted.internet import reactor
-from twisted.trial.unittest import SkipTest, TestCase
+from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
