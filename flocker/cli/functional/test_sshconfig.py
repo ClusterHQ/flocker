@@ -180,20 +180,13 @@ class CreateKeyPairTests(TestCase):
 
         id_rsa = ssh_config.child(b"id_rsa_flocker")
 
-        configuring = deferToThread(configurator.create_keypair)
+        configurator.create_keypair()
 
-        def generated(ignored):
-            key = Key.fromFile(id_rsa.path)
+        expected_key = Key.fromFile(id_rsa.path)
 
-            configuring = deferToThread(configurator.create_keypair)
-            configuring.addCallback(lambda ignored: key)
-            return configuring
-        configuring.addCallback(generated)
+        configurator.create_keypair()
 
-        def not_regenerated(expected_key):
-            self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
-        configuring.addCallback(not_regenerated)
-        return configuring
+        self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
 
 
 class OpenSSHDefaultsTests(TestCase):
