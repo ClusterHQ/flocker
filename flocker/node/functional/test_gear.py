@@ -294,32 +294,16 @@ CMD ["sh", "-c", "trap \"\" 2; sleep 3"]
 
     def test_slow_removed_unit_does_not_exist(self):
         """
-        A removed unit does not exist even if takes a while for it to shut
-        down.
+        ``remove()`` only fires once the Docker container has shut down.
         """
         client = GearClient(b"127.0.0.1")
         name = random_name()
         image = self.build_slow_shutdown_image()
         d = self.start_container(name, image)
         d.addCallback(lambda _: client.remove(name))
-        d.addCallback(lambda _: client.exists(name))
-        d.addCallback(self.assertFalse)
-        return d
-
-    def test_slow_removed_is_not_listed(self):
-        """
-        A removed unit is not included in the output of ``list()`` even if
-        it takes it a while to shut down.
-        """
-        client = GearClient(b"127.0.0.1")
-        name = random_name()
-        image = self.build_slow_shutdown_image()
-
-        d = self.start_container(name, image)
-        d.addCallback(lambda _: client.remove(name))
-        d.addCallback(lambda _: client.list())
-
-        def got_list(units):
-            self.assertNotIn(name, [unit.name for unit in units])
-        d.addCallback(got_list)
+        def removed(_):
+            data = subprocess.check_output(
+                [b"docker", b"inspect", name.encode("ascii")])
+            self.assertFalse(json.loads(data)[0][u"State"][u"Running"])
+        d.addCallback(removed)
         return d
