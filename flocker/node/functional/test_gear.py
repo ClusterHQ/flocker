@@ -300,7 +300,7 @@ CMD ["sh", "-c", "trap \"\" 2; sleep 3"]
         client = GearClient(b"127.0.0.1")
         name = random_name()
         image = self.build_slow_shutdown_image()
-        d = client.add(name, image)
+        d = self.start_container(name, image)
         d.addCallback(lambda _: client.remove(name))
         d.addCallback(lambda _: client.exists(name))
         d.addCallback(self.assertFalse)
@@ -315,7 +315,7 @@ CMD ["sh", "-c", "trap \"\" 2; sleep 3"]
         name = random_name()
         image = self.build_slow_shutdown_image()
 
-        d = client.add(name, image)
+        d = self.start_container(name, image)
         d.addCallback(lambda _: client.remove(name))
         d.addCallback(lambda _: client.list())
 
