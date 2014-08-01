@@ -302,8 +302,9 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = self.start_container(name, image)
         d.addCallback(lambda _: client.remove(name))
         def removed(_):
-            data = subprocess.check_output(
+            process = subprocess.Popen(
                 [b"docker", b"inspect", name.encode("ascii")])
-            self.assertFalse(json.loads(data)[0][u"State"][u"Running"])
+            # Can't inspect a non-existent container:
+            self.assertEqual(process.wait(), 1)
         d.addCallback(removed)
         return d
