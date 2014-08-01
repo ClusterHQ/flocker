@@ -65,14 +65,23 @@ class Unit(object):
 class IGearClient(Interface):
     """
     A client for the geard HTTP API.
+
+    Note the difference in semantics between the results of ``add()``
+    (firing does not indicate application started successfully)
+    vs. ``remove()`` (firing indicates application has finished shutting
+    down).
     """
 
     def add(unit_name, image_name, ports=None, links=None):
         """
         Install and start a new unit.
 
-        Note that callers should not assume success indicates the
-        operation is finished; gear is asynchronous.
+        Note that callers should not assume success indicates the unit has
+        finished starting up. In addition to asynchronous nature of gear,
+        even if container is up and running the application within it
+        might still be starting up, e.g. it may not have bound the
+        external ports yet. As a result the final success of application
+        startup is out of scope for this method.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -105,12 +114,10 @@ class IGearClient(Interface):
 
         This can be done multiple times in a row for the same unit.
 
-        Note that callers should not assume success indicates the
-        operation is finished; gear is asynchronous.
-
         :param unicode unit_name: The name of the unit to stop.
 
-        :return: ``Deferred`` that fires on success.
+        :return: ``Deferred`` that fires once the unit has been stopped
+            and removed.
         """
 
     def list():
@@ -280,7 +287,7 @@ class FakeGearClient(object):
 
     The state the the simulated units is stored in memory.
 
-    :ivar dict _units: See ``units`` of ``__init``\ .
+    :ivar dict _units: See ``units`` of ``__init__``\ .
     """
 
     def __init__(self, units=None):
