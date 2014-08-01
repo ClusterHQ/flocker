@@ -38,15 +38,12 @@ class ConfigureSSHTests(TestCase):
         self.ssh_config = FilePath(self.mktemp())
         self.server = create_ssh_server(self.ssh_config)
         # Create a fake local keypair
-        # Must come after `create_ssh_server` since that will create the parent
-        # directory for us.
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
         self.config = OpenSSHConfiguration(
             ssh_config_path=self.ssh_config,
             flocker_path=self.flocker_config)
+        self.config.create_keypair()
         self.configure_ssh = self.config.configure_ssh
         self.agent = create_ssh_agent(self.server.key_path)
 
@@ -181,18 +178,17 @@ class CreateKeyPairTests(TestCase):
         configurator = OpenSSHConfiguration(
             ssh_config_path=ssh_config, flocker_path=None)
 
-        configuring = deferToThread(configurator.create_keypair)
+        configurator.create_keypair()
 
-        def generated(ignored):
-            id_rsa = ssh_config.child(b"id_rsa_flocker")
-            id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
-            key = Key.fromFile(id_rsa.path)
-            self.assertEqual(
-                # Avoid comparing the comment
-                key.public().toString("OPENSSH").split()[:2],
-                id_rsa_pub.getContent().split()[:2])
-        configuring.addCallback(generated)
-        return configuring
+        id_rsa = ssh_config.child(b"id_rsa_flocker")
+        id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
+        key = Key.fromFile(id_rsa.path)
+
+        self.assertEqual(
+            # Avoid comparing the comment
+            key.public().toString(
+                type="OPENSSH", extra='test comment').split(None, 2)[:2],
+            id_rsa_pub.getContent().split(None, 2)[:2])
 
     def test_key_not_regenerated(self):
         """
@@ -205,20 +201,13 @@ class CreateKeyPairTests(TestCase):
 
         id_rsa = ssh_config.child(b"id_rsa_flocker")
 
-        configuring = deferToThread(configurator.create_keypair)
+        configurator.create_keypair()
 
-        def generated(ignored):
-            key = Key.fromFile(id_rsa.path)
+        expected_key = Key.fromFile(id_rsa.path)
 
-            configuring = deferToThread(configurator.create_keypair)
-            configuring.addCallback(lambda ignored: key)
-            return configuring
-        configuring.addCallback(generated)
+        configurator.create_keypair()
 
-        def not_regenerated(expected_key):
-            self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
-        configuring.addCallback(not_regenerated)
-        return configuring
+        self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
 
     def test_key_permissions(self):
         """
