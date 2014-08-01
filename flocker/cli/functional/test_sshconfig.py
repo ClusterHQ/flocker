@@ -157,19 +157,17 @@ class CreateKeyPairTests(TestCase):
         configurator = OpenSSHConfiguration(
             ssh_config_path=ssh_config, flocker_path=None)
 
-        configuring = deferToThread(configurator.create_keypair)
+        configurator.create_keypair()
 
-        def generated(ignored):
-            id_rsa = ssh_config.child(b"id_rsa_flocker")
-            id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
-            key = Key.fromFile(id_rsa.path)
-            self.assertEqual(
-                # Avoid comparing the comment
-                key.public().toString(
-                    type="OPENSSH", extra='test comment').split(None, 2)[:2],
-                id_rsa_pub.getContent().split(None, 2)[:2])
-        configuring.addCallback(generated)
-        return configuring
+        id_rsa = ssh_config.child(b"id_rsa_flocker")
+        id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
+        key = Key.fromFile(id_rsa.path)
+
+        self.assertEqual(
+            # Avoid comparing the comment
+            key.public().toString(
+                type="OPENSSH", extra='test comment').split(None, 2)[:2],
+            id_rsa_pub.getContent().split(None, 2)[:2])
 
     def test_key_not_regenerated(self):
         """
