@@ -38,15 +38,12 @@ class ConfigureSSHTests(TestCase):
         self.ssh_config = FilePath(self.mktemp())
         self.server = create_ssh_server(self.ssh_config)
         # Create a fake local keypair
-        # Must come after `create_ssh_server` since that will create the parent
-        # directory for us.
-        self.ssh_config.child(b"id_rsa_flocker").setContent('private key\n')
-        self.ssh_config.child(b"id_rsa_flocker.pub").setContent('public key\n')
         self.addCleanup(self.server.restore)
         self.flocker_config = FilePath(self.mktemp())
         self.config = OpenSSHConfiguration(
             ssh_config_path=self.ssh_config,
             flocker_path=self.flocker_config)
+        self.config.create_keypair()
         self.configure_ssh = self.config.configure_ssh
         self.agent = create_ssh_agent(self.server.key_path)
 
