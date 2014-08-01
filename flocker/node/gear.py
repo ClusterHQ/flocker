@@ -9,6 +9,8 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed, fail
+from twisted.internet.task import deferLater
+from twisted.internet import reactor
 
 from treq import request, content
 
@@ -258,6 +260,22 @@ class GearClient(object):
     def remove(self, unit_name):
         d = self._container_request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
+
+        def check_if_stopped(_=None):
+            listing = self.list()
+
+            def got_listing(units):
+                matching_units = [unit for unit in units
+                                  if unit.name == unit_name]
+                if not matching_units:
+                    return
+                unit = matching_units[0]
+                if unit.activation_state in (u"failed", u"inactive"):
+                    return
+                return deferLater(reactor, 0.1, check_if_stopped)
+            listing.addCallback(got_listing)
+            return listing
+        d.addCallback(check_if_stopped)
         d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
         return d
