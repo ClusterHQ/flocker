@@ -218,20 +218,18 @@ class CreateKeyPairTests(TestCase):
         configurator = OpenSSHConfiguration(
             ssh_config_path=ssh_config, flocker_path=None)
 
-        configuring = deferToThread(configurator.create_keypair)
+        configurator.create_keypair()
 
         expected_private_key_permissions = Permissions(0600)
         expected_public_key_permissions = Permissions(0644)
 
-        def generated(ignored):
-            id_rsa = ssh_config.child(b"id_rsa_flocker")
-            id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
-            self.assertEqual(
-                (expected_private_key_permissions,
-                 expected_public_key_permissions),
-                (id_rsa.getPermissions(), id_rsa_pub.getPermissions()))
-        configuring.addCallback(generated)
-        return configuring
+        id_rsa = ssh_config.child(b"id_rsa_flocker")
+        id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
+
+        self.assertEqual(
+            (expected_private_key_permissions,
+             expected_public_key_permissions),
+            (id_rsa.getPermissions(), id_rsa_pub.getPermissions()))
 
 
 class OpenSSHDefaultsTests(TestCase):
