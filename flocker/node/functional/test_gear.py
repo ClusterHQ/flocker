@@ -304,7 +304,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
         def removed(_):
             process = subprocess.Popen(
                 [b"docker", b"inspect", name.encode("ascii")])
-            # Can't inspect a non-existent container:
+            # Inspect gives non-zero exit code for stopped and
+            # non-existent containers:
             self.assertEqual(process.wait(), 1)
         d.addCallback(removed)
         return d
