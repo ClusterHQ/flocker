@@ -165,8 +165,9 @@ class CreateKeyPairTests(TestCase):
             key = Key.fromFile(id_rsa.path)
             self.assertEqual(
                 # Avoid comparing the comment
-                key.public().toString("OPENSSH").split()[:2],
-                id_rsa_pub.getContent().split()[:2])
+                key.public().toString(
+                    type="OPENSSH", extra='test comment').split(None, 2)[:2],
+                id_rsa_pub.getContent().split(None, 2)[:2])
         configuring.addCallback(generated)
         return configuring
 
