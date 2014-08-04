@@ -2,13 +2,14 @@
 
 {%- set render_sidebar = (not embedded) and (not theme_nosidebar|tobool) and (sidebars != []) %}
 {%- set url_root = pathto('', 1) %}
+{% set theme_disqus_shortname = 'clusterhq' %}
 {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
 
 {%- macro relbar(bottom=False) %}
     <div class="related{% if bottom %} related-bottom{% endif %}">
-        <ul class="nav">
+        <ul class="nav" id="navul">
             {%- block rootrellink %}
-                <li class=""><a class="brand" href="{{ pathto(master_doc) }}">{{ project|e }}</a></li>
+                <li class=""><a class="" href="{{ pathto(master_doc) }}">{{ project|e }}</a></li>
             {%- endblock %}
             {%- for rellink in rellinks %}
                 <li>
@@ -52,6 +53,11 @@
                     {%- endif %}
                 {%- endif %}
             </div>
+            
+            <div class="sphinxsidebarwrapper">
+                <h3>Search</h3>
+                {{ seachbox() }}
+            </div>
         </div>
     {%- endif %}
 {%- endmacro -%}
@@ -60,7 +66,7 @@
     {%- if pagename != "search" %}
         <form class="navbar-search" action="{{ pathto('search') }}"
               method="get">
-            <input type="text" name="q" placeholder="search"/>
+            <input type="text" name="q" placeholder="search" id="search"/>
             <input type="hidden" name="check_keywords" value="yes"/>
             <input type="hidden" name="area" value="default"/>
         </form>
@@ -87,6 +93,8 @@
     {%- for cssfile in css_files %}
         <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css"/>
     {%- endfor %}
+    <link type="text/css" rel="stylesheet" href="https://fast.fonts.com/cssapi/12c08010-f85a-48dc-a6f6-637fdb76bc54.css"/>
+    <link href='http://fonts.googleapis.com/css?family=Lato' rel='stylesheet' type='text/css'>
     <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
@@ -169,70 +177,20 @@
 {%- block header %}
 
     <div class="navbar navbar-static-top">
-        <div class="navbar-inner">
+        <div class="navbar-inner" id="menubar">
             <div class="container">
 
                 {%- block headerlogo %}
-                    {%- if logo %}
-                        <a href="{{ pathto(master_doc) }}">
-                            <img class="logo" src="{{ pathto('_static/' + logo, 1) }}"
-                            {% if theme_logo_width %} width="{{ theme_logo_width }}"{% endif %}
-                            {% if theme_logo_height %} height="{{ theme_logo_height }}"{% endif %}
-                            alt="{{ project|e }}" title="{{ project|e }}"/>
-                        </a>
-                    {%- else %}
-{#                        <a class="brand" href="./index.html">Bootstrap</a>#}
-                    {%- endif %}
+                    <a href="./index.html"><img src="//clusterhq.com/wp-content/themes/hybrid-cluster-v3/assets/img/hc-logo.png" id="logo"/></a>
                 {%- endblock %}
 
-                {%- block relbar1 %}{{ relbar() }}{% endblock %}
-                <div class="pull-right">
-                    {{ seachbox() }}
+                <div class="pull-right" id="nav">
+                    {%- block relbar1 %}{{ relbar() }}{% endblock %}
                 </div>
             </div>
         </div>
     </div>
 {% endblock %}
-
-<ul class="quick-links">
-    <li><strong>Quick links</strong></li>
-    <li>
-        <a href="https://github.com/{{ theme_github_user }}/{{ theme_github_repo }}/">GitHub</a>
-    </li>
-    <li>
-        <a href="https://github.com/{{ theme_github_user }}/{{ theme_github_repo }}/issues?state=open">Issues</a>
-    </li>
-    <li class="divider">&middot;</li>
-    <li>
-        <iframe class="github-btn"
-                src="http://ghbtns.com/github-btn.html?user={{ theme_github_user }}&repo={{ theme_github_repo }}&type=watch&count=true"
-                allowtransparency="true" frameborder="0" scrolling="0"
-                width="110px" height="20px"></iframe>
-    </li>
-    <li>
-        <iframe class="github-btn"
-                src="http://ghbtns.com/github-btn.html?user={{ theme_github_user }}&repo={{ theme_github_repo }}&type=fork&count=true"
-                allowtransparency="true" frameborder="0" scrolling="0"
-                width="94px" height="20px"></iframe>
-    </li>
-
-    <li class="divider">&middot;</li>
-    <li class="follow-btn">
-        <a href="https://twitter.com/{{ theme_twitter_username }}"
-           class="twitter-follow-button" data-width="145px"
-           data-link-color="#0069D6" data-show-count="false">Follow
-            @{{ theme_twitter_username }}</a>
-    </li>
-    <li class="tweet-btn">
-        <a href="https://twitter.com/share" class="twitter-share-button"
-           data-url="{{ theme_home_url }}" data-count="horizontal"
-           data-via="twbootstrap"
-           data-related="{{ theme_twitter_username }}:Creator of {{ project|e }}">Tweet</a>
-    </li>
-    <li class="plusone-container">
-        <g:plusone size="medium"></g:plusone>
-    </li>
-</ul>
 
 {%- block content %}
     {%- block sidebar1 %} {# possible location for sidebar #} {% endblock %}
@@ -249,6 +207,10 @@
             {%- endblock %}
             {%- block sidebar2 %}
                 <div class="span3">
+                    <div id="navsidebar">
+                        <h3>Navigation</h3>
+                        {{ relbar() }}
+                    </div>                    
                     {{ sidebar() }}
                 </div>
             {% endblock %}
@@ -314,21 +276,6 @@
         $(this).siblings().toggle()
     });
 </script>
-
-<!-- plusone -->
-<script type="text/javascript">
-    (function () {
-        var po = document.createElement('script');
-        po.type = 'text/javascript';
-        po.async = true;
-        po.src = 'https://apis.google.com/js/plusone.js';
-        var s = document.getElementsByTagName('script')[0];
-        s.parentNode.insertBefore(po, s);
-    })();
-</script>
-
-<!-- twitter -->
-<script src="http://platform.twitter.com/widgets.js" type="text/javascript"></script>
 
 </body>
 </html>
