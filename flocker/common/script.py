@@ -117,20 +117,19 @@ class FlockerScriptRunner(object):
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
         observer = None
-
-        if not self.log_directory.exists():
-            try:
+        try:
+            if not self.log_directory.exists():
                 self.log_directory.makedirs()
-            except OSError:
-                pass
-            else:
-                log_path = self.log_directory.child(
-                    b"%s-%d.log" % (os.path.basename(self.sys_module.argv[0]),
-                                    os.getpid()))
-                log_file = log_path.open("a")
-                observer = FileLogObserver(log_file).emit
-                addObserver(observer)
-                msg("Arguments: %s" % (self.sys_module.argv,))
+            log_path = self.log_directory.child(
+                b"%s-%d.log" % (os.path.basename(self.sys_module.argv[0]),
+                                os.getpid()))
+            log_file = log_path.open("a")
+            observer = FileLogObserver(log_file).emit
+            addObserver(observer)
+            msg("Arguments: %s" % (self.sys_module.argv,))
+        except (OSError, IOError):
+            pass
+
         options = self._parse_options(self.sys_module.argv[1:])
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and

@@ -154,7 +154,32 @@ class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
         options = usage.Options()
         sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
         logs = FilePath(self.mktemp())
-        runner = FlockerScriptRunner(LoggingScript(), options, reactor=None,
+        from twisted.test.test_task import _FakeReactor
+        fakeReactor = _FakeReactor()
+        runner = FlockerScriptRunner(LoggingScript(), options,
+                                     reactor=fakeReactor,
+                                     sys_module=sys)
+        runner.log_directory = logs
+        try:
+            runner.main()
+        except SystemExit:
+            pass
+        path = logs.child(b"mythingie-%d.log" % (getpid(),))
+        self.assertIn(b"it's alive", path.getContent())
+
+    def test_adds_log_observer_existing_directory(self):
+        """
+        ``FlockerScriptRunner.main`` logs to the given directory even if it
+        already exists.
+        """
+        options = usage.Options()
+        sys = FakeSysModule(argv=[b"/usr/bin/mythingie"])
+        logs = FilePath(self.mktemp())
+        logs.makedirs()
+        from twisted.test.test_task import _FakeReactor
+        fakeReactor = _FakeReactor()
+        runner = FlockerScriptRunner(LoggingScript(), options,
+                                     reactor=fakeReactor,
                                      sys_module=sys)
         runner.log_directory = logs
         try:
@@ -171,7 +196,10 @@ class FlockerScriptRunnerLoggingTests(SynchronousTestCase):
         options = usage.Options()
         sys = FakeSysModule(argv=[b"mythingie", b"--version"])
         logs = FilePath(self.mktemp())
-        runner = FlockerScriptRunner(LoggingScript(), options, reactor=None,
+        from twisted.test.test_task import _FakeReactor
+        fakeReactor = _FakeReactor()
+        runner = FlockerScriptRunner(LoggingScript(), options,
+                                     reactor=fakeReactor,
                                      sys_module=sys)
         runner.log_directory = logs
         try:
