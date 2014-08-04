@@ -8,7 +8,8 @@ import os
 from twisted.internet import task
 from twisted.python import usage
 from twisted.python.filepath import FilePath
-from twisted.python.log import addObserver, removeObserver, FileLogObserver, msg
+from twisted.python.log import (
+    addObserver, removeObserver, FileLogObserver, msg)
 
 from zope.interface import Interface
 
@@ -79,7 +80,6 @@ class FlockerScriptRunner(object):
 
     # Location where logs will be written, overrideable by tests:
     log_directory = FilePath(b"/var/log/flocker/")
-
 
     def __init__(self, script, options, reactor=None, sys_module=None):
         """
