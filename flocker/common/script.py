@@ -8,7 +8,9 @@ import os
 from twisted.internet import task
 from twisted.python import usage
 from twisted.python.filepath import FilePath
-from twisted.python.log import addObserver, removeObserver, FileLogObserver, msg
+from twisted.python.log import (
+    startLoggingWithObserver, removeObserver, FileLogObserver, msg,
+    )
 
 from zope.interface import Interface
 
@@ -125,7 +127,7 @@ class FlockerScriptRunner(object):
                                 os.getpid()))
             log_file = log_path.open("a")
             observer = FileLogObserver(log_file).emit
-            addObserver(observer)
+            startLoggingWithObserver(observer, False)
             msg("Arguments: %s" % (self.sys_module.argv,))
         except (OSError, IOError):
             pass
