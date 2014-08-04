@@ -273,3 +273,12 @@ p {
 #search {
     width: 100%;
 }
+
+.sphinxsidebarwrapper ul>li>ul {
+    display: none;
+}
+
+.sphinxsidebarwrapper>ul {
+    list-style-type: none;
+    margin-left: 0;
+}

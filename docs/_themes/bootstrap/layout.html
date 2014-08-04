@@ -31,27 +31,9 @@
 {%- macro sidebar() %}
     {%- if render_sidebar %}
         <div class="sphinxsidebar">
-            <div class="sphinxsidebarwrapper">
-                {%- if sidebars != None %}
-                    {#- new style sidebar: explicitly include/exclude templates #}
-                    {%- for sidebartemplate in sidebars %}
-                        {%- include sidebartemplate %}
-                    {%- endfor %}
-                {%- else %}
-                    {#- old style sidebars: using blocks -- should be deprecated #}
-                    {%- block sidebartoc %}
-                        {%- include "localtoc.html" %}
-                    {%- endblock %}
-                    {%- block sidebarrel %}
-                        {%- include "relations.html" %}
-                    {%- endblock %}
-                    {%- block sidebarsourcelink %}
-                        {%- include "sourcelink.html" %}
-                    {%- endblock %}
-                    {%- if customsidebar %}
-                        {%- include customsidebar %}
-                    {%- endif %}
-                {%- endif %}
+            <h3>Contents</h3>
+            <div class="sphinxsidebarwrapper" id="toctree">
+                {{ toctree(collapse=false) }}
             </div>
             
             <div class="sphinxsidebarwrapper">
@@ -59,6 +41,25 @@
                 {{ seachbox() }}
             </div>
         </div>
+        
+        <script>
+                $('#toctree ul>li').click(function() {
+                    event.stopPropagation();
+
+                    if($(this).children('ul').length > 0) {
+                        event.preventDefault();
+                        $(this).children('ul').slideToggle(100);
+                    }
+                });
+                
+                $( document ).ready(function() {
+                    $('#toctree .current').each(function() {
+                        if ($(this).children('ul').length > 0) {
+                            $(this).children('ul').show();
+                        }
+                    });
+                });
+        </script>
     {%- endif %}
 {%- endmacro -%}
 
