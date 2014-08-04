@@ -107,7 +107,7 @@ class OpenSSHConfiguration(object):
             )
 
         generate_flocker_key = (
-            u"umask umask u=rwx,g=,o=; "
+            u"umask u=rwx,g=,o=; "
             u"mkdir -p {}; "
             u"echo '{}' > '{}'; "
             u"echo '{}' > '{}'; "
