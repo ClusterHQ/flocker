@@ -6,11 +6,13 @@ To replicate the steps demonstrated in this tutorial, you will need:
   * Linux, FreeBSD, or OS X
   * `Vagrant`_ (1.6.2 or newer)
   * `VirtualBox`_
+  * At least 10GB disk space available for the two virtual machines
   * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
   * bash
   * The ``mongo`` MongoDB interactive shell
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
+See :doc:`../installation`\ .
 
 Setup
 =====
@@ -46,6 +48,11 @@ Creating the VirtualBox VMs
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
+
+.. note:: The two virtual machines are each assigned a 10GB virtual disk.
+          The underlying disk files grow to about 5GB.
+          So you will need at least 10GB of free disk space on your workstation.
+
 These VMs serve as hosts on which Flocker can run Docker.
 Flocker does not require Vagrant or VirtualBox.
 You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
