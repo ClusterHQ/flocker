@@ -58,6 +58,36 @@ class IStoragePoolTests(make_istoragepool_tests(
     """``IStoragePoolTests`` for ZFS storage pool."""
 
 
+class FileSystemRegressionTests(TestCase):
+    def test_writer_stderr(self):
+        """
+        The subprocesses launched by ``FileSystem.writer`` do not pollute stderr
+        with during normal operation.
+        """
+        import sys
+        from io import BytesIO
+        from twisted.internet.defer import gatherResults
+        from flocker.volume.test.filesystemtests import copy
+        mount_root = FilePath(self.mktemp())
+        pool = StoragePool(reactor, create_zfs_pool(self), mount_root)
+
+        volume1 = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+        volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2", _pool=pool)
+        d = gatherResults([pool.create(volume1), pool.create(volume2)])
+
+        def created_filesystems(filesystems):
+            fake_stderr = BytesIO()
+            fake_stdout = BytesIO()
+            self.patch(sys, 'stderr', fake_stderr)
+            self.patch(sys, 'stdout', fake_stdout)
+            first, second = filesystems
+            copy(volume1, volume2)
+            self.assertEqual(
+                (b'', b''), (fake_stderr.getvalue(), fake_stdout.getvalue()))
+        d.addCallback(created_filesystems)
+        return d
+
+
 class VolumeToDatasetTests(TestCase):
     """Tests for ``volume_to_dataset``."""
     def test_volume_to_dataset(self):
