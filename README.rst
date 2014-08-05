@@ -39,7 +39,7 @@ You can run all of the tox environments using the command `tox`.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _Twisted: https://www.twistedmatrix.com
+.. _Twisted: https://twistedmatrix.com
 .. _installing Flocker: http://doc-dev.clusterhq.com/installation.html
 .. _tutorial: http://doc-dev.clusterhq.com/tutorial/
 .. _features of Flocker and its architecture: http://doc-dev.clusterhq.com/flocker-intro/
