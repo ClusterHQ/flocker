@@ -22,10 +22,13 @@ Let's look at an extremely simple Flocker configuration for one node running a c
 Notice that we mention the node that has no applications deployed on it to ensure that ``flocker-deploy`` knows that it exists.
 If we hadn't done that certain actions that might need to be taken on that node will not happen, e.g. stopping currently running applications.
 
+.. note:: As you go the tutorial you should be running the emphasized lines in your own shell as you follow along.
+
 Next take a look at what containers Docker is running on the VM you just created.
 The node IPs are those which were specified earlier in the ``Vagrantfile``:
 
 .. code-block:: console
+   :emphasize-lines: 1
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
@@ -35,6 +38,7 @@ From this you can see that there are no running containers.
 To fix this, use ``flocker-deploy`` with the simple configuration files given above and then check again:
 
 .. code-block:: console
+   :emphasize-lines: 1,2
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -70,6 +74,7 @@ Use ``flocker-deploy`` again to enact the change:
 ``docker ps`` shows that no containers are running on ``172.16.255.250``:
 
 .. code-block:: console
+   :emphasize-lines: 1
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS     PORTS     NAMES
@@ -80,6 +85,8 @@ and that MongoDB has been successfully moved to ``172.16.255.251``:
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
+   :emphasize-lines: 1
+
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
    4d117c7e653e    dockerfile/mongodb:latest   mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
    alice@mercury:~/flocker-tutorial$
