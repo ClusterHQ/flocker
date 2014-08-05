@@ -31,7 +31,7 @@ Software
 Access
 ~~~~~~
 
-- A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
+- A readthedocs account (`registration <https://readthedocs.org/accounts/signup/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
