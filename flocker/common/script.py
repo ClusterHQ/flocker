@@ -3,9 +3,13 @@
 """Helpers for flocker shell commands."""
 
 import sys
+import os
 
 from twisted.internet import task
 from twisted.python import usage
+from twisted.python.filepath import FilePath
+from twisted.python.log import (
+    addObserver, removeObserver, FileLogObserver, msg)
 
 from zope.interface import Interface
 
@@ -74,6 +78,9 @@ class FlockerScriptRunner(object):
     """
     _react = staticmethod(task.react)
 
+    # Location where logs will be written, overrideable by tests:
+    log_directory = FilePath(b"/var/log/flocker/")
+
     def __init__(self, script, options, reactor=None, sys_module=None):
         """
         :param ICommandLineScript script: The script object to be run.
@@ -109,8 +116,27 @@ class FlockerScriptRunner(object):
 
     def main(self):
         """Parse arguments and run the script's main function via ``react``."""
+        observer = None
+        try:
+            if not self.log_directory.exists():
+                self.log_directory.makedirs()
+            log_path = self.log_directory.child(
+                b"%s-%d.log" % (os.path.basename(self.sys_module.argv[0]),
+                                os.getpid()))
+            log_file = log_path.open("a")
+            observer = FileLogObserver(log_file).emit
+            addObserver(observer)
+            msg("Arguments: %s" % (self.sys_module.argv,))
+        except (OSError, IOError):
+            pass
+
         options = self._parse_options(self.sys_module.argv[1:])
         # XXX: We shouldn't be using this private _reactor API. See
         # https://twistedmatrix.com/trac/ticket/6200 and
         # https://twistedmatrix.com/trac/ticket/7527
         self._react(self.script.main, (options,), _reactor=self._reactor)
+
+        # Not strictly necessary, but nice cleanup for tests:
+        if observer is not None:
+            removeObserver(observer)
+            log_file.close()

@@ -27,6 +27,7 @@ Contents:
    configuration
    volume/index
    routing/index
+   debugging
    roadmap/index
    infrastructure/index
    release-process
