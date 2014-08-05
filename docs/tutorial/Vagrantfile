@@ -26,7 +26,10 @@ echo "# Flocker-defined alternate temporary path to provide more temporary space
 echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
 
 systemctl enable docker
-systemctl start docker
+# Enabling Docker allows it to be started by socket activation, but it may
+# already be running. Restart it to ensure that it picks up the new tmpdir
+# configuration.
+systemctl restart docker
 systemctl enable geard
 systemctl start geard
 
