@@ -40,10 +40,10 @@ Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com
-.. _installing Flocker: http://docs.clusterhq.com/installation.html
-.. _tutorial: http://docs.clusterhq.com/tutorial/
-.. _features of Flocker and its architecture: http://docs.clusterhq.com/flocker-intro/
-.. _areas for potential future development: http://docs.clusterhq.com/roadmap/
+.. _installing Flocker: http://docs.clusterhq.com/en/latest/installation.html
+.. _tutorial: http://docs.clusterhq.com/en/latest/tutorial/
+.. _features of Flocker and its architecture: http://docs.clusterhq.com/en/latest/flocker-intro/
+.. _areas for potential future development: http://docs.clusterhq.com/en/latest/roadmap/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
