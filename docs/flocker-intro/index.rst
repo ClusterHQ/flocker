@@ -4,9 +4,9 @@ Introduction
 
 Motivation for building Flocker
 ===============================
-Flocker lets you move your Docker containers and their data together between hosts.  
+Flocker lets you move your Docker containers and their data together between hosts.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
-Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible. 
+Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible.
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
 
 
@@ -14,7 +14,7 @@ Flocker aims to solve this problem by providing an orchestration framework that 
 
   * Application state can be stored on local disk in "volumes" attached to containers.
   * Containers can talk to each other and external world via specified ports.
-  
+
 * But what happens if you have more than one machine?
 
   * Where do containers run?
@@ -40,14 +40,6 @@ Flocker - Routing
 * Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``192.0.2.0``, ``192.0.2.1``)
 
 
-Flocker - Cross-container communication
----------------------------------------
-
-* Container configuration describes links (port numbers) which are required to other containers. 
-  E.g. your web application container needs to talk to your database.
-* Connections to any linked port inside the source container are routed to the correct port inside the target container.
-
-
 Flocker - Application state
 ---------------------------
 
@@ -56,19 +48,17 @@ Flocker - Application state
 * If an application container is moved from one machine to another, Flocker automatically moves the volume with it.
 
 
-
 Application configuration
 -------------------------
 
 * Application configuration describes what you want to run in a container.
 
   * it identifies a Docker image
-  * a volume mountpoint
-  * other containers to link to
+  * an optional volume mountpoint
   * externally "routed" ports
-   
+
 * This configuration is expected to be shared between development, staging, production, etc environments.
-* Flocker 0.1 may not support automatic re-deployment of application configuration changes.
+* Flocker 0.1 does not support automatic re-deployment of application configuration changes.
 
 
 Deployment configuration
@@ -77,25 +67,23 @@ Deployment configuration
 * Deployment configuration describes how you want your containers deployed.
 
   * which machines run which containers.
-  
+
 * This configuration can vary between development, staging, production, etc environments.
 
   * Developer might want to deploy all of the containers on their laptop.
   * Production might put database on one machine, web server on another machine, etc.
-  
+
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
 
 Initial implementation strategy
 ===============================
 
-* Don't Panic.
 * This is the 0.1 approach.
+* Future approaches will be very different; feedback is welcome.
 * All functionality is provided as short-lived, manually invoked processes.
 * ``flocker-deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
 * Machines might connect to each other over SSH to copy volume data to the necessary place.
-* Future approaches will be very different.  
-  Feedback welcome.
 
 flocker-node
 ------------
@@ -121,8 +109,6 @@ Managing Containers
   * starting/stopping (including at boot).
   * inter-unit dependency management.
   * lots of other stuff.
-  
-* Geard helps support the implementation of links.
 
 
 Managing volumes
@@ -131,22 +117,21 @@ Managing volumes
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
 * Geard automatically associates the "data" container's volumes with the actual container.
-
   * Association is done based on container names by Geard.
-  
-* Data model
 
+* Data model
   * Volumes are owned by a specific machine.
-  * Machine A can push a copy to machine B but machine A still owns the volume.  
+
+  * Machine A can push a copy to machine B but machine A still owns the volume.
     Machine B may not modify its copy.
-	
-  * Volumes can be "handed off" to another machine.  
-    Machine A can hand off the volume to machine B.  
+
+  * Volumes can be "handed off" to another machine.
+    Machine A can hand off the volume to machine B.
     Then machine B can modify the volume and machine A no longer can.
-	
+
 * Volumes are pushed and handed off so as to follow the containers they are associated with.
 
-  * This happens automatically when ``flocker-cluster deploy`` runs with a new deployment configuration.
+  * This happens automatically when ``flocker-deploy`` runs with a new deployment configuration.
 
 
 Managing routes
@@ -158,13 +143,6 @@ Managing routes
 * Proxying is done using iptables.
 
 
-Managing links
---------------
-
-* Containers declare other containers they want to be able to talk to and on what port they expect to be able to do this.
-* Geard is told to proxy connections to that port inside the container to localhost on the machine hosting that container.
-* The routes code makes ensures the connection is then proxy to the machine hosting the target container.
-
 User experience
 ===============
 
@@ -173,8 +151,8 @@ User experience
 
   * Application
   * Deployment
-  
-* Your sysadmin runs a command like ``flocker-cluster deploy application-config.yml deployment-config.yml`` on their laptop.
+
+* Your sysadmin runs a command like ``flocker-deploy deployment-config.yml application-config.yml`` on their laptop.
 
 .. _Geard: https://github.com/openshift/geard
 
