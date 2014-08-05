@@ -19,19 +19,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   installation
-   tutorial/index
-   flocker-intro/index
-   whatsnew
-   usage
-   configuration
-   volume/index
-   routing/index
-   debugging
+   introduction
+   gettingstarted/index
+   advanced/index
+   gettinginvolved/index
    roadmap/index
-   infrastructure/index
-   release-process
-   contributing
    authors
 
 
