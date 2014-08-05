@@ -25,12 +25,3 @@ Contents:
    gettinginvolved/index
    roadmap/index
    authors
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
