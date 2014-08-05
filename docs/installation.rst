@@ -10,9 +10,10 @@ As a user of Flocker there are two components you will need to install:
    This should be installed on a machine with SSH credentials to control the cluster nodes
    (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`contributing`.
+
 Installing flocker-node
 =======================
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`contributing`.
 
 .. note:: For now we strongly recommend running the cluster using our custom Fedora 20 virtual machine, which can be built using Vagrant.
           See :doc:`tutorial/vagrant-setup` for details.
