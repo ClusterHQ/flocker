@@ -39,11 +39,11 @@ You can run all of the tox environments using the command `tox`.
 Flocker is also tested using `continuous integration`_.
 
 .. _ClusterHQ: https://clusterhq.com/
-.. _Twisted: https://www.twistedmatrix.com
-.. _installing Flocker: http://doc-dev.clusterhq.com/installation.html
-.. _tutorial: http://doc-dev.clusterhq.com/tutorial/
-.. _features of Flocker and its architecture: http://doc-dev.clusterhq.com/flocker-intro/
-.. _areas for potential future development: http://doc-dev.clusterhq.com/roadmap/
+.. _Twisted: https://twistedmatrix.com
+.. _installing Flocker: http://docs.clusterhq.com/en/latest/installation.html
+.. _tutorial: http://docs.clusterhq.com/en/latest/tutorial/
+.. _features of Flocker and its architecture: http://docs.clusterhq.com/en/latest/flocker-intro/
+.. _areas for potential future development: http://docs.clusterhq.com/en/latest/roadmap/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
