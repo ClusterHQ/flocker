@@ -1,5 +1,6 @@
-Flocker Tutorial
-================
+=========================================
+Tutorial: Deploying and Migrating MongoDB
+=========================================
 
 The goal of this tutorial is to teach you to use Flocker's container, network, and volume orchestration functionality.
 By the time you reach the end of the tutorial you will know how to use Flocker to create an application.
