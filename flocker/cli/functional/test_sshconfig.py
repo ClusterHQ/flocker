@@ -8,7 +8,7 @@ from os.path import expanduser
 from socket import socket
 
 from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import FilePath, Permissions
 from twisted.conch.ssh.keys import Key
 from twisted.internet.threads import deferToThread
 
@@ -140,6 +140,30 @@ class ConfigureSSHTests(TestCase):
         configuring.addCallback(configured)
         return configuring
 
+    def test_flocker_keypair_permissions(self):
+        """
+        ``configure_ssh`` writes the remote keypair with secure permissions.
+        """
+        configuring = deferToThread(
+            self.configure_ssh, self.server.ip, self.server.port)
+
+        expected_private_key_permissions = Permissions(0600)
+        expected_public_key_permissions = Permissions(0644)
+
+        def configured(ignored):
+            expected = (
+                expected_private_key_permissions,
+                expected_public_key_permissions
+            )
+            actual = (
+                self.flocker_config.child(b"id_rsa_flocker").getPermissions(),
+                self.flocker_config.child(
+                    b"id_rsa_flocker.pub").getPermissions()
+            )
+            self.assertEqual(expected, actual)
+        configuring.addCallback(configured)
+        return configuring
+
 
 class CreateKeyPairTests(TestCase):
     """
@@ -184,6 +208,28 @@ class CreateKeyPairTests(TestCase):
         configurator.create_keypair()
 
         self.assertEqual(expected_key, Key.fromFile(id_rsa.path))
+
+    def test_key_permissions(self):
+        """
+        ``create_keypair`` sets secure permissions on
+        ``id_rsa_flocker`` and ``id_rsa_flocker.pub``.
+        """
+        ssh_config = FilePath(self.mktemp())
+        configurator = OpenSSHConfiguration(
+            ssh_config_path=ssh_config, flocker_path=None)
+
+        configurator.create_keypair()
+
+        expected_private_key_permissions = Permissions(0600)
+        expected_public_key_permissions = Permissions(0644)
+
+        id_rsa = ssh_config.child(b"id_rsa_flocker")
+        id_rsa_pub = ssh_config.child(b"id_rsa_flocker.pub")
+
+        self.assertEqual(
+            (expected_private_key_permissions,
+             expected_public_key_permissions),
+            (id_rsa.getPermissions(), id_rsa_pub.getPermissions()))
 
 
 class OpenSSHDefaultsTests(TestCase):
