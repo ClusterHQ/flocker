@@ -282,3 +282,7 @@ p {
     list-style-type: none;
     margin-left: 0;
 }
+
+tt.xref {
+    text-decoration: underline;
+}
