@@ -60,8 +60,11 @@ else
   fi
 fi
 
-mkdir /tmp/dockerbuild
-cd /tmp/dockerbuild
+# XXX This is a hack to reduce the size of the mongodb image. It can be removed
+# when we have created a smaller mongo image for use in this tutorial. See
+# https://github.com/ClusterHQ/flocker/issues/383
+mkdir /var/tmp/dockerbuild
+cd /var/tmp/dockerbuild
 echo "FROM dockerfile/mongodb\nCMD mongod --dbpath=/data --noprealloc --smallfiles" > Dockerfile
 docker build --tag mongodb-tutorial .
 SCRIPT
