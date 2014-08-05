@@ -9,7 +9,7 @@ By the end of the release process we will have:
 - a tag in version control
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
-- documentation on `doc-dev.clusterhq.com <http://doc-dev.clusterhq.com>`__
+- documentation on `docs.clusterhq.com <http://docs.clusterhq.com>`__
 - announcement on mailing list, blog, IRC (others?)
 - download links on clusterhq.com
 
@@ -31,7 +31,7 @@ Software
 Access
 ~~~~~~
 
-- A readthedocs account (`registration <https://readthedocs.org/accounts/register/>`__),
+- A readthedocs account (`registration <https://readthedocs.org/accounts/signup/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
