@@ -30,6 +30,7 @@ Contents:
    debugging
    roadmap/index
    infrastructure/index
+   release-process
    contributing
    authors
 

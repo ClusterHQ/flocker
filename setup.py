@@ -76,7 +76,7 @@ setup(
     packages=find_packages(),
 
     package_data={
-        'flocker.node.functional': ['docker/*'],
+        'flocker.node.functional': ['sendbytes-docker/*'],
     },
 
     entry_points = {
@@ -129,7 +129,14 @@ setup(
 
             # The test suite uses network namespaces
             "nomenclature >= 0.1.0",
-            ]
+            ],
+
+        # This extra is for Flocker release engineers to set up their release
+        # environment.
+        "release": [
+            "gsutil",
+            "wheel",
+            ],
         },
 
     cmdclass=cmdclass,

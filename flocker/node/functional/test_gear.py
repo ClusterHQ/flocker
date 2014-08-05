@@ -29,7 +29,7 @@ _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 class IGearClientTests(make_igearclient_tests(
         lambda test_case: GearClient("127.0.0.1"))):
-    """``IGearClient`` tests for ``FakeGearClient``."""
+    """``IGearClient`` tests for ``GearClient``."""
 
     @if_gear_configured
     def setUp(self):
@@ -235,14 +235,12 @@ class GearClientTests(TestCase):
         """
         internal_port = 31337
         expected_bytes = b'foo bar baz'
-        image_name = b'flocker/send_bytes_to'
         # Create a Docker image
         image = DockerImageBuilder(
-            source_dir=FilePath(__file__).sibling('docker'),
-            tag=image_name,
-            working_dir=FilePath(self.mktemp())
+            test=self,
+            source_dir=FilePath(__file__).sibling('sendbytes-docker'),
         )
-        image.build(
+        image_name = image.build(
             dockerfile_variables=dict(
                 host=b'127.0.0.1',
                 port=internal_port,
@@ -277,4 +275,38 @@ class GearClientTests(TestCase):
             return capture_finished
         d.addCallback(started)
 
+        return d
+
+    def build_slow_shutdown_image(self):
+        """
+        Create a Docker image that takes a while to shut down.
+
+        :return: The name of created Docker image.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent("""\
+FROM busybox
+CMD sh -c "trap \"\" 2; sleep 3"
+""")
+        image = DockerImageBuilder(test=self, source_dir=path)
+        return image.build()
+
+    def test_slow_removed_unit_does_not_exist(self):
+        """
+        ``remove()`` only fires once the Docker container has shut down.
+        """
+        client = GearClient(b"127.0.0.1")
+        name = random_name()
+        image = self.build_slow_shutdown_image()
+        d = self.start_container(name, image)
+        d.addCallback(lambda _: client.remove(name))
+
+        def removed(_):
+            process = subprocess.Popen(
+                [b"docker", b"inspect", name.encode("ascii")])
+            # Inspect gives non-zero exit code for stopped and
+            # non-existent containers:
+            self.assertEqual(process.wait(), 1)
+        d.addCallback(removed)
         return d

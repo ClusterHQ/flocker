@@ -1,0 +1,135 @@
+#!/usr/bin/env python
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+Update the ClusterHQ yum repository with new Flocker packages.
+
+The ClusterHQ yum repository contains packages for Flocker, as well as the
+dependencies which aren't available in Fedora 20.  It is currently hosted in
+Google's cloud storage.  When doing a release, we want to add the new Flocker
+packages, while preserving the existing packages in the repository.  To do
+this, we download the current repository, add the new package, update the
+metadata, and then upload the repository.
+
+XXX This script is not automatically checked by buildbot. See
+https://github.com/ClusterHQ/flocker/issues/397
+"""
+
+from __future__ import print_function
+
+import os
+
+from subprocess import check_call
+from pipes import quote
+from textwrap import dedent
+import tempfile
+
+from twisted.python.filepath import FilePath
+from twisted.python.usage import Options, UsageError
+
+
+class UploadOptions(Options):
+
+    optParameters = [
+        ["target", None, b'gs://archive.clusterhq.com/',
+         "The URL of the download server."],
+        ["build-server", None,
+         b'http://build.clusterhq.com',
+         "The URL of the build-server."]
+    ]
+
+    def parseArgs(self, version):
+        self['version'] = version
+
+
+FLOCKER_PACKAGES = [b'python-flocker', b'flocker-cli', b'flocker-node']
+SOURCE_PACKAGES = [b'python-flocker']
+
+
+def run_command(args):
+    """
+    Run a command, while reporting the command being run.
+    """
+    print('Running: %s' % (' '.join(map(quote, args))))
+    check_call(args)
+
+
+def update_repo(rpm_directory, target_repo, source_repo, packages):
+    """
+    Update ``target_repo`` yum repository with ``packages`` from
+    ``source_repo`` repository.
+    """
+    rpm_directory.createDirectory()
+    # Download existing repository
+    check_call([
+        b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
+
+    # Download requested packages from source repository
+    yum_repo_config = rpm_directory.child(b'build.repo')
+    yum_repo_config.setContent(dedent(b"""
+         [flocker]
+         name=flocker
+         baseurl=%s
+         """) % (source_repo,))
+    check_call([
+        b'yumdownloader',
+        b'-c', yum_repo_config.path,
+        b'--disablerepo=*',
+        b'--enablerepo=flocker',
+        b'--destdir', rpm_directory.path] + packages)
+    yum_repo_config.remove()
+
+    # Update repository metatdata
+    check_call([b'createrepo', b'--update', rpm_directory.path])
+
+    # Upload updated repository
+    check_call(
+        [b'gsutil', b'cp', b'-R', rpm_directory.path + b'/**', target_repo])
+
+
+def upload_rpms(scratch_directory, version, target_server, build_server):
+    """
+    Upload RPMS from build server to yum repository.
+
+    :param FilePath scratch_directory: Temporary directory to download
+        repository to.
+    :param bytes version: Version to download RPMs for.
+    :param bytes target_server: Server to upload RPMs to.
+    :param bytes build_server: Server to download new RPMs from.
+    """
+    target_base = os.path.join(target_server, b'fedora/20/')
+    source_repo = os.path.join(
+        build_server, b'results/fedora/20/x86_64', version)
+    update_repo(rpm_directory=scratch_directory.child(b'x86_64'),
+                target_repo=os.path.join(target_base, b'x86_64'),
+                source_repo=source_repo,
+                packages=FLOCKER_PACKAGES)
+    update_repo(rpm_directory=scratch_directory.child(b'SRPMS'),
+                target_repo=os.path.join(target_base, b'SRPMS'),
+                source_repo=source_repo,
+                packages=[b'--source'] + SOURCE_PACKAGES)
+
+
+def main(options):
+    version = options['version']
+
+    scratch_directory = FilePath(tempfile.mkdtemp())
+
+    try:
+        upload_rpms(scratch_directory, version,
+                    target_server=options['target'],
+                    build_server=options['build-server'])
+
+    finally:
+        scratch_directory.remove()
+
+
+if __name__ == '__main__':
+    import sys
+    options = UploadOptions()
+    try:
+        options.parseOptions(sys.argv[1:])
+    except UsageError as e:
+        print('%s: %s' % (sys.argv[0], e))
+        raise SystemExit(1)
+    main(options)
