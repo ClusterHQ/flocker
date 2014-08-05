@@ -1,6 +1,6 @@
-=====
-Usage
-=====
+=============
+Using Flocker
+=============
 
 Flocker manages what containers are running and on what hosts.
 It also manages network configuration for these containers (between them and between containers and the world).

@@ -1,6 +1,6 @@
-================
-External Routing
-================
+===========================
+Setting up External Routing
+===========================
 
 Flocker allows you to expose public ports on your applications.
 For example, you can export port 8443 on a HTTPS server running inside a container as an externally visible port 443 on the host machine.
