@@ -822,8 +822,8 @@ def attempt_effective_uid(username, suppress_errors=False):
                 raise
         else:
             restore_euid = True
-
-    yield
-
-    if restore_euid:
-        os.seteuid(original_euid)
+    try:
+        yield
+    finally:
+        if restore_euid:
+            os.seteuid(original_euid)
