@@ -7,7 +7,7 @@ It also manages network configuration for these containers (between them and bet
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
 This program is included in the Flocker client package.
-If you haven't `installed that package`_ yet, you may want to do so now.
+If you haven't installed that package yet you may want to do so now; see :doc:`installation`.
 
 Command Line Arguments
 ======================
@@ -66,6 +66,5 @@ Other Keys
 ``flocker-deploy`` will generate an additional SSH key.
 This key is deployed to each host you manage with Flocker and allows the hosts to authenticate to each other.
 
-.. _`installed that package`: TODO: link to our installation documentation
 .. _`generate an SSH key`: https://en.wikipedia.org/wiki/Ssh-keygen
 .. _`SSH key agent`: https://en.wikipedia.org/wiki/Ssh-agent
