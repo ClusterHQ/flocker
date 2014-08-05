@@ -26,7 +26,10 @@ echo "# Flocker-defined alternate temporary path to provide more temporary space
 echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
 
 systemctl enable docker
-systemctl start docker
+# Enabling Docker allows it to be started by socket activation, but it may
+# already be running. Restart it to ensure that it picks up the new tmpdir
+# configuration.
+systemctl restart docker
 systemctl enable geard
 systemctl start geard
 
@@ -57,6 +60,13 @@ else
   fi
 fi
 
+# XXX This is a hack to reduce the size of the mongodb image. It can be removed
+# when we have created a smaller mongo image for use in this tutorial. See
+# https://github.com/ClusterHQ/flocker/issues/383
+mkdir /var/tmp/dockerbuild
+cd /var/tmp/dockerbuild
+echo "FROM dockerfile/mongodb\nCMD mongod --dbpath=/data --noprealloc --smallfiles" > Dockerfile
+docker build --tag mongodb-tutorial .
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
