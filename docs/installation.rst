@@ -113,3 +113,7 @@ To install ``flocker-node`` on an existing Fedora 20 host, follow these steps:
         mkdir -p /opt/flocker
         truncate --size 1G /opt/flocker/pool-vdev
         zpool create flocker /opt/flocker/pool-vdev
+
+     .. note:: Refer to the `ZFS on Linux documentation`_ for more information on zpool and other ZFS commands.
+
+.. _`ZFS on Linux documentation`: http://zfsonlinux.org/docs.html
