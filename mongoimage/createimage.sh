@@ -6,9 +6,20 @@ set -e
 }
 rm -rf extra
 rm -f mongoimage.tar
-mkdir extra extra/etc extra/sbin extra/lib extra/lib64 extra/home extra/home/mongodb extra/data extra/data/db
+mkdir \
+    extra \
+    extra/etc \
+    extra/sbin \
+    extra/lib \
+    extra/lib64 \
+    extra/home \
+    extra/home/mongodb \
+    extra/data \
+    extra/data/db
+
 touch extra/etc/resolv.conf
 touch extra/sbin/init
+
 cp /lib/x86_64-linux-gnu/libpthread.so.0 /lib/x86_64-linux-gnu/libc.so.6 extra/lib
 cp /lib/x86_64-linux-gnu/librt.so.1 extra/lib
 cp /lib64/ld-linux-x86-64.so.2 extra/lib64
