@@ -12,7 +12,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
   * The ``mongo`` MongoDB interactive shell
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
-See :doc:`../installation`\ .
+See :ref:`installing-flocker-cli` .
 
 Setup
 =====

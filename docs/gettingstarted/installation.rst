@@ -13,6 +13,8 @@ As a user of Flocker there are two components you will need to install:
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
+.. _installing-flocker-cli:
+
 Installing flocker-cli
 ======================
 
