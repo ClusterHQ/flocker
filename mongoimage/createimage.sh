@@ -5,7 +5,7 @@ set -e
     exit 1
 }
 rm -rf extra
-rm mongoimage.tar
+rm -f mongoimage.tar
 mkdir extra extra/etc extra/sbin extra/lib extra/lib64 extra/home extra/home/mongodb extra/data extra/data/db
 touch extra/etc/resolv.conf
 touch extra/sbin/init
