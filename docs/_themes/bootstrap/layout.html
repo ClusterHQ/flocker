@@ -5,8 +5,8 @@
 {%- if url_root == '#' %}{% set url_root = '' %}{% endif %}
 
 {%- macro relbar(bottom=False) %}
-    <div class="related{% if bottom %} related-bottom{% endif %}">
-        <ul class="nav" id="navul">
+    <div class="related">
+        <ul class="nav{% if bottom %} pagination pull-right{% endif %}"{% if not bottom %} id="navul"{% endif %}>
             {%- block rootrellink %}
                 <li class=""><a class="" href="{{ pathto(master_doc) }}">{{ project|e }}</a></li>
             {%- endblock %}
@@ -199,6 +199,9 @@
             {%- block document %}
                 <div class="span9">
                     {% block body %} {% endblock %}
+                    <div id="bottomnav">
+                        {{ relbar(bottom=True) }}
+                    </div>
                     {% if theme_disqus_shortname %}
                         <div id="disqus_thread"></div>
                         <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
@@ -220,7 +223,6 @@
 
 {%- block footer %}
     <div class="footer">
-        {#        {%- block relbar2 %}{{ relbar(bottom=True) }}{% endblock %}#}
         <div class="container">
             {%- if show_copyright %}
                 {%- if hasdoc('copyright') %}
