@@ -16,5 +16,5 @@ cp /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /lib/x86_64-linux-gnu/libm.so.6 extr
 cp -R mongo/mongodb-linux-x86_64-2.6.3/bin/mongod extra/home/mongodb
 cp mongo/mongo.conf extra/home/mongodb
 cp rootfs.tar mongoimage.tar
-tar rvf fixup.tar -C extra .
+tar rvf mongoimage.tar -C extra .
 docker import - clusterhq/mongolite < mongoimage.tar
