@@ -10,16 +10,16 @@ Even stateless apps depend on many stateful services and currently running these
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
 
 
-* Docker does multiple isolated, reproducible application environments on a single machine: "containers".
+* Docker does multiple isolated, reproducible application environments on a single node: "containers".
 
   * Application state can be stored on local disk in "volumes" attached to containers.
   * Containers can talk to each other and external world via specified ports.
 
-* But what happens if you have more than one machine?
+* But what happens if you have more than one node?
 
   * Where do containers run?
   * How do you talk to the container you care about?
-  * How do containers across multiple machines talk to each other?
+  * How do containers across multiple nodes talk to each other?
   * How does application state work if you move containers around?
 
 Architecture
@@ -28,7 +28,7 @@ Architecture
 Flocker - Orchestration
 -----------------------
 
-* Flocker can run multiple containers on multiple machines.
+* Flocker can run multiple containers on multiple nodes.
 * Flocker offers a configuration language to specify what to run and where to run it.
 
 
@@ -36,7 +36,7 @@ Flocker - Routing
 -----------------
 
 * Container configuration includes externally visible TCP port numbers.
-* Connect to any machine on a Flocker cluster and traffic is routed to the machine hosting the appropriate container (based on port).
+* Connect to any node on a Flocker cluster and traffic is routed to the node hosting the appropriate container (based on port).
 * Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``192.0.2.0``, ``192.0.2.1``)
 
 
@@ -44,8 +44,8 @@ Flocker - Application state
 ---------------------------
 
 * Flocker manages ZFS filesystems as Docker volumes.  It attaches them to your containers.
-* Flocker provides tools for copying those volumes between machines.
-* If an application container is moved from one machine to another, Flocker automatically moves the volume with it.
+* Flocker provides tools for copying those volumes between nodes.
+* If an application container is moved from one node to another, Flocker automatically moves the volume with it.
 
 
 Application configuration
@@ -66,12 +66,12 @@ Deployment configuration
 
 * Deployment configuration describes how you want your containers deployed.
 
-  * which machines run which containers.
+  * which nodes run which containers.
 
 * This configuration can vary between development, staging, production, etc environments.
 
   * Developer might want to deploy all of the containers on their laptop.
-  * Production might put database on one machine, web server on another machine, etc.
+  * Production might put database on one node, web server on another node, etc.
 
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
@@ -82,20 +82,20 @@ Initial implementation strategy
 * This is the 0.1 approach.
 * Future approaches will be very different; feedback is welcome.
 * All functionality is provided as short-lived, manually invoked processes.
-* ``flocker-deploy`` connects to each machine over SSH and runs ``flocker-reportstate`` to gather the cluster state.
-* ``flocker-deploy`` then connects to each machine over SSH and runs ``flocker-changestate`` to make the necessary deployment changes.
-* Machines might connect to each other over SSH to copy volume data to the necessary place.
+* ``flocker-deploy`` connects to each node over SSH and runs ``flocker-reportstate`` to gather the cluster state.
+* ``flocker-deploy`` then connects to each node over SSH and runs ``flocker-changestate`` to make the necessary deployment changes.
+* Nodes might connect to each other over SSH to copy volume data to the necessary place.
 
 flocker-changestate
 -------------------
 
-* This is installed on machines participating in the Flocker cluster.
+* This is installed on nodes participating in the Flocker cluster.
 * Accepts the desired global configuration and current global state.
 * Also looks at local state - running containers, configured network proxies, etc.
 * Makes changes to local state so that it complies with the desired global configuration.
 
   * Start or stop containers.
-  * Push volume data to other machines.
+  * Push volume data to other nodes.
   * Add or remove routing configuration.
 
 
@@ -121,14 +121,14 @@ Managing volumes
   * Association is done based on container names by Geard.
 
 * Data model
-  * Volumes are owned by a specific machine.
+  * Volumes are owned by a specific node.
 
-  * Machine A can push a copy to machine B but machine A still owns the volume.
-    Machine B may not modify its copy.
+  * Node A can push a copy to node B but node A still owns the volume.
+    Node B may not modify its copy.
 
-  * Volumes can be "handed off" to another machine, i.e. ownership is changed.
-    Machine A can hand off the volume to machine B.
-    Then machine B is now the owner and can modify the volume and machine A no longer can.
+  * Volumes can be "handed off" to another node, i.e. ownership is changed.
+    Node A can hand off the volume to node B.
+    Then node B is now the owner and can modify the volume and node A no longer can.
 
 * Volumes are pushed and handed off so as to follow the containers they are associated with.
 
@@ -139,15 +139,15 @@ Managing routes
 ---------------
 
 * Containers claim TCP port numbers with the application configuration that defines them.
-* Connections to that TCP port on the machine that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
-* Connections to that TCP port on any other machine in the Flocker cluster are proxied (NAT'd!) to the machine that is running the container.
+* Connections to that TCP port on the node that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
+* Connections to that TCP port on any other node in the Flocker cluster are proxied (NAT'd!) to the node that is running the container.
 * Proxying is done using iptables.
 
 
 User experience
 ===============
 
-* Flocker provides a command-line interface for manually deploying or re-deploying containers across machines.
+* Flocker provides a command-line interface for manually deploying or re-deploying containers across nodes.
 * The tool operates on two distinct pieces of configuration:
 
   * Application
