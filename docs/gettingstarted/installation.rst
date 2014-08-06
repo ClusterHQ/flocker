@@ -57,6 +57,12 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
    0.1.0
+
+If you want to omit the prefix path you can e.g. add the appropriate directory to your ``$PATH``.
+You'll need to do this every time you start a new shell.
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
    0.1.0
@@ -84,6 +90,12 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
    0.1.0
+
+If you want to omit the prefix path you can e.g. add the appropriate directory to your ``$PATH``.
+You'll need to do this every time you start a new shell.
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
    0.1.0
