@@ -4,7 +4,7 @@ Installing Flocker
 
 As a user of Flocker there are two components you will need to install:
 
-1. The ``flocker-cli`` package which provides command line tools to controls the cluster.
+1. The ``flocker-cli`` package which provides command line tools to control the cluster.
    This should be installed on a machine with SSH credentials to control the cluster nodes
    (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
