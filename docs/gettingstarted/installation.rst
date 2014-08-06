@@ -11,7 +11,7 @@ As a user of Flocker there are two components you will need to install:
 2. The ``flocker-node`` package that runs on each node in the cluster.
    This package is installed on machines which will run Docker containers.
 
-.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`contributing`.
+.. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
 Installing flocker-cli
 ======================
@@ -105,7 +105,7 @@ Installing flocker-node
 =======================
 
 .. note:: For now we strongly recommend running the cluster using our custom Fedora 20 virtual machine, which can be built using Vagrant.
-          See :doc:`tutorial/vagrant-setup` for details.
+          See :doc:`the tutorial setup <tutorial/vagrant-setup>` for details.
 
 To install ``flocker-node`` on an existing Fedora 20 host, follow these steps:
 

@@ -1,8 +1,8 @@
 .. _configuration:
 
-=============
-Configuration
-=============
+===================
+Configuring Flocker
+===================
 
 Flocker operates on two configuration files: application and deployment.
 Together these configurations define a deployment.
