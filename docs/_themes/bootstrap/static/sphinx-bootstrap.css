@@ -286,3 +286,8 @@ p {
 .pagination {
     text-transform: capitalize;
 }
+
+#toctree a.current {
+    font-weight: bold;
+    font-style: italic;
+}
