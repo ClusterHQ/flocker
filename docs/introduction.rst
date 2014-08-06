@@ -82,15 +82,16 @@ Initial implementation strategy
 * This is the 0.1 approach.
 * Future approaches will be very different; feedback is welcome.
 * All functionality is provided as short-lived, manually invoked processes.
-* ``flocker-deploy`` connects to each machine over SSH and runs ``flocker-node`` to make the necessary deployment changes.
+* ``flocker-deploy`` connects to each machine over SSH and runs ``flocker-reportstate`` to gather the cluster state.
+* ``flocker-deploy`` then connects to each machine over SSH and runs ``flocker-changestate`` to make the necessary deployment changes.
 * Machines might connect to each other over SSH to copy volume data to the necessary place.
 
-flocker-node
-------------
+flocker-changestate
+-------------------
 
-* Installed and runs on machines participating in the Flocker cluster.
-* Accepts the desired global configuration.
-* Looks at local state - running containers, configured network proxies, etc.
+* This is installed on machines participating in the Flocker cluster.
+* Accepts the desired global configuration and current global state.
+* Also looks at local state - running containers, configured network proxies, etc.
 * Makes changes to local state so that it complies with the desired global configuration.
 
   * Start or stop containers.
@@ -105,10 +106,9 @@ Managing Containers
 * Geard works by creating systemd units.
 * Systemd units are a good way to provide admin tools for:
 
-  * logging and state inspection.
-  * starting/stopping (including at boot).
-  * inter-unit dependency management.
-  * lots of other stuff.
+  * Logging and state inspection.
+  * Starting/stopping (including at boot).
+  * Inter-unit dependency management.
 
 
 Managing volumes
@@ -117,6 +117,7 @@ Managing volumes
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
 * Geard automatically associates the "data" container's volumes with the actual container.
+
   * Association is done based on container names by Geard.
 
 * Data model
@@ -125,9 +126,9 @@ Managing volumes
   * Machine A can push a copy to machine B but machine A still owns the volume.
     Machine B may not modify its copy.
 
-  * Volumes can be "handed off" to another machine.
+  * Volumes can be "handed off" to another machine, i.e. ownership is changed.
     Machine A can hand off the volume to machine B.
-    Then machine B can modify the volume and machine A no longer can.
+    Then machine B is now the owner and can modify the volume and machine A no longer can.
 
 * Volumes are pushed and handed off so as to follow the containers they are associated with.
 
