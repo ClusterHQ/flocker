@@ -42,7 +42,6 @@ code, pre {
 
 span.pre {
     font-family: monospace;
-    color: #007000;
 }
 
 div.admonition {
@@ -281,8 +280,4 @@ p {
 .sphinxsidebarwrapper>ul {
     list-style-type: none;
     margin-left: 0;
-}
-
-tt.xref {
-    text-decoration: underline;
 }
