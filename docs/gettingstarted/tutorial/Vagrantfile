@@ -11,9 +11,6 @@ VAGRANTFILE_API_VERSION = "2"
 $bootstrap = <<SCRIPT
 set -e
 
-
-yum install -y zfs
-
 # Make it possible to install flocker-node
 mv clusterhq-flocker.repo /etc/yum.repos.d/
 

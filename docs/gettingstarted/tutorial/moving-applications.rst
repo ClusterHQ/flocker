@@ -54,8 +54,11 @@ Moving an Application
 
 Let's see how ``flocker-deploy`` can move this application to a different VM.
 Recall that the Vagrant configuration supplied in the setup portion of the tutorial started two VMs.
-Edit the *deployment* configuration file so that it indicates the application should run on the second VM instead of the first.
+Copy the *deployment* configuration file and edit it so that it indicates the application should run on the second VM instead of the first.
 The only change necessary to indicate this is to change the original IP address, ``172.16.255.250``, to the address of the other node, ``172.16.255.251``.
+The new file should be named ``minimal-deployment-moved.yml``.
+
+:download:`minimal-deployment-moved.yml`
 
 .. literalinclude:: minimal-deployment-moved.yml
    :language: yaml

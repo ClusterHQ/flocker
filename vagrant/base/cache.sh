@@ -4,11 +4,6 @@
 
 set -e
 
-# Precache zfs rpms.
-# We don't install them, since the result of installing dkms modules
-# is not redistributable (GPL vs CDDL)
-yum install --downloadonly zfs
-
 # Download docker images used.
 systemctl start docker
 docker pull busybox
