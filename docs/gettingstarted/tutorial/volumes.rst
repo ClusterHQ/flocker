@@ -17,7 +17,6 @@ Next we'll use a new configuration file that moves the application to a differen
    :language: yaml
 
 .. code-block:: console
-   :emphasize-lines: 1,2
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy port-deployment-moved.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
@@ -29,7 +28,6 @@ If we query the database the records we've previously inserted have disappeared!
 The application has moved but the data has been left behind.
 
 .. code-block:: console
-   :emphasize-lines: 1,4,6
 
     alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
     MongoDB shell version: 2.4.9
@@ -60,7 +58,6 @@ We'll create a new configuration for the cluster, this time adding a volume to t
 Then we'll run these configuration files with ``flocker-deploy``:
 
 .. code-block:: console
-   :emphasize-lines: 1,2
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
@@ -68,12 +65,11 @@ Then we'll run these configuration files with ``flocker-deploy``:
    4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
    alice@mercury:~/flocker-tutorial$
 
-Once again we'll insert some data into the database; run the emphasized lines:
+Once again we'll insert some data into the database:
 
 .. code-block:: console
-   :emphasize-lines: 4,6,7
 
-   alice@mercury:~/flocker-tutorial$ mongo 172.16.255.250
+   alice@mercury:~/flocker-tutorial$ $ mongo 172.16.255.250
    MongoDB shell version: 2.4.9
    connecting to: 172.16.255.250/test
    > use example;
@@ -90,7 +86,6 @@ Next we'll move the application to the other node.
    :language: yaml
 
 .. code-block:: console
-   :emphasize-lines: 1,2
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment-moved.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
@@ -101,7 +96,6 @@ Next we'll move the application to the other node.
 This time however the data has moved with the application:
 
 .. code-block:: console
-   :emphasize-lines: 4,6
 
    alice@mercury:~/flocker-tutorial$ mongo 172.16.255.251
    MongoDB shell version: 2.4.9
