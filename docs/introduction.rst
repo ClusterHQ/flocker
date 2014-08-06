@@ -140,7 +140,7 @@ Managing routes
 
 * Containers claim TCP port numbers with the application configuration that defines them.
 * Connections to that TCP port on the node that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
-* Connections to that TCP port on any other node in the Flocker cluster are proxied (NAT'd!) to the node that is running the container.
+* Connections to that TCP port on any other node in the Flocker cluster are proxied (NAT'd) to the node that is running the container.
 * Proxying is done using iptables.
 
 
