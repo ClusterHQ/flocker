@@ -8,3 +8,4 @@ Contents:
 
    vagrant
    packaging
+   release-process
