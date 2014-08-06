@@ -7,7 +7,6 @@ VAGRANTFILE_API_VERSION = "2"
 
 $bootstrap = <<SCRIPT
 set -e
-yum install -y zfs
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
