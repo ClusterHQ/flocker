@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 [ -f rootfs.tar ] || { 
     echo "Hmm this should run in the directory of rootfs.tar"
     exit 1
