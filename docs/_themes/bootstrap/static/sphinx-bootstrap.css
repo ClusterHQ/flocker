@@ -187,6 +187,7 @@ input[type="submit"].active, input[type="submit"]:active {
 
 #logo {
     padding-top: 21px;
+    width: 238px;
 }
 
 #menubar #navul {
