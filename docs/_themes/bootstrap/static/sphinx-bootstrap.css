@@ -281,3 +281,7 @@ p {
     list-style-type: none;
     margin-left: 0;
 }
+
+.pagination {
+    text-transform: capitalize;
+}
