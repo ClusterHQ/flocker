@@ -144,4 +144,3 @@ class FlockerDeployConfigureSSHTests(TestCase):
         result.addCallback(lambda exc: self.assertEqual(
             exc.args, (b"Error connecting to cluster node: onoes",)))
         return result
-
