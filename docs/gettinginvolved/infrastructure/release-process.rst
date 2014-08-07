@@ -97,6 +97,10 @@ Release
 
    You force a build on a tag by putting the tag name into the branch box (without any prefix).
 
+#. Set up `gsutil` authentication.
+
+   Run `gsutil config` and follow the instructions.
+
 #. Build python packages for upload::
 
      python setup.py bdist_wheel
