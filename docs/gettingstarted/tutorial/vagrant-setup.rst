@@ -26,21 +26,33 @@ If you do not already have the client on your machine, you can install it by run
 Ubuntu
 ^^^^^^
 
-``sudo apt-get install mongodb-clients``
+.. code-block:: console
+
+   alice@mercury:~$ sudo apt-get install mongodb-clients
+   ...
+   alice@mercury:~$
 
 Red Hat / Fedora
 ^^^^^^^^^^^^^^^^
 
-``sudo yum install mongodb``
+.. code-block:: console
+
+   alice@mercury:~$ sudo yum install mongodb
+   ...
+   alice@mercury:~$
 
 OS X
 ^^^^
 
 Install `Homebrew`_
 
-``brew update``
+.. code-block:: console
 
-``brew install mongodb``
+   alice@mercury:~$ brew update
+   ...
+   alice@mercury:~$ brew install mongodb
+   ...
+   alice@mercury:~$
 
 Other Systems
 ^^^^^^^^^^^^^
