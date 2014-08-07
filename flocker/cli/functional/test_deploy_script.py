@@ -118,3 +118,30 @@ class FlockerDeployConfigureSSHTests(TestCase):
         result = self.assertFailure(result, ZeroDivisionError)
         return result
 
+    def test_sshkey_installation_ssh_process_failure(self):
+        """
+        ``DeployScript._configure_ssh`` fires with a ``SystemExit`` errback
+        containing the SSH process output if one of the configuration
+        attempts fails.
+        """
+        def fail(host, port):
+            raise CalledProcessError(1, "ssh", output=b"onoes")
+        self.config.configure_ssh = fail
+
+        deployment = Deployment(
+            nodes=frozenset([
+                Node(
+                    hostname=str(self.server.ip),
+                    applications=None
+                ),
+            ])
+        )
+
+        script = DeployScript(
+            ssh_configuration=self.config, ssh_port=self.server.port)
+        result = script._configure_ssh(deployment)
+        result = self.assertFailure(result, SystemExit)
+        result.addCallback(lambda exc: self.assertEqual(
+            exc.args, (b"Error connecting to cluster node: onoes",)))
+        return result
+
