@@ -1,4 +1,4 @@
-Areas of potential future development
+Areas of Potential Future Development
 =====================================
 
 Flocker is an ongoing project whose direction will be guided in large part by the community.

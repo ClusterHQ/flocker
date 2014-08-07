@@ -119,7 +119,7 @@ Release
              ``curl -X POST http://readthedocs.org/build/flocker``
 
 
-Pre-populating rpm repository
+Pre-populating RPM Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These steps must be performed from a machine with the ClusterHQ copr repo installed.

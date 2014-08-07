@@ -32,7 +32,7 @@ We are therefore going to be using the following model for CLI examples below:
 * Remote branches are not mounted, but a local branch can be created off of them and then that is auto-mounted.
 
 
-Implementation notes - ZFS
+Implementation Notes - ZFS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The names of volumes, branches and tags do not map directly onto the ZFS naming system.
@@ -64,7 +64,7 @@ In cases where we can’t use attributes the data will be in a local database of
 E.g. ZFS properties are inherited automatically (not the behavior we want), which might lead to some corrupt state in crashes if the low-level APIs don’t allow bypassing this…
 
 
-Implementation notes - Btrfs
+Implementation Notes - Btrfs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writeable.
