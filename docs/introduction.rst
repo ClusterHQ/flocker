@@ -40,7 +40,7 @@ Flocker - Routing
 * Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``192.0.2.0``, ``192.0.2.1``)
 
 
-Flocker - Application state
+Flocker - Application State
 ---------------------------
 
 * Flocker manages ZFS filesystems as Docker volumes.  It attaches them to your containers.
@@ -48,7 +48,7 @@ Flocker - Application state
 * If an application container is moved from one node to another, Flocker automatically moves the volume with it.
 
 
-Application configuration
+Application Configuration
 -------------------------
 
 * Application configuration describes what you want to run in a container.
@@ -61,7 +61,7 @@ Application configuration
 * Flocker 0.1 does not support automatic re-deployment of application configuration changes.
 
 
-Deployment configuration
+Deployment Configuration
 ------------------------
 
 * Deployment configuration describes how you want your containers deployed.
@@ -111,7 +111,7 @@ Managing Containers
   * Inter-unit dependency management.
 
 
-Managing volumes
+Managing Volumes
 ----------------
 
 * Volumes are ZFS filesystems.
@@ -135,7 +135,7 @@ Managing volumes
   * This happens automatically when ``flocker-deploy`` runs with a new deployment configuration.
 
 
-Managing routes
+Managing Routes
 ---------------
 
 * Containers claim TCP port numbers with the application configuration that defines them.
