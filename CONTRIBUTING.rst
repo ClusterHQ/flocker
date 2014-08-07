@@ -97,22 +97,22 @@ Requirements for contributions
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
-  Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
-  This report can tell you if you missed anything.
-  It does not necessarily catch everything though.
-  Treat it as a helper but not the definitive indicator of success.
-  You can also see coverage output in the Buildbot details link of your pull request.
-  Practice test-driven development to ensure all code has test coverage.
+   Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
+   This report can tell you if you missed anything.
+   It does not necessarily catch everything though.
+   Treat it as a helper but not the definitive indicator of success.
+   You can also see coverage output in the Buildbot details link of your pull request.
+   Practice test-driven development to ensure all code has test coverage.
 
 2. All code must have documentation.
 
-  Modules, functions, classes, and methods must be documented (even if they are private).
-  Function parameters and object attributes must be documented (even if they are private).
+   Modules, functions, classes, and methods must be documented (even if they are private).
+   Function parameters and object attributes must be documented (even if they are private).
 
 3. All user-facing tools must have documentation.
 
-  Document tool usage as part of big-picture documentation.
-  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+   Document tool usage as part of big-picture documentation.
+   Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
 
 4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 
