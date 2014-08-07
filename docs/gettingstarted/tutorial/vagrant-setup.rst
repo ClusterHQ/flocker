@@ -30,17 +30,33 @@ If you do not already have the client on your machine, you can install it by run
 Ubuntu
 ^^^^^^
 
-``sudo apt-get install mongodb-clients``
+.. code-block:: console
+
+   alice@mercury:~$ sudo apt-get install mongodb-clients
+   ...
+   alice@mercury:~$
 
 Red Hat / Fedora
 ^^^^^^^^^^^^^^^^
 
-``sudo yum install mongodb``
+.. code-block:: console
+
+   alice@mercury:~$ sudo yum install mongodb
+   ...
+   alice@mercury:~$
 
 OS X
 ^^^^
 
-``brew install mongodb``
+Install `Homebrew`_
+
+.. code-block:: console
+
+   alice@mercury:~$ brew update
+   ...
+   alice@mercury:~$ brew install mongodb
+   ...
+   alice@mercury:~$
 
 Other Systems
 ^^^^^^^^^^^^^
@@ -154,6 +170,7 @@ Finally, add the Vagrant key to your agent:
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
+.. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
