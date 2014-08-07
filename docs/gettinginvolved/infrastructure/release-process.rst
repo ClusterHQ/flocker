@@ -111,12 +111,12 @@ Release
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
-    #. Enable the version being released.
-    #. Set the default version to that version.
+   #. Enable the version being released.
+   #. Set the default version to that version.
 
-    .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
-              If it does not appear, you can force readthedocs.org to reload the repository by running
-              ``curl -X POST http://readthedocs.org/build/flocker``
+   .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
+             If it does not appear, you can force readthedocs.org to reload the repository by running
+             ``curl -X POST http://readthedocs.org/build/flocker``
 
 
 Pre-populating rpm repository
@@ -147,9 +147,9 @@ Announcing Releases
 
 - Announcement
 
- - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
- - on the blog - https://clusterhq.com/blog/
- - on the IRC channel - #clusterhq on freenode
+  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
+  - on the blog - https://clusterhq.com/blog/
+  - on the IRC channel - #clusterhq on freenode
 
 - Update download links on clusterhq.com
   XXX Arrange to have download links on a page on clusterhq.com somewhere
