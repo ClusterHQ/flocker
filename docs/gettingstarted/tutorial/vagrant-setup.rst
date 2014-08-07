@@ -36,6 +36,10 @@ Red Hat / Fedora
 OS X
 ^^^^
 
+Install `Homebrew`_
+
+``brew update``
+
 ``brew install mongodb``
 
 Other Systems
@@ -150,6 +154,7 @@ Finally, add the Vagrant key to your agent:
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
+.. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
