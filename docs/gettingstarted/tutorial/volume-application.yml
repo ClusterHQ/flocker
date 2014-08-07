@@ -1,7 +1,7 @@
 "version": 1
 "applications":
   "mongodb-volume-example":
-    "image": "mongodb-tutorial"
+    "image": "clusterhq/mongodb"
     "ports":
     - "internal": 27017
       "external": 27017
