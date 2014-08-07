@@ -2,7 +2,7 @@
 Introduction
 ============
 
-Motivation for building Flocker
+Motivation for Building Flocker
 ===============================
 Flocker lets you move your Docker containers and their data together between hosts.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
@@ -76,7 +76,7 @@ Deployment configuration
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
 
-Initial implementation strategy
+Initial Implementation Strategy
 ===============================
 
 * This is the 0.1 approach.
@@ -144,7 +144,7 @@ Managing routes
 * Proxying is done using iptables.
 
 
-User experience
+User Experience
 ===============
 
 * Flocker provides a command-line interface for manually deploying or re-deploying containers across nodes.
