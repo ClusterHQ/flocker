@@ -1,15 +1,8 @@
 #!/bin/sh
 
-# Get a working version of virtualenv and virtualenvwrapper
-# XXX change to a better URL
-# XXX get a license to use this
-curl -O https://glyph.im/pip/bootstrap.sh
-chmod u+x ./bootstrap.sh
-./bootstrap.sh
-
-# Create a virtualenv, an isolated Python environment, in a new directory
-# called "flocker-tutorial":
-mkvirtualenv flocker
+# Create a virtualenv, an isolated Python environment, in a new directory called
+# "flocker-tutorial":
+virtualenv --python=/usr/local/bin/python2.7 flocker-tutorial
 
 # Upgrade the pip Python package manager to its latest version inside the
 # virtualenv. Some older versions of pip have issues installing Python wheel

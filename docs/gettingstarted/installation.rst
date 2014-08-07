@@ -72,7 +72,27 @@ You'll need to do this every time you start a new shell.
 OS X
 ----
 
-To install ``flocker-cli`` on OS X you can run the following script:
+To install ``flocker-cli`` on OS X you can install ``virtualenv`` and then run the ``flocker-cli`` install script:
+
+Installing virtualenv
+^^^^^^^^^^^^^^^^^^^^^
+
+Install the Homebrew package manager
+
+Install ``Python``, ``pip`` and ``virtualenv``:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ brew update
+   alice@mercury:~/flocker-tutorial$ brew install python
+   ...
+   alice@mercury:~/flocker-tutorial$ brew install virtualenv
+   ...
+   alice@mercury:~/flocker-tutorial$
+
+
+Running the Install Script
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :download:`osx-install.sh`
 
