@@ -3,13 +3,13 @@ Requirements
 
 To replicate the steps demonstrated in this tutorial, you will need:
 
-  * Linux, FreeBSD, or OS X
-  * `Vagrant`_ (1.6.2 or newer)
-  * `VirtualBox`_
-  * At least 10GB disk space available for the two virtual machines
-  * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
-  * bash
-  * The ``mongo`` MongoDB interactive shell
+* Linux, FreeBSD, or OS X
+* `Vagrant`_ (1.6.2 or newer)
+* `VirtualBox`_
+* At least 10GB disk space available for the two virtual machines
+* The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
+* bash
+* The ``mongo`` MongoDB interactive shell
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 See :doc:`../installation`\ .
