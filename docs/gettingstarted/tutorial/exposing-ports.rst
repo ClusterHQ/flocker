@@ -29,6 +29,8 @@ We will once again run these configuration files with ``flocker-deploy``:
    alice@mercury:~/flocker-tutorial$
 
 This time we can communicate with the MongoDB application by connecting to the node where it is running.
+Using the ``mongo`` command line tool we will insert an item into a database and check that it can be found.
+You should try to follow along and do these database inserts as well.
 If you get a connection refused error try again after a few seconds; the application might take some time to fully start up.
 
 .. code-block:: console
