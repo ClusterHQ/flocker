@@ -77,7 +77,7 @@ To install ``flocker-cli`` on OS X you can install ``virtualenv`` and then run t
 Installing virtualenv
 ^^^^^^^^^^^^^^^^^^^^^
 
-Install the Homebrew package manager
+Install the `Homebrew`_ package manager.
 
 Install ``Python``, ``pip`` and ``virtualenv``:
 
@@ -151,3 +151,4 @@ To install ``flocker-node`` on an existing Fedora 20 host, follow these steps:
      .. note:: Refer to the `ZFS on Linux documentation`_ for more information on zpool and other ZFS commands.
 
 .. _`ZFS on Linux documentation`: http://zfsonlinux.org/docs.html
+.. _`Homebrew`: http://brew.sh
