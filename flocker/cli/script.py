@@ -114,7 +114,7 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        return DeferredList(results)
+        return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
 
     def main(self, reactor, options):
         """

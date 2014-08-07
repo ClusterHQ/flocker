@@ -3,7 +3,7 @@
 """
 Functional tests for the ``flocker-deploy`` command line tool.
 """
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 from unittest import skipUnless
 
 from twisted.python.procutils import which
@@ -92,3 +92,29 @@ class FlockerDeployConfigureSSHTests(TestCase):
 
         result.addCallback(check_authorized_keys)
         return result
+
+    def test_sshkey_installation_failure(self):
+        """
+        ``DeployScript._configure_ssh`` fires with an errback if one of the
+        configuration attempts fails.
+        """
+        def fail(host, port):
+            raise ZeroDivisionError()
+        self.config.configure_ssh = fail
+
+        deployment = Deployment(
+            nodes=frozenset([
+                Node(
+                    hostname=str(self.server.ip),
+                    applications=None
+                ),
+            ])
+        )
+
+        script = DeployScript(
+            ssh_configuration=self.config, ssh_port=self.server.port)
+        result = script._configure_ssh(deployment)
+        result.addErrback(lambda f: f.value.subFailure)
+        result = self.assertFailure(result, ZeroDivisionError)
+        return result
+
