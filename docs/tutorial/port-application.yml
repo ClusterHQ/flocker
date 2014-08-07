@@ -1,7 +1,0 @@
-"version": 1
-"applications":
-  "mongodb-port-example":
-    "image": "dockerfile/mongodb"
-    "ports":
-    - "internal": 27017
-      "external": 27017

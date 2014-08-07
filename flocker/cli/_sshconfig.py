@@ -53,6 +53,28 @@ class OpenSSHConfiguration(object):
             flocker_path=FilePath(b"/etc/flocker"),
             ssh_config_path=DEFAULT_SSH_DIRECTORY)
 
+    def create_keypair(self):
+        """
+        Create a key pair for communicating with remote nodes and which will
+        be transferred to the remote nodes so that they can communicate with
+        each other.
+
+        This will block until the operation is complete.
+        """
+        local_private_path = self.ssh_config_path.child(b"id_rsa_flocker")
+
+        if not self.ssh_config_path.isdir():
+            self.ssh_config_path.makedirs()
+
+        if not local_private_path.exists():
+            with open(devnull, "w") as discard:
+                # See https://github.com/clusterhq/flocker/issues/192
+                check_call(
+                    [b"ssh-keygen", b"-N", b"", b"-f",
+                     local_private_path.path],
+                    stdout=discard, stderr=discard
+                )
+
     def configure_ssh(self, host, port):
         """
         Configure a node to be able to connect to other similarly configured
@@ -72,18 +94,6 @@ class OpenSSHConfiguration(object):
         remote_private_path = self.flocker_path.child(b"id_rsa_flocker")
         remote_public_path = remote_private_path.siblingExtension(b".pub")
 
-        if not self.ssh_config_path.isdir():
-            self.ssh_config_path.makedirs()
-
-        if not local_private_path.exists():
-            with open(devnull, "w") as discard:
-                # See https://github.com/clusterhq/flocker/issues/192
-                check_call(
-                    [b"ssh-keygen", b"-N", b"", b"-f",
-                     local_private_path.path],
-                    stdout=discard, stderr=discard
-                )
-
         write_authorized_key = (
             u"mkdir -p .ssh; "
             u"if ! grep --quiet '{public_key}' .ssh/authorized_keys; then"
@@ -97,14 +107,19 @@ class OpenSSHConfiguration(object):
             )
 
         generate_flocker_key = (
+            u"umask u=rwx,g=,o=; "
             u"mkdir -p {}; "
             u"echo '{}' > '{}'; "
-            u"echo '{}' > '{}';".format(
+            u"echo '{}' > '{}'; "
+            u"chmod u=rw,g=,o= {}; "
+            u"chmod u=rw,g=r,o=r {}".format(
                 remote_public_path.parent().path,
                 local_public_path.getContent().strip(),
                 remote_public_path.path,
                 local_private_path.getContent().strip(),
-                remote_private_path.path)
+                remote_private_path.path,
+                remote_private_path.path,
+                remote_public_path.path,)
             )
 
         commands = write_authorized_key + generate_flocker_key
