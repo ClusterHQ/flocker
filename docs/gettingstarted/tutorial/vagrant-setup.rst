@@ -13,7 +13,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * At least 10GB disk space available for the two virtual machines
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
 * bash
-* The ``mongo`` MongoDB interactive shell
+* The ``mongo`` MongoDB interactive shell (see below for installation instructions)
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 See :ref:`installing-flocker-cli` .
