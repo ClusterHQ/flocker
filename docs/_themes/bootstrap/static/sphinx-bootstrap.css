@@ -271,7 +271,7 @@ p {
 }
 
 #search {
-    width: 100%;
+    width: 90%;
 }
 
 .sphinxsidebarwrapper ul>li>ul {
@@ -290,4 +290,16 @@ p {
 #toctree a.current {
     font-weight: bold;
     font-style: italic;
+}
+
+.span3 {
+    box-sizing: border-box;
+    background: #f7f7f7;
+    border: 1px solid #d6d3d3;
+    padding: 1.5em;
+    margin-bottom: 1.5em;
+}
+
+.span3 h3 {
+    margin-top: 0;
 }
