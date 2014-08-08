@@ -90,7 +90,6 @@ First create a tutorial directory:
 
    alice@mercury:~/$ mkdir flocker-tutorial
    alice@mercury:~/$ cd flocker-tutorial
-   ...
    alice@mercury:~/flocker-tutorial$
 
 
