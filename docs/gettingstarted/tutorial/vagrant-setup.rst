@@ -114,7 +114,9 @@ You will probably want to install this plugin:
    ...
    alice@mercury:~/flocker-tutorial$
 
-You can now start the virtual machines by running ``vagrant up``:
+Then use ``vagrant up`` to start and provision the VMs:
+
+.. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
