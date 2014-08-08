@@ -303,3 +303,9 @@ p {
 .span3 h3 {
     margin-top: 0;
 }
+
+code, pre {
+    overflow-x: auto;
+    white-space: pre;
+    word-wrap: normal;
+}
