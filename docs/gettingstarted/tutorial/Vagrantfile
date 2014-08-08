@@ -12,9 +12,13 @@ $bootstrap = <<SCRIPT
 set -e
 
 # Make it possible to install flocker-node
-mv clusterhq-flocker.repo /etc/yum.repos.d/
+# XXX https://github.com/ClusterHQ/flocker/issues/306 for secure downloads:
+yum localinstall -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
 
-yum install -y flocker-node
+# For reasons I do not understand this doesn't work (https://github.com/ClusterHQ/flocker/issues/510):
+#yum install -y flocker-node
+# So instead do it the stupid way:
+yum install -y http://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/python-flocker-0.0.6-1.fc20.noarch.rpm http://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/flocker-node-0.0.6-1.fc20.noarch.rpm
 
 # At the end of this bootstrap we'll (indirectly) ask Docker to write a very
 # large file to its temporary directory.  /tmp is a small tmpfs mount which
