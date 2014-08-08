@@ -43,11 +43,7 @@
         
         <script>
                 $( document ).ready(function() {
-                    $('#toctree .current').each(function() {
-                        if ($(this).children('ul').length > 0) {
-                            $(this).children('ul').show();
-                        }
-                    });
+                    $('#toctree li.current').find('ul').show();
                 });
         </script>
     {%- endif %}
