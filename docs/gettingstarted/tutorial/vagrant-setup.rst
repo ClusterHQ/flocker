@@ -93,7 +93,7 @@ First create a tutorial directory:
    alice@mercury:~/flocker-tutorial$
 
 Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below. 
-Save them in the `flocker-tutorial` directory and preserve their filenames.
+Save them in the *flocker-tutorial* directory and preserve their filenames.
 
 * :download:`Vagrant configuration <Vagrantfile>`
 * :download:`Flocker repository configuration <clusterhq-flocker.repo>`
