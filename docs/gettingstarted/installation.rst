@@ -79,6 +79,16 @@ Installing virtualenv
 
 Install the `Homebrew`_ package manager.
 
+Make sure Homebrew has no issues:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ brew doctor
+   ...
+   alice@mercury:~/flocker-tutorial$
+
+Fix anything which `brew doctor` recommends that you fix by following the instructions it outputs.
+
 Install ``Python``, ``pip`` and ``virtualenv``:
 
 .. code-block:: console
