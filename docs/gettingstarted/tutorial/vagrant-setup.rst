@@ -92,7 +92,6 @@ First create a tutorial directory:
    alice@mercury:~/$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$
 
-
 Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below. 
 Save them in the tutorial directory and preserve their filenames.
 
