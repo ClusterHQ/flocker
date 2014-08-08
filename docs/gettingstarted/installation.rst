@@ -86,7 +86,7 @@ Install ``Python``, ``pip`` and ``virtualenv``:
    alice@mercury:~/flocker-tutorial$ brew update
    alice@mercury:~/flocker-tutorial$ brew install python
    ...
-   alice@mercury:~/flocker-tutorial$ brew install virtualenv
+   alice@mercury:~/flocker-tutorial$ pip install virtualenv
    ...
    alice@mercury:~/flocker-tutorial$
 
