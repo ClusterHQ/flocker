@@ -121,7 +121,7 @@ You can now start the virtual machines by running ``vagrant up``:
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
    ... lots of output ...
    ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.want/docker.service'
-   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
+   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.want/geard.service'
    alice@mercury:~/flocker-tutorial$
 
 This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
