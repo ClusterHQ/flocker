@@ -33,7 +33,7 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 .. _Buildbot: http://build.clusterhq.com/
 
 
-Talk to us
+Talk to Us
 ==========
 
 Have questions or need help?
@@ -42,7 +42,7 @@ Besides filing a `GitHub issue`_ with feature requests or bug reports you can al
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
-Development environment
+Development Environment
 =======================
 
 * To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
@@ -64,7 +64,7 @@ Development environment
 .. _docker: https://www.docker.com/
 
 
-Running tests
+Running Tests
 =============
 
 You can run all unit tests by doing::
@@ -92,32 +92,32 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 .. _Sphinx: http://sphinx-doc.org/
 
 
-Requirements for contributions
+Requirements for Contributions
 ==============================
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
-  Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
-  This report can tell you if you missed anything.
-  It does not necessarily catch everything though.
-  Treat it as a helper but not the definitive indicator of success.
-  You can also see coverage output in the Buildbot details link of your pull request.
-  Practice test-driven development to ensure all code has test coverage.
+   Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
+   This report can tell you if you missed anything.
+   It does not necessarily catch everything though.
+   Treat it as a helper but not the definitive indicator of success.
+   You can also see coverage output in the Buildbot details link of your pull request.
+   Practice test-driven development to ensure all code has test coverage.
 
 2. All code must have documentation.
 
-  Modules, functions, classes, and methods must be documented (even if they are private).
-  Function parameters and object attributes must be documented (even if they are private).
+   Modules, functions, classes, and methods must be documented (even if they are private).
+   Function parameters and object attributes must be documented (even if they are private).
 
 3. All user-facing tools must have documentation.
 
-  Document tool usage as part of big-picture documentation.
-  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+   Document tool usage as part of big-picture documentation.
+   Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
 
 4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 
 
-Project development process
+Project Development Process
 ===========================
 
 The core development team uses GitHub issues to track planned work.
@@ -176,7 +176,7 @@ When the branch is ready for review a pull request will be created in the *Revie
 When the branch is merged the corresponding pull requests and issues will be closed.
 
 
-Steps to contribute code
+Steps to Contribute Code
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Github collaborators can participate in the development workflow by changing the labels on an issue.
@@ -201,7 +201,7 @@ If you are not a collaborator you may seek out assistances from a collaborator t
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
 
 
-Steps to contribute reviews
+Steps to Contribute Reviews
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1. Pick a pull request in GitHub/Waffle that is ready for review (``review`` label/*Review* category).

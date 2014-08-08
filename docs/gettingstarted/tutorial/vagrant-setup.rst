@@ -1,15 +1,19 @@
+================
+Before You Begin
+================
+
 Requirements
 ============
 
 To replicate the steps demonstrated in this tutorial, you will need:
 
-  * Linux, FreeBSD, or OS X
-  * `Vagrant`_ (1.6.2 or newer)
-  * `VirtualBox`_
-  * At least 10GB disk space available for the two virtual machines
-  * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
-  * bash
-  * The ``mongo`` MongoDB interactive shell
+* Linux, FreeBSD, or OS X
+* `Vagrant`_ (1.6.2 or newer)
+* `VirtualBox`_
+* At least 10GB disk space available for the two virtual machines
+* The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
+* bash
+* The ``mongo`` MongoDB interactive shell (see below for installation instructions)
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 See :ref:`installing-flocker-cli` .
@@ -26,17 +30,33 @@ If you do not already have the client on your machine, you can install it by run
 Ubuntu
 ^^^^^^
 
-``sudo apt-get install mongodb-clients``
+.. code-block:: console
+
+   alice@mercury:~$ sudo apt-get install mongodb-clients
+   ...
+   alice@mercury:~$
 
 Red Hat / Fedora
 ^^^^^^^^^^^^^^^^
 
-``sudo yum install mongodb``
+.. code-block:: console
+
+   alice@mercury:~$ sudo yum install mongodb
+   ...
+   alice@mercury:~$
 
 OS X
 ^^^^
 
-``brew install mongodb``
+Install `Homebrew`_
+
+.. code-block:: console
+
+   alice@mercury:~$ brew update
+   ...
+   alice@mercury:~$ brew install mongodb
+   ...
+   alice@mercury:~$
 
 Other Systems
 ^^^^^^^^^^^^^
@@ -64,6 +84,26 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
+First create a tutorial directory:
+
+.. code-block:: console
+
+   alice@mercury:~/$ mkdir flocker-tutorial
+   alice@mercury:~/$ cd flocker-tutorial
+   alice@mercury:~/flocker-tutorial$
+
+Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below. 
+Save them in the *flocker-tutorial* directory and preserve their filenames.
+
+* :download:`Vagrant configuration <Vagrantfile>`
+* :download:`Flocker repository configuration <clusterhq-flocker.repo>`
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ls
+   clusterhq-flocker.repo  Vagrantfile
+   alice@mercury:~/flocker-tutorial$
+
 The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
 You will probably want to install this plugin:
 
@@ -75,14 +115,10 @@ You will probably want to install this plugin:
    ...
    alice@mercury:~/flocker-tutorial$
 
-Next download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
-Save these in the same directory and preserve their filenames.
 Then use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ls
-   clusterhq-flocker.repo  Vagrantfile
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
@@ -150,6 +186,7 @@ Finally, add the Vagrant key to your agent:
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
+.. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
