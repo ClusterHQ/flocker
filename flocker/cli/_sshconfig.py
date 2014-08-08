@@ -21,8 +21,11 @@ from twisted.python.filepath import FilePath
 
 
 def ssh(argv):
+    # We capture stderr so that if there is a failure we will raise
+    # exception that includes both stdout and stderr. This can then be
+    # shown to the user for diagnostic purposes.
     # See https://github.com/clusterhq/flocker/issues/192 for potentially
-    # better error handling:
+    # better error handling.
     check_output([b"ssh"] + argv, stderr=STDOUT)
 
 
