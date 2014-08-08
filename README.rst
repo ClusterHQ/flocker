@@ -1,12 +1,12 @@
-|coveralls| Want to get your hands dirty? Skip ahead to `the tutorial`_.
+Want to get your hands dirty? Skip ahead to `the tutorial`_.
+
+Flocker |coveralls|
+===================
 
 .. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
-
-Flocker
-=======
-
+  
 Flocker is a data volume manager and multi-host Docker cluster management tool.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
