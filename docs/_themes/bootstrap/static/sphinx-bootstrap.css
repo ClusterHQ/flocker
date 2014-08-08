@@ -1,5 +1,7 @@
 /* To change themes. Un-comment the theme you would like to use. */
 
+@import "//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css";
+
 @import "bootstrap-engineauth.min.css";
 /*@import "bootstrap-default.min.css";*/
 /*@import "bootstrap-sapling.css";*/
@@ -308,4 +310,14 @@ code, pre {
     overflow-x: auto;
     white-space: pre;
     word-wrap: normal;
+}
+
+/* See http://fortawesome.github.io/Font-Awesome/icon/download/ */
+a.download:before {
+    content: "\f019";
+    font-family: "FontAwesome";
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    padding-right: 5px;
 }

@@ -84,6 +84,25 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
+First create a tutorial directory:
+
+.. code-block:: console
+
+   alice@mercury:~/$ mkdir flocker-tutorial
+   alice@mercury:~/$ cd flocker-tutorial
+   alice@mercury:~/flocker-tutorial$
+
+Next download the Vagrant configuration file by right clicking on the links below.
+Save it in the *flocker-tutorial* directory and preserve its filename.
+
+* :download:`Vagrant configuration <Vagrantfile>`
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ls
+   Vagrantfile
+   alice@mercury:~/flocker-tutorial$
+
 The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
 You will probably want to install this plugin:
 
@@ -95,19 +114,13 @@ You will probably want to install this plugin:
    ...
    alice@mercury:~/flocker-tutorial$
 
-Next download the :download:`Vagrant configuration <Vagrantfile>`.
-Save this file in the directory where you will be running the tutorial and preserve its filename.
-Then use ``vagrant up`` to start and provision the VMs:
+You can now start the virtual machines by running ``vagrant up``:
 
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ ls
-   Vagrantfile
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
    ... lots of output ...
-   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
+   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.want/docker.service'
    ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
    alice@mercury:~/flocker-tutorial$
 
