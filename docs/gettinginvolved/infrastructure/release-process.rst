@@ -93,7 +93,7 @@ Preparing for a release
 
       git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``.
+#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
 #. Ensure all the tests pass on BuildBot.
