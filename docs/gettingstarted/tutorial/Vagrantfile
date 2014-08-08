@@ -41,21 +41,10 @@ mkdir -p /opt/flocker
 truncate --size 1G /opt/flocker/pool-vdev
 zpool create flocker /opt/flocker/pool-vdev
 
-TAR="/tmp/vagrant-cache/clusterhq_mongodb.tar"
 IMAGE="clusterhq/mongodb"
 # Get the images needed for the tutorial.  This has to happen eventually and
 # doing it now aggregates all of the waiting in one place.
-if [ -e "${TAR}" ]; then
-  # Load a cached version.
-  docker load < "${TAR}"
-else
-  # Get it from the internet.
-  docker pull "${IMAGE}"
-  # Cache it if possible
-  if [ -d /tmp/vagrant-cache ]; then
-    docker save "${IMAGE}" > "${TAR}"
-  fi
-fi
+docker pull "${IMAGE}"
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|

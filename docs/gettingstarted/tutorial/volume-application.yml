@@ -8,4 +8,4 @@
     "volume":
       # The location within the container where the data volume will be
       # mounted:
-      "mountpoint": "/data"
+      "mountpoint": "/data/db"
