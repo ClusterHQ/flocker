@@ -11,7 +11,7 @@ may accidentally work on the Flocker nodes but this is not the expected use).
 
 from os import devnull
 from os.path import expanduser
-from subprocess import check_call
+from subprocess import check_call, check_output, STDOUT
 
 from characteristic import attributes
 
@@ -21,9 +21,12 @@ from twisted.python.filepath import FilePath
 
 
 def ssh(argv):
-    with open(devnull, "w") as discard:
-        # See https://github.com/clusterhq/flocker/issues/192
-        check_call([b"ssh"] + argv, stdout=discard, stderr=discard)
+    # We capture stderr so that if there is a failure we will raise
+    # exception that includes both stdout and stderr. This can then be
+    # shown to the user for diagnostic purposes.
+    # See https://github.com/clusterhq/flocker/issues/192 for potentially
+    # better error handling.
+    check_output([b"ssh"] + argv, stderr=STDOUT)
 
 
 DEFAULT_SSH_DIRECTORY = FilePath(expanduser(b"~/.ssh/"))
@@ -125,8 +128,6 @@ class OpenSSHConfiguration(object):
         commands = write_authorized_key + generate_flocker_key
 
         ssh([u"-oPort={}".format(port).encode("ascii"),
-             # Suppress warnings
-             u"-q",
              # We're ok with unknown hosts; we'll be switching away from SSH by
              # the time Flocker is production-ready and security is a concern.
              b"-oStrictHostKeyChecking=no",

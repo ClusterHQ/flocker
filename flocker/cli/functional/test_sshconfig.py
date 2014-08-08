@@ -6,6 +6,7 @@ Tests for ``flocker.cli._sshconfig``.
 
 from os.path import expanduser
 from socket import socket
+from subprocess import CalledProcessError
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath, Permissions
@@ -57,7 +58,9 @@ class ConfigureSSHTests(TestCase):
         blocker.bind((b"127.0.0.1", 0))
         port = blocker.getsockname()[1]
 
-        self.assertRaises(Exception, self.configure_ssh, b"127.0.0.1", port)
+        exc = self.assertRaises(CalledProcessError,
+                                self.configure_ssh, b"127.0.0.1", port)
+        self.assertIn(b"refused", exc.output)
 
     def test_authorized_keys(self):
         """
