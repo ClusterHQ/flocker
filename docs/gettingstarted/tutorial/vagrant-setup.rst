@@ -95,14 +95,14 @@ You will probably want to install this plugin:
    ...
    alice@mercury:~/flocker-tutorial$
 
-Next download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
-Save these in the same directory and preserve their filenames.
+Next download the :download:`Vagrant configuration <Vagrantfile>`.
+Save this file in the directory where you will be running the tutorial and preserve its filename.
 Then use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ls
-   clusterhq-flocker.repo  Vagrantfile
+   Vagrantfile
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
@@ -111,8 +111,7 @@ Then use ``vagrant up`` to start and provision the VMs:
    ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
    alice@mercury:~/flocker-tutorial$
 
-This step may take several minutes or more.
-Beyond just booting a virtual machine to use as a node for the tutorial, it will download and build the necessary ZFS kernel modules.
+This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
 Your network connectivity and CPU speed will affect how long this takes.
 Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
