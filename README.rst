@@ -3,7 +3,6 @@
 .. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
-  :align: right
 
 Flocker
 =======
