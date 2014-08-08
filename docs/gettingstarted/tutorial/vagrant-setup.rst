@@ -102,6 +102,7 @@ Save them in the *flocker-tutorial* directory and preserve their filenames.
 
    alice@mercury:~/flocker-tutorial$ ls
    clusterhq-flocker.repo  Vagrantfile
+   alice@mercury:~/flocker-tutorial$
 
 The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
 You will probably want to install this plugin:
