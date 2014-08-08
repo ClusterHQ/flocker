@@ -103,16 +103,16 @@ Save them in the tutorial directory and preserve their filenames.
    alice@mercury:~/flocker-tutorial$ ls
    clusterhq-flocker.repo  Vagrantfile
 
-.. note:: The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
-          You will probably want to install this plugin:
+The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
+You will probably want to install this plugin:
 
-          .. code-block:: console
+.. code-block:: console
 
-             alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
-             Installing the 'vagrant-cachier' plugin. This can take a few minutes...
-             Installed the plugin 'vagrant-cachier (0.7.2)'!
-             ...
-             alice@mercury:~/flocker-tutorial$
+   alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
+   Installing the 'vagrant-cachier' plugin. This can take a few minutes...
+   Installed the plugin 'vagrant-cachier (0.7.2)'!
+   ...
+   alice@mercury:~/flocker-tutorial$
 
 Then use ``vagrant up`` to start and provision the VMs:
 
