@@ -95,8 +95,13 @@ You will probably want to install this plugin:
    ...
    alice@mercury:~/flocker-tutorial$
 
-Next download the :download:`Vagrant configuration <Vagrantfile>` and the :download:`Flocker repository configuration <clusterhq-flocker.repo>`.
-Save these in the same directory and preserve their filenames.
+Next download the Vagrant configuration file and the Flocker repository configuration file:
+
+* :download:`Vagrant configuration <Vagrantfile>`
+* :download:`Flocker repository configuration <clusterhq-flocker.repo>`
+
+.. note:: Save these in the same directory and preserve their filenames.
+
 Then use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
