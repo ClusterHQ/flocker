@@ -84,30 +84,42 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
-The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
-You will probably want to install this plugin:
+First create a tutorial directory:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
-   Installing the 'vagrant-cachier' plugin. This can take a few minutes...
-   Installed the plugin 'vagrant-cachier (0.7.2)'!
+   alice@mercury:~/$ mkdir flocker-tutorial
+   alice@mercury:~/$ cd flocker-tutorial
    ...
    alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration file and the Flocker repository configuration file:
+
+Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below. 
+Save them in the tutorial directory and preserve their filenames.
 
 * :download:`Vagrant configuration <Vagrantfile>`
 * :download:`Flocker repository configuration <clusterhq-flocker.repo>`
-
-.. note:: Save these in the same directory and preserve their filenames.
-
-Then use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ls
    clusterhq-flocker.repo  Vagrantfile
+
+.. note:: The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
+          You will probably want to install this plugin:
+
+          .. code-block:: console
+
+             alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
+             Installing the 'vagrant-cachier' plugin. This can take a few minutes...
+             Installed the plugin 'vagrant-cachier (0.7.2)'!
+             ...
+             alice@mercury:~/flocker-tutorial$
+
+Then use ``vagrant up`` to start and provision the VMs:
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
