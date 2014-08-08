@@ -1,8 +1,9 @@
-.. image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
+|coveralls| Want to get your hands dirty? Skip ahead to `the tutorial`_.
+
+.. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
   :align: left
-Some more text
 
 Flocker
 =======
