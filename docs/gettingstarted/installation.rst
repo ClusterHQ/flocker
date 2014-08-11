@@ -92,7 +92,7 @@ Make sure Homebrew has no issues:
    ...
    alice@mercury:~/flocker-tutorial$
 
-Fix anything which `brew doctor` recommends that you fix by following the instructions it outputs.
+Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
 Install ``Python``, ``pip`` and ``virtualenv``:
 
