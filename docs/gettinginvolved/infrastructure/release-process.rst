@@ -201,7 +201,9 @@ Announcing Releases
   - on the IRC channel - #clusterhq on freenode
 
 - Update download links on clusterhq.com
-  XXX Arrange to have download links on a page on clusterhq.com somewhere
+
+  XXX Arrange to have download links on a page on clusterhq.com somewhere.
+  See https://github.com/ClusterHQ/flocker/issues/359 and https://github.com/ClusterHQ/flocker/issues/488
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
