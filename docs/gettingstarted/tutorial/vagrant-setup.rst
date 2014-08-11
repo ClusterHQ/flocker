@@ -63,8 +63,8 @@ Other Systems
 
 See the official `MongoDB installation guide`_ for your system.
 
-Creating the VirtualBox VMs
----------------------------
+Creating Vagrant VMs Needed for Flocker
+---------------------------------------
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
