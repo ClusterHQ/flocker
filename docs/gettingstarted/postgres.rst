@@ -4,18 +4,20 @@ Example: Running PostgreSQL
 
 Once you've successfully followed through :doc:`./tutorial/index` this example will show you how to deploy a PostgreSQL container with Flocker.
 We'll insert some data, then use ``flocker-deploy`` to move the PostgreSQL server container to another virtual machine.
-Our data will be carried over along with the application.
+The data in the database will be moved along with the application.
 
-Create the virtual machines
+
+Create the Virtual Machines
 ===========================
 
 We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
 If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
 
-Download the PostgreSQL image
-=============================
 
-The ``postgres`` image is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
+Download the Docker image
+=========================
+
+The official ``postgres`` Docker image is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
 
 .. code-block:: console
 
@@ -25,8 +27,9 @@ The ``postgres`` image is quite big, so you may wish to pre-fetch it to your nod
    ...
    alice@mercury:~/flocker-postgres$
 
-Launch the PostgreSQL server
-============================
+
+Launch PostgreSQL
+=================
 
 Download and save the following configuration files to your ``flocker-postgres`` directory:
 
@@ -57,8 +60,8 @@ You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the con
    f6ee0fbd0446        postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
 
 
-Connect to the PostgreSQL server
-================================
+Connect to PostgreSQL
+=====================
 
 We can now use the ``psql`` client on our host machine (you will need to install this if you do not already have it) to connect to the PostgreSQL server running inside the container.
 Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application config.
@@ -71,8 +74,9 @@ Connect using the client to the IP address of our virtual machine, using the por
 
    postgres=#
 
-Create a new database and insert some data
-==========================================
+
+Insert a Row in the Database
+============================
 
 Now we have a connection, we'll create a new database with the simplest possible structure; a single table with one integer column.
 We'll then switch our connection to use the new database and insert a row. From the running psql client shell:
@@ -104,25 +108,26 @@ We'll then switch our connection to use the new database and insert a row. From 
                 |          |           |         |       | postgres=CTc/postgres
    (4 rows)
    
-   postgres=# \c flockertest;
-   psql (9.3.5, server 9.2.4)
+   postgres=# \connect flockertest;
+   psql (9.3.5)
    You are now connected to database "flockertest" as user "postgres".
    flockertest=# CREATE TABLE testtable (testcolumn int); 
    CREATE TABLE
-   flockertest=# insert into testtable (testcolumn) values (3);
+   flockertest=# INSERT INTO testtable (testcolumn) VALUES (3);
    INSERT 0 1
-   flockertest=# select * from testtable;
+   flockertest=# SELECT * FROM testtable;
     testcolumn 
    ------------
              3
    (1 row)
    
-   flockertest=# \q
+   flockertest=# \quit
 
-Our last command ``\q`` quits the client.
+Our last command ``\quit`` quits the client.
 
-Create a new deployment config and move the application
-=======================================================
+
+Move PostgreSQL to a Different Node
+===================================
 
 Download the new deployment configuration and save to your ``flocker-postgres`` directory.
 
@@ -142,13 +147,13 @@ You can keep running ``ssh root@172.16.255.251 docker ps`` until you see the con
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker ps
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    f6ee0fbd0446        postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
 
 
-Connect via client and verify data has moved
-============================================
+The Data Has Moved!
+===================
 
 We can now connect to the newly moved database and see that the data was moved to the new location.
 
@@ -156,16 +161,12 @@ We can now connect to the newly moved database and see that the data was moved t
 
    alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
    Password for user postgres:
-   psql (9.3.5, server 9.2.4)
+   psql (9.3.5)
    Type "help" for help.
 
-   postgres=# \c flockertest;
-   psql (9.3.5, server 9.2.4)
+   postgres=# \connect flockertest;
+   psql (9.3.5)
    You are now connected to database "flockertest" as user "postgres".
-   flockertest=# CREATE TABLE testtable (testcolumn int); 
-   CREATE TABLE
-   flockertest=# insert into testtable (testcolumn) values (3);
-   INSERT 0 1
    flockertest=# select * from testtable;
     testcolumn 
    ------------
