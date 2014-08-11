@@ -18,40 +18,34 @@ As a user of Flocker there are two components you will need to install:
 Installing flocker-cli
 ======================
 
-Fedora 20
----------
+Linux
+-----
 
-To install ``flocker-cli`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository:
-
-.. code-block:: sh
-
-   yum localinstall http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-   yum install flocker-cli
-
-Verify the client is installed:
+Before you install ``flocker-cli`` you will need a compiler, Python 2.7 and the ``virtualenv`` Python utility installed.
+On Fedora 20 you can do so by running:
 
 .. code-block:: console
 
-   alice@mercury:~$ flocker-deploy --version
-   0.1.0
-   alice@mercury:~$
+   alice@mercury:~$ sudo yum install @buildsys-build python python-devel python-virtualenv
 
+On Ubuntu or Debian you can run:
 
-Debian / Ubuntu
----------------
+.. code-block:: console
 
-To install ``flocker-cli`` on Debian or Ubuntu you can run the following script:
+   alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
-:download:`ubuntu-install.sh`
+Then run the following script to do the actual install:
 
-.. literalinclude:: ubuntu-install.sh
+:download:`linux-install.sh`
+
+.. literalinclude:: linux-install.sh
    :language: sh
 
 Save the script to a file and then run it:
 
 .. code-block:: console
 
-   alice@mercury:~$ sh ubuntu-install.sh
+   alice@mercury:~$ sh linux-install.sh
    ...
    alice@mercury:~$
 
