@@ -160,7 +160,6 @@ We can now connect to the newly moved database and see that the data was moved t
 .. code-block:: console
 
    alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
-   Password for user postgres:
    psql (9.3.5)
    Type "help" for help.
 
