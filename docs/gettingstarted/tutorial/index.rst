@@ -12,6 +12,8 @@ Flocker is a generic container manager.
 MongoDB is used only as an example here.
 Any application you can deploy into Docker you can manage with Flocker.
 
+If you have any feedback or problems, you can `talk to us`_.
+
 .. toctree::
    :maxdepth: 2
 
@@ -19,3 +21,5 @@ Any application you can deploy into Docker you can manage with Flocker.
    moving-applications
    exposing-ports
    volumes
+
+.. _talk to us: TODO:point to talk to us
