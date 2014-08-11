@@ -37,7 +37,8 @@ Run ``flocker-deploy`` to download the image and get the container running:
    alice@mercury:~/flocker-postgres$ flocker-deploy postgres-deployment.yml postgres-application.yml
    alice@mercury:~/flocker-postgres$
 
-**Note:** It may take a few extra seconds after ``flocker-deploy`` completes for the container to launch inside the VM.
+.. note:: It may take up to a few minutes after ``flocker-deploy`` completes for the container to launch inside the VM as the Docker image needs to be downloaded and started.
+
 You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the container running:
 
 .. code-block:: console
