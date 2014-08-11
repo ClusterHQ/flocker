@@ -92,7 +92,7 @@ First create a tutorial directory:
    alice@mercury:~/$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below. 
+Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below.
 Save them in the *flocker-tutorial* directory and preserve their filenames.
 
 * :download:`Vagrant configuration <Vagrantfile>`
@@ -102,17 +102,6 @@ Save them in the *flocker-tutorial* directory and preserve their filenames.
 
    alice@mercury:~/flocker-tutorial$ ls
    clusterhq-flocker.repo  Vagrantfile
-   alice@mercury:~/flocker-tutorial$
-
-The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
-You will probably want to install this plugin:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
-   Installing the 'vagrant-cachier' plugin. This can take a few minutes...
-   Installed the plugin 'vagrant-cachier (0.7.2)'!
-   ...
    alice@mercury:~/flocker-tutorial$
 
 Then use ``vagrant up`` to start and provision the VMs:
