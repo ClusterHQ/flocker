@@ -1,7 +1,7 @@
 Flocker Volume Manager
 ----------------------
 
-The Flocker Volume Manager (`FVM`) provides snapshotting and replication of Flocker volumes.
+The Flocker Volume Manager (``FVM``) provides snapshotting and replication of Flocker volumes.
 It has the ability to push volumes to remote nodes, track changes to those volumes, and roll them back to earlier states.
 
 Although initially built on top of ZFS, FVM should eventually be capable of being backed on a number of filesystems.

@@ -25,12 +25,16 @@ We will once again run these configuration files with ``flocker-deploy``:
    alice@mercury:~/flocker-tutorial$ flocker-deploy port-deployment.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
    alice@mercury:~/flocker-tutorial$
 
 This time we can communicate with the MongoDB application by connecting to the node where it is running.
 Using the ``mongo`` command line tool we will insert an item into a database and check that it can be found.
 You should try to follow along and do these database inserts as well.
+
+**Note:** To keep your download for the tutorial as speedy as possible, we've bundled the latest dev version of MongoDB in to a micro-sized Docker image.
+*You should not use this image for production.*
+
 If you get a connection refused error try again after a few seconds; the application might take some time to fully start up.
 
 .. code-block:: console
