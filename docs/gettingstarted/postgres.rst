@@ -145,12 +145,39 @@ Now run ``flocker-deploy`` on the new config:
    alice@mercury:~/flocker-postgres$ flocker-deploy postgres-deployment-moved.yml postgres-application.yml
    alice@mercury:~/flocker-postgres$
 
-More...
+.. note:: Once again it may take up to a few minutes after ``flocker-deploy`` completes for the container to launch inside the VM.
 
-[1] Download docker pull clusterhq/postgres
-[2] Application and deployment YAML with volume mountpoint
-[3] Start Postgres
-[4] Insert some data via psql client
-[5] Move application YAML
-[6] flocker-deploy new config
-[7] Connect via client and verify data has moved
+You can keep running ``ssh root@172.16.255.251 docker ps`` until you see the container running:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   f6ee0fbd0446        clusterhq/postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
+
+
+Connect via client and verify data has moved
+============================================
+
+We can now connect to the newly moved database and see that the data was moved to the new location.
+You will need to enter the same password we obtained above when prompted by the client.
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
+   Password for user postgres:
+   psql (9.3.5, server 9.2.4)
+   Type "help" for help.
+
+   postgres=# \c flockertest;
+   psql (9.3.5, server 9.2.4)
+   You are now connected to database "flockertest" as user "postgres".
+   flockertest=# CREATE TABLE testtable (testcolumn int); 
+   CREATE TABLE
+   flockertest=# insert into testtable (testcolumn) values (3);
+   INSERT 0 1
+   flockertest=# select * from testtable;
+    testcolumn 
+   ------------
+             3
+   (1 row)
