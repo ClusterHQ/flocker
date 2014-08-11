@@ -125,7 +125,7 @@ Pre-populating RPM Repository
 
 These steps must be performed from a machine with the ClusterHQ copr repo installed.
 You can either use the :doc:`Flocker development enviroment <vagrant>`
-or install the copr repo locally by running `curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo`
+or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
 
 ::
 
