@@ -18,8 +18,8 @@ Those volumes will follow your containers when you use Flocker to move them betw
 Flocker is being developed by `ClusterHQ`_.
 We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
-This project is under active development and version 0.1 will be released soon.
-You shouldn't use it in production.
+This project is under active development.
+You shouldn't use it in production yet.
 Contributions are welcome.
 If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
