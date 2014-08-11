@@ -42,21 +42,8 @@
         </div>
         
         <script>
-                $('#toctree ul>li').click(function() {
-                    event.stopPropagation();
-
-                    if($(this).children('ul').length > 0) {
-                        event.preventDefault();
-                        $(this).children('ul').slideToggle(100);
-                    }
-                });
-                
                 $( document ).ready(function() {
-                    $('#toctree .current').each(function() {
-                        if ($(this).children('ul').length > 0) {
-                            $(this).children('ul').show();
-                        }
-                    });
+                    $('#toctree li.current').find('ul').show();
                 });
         </script>
     {%- endif %}

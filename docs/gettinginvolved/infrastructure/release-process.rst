@@ -37,7 +37,7 @@ Access
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
-  Ensure that you have `+t` next to your nickname in the output of::
+  Ensure that you have ``+t`` next to your nickname in the output of::
 
      /msg ChanServ access list #clusterhq
 
@@ -87,6 +87,7 @@ Preparing for a Release
 
         git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
+#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``.
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
    XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
@@ -173,7 +174,7 @@ These steps must be performed from a machine with the ClusterHQ copr repo instal
 You can either:
 
 * use the :doc:`Flocker development environment <vagrant>`\ ,
-* or install the copr repo locally by running `curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo` \.
+* or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo`` \.
 
 .. code-block:: console
 
