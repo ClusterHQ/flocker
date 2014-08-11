@@ -1,0 +1,5 @@
+[clusterhq]
+name=ClusterHQ for Fedora $releasever
+baseurl=http://archive.clusterhq.com/fedora/$releasever/$basearch/
+enabled=1
+gpgcheck=0

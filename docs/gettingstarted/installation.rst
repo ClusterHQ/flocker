@@ -148,26 +148,48 @@ Installing flocker-node
 .. note:: For now we strongly recommend running the cluster using our custom Fedora 20 virtual machine, which can be built using Vagrant.
           See :doc:`the tutorial setup <tutorial/vagrant-setup>` for details.
 
-To install ``flocker-node`` on an existing Fedora 20 host, follow these steps:
+To install ``flocker-node`` on an existing Fedora 20 host, follow these steps as root (e.g. by running ``sudo bash``):
 
-1. Configure ``yum`` with the Flocker package repository and install the Flocker node package:
+1. Download the following file and place it in ``/etc/yum.repos.d/``: :download:`clusterhq.repo`
+
+2. Configure ``yum`` with the ZFS package repository and then install the Flocker node package:
 
    .. code-block:: console
 
-      yum localinstall http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
-      yum localinstall http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-      yum install flocker-node
+      root@localhost:~# yum localinstall http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
+      root@localhost:~# yum install https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/python-flocker-0.0.6-1.fc20.noarch.rpm https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/flocker-node-0.0.6-1.fc20.noarch.rpm
+      root@localhost:~#
 
-2. Create a ZFS pool.
+3. Create a ZFS pool.
    For testing purposes, you can create a pool on a loopback device on your existing filesystem:
 
    .. code-block:: console
 
-      mkdir -p /opt/flocker
-      truncate --size 1G /opt/flocker/pool-vdev
-      zpool create flocker /opt/flocker/pool-vdev
+      root@localhost:~# mkdir -p /opt/flocker
+      root@localhost:~# truncate --size 1G /opt/flocker/pool-vdev
+      root@localhost:~# zpool create flocker /opt/flocker/pool-vdev
+      root@localhost:~#
 
    .. note:: Refer to the `ZFS on Linux documentation`_ for more information on zpool and other ZFS commands.
+
+4. Start ``docker`` and ``geard``:
+
+   .. code-block:: console
+
+      root@localhost:~# systemctl enable docker
+      root@localhost:~# systemctl enable geard
+      root@localhost:~# systemctl start docker
+      root@localhost:~# systemctl start geard
+      root@localhost:~#
+
+5. Ensure Flocker is now working by running ``flocker-reportstate``:
+
+   .. code-block:: console
+
+      root@localhost:~# flocker-reportstate
+      applications: {}
+      version: 1
+      root@localhost:~#
 
 .. _`ZFS on Linux documentation`: http://zfsonlinux.org/docs.html
 .. _`Homebrew`: http://brew.sh
