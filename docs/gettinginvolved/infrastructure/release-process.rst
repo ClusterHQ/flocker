@@ -47,7 +47,7 @@ Access
 
 - Access to `Google cloud storage`_ using `gsutil`_.
 
-Preparing for a release
+Preparing for a Release
 -----------------------
 
 #. Choose a version number
