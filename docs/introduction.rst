@@ -22,6 +22,8 @@ Flocker aims to solve this problem by providing an orchestration framework that 
   * How do containers across multiple nodes talk to each other?
   * How does application state work if you move containers around?
 
+.. image:: images/flocker-architecture-diagram.jpg
+
 Architecture
 ============
 
