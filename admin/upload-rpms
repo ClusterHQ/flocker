@@ -84,7 +84,8 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
 
     # Upload updated repository
     check_call(
-        [b'gsutil', b'cp', b'-R', rpm_directory.path + b'/**', target_repo])
+        [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
+         rpm_directory.path + b'/**', target_repo])
 
 
 def upload_rpms(scratch_directory, version, target_server, build_server):
