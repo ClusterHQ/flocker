@@ -1,7 +1,7 @@
 "version": 1
 "applications":
   "postgres-volume-example":
-    "image": "clusterhq/postgres"
+    "image": "postgres"
     "ports":
     - "internal": 5432
       "external": 5432
