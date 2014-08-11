@@ -16,7 +16,7 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * The ``mongo`` MongoDB interactive shell (see below for installation instructions)
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
-See :ref:`installing-flocker-cli` .
+See :ref:`installing-flocker-cli`.
 
 Setup
 =====
@@ -101,17 +101,6 @@ Save it in the *flocker-tutorial* directory and preserve its filename.
 
    alice@mercury:~/flocker-tutorial$ ls
    Vagrantfile
-   alice@mercury:~/flocker-tutorial$
-
-The tutorial ``Vagrantfile`` can take advantage of `vagrant-cachier`_ to avoid certain redundant downloads.
-You will probably want to install this plugin:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ vagrant plugin install vagrant-cachier
-   Installing the 'vagrant-cachier' plugin. This can take a few minutes...
-   Installed the plugin 'vagrant-cachier (0.7.2)'!
-   ...
    alice@mercury:~/flocker-tutorial$
 
 Then use ``vagrant up`` to start and provision the VMs:

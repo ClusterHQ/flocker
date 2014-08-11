@@ -1,4 +1,4 @@
 "version": 1
 "applications":
   "mongodb-example":
-    "image": "mongodb-tutorial"
+    "image": "clusterhq/mongodb"
