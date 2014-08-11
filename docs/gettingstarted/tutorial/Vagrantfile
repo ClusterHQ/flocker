@@ -64,6 +64,8 @@ mkdir /var/tmp/dockerbuild
 cd /var/tmp/dockerbuild
 echo "FROM dockerfile/mongodb\nCMD mongod --dbpath=/data --noprealloc --smallfiles" > Dockerfile
 docker build --tag mongodb-tutorial .
+
+docker pull clusterhq/postgres
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
