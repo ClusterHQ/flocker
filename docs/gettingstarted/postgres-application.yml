@@ -7,5 +7,5 @@
       "external": 5432
     "volume":
       # The location within the container where the data volume will be
-      # mounted:
-      "mountpoint": "/data/pgsql"
+      # mounted; see https://github.com/docker-library/postgres/blob/docker/Dockerfile.template
+      "mountpoint": "/var/lib/postgresql/data"
