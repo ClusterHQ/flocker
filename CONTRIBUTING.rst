@@ -200,6 +200,10 @@ If you are not a collaborator you may seek out assistances from a collaborator t
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
 
+7. As a small thank you for contributing to Flocker, we'd like to send you some ClusterHQ swag.  
+   Once your pull request has been merged, just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
+   We'll get something in the mail to you.
+
 
 Steps to Contribute Reviews
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
