@@ -51,7 +51,7 @@ Preparing for a Release
 -----------------------
 
 #. Choose a version number
-   - Releases numbers should be of the form x.y.z eg:
+   - Release numbers should be of the form x.y.z eg:
 
      .. code-block:: console
 
