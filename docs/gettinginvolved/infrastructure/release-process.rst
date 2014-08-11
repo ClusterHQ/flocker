@@ -20,7 +20,7 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- Fedora 20 (rpmbuild, createrepo, yumdownloader)
+- Fedora 20 (rpmbuild, createrepo, yumdownloader) - might be possible to install these on Ubuntu though
 
   You are advised to perform the release from a :doc:`flocker development machine <vagrant>`\ , which will have all the requisite software pre-installed.
 
@@ -47,7 +47,34 @@ Access
 
 - Access to `Google cloud storage`_ using `gsutil`_.
 
-Preparing for a Release
+
+Preliminary Step: Pre-populating RPM Repository
+-----------------------------------------------
+
+This only needs to be done if the dependency packages for Flocker (i.e. geard and Python libraries) change; it should *not* be done every release.
+If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
+
+These steps must be performed from a machine with the ClusterHQ copr repo installed.
+You can either use the :doc:`Flocker development enviroment <vagrant>`
+or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
+
+::
+
+   mkdir repo
+   yumdownloader --destdir=repo geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   createrepo repo
+   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
+
+
+::
+
+   mkdir srpm
+   yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   createrepo srpm
+   gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
+
+
+Preparing for a release
 -----------------------
 
 #. Choose a version number:
@@ -88,7 +115,7 @@ Preparing for a Release
 
         git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``.
+#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
    XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
@@ -103,6 +130,7 @@ Preparing for a Release
 #. Ensure all the tests pass on BuildBot.
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 #. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
+
 
 Release
 -------
@@ -166,31 +194,6 @@ Release
              .. code-block:: console
 
                 curl -X POST http://readthedocs.org/build/flocker
-
-
-Pre-populating RPM Repository
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-These steps must be performed from a machine with the ClusterHQ copr repo installed.
-You can either:
-
-* use the :doc:`Flocker development environment <vagrant>`\ ,
-* or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo`` \.
-
-.. code-block:: console
-
-   mkdir repo
-   yumdownloader --destdir=repo geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
-   createrepo repo
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
-
-
-.. code-block:: console
-
-   mkdir srpm
-   yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
-   createrepo srpm
-   gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
 
 Announcing Releases
