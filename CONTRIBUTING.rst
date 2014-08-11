@@ -33,6 +33,8 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 .. _Buildbot: http://build.clusterhq.com/
 
 
+.. _talk-to-us:
+
 Talk to Us
 ==========
 
