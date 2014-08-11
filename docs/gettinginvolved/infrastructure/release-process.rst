@@ -9,7 +9,7 @@ By the end of the release process we will have:
 - a tag in version control
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
-- documentation on `docs.clusterhq.com <http://docs.clusterhq.com>`__
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 - announcement on mailing list, blog, IRC (others?)
 - download links on clusterhq.com
 
@@ -66,6 +66,7 @@ Preparing for a release
 
       git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
+#. Update the version number in the downloads in ``docs/gettingstarted/ubuntu-install.sh`` and ``docs/gettingstarted/osx-install.sh``.
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
 #. Ensure all the tests pass on BuildBot.
@@ -111,15 +112,15 @@ Release
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
-    #. Enable the version being released.
-    #. Set the default version to that version.
+   #. Enable the version being released.
+   #. Set the default version to that version.
 
-    .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
-              If it does not appear, you can force readthedocs.org to reload the repository by running
-              ``curl -X POST http://readthedocs.org/build/flocker``
+   .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
+             If it does not appear, you can force readthedocs.org to reload the repository by running
+             ``curl -X POST http://readthedocs.org/build/flocker``
 
 
-Pre-populating rpm repository
+Pre-populating RPM Repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These steps must be performed from a machine with the ClusterHQ copr repo installed.
@@ -147,9 +148,9 @@ Announcing Releases
 
 - Announcement
 
- - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
- - on the blog - https://clusterhq.com/blog/
- - on the IRC channel - #clusterhq on freenode
+  - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
+  - on the blog - https://clusterhq.com/blog/
+  - on the IRC channel - #clusterhq on freenode
 
 - Update download links on clusterhq.com
   XXX Arrange to have download links on a page on clusterhq.com somewhere

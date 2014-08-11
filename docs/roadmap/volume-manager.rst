@@ -15,24 +15,24 @@ Data Model
 
 Motivation:
 
-  * ZFS has some peculiarities in its model when it comes to clones, e.g. promoting a clone moves snapshots from original dataset to the clone.
-  * Having clones be top-level constructs on the same level as originating dataset is a problem, since they are closely tied to each other both in terms of usage and in administrative “cleaning up old data” way.
-  * We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to btrfs or some other system.
-    Especially given conflicting terminology - Btrfs “snapshots” are the same as ZFS “clones”.
-  * When it comes to replication, it is probably useful to differentiate between “data which is a copy of what the remote host has” and “local version”, in particular when divergence is a potential issue (e.g. can be caused by erroneous failover).
-    In git you have “origin/branchname” vs. the local “branchname”, for example.
+* ZFS has some peculiarities in its model when it comes to clones, e.g. promoting a clone moves snapshots from original dataset to the clone.
+* Having clones be top-level constructs on the same level as originating dataset is a problem, since they are closely tied to each other both in terms of usage and in administrative “cleaning up old data” way.
+* We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to btrfs or some other system.
+  Especially given conflicting terminology - Btrfs “snapshots” are the same as ZFS “clones”.
+* When it comes to replication, it is probably useful to differentiate between “data which is a copy of what the remote host has” and “local version”, in particular when divergence is a potential issue (e.g. can be caused by erroneous failover).
+  In git you have “origin/branchname” vs. the local “branchname”, for example.
 
 We are therefore going to be using the following model for CLI examples below:
 
-  * A “**volume**” is a tree of “**branches**”.
-  * A “**tag**” is a named read-only pointer to the contents of a branch at a given point in time; it is attached to the volume, and is not mounted on the filesystem.
-  * Given volume called “mydata”, “mydata/trunk” is (by convention) is the main branch from which other branches originate, “mydata/branchname” is some other branch, and “mytag@mydata” is a tag.
-  * Branches’ full name includes the Flocker instance they came from (by default let’s say using its hostname), e.g. “somehost/myvolume/trunk”. “dataset/branch” is shorthand for the current host, e.g. “thecurrenthost.example.com/dataset/branch”. In a replication scenario we could have “remote.example.com/datavolume/trunk” and “thecurrenthost.example.com/datavolume/trunk” (aka “datavolume/trunk”) as a branch off of that.
-  * Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “myvolume/trunk” is exported via a docker container called “flocker:myvolume/trunk” (“flocker:” prefix isn’t a Docker feature, just a proposed convention for naming our containers).
-  * Remote branches are not mounted, but a local branch can be created off of them and then that is auto-mounted.
+* A “**volume**” is a tree of “**branches**”.
+* A “**tag**” is a named read-only pointer to the contents of a branch at a given point in time; it is attached to the volume, and is not mounted on the filesystem.
+* Given volume called “mydata”, “mydata/trunk” is (by convention) is the main branch from which other branches originate, “mydata/branchname” is some other branch, and “mytag@mydata” is a tag.
+* Branches’ full name includes the Flocker instance they came from (by default let’s say using its hostname), e.g. “somehost/myvolume/trunk”. “dataset/branch” is shorthand for the current host, e.g. “thecurrenthost.example.com/dataset/branch”. In a replication scenario we could have “remote.example.com/datavolume/trunk” and “thecurrenthost.example.com/datavolume/trunk” (aka “datavolume/trunk”) as a branch off of that.
+* Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “myvolume/trunk” is exported via a docker container called “flocker:myvolume/trunk” (“flocker:” prefix isn’t a Docker feature, just a proposed convention for naming our containers).
+* Remote branches are not mounted, but a local branch can be created off of them and then that is auto-mounted.
 
 
-Implementation notes - ZFS
+Implementation Notes - ZFS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The names of volumes, branches and tags do not map directly onto the ZFS naming system.
@@ -53,9 +53,9 @@ In either case the ZFS-level snapshot name is the flocker instance UUID + the ti
 
 A local branch exists due to local existence ZFS dataset, one of:
 
-  1. A root dataset (“trunk”), if this is the primary host (whatever that means).
-  2. A clone of a remote branch snapshot.
-  3. A clone of a local branch snapshot.
+1. A root dataset (“trunk”), if this is the primary host (whatever that means).
+2. A clone of a remote branch snapshot.
+3. A clone of a local branch snapshot.
 
 The branch name is stored as a user attribute on the ZFS dataset.
 Dataset names can be the branch human readable names, since only one Flocker instance will ever be setting them.
@@ -64,7 +64,7 @@ In cases where we can’t use attributes the data will be in a local database of
 E.g. ZFS properties are inherited automatically (not the behavior we want), which might lead to some corrupt state in crashes if the low-level APIs don’t allow bypassing this…
 
 
-Implementation notes - Btrfs
+Implementation Notes - Btrfs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writeable.

@@ -27,7 +27,7 @@ The remote volume manager becomes the owner of the volume and subsequently it is
 The volume manager that did the handoff ceases to own the volume and subsequently is not allowed to write to the volume.
 
 
-Implementation details
+Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Each volume is a ZFS dataset.

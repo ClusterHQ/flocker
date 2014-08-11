@@ -32,7 +32,7 @@
         <div class="sphinxsidebar">
             <h3>Contents</h3>
             <div class="sphinxsidebarwrapper" id="toctree">
-                {{ toctree(collapse=false) }}
+                {{ toctree(collapse=false, maxdepth=4) }}
             </div>
             
             <div class="sphinxsidebarwrapper">
@@ -42,21 +42,8 @@
         </div>
         
         <script>
-                $('#toctree ul>li').click(function() {
-                    event.stopPropagation();
-
-                    if($(this).children('ul').length > 0) {
-                        event.preventDefault();
-                        $(this).children('ul').slideToggle(100);
-                    }
-                });
-                
                 $( document ).ready(function() {
-                    $('#toctree .current').each(function() {
-                        if ($(this).children('ul').length > 0) {
-                            $(this).children('ul').show();
-                        }
-                    });
+                    $('#toctree li.current').find('ul').show();
                 });
         </script>
     {%- endif %}
@@ -99,6 +86,7 @@
     <!--[if lt IE 9]>
       <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+    <link rel="shortcut icon" href="//clusterhq.com/wp-content/themes/hybrid-cluster-v3/assets/img/favicon.ico"/>
     {%- if not embedded %}
         <script type="text/javascript">
             var DOCUMENTATION_OPTIONS = {
