@@ -53,15 +53,15 @@ Development Environment
 
   .. code-block:: console
 
-       $ vagrant up
-       $ vagrant ssh
+     $ vagrant up
+     $ vagrant ssh
 
 * You will need Python 2.7 and a recent version of PyPy installed on your development machine.
 * If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
 
   .. code-block:: console
 
-       $ python setup.py install .[doc,dev]
+     $ python setup.py install .[doc,dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _geard: https://openshift.github.io/geard/
