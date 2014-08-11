@@ -57,6 +57,19 @@ Preparing for a release
 
         export VERSION=0.0.3
 
+   - Sanity check the proposed version number by checking the last version.
+     Check the ClusterHQ website for the last released version.
+     You might also double check the current version by running the following commands:
+
+     .. code-block:: console
+
+        $ python setup.py --version
+        0.0.1-576-ge15c6be
+
+        $ git tag
+        ...
+        0.0.6
+
 #. Checkout the branch for the release.
 
    .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
