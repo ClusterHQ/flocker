@@ -51,22 +51,28 @@ Preparing for a release
 -----------------------
 
 #. Choose a version number
-   - Releases numbers should be of the form x.y.z eg::
+   - Releases numbers should be of the form x.y.z eg:
 
-      export VERSION=0.0.3
+     .. code-block:: console
+
+        export VERSION=0.0.3
 
 #. Checkout the branch for the release.
 
    .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
 
-   - If this is a major or minor release then create the branch for the minor version::
+   - If this is a major or minor release then create the branch for the minor version:
 
-      git checkout -b release/flocker-${VERSION%.*} origin/master
-      git push origin --set-upstream release/flocker-${VERSION%.*}
+     .. code-block:: console
 
-   - If this is a patch release then there will already be a branch::
+        git checkout -b release/flocker-${VERSION%.*} origin/master
+        git push origin --set-upstream release/flocker-${VERSION%.*}
 
-      git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
+   - If this is a patch release then there will already be a branch:
+
+     .. code-block:: console
+
+        git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
@@ -79,16 +85,20 @@ Release
 
 #. Change your working directory to be the Flocker release branch checkout.
 
-#. Create (if necessary) and activate the Flocker release virtual environment::
+#. Create (if necessary) and activate the Flocker release virtual environment:
 
-     virtualenv ~/Environments/flocker-release
-     . ~/Environments/flocker-release/bin/activate
-     pip install --editable .[release]
+   .. code-block:: console
 
-#. Tag the version being released::
+      virtualenv ~/Environments/flocker-release
+      . ~/Environments/flocker-release/bin/activate
+      pip install --editable .[release]
 
-     git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}"
-     git push origin "${VERSION}"
+#. Tag the version being released:
+
+   .. code-block:: console
+
+      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}"
+      git push origin "${VERSION}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
 
@@ -101,15 +111,21 @@ Release
 
    Run `gsutil config` and follow the instructions.
 
-#. Build python packages for upload::
+#. Build python packages for upload:
 
-     python setup.py bdist_wheel
+   .. code-block:: console
 
-   Also upload to archive.clusterhq.com::
+      python setup.py bdist_wheel
 
-     gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
+   Also upload to archive.clusterhq.com:
 
-#. Upload RPMs::
+   .. code-block:: console
+
+      gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
+
+#. Upload RPMs:
+
+   .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
@@ -121,8 +137,11 @@ Release
    #. Set the default version to that version.
 
    .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
-             If it does not appear, you can force readthedocs.org to reload the repository by running
-             ``curl -X POST http://readthedocs.org/build/flocker``
+             If it does not appear, you can force readthedocs.org to reload the repository by running:
+
+             .. code-block:: console
+
+                curl -X POST http://readthedocs.org/build/flocker
 
 
 Pre-populating RPM Repository
@@ -134,7 +153,7 @@ You can either:
 * use the :doc:`Flocker development environment <vagrant>`\ ,
 * or install the copr repo locally by running `curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo` \.
 
-::
+.. code-block:: console
 
    mkdir repo
    yumdownloader --destdir=repo geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
@@ -142,7 +161,7 @@ You can either:
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
 
 
-::
+.. code-block:: console
 
    mkdir srpm
    yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
