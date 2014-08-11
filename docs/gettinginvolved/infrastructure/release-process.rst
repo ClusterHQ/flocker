@@ -151,7 +151,7 @@ Release
 
       admin/upload-rpms "${VERSION}"
 
-#. Build tagged docs at readthedocs.org.
+#. Build tagged docs at readthedocs.org:
 
    Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
 
