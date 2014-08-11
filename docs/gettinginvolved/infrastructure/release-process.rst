@@ -35,7 +35,7 @@ Access
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
-  Ensure that you have `+t` next to your nickname in the output of::
+  Ensure that you have ``+t`` next to your nickname in the output of::
 
      /msg ChanServ access list #clusterhq
 
