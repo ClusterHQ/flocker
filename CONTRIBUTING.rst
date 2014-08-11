@@ -49,15 +49,19 @@ Development Environment
   ``geard`` requires an operating system with ``systemd``.
   The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
   Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going::
+  Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
 
-   $ vagrant up
-   $ vagrant ssh
+  .. code-block:: console
+
+       $ vagrant up
+       $ vagrant ssh
 
 * You will need Python 2.7 and a recent version of PyPy installed on your development machine.
-* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing::
+* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
 
-    $ python setup.py install .[doc,dev]
+  .. code-block:: console
+
+       $ python setup.py install .[doc,dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _geard: https://openshift.github.io/geard/
@@ -67,12 +71,16 @@ Development Environment
 Running Tests
 =============
 
-You can run all unit tests by doing::
+You can run all unit tests by doing:
+
+.. code-block:: console
 
    $ tox
 
 Functional tests require ``ZFS``, ``geard`` and ``docker`` to be installed and in the case of the latter two running as well.
-In addition, ``tox`` needs to be run as root::
+In addition, ``tox`` needs to be run as root:
+
+.. code-block:: console
 
    $ sudo tox
 
@@ -83,9 +91,11 @@ Documentation
 =============
 
 Documentation is generated using `Sphinx`_ and stored in the ``docs/`` directory.
-You can build it individually by running::
+You can build it individually by running:
 
-    $ tox -e sphinx
+.. code-block:: console
+
+   $ tox -e sphinx
 
 You can view the result by opening ``docs/_build/html/index.html`` in your browser.
 
