@@ -21,7 +21,7 @@ We are a small team of engineers with experience running distributed systems and
 This project is under active development and version 0.1 will be released soon.
 You shouldn't use it in production.
 Contributions are welcome.
-If you have any feedback or problems, you can `talk to us`_.
+If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
 
 
