@@ -1,0 +1,11 @@
+"version": 1
+"applications":
+  "postgres-volume-example":
+    "image": "clusterhq/postgres"
+    "ports":
+    - "internal": 5432
+      "external": 5432
+    "volume":
+      # The location within the container where the data volume will be
+      # mounted:
+      "mountpoint": "/data"
