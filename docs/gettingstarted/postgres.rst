@@ -11,32 +11,8 @@ Our data will be carried over along with the application.
 Create the virtual machines
 ===========================
 
-We'll be using the same Vagrant configuration as :doc:`./tutorial/index`:
-
-* :download:`Vagrant configuration <./tutorial/Vagrantfile>`
-* :download:`Flocker repository configuration <./tutorial/clusterhq-flocker.repo>`
-
-Create a new directory on your local machine, for example *flocker-postgres* and save these files to that location.
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-postgres$ ls
-   clusterhq-flocker.repo  Vagrantfile
-   alice@mercury:~/flocker-postgres$
-
-Next use ``vagrant up`` to start and provision the VMs:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-postgres$ vagrant up
-   Bringing machine 'node1' up with 'virtualbox' provider...
-   ==> node1: Importing base box 'clusterhq/flocker-dev'...
-   ... lots of output ...
-   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
-   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
-   alice@mercury:~/flocker-postgres$
-
-As with the tutorial, this step may take several minutes to complete.
+We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
+If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
 
 Launching the PostgreSQL server
 ===============================
