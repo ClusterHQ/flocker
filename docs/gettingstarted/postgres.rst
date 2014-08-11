@@ -56,33 +56,17 @@ You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the con
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    f6ee0fbd0446        postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
 
-Get the PostgreSQL password
-===========================
-
-Our pre-built Docker image for PostgreSQL includes a randomly generated password.
-We can retrieve this by inspecting the logs for our container, using the application name we defined in ``postgres-application.yml``.
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker logs postgres-volume-example
-   PG_PASSWORD=365ff19669
-   LOG:  database system was shut down at 2014-08-11 11:00:17 UTC
-   LOG:  database system is ready to accept connections
-   LOG:  autovacuum launcher started
-   alice@mercury:~/flocker-postgres$
 
 Connect to the PostgreSQL server
 ================================
 
 We can now use the ``psql`` client on our host machine (you will need to install this if you do not already have it) to connect to the PostgreSQL server running inside the container.
 Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application config.
-You will need to enter the password we obtained above when prompted by the client.
 
 .. code-block:: console
 
    alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.250 --port 5432 --username postgres
-   Password for user postgres:
-   psql (9.3.5, server 9.2.4)
+   psql (9.3.5)
    Type "help" for help.
 
    postgres=#
@@ -167,7 +151,6 @@ Connect via client and verify data has moved
 ============================================
 
 We can now connect to the newly moved database and see that the data was moved to the new location.
-You will need to enter the same password we obtained above when prompted by the client.
 
 .. code-block:: console
 
