@@ -28,7 +28,7 @@ Software
 
 - an IRC client
 
-- an up-to-date clone of the Flocker repository
+- an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
 
 Access
 ~~~~~~
