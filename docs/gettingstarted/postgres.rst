@@ -51,11 +51,11 @@ Get the PostgreSQL password
 ===========================
 
 Our pre-built Docker image for PostgreSQL includes a randomly generated password.
-We can retrieve this by inspecting the logs for our container, using the container ID we obtained above.
+We can retrieve this by inspecting the logs for our container, using the application name we defined in ``postgres-application.yml``.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker logs f6ee0fbd0446
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker logs postgres-volume-example
    PG_PASSWORD=365ff19669
    LOG:  database system was shut down at 2014-08-11 11:00:17 UTC
    LOG:  database system is ready to accept connections
