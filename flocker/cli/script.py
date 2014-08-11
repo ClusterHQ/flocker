@@ -45,7 +45,9 @@ class DeployOptions(Options):
     """
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
+                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
+                "\n"
+                "If you have any issues, get in touch at TODO URL")
 
     def parseArgs(self, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
