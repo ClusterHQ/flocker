@@ -49,7 +49,7 @@ Development Environment
   ``geard`` requires an operating system with ``systemd``.
   The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
   Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going::
+  Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going::
 
    $ vagrant up
    $ vagrant ssh
