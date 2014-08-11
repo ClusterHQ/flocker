@@ -27,7 +27,7 @@ The remote volume manager becomes the owner of the volume and subsequently it is
 The volume manager that did the handoff ceases to own the volume and subsequently is not allowed to write to the volume.
 
 
-Implementation details
+Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Each volume is a ZFS dataset.
@@ -49,7 +49,9 @@ Docker Integration
 Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
 For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
-You can then use this volume manually using ``--volumes-from``::
+You can then use this volume manually using ``--volumes-from``:
+
+.. code-block:: console
 
     $ docker run --volumes-from myapp-mongodb-data --name myapp-mongodb openshift/centos-mongodb
 

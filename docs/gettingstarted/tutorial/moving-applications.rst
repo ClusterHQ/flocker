@@ -2,7 +2,7 @@
 Moving Applications
 ===================
 
-.. note:: :doc:`Install the flocker-cli package <../installation>` before continuing with this tutorial.
+.. note:: If you haven't already, make sure to :doc:`install the flocker-cli package <../installation>` before continuing with this tutorial.
 
 Starting an Application
 =======================
@@ -39,7 +39,7 @@ To fix this, use ``flocker-deploy`` with the simple configuration files given ab
    alice@mercury:~/flocker-tutorial$ flocker-deploy minimal-deployment.yml minimal-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-example
    alice@mercury:~/flocker-tutorial$
 
 ``flocker-deploy`` has made the necessary changes to make your node match the state described in the configuration files you supplied.
@@ -84,7 +84,7 @@ and that MongoDB has been successfully moved to ``172.16.255.251``:
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     3 seconds ago   Up 2 seconds   27017/tcp, 28017/tcp   mongodb-example
    alice@mercury:~/flocker-tutorial$
 
 At this point you have successfully deployed a MongoDB server in a container on your VM.

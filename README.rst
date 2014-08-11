@@ -1,10 +1,12 @@
-.. image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
+Want to get your hands dirty? Skip ahead to `the tutorial`_.
+
+Flocker |coveralls|
+===================
+
+.. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
-
-=======
-Flocker
-=======
+  
 Flocker is a data volume manager and multi-host Docker cluster management tool.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
@@ -19,11 +21,13 @@ We are a small team of engineers with experience running distributed systems and
 This project is under active development and version 0.1 will be released soon.
 You shouldn't use it in production.
 Contributions are welcome.
+If you have any issues or feedback, you can `talk to us`_.
 We're looking forward to working on this project with you.
 
 
 Documentation
 -------------
+
 You can read more about `installing Flocker`_, follow a `tutorial`_ and learn about the `features of Flocker and its architecture`_ or `areas for potential future development`_ in the docs.
 
 
@@ -38,13 +42,15 @@ You can run all of the tox environments using the command `tox`.
 
 Flocker is also tested using `continuous integration`_.
 
+.. _the tutorial: https://docs.clusterhq.com/en/latest/tutorial/index.html
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com
-.. _installing Flocker: http://docs.clusterhq.com/en/latest/gettingstarted/installation.html
-.. _tutorial: http://docs.clusterhq.com/en/latest/gettingstarted/tutorial/
-.. _features of Flocker and its architecture: http://docs.clusterhq.com/en/latest/introduction.html
-.. _areas for potential future development: http://docs.clusterhq.com/en/latest/roadmap/
+.. _installing Flocker: https://docs.clusterhq.com/en/latest/gettingstarted/installation.html
+.. _tutorial: https://docs.clusterhq.com/en/latest/gettingstarted/tutorial/
+.. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction.html
+.. _areas for potential future development: https://docs.clusterhq.com/en/latest/roadmap/
 .. _unittest: https://docs.python.org/2/library/unittest.html
 .. _Twisted Trial: https://twistedmatrix.com/trac/wiki/TwistedTrial
 .. _tox: https://tox.readthedocs.org/
 .. _continuous integration: http://build.clusterhq.com/
+.. _talk to us: http://docs.clusterhq.com/en/latest/gettinginvolved/contributing.html#talk-to-us

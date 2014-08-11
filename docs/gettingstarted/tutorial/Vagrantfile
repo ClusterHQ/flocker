@@ -3,6 +3,7 @@
 
 # This requires Vagrant 1.6.2 or newer (earlier versions can't reliably
 # configure the Fedora 20 network stack).
+Vagrant.require_version ">= 1.6.2"
 
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
@@ -41,30 +42,10 @@ mkdir -p /opt/flocker
 truncate --size 1G /opt/flocker/pool-vdev
 zpool create flocker /opt/flocker/pool-vdev
 
-TAR="/tmp/vagrant-cache/dockerfile_mongodb.tar"
-IMAGE="dockerfile/mongodb"
+IMAGE="clusterhq/mongodb"
 # Get the images needed for the tutorial.  This has to happen eventually and
 # doing it now aggregates all of the waiting in one place.
-if [ -e "${TAR}" ]; then
-  # Load a cached version.
-  docker load < "${TAR}"
-else
-  # Get it from the internet.
-  docker pull "${IMAGE}"
-  # Cache it if possible
-  if [ -d /tmp/vagrant-cache ]; then
-    docker save "${IMAGE}" > "${TAR}"
-  fi
-fi
-
-# XXX This is a hack to reduce the size of the mongodb image. It can be removed
-# when we have created a smaller mongo image for use in this tutorial. See
-# https://github.com/ClusterHQ/flocker/issues/383
-mkdir /var/tmp/dockerbuild
-cd /var/tmp/dockerbuild
-echo "FROM dockerfile/mongodb\nCMD mongod --dbpath=/data --noprealloc --smallfiles" > Dockerfile
-docker build --tag mongodb-tutorial .
-
+docker pull "${IMAGE}"
 docker pull clusterhq/postgres
 SCRIPT
 

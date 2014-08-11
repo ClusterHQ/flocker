@@ -2,7 +2,7 @@
 Introduction
 ============
 
-Motivation for building Flocker
+Motivation for Building Flocker
 ===============================
 Flocker lets you move your Docker containers and their data together between hosts.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
@@ -22,6 +22,8 @@ Flocker aims to solve this problem by providing an orchestration framework that 
   * How do containers across multiple nodes talk to each other?
   * How does application state work if you move containers around?
 
+.. image:: images/flocker-architecture-diagram.jpg
+
 Architecture
 ============
 
@@ -40,7 +42,7 @@ Flocker - Routing
 * Your external domain (``www.example.com``) configured to point at all nodes in the Flocker cluster (``192.0.2.0``, ``192.0.2.1``)
 
 
-Flocker - Application state
+Flocker - Application State
 ---------------------------
 
 * Flocker manages ZFS filesystems as Docker volumes.  It attaches them to your containers.
@@ -48,7 +50,7 @@ Flocker - Application state
 * If an application container is moved from one node to another, Flocker automatically moves the volume with it.
 
 
-Application configuration
+Application Configuration
 -------------------------
 
 * Application configuration describes what you want to run in a container.
@@ -61,7 +63,7 @@ Application configuration
 * Flocker 0.1 does not support automatic re-deployment of application configuration changes.
 
 
-Deployment configuration
+Deployment Configuration
 ------------------------
 
 * Deployment configuration describes how you want your containers deployed.
@@ -76,7 +78,7 @@ Deployment configuration
 * Reacting to changes to this configuration is the primary focus of Flocker 0.1.
 
 
-Initial implementation strategy
+Initial Implementation Strategy
 ===============================
 
 * This is the 0.1 approach.
@@ -111,7 +113,7 @@ Managing Containers
   * Inter-unit dependency management.
 
 
-Managing volumes
+Managing Volumes
 ----------------
 
 * Volumes are ZFS filesystems.
@@ -135,7 +137,7 @@ Managing volumes
   * This happens automatically when ``flocker-deploy`` runs with a new deployment configuration.
 
 
-Managing routes
+Managing Routes
 ---------------
 
 * Containers claim TCP port numbers with the application configuration that defines them.
@@ -144,7 +146,7 @@ Managing routes
 * Proxying is done using iptables.
 
 
-User experience
+User Experience
 ===============
 
 * Flocker provides a command-line interface for manually deploying or re-deploying containers across nodes.

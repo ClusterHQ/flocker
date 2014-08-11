@@ -106,7 +106,7 @@ setup(
 
     extras_require={
         # This extra allows you to build the documentation for Flocker.
-        "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
+        "doc": ["Sphinx==1.2.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
             # flake8 is pretty critical to have around to help point out

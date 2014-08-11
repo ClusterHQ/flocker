@@ -4,6 +4,8 @@
 The command-line ``flocker-deploy`` tool.
 """
 
+from subprocess import CalledProcessError
+
 from twisted.internet.defer import DeferredList
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
@@ -43,7 +45,11 @@ class DeployOptions(Options):
     """
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
+                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
+                "\n"
+                "If you have any issues or feedback, you can talk to us: "
+                "http://docs.clusterhq.com/en/latest/gettinginvolved/"
+                "contributing.html#talk-to-us")
 
     def parseArgs(self, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
@@ -114,7 +120,19 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        return DeferredList(results)
+        d = DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+
+        # Exit with ssh's output if it failed for some reason:
+        def got_failure(failure):
+            if failure.value.subFailure.check(CalledProcessError):
+                raise SystemExit(
+                    b"Error connecting to cluster node: " +
+                    failure.value.subFailure.value.output)
+            else:
+                return failure
+
+        d.addErrback(got_failure)
+        return d
 
     def main(self, reactor, options):
         """

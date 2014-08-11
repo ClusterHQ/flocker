@@ -33,7 +33,9 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 .. _Buildbot: http://build.clusterhq.com/
 
 
-Talk to us
+.. _talk-to-us:
+
+Talk to Us
 ==========
 
 Have questions or need help?
@@ -42,37 +44,45 @@ Besides filing a `GitHub issue`_ with feature requests or bug reports you can al
 .. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
 
-Development environment
+Development Environment
 =======================
 
 * To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
   ``geard`` requires an operating system with ``systemd``.
   The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
   Vagrant 1.6.2 or later is required.
-  Once you have Vagrant installed (see the `vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going::
+  Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
 
-   $ vagrant up
-   $ vagrant ssh
+  .. code-block:: console
+
+     $ vagrant up
+     $ vagrant ssh
 
 * You will need Python 2.7 and a recent version of PyPy installed on your development machine.
-* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing::
+* If you don't already have ``tox`` on your development machine, you can install it and other development dependencies (ideally in a ``virtualenv``) by doing:
 
-    $ python setup.py install .[doc,dev]
+  .. code-block:: console
+
+     $ python setup.py install .[doc,dev]
 
 .. _ZFS: http://zfsonlinux.org
 .. _geard: https://openshift.github.io/geard/
 .. _docker: https://www.docker.com/
 
 
-Running tests
+Running Tests
 =============
 
-You can run all unit tests by doing::
+You can run all unit tests by doing:
+
+.. code-block:: console
 
    $ tox
 
 Functional tests require ``ZFS``, ``geard`` and ``docker`` to be installed and in the case of the latter two running as well.
-In addition, ``tox`` needs to be run as root::
+In addition, ``tox`` needs to be run as root:
+
+.. code-block:: console
 
    $ sudo tox
 
@@ -83,41 +93,43 @@ Documentation
 =============
 
 Documentation is generated using `Sphinx`_ and stored in the ``docs/`` directory.
-You can build it individually by running::
+You can build it individually by running:
 
-    $ tox -e sphinx
+.. code-block:: console
+
+   $ tox -e sphinx
 
 You can view the result by opening ``docs/_build/html/index.html`` in your browser.
 
 .. _Sphinx: http://sphinx-doc.org/
 
 
-Requirements for contributions
+Requirements for Contributions
 ==============================
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
-  Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
-  This report can tell you if you missed anything.
-  It does not necessarily catch everything though.
-  Treat it as a helper but not the definitive indicator of success.
-  You can also see coverage output in the Buildbot details link of your pull request.
-  Practice test-driven development to ensure all code has test coverage.
+   Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
+   This report can tell you if you missed anything.
+   It does not necessarily catch everything though.
+   Treat it as a helper but not the definitive indicator of success.
+   You can also see coverage output in the Buildbot details link of your pull request.
+   Practice test-driven development to ensure all code has test coverage.
 
 2. All code must have documentation.
 
-  Modules, functions, classes, and methods must be documented (even if they are private).
-  Function parameters and object attributes must be documented (even if they are private).
+   Modules, functions, classes, and methods must be documented (even if they are private).
+   Function parameters and object attributes must be documented (even if they are private).
 
 3. All user-facing tools must have documentation.
 
-  Document tool usage as part of big-picture documentation.
-  Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+   Document tool usage as part of big-picture documentation.
+   Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
 
 4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 
 
-Project development process
+Project Development Process
 ===========================
 
 The core development team uses GitHub issues to track planned work.
@@ -176,11 +188,11 @@ When the branch is ready for review a pull request will be created in the *Revie
 When the branch is merged the corresponding pull requests and issues will be closed.
 
 
-Steps to contribute code
+Steps to Contribute Code
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Github collaborators can participate in the development workflow by changing the labels on an issue.
-Github lets non-collaborators create new issues and pull requests but it does not let them change labels.
+GitHub collaborators can participate in the development workflow by changing the labels on an issue.
+GitHub lets non-collaborators create new issues and pull requests but it does not let them change labels.
 If you are not a collaborator you may seek out assistances from a collaborator to set issue labels to reflect the issue's stage.
 
 1. Pick the next issue in the *Ready* category.
@@ -196,12 +208,16 @@ If you are not a collaborator you may seek out assistances from a collaborator t
    Make sure Buildbot indicates all tests pass.
 
 5. Address any points raised by the reviewer.
-   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub`` (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
+   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
 
+7. As a small thank you for contributing to Flocker, we'd like to send you some ClusterHQ swag.  
+   Once your pull request has been merged, just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
+   We'll get something in the mail to you.
 
-Steps to contribute reviews
+
+Steps to Contribute Reviews
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1. Pick a pull request in GitHub/Waffle that is ready for review (``review`` label/*Review* category).

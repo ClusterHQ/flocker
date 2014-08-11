@@ -21,7 +21,7 @@ Next we'll use a new configuration file that moves the application to a differen
    alice@mercury:~/flocker-tutorial$ flocker-deploy port-deployment-moved.yml port-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-port-example
    alice@mercury:~/flocker-tutorial$
 
 If we query the database the records we've previously inserted have disappeared!
@@ -62,7 +62,7 @@ Then we'll run these configuration files with ``flocker-deploy``:
    alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
    alice@mercury:~/flocker-tutorial$
 
 Once again we'll insert some data into the database:
@@ -90,7 +90,7 @@ Next we'll move the application to the other node.
    alice@mercury:~/flocker-tutorial$ flocker-deploy volume-deployment-moved.yml volume-application.yml
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID    IMAGE                       COMMAND    CREATED         STATUS         PORTS                  NAMES
-   4d117c7e653e    dockerfile/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
+   4d117c7e653e    clusterhq/mongodb:latest   mongod     2 seconds ago   Up 1 seconds   27017/tcp, 28017/tcp   mongodb-volume-example
    alice@mercury:~/flocker-tutorial$
 
 This time however the data has moved with the application:
@@ -108,3 +108,11 @@ This time however the data has moved with the application:
 At this point you have successfully deployed a MongoDB server and communicated with it.
 You've also seen how Flocker allows you to move an application's data to different locations in cluster as the application is moved.
 You now know how to run stateful applications in a Docker cluster using Flocker.
+
+If you would like to remove the virtual machines created for this tutorial, you can now finish off by running:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ vagrant destroy
+
+Confirm that you would like to remove the node1 and node2 virtual machines when prompted.
