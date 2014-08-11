@@ -179,8 +179,8 @@ When the branch is merged the corresponding pull requests and issues will be clo
 Steps to Contribute Code
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Github collaborators can participate in the development workflow by changing the labels on an issue.
-Github lets non-collaborators create new issues and pull requests but it does not let them change labels.
+GitHub collaborators can participate in the development workflow by changing the labels on an issue.
+GitHub lets non-collaborators create new issues and pull requests but it does not let them change labels.
 If you are not a collaborator you may seek out assistances from a collaborator to set issue labels to reflect the issue's stage.
 
 1. Pick the next issue in the *Ready* category.
@@ -196,7 +196,7 @@ If you are not a collaborator you may seek out assistances from a collaborator t
    Make sure Buildbot indicates all tests pass.
 
 5. Address any points raised by the reviewer.
-   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub`` (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
+   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
 
 6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
 
