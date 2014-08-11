@@ -9,23 +9,25 @@ This means that you can run your databases, queues and key-value stores in Docke
 Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible.
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
 
+Docker allows for multiple isolated, reproducible application environments on a single node: "containers".
+Application state can be stored on local disk in "volumes" attached to containers.
+And containers can talk to each other and external world via specified ports.
 
-* Docker does multiple isolated, reproducible application environments on a single node: "containers".
+But what happens if you have more than one node?
 
-  * Application state can be stored on local disk in "volumes" attached to containers.
-  * Containers can talk to each other and external world via specified ports.
-
-* But what happens if you have more than one node?
-
-  * Where do containers run?
-  * How do you talk to the container you care about?
-  * How do containers across multiple nodes talk to each other?
-  * How does application state work if you move containers around?
+* Where do containers run?
+* How do you talk to the container you care about?
+* How do containers across multiple nodes talk to each other?
+* How does application state work if you move containers around?
+  
+The diagram below provides a high level representation of how Flocker addresses these questions.
 
 .. image:: images/flocker-architecture-diagram.jpg
 
 Architecture
 ============
+Below is a high-level overview of Flocker's architecture.  
+For more information, you can follow along with a :doc:`tutorial that walks you through deploying and migrating MongoDB</gettingstarted/tutorial/index>` or read more in our :doc:`advanced documentation</advanced/index>`.
 
 Flocker - Orchestration
 -----------------------
