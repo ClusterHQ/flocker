@@ -24,11 +24,11 @@ Create a new directory on your local machine, for example *flocker-postgres* and
    clusterhq-flocker.repo  Vagrantfile
    alice@mercury:~/flocker-postgres$
 
-Next use ``vagrant up postgres`` to start and provision the VMs:
+Next use ``vagrant up`` to start and provision the VMs:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ vagrant up postgres
+   alice@mercury:~/flocker-postgres$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
    ... lots of output ...
