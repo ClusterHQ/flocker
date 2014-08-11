@@ -88,7 +88,16 @@ Preparing for a Release
         git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
+
+   XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
+
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
+
+   XXX: Process to be decided.
+   If we modify the copyright in the release branch, then we'll need to merge that back to master.
+   It should probably just be updated routinely each year.
+   See https://github.com/ClusterHQ/flocker/issues/525
+
 #. Ensure all the tests pass on BuildBot.
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 #. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
