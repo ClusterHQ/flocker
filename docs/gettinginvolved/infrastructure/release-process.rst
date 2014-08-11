@@ -50,7 +50,7 @@ Access
 Preparing for a Release
 -----------------------
 
-#. Choose a version number
+#. Choose a version number:
    - Release numbers should be of the form x.y.z eg:
 
      .. code-block:: console
@@ -70,7 +70,7 @@ Preparing for a Release
         ...
         0.0.6
 
-#. Checkout the branch for the release.
+#. Checkout the branch for the release:
 
    .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
 
