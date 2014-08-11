@@ -72,11 +72,11 @@ You will need to enter the password we obtained above when prompted by the clien
 .. code-block:: console
 
    alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.250 --port 5432 --username postgres
-   Password for user postgres: 
+   Password for user postgres:
    psql (9.3.5, server 9.2.4)
    Type "help" for help.
-   
-   postgres=# 
+
+   postgres=#
 
 Create a new database and insert some data
 ==========================================
