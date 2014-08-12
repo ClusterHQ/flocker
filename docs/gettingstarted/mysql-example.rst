@@ -200,8 +200,8 @@ We'll now connect to the second node via the MySQL client, using the same authen
    
    mysql>
 
-Now query the `example` database for the data we previously inserted.
-You will find `flocker` has moved our volume with the container and our data has been preserved.
+Now query the ``example`` database for the data we previously inserted.
+You will find ``flocker`` has moved our volume with the container and our data has been preserved.
 
 .. code-block:: console
 
@@ -229,9 +229,9 @@ You will find `flocker` has moved our volume with the container and our data has
    +----+--------------+
    1 row in set (0.01 sec)
    
-   mysql> 
+   mysql> quit
 
-You can now exit the MySQL client.
+You have now exited the MySQL client.
 
 ---------------------------------
 
