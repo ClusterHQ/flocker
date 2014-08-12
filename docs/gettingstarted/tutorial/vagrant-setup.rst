@@ -92,7 +92,7 @@ First create a tutorial directory:
    alice@mercury:~/$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration file by right clicking on the links below.
+Next download the Vagrant configuration file by right clicking on the link below.
 Save it in the *flocker-tutorial* directory and preserve its filename.
 
 * :download:`Vagrant configuration <Vagrantfile>`
