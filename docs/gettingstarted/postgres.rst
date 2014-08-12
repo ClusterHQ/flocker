@@ -14,7 +14,7 @@ We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./t
 If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
 
 
-Download the Docker image
+Download the Docker Image
 =========================
 
 The official ``postgres`` Docker image is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
@@ -126,7 +126,7 @@ We'll then switch our connection to use the new database and insert a row. From 
 Our last command ``\quit`` quits the client.
 
 
-Create a new deployment config and move the application
+Create a New Deployment Config and Move the Application
 =======================================================
 
 Download the new deployment configuration and save to your ``flocker-postgres`` directory.
@@ -160,7 +160,7 @@ And is no longer running on the original host:
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    alice@mercury:~/flocker-postgres$
 
-Verify our data has moved with the application
+Verify Our Data Has Moved with the Application
 ==============================================
 
 Query the `flockertest` database for the data we previously inserted.
