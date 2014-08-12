@@ -20,12 +20,13 @@ Download the Docker Image
 =========================
 
 The official ``postgres`` Docker image is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
+(We use the ``-t`` option to ``ssh`` so that progress is displayed; if you omit it the pull will still work but you may not get any output for a long time.)
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker pull postgres
+   alice@mercury:~/flocker-postgres$ ssh -t root@172.16.255.250 docker pull postgres
    ...
-   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.251 docker pull postgres
+   alice@mercury:~/flocker-postgres$ ssh -t root@172.16.255.251 docker pull postgres
    ...
    alice@mercury:~/flocker-postgres$
 
