@@ -58,7 +58,7 @@ You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the con
    alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    f6ee0fbd0446        postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
-
+   alice@mercury:~/flocker-postgres$
 
 Connect to PostgreSQL
 =====================
