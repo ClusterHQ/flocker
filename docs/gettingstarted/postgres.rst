@@ -181,7 +181,5 @@ You will find `flocker` has moved our volume with the container and our data has
              3
    (1 row)
 
----------------------------------
-
 This concludes our example for using `flocker` with PostgreSQL.
 Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may now wish to read through the :doc:`../advanced/index`.
