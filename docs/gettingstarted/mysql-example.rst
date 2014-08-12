@@ -45,7 +45,7 @@ Download and save the following configuration files to your ``flocker-mysql`` (o
 .. literalinclude:: mysql-deployment.yml
    :language: yaml
 
-As you can see, this is a very simple example.
+This is a very simple example where we simply map MySQL's default port 3306 in the container to 3306 on our host and specify the volume mountpoint in the container where the actual data is stored.
 We will be using the ``clusterhq/mysql`` image and deploying to one of our virtual nodes.
 Run ``flocker-deploy`` to download the image and get the container running:
 
@@ -70,7 +70,7 @@ Connect to MySQL
 
 We can now use the ``mysql`` client on our host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
 Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application config.
-Our MySQL image sets the ``root`` user password to ``admin`` so we'll connect using to MySQL those credentials and specifying the IP address of our virtual machine as the host.
+Our example MySQL image sets the ``root`` user password to ``admin`` so we'll connect to MySQL using those credentials and specifying the IP address of our virtual machine as the host.
 
 .. code-block:: console
 
@@ -104,7 +104,7 @@ Let's have a look at the databases already in the system:
    +--------------------+
    3 rows in set (0.00 sec)
 
-These are the databases used by MySQL itself and bundled as part of a new installation.
+These are the databases used by MySQL itself and bundled as part of a new installation of the MySQL server.
 We'll now create a new database for our own test data, create a simple table and save some data.
 
 .. code-block:: console
