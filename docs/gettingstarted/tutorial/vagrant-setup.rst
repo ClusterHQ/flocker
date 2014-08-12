@@ -63,8 +63,8 @@ Other Systems
 
 See the official `MongoDB installation guide`_ for your system.
 
-Creating the VirtualBox VMs
----------------------------
+Creating Vagrant VMs Needed for Flocker
+---------------------------------------
 
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
@@ -92,16 +92,15 @@ First create a tutorial directory:
    alice@mercury:~/$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration and the Flocker repository configuration files by right clicking on the links below.
-Save them in the *flocker-tutorial* directory and preserve their filenames.
+Next download the Vagrant configuration file by right clicking on the links below.
+Save it in the *flocker-tutorial* directory and preserve its filename.
 
 * :download:`Vagrant configuration <Vagrantfile>`
-* :download:`Flocker repository configuration <clusterhq-flocker.repo>`
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ls
-   clusterhq-flocker.repo  Vagrantfile
+   Vagrantfile
    alice@mercury:~/flocker-tutorial$
 
 Then use ``vagrant up`` to start and provision the VMs:
@@ -116,8 +115,7 @@ Then use ``vagrant up`` to start and provision the VMs:
    ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
    alice@mercury:~/flocker-tutorial$
 
-This step may take several minutes or more.
-Beyond just booting a virtual machine to use as a node for the tutorial, it will download and build the necessary ZFS kernel modules.
+This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
 Your network connectivity and CPU speed will affect how long this takes.
 Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
