@@ -192,6 +192,7 @@ Release
 
          curl -X POST http://readthedocs.org/build/flocker
 
+#. Make a Pull Request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
 Announcing Releases
 ~~~~~~~~~~~~~~~~~~~
