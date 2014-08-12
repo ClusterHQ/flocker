@@ -81,7 +81,8 @@ Insert a Row in the Database
 ============================
 
 Now we have a connection, we'll create a new database with the simplest possible structure; a single table with one integer column.
-We'll then switch our connection to use the new database and insert a row. From the running psql client shell:
+We'll then switch our connection to use the new database and insert a row.
+From the running psql client shell:
 
 .. code-block:: console
 
