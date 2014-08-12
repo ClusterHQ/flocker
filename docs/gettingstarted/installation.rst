@@ -6,6 +6,13 @@ As a user of Flocker you will need to install the ``flocker-cli`` package which 
 This should be installed on a machine with SSH credentials to control the cluster nodes
 (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
+There is also a ``flocker-node`` package which is installed on each node in the cluster.
+It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities. 
+These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
+
+.. note:: For now, the ``flocker-node`` package is pre-installed by the Vagrant configuration in the tutorial. 
+          In the next release it will be distributed as a standalone package which you will be able to install on an existing Fedora 20 server.
+
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
 .. _installing-flocker-cli:
