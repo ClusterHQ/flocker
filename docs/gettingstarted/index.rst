@@ -7,3 +7,4 @@ Getting Started
 
    installation
    tutorial/index
+   mysql-example

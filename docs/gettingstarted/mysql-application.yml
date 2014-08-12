@@ -1,0 +1,9 @@
+"version": 1
+"applications":
+  "mysql-volume-example":
+    "image": "clusterhq/mysql"
+    "ports":
+    - "internal": 3306
+      "external": 3306
+    "volume":
+      "mountpoint": "/var/lib/mysql"
