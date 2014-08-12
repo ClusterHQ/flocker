@@ -6,7 +6,7 @@ The Problem
 ===========
 
 By default moving an application from one node to another does not move its data along with it.
-Before proceeding let's see in more detail what the problem is by continuing the example in :doc:`exposing-ports`.
+Before proceeding let's see in more detail what the problem is by continuing the :doc:`Exposing Ports example <exposing-ports>`.
 
 Recall that we inserted some data into the database.
 Next we'll use a new configuration file that moves the application to a different node.
