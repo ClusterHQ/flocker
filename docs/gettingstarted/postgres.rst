@@ -168,12 +168,78 @@ Now run ``flocker-deploy`` on the new config:
    alice@mercury:~/flocker-postgres$ flocker-deploy postgres-deployment-moved.yml postgres-application.yml
    alice@mercury:~/flocker-postgres$
 
-More...
+Now we'll verify that our application has moved to the other VM:
 
-[1] Download docker pull clusterhq/postgres
-[2] Application and deployment YAML with volume mountpoint
-[3] Start Postgres
-[4] Insert some data via psql client
-[5] Move application YAML
-[6] flocker-deploy new config
-[7] Connect via client and verify data has moved
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.251 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   51b5b09a46bb        clusterhq/postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
+   alice@mercury:~/flocker-postgres$
+
+And is no longer running on the original host:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.250 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   alice@mercury:~/flocker-postgres$
+
+Verify our data has moved with the application
+==============================================
+
+Finally, we'll connect via the `psql` client once more to verify that our data has been successfully moved alongside the application.
+
+Our example PostgreSQL image generates a new random password for the `postgres` user each time it's run, so we'll need to grab the new password via `docker logs`.
+Grab the container ID running on `172.16.255.251` form the output of the `docker ps` command above and run it in to `docker logs`:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ ssh root@172.16.255.251 docker logs 51b5b09a46bb
+   PG_PASSWORD=9c1eb9e47b
+   LOG:  database system was shut down at 2014-08-11 11:00:17 UTC
+   LOG:  database system is ready to accept connections
+   LOG:  autovacuum launcher started
+   alice@mercury:~/flocker-postgres$
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
+   Password for user postgres: 
+   psql (9.3.5, server 9.2.4)
+   Type "help" for help.
+   
+   postgres=# \l
+                                  List of databases
+        Name    |  Owner   | Encoding  | Collate | Ctype |   Access privileges   
+   -----------+----------+-----------+---------+-------+-----------------------
+    postgres    | postgres | SQL_ASCII | C       | C     | 
+    template0   | postgres | SQL_ASCII | C       | C     | =c/postgres          +
+                |          |           |         |       | postgres=CTc/postgres
+    template1   | postgres | SQL_ASCII | C       | C     | =c/postgres          +
+                |          |           |         |       | postgres=CTc/postgres
+    flockertest | postgres | SQL_ASCII | C       | C     | =c/postgres          +
+                |          |           |         |       | postgres=CTc/postgres
+   (4 rows)
+
+Query the `flockertest` database for the data we previously inserted.
+You will find `flocker` has moved our volume with the container and our data has been preserved.
+
+.. code-block:: console
+   
+   postgres=# \c flockertest;
+   psql (9.3.5, server 9.2.4)
+   You are now connected to database "flockertest" as user "postgres".
+   flockertest=# select * from testtable;
+    testcolumn 
+   ------------
+             3
+   (1 row)
+   
+   flockertest=# \q
+
+
+---------------------------------
+
+This concludes our example for using `flocker` with PostgreSQL.
+Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may now wish to read through the :doc:`../advanced/index`.
