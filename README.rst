@@ -6,7 +6,7 @@ Flocker |coveralls|
 .. |coveralls| image:: https://coveralls.io/repos/ClusterHQ/flocker/badge.png
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
-  
+
 Flocker is a data volume manager and multi-host Docker cluster management tool.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
@@ -18,7 +18,7 @@ Those volumes will follow your containers when you use Flocker to move them betw
 Flocker is being developed by `ClusterHQ`_.
 We are a small team of engineers with experience running distributed systems and many of us are core contributors to the `Twisted`_ project.
 
-This project is under active development and version 0.1 should be released on August 13th, 2014.
+This project is under active development; version 0.1 was released on August 12th, 2014.
 You shouldn't use it in production yet.
 Contributions are welcome.
 If you have any issues or feedback, you can `talk to us`_.
