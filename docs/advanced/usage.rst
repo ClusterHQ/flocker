@@ -6,7 +6,7 @@ Flocker manages what containers are running and on what hosts.
 It also manages network configuration for these containers (between them and between containers and the world).
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
-This program is included in the Flocker client package.
+This program is included in the ``flocker-cli`` package.
 If you haven't :doc:`installed that package <../gettingstarted/installation>` yet, you may want to do so now.
 
 Command Line Arguments
