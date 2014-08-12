@@ -98,7 +98,7 @@ Preparing for a release
         ...
         0.0.6
 
-#. Checkout the branch for the release:
+#. In a clean, local working copy of Flocker with no modifications, checkout the branch for the release:
 
    .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
 
@@ -113,9 +113,16 @@ Preparing for a release
 
      .. code-block:: console
 
-        git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
+        $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 #. Update the version number in the downloads in ``docs/gettingstarted/linux-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
+
+#. Commit the changes:
+
+   .. code-block:: console
+
+      git commit -am"Bumped version number in installers and Vagrantfiles"
+      git push
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
@@ -150,7 +157,7 @@ Release
 
    .. code-block:: console
 
-      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}"
+      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
@@ -160,42 +167,32 @@ Release
 
    You force a build on a tag by putting the tag name into the branch box (without any prefix).
 
-#. Set up `gsutil` authentication.
+#. Set up ``gsutil`` authentication by following the instructions from the following command:
 
-   Run `gsutil config` and follow the instructions.
+   .. code-block:: console
 
-#. Build python packages for upload:
+      $ gsutil config
+
+#. Build python packages for upload, and upload them to archive.clusterhq.com, as well as uploading the RPMs:
 
    .. code-block:: console
 
       python setup.py bdist_wheel
-
-   Also upload to archive.clusterhq.com:
-
-   .. code-block:: console
-
       gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
-
-#. Upload RPMs:
-
-   .. code-block:: console
-
       admin/upload-rpms "${VERSION}"
 
 #. Build tagged docs at readthedocs.org:
 
-   Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
-
+   #. Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Set the default version to that version.
+   #. Force readthedocs.org to reload the repository, in case the GitHub webhook fails, by running:
 
-   .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
-             If it does not appear, you can force readthedocs.org to reload the repository by running:
+      .. code-block:: console
 
-             .. code-block:: console
+         curl -X POST http://readthedocs.org/build/flocker
 
-                curl -X POST http://readthedocs.org/build/flocker
-
+#. Make a Pull Request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
 Announcing Releases
 ~~~~~~~~~~~~~~~~~~~
