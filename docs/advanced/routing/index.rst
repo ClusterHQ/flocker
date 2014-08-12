@@ -3,10 +3,10 @@ Setting up External Routing
 ===========================
 
 Flocker allows you to expose public ports on your applications.
-For example, you can export port 8443 on a HTTPS server running inside a container as an externally visible port 443 on the host machine.
+For example, you can export port 8443 on an HTTPS server running inside a container as an externally visible port 443 on the host machine.
 Because Flocker runs on a cluster of nodes your web application might run on different nodes at different times.
 You could update the DNS record every time a container moves.
-However, updating DNS records can take anywhere from a minute for a few hours to take effect for all clients so this will impact your application's availability.
+However, updating DNS records can take anywhere from a minute to a few hours to take effect for all clients so this will impact your application's availability.
 This is where Flocker's routing functionality comes in handy.
 
 When an external route is configured (e.g. on port 443) Flocker routes that port on *all* nodes to the node where your application is running.

@@ -10,8 +10,8 @@ Even stateless apps depend on many stateful services and currently running these
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
 
 Docker allows for multiple isolated, reproducible application environments on a single node: "containers".
-Application state can be stored on local disk in "volumes" attached to containers.
-And containers can talk to each other and external world via specified ports.
+Application state can be stored on a local disk in "volumes" attached to containers.
+And containers can talk to each other and the external world via specified ports.
 
 But what happens if you have more than one node?
 
