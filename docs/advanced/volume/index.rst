@@ -20,7 +20,7 @@ Volume Ownership
 Each volume is owned by a specific volume manager and only that volume manager can write to it.
 To begin with a volume is owned by the volume manager that created it.
 A volume manager can *push* volumes it owns to another machine, copying the volume's data to a remote volume manager.
-The copied volume on that remote volume manager will continue owned by the local volume manager, and therefore the remote volume manager will not be able to write to it.
+The copied volume on that remote volume manager will continue to be owned by the local volume manager, and therefore the remote volume manager will not be able to write to it.
 
 A volume manager can also *handoff* a volume to a remote volume manager, i.e. transfer ownership.
 The remote volume manager becomes the owner of the volume and subsequently it is able to write to the volume.
