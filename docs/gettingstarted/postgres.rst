@@ -123,8 +123,6 @@ We'll then switch our connection to use the new database and insert a row. From 
    
    flockertest=# \quit
 
-Our last command ``\quit`` quits the client.
-
 
 Create a New Deployment Config and Move the Application
 =======================================================
