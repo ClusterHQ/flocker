@@ -113,9 +113,16 @@ Preparing for a release
 
      .. code-block:: console
 
-        git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
+        $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 #. Update the version number in the downloads in ``docs/gettingstarted/linux-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
+
+#. Commit the changes:
+
+   .. code-block:: console
+
+      git commit -am"Bumped version number in installers and Vagrantfiles"
+      git push
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
