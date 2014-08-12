@@ -167,26 +167,18 @@ Release
 
    You force a build on a tag by putting the tag name into the branch box (without any prefix).
 
-#. Set up `gsutil` authentication.
+#. Set up ``gsutil`` authentication by following the instructions from the following command:
 
-   Run `gsutil config` and follow the instructions.
+   .. code-block:: console
 
-#. Build python packages for upload:
+      $ gsutil config
+
+#. Build python packages for upload, and upload them to archive.clusterhq.com, as well as uploading the RPMs:
 
    .. code-block:: console
 
       python setup.py bdist_wheel
-
-   Also upload to archive.clusterhq.com:
-
-   .. code-block:: console
-
       gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
-
-#. Upload RPMs:
-
-   .. code-block:: console
-
       admin/upload-rpms "${VERSION}"
 
 #. Build tagged docs at readthedocs.org:
