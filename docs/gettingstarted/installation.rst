@@ -2,14 +2,16 @@
 Installing Flocker
 ==================
 
-As a user of Flocker there are two components you will need to install:
+As a user of Flocker you will need to install the ``flocker-cli`` package which provides command line tools to control the cluster.
+This should be installed on a machine with SSH credentials to control the cluster nodes
+(e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
-1. The ``flocker-cli`` package which provides command line tools to control the cluster.
-   This should be installed on a machine with SSH credentials to control the cluster nodes
-   (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
+There is also a ``flocker-node`` package which is installed on each node in the cluster.
+It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities. 
+These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
-2. The ``flocker-node`` package that runs on each node in the cluster.
-   This package is installed on machines which will run Docker containers.
+.. note:: For now, the ``flocker-node`` package is pre-installed by the `Vagrant configuration in the tutorial <tutorial>`_. 
+          In the next release it will be distributed as a standalone package which you will be able to install on an existing Fedora 20 server.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
@@ -135,33 +137,4 @@ You'll need to do this every time you start a new shell.
    0.1.0
    alice@mercury:~/flocker-tutorial$
 
-
-Installing flocker-node
-=======================
-
-.. note:: For now we strongly recommend running the cluster using our custom Fedora 20 virtual machine, which can be built using Vagrant.
-          See :doc:`the tutorial setup <tutorial/vagrant-setup>` for details.
-
-To install ``flocker-node`` on an existing Fedora 20 host, follow these steps:
-
-1. Configure ``yum`` with the Flocker package repository and install the Flocker node package:
-
-   .. code-block:: console
-
-      yum localinstall http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
-      yum localinstall http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-      yum install flocker-node
-
-2. Create a ZFS pool.
-   For testing purposes, you can create a pool on a loopback device on your existing filesystem:
-
-   .. code-block:: console
-
-      mkdir -p /opt/flocker
-      truncate --size 1G /opt/flocker/pool-vdev
-      zpool create flocker /opt/flocker/pool-vdev
-
-   .. note:: Refer to the `ZFS on Linux documentation`_ for more information on zpool and other ZFS commands.
-
-.. _`ZFS on Linux documentation`: http://zfsonlinux.org/docs.html
 .. _`Homebrew`: http://brew.sh
