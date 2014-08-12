@@ -98,7 +98,7 @@ Preparing for a release
         ...
         0.0.6
 
-#. Checkout the branch for the release:
+#. In a clean, local working copy of Flocker with no modifications, checkout the branch for the release:
 
    .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
 
