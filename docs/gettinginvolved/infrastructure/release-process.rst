@@ -183,17 +183,14 @@ Release
 
 #. Build tagged docs at readthedocs.org:
 
-   Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
-
+   #. Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Set the default version to that version.
+   #. Force readthedocs.org to reload the repository, in case the GitHub webhook fails, by running:
 
-   .. note:: The GitHub readthedocs.org webhook feature should ensure that the new version tag appears immediately.
-             If it does not appear, you can force readthedocs.org to reload the repository by running:
+      .. code-block:: console
 
-             .. code-block:: console
-
-                curl -X POST http://readthedocs.org/build/flocker
+         curl -X POST http://readthedocs.org/build/flocker
 
 
 Announcing Releases
