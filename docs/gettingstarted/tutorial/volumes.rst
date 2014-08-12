@@ -106,7 +106,7 @@ This time however the data has moved with the application:
    { "_id" : ObjectId("53d80b08a3ad4df94a2a72d6"), "the data" : "it moves" }
 
 At this point you have successfully deployed a MongoDB server and communicated with it.
-You've also seen how Flocker allows you to move an application's data to different locations in cluster as the application is moved.
+You've also seen how Flocker allows you to move an application's data to different locations in a cluster as the application is moved.
 You now know how to run stateful applications in a Docker cluster using Flocker.
 
 If you would like to remove the virtual machines created for this tutorial, you can now finish off by running:
