@@ -25,7 +25,7 @@ The configuration files completely control this; there are no other command line
 See :ref:`configuration` for details about these two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
-The containers you are managing do not need to be running on the same host as ``flocker-deploy`` is run.
+The containers you are managing do not need to be running on the same host as ``flocker-deploy``\ .
 
 Authentication
 ==============
