@@ -201,7 +201,7 @@ We'll now connect to the second node via the MySQL client, using the same authen
    mysql>
 
 Now query the ``example`` database for the data we previously inserted.
-You will find ``flocker`` has moved our volume with the container and our data has been preserved.
+You will find ``flocker-deploy`` has moved our volume with the container and our data has been preserved.
 
 .. code-block:: console
 
