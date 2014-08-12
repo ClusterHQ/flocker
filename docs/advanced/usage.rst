@@ -21,7 +21,7 @@ The second is the path to an application configuration file.
     $ flocker-deploy clusterhq_deployment.yml clusterhq_app.yml
 
 The contents of these two configuration files determine what actions Flocker actually takes.
-The configuration files completely control this: there are no other command line arguments or options.
+The configuration files completely control this; there are no other command line arguments or options.
 See :ref:`configuration` for details about these two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
