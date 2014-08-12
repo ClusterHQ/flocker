@@ -46,7 +46,6 @@ IMAGE="clusterhq/mongodb"
 # Get the images needed for the tutorial.  This has to happen eventually and
 # doing it now aggregates all of the waiting in one place.
 docker pull "${IMAGE}"
-docker pull clusterhq/postgres
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
