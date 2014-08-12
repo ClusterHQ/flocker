@@ -2,7 +2,7 @@
 Using Flocker
 =============
 
-Flocker manages what containers are running and on what hosts.
+Flocker manages which containers are running and on what hosts.
 It also manages network configuration for these containers (between them and between containers and the world).
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
