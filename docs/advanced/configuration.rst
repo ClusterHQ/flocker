@@ -35,7 +35,7 @@ The following parameters are optional when defining an application:
 - ``ports``
 
   This is an optional list of port mappings to expose to the outside world.
-  Connection to the external port on the host machine are forward to the internal port in the container.
+  Connections to the *external* port on the host machine are forwarded to the *internal* port in the container.
 
   .. code-block:: yaml
 
