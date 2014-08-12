@@ -164,8 +164,8 @@ And is no longer running on the original host:
 Verify Our Data Has Moved with the Application
 ==============================================
 
-Query the `flockertest` database for the data we previously inserted.
-You will find `flocker` has moved our volume with the container and our data has been preserved.
+Query the ``flockertest`` database for the data we previously inserted.
+You will find that Flocker has moved our volume with the container and our data has been preserved.
 
 .. code-block:: console
 
@@ -182,7 +182,7 @@ You will find `flocker` has moved our volume with the container and our data has
              3
    (1 row)
 
-This concludes our example for using `flocker` with PostgreSQL.
+This concludes our example for using Flocker with PostgreSQL.
 Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may now wish to read through the :doc:`../advanced/index`.
 
 .. _`PostgreSQL`: https://www.postgresql.org/download/
