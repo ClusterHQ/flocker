@@ -64,7 +64,7 @@ Connect to PostgreSQL
 =====================
 
 We can now use the ``psql`` client on our host machine (you will need to install this if you do not already have it) to connect to the PostgreSQL server running inside the container.
-Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application config.
+Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application configuration.
 
 .. code-block:: console
 
@@ -124,8 +124,8 @@ We'll then switch our connection to use the new database and insert a row. From 
    flockertest=# \quit
 
 
-Create a New Deployment Config and Move the Application
-=======================================================
+Create a New Deployment Configuration and Move the Application
+==============================================================
 
 Download the new deployment configuration and save to your ``flocker-postgres`` directory.
 
@@ -134,7 +134,7 @@ Download the new deployment configuration and save to your ``flocker-postgres`` 
 .. literalinclude:: postgres-deployment-moved.yml
    :language: yaml
 
-Now run ``flocker-deploy`` on the new config:
+Now run ``flocker-deploy`` on the new configuration:
 
 .. code-block:: console
 
