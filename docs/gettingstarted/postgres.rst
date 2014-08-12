@@ -6,6 +6,8 @@ Once you've successfully followed through :doc:`./tutorial/index` this example w
 We'll insert some data, then use ``flocker-deploy`` to move the PostgreSQL server container to another virtual machine.
 The data in the database will be moved along with the application.
 
+The requirements are the same as the MongoDB tutorial, except that we will be using `PostgreSQL`_ instead of ``mongo`` to connect to the server.
+
 
 Create the Virtual Machines
 ===========================
@@ -63,7 +65,7 @@ You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the con
 Connect to PostgreSQL
 =====================
 
-We can now use the ``psql`` client on our host machine (you will need to install this if you do not already have it) to connect to the PostgreSQL server running inside the container.
+We can now use the ``psql`` client on our host machine to connect to the PostgreSQL server running inside the container.
 Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application configuration.
 
 .. code-block:: console
@@ -181,3 +183,5 @@ You will find `flocker` has moved our volume with the container and our data has
 
 This concludes our example for using `flocker` with PostgreSQL.
 Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may now wish to read through the :doc:`../advanced/index`.
+
+.. _`PostgreSQL`: https://www.postgresql.org/download/
