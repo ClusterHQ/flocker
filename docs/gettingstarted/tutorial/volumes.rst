@@ -109,10 +109,7 @@ At this point you have successfully deployed a MongoDB server and communicated w
 You've also seen how Flocker allows you to move an application's data to different locations in cluster as the application is moved.
 You now know how to run stateful applications in a Docker cluster using Flocker.
 
-If you would like to remove the virtual machines created for this tutorial, you can now finish off by running:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ vagrant destroy
-
-Confirm that you would like to remove the node1 and node2 virtual machines when prompted.
+The virtual machines you are running will be useful for testing Flocker and running other examples in the documentation.
+If you would like to shut them down temporarily you can run ``vagrant halt`` in the tutorial directory.
+You can then restart them by running ``vagrant up``.
+If you would like to completely remove the virtual machines you can run ``vagrant destroy``.
