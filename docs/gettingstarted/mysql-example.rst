@@ -14,7 +14,7 @@ We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./t
 If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
 
 
-Download the Docker image
+Download the Docker Image
 =========================
 
 The Docker image we'll be using is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
@@ -141,7 +141,7 @@ Next we'll verify the data has been saved and can be retrieved with a ``SELECT``
 
 As we have above, type in ``quit`` after you've run the ``SELECT`` query to exit the MySQL client.
 
-Create a new deployment config and move the application
+Create a New Deployment Config and Move the Application
 =======================================================
 
 Download the new deployment configuration and save to your ``flocker-mysql`` directory.
@@ -177,7 +177,7 @@ And is no longer running on the original host:
    alice@mercury:~/flocker-mysql$
 
 
-Verify our data has moved with the application
+Verify Our Data Has Moved With the Application
 ==============================================
 
 We'll now connect to the second node via the MySQL client, using the same authentication credentials as before.
