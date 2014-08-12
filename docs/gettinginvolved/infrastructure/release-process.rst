@@ -157,7 +157,7 @@ Release
 
    .. code-block:: console
 
-      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}"
+      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
 #. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
