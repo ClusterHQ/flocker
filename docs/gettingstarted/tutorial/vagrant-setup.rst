@@ -69,10 +69,6 @@ Creating Vagrant VMs Needed for Flocker
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
 
-.. note:: The two virtual machines are each assigned a 10GB virtual disk.
-          The underlying disk files grow to about 5GB.
-          So you will need at least 10GB of free disk space on your workstation.
-
 These VMs serve as hosts on which Flocker can run Docker.
 Flocker does not require Vagrant or VirtualBox.
 You can run it on other virtualization technology (e.g., VMware), on clouds (e.g., EC2), or directly on physical hardware.
@@ -84,6 +80,10 @@ These two IP addresses will be used throughout the tutorial and configuration fi
 If these addresses conflict with your local network configuration you can edit the ``Vagrantfile`` to use different values.
 Note that you will need to make the same substitution in commands used throughout the tutorial.
 
+.. note:: The two virtual machines are each assigned a 10GB virtual disk.
+          The underlying disk files grow to about 5GB.
+          So you will need at least 10GB of free disk space on your workstation.
+
 First create a tutorial directory:
 
 .. code-block:: console
@@ -92,7 +92,7 @@ First create a tutorial directory:
    alice@mercury:~/$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration file by right clicking on the links below.
+Next download the Vagrant configuration file by right clicking on the link below.
 Save it in the *flocker-tutorial* directory and preserve its filename.
 
 * :download:`Vagrant configuration <Vagrantfile>`

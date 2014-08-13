@@ -47,6 +47,8 @@ copyright = u'2014, ClusterHQ'
 # The short X.Y version.
 sys.path.insert(0, FilePath(__file__).parent().parent().path)
 from flocker import __version__ as version
+if version.endswith("-dirty"):
+    version = version[:-6]
 del sys.path[0]
 
 # The full version, including alpha/beta/rc tags.

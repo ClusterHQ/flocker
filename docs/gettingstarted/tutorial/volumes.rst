@@ -6,7 +6,7 @@ The Problem
 ===========
 
 By default moving an application from one node to another does not move its data along with it.
-Before proceeding let's see in more detail what the problem is by continuing the example in :doc:`exposing-ports`.
+Before proceeding let's see in more detail what the problem is by continuing the :doc:`Exposing Ports <exposing-ports>` example.
 
 Recall that we inserted some data into the database.
 Next we'll use a new configuration file that moves the application to a different node.
@@ -106,13 +106,10 @@ This time however the data has moved with the application:
    { "_id" : ObjectId("53d80b08a3ad4df94a2a72d6"), "the data" : "it moves" }
 
 At this point you have successfully deployed a MongoDB server and communicated with it.
-You've also seen how Flocker allows you to move an application's data to different locations in cluster as the application is moved.
+You've also seen how Flocker allows you to move an application's data to different locations in a cluster as the application is moved.
 You now know how to run stateful applications in a Docker cluster using Flocker.
 
-If you would like to remove the virtual machines created for this tutorial, you can now finish off by running:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ vagrant destroy
-
-Confirm that you would like to remove the node1 and node2 virtual machines when prompted.
+The virtual machines you are running will be useful for testing Flocker and running other examples in the documentation.
+If you would like to shut them down temporarily you can run ``vagrant halt`` in the tutorial directory.
+You can then restart them by running ``vagrant up``.
+If you would like to completely remove the virtual machines you can run ``vagrant destroy``.

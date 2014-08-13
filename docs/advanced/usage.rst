@@ -2,11 +2,11 @@
 Using Flocker
 =============
 
-Flocker manages what containers are running and on what hosts.
+Flocker manages which containers are running and on what hosts.
 It also manages network configuration for these containers (between them and between containers and the world).
 And Flocker also creates and replicates volumes.
 All of this functionality is available via a simple invocation of the ``flocker-deploy`` program.
-This program is included in the Flocker client package.
+This program is included in the ``flocker-cli`` package.
 If you haven't :doc:`installed that package <../gettingstarted/installation>` yet, you may want to do so now.
 
 Command Line Arguments
@@ -21,11 +21,11 @@ The second is the path to an application configuration file.
     $ flocker-deploy clusterhq_deployment.yml clusterhq_app.yml
 
 The contents of these two configuration files determine what actions Flocker actually takes.
-The configuration files completely control this: there are no other command line arguments or options.
+The configuration files completely control this; there are no other command line arguments or options.
 See :ref:`configuration` for details about these two files.
 
 You can run ``flocker-deploy`` anywhere you have it installed.
-The containers you are managing do not need to be running on the same host as ``flocker-deploy`` is run.
+The containers you are managing do not need to be running on the same host as ``flocker-deploy``\ .
 
 Authentication
 ==============

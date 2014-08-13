@@ -7,4 +7,5 @@ Getting Started
 
    installation
    tutorial/index
+   postgres
    mysql-example
