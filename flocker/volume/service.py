@@ -84,6 +84,19 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def get(self, name):
+        """
+        Return a locally-owned ``Volume`` with the given name.
+
+        Whether or not this volume actually exists is not checked in any
+        way.
+
+        :param unicode name: The name of the volume.
+
+        :return: A ``Volume``.
+        """
+        return Volume(uuid=self.uuid, name=name, _pool=self._pool)
+
     def wait_for_volume(self, name):
         """
         Wait for a volume by the given name, owned by thus service, to exist.
@@ -304,7 +317,7 @@ class Volume(object):
 
         :return: Container name as ``bytes``.
         """
-        return b"flocker-%s-data" % (self.name.encode("ascii"),)
+        return b"%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
         """

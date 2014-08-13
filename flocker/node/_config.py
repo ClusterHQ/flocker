@@ -7,7 +7,15 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
-from ._model import Application, DockerImage, Node, Deployment, Port, Link
+import os
+import yaml
+
+from twisted.python.filepath import FilePath
+
+from ._model import (
+    Application, AttachedVolume, Deployment, Link,
+    DockerImage, Node, Port
+)
 
 
 class ConfigurationError(Exception):
@@ -22,6 +30,15 @@ class Configuration(object):
     """
     Validate and parse configurations.
     """
+    def __init__(self, lenient=False):
+        """
+        :param bool lenient: If ``True`` don't complain about certain
+            deficiencies in the output of ``flocker-reportstate``, In
+            particular https://github.com/ClusterHQ/flocker/issues/289 means
+            the mountpoint is unknown.
+        """
+        self._lenient = lenient
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -83,7 +100,7 @@ class Configuration(object):
                     if port:
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(port.keys())))
+                                keys=', '.join(sorted(port.keys()))))
                     ports.append(Port(internal_port=internal_port,
                                       external_port=external_port))
             except ValueError as e:
@@ -111,7 +128,7 @@ class Configuration(object):
                     if link:
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(link.keys())))
+                                keys=', '.join(sorted(link))))
                     links.append(Link(local_port=local_port,
                                       remote_port=remote_port,
                                       application=application))
@@ -121,9 +138,61 @@ class Configuration(object):
                      "Invalid links specification. {message}").format(
                          application_name=application_name, message=e.message))
 
+            volume = None
+            if "volume" in config:
+                try:
+                    configured_volume = config.pop('volume')
+                    try:
+                        mountpoint = configured_volume['mountpoint']
+                    except TypeError:
+                        raise ValueError(
+                            "Unexpected value: " + str(configured_volume)
+                        )
+                    except KeyError:
+                        raise ValueError("Missing mountpoint.")
+
+                    if not (self._lenient and mountpoint is None):
+                        if not isinstance(mountpoint, str):
+                            raise ValueError(
+                                "Mountpoint {path} contains non-ASCII "
+                                "(unsupported).".format(
+                                    path=mountpoint
+                                )
+                            )
+                        if not os.path.isabs(mountpoint):
+                            raise ValueError(
+                                "Mountpoint {path} is not an absolute path."
+                                .format(
+                                    path=mountpoint
+                                )
+                            )
+                        configured_volume.pop('mountpoint')
+                        if configured_volume:
+                            raise ValueError(
+                                "Unrecognised keys: {keys}.".format(
+                                    keys=', '.join(sorted(
+                                        configured_volume.keys()))
+                                ))
+                        mountpoint = FilePath(mountpoint)
+
+                    volume = AttachedVolume(
+                        name=application_name,
+                        mountpoint=mountpoint
+                        )
+                except ValueError as e:
+                    raise ConfigurationError(
+                        ("Application '{application_name}' has a config "
+                         "error. Invalid volume specification. {message}")
+                        .format(
+                            application_name=application_name,
+                            message=e.message
+                        )
+                    )
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
+                volume=volume,
                 ports=frozenset(ports),
                 links=frozenset(links))
 
@@ -132,7 +201,7 @@ class Configuration(object):
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
                          application_name=application_name,
-                         keys=', '.join(config.keys()))
+                         keys=', '.join(sorted(config.keys())))
                 )
         return applications
 
@@ -203,9 +272,7 @@ class Configuration(object):
         :param dict deployment_configuration: Map of node names to application
             names.
 
-        :raises ValueError: if there are validation errors.
-
-        :raises KeyError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``Deployment`` object.
         """
@@ -217,3 +284,66 @@ class Configuration(object):
 
 
 model_from_configuration = Configuration().model_from_configuration
+
+
+def current_from_configuration(current_configuration):
+    """
+    Validate and coerce the supplied current cluster configuration into a
+    ``Deployment`` instance.
+
+    The passed in configuration is the aggregated output of
+    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+
+    :param dict current_configuration: Map of node names to list of
+        application maps.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``Deployment`` object.
+    """
+    configuration = Configuration(lenient=True)
+    nodes = []
+    for hostname, applications in current_configuration.items():
+        node_applications = configuration._applications_from_configuration(
+            applications)
+        nodes.append(Node(hostname=hostname,
+                          applications=frozenset(node_applications.values())))
+    return Deployment(nodes=frozenset(nodes))
+
+
+def configuration_to_yaml(applications):
+    """
+    Generate YAML representation of a node's applications.
+
+    A bunch of information is missing, but this is sufficient for the
+    initial requirement of determining what to do about volumes when
+    applying configuration changes.
+    https://github.com/ClusterHQ/flocker/issues/289
+
+    :param applications: ``list`` of ``Application``\ s, typically the
+        current configuration on a node as determined by
+        ``Deployer.discover_node_configuration()``.
+
+    :return: YAML serialized configuration in the application
+        configuration format.
+    """
+    result = {}
+    for application in applications:
+        # XXX image unknown, see
+        # https://github.com/ClusterHQ/flocker/issues/207
+        result[application.name] = {"image": "unknown"}
+        ports = []
+        for port in application.ports:
+            ports.append(
+                {'internal': port.internal_port,
+                 'external': port.external_port}
+            )
+        result[application.name]["ports"] = ports
+        if application.volume:
+            # Until multiple volumes are supported, assume volume name
+            # matches application name, see:
+            # https://github.com/ClusterHQ/flocker/issues/49
+            result[application.name]["volume"] = {
+                "mountpoint": None,
+            }
+    return yaml.safe_dump({"version": 1, "applications": result})

@@ -4,6 +4,8 @@
 The command-line ``flocker-deploy`` tool.
 """
 
+from subprocess import CalledProcessError
+
 from twisted.internet.defer import DeferredList
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
@@ -11,15 +13,24 @@ from twisted.python.usage import Options, UsageError
 
 from zope.interface import implementer
 
-from yaml import safe_load
+from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
+
+from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
 
-from ..volume._ipc import ProcessNode
+from ..common import ProcessNode
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
+
+
+@attributes(['node', 'hostname'])
+class NodeTarget(object):
+    """
+    A record for matching an ``INode`` implementation to its target host.
+    """
 
 
 @flocker_standard_options
@@ -34,7 +45,11 @@ class DeployOptions(Options):
     """
 
     synopsis = ("Usage: flocker-deploy [OPTIONS] "
-                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH")
+                "DEPLOYMENT_CONFIGURATION_PATH APPLICATION_CONFIGURATION_PATH"
+                "\n"
+                "If you have any issues or feedback, you can talk to us: "
+                "http://docs.clusterhq.com/en/latest/gettinginvolved/"
+                "contributing.html#talk-to-us")
 
     def parseArgs(self, deployment_config, application_config):
         deployment_config = FilePath(deployment_config)
@@ -96,6 +111,7 @@ class DeployScript(object):
         :return: A ``Deferred`` which fires when all nodes have been configured
             with ssh keys.
         """
+        self.ssh_configuration.create_keypair()
         results = []
         for node in deployment.nodes:
             results.append(
@@ -104,7 +120,19 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        return DeferredList(results)
+        d = DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+
+        # Exit with ssh's output if it failed for some reason:
+        def got_failure(failure):
+            if failure.value.subFailure.check(CalledProcessError):
+                raise SystemExit(
+                    b"Error connecting to cluster node: " +
+                    failure.value.subFailure.value.output)
+            else:
+                return failure
+
+        d.addErrback(got_failure)
+        return d
 
     def main(self, reactor, options):
         """
@@ -115,33 +143,69 @@ class DeployScript(object):
         """
         deployment = options['deployment']
         configuring = self._configure_ssh(deployment)
+        configuring.addCallback(
+            lambda _: self._reportstate_on_nodes(deployment))
 
-        def configured(ignored):
+        def configured(current_config):
             return self._changestate_on_nodes(
                 deployment,
                 options["deployment_config"],
-                options["application_config"])
+                options["application_config"],
+                current_config)
         configuring.addCallback(configured)
         configuring.addCallback(lambda _: None)
         return configuring
 
     def _get_destinations(self, deployment):
         """
-        Return sequence of ``INode`` to connect to for given deployment.
+        Return iterable of ``NodeTargets`` to connect to for given deployment.
 
         :param Deployment deployment: The requested already parsed
             configuration.
 
-        :return: Iterable of ``INode`` providers.
+        :return: Iterable of ``NodeTarget``\ s containing the node hostname and
+            corresponding ``INode`` provider with which to issue remote
+            procedures on that node.
         """
         private_key = DEFAULT_SSH_DIRECTORY.child(b"id_rsa_flocker")
 
         for node in deployment.nodes:
-            yield ProcessNode.using_ssh(node.hostname, 22, b"root",
-                                        private_key)
+            yield NodeTarget(
+                node=ProcessNode.using_ssh(
+                    node.hostname, 22, b"root", private_key),
+                hostname=node.hostname
+            )
+
+    def _reportstate_on_nodes(self, deployment):
+        """
+        Connect to all nodes and run ``flocker-reportstate``.
+
+        :param Deployment deployment: The requested already parsed
+            configuration.
+
+        :return: ``Deferred`` that fires with a ``bytes`` in YAML format
+            describing the current configuration.
+        """
+        command = [b"flocker-reportstate"]
+        results = []
+        for target in self._get_destinations(deployment):
+            d = deferToThread(target.node.get_output, command)
+            d.addCallback(safe_load)
+            d.addCallback(lambda val, key=target.hostname: (key, val))
+            results.append(d)
+        d = DeferredList(results, fireOnOneErrback=False, consumeErrors=True)
+
+        def got_results(node_states):
+            # Bail on errors:
+            for succeeded, value in node_states:
+                if not succeeded:
+                    return value
+            return safe_dump(dict(pair for (_, pair) in node_states))
+        d.addCallback(got_results)
+        return d
 
     def _changestate_on_nodes(self, deployment, deployment_config,
-                              application_config):
+                              application_config, cluster_config):
         """
         Connect to all nodes and run ``flocker-changestate``.
 
@@ -150,18 +214,23 @@ class DeployScript(object):
         :param bytes deployment_config: YAML-encoded deployment configuration.
         :param bytes application_config: YAML-encoded application
             configuration.
+        :param bytes current_config: YAML-encoded current cluster
+            configuration.
 
         :return: ``Deferred`` that fires when all remote calls are finished.
         """
         command = [b"flocker-changestate",
                    deployment_config,
-                   application_config]
-
+                   application_config,
+                   cluster_config]
         results = []
-        for destination in self._get_destinations(deployment):
+        for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
             # threads we won't get the required parallelism...
-            results.append(deferToThread(destination.get_output, command))
+            # https://github.com/ClusterHQ/flocker/issues/347
+            results.append(
+                deferToThread(
+                    target.node.get_output, command + [target.hostname]))
         return DeferredList(results)
 
 

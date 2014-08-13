@@ -57,11 +57,11 @@ setup(
     version=versioneer.get_version(),
     # This identifies the creators of this software.  This is left symbolic for
     # ease of maintenance.
-    author="HybridCluster Team",
+    author="ClusterHQ Team",
     # This is contact information for the authors.
-    author_email="support@hybridcluster.com",
+    author_email="support@clusterhq.com",
     # Here is a website where more information about the software is available.
-    url="http://hybridcluster.com/",
+    url="https://clusterhq.com/",
 
     # A short identifier for the license under which the project is released.
     license="Apache License, Version 2.0",
@@ -76,7 +76,7 @@ setup(
     packages=find_packages(),
 
     package_data={
-        'flocker.node.functional': ['docker/*'],
+        'flocker.node.functional': ['sendbytes-docker/*'],
     },
 
     entry_points = {
@@ -85,6 +85,7 @@ setup(
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
+            'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
         ],
     },
 
@@ -105,7 +106,7 @@ setup(
 
     extras_require={
         # This extra allows you to build the documentation for Flocker.
-        "doc": ["Sphinx==1.2", "sphinx-rtd-theme==0.1.6"],
+        "doc": ["Sphinx==1.2.2", "sphinx-rtd-theme==0.1.6"],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [
             # flake8 is pretty critical to have around to help point out
@@ -128,7 +129,14 @@ setup(
 
             # The test suite uses network namespaces
             "nomenclature >= 0.1.0",
-            ]
+            ],
+
+        # This extra is for Flocker release engineers to set up their release
+        # environment.
+        "release": [
+            "gsutil",
+            "wheel",
+            ],
         },
 
     cmdclass=cmdclass,

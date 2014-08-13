@@ -1,8 +1,8 @@
 .. _configuration:
 
-=============
-Configuration
-=============
+===================
+Configuring Flocker
+===================
 
 Flocker operates on two configuration files: application and deployment.
 Together these configurations define a deployment.
@@ -19,27 +19,35 @@ For now the ``version`` must be ``1``.
 
 The parameters required to define an application are:
 
-  - ``image``
+- ``image``
 
-    This is the name of the Docker image which will be used to start the container which will run the application.
-    Optionally, this may include a tag using the ``<name>:<tag>`` syntax.
+  This is the name of the Docker image which will be used to start the container which will run the application.
+  Optionally, this may include a tag using the ``<name>:<tag>`` syntax.
 
-    For example, an application which is meant to use version 1.0 of ClusterHQ's flocker-dev Docker image is configured like this:
+  For example, an application which is meant to use version 1.0 of ClusterHQ's flocker-dev Docker image is configured like this:
 
-    .. code-block:: yaml
+  .. code-block:: yaml
 
-       "image": "clusterhq/flocker-dev:v1.0"
+     "image": "clusterhq/flocker-dev:v1.0"
 
-  - ``ports``
+The following parameters are optional when defining an application:
 
-    This is an optional list of port mappings to expose to the outside world.
-    Connection to the external port on the host machine are forward to the internal port in the container.
+- ``ports``
 
-    .. code-block:: yaml
+  This is an optional list of port mappings to expose to the outside world.
+  Connections to the *external* port on the host machine are forwarded to the *internal* port in the container.
 
-       "ports":
-       - "internal": 80
-         "external": 8080
+  .. code-block:: yaml
+
+     "ports":
+     - "internal": 80
+       "external": 8080
+
+- ``volume``
+
+  This specifies that the application container requires a volume.
+  It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
+  The value for this key must be a string giving an absolute path.
 
   - ``links``
 
@@ -61,9 +69,11 @@ Here's an example of a simple but complete configuration defining one applicatio
   "applications":
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
-       "ports":
-       - "internal": 80
-         "external": 8080
+      "ports":
+      - "internal": 80
+        "external": 8080
+      "volume":
+        "mountpoint": "/var/mysql/data"
 
 
 Deployment Configuration

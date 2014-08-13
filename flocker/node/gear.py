@@ -9,6 +9,8 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed, fail
+from twisted.internet.task import deferLater
+from twisted.internet import reactor
 
 from treq import request, content
 
@@ -63,10 +65,25 @@ class Unit(object):
 
 
 class IGearClient(Interface):
-    """A client for the geard HTTP API."""
+    """
+    A client for the geard HTTP API.
+
+    Note the difference in semantics between the results of ``add()``
+    (firing does not indicate application started successfully)
+    vs. ``remove()`` (firing indicates application has finished shutting
+    down).
+    """
 
     def add(unit_name, image_name, ports=None, links=None):
-        """Install and start a new unit.
+        """
+        Install and start a new unit.
+
+        Note that callers should not assume success indicates the unit has
+        finished starting up. In addition to asynchronous nature of gear,
+        even if container is up and running the application within it
+        might still be starting up, e.g. it may not have bound the
+        external ports yet. As a result the final success of application
+        startup is out of scope for this method.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -84,7 +101,8 @@ class IGearClient(Interface):
         """
 
     def exists(unit_name):
-        """Check whether the unit exists.
+        """
+        Check whether the unit exists.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -93,17 +111,20 @@ class IGearClient(Interface):
         """
 
     def remove(unit_name):
-        """Stop and delete the given unit.
+        """
+        Stop and delete the given unit.
 
         This can be done multiple times in a row for the same unit.
 
         :param unicode unit_name: The name of the unit to stop.
 
-        :return: ``Deferred`` that fires on success.
+        :return: ``Deferred`` that fires once the unit has been stopped
+            and removed.
         """
 
     def list():
-        """List all known units.
+        """
+        List all known units.
 
         :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
@@ -118,9 +139,10 @@ class GearClient(object):
 
     def __init__(self, hostname):
         """
-        :param bytes hostname: Gear host to connect to.
+        :param unicode hostname: Gear host to connect to.
         """
-        self._base_url = b"http://%s:%d" % (hostname, GEAR_PORT)
+        self._base_url = b"http://%s:%d" % (hostname.encode("ascii"),
+                                            GEAR_PORT)
 
     def _container_request(self, method, unit_name, operation=None, data=None):
         """Send HTTP request to gear.
@@ -238,6 +260,22 @@ class GearClient(object):
     def remove(self, unit_name):
         d = self._container_request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
+
+        def check_if_stopped(_=None):
+            listing = self.list()
+
+            def got_listing(units):
+                matching_units = [unit for unit in units
+                                  if unit.name == unit_name]
+                if not matching_units:
+                    return
+                unit = matching_units[0]
+                if unit.activation_state in (u"failed", u"inactive"):
+                    return
+                return deferLater(reactor, 0.1, check_if_stopped)
+            listing.addCallback(got_listing)
+            return listing
+        d.addCallback(check_if_stopped)
         d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
         return d
@@ -267,7 +305,7 @@ class FakeGearClient(object):
 
     The state the the simulated units is stored in memory.
 
-    :ivar dict _units: See ``units`` of ``__init``\ .
+    :ivar dict _units: See ``units`` of ``__init__``\ .
     """
 
     def __init__(self, units=None):
@@ -305,9 +343,9 @@ class FakeGearClient(object):
         # GearClient.list can pass until the real GearClient.list can also
         # return container_image information, ports and links.
         # See https://github.com/ClusterHQ/flocker/issues/207
-        incomplete_units = []
+        incomplete_units = set()
         for unit in self._units.values():
-            incomplete_units.append(
+            incomplete_units.add(
                 Unit(name=unit.name, activation_state=unit.activation_state))
         return succeed(incomplete_units)
 

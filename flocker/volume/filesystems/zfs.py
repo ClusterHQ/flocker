@@ -152,7 +152,10 @@ class Filesystem(object):
             process.stdin.close()
             succeeded = not process.wait()
         if succeeded:
-            exists = not subprocess.Popen([b"zfs", b"list", self.name]).wait()
+            with open(os.devnull) as discard:
+                exists = not subprocess.Popen(
+                    [b"zfs", b"list", self.name],
+                    stderr=discard, stdout=discard).wait()
             if exists:
                 subprocess.check_call([b"zfs", b"destroy", b"-R", self.name])
             subprocess.check_call([b"zfs", b"rename", temp_filesystem,
@@ -214,6 +217,7 @@ def volume_to_dataset(volume):
 
 @implementer(IStoragePool)
 @with_repr(["_name"])
+@with_cmp(["_name", "_mount_root"])
 class StoragePool(object):
     """A ZFS storage pool."""
 

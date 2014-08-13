@@ -20,14 +20,14 @@ Volume Ownership
 Each volume is owned by a specific volume manager and only that volume manager can write to it.
 To begin with a volume is owned by the volume manager that created it.
 A volume manager can *push* volumes it owns to another machine, copying the volume's data to a remote volume manager.
-The copied volume on that remote volume manager will continue owned by the local volume manager, and therefore the remote volume manager will not be able to write to it.
+The copied volume on that remote volume manager will continue to be owned by the local volume manager, and therefore the remote volume manager will not be able to write to it.
 
 A volume manager can also *handoff* a volume to a remote volume manager, i.e. transfer ownership.
 The remote volume manager becomes the owner of the volume and subsequently it is able to write to the volume.
 The volume manager that did the handoff ceases to own the volume and subsequently is not allowed to write to the volume.
 
 
-Implementation details
+Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Each volume is a ZFS dataset.
@@ -47,23 +47,25 @@ Docker Integration
 ******************
 
 Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-Since Flocker adds a ``"flocker-"`` prefix to containers it creates, this prefix will also be added to the data container.
-For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"flocker-myapp-mongodb-data"`` will be created that has the volume mounted at that path.
+For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
-You can then use this volume manually using ``--volumes-from``::
+You can then use this volume manually using ``--volumes-from``:
 
-    $ docker run --volumes-from flocker-myapp-mongodb-data --name mongodb openshift/centos-mongodb
+.. code-block:: console
 
-The ``mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
+    $ docker run --volumes-from myapp-mongodb-data --name myapp-mongodb openshift/centos-mongodb
 
-Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"flocker-myapp-mongodb-data"`` if you create a unit called ``"flocker-myapp-mongodb"``.
+The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
+
+Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
 
 
 Push and Handoff
 ****************
 
 Push and handoffs are currently done over SSH between nodes, with ad-hoc calls to the ``flocker-volume`` command-line tool.
-In future releases this will be switched to a real protocol (see , and later on to communication between long-running daemons rather than short-lived scripts.
+In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
+(See `#154 <https://github.com/ClusterHQ/flocker/issues/154>`_\ .)
 
 When a volume is pushed a ``zfs send`` is used to serialize its data for transmission to the remote machine, which does a ``zfs receive`` to decode the data and create or update the corresponding ZFS dataset.
 

@@ -5,8 +5,6 @@
 from __future__ import absolute_import
 
 import json
-import os
-from unittest import skipIf
 from uuid import uuid4
 
 from zope.interface.verify import verifyObject
@@ -21,8 +19,10 @@ from ..service import (
     WAIT_FOR_VOLUME_INTERVAL
     )
 from ..filesystems.memory import FilesystemStoragePool
-from .._ipc import FakeNode, RemoteVolumeManager, LocalVolumeManager
-from ...testtools import skip_on_broken_permissions
+from .._ipc import RemoteVolumeManager, LocalVolumeManager
+from ..testtools import create_volume_service
+from ...common import FakeNode
+from ...testtools import skip_on_broken_permissions, attempt_effective_uid
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -60,7 +60,6 @@ class VolumeServiceStartupTests(TestCase):
         service.startService()
         self.assertTrue(path.exists())
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
     def test_config_makedirs_failed(self):
         """If creating the config directory fails then CreateConfigurationError
@@ -71,9 +70,9 @@ class VolumeServiceStartupTests(TestCase):
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"dir").child(b"config.json")
         service = VolumeService(path, None, reactor=Clock())
-        self.assertRaises(CreateConfigurationError, service.startService)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(CreateConfigurationError, service.startService)
 
-    @skipIf(os.getuid() == 0, "root doesn't get permission errors.")
     @skip_on_broken_permissions
     def test_config_write_failed(self):
         """If writing the config fails then CreateConfigurationError
@@ -84,7 +83,8 @@ class VolumeServiceStartupTests(TestCase):
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"config.json")
         service = VolumeService(path, None, reactor=Clock())
-        self.assertRaises(CreateConfigurationError, service.startService)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(CreateConfigurationError, service.startService)
 
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""
@@ -130,6 +130,16 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(u"myvolume"))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
+
+    def test_get(self):
+        """
+        ``VolumeService.get`` creates a ``Volume`` instance owned by that
+        service and with given name.
+        """
+        service = create_volume_service(self)
+        self.assertEqual(service.get(u"somevolume"),
+                         Volume(uuid=service.uuid, name=u"somevolume",
+                                _pool=service._pool))
 
     def test_push_different_uuid(self):
         """Pushing a remotely-owned volume results in a ``ValueError``."""
@@ -281,25 +291,12 @@ class VolumeServiceAPITests(TestCase):
     # Further tests for acquire() are done in
     # test_ipc.make_iremote_volume_manager.
 
-    def create_service(self):
-        """
-        Create a new ``VolumeService``.
-
-        :return: The ``VolumeService`` created.
-        """
-        service = VolumeService(FilePath(self.mktemp()),
-                                FilesystemStoragePool(FilePath(self.mktemp())),
-                                reactor=Clock())
-        service.startService()
-        self.addCleanup(service.stopService)
-        return service
-
     def test_handoff_rejects_remote_volume(self):
         """
         ``VolumeService.handoff()`` errbacks with a ``ValueError`` if given a
         remotely-owned volume.
         """
-        service = self.create_service()
+        service = create_volume_service(self)
         remote_volume = Volume(uuid=u"remote", name=u"blah",
                                _pool=service._pool)
 
@@ -311,8 +308,8 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.handoff()`` makes the remote node owner of the volume
         previously owned by the original owner.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
@@ -337,8 +334,8 @@ class VolumeServiceAPITests(TestCase):
         ```VolumeService.handoff()`` changes the owner UUID of the local
         volume to the new owner's UUID.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
@@ -361,8 +358,8 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeService.handoff()`` preserves the data from the relinquished
         volume in the newly owned resulting volume in the local volume manager.
         """
-        origin_service = self.create_service()
-        destination_service = self.create_service()
+        origin_service = create_volume_service(self)
+        destination_service = create_volume_service(self)
 
         created = origin_service.create(u"avolume")
 
@@ -424,11 +421,14 @@ class VolumeTests(TestCase):
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
 
     def test_container_name(self):
-        """The volume's container name adds a ``"flocker-"`` prefix and
-        ``"-data"`` suffix.
+        """
+        The volume's container name adds ``"-data"`` suffix to the volume name.
+
+        This ensures that geard will automatically mount it into a
+        container whose name matches that of the volume.
         """
         volume = Volume(uuid=u"123", name=u"456", _pool=object())
-        self.assertEqual(volume._container_name, b"flocker-456-data")
+        self.assertEqual(volume._container_name, b"456-data")
 
 
 class VolumeOwnerChangeTests(TestCase):

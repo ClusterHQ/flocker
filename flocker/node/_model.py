@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, with_cmp, with_repr, with_init
+from characteristic import attributes
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -49,20 +49,32 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@with_cmp(["name"])
-@with_repr(["name", "image", "ports", "links"])
-@with_init(["name", "image", "ports", "links"],
-           defaults=dict(image=None, ports=None, links=None))
+@attributes(["name", "mountpoint"])
+class AttachedVolume(object):
+    """
+    A volume attached to an application to be deployed.
+
+    :ivar unicode name: A short, human-readable identifier for this
+        volume. For now this is always the same as the name of the
+        application it is attached to (see
+        https://github.com/ClusterHQ/flocker/issues/49).
+
+    :ivar FilePath mountpoint: The path within the container where this
+        volume should be mounted, or ``None`` if unknown
+        (see https://github.com/ClusterHQ/flocker/issues/289).
+    """
+
+
+@attributes(["name", "image", "ports", "volume", "links"],
+            defaults=dict(image=None, ports=frozenset(), volume=None,
+                          links=frozenset()))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image, ports and links attributes defaults to `None` until we have
-    a way to interrogate geard for the docker images associated with its
+    XXX: The image attribute defaults to ``None`` until we have a way to
+    interrogate geard for the docker images associated with its
     containers. See https://github.com/ClusterHQ/flocker/issues/207
-
-    XXX: Only the name is compared in equality checks. See
-    https://github.com/ClusterHQ/flocker/issues/267
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
@@ -71,8 +83,11 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    :ivar frozenset ports: A ``frozenset`` of ``Port`s that should be exposed
-        to the outside world.
+    :ivar frozenset ports: A ``frozenset`` of ``Port`` instances that
+        should be exposed to the outside world.
+
+    :ivar volume: ``None`` if there is no volume, otherwise an
+        ``AttachedVolume`` instance.
 
     :ivar frozenset links: A ``frozenset`` of ``Link``s that
         should be created between applications.
@@ -117,14 +132,37 @@ class Port(object):
     """
 
 
-@attributes(["containers_to_start", "containers_to_stop"])
-class StateChanges(object):
+@attributes(["volume", "hostname"])
+class VolumeHandoff(object):
     """
-    ``StateChanges`` describes changes necessary to make to the current
-    state. This might be because of user-specified configuration changes.
+    A record representing a volume handoff that needs to be performed from this
+    node.
 
-    :ivar set containers_to_start: The containers which must be started.
-    :ivar set containers_to_stop: The containers which must be stopped.
+    See :cls:`flocker.volume.service.VolumeService.handoff`` for more details.
+
+    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
+    """
+
+
+@attributes(["going", "coming", "creating"])
+class VolumeChanges(object):
+    """
+    ``VolumeChanges`` describes the volume-related changes necessary to change
+    the current state to the desired state.
+
+    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
+        nodes take over hosting of any volume-having applications being moved
+        away from a node.  These must be handed off.
+
+    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
+        node take over hosting of any volume-having applications being moved to
+        this node.  These must be acquired.
+
+    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
+        node create any new volume-having applications meant to be hosted on
+        this node.  These must be created.
     """
 
 
