@@ -229,11 +229,11 @@ You will find ``flocker-deploy`` has moved our volume with the container and our
    +----+--------------+
    1 row in set (0.01 sec)
    
-   mysql> quit
+   mysql>
 
-You have now exited the MySQL client.
+You can now exit the MySQL client.
 
 ---------------------------------
 
-This concludes our example for using `flocker` with MySQL.
+This concludes our example for using ``flocker`` with MySQL.
 Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may wish to read through the :doc:`../advanced/index`.
