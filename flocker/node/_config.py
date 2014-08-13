@@ -13,7 +13,7 @@ import yaml
 from twisted.python.filepath import FilePath
 
 from ._model import (
-    Application, AttachedVolume, Deployment,
+    Application, AttachedVolume, Deployment, Link,
     DockerImage, Node, Port
 )
 
@@ -109,6 +109,35 @@ class Configuration(object):
                      "Invalid ports specification. {message}").format(
                          application_name=application_name, message=e.message))
 
+            links = []
+            try:
+                for link in config.pop('links', []):
+                    try:
+                        local_port = link.pop('local_port')
+                    except KeyError:
+                        raise ValueError("Missing local port.")
+                    try:
+                        remote_port = link.pop('remote_port')
+                    except KeyError:
+                        raise ValueError("Missing remote port.")
+                    try:
+                        application = link.pop('application')
+                    except KeyError:
+                        raise ValueError("Missing application.")
+
+                    if link:
+                        raise ValueError(
+                            "Unrecognised keys: {keys}.".format(
+                                keys=', '.join(sorted(link))))
+                    links.append(Link(local_port=local_port,
+                                      remote_port=remote_port,
+                                      application=application))
+            except ValueError as e:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "Invalid links specification. {message}").format(
+                         application_name=application_name, message=e.message))
+
             volume = None
             if "volume" in config:
                 try:
@@ -164,7 +193,8 @@ class Configuration(object):
                 name=application_name,
                 image=image,
                 volume=volume,
-                ports=frozenset(ports))
+                ports=frozenset(ports),
+                links=frozenset(links))
 
             if config:
                 raise ConfigurationError(

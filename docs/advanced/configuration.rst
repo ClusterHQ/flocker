@@ -49,6 +49,18 @@ The following parameters are optional when defining an application:
   It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
   The value for this key must be a string giving an absolute path.
 
+  - ``links``
+
+    This is an optional list of links to make to other containers.
+    Connection to the local port in the application are forwarded to the remote port of the other application.
+
+    .. code-block:: yaml
+
+       "links":
+       - "local_port": 80
+         "remote_port": 8080
+         "application": "other-app"
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml

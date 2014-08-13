@@ -115,10 +115,17 @@ class StartApplication(object):
                             application.ports)
         else:
             port_maps = []
+        if application.links is not None:
+            gear_links = map(lambda l: PortMap(internal_port=l.local_port,
+                                               external_port=l.remote_port),
+                             application.links)
+        else:
+            gear_links = None
         d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
+            links=gear_links,
         ))
         return d
 

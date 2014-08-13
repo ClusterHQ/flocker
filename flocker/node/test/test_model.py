@@ -87,13 +87,13 @@ class ApplicationTests(SynchronousTestCase):
     """
     def test_repr(self):
         """
-        ``Application.__repr__`` includes the name and image and ports.
+        ``Application.__repr__`` includes the name, image, ports, and links.
         """
         application = Application(name=u'site-example.com', image=None,
-                                  ports=None)
+                                  ports=None, links=None)
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None)>",
+            "volume=None, links=None)>",
             repr(application)
         )
 

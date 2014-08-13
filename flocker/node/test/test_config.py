@@ -15,7 +15,7 @@ from .._config import (
     current_from_configuration,
     )
 from .._model import (
-    Application, AttachedVolume, DockerImage, Deployment, Node, Port
+    Application, AttachedVolume, DockerImage, Deployment, Node, Port,
 )
 
 
@@ -167,7 +167,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)]))
+                                      external_port=8080)]),
+            ),
         }
         self.assertEqual(expected_applications, applications)
 
@@ -235,6 +236,97 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
+
+    def test_links_missing_local_port(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the remote port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'remote_port': 90,
+                        'application': 'mysql-hybridcluster'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing local port.",
+            exception.message
+        )
+
+    def test_links_missing_remote_port(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the local port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'local_port': 90,
+                        'application': 'mysql-hybridcluster'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing remote port.",
+            exception.message
+        )
+
+    def test_links_missing_application(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the remote application.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'local_port': 90, 'remote_port': 100}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing application.",
+            exception.message
+        )
+
+    def test_links_extra_keys(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that has extra keys.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'remote_port': 90, 'local_port': 40,
+                        'application': 'otherapp', 'foo': 5, 'bar': 'six'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Unrecognised keys: bar, foo.",
             exception.message
         )
 

@@ -65,18 +65,16 @@ class AttachedVolume(object):
     """
 
 
-@attributes(["name", "image", "ports", "volume"],
-            defaults=dict(image=None, ports=frozenset(), volume=None))
+@attributes(["name", "image", "ports", "volume", "links"],
+            defaults=dict(image=None, ports=frozenset(), volume=None,
+                          links=frozenset()))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image and ports attributes defaults to `None` until we have a way
-    to interrogate geard for the docker images associated with its containers.
-    See https://github.com/ClusterHQ/flocker/issues/207
-
-    XXX: Only the name is compared in equality checks. See
-    https://github.com/ClusterHQ/flocker/issues/267
+    XXX: The image attribute defaults to ``None`` until we have a way to
+    interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
@@ -90,6 +88,9 @@ class Application(object):
 
     :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
+
+    :ivar frozenset links: A ``frozenset`` of ``Link``s that
+        should be created between applications.
     """
 
 
@@ -162,4 +163,17 @@ class VolumeChanges(object):
     :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
         node create any new volume-having applications meant to be hosted on
         this node.  These must be created.
+    """
+
+
+@attributes(['local_port', 'remote_port', 'application'])
+class Link(object):
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
+
+    :ivar int local_port: The ports to connect.
+    :ivar int remote_port:
+    :ivar unicode application: The remote application to connect to.
     """
