@@ -54,9 +54,9 @@ Preliminary Step: Pre-populating RPM Repository
 This only needs to be done if the dependency packages for Flocker (i.e. geard and Python libraries) change; it should *not* be done every release.
 If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
 
-These steps must be performed from a machine with the ClusterHQ copr repo installed.
-You can either use the :doc:`Flocker development enviroment <vagrant>`
-or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
+These steps must be performed from a machine with the ClusterHQ Copr repository installed.
+You can either use the :doc:`Flocker development environment <vagrant>`
+or install the Copr repository locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
 
 ::
 

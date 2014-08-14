@@ -28,3 +28,4 @@ virtualization
 handoff
 handoffs
 NAT'd
+Copr
