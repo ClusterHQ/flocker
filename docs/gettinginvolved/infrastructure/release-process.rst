@@ -201,7 +201,7 @@ Announcing Releases
 
   - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
   - on the blog - https://clusterhq.com/blog/
-  - on the IRC channel - #clusterhq on freenode
+  - on the IRC channel - #clusterhq on ``irc.freenode.net``
 
 - Update download links on https://clusterhq.com
 
