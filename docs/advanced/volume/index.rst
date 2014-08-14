@@ -38,7 +38,7 @@ Volumes are created with three parameters:
 * The logical name; this must be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
 * A mount path, indicating where within a container the volume will be mounted.
-  For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores its data.
+  For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
 The ZFS dataset name is a combination of the UUID and the logical name, e.g. ``1234.myapp-mongodb``.
 
