@@ -2,7 +2,7 @@
 Getting Started
 ===============
 
-Flocker is a lightweight volume and container manager.  
+Flocker is a lightweight volume and container manager.
 It lets you:
 
 * Define your application as a set of connected Docker containers
