@@ -25,3 +25,5 @@ rpmbuild
 createrepo
 rpmdevtools
 virtualization
+handoff
+handoffs

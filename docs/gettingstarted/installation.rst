@@ -17,8 +17,8 @@ These utilities are called by ``flocker-deploy`` (via SSH) to install and migrat
 
 .. _installing-flocker-cli:
 
-Installing flocker-cli
-======================
+Installing ``flocker-cli``
+==========================
 
 Linux
 -----
