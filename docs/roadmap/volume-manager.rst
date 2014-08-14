@@ -67,7 +67,7 @@ E.g. ZFS properties are inherited automatically (not the behavior we want), whic
 Implementation Notes - Btrfs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writeable.
+Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writable.
 As such the proposed model should also work with Btrfs.
 Btrfs appears to lack promotion, but that can be emulated via renames.
 It’s not clear if Btrfs has the “can’t delete parent if it has children” restriction, though it may just keep around extra disk storage in that case.

@@ -12,3 +12,4 @@ hostname
 filesystems
 filename
 timestamp
+programmatically

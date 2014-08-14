@@ -11,7 +11,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 - announcement on mailing list, blog, IRC (others?)
-- download links on clusterhq.com
+- download links on https://clusterhq.com
 
 
 Prerequisites
@@ -173,7 +173,7 @@ Release
 
       $ gsutil config
 
-#. Build python packages for upload, and upload them to archive.clusterhq.com, as well as uploading the RPMs:
+#. Build python packages for upload, and upload them to gs://archive.clusterhq.com, as well as uploading the RPMs:
 
    .. code-block:: console
 
@@ -203,9 +203,9 @@ Announcing Releases
   - on the blog - https://clusterhq.com/blog/
   - on the IRC channel - #clusterhq on freenode
 
-- Update download links on clusterhq.com
+- Update download links on https://clusterhq.com
 
-  XXX Arrange to have download links on a page on clusterhq.com somewhere.
+  XXX Arrange to have download links on a page on https://clusterhq.com somewhere.
   See https://github.com/ClusterHQ/flocker/issues/359 and https://github.com/ClusterHQ/flocker/issues/488
 
 
