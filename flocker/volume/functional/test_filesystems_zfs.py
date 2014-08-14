@@ -132,3 +132,32 @@ class StoragePoolTests(TestCase):
                              b'content')
         d.addCallback(changed_owner)
         return d
+
+    def test_locally_owned_created_writeable(self):
+        """
+        A filesystem which is created for a locally owned volume is writeable.
+        """
+
+    def test_remotely_owned_created_readonly(self):
+        """
+        A filesystem which is created for a remotely owned volume is not
+        writeable.
+        """
+
+    def test_written_created_readonly(self):
+        """
+        A filesystem which is received from a remote filesystem (which is
+        writable in its origin pool) is not writeable.
+        """
+
+    def test_owner_change_to_locally_becomes_writeable(self):
+        """
+        A filesystem which was previously remotely owned and is now locally
+        owned becomes writeable.
+        """
+
+    def test_owner_change_to_remote_becomes_readonly(self):
+        """
+        A filesystem which was previously locally owned and is now remotely
+        owned becomes unwriteable.
+        """
