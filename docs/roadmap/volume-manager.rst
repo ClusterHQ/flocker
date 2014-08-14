@@ -28,7 +28,7 @@ We are therefore going to be using the following model for CLI examples below:
 * A “**tag**” is a named read-only pointer to the contents of a branch at a given point in time; it is attached to the volume, and is not mounted on the filesystem.
 * Given volume called “mydata”, “mydata/trunk” is (by convention) is the main branch from which other branches originate, “mydata/branchname” is some other branch, and “mytag@mydata” is a tag.
 * Branches’ full name includes the Flocker instance they came from (by default let’s say using its hostname), e.g. “somehost/myvolume/trunk”. “dataset/branch” is shorthand for the current host, e.g. “thecurrenthost.example.com/dataset/branch”. In a replication scenario we could have “remote.example.com/datavolume/trunk” and “thecurrenthost.example.com/datavolume/trunk” (aka “datavolume/trunk”) as a branch off of that.
-* Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “myvolume/trunk” is exported via a docker container called “flocker:myvolume/trunk” (“flocker:” prefix isn’t a Docker feature, just a proposed convention for naming our containers).
+* Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “myvolume/trunk” is exported via a docker container called “flocker:myvolume/trunk” (“flocker:” prefix is not a Docker feature, just a proposed convention for naming our containers).
 * Remote branches are not mounted, but a local branch can be created off of them and then that is auto-mounted.
 
 
