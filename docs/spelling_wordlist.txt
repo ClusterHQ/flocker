@@ -2,14 +2,14 @@ stateful
 VMware
 Homebrew
 flocker
-Geard
+geard
 Buildbot
 Btrfs
 ZFS
 iptables
 dataset
 hostname
-filesystems
+filesystem
 filename
 timestamp
 programmatically
@@ -19,3 +19,8 @@ workflow
 proxying
 proxied
 systemd
+yumdownloader
+rpmbuild
+createrepo
+rpmdevtools
+virtualization

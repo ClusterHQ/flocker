@@ -106,8 +106,8 @@ flocker-changestate
 Managing Containers
 -------------------
 
-* `Geard`_ is used to start, stop, and enumerate containers.
-* Geard works by creating systemd units.
+* `geard`_ is used to start, stop, and enumerate containers.
+* geard works by creating systemd units.
 * systemd units are a good way to provide admin tools for:
 
   * Logging and state inspection.
@@ -120,9 +120,9 @@ Managing Volumes
 
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
-* Geard automatically associates the "data" container's volumes with the actual container.
+* geard automatically associates the "data" container's volumes with the actual container.
 
-  * Association is done based on container names by Geard.
+  * Association is done based on container names by geard.
 
 * Data model
   * Volumes are owned by a specific node.
@@ -159,5 +159,5 @@ User Experience
 
 * Your sysadmin runs a command like ``flocker-deploy deployment-config.yml application-config.yml`` on their laptop.
 
-.. _Geard: https://github.com/openshift/geard
+.. _geard: https://github.com/openshift/geard
 
