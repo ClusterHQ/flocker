@@ -79,7 +79,7 @@ Preparing for a release
 
 #. Choose a version number:
 
-   - Release numbers should be of the form x.y.z eg:
+   - Release numbers should be of the form x.y.z e.g.:
 
      .. code-block:: console
 
