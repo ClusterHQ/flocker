@@ -58,7 +58,7 @@ Application Configuration
 * Application configuration describes what you want to run in a container.
 
   * it identifies a Docker image
-  * an optional volume mountpoint
+  * an optional volume mount point
   * externally "routed" ports
 
 * This configuration is expected to be shared between development, staging, production, etc environments.

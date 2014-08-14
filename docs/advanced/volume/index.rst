@@ -47,7 +47,7 @@ Docker Integration
 ******************
 
 Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
+For example, if you create a volume called ``"myapp-mongodb"`` with mount point ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
 You can then use this volume manually using ``--volumes-from``:
 
