@@ -45,7 +45,7 @@ Access
 
      /msg ChanServ access add #clusterhq <nickname> +t
 
-- Access to `Google cloud storage`_ using `gsutil`_.
+- Access to `Google Cloud Storage`_ using `gsutil`_.
 
 
 Preliminary Step: Pre-populating RPM Repository

@@ -24,7 +24,7 @@ The parameters required to define an application are:
   This is the name of the Docker image which will be used to start the container which will run the application.
   Optionally, this may include a tag using the ``<name>:<tag>`` syntax.
 
-  For example, an application which is meant to use version 1.0 of ClusterHQ's flocker-dev Docker image is configured like this:
+  For example, an application which is meant to use version 1.0 of ClusterHQ's ``flocker-dev`` Docker image is configured like this:
 
   .. code-block:: yaml
 
