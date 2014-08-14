@@ -45,7 +45,7 @@ Branches are known to be local if branch’s specified flocker instance matches 
 Volumes have UUIDs, and a matching (cluster unique?) human readable name.
 Tags are indicated by having a snapshot with a user attributes indicating it is a tag, the tag name and the volume name.
 However, not all ZFS snapshots will be exposed as tags.
-E.g. the fact that a snapshot is necessary for cloning (and therefore branch creation) is an implementation detail; sometimes you want to branch off a tag, but if you want to branch off of latest version the fact that a snapshot is created needn’t be exposed.
+E.g. the fact that a snapshot is necessary for cloning (and therefore branch creation) is an implementation detail; sometimes you want to branch off a tag, but if you want to branch off of latest version the fact that a snapshot is created needn't be exposed.
 
 A remote branch exists if there is a non-tag ZFS snapshot naming it, i.e. the snapshot has a user attribute indicating which branch it’s on (e.g. “thathost/somevolume/abranch”).
 
