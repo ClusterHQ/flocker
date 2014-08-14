@@ -79,9 +79,9 @@ Make sure Homebrew has no issues:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ brew doctor
+   alice@mercury:~$ brew doctor
    ...
-   alice@mercury:~/flocker-tutorial$
+   alice@mercury:~$
 
 Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
 
@@ -89,13 +89,13 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ brew update
+   alice@mercury:~$ brew update
    ...
-   alice@mercury:~/flocker-tutorial$ brew tap ClusterHQ/flocker
+   alice@mercury:~$ brew tap ClusterHQ/flocker
    ...
-   alice@mercury:~/flocker-tutorial$ brew install flocker
+   alice@mercury:~$ brew install flocker
    ...
-   alice@mercury:~/flocker-tutorial$
+   alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-flocker`_ repository.
 
@@ -103,9 +103,9 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
+   alice@mercury:~$ flocker-deploy --version
    0.1.0
-   alice@mercury:~/flocker-tutorial$
+   alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-flocker: https://github.com/ClusterHQ/homebrew-flocker
