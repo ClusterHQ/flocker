@@ -20,15 +20,15 @@ Motivation:
 * We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to Btrfs or some other system.
   Especially given conflicting terminology - Btrfs “snapshots” are the same as ZFS “clones”.
 * When it comes to replication, it is probably useful to differentiate between “data which is a copy of what the remote host has” and “local version”, in particular when divergence is a potential issue (e.g. can be caused by erroneous failover).
-  In git you have “origin/branchname” vs. the local “branchname”, for example.
+  In git you have “``origin/branchname``” vs. the local “``branchname``”, for example.
 
 We are therefore going to be using the following model for CLI examples below:
 
 * A “**volume**” is a tree of “**branches**”.
 * A “**tag**” is a named read-only pointer to the contents of a branch at a given point in time; it is attached to the volume, and is not mounted on the filesystem.
-* Given volume called “mydata”, “mydata/trunk” is (by convention) is the main branch from which other branches originate, “mydata/branchname” is some other branch, and “mytag@mydata” is a tag.
-* Branches’ full name includes the Flocker instance they came from (by default let’s say using its hostname), e.g. “somehost/myvolume/trunk”. “dataset/branch” is shorthand for the current host, e.g. “thecurrenthost.example.com/dataset/branch”. In a replication scenario we could have “remote.example.com/datavolume/trunk” and “thecurrenthost.example.com/datavolume/trunk” (aka “datavolume/trunk”) as a branch off of that.
-* Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “myvolume/trunk” is exported via a docker container called “``flocker:myvolume/trunk``” (“``flocker:``” prefix is not a Docker feature, just a proposed convention for naming our containers).
+* Given volume called “``mydata``”, “``mydata/trunk``” is (by convention) is the main branch from which other branches originate, “``mydata/branchname``” is some other branch, and “``mytag@mydata``” is a tag.
+* Branches’ full name includes the Flocker instance they came from (by default let’s say using its hostname), e.g. “``somehost/myvolume/trunk``”. “``dataset/branch``” is shorthand for the current host, e.g. “``thecurrenthost.example.com/dataset/branch``”. In a replication scenario we could have “``remote.example.com/datavolume/trunk``” and “``thecurrenthost.example.com/datavolume/trunk``” (aka “``datavolume/trunk``”) as a branch off of that.
+* Local branches are mounted on the filesystem, and then exposed to Docker, e.g. “``myvolume/trunk``” is exported via a Docker container called “``flocker:myvolume/trunk``” (“``flocker:``” prefix is not a Docker feature, just a proposed convention for naming our containers).
 * Remote branches are not mounted, but a local branch can be created off of them and then that is auto-mounted.
 
 

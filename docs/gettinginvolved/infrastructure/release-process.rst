@@ -100,7 +100,7 @@ Preparing for a release
 
 #. In a clean, local working copy of Flocker with no modifications, checkout the branch for the release:
 
-   .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
+   .. note:: All releases of the x.y series will be made from the ``releases/flocker-x.y`` branch.
 
    - If this is a major or minor release then create the branch for the minor version:
 
