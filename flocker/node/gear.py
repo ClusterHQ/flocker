@@ -25,6 +25,14 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
+@attributes(["id", "variables"])
+class GearEnvironment(object):
+    """
+    A collection of Geard unit environment variables associated with an
+    environment ID.
+    """
+
+
 @attributes(["name", "activation_state", "sub_state", "container_image",
              "ports", "links"],
             defaults=dict(sub_state=None, container_image=None,
@@ -74,7 +82,7 @@ class IGearClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, links=None):
+    def add(unit_name, image_name, ports=None, links=None, environment=None):
         """
         Install and start a new unit.
 
@@ -95,6 +103,9 @@ class IGearClient(Interface):
 
         :param list links: A list of ``PortMap``\ s mapping ports forwarded
             from the container to ports on the host.
+
+        :param list links: A ``ContainerEnvironment`` associating key value
+            pairs with an environment ID
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -201,7 +212,7 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None, links=None):
+    def add(self, unit_name, image_name, ports=None, links=None, environment=None):
         """
         See ``IGearClient.add`` for base documentation.
 
@@ -240,6 +251,9 @@ class GearClient(object):
                  u'ToHost': u'127.0.0.1',
                  u'ToPort': link.external_port}
             )
+
+        # if environment is not None:
+        #     data['Environment'] = environment.to_dict()
 
         checked = self.exists(unit_name)
         checked.addCallback(
