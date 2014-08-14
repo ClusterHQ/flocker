@@ -268,6 +268,7 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
+                # XXX Do we need a way of querying the environment of existing units?
                 if unit.activation_state in (u"active", u"activating"):
                     running.append(application)
                 else:
@@ -357,6 +358,11 @@ class Deployer(object):
                 for app in desired_node_applications
                 if app.name in not_running
             ]
+            # XXX Do we attempt to restart applications whose environment
+            # variables have changed or shall we investigate whether it's
+            # possible to update the container environment without restarting it,
+            # then if possible send the server within the container a
+            # a signal to restart (eg a graceful restart of a web server)?
 
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
