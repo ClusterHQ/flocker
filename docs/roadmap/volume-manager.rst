@@ -17,7 +17,7 @@ Motivation:
 
 * ZFS has some peculiarities in its model when it comes to clones, e.g. promoting a clone moves snapshots from original dataset to the clone.
 * Having clones be top-level constructs on the same level as originating dataset is a problem, since they are closely tied to each other both in terms of usage and in administrative “cleaning up old data” way.
-* We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to btrfs or some other system.
+* We don’t want to be too tied to the ZFS model (or terminology!) in case we want to switch to Btrfs or some other system.
   Especially given conflicting terminology - Btrfs “snapshots” are the same as ZFS “clones”.
 * When it comes to replication, it is probably useful to differentiate between “data which is a copy of what the remote host has” and “local version”, in particular when divergence is a potential issue (e.g. can be caused by erroneous failover).
   In git you have “origin/branchname” vs. the local “branchname”, for example.
@@ -68,6 +68,6 @@ Implementation Notes - Btrfs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Btrfs does not have a concept of clones - it just has snapshots, and they are mounted and writeable.
-As such the proposed model should also work with btrfs.
+As such the proposed model should also work with Btrfs.
 Btrfs appears to lack promotion, but that can be emulated via renames.
-It’s not clear if btrfs has the “can’t delete parent if it has children” restriction, though it may just keep around extra disk storage in that case.
+It’s not clear if Btrfs has the “can’t delete parent if it has children” restriction, though it may just keep around extra disk storage in that case.
