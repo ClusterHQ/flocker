@@ -13,7 +13,6 @@ handoffs
 hoc
 Homebrew
 hostname
-iptables
 multi
 NAT'd
 pre
