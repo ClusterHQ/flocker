@@ -63,7 +63,7 @@ Even easier, geard and therefore the Flocker orchestration system will automatic
 Push and Handoff
 ****************
 
-Push and handoffs are currently done over SSH between nodes, with ad-hoc calls to the ``flocker-volume`` command-line tool.
+Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command-line tool.
 In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
 (See `#154 <https://github.com/ClusterHQ/flocker/issues/154>`_\ .)
 

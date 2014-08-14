@@ -90,8 +90,8 @@ Initial Implementation Strategy
 * ``flocker-deploy`` then connects to each node over SSH and runs ``flocker-changestate`` to make the necessary deployment changes.
 * Nodes might connect to each other over SSH to copy volume data to the necessary place.
 
-flocker-changestate
--------------------
+``flocker-changestate``
+-----------------------
 
 * This is installed on nodes participating in the Flocker cluster.
 * Accepts the desired global configuration and current global state.
