@@ -1,7 +1,7 @@
 stateful
 VMware
 Homebrew
-flocker
+Flocker
 geard
 Buildbot
 Btrfs
@@ -30,4 +30,6 @@ handoffs
 NAT'd
 Copr
 webhook
-
+hoc
+multi
+pre
