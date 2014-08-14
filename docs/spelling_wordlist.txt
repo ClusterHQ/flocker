@@ -1,7 +1,6 @@
 Btrfs
 Buildbot
 Copr
-createrepo
 dataset
 failover
 filename
@@ -21,8 +20,6 @@ pre
 programmatically
 proxied
 proxying
-rpmbuild
-rpmdevtools
 snapshotting
 stateful
 systemd
@@ -31,5 +28,4 @@ virtualization
 VMware
 webhook
 workflow
-yumdownloader
 ZFS
