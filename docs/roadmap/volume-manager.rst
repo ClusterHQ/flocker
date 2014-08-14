@@ -39,7 +39,7 @@ The names of volumes, branches and tags do not map directly onto the ZFS naming 
 
 Each flocker instance has a UUID, with a matching (unique across a Flocker cluster) human readable name, typically the hostname.
 We can imagine having two flocker instances on same machine (with different pools) for testing, so don't want to require hostname.
-This is the first part of the <flocker instance uuid>/<volume uuid>/<branch name> triplet of branch names - in human-exposed CLI we probably want to use human names though, not UUIDs.
+This is the first part of the <flocker instance UUID>/<volume UUID>/<branch name> triplet of branch names - in human-exposed CLI we probably want to use human names though, not UUIDs.
 Branches are known to be local if branch’s specified flocker instance matches the UUID of flocker process that is managing it.
 
 Volumes have UUIDs, and a matching (cluster unique?) human readable name.

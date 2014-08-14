@@ -33,7 +33,7 @@ Software
 Access
 ~~~~~~
 
-- A readthedocs account (`registration <https://readthedocs.org/accounts/signup/>`__),
+- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
@@ -181,12 +181,12 @@ Release
       gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
       admin/upload-rpms "${VERSION}"
 
-#. Build tagged docs at readthedocs.org:
+#. Build tagged docs at Read the Docs:
 
-   #. Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+   #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Set the default version to that version.
-   #. Force readthedocs.org to reload the repository, in case the GitHub webhook fails, by running:
+   #. Force Read the Docs to reload the repository, in case the GitHub webhook fails, by running:
 
       .. code-block:: console
 

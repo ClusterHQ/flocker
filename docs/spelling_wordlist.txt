@@ -6,3 +6,9 @@ Geard
 Buildbot
 Btrfs
 ZFS
+iptables
+dataset
+hostname
+filesystems
+filename
+timestamp
