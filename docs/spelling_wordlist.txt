@@ -27,3 +27,4 @@ rpmdevtools
 virtualization
 handoff
 handoffs
+NAT'd

@@ -11,7 +11,7 @@ To build flocker RPMs, run the following commands:
    sudo yum-builddep flocker.spec
    rpmbuild -ba flocker.spec
 
-The above commands require the rpmdevtools and yum-utils packages installed.
+The above commands require the ``rpmdevtools`` and ``yum-utils`` packages installed.
 
 Flocker depends on a number of packages which aren't available in fedora,
 or newer versions than are available there.

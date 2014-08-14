@@ -173,7 +173,7 @@ Release
 
       $ gsutil config
 
-#. Build python packages for upload, and upload them to gs://archive.clusterhq.com, as well as uploading the RPMs:
+#. Build python packages for upload, and upload them to ``archive.clusterhq.com``, as well as uploading the RPMs:
 
    .. code-block:: console
 
@@ -201,7 +201,7 @@ Announcing Releases
 
   - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
   - on the blog - https://clusterhq.com/blog/
-  - on the IRC channel - #clusterhq on ``irc.freenode.net``
+  - on the IRC channel - ``#clusterhq`` on ``irc.freenode.net``
 
 - Update download links on https://clusterhq.com
 
