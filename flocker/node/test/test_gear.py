@@ -221,6 +221,7 @@ class UnitInitTests(
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
                 links=(PortMap(internal_port=3306, external_port=103306),),
+                # environment=XXX
             ),
             expected_defaults=dict(ports=(), links=(), container_image=None)
         )
@@ -247,6 +248,7 @@ class UnitTests(TestCase):
             "<Unit(name=u'site-example.com', "
             "activation_state=u'active', sub_state=u'running', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
+            # environment=XXX
             repr(Unit(name=u'site-example.com',
                       activation_state=u'active', sub_state=u'running',
                       container_image=u'flocker/flocker:v1.0.0',

@@ -32,6 +32,11 @@ class GearEnvironment(object):
     environment ID.
     """
 
+    def to_dict(self):
+        """
+        Convert to a dictionary suitable for serialising to JSON and then on to
+        the Gear REST API.
+        """
 
 @attributes(["name", "activation_state", "sub_state", "container_image",
              "ports", "links"],
@@ -104,8 +109,8 @@ class IGearClient(Interface):
         :param list links: A list of ``PortMap``\ s mapping ports forwarded
             from the container to ports on the host.
 
-        :param list links: A ``ContainerEnvironment`` associating key value
-            pairs with an environment ID
+        :param GearEnvironment environment: A ``GearEnvironment``
+            associating key value pairs with an environment ID
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -332,7 +337,7 @@ class FakeGearClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), links=()):
+    def add(self, unit_name, image_name, ports=(), links=(), environment=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -340,6 +345,7 @@ class FakeGearClient(object):
             container_image=image_name,
             ports=ports,
             links=links,
+#            environment=environment
             activation_state=u'active'
         )
         return succeed(None)
