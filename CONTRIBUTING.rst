@@ -193,7 +193,7 @@ Steps to Contribute Code
 
 GitHub collaborators can participate in the development workflow by changing the labels on an issue.
 GitHub lets non-collaborators create new issues and pull requests but it does not let them change labels.
-If you are not a collaborator you may seek out assistances from a collaborator to set issue labels to reflect the issue's stage.
+If you are not a collaborator you may seek out assistance from a collaborator to set issue labels to reflect the issue's stage.
 
 1. Pick the next issue in the *Ready* category.
    Drag it to the *In Progress* column in Waffle (or change the label from ``ready`` to ``in progress`` in GitHub).
