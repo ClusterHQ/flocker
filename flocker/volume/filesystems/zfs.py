@@ -232,6 +232,10 @@ class StoragePool(object):
         self._name = name
         self._mount_root = mount_root
 
+    def startService(self):
+        # Set the root dataset to be read only.
+        pass
+
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
