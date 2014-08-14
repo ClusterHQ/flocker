@@ -21,7 +21,7 @@ from ...testtools import (
     ProtocolPoppingFactory, DockerImageBuilder)
 
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, PortMap
+from ..gear import GearClient, GearError, PortMap, GearEnvironment
 from ..testtools import if_gear_configured, wait_for_unit_state
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
@@ -309,4 +309,37 @@ CMD sh -c "trap \"\" 2; sleep 3"
             # non-existent containers:
             self.assertEqual(process.wait(), 1)
         d.addCallback(removed)
+        return d
+
+    def test_add_with_environment(self):
+        """
+        ``GearClient.add`` accepts an environment object whose ID and variables
+        are used when starting a docker image.
+        """
+        # Create a Docker image
+        image = DockerImageBuilder(
+            test=self,
+            source_dir=FilePath(__file__).sibling('environment-printer'),
+        )
+        image_name = image.build()
+        unit_name = random_name()
+        expected_environment_id = random_name()
+        expected_variables = {
+            'key1': 'value1',
+            'key2': 'value2'
+        }
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            environment=GearEnvironment(
+                id=expected_environment_id, variables=expected_variables)
+        )
+
+        def started(ignored):
+            # Run gear status $unit_name
+            # assert that the output contains the expected env-file argument
+            # and assert that each of the expected variables have been printed by the container.
+            pass
+        d.addCallback(started)
+
         return d
