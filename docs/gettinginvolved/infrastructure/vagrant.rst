@@ -10,7 +10,7 @@ Base Image
 ----------
 
 The box the above :file:`Vagrantfile` is based on is generated from :file:`vagrant/base/Vagrantfile`.
-The box is initialized with the yum repositories for zfs and for dependencies not available in fedora and installs all the dependencies.
+The box is initialized with the yum repositories for ZFS and for dependencies not available in fedora and installs all the dependencies.
 
 To build the box, run the following commands in the :file:`vagrant/base` directory::
 
