@@ -86,7 +86,7 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def get(self, name):
+    def get(self, name, uuid=None):
         """
         Return a locally-owned ``Volume`` with the given name.
 
@@ -95,8 +95,13 @@ class VolumeService(Service):
 
         :param unicode name: The name of the volume.
 
+        :param uuid: Either ``None``, in which case the local UUID will be
+            used, or a UUID to use for the volume.
+
         :return: A ``Volume``.
         """
+        #if uuid is None:
+        #    uuid=self.uuid
         return Volume(uuid=self.uuid, name=name, _pool=self._pool)
 
     def wait_for_volume(self, name):
