@@ -30,6 +30,8 @@ Software
 
 - an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
 
+- an up-to-date clone of the `homebrew-flocker repository <https://github.com/ClusterHQ/homebrew-flocker.git>`_
+
 Access
 ~~~~~~
 
@@ -115,7 +117,7 @@ Preparing for a release
 
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the downloads in ``docs/gettingstarted/linux-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
+#. Update the version number in the downloads in ``docs/gettingstarted/linux-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` AND THE HOMEBREW RECIPE (a total of 4 locations).
 
 #. Commit the changes:
 

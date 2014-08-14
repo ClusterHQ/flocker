@@ -107,4 +107,5 @@ The ``flocker-deploy`` command line program will now be available:
    0.1.0
    alice@mercury:~/flocker-tutorial$
 
-.. _`Homebrew`: http://brew.sh
+.. _Homebrew: http://brew.sh
+.. _homebrew-flocker: https://github.com/ClusterHQ/homebrew-flocker
