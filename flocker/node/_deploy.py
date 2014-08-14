@@ -11,6 +11,7 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
 from twisted.python.filepath import FilePath
+from twisted.python import log
 
 from .gear import GearClient, PortMap
 from ._model import (
@@ -215,7 +216,21 @@ class SetProxies(object):
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
             except:
                 results.append(fail())
+
+        for result in results:
+            result.addErrback(self._log_failure)
+
         return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+
+    def _log_failure(self, failure):
+        """
+        Log and return the supplied failure.
+
+        :param Failure failure: The ``Failure`` to be logged.
+        :returns: The supplied ``Failure``.
+        """
+        log.err(failure)
+        return failure
 
 
 class Deployer(object):
