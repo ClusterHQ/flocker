@@ -78,6 +78,11 @@ class FlockerLanguage(SearchEnglish):
 sphinx_languages['en'] = FlockerLanguage
 language = 'en'
 
+# String specifying a file containing a list of words known to be spelled correctly but that do not appear in the language dictionary
+# See:
+# http://sphinxcontrib-spelling.readthedocs.org/en/latest/customize.html#input-options
+spelling_word_list_filename='spelling_wordlist.txt'
+
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
 #today = ''
