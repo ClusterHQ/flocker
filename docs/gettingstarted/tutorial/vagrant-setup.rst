@@ -95,7 +95,12 @@ First create a tutorial directory:
 Next download the Vagrant configuration file by right clicking on the link below.
 Save it in the *flocker-tutorial* directory and preserve its filename.
 
-* :download:`Vagrant configuration <Vagrantfile>`
+:download:`Vagrant configuration <Vagrantfile>`
+
+.. literalinclude:: Vagrantfile
+   :language: ruby
+   :lines: 1-5
+   :append: ...
 
 .. code-block:: console
 
