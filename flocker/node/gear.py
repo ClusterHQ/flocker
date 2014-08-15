@@ -42,10 +42,11 @@ class GearEnvironment(object):
             variables.append(dict(name=k, value=v))
         return dict(id=self.id, variables=variables)
 
+
 @attributes(["name", "activation_state", "sub_state", "container_image",
-             "ports", "links"],
+             "ports", "links", "environment"],
             defaults=dict(sub_state=None, container_image=None,
-                          ports=(), links=()))
+                          ports=(), links=(), environment=None))
 class Unit(object):
     """
     Information about a unit managed by geard/systemd.
@@ -78,6 +79,9 @@ class Unit(object):
 
     :ivar list links: The ``PortMap`` instances which define how connections to
         ports inside the container are routed to ports on the host.
+
+    :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
+        will be supplied to the gear unit.
     """
 
 
@@ -349,7 +353,7 @@ class FakeGearClient(object):
             container_image=image_name,
             ports=ports,
             links=links,
-#            environment=environment
+            environment=environment,
             activation_state=u'active'
         )
         return succeed(None)

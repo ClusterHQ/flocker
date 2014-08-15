@@ -247,10 +247,11 @@ class UnitTests(TestCase):
         self.assertEqual(
             "<Unit(name=u'site-example.com', "
             "activation_state=u'active', sub_state=u'running', "
-            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
-            # environment=XXX
+            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[], "
+            "environment=None)>",
+
             repr(Unit(name=u'site-example.com',
                       activation_state=u'active', sub_state=u'running',
                       container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], links=[]))
+                      ports=[], links=[], environment=None))
         )
