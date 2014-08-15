@@ -67,12 +67,14 @@ class GearClientTests(TestCase):
             image_name=image_name,
             ports=ports,
             links=links,
+            environment=environment,
         )
         self.addCleanup(client.remove, unit_name)
 
         d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
                                                     expected_states))
         d.addCallback(lambda _: client)
+
         return d
 
     def test_add_starts_container(self):
@@ -333,7 +335,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         expected_environment_id = random_name()
         expected_variables = {
             'key1': 'value1',
-            'key2': 'value2'
+            'key2': 'value2',
         }
         d = self.start_container(
             unit_name=unit_name,
@@ -347,16 +349,10 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(
             lambda ignored: getProcessOutput('gear', [b'status', unit_name])
         )
-        def started(output):
-            # Run gear status $unit_name
-            # assert that the output contains the expected env-file argument
-            # and assert that each of the expected variables have been printed by the container.
-            assertContainsAll(
-                self,
-                ['{}={}\n'.format(k, v) for k, v in expected_variables.items()],
-                output
-            )
-
-        d.addCallback(started)
-
+        d.addCallback(
+            assertContainsAll,
+            test_case=self,
+            needles=[
+                '{}={}\n'.format(k, v) for k, v in expected_variables.items()],
+        )
         return d

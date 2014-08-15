@@ -37,6 +37,10 @@ class GearEnvironment(object):
         Convert to a dictionary suitable for serialising to JSON and then on to
         the Gear REST API.
         """
+        variables = []
+        for k, v in self.variables.items():
+            variables.append(dict(name=k, value=v))
+        return dict(id=self.id, variables=variables)
 
 @attributes(["name", "activation_state", "sub_state", "container_image",
              "ports", "links"],
@@ -257,8 +261,8 @@ class GearClient(object):
                  u'ToPort': link.external_port}
             )
 
-        # if environment is not None:
-        #     data['Environment'] = environment.to_dict()
+        if environment is not None:
+            data['Environment'] = environment.to_dict()
 
         checked = self.exists(unit_name)
         checked.addCallback(

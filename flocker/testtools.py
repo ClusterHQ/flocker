@@ -829,7 +829,7 @@ def attempt_effective_uid(username, suppress_errors=False):
             os.seteuid(original_euid)
 
 
-def assertContainsAll(test_case, needles, haystack):
+def assertContainsAll(haystack, needles, test_case):
     """
     Assert that all the terms in the needles list are found in the haystack.
 
@@ -837,9 +837,9 @@ def assertContainsAll(test_case, needles, haystack):
     :param list needles: A list of terms to search for in the ``haystack``.
     :param haystack: An iterable in which to search for the terms in needles.
     """
-    for i, needle in enumerate(reversed(needles)):
+    for needle in reversed(needles):
         if needle in haystack:
-           needles.pop(i)
+           needles.remove(needle)
 
     if needles:
         test_case.fail(
