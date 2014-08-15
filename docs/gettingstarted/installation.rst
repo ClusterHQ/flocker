@@ -75,8 +75,8 @@ OS X
 
 To install ``flocker-cli`` on OS X you can install ``virtualenv`` and then run the ``flocker-cli`` install script:
 
-Installing virtualenv
-^^^^^^^^^^^^^^^^^^^^^
+Installing ``virtualenv``
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Install the `Homebrew`_ package manager.
 
