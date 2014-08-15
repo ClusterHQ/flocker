@@ -32,6 +32,8 @@ Software
 
 - an up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_
 
+- Access to OS X
+
 Access
 ~~~~~~
 
@@ -118,6 +120,9 @@ Preparing for a release
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
 #. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 4 locations).
+
+#. Update the ``sha1`` in the Homebrew recipe in the `homebrew-tap`_.
+   With Homebrew on OS X you can get the ``sha1`` using ``brew fetch flocker`` if ``flocker.rb`` is in ``/usr/local/Library/formula``.
 
 #. Commit the changes:
 
