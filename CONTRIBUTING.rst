@@ -86,7 +86,7 @@ In addition, ``tox`` needs to be run as root:
 
    $ sudo tox
 
-Since these tests involve global state on your machine (filesystems, iptables, docker containers, etc.) we recommend running them in the development Vagrant image.
+Since these tests involve global state on your machine (filesystems, ``iptables``, docker containers, etc.) we recommend running them in the development Vagrant image.
 
 
 Documentation

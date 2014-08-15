@@ -155,4 +155,4 @@ doctest:
 spelling:
 	$(SPHINXBUILD) -b spelling $(ALLSPHINXOPTS) $(BUILDDIR)/spelling
 	@echo "Testing of spelling in the sources finished, look at the " \
-	      "results in $(BUILDDIR)/doctest/output.txt."
+	      "results in $(BUILDDIR)/spelling/output.txt."
