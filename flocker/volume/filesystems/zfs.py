@@ -232,11 +232,16 @@ class StoragePool(object):
         self._name = name
         self._mount_root = mount_root
 
+    def startService(self):
+        # Set the root dataset to be read only.
+        pass
+
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
         d = zfs_command(self._reactor,
                         [b"create",  b"-o", b"mountpoint=" + mount_path,
+                         # XXX If volume.is_locally_owned() also "-o readonly=false"
                          filesystem.name])
         d.addCallback(lambda _: filesystem)
         return d
@@ -245,6 +250,9 @@ class StoragePool(object):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
         new_mount_path = new_filesystem.get_path().path
+        # XXX If new_volume.is_locally_owned() also "-o readonly=false",
+        # otherwise if volume.is_locally_owned() followup by removing the
+        # readonly override attribute.
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
 

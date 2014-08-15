@@ -44,8 +44,9 @@ class VolumeService(Service):
     def __init__(self, config_path, pool, reactor):
         """
         :param FilePath config_path: Path to the volume manager config file.
-        :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
-            provider.
+        :param pool: An object that is both a
+            ``flocker.volume.filesystems.interface.IStoragePool`` provider
+            and a ``twisted.application.service.IService`` provider.
         :param reactor: A ``twisted.internet.interface.IReactorTime`` provider.
         """
         self._config_path = config_path
@@ -65,6 +66,7 @@ class VolumeService(Service):
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
         self.uuid = config[u"uuid"]
+        #return self._pool.startService()
 
     def create(self, name):
         """Create a new volume.
@@ -84,7 +86,7 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def get(self, name):
+    def get(self, name, uuid=None):
         """
         Return a locally-owned ``Volume`` with the given name.
 
@@ -93,8 +95,13 @@ class VolumeService(Service):
 
         :param unicode name: The name of the volume.
 
+        :param uuid: Either ``None``, in which case the local UUID will be
+            used, or a UUID to use for the volume.
+
         :return: A ``Volume``.
         """
+        #if uuid is None:
+        #    uuid=self.uuid
         return Volume(uuid=self.uuid, name=name, _pool=self._pool)
 
     def wait_for_volume(self, name):
@@ -275,7 +282,7 @@ def _docker_command(reactor, arguments):
     return d
 
 
-@attributes(["uuid", "name", "_pool"])
+@attributes(["uuid", "name", "service"])
 class Volume(object):
     """A data volume's identifier.
 
@@ -283,9 +290,14 @@ class Volume(object):
     :ivar unicode name: The name of the volume. Since volume names must
         match Docker container names, the characters used should be limited to
         those that Docker allows for container names.
-    :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
-        provider where the volume's filesystem is stored.
+    :ivar service: The ``VolumeService`` in whose pool this volume is stored.
     """
+    # def is_locally_owned(self):
+    #     """
+    #     Return whether this volume is locally owned.
+    #     """
+    #     return self.uuid == self.service.uuid
+
     def change_owner(self, new_owner_uuid):
         """
         Change which volume manager owns this volume.
