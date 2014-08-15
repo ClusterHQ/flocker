@@ -7,7 +7,7 @@ Requirements
 
 To replicate the steps demonstrated in this tutorial, you will need:
 
-* Linux, FreeBSD, or OS X
+* Linux, FreeBSD, OS X or Windows
 * `Vagrant`_ (1.6.2 or newer)
 * `VirtualBox`_
 * At least 10GB disk space available for the two virtual machines
