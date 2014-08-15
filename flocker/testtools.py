@@ -235,7 +235,7 @@ class FlockerScriptTestsMixin(object):
             reactor=None, script=self.script(), options=self.options(),
             sys_module=sys_module)
         error = self.assertRaises(SystemExit, script.main)
-        error_text = sys.stderr.getvalue()
+        error_text = sys_module.stderr.getvalue()
         self.assertEqual(
             (1, []),
             (error.code, help_problems(self.command_name, error_text))
