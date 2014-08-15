@@ -229,10 +229,11 @@ class FlockerScriptTestsMixin(object):
         ``FlockerScriptRunner.main`` exits with status 1 and prints help to
         `stderr` if supplied with unexpected arguments.
         """
-        sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
+        sys_module = FakeSysModule(
+            argv=[self.command_name, b'--unexpected_argument'])
         script = FlockerScriptRunner(
             reactor=None, script=self.script(), options=self.options(),
-            sys_module=sys)
+            sys_module=sys_module)
         error = self.assertRaises(SystemExit, script.main)
         error_text = sys.stderr.getvalue()
         self.assertEqual(
@@ -839,7 +840,7 @@ def assertContainsAll(haystack, needles, test_case):
     """
     for needle in reversed(needles):
         if needle in haystack:
-           needles.remove(needle)
+            needles.remove(needle)
 
     if needles:
         test_case.fail(
