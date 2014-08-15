@@ -57,7 +57,7 @@ You can then use this volume manually using ``--volumes-from``:
 
 The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
 
-Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
+Even easier, ``geard`` and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
 
 
 Push and Handoff

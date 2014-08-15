@@ -7,7 +7,6 @@ filename
 filesystem
 filesystems
 Flocker
-geard
 handoff
 handoffs
 hoc
