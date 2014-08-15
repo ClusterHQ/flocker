@@ -103,11 +103,11 @@ Save it in the *flocker-tutorial* directory and preserve its filename.
    Vagrantfile
    alice@mercury:~/flocker-tutorial$
 
-Then use ``vagrant up`` to start and provision the VMs:
+Then use ``vagrant up --provider=virtualbox`` to start and provision the VMs:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant up
+   alice@mercury:~/flocker-tutorial$ vagrant up --provider=virtualbox
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
    ... lots of output ...

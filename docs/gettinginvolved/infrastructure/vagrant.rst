@@ -14,7 +14,7 @@ The box is initialized with the yum repositories for zfs and for dependencies no
 
 To build the box, run the following commands in the :file:`vagrant/base` directory::
 
-   vagrant up
+   vagrant up --provider=virtualbox
    vagrant package --output flocker-dev-$(python ../../setup.py --version).box
    vagrant destroy
 
