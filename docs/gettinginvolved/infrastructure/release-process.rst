@@ -30,7 +30,7 @@ Software
 
 - an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
 
-- an up-to-date clone of the `homebrew-flocker repository <https://github.com/ClusterHQ/homebrew-flocker.git>`_
+- an up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_
 
 Access
 ~~~~~~
@@ -117,7 +117,7 @@ Preparing for a release
 
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-flocker`_ repository (a total of 4 locations).
+#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 4 locations).
 
 #. Commit the changes:
 
@@ -214,4 +214,4 @@ Announcing Releases
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
-.. _homebrew-flocker: https://github.com/ClusterHQ/homebrew-flocker
+.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
