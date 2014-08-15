@@ -73,68 +73,39 @@ You'll need to do this every time you start a new shell.
 OS X
 ----
 
-To install ``flocker-cli`` on OS X you can install ``virtualenv`` and then run the ``flocker-cli`` install script:
-
-Installing virtualenv
-^^^^^^^^^^^^^^^^^^^^^
-
 Install the `Homebrew`_ package manager.
 
 Make sure Homebrew has no issues:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ brew doctor
-   ...
-   alice@mercury:~/flocker-tutorial$
-
-Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
-
-Install ``Python``, ``pip`` and ``virtualenv``:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ brew update
-   alice@mercury:~/flocker-tutorial$ brew install python
-   ...
-   alice@mercury:~/flocker-tutorial$ pip install virtualenv
-   ...
-   alice@mercury:~/flocker-tutorial$
-
-
-Running the Install Script
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-:download:`osx-install.sh`
-
-.. literalinclude:: osx-install.sh
-   :language: sh
-
-Save the script to a file and then run it:
-
-.. code-block:: console
-
-   alice@mercury:~$ sh osx-install.sh
+   alice@mercury:~$ brew doctor
    ...
    alice@mercury:~$
 
-The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
+Fix anything which ``brew doctor`` recommends that you fix by following the instructions it outputs.
+
+Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
 .. code-block:: console
 
-   alice@mercury:~$ cd flocker-tutorial
-   alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.1.0
-   alice@mercury:~/flocker-tutorial$
+   alice@mercury:~$ brew tap ClusterHQ/tap
+   ...
+   alice@mercury:~$ brew install flocker
+   ...
+   alice@mercury:~$ brew test flocker
+   ...
+   alice@mercury:~$
 
-If you want to omit the prefix path you can e.g. add the appropriate directory to your ``$PATH``.
-You'll need to do this every time you start a new shell.
+You can see the Homebrew recipe in the `homebrew-tap`_ repository.
+
+The ``flocker-deploy`` command line program will now be available:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
-   alice@mercury:~/flocker-tutorial$ flocker-deploy --version
+   alice@mercury:~$ flocker-deploy --version
    0.1.0
-   alice@mercury:~/flocker-tutorial$
+   alice@mercury:~$
 
-.. _`Homebrew`: http://brew.sh
+.. _Homebrew: http://brew.sh
+.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
