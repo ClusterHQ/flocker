@@ -13,55 +13,13 @@ To replicate the steps demonstrated in this tutorial, you will need:
 * At least 10GB disk space available for the two virtual machines
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
 * bash
-* The ``mongo`` MongoDB interactive shell (see below for installation instructions)
+* `mongo`_ The MongoDB interactive shell (see below for installation instructions)
 
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 See :ref:`installing-flocker-cli`.
 
 Setup
 =====
-
-Installing MongoDB
-------------------
-
-The MongoDB client can be installed through the various package managers for Linux, FreeBSD and OS X.
-If you do not already have the client on your machine, you can install it by running the appropriate command for your system.
-
-Ubuntu
-^^^^^^
-
-.. code-block:: console
-
-   alice@mercury:~$ sudo apt-get install mongodb-clients
-   ...
-   alice@mercury:~$
-
-Red Hat / Fedora
-^^^^^^^^^^^^^^^^
-
-.. code-block:: console
-
-   alice@mercury:~$ sudo yum install mongodb
-   ...
-   alice@mercury:~$
-
-OS X
-^^^^
-
-Install `Homebrew`_
-
-.. code-block:: console
-
-   alice@mercury:~$ brew update
-   ...
-   alice@mercury:~$ brew install mongodb
-   ...
-   alice@mercury:~$
-
-Other Systems
-^^^^^^^^^^^^^
-
-See the official `MongoDB installation guide`_ for your system.
 
 Creating Vagrant VMs Needed for Flocker
 ---------------------------------------
@@ -177,4 +135,4 @@ This completes the Vagrant-related setup.
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
-.. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
+.. _`mongo`: http://docs.mongodb.org/manual/installation/
