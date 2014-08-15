@@ -622,6 +622,28 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
 
+    def test_ports_listed(self):
+        unit1 = Unit(name=u'site-example.com',
+                     activation_state=u'active',
+                     ports=[PortMap(internal_port=1, external_port=2)])
+        units = {unit1.name: unit1}
+        fake_gear = FakeGearClient(units=units)
+        applications = [Application(name=unit.name) for unit in units.values()]
+        applications.sort()
+        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        d = api.discover_node_configuration()
+        result = self.successResultOf(d)
+        result.not_running.sort()
+
+        self.assertEqual(
+            result,
+            NodeState(running=[
+                Application(name=u'site-example.com',
+                image=None,
+                ports=frozenset([]),
+                volume=None),
+                not_running=[]))
+
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
 
