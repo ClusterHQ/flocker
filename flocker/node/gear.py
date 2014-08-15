@@ -225,7 +225,8 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None, links=None, environment=None):
+    def add(self, unit_name, image_name, ports=None, links=None,
+            environment=None):
         """
         See ``IGearClient.add`` for base documentation.
 
