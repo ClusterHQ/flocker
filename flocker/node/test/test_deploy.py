@@ -641,7 +641,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 Application(name=u'site-example.com',
                 image=None,
                 ports=frozenset([]),
-                volume=None),
+                volume=None)],
                 not_running=[]))
 
 # A deployment with no information:
