@@ -15,6 +15,7 @@ These utilities are called by ``flocker-deploy`` (via SSH) to install and migrat
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
+
 .. _installing-flocker-cli:
 
 Installing flocker-cli
@@ -70,6 +71,7 @@ You'll need to do this every time you start a new shell.
    0.1.0
    alice@mercury:~/flocker-tutorial$
 
+
 OS X
 ----
 
@@ -106,6 +108,12 @@ The ``flocker-deploy`` command line program will now be available:
    alice@mercury:~$ flocker-deploy --version
    0.1.0
    alice@mercury:~$
+
+
+Windows
+-------
+
+Get windows
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
