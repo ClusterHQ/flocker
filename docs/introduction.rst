@@ -107,8 +107,8 @@ Managing Containers
 -------------------
 
 * `geard`_ is used to start, stop, and enumerate containers.
-* ``geard`` works by creating systemd units.
-* systemd units are a good way to provide admin tools for:
+* ``geard`` works by creating ``systemd`` units.
+* ``systemd`` units are a good way to provide admin tools for:
 
   * Logging and state inspection.
   * Starting/stopping (including at boot).

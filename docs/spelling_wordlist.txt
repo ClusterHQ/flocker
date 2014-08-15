@@ -20,7 +20,6 @@ proxied
 proxying
 snapshotting
 stateful
-systemd
 timestamp
 virtualization
 VMware
