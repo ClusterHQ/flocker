@@ -13,12 +13,13 @@ from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet import reactor
+from twisted.internet.utils import getProcessOutput
 
 from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, make_capture_protocol,
-    ProtocolPoppingFactory, DockerImageBuilder)
+    ProtocolPoppingFactory, DockerImageBuilder, assertContainsAll)
 
 from ..test.test_gear import make_igearclient_tests, random_name
 from ..gear import GearClient, GearError, PortMap, GearEnvironment
@@ -45,7 +46,8 @@ class GearClientTests(TestCase):
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_states=(u'active',)):
+                        ports=None, links=None, expected_states=(u'active',),
+                        environment=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -311,16 +313,21 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(removed)
         return d
 
+    @_if_root
     def test_add_with_environment(self):
         """
         ``GearClient.add`` accepts an environment object whose ID and variables
         are used when starting a docker image.
+
+        XXX: The call to ``gear status`` in this test requires root privileges.
         """
-        # Create a Docker image
-        image = DockerImageBuilder(
-            test=self,
-            source_dir=FilePath(__file__).sibling('environment-printer'),
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", "env && sleep 1"]'
         )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
         unit_name = random_name()
         expected_environment_id = random_name()
@@ -334,12 +341,22 @@ CMD sh -c "trap \"\" 2; sleep 3"
             environment=GearEnvironment(
                 id=expected_environment_id, variables=expected_variables)
         )
-
-        def started(ignored):
+        d.addCallback(
+            lambda gear_client: self.addCleanup(gear_client.remove, unit_name)
+        )
+        d.addCallback(
+            lambda ignored: getProcessOutput('gear', [b'status', unit_name])
+        )
+        def started(output):
             # Run gear status $unit_name
             # assert that the output contains the expected env-file argument
             # and assert that each of the expected variables have been printed by the container.
-            pass
+            assertContainsAll(
+                self,
+                ['{}={}\n'.format(k, v) for k, v in expected_variables.items()],
+                output
+            )
+
         d.addCallback(started)
 
         return d
