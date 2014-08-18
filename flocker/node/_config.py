@@ -195,9 +195,7 @@ class Configuration(object):
                     )
 
             environment = self._parse_environment_config(
-                application_name,
-                config
-            )
+                application_name, config)
 
             applications[application_name] = Application(
                 name=application_name,
