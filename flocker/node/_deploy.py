@@ -267,6 +267,7 @@ class Deployer(object):
                 else:
                     volume = None
                 application = Application(name=unit.name,
+                                          ports=unit.ports,
                                           volume=volume)
                 if unit.activation_state in (u"active", u"activating"):
                     running.append(application)

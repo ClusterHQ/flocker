@@ -639,10 +639,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             result,
             NodeState(
                 running=[
-                    Application(name=u'site-example.com',
-                    image=None,
-                    ports=frozenset([]),
-                    volume=None)],
+                    Application(
+                        name=u'site-example.com',
+                        image=None,
+                        ports=frozenset([]),
+                        volume=None)],
                 not_running=[]))
 
 # A deployment with no information:

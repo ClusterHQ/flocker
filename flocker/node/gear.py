@@ -346,7 +346,9 @@ class FakeGearClient(object):
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
-                Unit(name=unit.name, activation_state=unit.activation_state))
+                Unit(name=unit.name,
+                     ports=frozenset([1, 2]),
+                     activation_state=unit.activation_state))
         return succeed(incomplete_units)
 
 
