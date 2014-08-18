@@ -269,3 +269,26 @@ class GearEnvironmentInitTests(
     """
     Tests for ``GearEnvironmentUnit.__init__``.
     """
+
+
+class GearEnvironmentToDictTests(TestCase):
+    """
+    """
+    def test_to_dict(self):
+        pass
+
+    def test_repr(self):
+        """
+        ``GearEnvironment.__repr__`` shows the id and variables.
+        """
+        self.assertEqual(
+            "<GearEnvironment("
+            "id=u'site-example.com', "
+            "variables={'foo': 'bar'})>",
+
+            repr(
+                GearEnvironment(
+                    id=u'site-example.com', variables=dict(foo="bar")
+                )
+            )
+        )
