@@ -267,15 +267,32 @@ class GearEnvironmentInitTests(
         )
 ):
     """
-    Tests for ``GearEnvironmentUnit.__init__``.
+    Tests for ``GearEnvironment.__init__``.
     """
 
 
-class GearEnvironmentToDictTests(TestCase):
+class GearEnvironmentTests(TestCase):
     """
+    Tests for ``GearEnvironment``.
     """
     def test_to_dict(self):
-        pass
+        """
+        ``GearEnvironment.to_dict`` returns a dictionary containing the
+        environment ID and the variables in name, value pairs.
+        """
+        expected_id = u'site-example.com'
+        expected_dict = {
+            'id': expected_id,
+            'variables': [
+                {'name': 'foo', 'value': 'bar'},
+                {'name': 'baz', 'value': 'qux'},
+            ]
+        }
+        self.assertEqual(
+            expected_dict,
+            GearEnvironment(
+                id=expected_id, variables=dict(foo='bar', baz='qux')).to_dict()
+        )
 
     def test_repr(self):
         """
