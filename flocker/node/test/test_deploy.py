@@ -1075,6 +1075,47 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])])
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_port_change_applications_restarted(self):
+        """
+        Applications that are running but are supposed to be on different ports
+        are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster',
+                    activation_state=u'active',
+                    ports=frozenset([PortMap(internal_port=1,
+                                             external_port=2)]),
+        )
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0'),
+            ports=frozenset([PortMap(internal_port=1,
+                                     external_port=2)]),
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
+                                                  hostname=u'node.example.com')
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[StopApplication(application=application),
+                                  StartApplication(application=application)]),
+        ])])
+        self.assertEqual(expected, self.successResultOf(d))
+
     def test_not_local_not_running_applications_stopped(self):
         """
         Applications that are not running and are supposed to be on the local
