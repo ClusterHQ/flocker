@@ -625,7 +625,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
 
-
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
 
