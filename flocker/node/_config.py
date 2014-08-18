@@ -39,11 +39,11 @@ class Configuration(object):
         """
         self._lenient = lenient
 
-    def _parse_environment_config(self, application, config):
+    def _parse_environment_config(self, application_name, config):
         """
         Validate and return an application config's environment variables.
 
-        :param str application: The name of the application.
+        :param unicode application_name: The name of the application.
 
         :param dict config: The config of a single ``Application`` instance,
             as extracted from the ``applications`` ``dict`` in
@@ -56,17 +56,20 @@ class Configuration(object):
             config, or the ``dict`` of environment variables if there is.
 
         """
+        invalid_env_message = (
+            "Application '{application_name}' has a config error. "
+            "'environment' must be a dictionary of key/value pairs. ").format(
+                application_name=application_name)
+
         environment = config.pop('environment', None)
-        try:
-            for key, value in environment.iteritems():
-                environment[key] = str(value)
-        except AttributeError:
-            if environment is not None:
+        if environment:
+            if not isinstance(environment, dict):
                 raise ConfigurationError(
-                    ("Application '{application_name}' has a config error. "
-                     "'environment' must be a dictionary of key/value pairs.")
-                    .format(application_name=application)
+                    invalid_env_message + "Got type '{envtype}'".format(
+                        envtype=type(environment).__name__)
                 )
+            for key, value in environment.iteritems():
+                environment[key] = unicode(value)
         return environment
 
     def _applications_from_configuration(self, application_configuration):

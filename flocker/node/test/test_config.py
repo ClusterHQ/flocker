@@ -29,19 +29,21 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the application_configuration's
         ``u"environment"`` key is not a dictionary.
         """
-        config = dict(applications={
+        config = {
             'mysql-hybridcluster': {
                 'image': 'clusterhq/mysql',
                 'environment': 'foobar'
             }
-        }, version=1)
+        }
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser._parse_environment_config,
+                                      'mysql-hybridcluster',
+                                      config['mysql-hybridcluster'])
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "'environment' must be a dictionary of key/value pairs.",
+            "'environment' must be a dictionary of key/value pairs. "
+            "Got type 'unicode'",
             exception.message
         )
 
@@ -155,11 +157,53 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_environment_variables_none_if_missing(self):
+        """
+        ``Configuration._parse_environment_config`` returns ``None``
+        if passed an application config that does not include an
+        ``environment`` key.
+        """
+        config = {
+            'mysql-hybridcluster': {
+                'image': 'flocker/mysql'
+            }
+        }
+        parser = Configuration()
+        self.assertIsNone(parser._parse_environment_config(
+            'mysql-hybridcluster',
+            config
+        ))
+
     def test_dict_of_applications_environment(self):
+        """
+        ``Configuration._parse_environment_config`` returns a ``dict``
+        of ``unicode`` values, one for each environment variable key in the
+        supplied application configuration.
+        """
+        config = {
+            'site-hybridcluster': {
+                'image': 'flocker/wordpress:v1.0.0',
+                'ports': [dict(internal=80, external=8080)],
+                'environment': {
+                    'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
+                    'WP_ADMIN_USERNAME': 'administrator',
+                },
+            }
+        }
+        parser = Configuration()
+        environment_vars = parser._parse_environment_config(
+            'site-hybridcluster', config['site-hybridcluster'])
+        expected_result = {
+            'MYSQL_PORT_3306_TCP': u'tcp://172.16.255.250:3306',
+            'WP_ADMIN_USERNAME': u'administrator',
+        }
+        self.assertEqual(expected_result, environment_vars)
+
+    def test_dict_of_applications(self):
         """
         ``Configuration._applications_from_configuration`` returns a ``dict``
         of ``Application`` instances, one for each application key in the
-        supplied configuration, including environment variables if supplied.
+        supplied configuration.
         """
         config = dict(
             version=1,
@@ -198,44 +242,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
                     'WP_ADMIN_USERNAME': 'administrator'
                 })
-        }
-        self.assertEqual(expected_applications, applications)
-
-    def test_dict_of_applications(self):
-        """
-        ``Configuration._applications_from_configuration`` returns a ``dict``
-        of ``Application`` instances, one for each application key in the
-        supplied configuration.
-        """
-        config = dict(
-            version=1,
-            applications={
-                'mysql-hybridcluster': dict(
-                    image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': b'/var/mysql/data'}
-                ),
-                'site-hybridcluster': {
-                    'image': 'flocker/wordpress:v1.0.0',
-                    'ports': [dict(internal=80, external=8080)],
-                }
-            }
-        )
-        parser = Configuration()
-        applications = parser._applications_from_configuration(config)
-        expected_applications = {
-            'mysql-hybridcluster': Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
-                    mountpoint=FilePath(b'/var/mysql/data'))),
-            'site-hybridcluster': Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)]))
         }
         self.assertEqual(expected_applications, applications)
 
