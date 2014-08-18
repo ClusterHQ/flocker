@@ -67,9 +67,8 @@ class AttachedVolume(object):
 
 @attributes(["name", "image", "ports", "volume", "environment"],
             defaults=dict(
-                image=None, ports=frozenset(),
-                volume=None, environment=None
-            ))
+                image=None, ports=frozenset(), volume=None, environment=None)
+            )
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
