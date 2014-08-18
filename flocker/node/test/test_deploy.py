@@ -637,11 +637,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         self.assertEqual(
             result,
-            NodeState(running=[
-                Application(name=u'site-example.com',
-                image=None,
-                ports=frozenset([]),
-                volume=None)],
+            NodeState(
+                running=[
+                    Application(name=u'site-example.com',
+                    image=None,
+                    ports=frozenset([]),
+                    volume=None)],
                 not_running=[]))
 
 # A deployment with no information:
