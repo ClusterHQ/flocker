@@ -509,12 +509,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit.
         """
         expected_application_name = u'site-example.com'
-        ports = [PortMap(internal_port=1, external_port=2)]
+        ports = frozenset([PortMap(internal_port=1, external_port=2)])
         unit = Unit(name=expected_application_name,
                     ports=ports,
                     activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
-        application = Application(name=unit.name, ports=frozenset(unit.ports))
+        application = Application(name=unit.name, ports=unit.ports)
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
