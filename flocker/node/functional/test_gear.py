@@ -327,7 +327,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         docker_dir.makedirs()
         docker_dir.child(b"Dockerfile").setContent(
             b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "env && sleep 1"]'
+            b'CMD ["/bin/sh",  "-c", "env"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
@@ -341,13 +341,15 @@ CMD sh -c "trap \"\" 2; sleep 3"
             unit_name=unit_name,
             image_name=image_name,
             environment=GearEnvironment(
-                id=expected_environment_id, variables=expected_variables)
+                id=expected_environment_id, variables=expected_variables),
+            expected_states=(u'inactive',)
         )
         d.addCallback(
-            lambda gear_client: self.addCleanup(gear_client.remove, unit_name)
-        )
-        d.addCallback(
-            lambda ignored: getProcessOutput('gear', [b'status', unit_name])
+            # XXX gear status prints to stderr which ordinarily would cause
+            # getProcessOutput to errback. ``errortoo`` turns off that
+            # behaviour.
+            lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
+                                             errortoo=True)
         )
         d.addCallback(
             assertContainsAll,
