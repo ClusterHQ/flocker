@@ -7,7 +7,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit
+from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit, GearEnvironment
 
 
 def make_igearclient_tests(fixture):
@@ -255,3 +255,17 @@ class UnitTests(TestCase):
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], links=[], environment=None))
         )
+
+
+class GearEnvironmentInitTests(
+        make_with_init_tests(
+            record_type=GearEnvironment,
+            kwargs=dict(
+                id=u'site-example.com',
+                variables=dict(foo="bar"),
+            ),
+        )
+):
+    """
+    Tests for ``GearEnvironmentUnit.__init__``.
+    """
