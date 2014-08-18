@@ -8,6 +8,7 @@ APIs for parsing and validating configuration.
 from __future__ import unicode_literals, absolute_import
 
 import os
+import types
 import yaml
 
 from twisted.python.filepath import FilePath
@@ -69,7 +70,16 @@ class Configuration(object):
                         envtype=type(environment).__name__)
                 )
             for key, value in environment.iteritems():
-                environment[key] = unicode(value)
+                if not isinstance(value, types.StringTypes):
+                    raise ConfigurationError(
+                        ("Application '{application_name}' has a config "
+                         "error. Environment variable '{key}' must be of "
+                         "type string or unicode; got '{envtype}'.").format(
+                            application_name=application_name,
+                            key=key,
+                            envtype=type(value).__name__
+                        )
+                    )
         return environment
 
     def _applications_from_configuration(self, application_configuration):

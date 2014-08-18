@@ -23,6 +23,34 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
+    def test_error_on_environment_var_not_stringtypes(self):
+        """
+        ``Configuration._applications.from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration's
+        ``u"environment"`` dictionary contains a key with a value
+        that is not of ``types.StringTypes``.
+        """
+        config = {
+            'mysql-hybridcluster': {
+                'image': 'clusterhq/mysql',
+                'environment': {
+                    'MYSQL_PORT_3306_TCP': 3307,
+                    'WP_ADMIN_USERNAME': None
+                }
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_environment_config,
+                                      'mysql-hybridcluster',
+                                      config['mysql-hybridcluster'])
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Environment variable 'MYSQL_PORT_3306_TCP' must be of type "
+            "string or unicode; got 'int'.",
+            exception.message
+        )
+
     def test_error_on_environment_vars_not_dict(self):
         """
         ``Configuration._applications.from_configuration`` raises a
