@@ -28,7 +28,7 @@ class GearError(Exception):
 @attributes(["name", "activation_state", "sub_state", "container_image",
              "ports", "links"],
             defaults=dict(sub_state=None, container_image=None,
-                          ports=(), links=()))
+                          ports=frozenset(), links=()))
 class Unit(object):
     """
     Information about a unit managed by geard/systemd.
@@ -56,8 +56,9 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         gear unit
 
-    :ivar list ports: The ``PortMap`` instances which define how connections to
-        ports on the host are routed to ports exposed in the container.
+    :ivar frozenset ports: The ``PortMap`` instances which define how
+        connections to ports on the host are routed to ports exposed in the
+        container.
 
     :ivar list links: The ``PortMap`` instances which define how connections to
         ports inside the container are routed to ports on the host.
