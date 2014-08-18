@@ -102,10 +102,8 @@ class Configuration(object):
             except KeyError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Missing value for '{message}'.")
-                    .format(
-                        application_name=application_name, message=e.message
-                    )
+                     "Missing value for '{message}'.").format(
+                        application_name=application_name, message=e.message)
                 )
 
             try:
@@ -113,10 +111,8 @@ class Configuration(object):
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid Docker image name. {message}")
-                    .format(
-                        application_name=application_name, message=e.message
-                    )
+                     "Invalid Docker image name. {message}").format(
+                        application_name=application_name, message=e.message)
                 )
 
             ports = []
@@ -140,10 +136,8 @@ class Configuration(object):
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid ports specification. {message}")
-                    .format(
-                        application_name=application_name, message=e.message
-                    )
+                     "Invalid ports specification. {message}").format(
+                        application_name=application_name, message=e.message)
                 )
 
             volume = None
@@ -212,11 +206,9 @@ class Configuration(object):
             if config:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Unrecognised keys: {keys}.")
-                    .format(
+                     "Unrecognised keys: {keys}.").format(
                         application_name=application_name,
-                        keys=', '.join(sorted(config.keys()))
-                    )
+                        keys=', '.join(sorted(config.keys())))
                 )
         return applications
 
