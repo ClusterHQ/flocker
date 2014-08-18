@@ -327,7 +327,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         docker_dir.makedirs()
         docker_dir.child(b"Dockerfile").setContent(
             b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "env"]'
+            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
@@ -342,7 +342,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
             image_name=image_name,
             environment=GearEnvironment(
                 id=expected_environment_id, variables=expected_variables),
-            expected_states=(u'inactive',)
         )
         d.addCallback(
             # XXX gear status prints to stderr which ordinarily would cause
