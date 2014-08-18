@@ -509,9 +509,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit.
         """
         expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name, activation_state=u'active')
+        ports = [PortMap(internal_port=1, external_port=2)]
+        unit = Unit(name=expected_application_name,
+                    ports=ports,
+                    activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
-        application = Application(name=unit.name)
+        application = Application(name=unit.name, ports=frozenset(unit.ports))
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
@@ -622,29 +625,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
 
-    def test_ports_listed(self):
-        ports = [PortMap(internal_port=1, external_port=2)]
-        unit = Unit(name=u'site-example.com',
-                     activation_state=u'active',
-                     ports=ports)
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        applications = [Application(name=unit.name)]
-        applications.sort()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
-        d = api.discover_node_configuration()
-        result = self.successResultOf(d)
-        result.not_running.sort()
-
-        self.assertEqual(
-            result,
-            NodeState(
-                running=[
-                    Application(
-                        name=u'site-example.com',
-                        image=None,
-                        ports=frozenset(ports),
-                        volume=None)],
-                not_running=[]))
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
