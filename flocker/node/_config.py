@@ -58,7 +58,8 @@ class Configuration(object):
         """
         environment = config.pop('environment', None)
         try:
-            environment.items()
+            for key, value in environment.iteritems():
+                environment[key] = str(value)
         except AttributeError:
             if environment is not None:
                 raise ConfigurationError(
