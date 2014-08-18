@@ -623,12 +623,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                          result)
 
     def test_ports_listed(self):
-        unit1 = Unit(name=u'site-example.com',
+        ports = [PortMap(internal_port=1, external_port=2)]
+        unit = Unit(name=u'site-example.com',
                      activation_state=u'active',
-                     ports=[PortMap(internal_port=1, external_port=2)])
-        units = {unit1.name: unit1}
-        fake_gear = FakeGearClient(units=units)
-        applications = [Application(name=unit.name) for unit in units.values()]
+                     ports=ports)
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        applications = [Application(name=unit.name)]
         applications.sort()
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
@@ -642,7 +642,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     Application(
                         name=u'site-example.com',
                         image=None,
-                        ports=frozenset([]),
+                        ports=frozenset(ports),
                         volume=None)],
                 not_running=[]))
 
