@@ -222,9 +222,11 @@ class UnitInitTests(
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
                 links=(PortMap(internal_port=3306, external_port=103306),),
-                # environment=XXX
+                environment=GearEnvironment(
+                    id=u'site-example.com', variables={u'foo': u'bar'})
             ),
-            expected_defaults=dict(ports=(), links=(), container_image=None)
+            expected_defaults=dict(
+                ports=(), links=(), container_image=None, environment=None)
         )
 ):
     """
