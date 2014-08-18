@@ -93,7 +93,7 @@ class ApplicationTests(SynchronousTestCase):
                                   ports=None)
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None)>",
+            "volume=None, environment=None)>",
             repr(application)
         )
 

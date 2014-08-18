@@ -39,6 +39,35 @@ class Configuration(object):
         """
         self._lenient = lenient
 
+    def _parse_environment_config(self, application, config):
+        """
+        Validate and return an application config's environment variables.
+
+        :param str application: The name of the application.
+
+        :param dict config: The config of a single ``Application`` instance,
+            as extracted from the ``applications`` ``dict`` in
+            ``_applications_from_configuration``.
+
+        :raises ConfigurationError: if the ``environment`` element of
+            ``config`` is not a ``dict`` or ``dict``-like value.
+
+        :returns: ``None`` if there is no ``environment`` element in the
+            config, or the ``dict`` of environment variables if there is.
+
+        """
+        environment = config.pop('environment', None)
+        try:
+            environment.items()
+        except AttributeError:
+            if environment is not None:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "'environment' must be a dictionary of key/value pairs.")
+                    .format(application_name=application)
+                )
+        return environment
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -72,8 +101,10 @@ class Configuration(object):
             except KeyError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Missing value for '{message}'.").format(
-                         application_name=application_name, message=e.message)
+                     "Missing value for '{message}'.")
+                    .format(
+                        application_name=application_name, message=e.message
+                    )
                 )
 
             try:
@@ -81,8 +112,10 @@ class Configuration(object):
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid Docker image name. {message}").format(
-                         application_name=application_name, message=e.message)
+                     "Invalid Docker image name. {message}")
+                    .format(
+                        application_name=application_name, message=e.message
+                    )
                 )
 
             ports = []
@@ -106,8 +139,11 @@ class Configuration(object):
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Invalid ports specification. {message}").format(
-                         application_name=application_name, message=e.message))
+                     "Invalid ports specification. {message}")
+                    .format(
+                        application_name=application_name, message=e.message
+                    )
+                )
 
             volume = None
             if "volume" in config:
@@ -160,18 +196,26 @@ class Configuration(object):
                         )
                     )
 
+            environment = self._parse_environment_config(
+                application_name,
+                config
+            )
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
-                ports=frozenset(ports))
+                ports=frozenset(ports),
+                environment=environment)
 
             if config:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
-                     "Unrecognised keys: {keys}.").format(
-                         application_name=application_name,
-                         keys=', '.join(sorted(config.keys())))
+                     "Unrecognised keys: {keys}.")
+                    .format(
+                        application_name=application_name,
+                        keys=', '.join(sorted(config.keys()))
+                    )
                 )
         return applications
 
