@@ -117,8 +117,9 @@ class IGearClient(Interface):
         :param list links: A list of ``PortMap``\ s mapping ports forwarded
             from the container to ports on the host.
 
-        :param GearEnvironment environment: A ``GearEnvironment``
-            associating key value pairs with an environment ID
+        :param GearEnvironment environment: A ``GearEnvironment`` associating
+            key value pairs with an environment ID. Default ``None`` means that
+            no environment variables will be supplied to the unit.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
