@@ -111,5 +111,5 @@ You now know how to run stateful applications in a Docker cluster using Flocker.
 
 The virtual machines you are running will be useful for testing Flocker and running other examples in the documentation.
 If you would like to shut them down temporarily you can run ``vagrant halt`` in the tutorial directory.
-You can then restart them by running ``vagrant up --provider=virtualbox``.
+You can then restart them by running ``vagrant up``.
 If you would like to completely remove the virtual machines you can run ``vagrant destroy``.

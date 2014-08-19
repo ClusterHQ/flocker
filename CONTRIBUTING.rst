@@ -55,7 +55,7 @@ Development Environment
 
   .. code-block:: console
 
-     $ vagrant up --provider=virtualbox
+     $ vagrant up
      $ vagrant ssh
 
 * You will need Python 2.7 and a recent version of PyPy installed on your development machine.
