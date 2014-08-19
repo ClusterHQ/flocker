@@ -364,12 +364,13 @@ class Deployer(object):
                 if desired_application.name in current_state:
                     for current_application in current_node_applications:
                         if current_application.name == desired_application.name:
-                            restart_containers.append(
-                                Sequentially(changes=[
-                                    # You should really need to stop current_application but StopApplication works only on name
-                                    StopApplication(application=desired_application),
-                                    StartApplication(application=desired_application)])
-                            )
+                            if current_application.ports != desired_application.ports:
+                                restart_containers.append(
+                                    Sequentially(changes=[
+                                        # You should really need to stop current_application but StopApplication works only on name
+                                        StopApplication(application=desired_application),
+                                        StartApplication(application=desired_application)])
+                                )
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
