@@ -204,9 +204,44 @@ class StoragePoolTests(TestCase):
         A filesystem which was previously remotely owned and is now locally
         owned becomes writeable.
         """
+        pool = StoragePool(reactor, create_zfs_pool(self),
+                           FilePath(self.mktemp()))
+        service = service_for_pool(self, pool)
+        local_volume = service.get(u"myvolumename")
+        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                               service=service)
+
+        d = pool.create(remote_volume)
+
+        def created_filesystems(ignored):
+            return pool.change_owner(remote_volume, local_volume)
+        d.addCallback(created_filesystems)
+
+        def changed_owner(filesystem):
+            # This would error if writing was not possible:
+            filesystem.get_path().child(b"text").setContent(b"hello")
+        d.addCallback(changed_owner)
+        return d
 
     def test_owner_change_to_remote_becomes_readonly(self):
         """
         A filesystem which was previously locally owned and is now remotely
         owned becomes unwriteable.
         """
+        pool = StoragePool(reactor, create_zfs_pool(self),
+                           FilePath(self.mktemp()))
+        service = service_for_pool(self, pool)
+        local_volume = service.get(u"myvolumename")
+        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                               service=service)
+
+        d = pool.create(local_volume)
+
+        def created_filesystems(ignored):
+            return pool.change_owner(local_volume, remote_volume)
+        d.addCallback(created_filesystems)
+
+        def changed_owner(filesystem):
+            self.assertReadOnly(filesystem.get_path())
+        d.addCallback(changed_owner)
+        return d

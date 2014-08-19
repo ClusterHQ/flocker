@@ -224,7 +224,9 @@ class StoragePool(Service):
     A ZFS storage pool.
 
     Remotely owned filesystems are mounted read-only, to prevent changes
-    that would break ``zfs recv``.
+    that would break ``zfs recv``. This is done by having the root dataset
+    be ``readonly=on`` and thus inherited by default. Locally owned
+    datasets have ```readonly=off`` property set on them.
     """
 
     def __init__(self, reactor, name, mount_root):
@@ -263,9 +265,6 @@ class StoragePool(Service):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
         new_mount_path = new_filesystem.get_path().path
-        # XXX If new_volume.is_locally_owned() also "-o readonly=false",
-        # otherwise if volume.is_locally_owned() followup by removing the
-        # readonly override attribute.
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
 
@@ -279,9 +278,18 @@ class StoragePool(Service):
         d.addErrback(rename_failed)
 
         def renamed(ignored):
-            return zfs_command(self._reactor,
+            if new_volume.locally_owned():
+                result = zfs_command(self._reactor,
+                                     [b"set", b"readonly=off",
+                                      new_filesystem.name])
+            else:
+                result = zfs_command(self._reactor,
+                                     [b"inherit", b"readonly",
+                                      new_filesystem.name])
+            result.addCallback(lambda _: zfs_command(self._reactor,
                                [b"set", b"mountpoint=" + new_mount_path,
-                                new_filesystem.name])
+                                new_filesystem.name]))
+            return result
         d.addCallback(renamed)
 
         def remounted(ignored):
