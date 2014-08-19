@@ -86,7 +86,7 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def get(self, name, uuid=None):
+    def get(self, name):
         """
         Return a locally-owned ``Volume`` with the given name.
 
@@ -100,8 +100,6 @@ class VolumeService(Service):
 
         :return: A ``Volume``.
         """
-        #if uuid is None:
-        #    uuid=self.uuid
         return Volume(uuid=self.uuid, name=name, _pool=self._pool)
 
     def wait_for_volume(self, name):
@@ -292,12 +290,6 @@ class Volume(object):
         those that Docker allows for container names.
     :ivar service: The ``VolumeService`` in whose pool this volume is stored.
     """
-    # def is_locally_owned(self):
-    #     """
-    #     Return whether this volume is locally owned.
-    #     """
-    #     return self.uuid == self.service.uuid
-
     def change_owner(self, new_owner_uuid):
         """
         Change which volume manager owns this volume.
