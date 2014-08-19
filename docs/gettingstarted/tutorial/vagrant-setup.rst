@@ -84,96 +84,97 @@ Note that you will need to make the same substitution in commands used throughou
           The underlying disk files grow to about 5GB.
           So you will need at least 10GB of free disk space on your workstation.
 
-First create a tutorial directory:
+#. Create a tutorial directory:
 
-.. code-block:: console
+   .. code-block:: console
 
-   alice@mercury:~/$ mkdir flocker-tutorial
-   alice@mercury:~/$ cd flocker-tutorial
-   alice@mercury:~/flocker-tutorial$
+      alice@mercury:~/$ mkdir flocker-tutorial
+      alice@mercury:~/$ cd flocker-tutorial
+      alice@mercury:~/flocker-tutorial$
 
-Next download the Vagrant configuration file by right clicking on the link below.
-Save it in the *flocker-tutorial* directory and preserve its filename.
+#. Download the Vagrant configuration file by right clicking on the link below.
+   Save it in the *flocker-tutorial* directory and preserve its filename.
 
-:download:`Vagrant configuration <Vagrantfile>`
+   :download:`Vagrantfile <Vagrantfile>`
 
-.. literalinclude:: Vagrantfile
-   :language: ruby
-   :lines: 1-5
-   :append: ...
+   .. literalinclude:: Vagrantfile
+      :language: ruby
+      :lines: 1-8
+      :append: ...
 
-.. code-block:: console
+   .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ls
-   Vagrantfile
-   alice@mercury:~/flocker-tutorial$
+      alice@mercury:~/flocker-tutorial$ ls
+      Vagrantfile
+      alice@mercury:~/flocker-tutorial$
 
-Then use ``vagrant up`` to start and provision the VMs:
+#. Use ``vagrant up`` to start and provision the VMs:
 
-.. code-block:: console
+   .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant up
-   Bringing machine 'node1' up with 'virtualbox' provider...
-   ==> node1: Importing base box 'clusterhq/flocker-dev'...
-   ... lots of output ...
-   ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
-   ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
-   alice@mercury:~/flocker-tutorial$
+      alice@mercury:~/flocker-tutorial$ vagrant up
+      Bringing machine 'node1' up with 'virtualbox' provider...
+      ==> node1: Importing base box 'clusterhq/flocker-dev'...
+      ... lots of output ...
+      ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
+      ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
+      alice@mercury:~/flocker-tutorial$
 
-This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
-Your network connectivity and CPU speed will affect how long this takes.
-Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
+   This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.
+   Your network connectivity and CPU speed will affect how long this takes.
+   Fortunately this extra work is only necessary the first time you bring up a node (until you destroy it).
 
-After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
+#. After ``vagrant up`` completes you may want to verify that the two VMs are really running and accepting SSH connections:
 
-.. code-block:: console
+   .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ vagrant status
-   Current machine states:
+      alice@mercury:~/flocker-tutorial$ vagrant status
+      Current machine states:
 
-   node1                     running (virtualbox)
-   node2                     running (virtualbox)
-   ...
-   alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node1
-   node1
-   Connection to 127.0.0.1 closed.
-   alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node2
-   node2
-   Connection to 127.0.0.1 closed.
-   alice@mercury:~/flocker-tutorial$
+      node1                     running (virtualbox)
+      node2                     running (virtualbox)
+      ...
+      alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node1
+      node1
+      Connection to 127.0.0.1 closed.
+      alice@mercury:~/flocker-tutorial$ vagrant ssh -c hostname node2
+      node2
+      Connection to 127.0.0.1 closed.
+      alice@mercury:~/flocker-tutorial$
 
-If all goes well, the next step is to configure your SSH agent.
-This will allow Flocker to authenticate itself to the VM.
-If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
-If you don't, you'll see an error:
+#. If all goes well, the next step is to configure your SSH agent.
+   This will allow Flocker to authenticate itself to the VM:
 
-.. code-block:: console
+   If you're not sure whether you already have an SSH agent running, ``ssh-add`` can tell you.
+   If you don't, you'll see an error:
 
-   alice@mercury:~/flocker-tutorial$ ssh-add
-   Could not open a connection to your authentication agent.
-   alice@mercury:~/flocker-tutorial$
+   .. code-block:: console
 
-If you do, you'll see no output:
+      alice@mercury:~/flocker-tutorial$ ssh-add
+      Could not open a connection to your authentication agent.
+      alice@mercury:~/flocker-tutorial$
 
-.. code-block:: console
+   If you do, you'll see no output:
 
-   alice@mercury:~/flocker-tutorial$ ssh-add
-   alice@mercury:~/flocker-tutorial$
+   .. code-block:: console
 
-If you don't have an SSH agent running, start one:
+      alice@mercury:~/flocker-tutorial$ ssh-add
+      alice@mercury:~/flocker-tutorial$
 
-.. code-block:: console
+   If you don't have an SSH agent running, start one:
 
-   alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
-   Agent pid 27233
-   alice@mercury:~/flocker-tutorial$
+   .. code-block:: console
 
-Finally, add the Vagrant key to your agent:
+      alice@mercury:~/flocker-tutorial$ eval $(ssh-agent)
+      Agent pid 27233
+      alice@mercury:~/flocker-tutorial$
 
-.. code-block:: console
+#. Finally, add the Vagrant key to your agent:
 
-   alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
-   alice@mercury:~/flocker-tutorial$
+   .. code-block:: console
+
+      alice@mercury:~/flocker-tutorial$ ssh-add ~/.vagrant.d/insecure_private_key
+      alice@mercury:~/flocker-tutorial$
 
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
