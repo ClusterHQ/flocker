@@ -1094,8 +1094,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
-            ports=frozenset([PortMap(internal_port=1,
-                                     external_port=2)]),
+            ports=frozenset([PortMap(internal_port=3,
+                                     external_port=4)]),
         )
 
         nodes = frozenset([
