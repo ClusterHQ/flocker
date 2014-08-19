@@ -18,6 +18,7 @@ from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import Deferred
 from twisted.internet.error import ConnectionDone, ProcessTerminated
+from twisted.application.service import Service
 
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
@@ -218,8 +219,13 @@ def volume_to_dataset(volume):
 @implementer(IStoragePool)
 @with_repr(["_name"])
 @with_cmp(["_name", "_mount_root"])
-class StoragePool(object):
-    """A ZFS storage pool."""
+class StoragePool(Service):
+    """
+    A ZFS storage pool.
+
+    Remotely owned filesystems are mounted read-only, to prevent changes
+    that would break ``zfs recv``.
+    """
 
     def __init__(self, reactor, name, mount_root):
         """
@@ -233,16 +239,23 @@ class StoragePool(object):
         self._mount_root = mount_root
 
     def startService(self):
-        # Set the root dataset to be read only.
-        pass
+        # Set the root dataset to be read only; IService.startService
+        # doesn't support Deferred results, and in any case startup can be
+        # synchronous with no ill effects.
+        subprocess.check_call([b"zfs", b"set", b"readonly=on", self._name])
+        # If we're read-only, mounting directories within the mounted ZFS
+        # dataset causes issues... and anyway we don't expect to ever do
+        # anything in the root dataset.
+        subprocess.check_call([b"zfs", b"set", b"canmount=off", self._name])
 
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
+        properties = [b"-o", b"mountpoint=" + mount_path]
+        if volume.locally_owned():
+            properties.extend([b"-o", b"readonly=off"])
         d = zfs_command(self._reactor,
-                        [b"create",  b"-o", b"mountpoint=" + mount_path,
-                         # XXX If volume.is_locally_owned() also "-o readonly=false"
-                         filesystem.name])
+                        [b"create"] + properties + [filesystem.name])
         d.addCallback(lambda _: filesystem)
         return d
 

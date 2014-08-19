@@ -7,6 +7,7 @@ Further coverage is provided in
 """
 
 import subprocess
+import errno
 
 from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
@@ -51,6 +52,7 @@ class StoragePoolTests(TestCase):
     def test_mount_root(self):
         """Mountpoints are children of the mount root."""
         mount_root = FilePath(self.mktemp())
+        mount_root.makedirs()
         pool = StoragePool(reactor, create_zfs_pool(self), mount_root)
         service = service_for_pool(self, pool)
         volume = service.get(u"myvolumename")
@@ -117,7 +119,7 @@ class StoragePoolTests(TestCase):
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
 
-        def created_filesystems(igonred):
+        def created_filesystems(ignored):
             filesystem_name = volume.get_filesystem().name
             subprocess.check_call(['zfs', 'unmount', filesystem_name])
             # Create a file hiding under the original mount point
@@ -142,12 +144,45 @@ class StoragePoolTests(TestCase):
         """
         A filesystem which is created for a locally owned volume is writeable.
         """
+        pool = StoragePool(reactor, create_zfs_pool(self),
+                           FilePath(self.mktemp()))
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
+
+        d = pool.create(volume)
+
+        def created_filesystems(filesystem):
+            # This would error if writing was not possible:
+            filesystem.get_path().child(b"text").setContent(b"hello")
+        d.addCallback(created_filesystems)
+        return d
+
+    def assertReadOnly(self, path):
+        """
+        Assert writes are not possible to the given filesystem path.
+
+        :param FilePath path: Directory which ought to be read-only.
+        """
+        exc = self.assertRaises(OSError,
+                                path.child(b"text").setContent, b"hello")
+        self.assertEqual(exc.args[0], errno.EROFS)
 
     def test_remotely_owned_created_readonly(self):
         """
         A filesystem which is created for a remotely owned volume is not
         writeable.
         """
+        pool = StoragePool(reactor, create_zfs_pool(self),
+                           FilePath(self.mktemp()))
+        service = service_for_pool(self, pool)
+        volume = Volume(uuid=u"remoteone", name=u"vol", service=service)
+
+        d = pool.create(volume)
+
+        def created_filesystems(filesystem):
+            self.assertReadOnly(filesystem.get_path())
+        d.addCallback(created_filesystems)
+        return d
 
     def test_written_created_readonly(self):
         """
