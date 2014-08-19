@@ -3,7 +3,8 @@ Areas of Potential Future Development
 
 Flocker is an ongoing project whose direction will be guided in large part by the community.
 The list below includes some potential areas for future development.
-It is not all encompassing or indicative of what definitely will be built. Feedback welcome and encouraged.
+It is not all encompassing or indicative of what definitely will be built.
+Feedback welcome and encouraged.
 
 - Support for atomic updates.
 - Scale-out for stateless containers.

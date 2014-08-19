@@ -47,7 +47,7 @@ Besides filing a `GitHub issue`_ with feature requests or bug reports you can al
 Development Environment
 =======================
 
-* To run the complete test suite you will need `ZFS`_, `geard`_ and `docker`_ installed.
+* To run the complete test suite you will need `ZFS`_, `geard`_ and `Docker`_ installed.
   ``geard`` requires an operating system with ``systemd``.
   The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
   Vagrant 1.6.2 or later is required.
@@ -67,7 +67,7 @@ Development Environment
 
 .. _ZFS: http://zfsonlinux.org
 .. _geard: https://openshift.github.io/geard/
-.. _docker: https://www.docker.com/
+.. _Docker: https://www.docker.com/
 
 
 Running Tests
@@ -79,14 +79,14 @@ You can run all unit tests by doing:
 
    $ tox
 
-Functional tests require ``ZFS``, ``geard`` and ``docker`` to be installed and in the case of the latter two running as well.
+Functional tests require ``ZFS``, ``geard`` and ``Docker`` to be installed and in the case of the latter two running as well.
 In addition, ``tox`` needs to be run as root:
 
 .. code-block:: console
 
    $ sudo tox
 
-Since these tests involve global state on your machine (filesystems, iptables, docker containers, etc.) we recommend running them in the development Vagrant image.
+Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in the development Vagrant image.
 
 
 Documentation
@@ -109,7 +109,7 @@ Requirements for Contributions
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
-   Use the coverage.py tool with the ``--branch`` option to generate line and branch coverage reports.
+   Use the ``coverage.py`` tool with the ``--branch`` option to generate line and branch coverage reports.
    This report can tell you if you missed anything.
    It does not necessarily catch everything though.
    Treat it as a helper but not the definitive indicator of success.
@@ -193,7 +193,7 @@ Steps to Contribute Code
 
 GitHub collaborators can participate in the development workflow by changing the labels on an issue.
 GitHub lets non-collaborators create new issues and pull requests but it does not let them change labels.
-If you are not a collaborator you may seek out assistances from a collaborator to set issue labels to reflect the issue's stage.
+If you are not a collaborator you may seek out assistance from a collaborator to set issue labels to reflect the issue's stage.
 
 1. Pick the next issue in the *Ready* category.
    Drag it to the *In Progress* column in Waffle (or change the label from ``ready`` to ``in progress`` in GitHub).
