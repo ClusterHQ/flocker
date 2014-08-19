@@ -19,7 +19,8 @@ from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
 from .._model import AttachedVolume
-from ..gear import GearClient, FakeGearClient, AlreadyExists, Unit, PortMap
+from ..gear import (
+    GearClient, FakeGearClient, AlreadyExists, Unit, PortMap, GearEnvironment)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
@@ -369,6 +370,33 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application).run(deployer)
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
+
+    def test_environment_supplied_to_gear(self):
+        """
+        ``StartApplication.run()`` passes the environment dictionary of the
+        application to ``GearClient.add`` as a ``GearEnvironment`` instance
+        with an ``id`` matching the application name.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+
+        application_name = u'site-example.com'
+        variables = dict(foo=u"bar", baz=u"qux")
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=variables.copy())
+        expected_environment = GearEnvironment(
+            id=application_name, variables=variables.copy())
+
+        StartApplication(application=application).run(deployer)
+
+        self.assertEqual(
+            expected_environment,
+            fake_gear._units[application_name].environment
+        )
 
 
 class StopApplicationTests(SynchronousTestCase):
