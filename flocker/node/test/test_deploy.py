@@ -509,9 +509,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit.
         """
         expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name, activation_state=u'active')
+        ports = frozenset([PortMap(internal_port=1, external_port=2)])
+        unit = Unit(name=expected_application_name,
+                    ports=ports,
+                    activation_state=u'active')
         fake_gear = FakeGearClient(units={expected_application_name: unit})
-        application = Application(name=unit.name)
+        application = Application(name=unit.name, ports=unit.ports)
         api = Deployer(create_volume_service(self), gear_client=fake_gear)
         d = api.discover_node_configuration()
 
@@ -1066,6 +1069,50 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
 
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[StopApplication(application=application),
+                                  StartApplication(application=application)]),
+        ])])
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_port_change_applications_restarted(self):
+        """
+        Applications that are running but are supposed to be on different ports
+        are added to the list of applications to restart.
+        """
+        unit = Unit(name=u'mysql-hybridcluster',
+                    activation_state=u'active',
+                    ports=frozenset([PortMap(internal_port=1,
+                                             external_port=2)]),
+        )
+
+        fake_gear = FakeGearClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+                       network=make_memory_network())
+
+        application = Application(
+            name=u'mysql-hybridcluster',
+            image=DockerImage(repository=u'clusterhq/flocker',
+                              tag=u'release-14.0'),
+            ports=frozenset([PortMap(internal_port=3,
+                                     external_port=4)]),
+        )
+
+        nodes = frozenset([
+            Node(
+                hostname=u'node.example.com',
+                applications=frozenset([application])
+            )
+        ])
+
+        desired = Deployment(nodes=nodes)
+        d = api.calculate_necessary_state_changes(desired_state=desired,
+                                                  current_cluster_state=EMPTY,
+                                                  hostname=u'node.example.com')
+
+        # XXX As mentioned in implementation:
+        # This is saying that the application to be stopped has the new ports
+        # I've left it like this for now because the StopApplication implementation doesn't care about ports and I'm not sure what needs changing, StopApplication or this test or nothing
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
                                   StartApplication(application=application)]),

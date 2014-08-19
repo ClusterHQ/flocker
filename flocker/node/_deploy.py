@@ -267,6 +267,7 @@ class Deployer(object):
                 else:
                     volume = None
                 application = Application(name=unit.name,
+                                          ports=unit.ports,
                                           volume=volume)
                 if unit.activation_state in (u"active", u"activating"):
                     running.append(application)
@@ -357,6 +358,20 @@ class Deployer(object):
                 for app in desired_node_applications
                 if app.name in not_running
             ]
+
+            # XXX This is an ugly block which could be neatened
+            for desired_application in desired_node_applications:
+                if desired_application.name in current_state:
+                    for current_application in current_node_applications:
+                        if current_application.name == desired_application.name:
+                            if current_application.ports != desired_application.ports:
+                                restart_containers.append(
+                                    Sequentially(changes=[
+                                        # XXX You should really need to stop current_application but StopApplication works only on name
+                                        # Either that should be changed, or the test should be changed, or it doesn't matter (apart from clarity)
+                                        StopApplication(application=desired_application),
+                                        StartApplication(application=desired_application)])
+                                )
 
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new

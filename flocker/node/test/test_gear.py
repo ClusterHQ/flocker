@@ -222,7 +222,10 @@ class UnitInitTests(
                 ports=(PortMap(internal_port=80, external_port=8080),),
                 links=(PortMap(internal_port=3306, external_port=103306),),
             ),
-            expected_defaults=dict(ports=(), links=(), container_image=None)
+            expected_defaults=dict(ports=frozenset(),
+                                   links=(),
+                                   container_image=None,
+            )
         )
 ):
     """
