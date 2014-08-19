@@ -6,6 +6,7 @@ import sys
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.application.service import Service
 
 from ...testtools import (
     FlockerScriptTestsMixin, StandardOptionsTestsMixin, FakeSysModule)
@@ -83,6 +84,7 @@ class VolumeScriptMainTests(SynchronousTestCase):
         ``VolumeScript.main`` returns a ``Deferred`` on success.
         """
         script = VolumeScript()
+        script._service_factory = lambda *args, **kwargs: Service()
         options = VolumeOptions()
         options["config"] = FilePath(self.mktemp())
         dummy_reactor = object()

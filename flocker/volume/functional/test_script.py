@@ -12,6 +12,7 @@ from twisted.python.procutils import which
 
 from ... import __version__
 from ...testtools import skip_on_broken_permissions, attempt_effective_uid
+from ..testtools import create_zfs_pool
 
 _require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
@@ -58,8 +59,9 @@ class FlockerVolumeTests(TestCase):
 
     def test_config(self):
         """``flocker-volume --config path`` writes a JSON file at that path."""
+        pool = create_zfs_pool(self)
         path = FilePath(self.mktemp())
-        run(b"--config", path.path)
+        run(b"--config", path.path, b"--pool", pool)
         self.assertTrue(json.loads(path.getContent()))
 
     @skip_on_broken_permissions
