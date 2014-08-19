@@ -7,21 +7,26 @@ FAQ
     :local:
     :backlinks: none
 	
-Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  You can find these questions in the Future Functionality section below.  You can also view `ideas for future releases`_  and `user stories for upcoming features`_.
+Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  
+You can find these questions in the Future Functionality section below.  
+You can also view `ideas for future releases`_.
 
-If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our IRC #clusterhq or `the flocker Google group`.
+If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel #clusterhq or `the flocker Google group`.
 
 ZFS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Flocker uses ZFS. What about the ZFS licensing issues?
 **************************************************************************************************************
-There is a `good write up of the ZFS and Linux license issues`_ on the ZFS on Linux website.  In short, while ZFS won't be able to make it into mainline Linux proper due to licensing issues, "there is nothing in either license that prevents distributing it in the form of a binary module or in the form of source code."  
+There is a `good write up of the ZFS and Linux license issues`_ on the ZFS on Linux website.  
+In short, while ZFS won't be able to make it into mainline Linux proper due to licensing issues, "there is nothing in either license that prevents distributing it in the form of a binary module or in the form of source code."  
 
 
 But if ZFS isn't part of mainline Linux proper, it won't benefit from rigorous testing.  How do you know it's stable?
 *********************************************************************************************************************
-ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.  We are also rigorously testing ZFS on Linux to make sure it is stable. ZFS is production quality code and only the glue between it and the linux kernel needs fixing, in comparison to btrfs the ZFS core is far more stable and well tested, and has automated regression suites. 
+ZFS on Linux is already in use in companies and institutions all over the world to the tune of hundreds of petabytes of data.  
+We are also rigorously testing ZFS on Linux to make sure it is stable. 
+ZFS is production quality code.
 
 Future Functionality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,7 +58,6 @@ This works because eg port 3306 inside one app server gets routed via an ephemer
 
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
 
-.. _ideas for future releases: https://github.com/ClusterHQ/flocker/blob/master/docs/roadmap/index.rst
-.. _user stories for upcoming features: tbd
+.. _ideas for future releases: :doc:/roadmap/index
 .. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
