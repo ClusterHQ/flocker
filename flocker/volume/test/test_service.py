@@ -189,7 +189,8 @@ class VolumeServiceAPITests(TestCase):
 
         with filesystem.reader() as reader:
             service.receive(manager_uuid, u"newvolume", reader)
-        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", service=service)
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume",
+                            service=service)
         d = service.enumerate()
 
         def got_volumes(volumes):
@@ -214,7 +215,8 @@ class VolumeServiceAPITests(TestCase):
         with filesystem.reader() as reader:
             service.receive(manager_uuid, u"newvolume", reader)
 
-        new_volume = Volume(uuid=manager_uuid, name=u"newvolume", service=service)
+        new_volume = Volume(uuid=manager_uuid, name=u"newvolume",
+                            service=service)
         root = new_volume.get_filesystem().get_path()
         self.assertTrue(root.child(b"afile").getContent(), b"lalala")
 
@@ -239,8 +241,9 @@ class VolumeServiceAPITests(TestCase):
                                  reactor=Clock())
         service2.startService()
         actual = self.successResultOf(service2.enumerate())
-        self.assertEqual(set((volume.uuid, volume.name) for volume in expected),
-                         set((volume.uuid, volume.name) for volume in actual))
+        self.assertEqual(
+            set((volume.uuid, volume.name) for volume in expected),
+            set((volume.uuid, volume.name) for volume in actual))
 
     def test_enumerate_a_volume_with_period(self):
         """``enumerate()`` returns a volume previously ``create()``ed when its
