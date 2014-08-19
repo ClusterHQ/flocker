@@ -279,10 +279,9 @@ def make_istoragepool_tests(fixture):
                 service=service2,
             )
 
-            d = gatherResults([pool.create(volume), pool2.create(volume2)])
+            d = pool.create(volume)
 
-            def created_filesystem(results):
-                filesystem, filesystem2 = results
+            def created_filesystem(filesystem):
                 path = filesystem.get_path()
                 path.child(b"file").setContent(b"some bytes")
                 path.child(b"directory").makedirs()
