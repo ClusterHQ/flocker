@@ -388,13 +388,37 @@ class StartApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
             environment=variables.copy())
+
+        StartApplication(application=application).run(deployer)
+
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
+
+        self.assertEqual(
+            expected_environment,
+            fake_gear._units[application_name].environment
+        )
+
+    def test_environment_not_supplied(self):
+        """
+        ``StartApplication.run()`` only passes a a ``GearEnvironment`` instance
+        if the application defines an environment.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=None)
 
         StartApplication(application=application).run(deployer)
 
         self.assertEqual(
-            expected_environment,
+            None,
             fake_gear._units[application_name].environment
         )
 
