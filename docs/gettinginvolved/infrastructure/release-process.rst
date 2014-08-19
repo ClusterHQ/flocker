@@ -11,7 +11,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 - announcement on mailing list, blog, IRC (others?)
-- download links on clusterhq.com
+- download links on https://clusterhq.com
 
 
 Prerequisites
@@ -20,7 +20,7 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- Fedora 20 (rpmbuild, createrepo, yumdownloader) - might be possible to install these on Ubuntu though
+- Fedora 20 (``rpmbuild``, ``createrepo``, ``yumdownloader``) - might be possible to install these on Ubuntu though
 
   You are advised to perform the release from a :doc:`flocker development machine <vagrant>`\ , which will have all the requisite software pre-installed.
 
@@ -30,10 +30,12 @@ Software
 
 - an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
 
+- an up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_
+
 Access
 ~~~~~~
 
-- A readthedocs account (`registration <https://readthedocs.org/accounts/signup/>`__),
+- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
 
 - Ability to change topic in ``#clusterhq``.
@@ -45,18 +47,18 @@ Access
 
      /msg ChanServ access add #clusterhq <nickname> +t
 
-- Access to `Google cloud storage`_ using `gsutil`_.
+- Access to `Google Cloud Storage`_ using `gsutil`_.
 
 
 Preliminary Step: Pre-populating RPM Repository
 -----------------------------------------------
 
-This only needs to be done if the dependency packages for Flocker (i.e. geard and Python libraries) change; it should *not* be done every release.
+This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
 If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
 
-These steps must be performed from a machine with the ClusterHQ copr repo installed.
-You can either use the :doc:`Flocker development enviroment <vagrant>`
-or install the copr repo locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
+These steps must be performed from a machine with the ClusterHQ Copr repository installed.
+You can either use the :doc:`Flocker development environment <vagrant>`
+or install the Copr repository locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
 
 ::
 
@@ -79,7 +81,7 @@ Preparing for a release
 
 #. Choose a version number:
 
-   - Release numbers should be of the form x.y.z eg:
+   - Release numbers should be of the form x.y.z e.g.:
 
      .. code-block:: console
 
@@ -100,7 +102,7 @@ Preparing for a release
 
 #. In a clean, local working copy of Flocker with no modifications, checkout the branch for the release:
 
-   .. note:: All releases of the x.y series will be made from the releases/flocker-x.y branch.
+   .. note:: All releases of the x.y series will be made from the ``releases/flocker-x.y`` branch.
 
    - If this is a major or minor release then create the branch for the minor version:
 
@@ -115,7 +117,18 @@ Preparing for a release
 
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the downloads in ``docs/gettingstarted/linux-install.sh`` and ``docs/gettingstarted/osx-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile`` (a total of 4 locations).
+#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the two RPMs in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 4 locations).
+
+#. Update the ``sha1`` in the Homebrew recipe in the `homebrew-tap`_.
+
+   With Homebrew on OS X you can get the ``sha1`` using ``brew fetch flocker`` if the latest ``flocker.rb`` is in ``/usr/local/Library/formula``.
+
+   On Linux:
+
+   .. code-block:: console
+
+      wget https://github.com/ClusterHQ/flocker/archive/${VERSION}.tar.gz
+      sha1sum ${VERSION}.tar.gz
 
 #. Commit the changes:
 
@@ -173,7 +186,7 @@ Release
 
       $ gsutil config
 
-#. Build python packages for upload, and upload them to archive.clusterhq.com, as well as uploading the RPMs:
+#. Build python packages for upload, and upload them to ``archive.clusterhq.com``, as well as uploading the RPMs:
 
    .. code-block:: console
 
@@ -181,12 +194,12 @@ Release
       gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
       admin/upload-rpms "${VERSION}"
 
-#. Build tagged docs at readthedocs.org:
+#. Build tagged docs at Read the Docs:
 
-   #. Go to the readthedocs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+   #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Set the default version to that version.
-   #. Force readthedocs.org to reload the repository, in case the GitHub webhook fails, by running:
+   #. Force Read the Docs to reload the repository, in case the GitHub webhook fails, by running:
 
       .. code-block:: console
 
@@ -201,14 +214,15 @@ Announcing Releases
 
   - on the mailing list - https://groups.google.com/forum/#!forum/flocker-users
   - on the blog - https://clusterhq.com/blog/
-  - on the IRC channel - #clusterhq on freenode
+  - on the IRC channel - ``#clusterhq`` on ``irc.freenode.net``
 
-- Update download links on clusterhq.com
+- Update download links on https://clusterhq.com
 
-  XXX Arrange to have download links on a page on clusterhq.com somewhere.
+  XXX Arrange to have download links on a page on https://clusterhq.com somewhere.
   See https://github.com/ClusterHQ/flocker/issues/359 and https://github.com/ClusterHQ/flocker/issues/488
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
+.. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap

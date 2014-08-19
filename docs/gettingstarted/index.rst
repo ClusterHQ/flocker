@@ -10,7 +10,7 @@ It lets you:
 * Easily migrate them along with their data between hosts
 
 The goal of Flocker is to simplify the operational tasks that come along with running databases, key-value stores, queues and other data-backed services in containers.
-This Getting Started guide will walk you step-by-step through installing Flocker and provide some tutorials that demonstrate the essential features of Flocker.   
+This Getting Started guide will walk you step-by-step through installing Flocker and provide some tutorials that demonstrate the essential features of Flocker.
 
 .. toctree::
    :maxdepth: 2

@@ -74,7 +74,10 @@ class DockerImageFromStringTests(SynchronousTestCase):
 
 class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
-    kwargs=dict(name=u'site-example.com', image=object())
+    kwargs=dict(
+        name=u'site-example.com', image=object(),
+        ports=None, volume=None, environment=None
+    )
 )):
     """
     Tests for ``Application.__init__``.
@@ -93,7 +96,7 @@ class ApplicationTests(SynchronousTestCase):
                                   ports=None)
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None)>",
+            "volume=None, environment=None)>",
             repr(application)
         )
 
