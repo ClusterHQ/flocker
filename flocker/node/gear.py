@@ -244,6 +244,11 @@ class GearClient(object):
         address on the host. So if your service or NAT rule on the host is
         configured for 127.0.0.1 only, it won't receive any traffic. See
         https://github.com/openshift/geard/issues/224
+
+        XXX: If an environment is supplied, ``gear`` will create an environment
+        file with the given ID. But it will not remove that environment file
+        when this unit is removed or when there are no longer any references to
+        the environment ID. See https://github.com/ClusterHQ/flocker/issues/585
         """
         if ports is None:
             ports = []
