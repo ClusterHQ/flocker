@@ -78,7 +78,7 @@ class ChangeStateScriptTests(TestCase):
         ``VolumeService`` whose pool is the default ZFS pool.
         """
         self.assertEqual(
-            ChangeStateScript()._deployer.volume_service._pool,
+            ChangeStateScript()._deployer.volume_service.pool,
             StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
 
     @if_gear_configured
