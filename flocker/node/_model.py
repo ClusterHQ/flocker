@@ -85,7 +85,7 @@ class Application(object):
     :ivar DockerImage image: An image that can be used to run this
         containerized application.
 
-    XXX Why is this Port instances when Units have ``PortMap`` instances.
+    XXX ``Port``s vs ``PortMap``s is confusing me, and I think I've gone wrong.
     :ivar frozenset ports: A ``frozenset`` of ``Port`` instances that
         should be exposed to the outside world.
 
