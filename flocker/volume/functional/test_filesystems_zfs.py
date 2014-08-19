@@ -40,7 +40,7 @@ class VolumeToDatasetTests(TestCase):
         """``volume_to_dataset`` includes the UUID, dataset
         name and (for future functionality) a default branch name.
         """
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=None)
+        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", service=None)
         self.assertEqual(volume_to_dataset(volume),
                          b"my-uuid.myvolumename")
 

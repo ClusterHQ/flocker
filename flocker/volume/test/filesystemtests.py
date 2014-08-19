@@ -20,6 +20,7 @@ from twisted.internet.defer import gatherResults
 from pytz import UTC
 
 from ...testtools import assertNoFDsLeaked
+from ..testtools import service_for_pool
 
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
@@ -109,7 +110,8 @@ def make_istoragepool_tests(fixture):
         def test_create_filesystem(self):
             """``create()`` returns a :class:`IFilesystem` provider."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -122,9 +124,9 @@ def make_istoragepool_tests(fixture):
             different filesystems.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
-                             _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
+            volume2 = service.get(u"myvolumename2")
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -141,10 +143,9 @@ def make_istoragepool_tests(fixture):
             return different filesystems.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename",
-                            _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid2", name=u"myvolumename",
-                             _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
+            volume2 = service.get(u"myvolumename2")
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -160,7 +161,8 @@ def make_istoragepool_tests(fixture):
             """``get()`` returns the same :class:`IFilesystem` provider as the
             earlier created one."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -178,7 +180,8 @@ def make_istoragepool_tests(fixture):
             """The volume's filesystem has a mountpoint which is a
             directory."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -189,9 +192,9 @@ def make_istoragepool_tests(fixture):
         def test_two_volume_mountpoints_different(self):
             """Each volume has its own mountpoint."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"myvolumename2",
-                             _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
+            volume2 = service.get(u"myvolumename2")
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -204,7 +207,8 @@ def make_istoragepool_tests(fixture):
         def test_reader_cleanup(self):
             """The reader does not leave any open file descriptors behind."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -217,7 +221,8 @@ def make_istoragepool_tests(fixture):
         def test_writer_cleanup(self):
             """The writer does not leave any open file descriptors behind."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -256,12 +261,14 @@ def make_istoragepool_tests(fixture):
                 ``CopyVolumes``.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             pool2 = fixture(self)
+            service2 = service_for_pool(self, pool2)
             volume2 = Volume(
-                uuid=u"my-uuid",
+                uuid=service.uuid,
                 name=u"myvolumename",
-                _pool=pool2
+                service=service2,
             )
 
             d = gatherResults([pool.create(volume), pool2.create(volume2)])
@@ -346,7 +353,8 @@ def make_istoragepool_tests(fixture):
             """If an exception is raised in the context of the reader, it is not
             swallowed."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -359,7 +367,8 @@ def make_istoragepool_tests(fixture):
             """If an exception is raised in the context of the writer, it is not
             swallowed."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -372,7 +381,8 @@ def make_istoragepool_tests(fixture):
             """If an exception is raised in the context of the reader, no
             filedescriptors are leaked."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -389,7 +399,8 @@ def make_istoragepool_tests(fixture):
             """If an exception is raised in the context of the writer, no
             filedescriptors are leaked."""
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"myvolumename")
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -457,8 +468,9 @@ def make_istoragepool_tests(fixture):
             pool.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"name", _pool=pool)
-            volume2 = Volume(uuid=u"my-uuid", name=u"name2", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"name")
+            volume2 = service.get(u"name2")
             creating = gatherResults([
                 pool.create(volume), pool.create(volume2)])
 
@@ -478,7 +490,8 @@ def make_istoragepool_tests(fixture):
             filesystem with a space in it.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"spaced name", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"spaced name")
             creating = pool.create(volume)
 
             def created(ignored):
@@ -495,9 +508,10 @@ def make_istoragepool_tests(fixture):
             pattern. This test should be removed as part of:
                 https://github.com/ClusterHQ/flocker/issues/78"""
             pool = fixture(self)
-            uuid = u"my-uuid"
             volume_name = u"myvolumename"
-            volume = Volume(uuid=uuid, name=volume_name, _pool=pool)
+            service = service_for_pool(self, pool)
+            uuid = service.uuid
+            volume = service.get(volume_name)
             d = pool.create(volume)
 
             def createdFilesystem(filesystem):
@@ -513,8 +527,10 @@ def make_istoragepool_tests(fixture):
             volume definition.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
-            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"volume")
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume",
+                                service=service)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -536,8 +552,10 @@ def make_istoragepool_tests(fixture):
             volume definition no longer exists.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
-            new_volume = Volume(uuid=u"new-uuid", name=u"volume", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"volume")
+            new_volume = Volume(uuid=u"new-uuid", name=u"volume",
+                                service=service)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -560,8 +578,10 @@ def make_istoragepool_tests(fixture):
             definition.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
-            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"volume")
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                                service=service)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -586,8 +606,10 @@ def make_istoragepool_tests(fixture):
             filesystem already exists.
             """
             pool = fixture(self)
-            volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
-            new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"volume")
+            new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                                service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
             def created_filesystems(igonred):
