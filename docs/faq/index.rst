@@ -35,7 +35,7 @@ How does Flocker integrate with Kubernetes/Mesos/Deis/CoreOS/my favorite orchest
 **************************************************************************************************************
 Over time, we hope that Flocker becomes the de facto way for managing storage volumes with your favorite orchestration framework.  
 We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
-If you'd like work with us on integration, get in touch on our IRC #clusterhq or `the flocker Google group`.
+If you'd like work with us on integration, get in touch on our Freenode IRC #clusterhq or `the flocker Google group`_.
 You can also submit an issue or a pull request if you have a specific integration that you'd like to propose.
 
 If I clone a 2GB database five times, won't I need a really large server with 10 GB of disk?
