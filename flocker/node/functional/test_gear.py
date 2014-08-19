@@ -320,8 +320,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         """
         ``GearClient.add`` accepts an environment object whose ID and variables
         are used when starting a docker image.
-
-        XXX: The call to ``gear status`` in this test requires root privileges.
         """
         docker_dir = FilePath(self.mktemp())
         docker_dir.makedirs()
