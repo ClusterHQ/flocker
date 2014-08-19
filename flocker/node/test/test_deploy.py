@@ -572,8 +572,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         volume_service = create_volume_service(self)
         volume = Volume(uuid=unicode(uuid4()), name=u"site-example.com",
-                        _pool=volume_service._pool)
-        self.successResultOf(volume._pool.create(volume))
+                        service=volume_service)
+        self.successResultOf(volume.service.pool.create(volume))
 
         fake_gear = FakeGearClient(units=units)
         applications = [Application(name=unit.name)]

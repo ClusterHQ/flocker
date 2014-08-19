@@ -14,9 +14,9 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name
-from ..service import Volume, VolumeService
+from ..service import VolumeService
 from ..filesystems.memory import FilesystemStoragePool
-from ..testtools import create_realistic_servicepair
+from ..testtools import create_realistic_servicepair, service_for_pool
 
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
@@ -43,7 +43,9 @@ class VolumeTests(TestCase):
     def test_expose_creates_container(self):
         """``Volume.expose_to_docker`` creates a Docker container."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        volume = Volume(uuid=u"myuuid", name=random_name(), _pool=pool)
+        service = service_for_pool(self, pool)
+        volume = service.get(random_name())
+
         d = volume.expose_to_docker(FilePath(b"/my/path"))
 
         def exposed(_):
