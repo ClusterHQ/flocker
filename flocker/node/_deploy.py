@@ -371,6 +371,7 @@ class Deployer(object):
                                         StopApplication(application=desired_application),
                                         StartApplication(application=desired_application)])
                                 )
+
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
