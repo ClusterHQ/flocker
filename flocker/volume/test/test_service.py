@@ -435,6 +435,18 @@ class VolumeTests(TestCase):
         volume = Volume(uuid=u"123", name=u"456", service=object())
         self.assertEqual(volume._container_name, b"456-data")
 
+    def test_is_locally_owned(self):
+        """
+        ``Volume.locally_owned()`` indicates whether the volume's owner UUID
+        matches that of the local volume manager.
+        """
+        service = create_volume_service(self)
+        local = service.get(u"one")
+        remote = Volume(uuid=service.uuid + u"extra", name=u"xxx",
+                        service=service)
+        self.assertEqual((local.locally_owned(), remote.locally_owned()),
+                         (True, False))
+
 
 class VolumeOwnerChangeTests(TestCase):
     """

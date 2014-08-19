@@ -291,6 +291,15 @@ class Volume(object):
         those that Docker allows for container names.
     :ivar VolumeService service: The service that stores this volume.
     """
+    def locally_owned(self):
+        """
+        Return whether this volume is locally owned.
+
+        :return: ``True`` if volume's owner is the ``VolumeService`` that
+            is storing it, otherwise ``False``.
+        """
+        return self.uuid == self.service.uuid
+
     def change_owner(self, new_owner_uuid):
         """
         Change which volume manager owns this volume.
