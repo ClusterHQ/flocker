@@ -14,7 +14,7 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
-    make_ifilesystemsnapshots_tests, make_istoragepool_tests,
+    make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
     )
 from ..filesystems.zfs import (
     ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
@@ -189,6 +189,15 @@ class StoragePoolTests(TestCase):
         A filesystem which is received from a remote filesystem (which is
         writable in its origin pool) is not writeable.
         """
+        def fixture(_):
+            return StoragePool(reactor, create_zfs_pool(self),
+                               FilePath(self.mktemp()))
+        d = create_and_copy(self, fixture)
+
+        def got_volumes(copied):
+            self.assertReadOnly(copied.to_volume.get_filesystem().get_path())
+        d.addCallback(got_volumes)
+        return d
 
     def test_owner_change_to_locally_becomes_writeable(self):
         """
