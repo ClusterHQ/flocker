@@ -41,9 +41,10 @@ def wait_for_unit_state(gear_client, unit_name, expected_activation_states):
     :return: ``Deferred`` that fires when required state has been reached.
     """
     def is_in_states(units):
-        return [unit for unit in units if
-                (unit.name == unit_name and
-                 unit.activation_state in expected_activation_states)]
+        for unit in units:
+            if unit.name == unit_name:
+                if unit.activation_state in expected_activation_states:
+                    return True
 
     def check_if_in_states():
         responded = gear_client.list()
