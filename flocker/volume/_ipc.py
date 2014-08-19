@@ -13,6 +13,8 @@ Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
 from contextlib import contextmanager
 from io import BytesIO
 
+from characteristic import with_cmp
+
 from zope.interface import Interface, implementer
 
 from .service import DEFAULT_CONFIG_PATH
@@ -46,6 +48,7 @@ class IRemoteVolumeManager(Interface):
 
 
 @implementer(IRemoteVolumeManager)
+@with_cmp(["_destination", "_config_path"])
 class RemoteVolumeManager(object):
     """
     ``INode``\-based communication with a remote volume manager.

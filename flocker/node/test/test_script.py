@@ -4,13 +4,20 @@
 Tests for :module:`flocker.node.script`.
 """
 
+from StringIO import StringIO
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
-from yaml import safe_dump
+
+from yaml import safe_dump, safe_load
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
-from ..script import ChangeStateOptions, ChangeStateScript
+from ..script import (
+    ChangeStateOptions, ChangeStateScript,
+    ReportStateScript, ReportStateOptions)
+from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
-from .._model import Application, Deployment, DockerImage, Node
+from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
+from ...volume.testtools import create_volume_service
 
 
 class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
@@ -40,7 +47,7 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         """
         service = object()
         script = ChangeStateScript(lambda: service)
-        self.assertIs(script._deployer._volume_service, service)
+        self.assertIs(script._deployer.volume_service, service)
 
     def test_main_calls_deployer_change_node_state(self):
         """
@@ -51,24 +58,28 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
 
         change_node_state_calls = []
 
-        def spy_change_node_state(desired_state, hostname):
+        def spy_change_node_state(desired_state, current_cluster_state,
+                                  hostname):
             """
             A stand in for ``Deployer.change_node_state`` which records calls
             made to it.
             """
-            change_node_state_calls.append((desired_state, hostname))
+            change_node_state_calls.append((desired_state,
+                                            current_cluster_state, hostname))
 
         self.patch(
             script._deployer, 'change_node_state', spy_change_node_state)
 
-        expected_deployment = Deployment(nodes=frozenset())
+        expected_deployment = object()
+        expected_current = object()
         expected_hostname = b'node1.example.com'
         options = dict(deployment=expected_deployment,
+                       current=expected_current,
                        hostname=expected_hostname)
         script.main(reactor=object(), options=options)
 
         self.assertEqual(
-            [(expected_deployment, expected_hostname)],
+            [(expected_deployment, expected_current, expected_hostname)],
             change_node_state_calls
         )
 
@@ -81,8 +92,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_custom_configs(self):
         """
-        The supplied configuration strings are parsed as a :class:`Deployment`
-        on the options instance.
+        The supplied application and deployment configuration strings are
+        parsed as a :class:`Deployment` on the options instance.
         """
         application = Application(
             name=u'mysql-hybridcluster',
@@ -102,13 +113,69 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             }
         )
 
+        current_config = {'node2.example.com': {
+            'applications': {
+                'mysql-something': {
+                    'image': 'unknown',
+                    'volume': {'mountpoint': None},
+                }
+            },
+            'version': 1
+        }}
+
         options.parseOptions(
             [safe_dump(deployment_config),
              safe_dump(application_config),
+             safe_dump(current_config),
              b'node1.example.com'])
 
         self.assertEqual(
             Deployment(nodes=frozenset([node])), options['deployment'])
+
+    def test_current_configuration(self):
+        """
+        The supplied current cluster configuration strings is parsed as a
+        :class:`Deployment` on the options instance.
+        """
+        options = self.options()
+        deployment_config = {"nodes": {},
+                             "version": 1}
+
+        application_config = dict(
+            version=1,
+            applications={},
+        )
+
+        current_config = {'node2.example.com': {
+            'applications': {
+                'mysql-something': {
+                    'image': 'unknown',
+                    'volume': {'mountpoint': None},
+                }
+            },
+            'version': 1
+        }}
+
+        expected_current_config = Deployment(nodes=frozenset([
+            Node(hostname='node2.example.com', applications=frozenset([
+                Application(
+                    name='mysql-something',
+                    image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    volume=AttachedVolume(
+                        name='mysql-something',
+                        mountpoint=None,
+                    )
+                ),
+            ]))]))
+
+        options.parseOptions(
+            [safe_dump(deployment_config),
+             safe_dump(application_config),
+             safe_dump(current_config),
+             b'node1.example.com'])
+
+        self.assertEqual(expected_current_config, options['current'])
 
     def test_configuration_error(self):
         """
@@ -132,7 +199,8 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         exception = self.assertRaises(
             UsageError,
             options.parseOptions,
-            [safe_dump(deployment_config), safe_dump({}), b'node1.example.com']
+            [safe_dump(deployment_config), safe_dump({}), safe_dump({}),
+             b'node1.example.com']
         )
 
         self.assertEqual(
@@ -151,7 +219,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         deployment_bad_yaml = "{'foo':'bar', 'x':y, '':'"
         e = self.assertRaises(
             UsageError, options.parseOptions,
-            [deployment_bad_yaml, b'', b'node1.example.com'])
+            [deployment_bad_yaml, b'', b'{}', b'node1.example.com'])
 
         # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
         # testing of this string.
@@ -168,12 +236,29 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         application_bad_yaml = "{'foo':'bar', 'x':y, '':'"
         e = self.assertRaises(
             UsageError, options.parseOptions,
-            [b'', application_bad_yaml, b'node1.example.com'])
+            [b'', application_bad_yaml, b'{}', b'node1.example.com'])
 
         # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
+        )
+
+    def test_invalid_current_yaml(self):
+        """
+        If the supplied current config is not valid `YAML`, a
+        ``UsageError`` is raised.
+        """
+        options = self.options()
+        bad_yaml = "{'foo':'bar', 'x':y, '':'"
+        e = self.assertRaises(
+            UsageError, options.parseOptions,
+            [b'', b'', bad_yaml, b'node1.example.com'])
+
+        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # testing of this string.
+        self.assertTrue(
+            str(e).startswith('Current config could not be parsed as YAML')
         )
 
     def test_hostname_key(self):
@@ -185,6 +270,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         options.parseOptions(
             [b'{nodes: {}, version: 1}',
              b'{applications: {}, version: 1}',
+             b'{}',
              expected_hostname.encode('ascii')])
         self.assertEqual(
             (expected_hostname, unicode),
@@ -203,6 +289,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             options.parseOptions,
             [b'{nodes: {}, version: 1}',
              b'{applications: {}, version: 1}',
+             b'{}',
              hostname]
         )
 
@@ -210,3 +297,82 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),
             str(e)
         )
+
+
+class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
+    """
+    Tests for :class:`ReportStateOptions`.
+    """
+    options = ReportStateOptions
+
+    def test_no_options(self):
+        """
+        ``ReportStateOptions`` can instantiate and successfully parse
+        without any (non-standard) options.
+        """
+        options = self.options()
+        options.parseOptions([])
+
+    def test_wrong_number_options(self):
+        """
+        If any additional arguments are supplied, a ``UsageError`` is raised.
+        """
+        options = self.options()
+        e = self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ['someparameter']
+        )
+        self.assertEqual(str(e), b"Wrong number of arguments.")
+
+
+class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript``.
+    """
+    script = staticmethod(lambda: ReportStateScript(lambda: None))
+    options = ReportStateOptions
+    command_name = u'flocker-reportstate'
+
+
+class ReportStateScriptMainTests(SynchronousTestCase):
+    """
+    Tests for ``ReportStateScript.main``.
+    """
+    def test_deployer_type(self):
+        """
+        ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
+        """
+        script = ReportStateScript(lambda: None)
+        self.assertIsInstance(script._deployer, Deployer)
+
+    def test_yaml_callback(self):
+        """
+        ``ReportStateScript.main`` returns a deferred which writes out the
+        YAML representation of all the applications (running or not) from
+        ``Deployer.discover_node_configuration``
+        """
+        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        fake_gear = FakeGearClient(units=units)
+
+        expected = {
+            'applications': {
+                'site-example.net': {'image': 'unknown', 'ports': []},
+                'site-example.com': {'image': 'unknown', 'ports': []}
+            },
+            'version': 1
+        }
+
+        script = ReportStateScript(lambda: create_volume_service(self),
+                                   fake_gear)
+        content = StringIO()
+
+        def content_capture(data):
+            content.write(data)
+            content.seek(0)
+        self.patch(script, '_print_yaml', content_capture)
+        script.main(reactor=object(), options=[])
+        self.assertEqual(safe_load(content.read()), expected)

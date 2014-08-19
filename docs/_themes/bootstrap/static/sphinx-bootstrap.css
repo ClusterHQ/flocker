@@ -1,0 +1,323 @@
+/* To change themes. Un-comment the theme you would like to use. */
+
+@import "//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css";
+
+@import "bootstrap-engineauth.min.css";
+/*@import "bootstrap-default.min.css";*/
+/*@import "bootstrap-sapling.css";*/
+
+@import "bootstrap-responsive.min.css";
+
+.navbar .brand {
+    font-size: 25px;
+}
+
+.content {
+    padding-top: 25px;
+}
+
+.footer {
+    /*background-color: #eee;*/
+    padding: 30px 0;
+    text-shadow: 0 1px 0 #fff;
+    border-top: 1px solid #e5e5e5;
+    -webkit-box-shadow: inset 0 5px 15px rgba(0, 0, 0, .025);
+    -moz-box-shadow: inset 0 5px 15px rgba(0, 0, 0, .025);
+    box-shadow: inset 0 5px 15px rgba(0, 0, 0, .025);
+}
+
+.row-odd {
+    background-color: #fafafa;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    padding-bottom: .3em;
+}
+
+.section {
+    margin-bottom: 25px;
+}
+
+code, pre {
+    color: #000;
+}
+
+span.pre {
+    font-family: monospace;
+}
+
+div.admonition {
+    margin: 1em 0 0 0;
+    padding: .2em .5em .2em .9em;
+}
+
+div.admonition.note {
+    background-color: #fffbe0;
+}
+
+div.admonition.warning {
+    background-color: #ffe0d7;
+}
+
+div.admonition p {
+    margin: 1em;
+    padding: 0;
+}
+p.admonition-title {
+    display: none;
+}
+
+.descname {
+    font-weight: bold;
+}
+
+a.headerlink {
+    visibility: hidden;
+}
+
+h1:hover > a.headerlink,
+h2:hover > a.headerlink,
+h3:hover > a.headerlink,
+h4:hover > a.headerlink,
+h5:hover > a.headerlink,
+h6:hover > a.headerlink,
+dt:hover > a.headerlink {
+    visibility: visible;
+}
+
+a.headerlink {
+    color: #aeaeae;
+    text-decoration: none;
+}
+
+a.headerlink:hover {
+    color: #0E84B5;
+}
+
+.viewcode-link, .viewcode-back {
+    float: right;
+}
+
+tr > td:first-child {
+    font-family: monospace;
+    color: #007000;
+}
+
+tr > td:nth-child(2) {
+    font-family: monospace;
+    color: #4070A0;
+}
+
+.quick-links {
+    border-radius: 3px 3px 3px 3px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03) inset;
+    list-style: none outside none;
+    /*margin: 43px 0 0;*/
+    margin: 0;
+    padding: 5px 20px;
+    text-align: center;
+    -webkit-box-shadow: inset 0 5px 15px rgba(0, 0, 0, .1);
+    -moz-box-shadow: inset 0 5px 15px rgba(0, 0, 0, .1);
+}
+
+.quick-links li {
+    display: inline;
+    line-height: 30px;
+    margin: 0 5px;
+}
+
+.quick-links .divider {
+    color: #999999;
+}
+
+.quick-links strong {
+    font-weight: normal;
+}
+
+.quick-links .github-btn, .quick-links .tweet-btn, .quick-links .follow-btn, .plusone-container {
+    position: relative;
+    top: 5px;
+}
+
+input[type="submit"] {
+    display: inline-block;
+    padding: 5px 14px 6px;
+    font-size: 13px;
+    line-height: normal;
+    color: #333;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+    background-color: #e6e6e6;
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ffffff), color-stop(25%, #ffffff), to(#e6e6e6));
+    background-image: -webkit-linear-gradient(#ffffff, #ffffff 25%, #e6e6e6);
+    background-image: -moz-linear-gradient(top, #ffffff, #ffffff 25%, #e6e6e6);
+    background-image: -ms-linear-gradient(#ffffff, #ffffff 25%, #e6e6e6);
+    background-image: -o-linear-gradient(#ffffff, #ffffff 25%, #e6e6e6);
+    background-image: linear-gradient(#ffffff, #ffffff 25%, #e6e6e6);
+    background-repeat: no-repeat;
+    border: 1px solid #ccc;
+    border-bottom-color: #bbb;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    -webkit-transition: 0.1s linear all;
+    -moz-transition: 0.1s linear all;
+    -ms-transition: 0.1s linear all;
+    -o-transition: 0.1s linear all;
+    transition: 0.1s linear all;
+}
+input[type="submit"]:hover {
+    color: #404040;
+    text-decoration: none;
+    background-position: 0 -15px;
+}
+
+input[type="submit"].active, input[type="submit"]:active {
+    -webkit-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
+    -moz-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+#menubar {
+    height: 100px;
+    background-color: #4b9484 !important;
+    background-image: none;
+}
+
+#logo {
+    padding-top: 21px;
+    width: 238px;
+}
+
+#menubar #navul {
+    margin-top: 26px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+#menubar #navul a {
+    padding-bottom: 14px;
+    padding-left: 21px;
+    padding-right: 21px;
+    padding-top: 14px;
+    color: #fff;
+
+    -webkit-transition: background 0.2s linear;
+    -moz-transition: background 0.2s linear;
+    -ms-transition: background 0.2s linear;
+    -o-transition: background 0.2s linear;
+    transition: background 0.2s linear;
+
+    font-family: 'Soho Gothic W01 Medium', Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: 500;
+    text-shadow: none;
+    text-transform:capitalize;
+}
+
+#menubar #navul a:hover {
+    background-color: #fff;
+    color: #000;
+}
+
+#navsidebar ul {
+    text-transform:capitalize;
+    font-size: 16px;
+    font-family: lato, Helvetica, Arial, sans-serif;
+}
+
+#navsidebar #navul a:hover {
+    text-decoration: underline;
+    background-color: white;
+}
+
+h1, h2, h3, h4, h5 {
+    font-family: 'Soho Gothic W01 Medium', Helvetica, Arial, sans-serif;
+}
+
+p {
+    font-family: lato, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+}
+
+@media all and (max-width: 767px) {
+    #menubar, .footer {
+        margin-left: -20px;
+        margin-right: -20px;
+    }
+
+    .footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media all and (max-width: 849px) {
+    #menubar #navul {
+        display: none;
+    }
+
+    #navsidebar {
+        display: block;
+    }
+}
+
+@media all and (min-width: 850px) {
+    #navsidebar {
+        display: none;
+    }
+}
+
+#search {
+    width: 90%;
+}
+
+.sphinxsidebarwrapper ul>li>ul {
+    display: none;
+}
+
+.sphinxsidebarwrapper>ul {
+    list-style-type: none;
+    margin-left: 0;
+}
+
+.pagination {
+    text-transform: capitalize;
+}
+
+#toctree a.current {
+    font-weight: bold;
+    font-style: italic;
+}
+
+.span3 {
+    box-sizing: border-box;
+    background: #f7f7f7;
+    border: 1px solid #d6d3d3;
+    padding: 1.5em;
+    margin-bottom: 1.5em;
+}
+
+.span3 h3 {
+    margin-top: 0;
+}
+
+code, pre {
+    overflow-x: auto;
+    white-space: pre;
+    word-wrap: normal;
+}
+
+/* See http://fortawesome.github.io/Font-Awesome/icon/download/ */
+a.download:before {
+    content: "\f019";
+    font-family: "FontAwesome";
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    padding-right: 5px;
+}

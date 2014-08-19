@@ -7,7 +7,7 @@ Summary:        Libraries for flocker
 BuildArch:      noarch
 
 License:        ASL 2.0
-URL:            https://hybridcluster.github.io/
+URL:            https://clusterhq.com
 Source0:        Flocker-%{flocker_version}.tar.gz
 
 BuildRequires:  python-devel
@@ -47,8 +47,9 @@ Requires:       python-flocker = %{version}-%{release}
 Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
 Requires:       docker-io
-Requires:       /sbin/iptables
+Requires:       /usr/sbin/iptables
 Requires:       geard
+Requires:       zfs
 
 %description
 Flocker is an open-source volume manager and multi-host Docker container
@@ -113,6 +114,7 @@ trial flocker
 
 %{_bindir}/flocker-volume
 %{_bindir}/flocker-changestate
+%{_bindir}/flocker-reportstate
 
 %changelog
 * Tue Jun 10 2014 Tom Prince - %{underscore_version}-1%{?dist}

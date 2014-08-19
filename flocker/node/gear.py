@@ -9,6 +9,8 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed, fail
+from twisted.internet.task import deferLater
+from twisted.internet import reactor
 
 from treq import request, content
 
@@ -23,10 +25,28 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
+@attributes(["id", "variables"])
+class GearEnvironment(object):
+    """
+    A collection of Geard unit environment variables associated with an
+    environment ID.
+    """
+
+    def to_dict(self):
+        """
+        Convert to a dictionary suitable for serialising to JSON and then on to
+        the Gear REST API.
+        """
+        variables = []
+        for k, v in self.variables.items():
+            variables.append(dict(name=k, value=v))
+        return dict(id=self.id, variables=variables)
+
+
 @attributes(["name", "activation_state", "sub_state", "container_image",
-             "ports", "links"],
+             "ports", "links", "environment"],
             defaults=dict(sub_state=None, container_image=None,
-                          ports=(), links=()))
+                          ports=(), links=(), environment=None))
 class Unit(object):
     """
     Information about a unit managed by geard/systemd.
@@ -59,14 +79,33 @@ class Unit(object):
 
     :ivar list links: The ``PortMap`` instances which define how connections to
         ports inside the container are routed to ports on the host.
+
+    :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
+        will be supplied to the gear unit or ``None`` if there are no
+        environment variables for this unit.
     """
 
 
 class IGearClient(Interface):
-    """A client for the geard HTTP API."""
+    """
+    A client for the geard HTTP API.
 
-    def add(unit_name, image_name, ports=None, links=None):
-        """Install and start a new unit.
+    Note the difference in semantics between the results of ``add()``
+    (firing does not indicate application started successfully)
+    vs. ``remove()`` (firing indicates application has finished shutting
+    down).
+    """
+
+    def add(unit_name, image_name, ports=None, links=None, environment=None):
+        """
+        Install and start a new unit.
+
+        Note that callers should not assume success indicates the unit has
+        finished starting up. In addition to asynchronous nature of gear,
+        even if container is up and running the application within it
+        might still be starting up, e.g. it may not have bound the
+        external ports yet. As a result the final success of application
+        startup is out of scope for this method.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -79,12 +118,17 @@ class IGearClient(Interface):
         :param list links: A list of ``PortMap``\ s mapping ports forwarded
             from the container to ports on the host.
 
+        :param GearEnvironment environment: A ``GearEnvironment`` associating
+            key value pairs with an environment ID. Default ``None`` means that
+            no environment variables will be supplied to the unit.
+
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
         """
 
     def exists(unit_name):
-        """Check whether the unit exists.
+        """
+        Check whether the unit exists.
 
         :param unicode unit_name: The name of the unit to create.
 
@@ -93,17 +137,20 @@ class IGearClient(Interface):
         """
 
     def remove(unit_name):
-        """Stop and delete the given unit.
+        """
+        Stop and delete the given unit.
 
         This can be done multiple times in a row for the same unit.
 
         :param unicode unit_name: The name of the unit to stop.
 
-        :return: ``Deferred`` that fires on success.
+        :return: ``Deferred`` that fires once the unit has been stopped
+            and removed.
         """
 
     def list():
-        """List all known units.
+        """
+        List all known units.
 
         :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
         """
@@ -180,7 +227,8 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None, links=None):
+    def add(self, unit_name, image_name, ports=None, links=None,
+            environment=None):
         """
         See ``IGearClient.add`` for base documentation.
 
@@ -196,6 +244,11 @@ class GearClient(object):
         address on the host. So if your service or NAT rule on the host is
         configured for 127.0.0.1 only, it won't receive any traffic. See
         https://github.com/openshift/geard/issues/224
+
+        XXX: If an environment is supplied, ``gear`` will create an environment
+        file with the given ID. But it will not remove that environment file
+        when this unit is removed or when there are no longer any references to
+        the environment ID. See https://github.com/ClusterHQ/flocker/issues/585
         """
         if ports is None:
             ports = []
@@ -220,6 +273,9 @@ class GearClient(object):
                  u'ToPort': link.external_port}
             )
 
+        if environment is not None:
+            data['Environment'] = environment.to_dict()
+
         checked = self.exists(unit_name)
         checked.addCallback(
             lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
@@ -239,6 +295,22 @@ class GearClient(object):
     def remove(self, unit_name):
         d = self._container_request(b"PUT", unit_name, operation=b"stopped")
         d.addCallback(self._ensure_ok)
+
+        def check_if_stopped(_=None):
+            listing = self.list()
+
+            def got_listing(units):
+                matching_units = [unit for unit in units
+                                  if unit.name == unit_name]
+                if not matching_units:
+                    return
+                unit = matching_units[0]
+                if unit.activation_state in (u"failed", u"inactive"):
+                    return
+                return deferLater(reactor, 0.1, check_if_stopped)
+            listing.addCallback(got_listing)
+            return listing
+        d.addCallback(check_if_stopped)
         d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
         d.addCallback(self._ensure_ok)
         return d
@@ -268,7 +340,7 @@ class FakeGearClient(object):
 
     The state the the simulated units is stored in memory.
 
-    :ivar dict _units: See ``units`` of ``__init``\ .
+    :ivar dict _units: See ``units`` of ``__init__``\ .
     """
 
     def __init__(self, units=None):
@@ -281,7 +353,7 @@ class FakeGearClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), links=()):
+    def add(self, unit_name, image_name, ports=(), links=(), environment=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -289,6 +361,7 @@ class FakeGearClient(object):
             container_image=image_name,
             ports=ports,
             links=links,
+            environment=environment,
             activation_state=u'active'
         )
         return succeed(None)
@@ -306,9 +379,9 @@ class FakeGearClient(object):
         # GearClient.list can pass until the real GearClient.list can also
         # return container_image information, ports and links.
         # See https://github.com/ClusterHQ/flocker/issues/207
-        incomplete_units = []
+        incomplete_units = set()
         for unit in self._units.values():
-            incomplete_units.append(
+            incomplete_units.add(
                 Unit(name=unit.name, activation_state=unit.activation_state))
         return succeed(incomplete_units)
 

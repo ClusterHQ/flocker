@@ -8,6 +8,8 @@ APIs for parsing and validating configuration.
 from __future__ import unicode_literals, absolute_import
 
 import os
+import types
+import yaml
 
 from twisted.python.filepath import FilePath
 
@@ -29,6 +31,57 @@ class Configuration(object):
     """
     Validate and parse configurations.
     """
+    def __init__(self, lenient=False):
+        """
+        :param bool lenient: If ``True`` don't complain about certain
+            deficiencies in the output of ``flocker-reportstate``, In
+            particular https://github.com/ClusterHQ/flocker/issues/289 means
+            the mountpoint is unknown.
+        """
+        self._lenient = lenient
+
+    def _parse_environment_config(self, application_name, config):
+        """
+        Validate and return an application config's environment variables.
+
+        :param unicode application_name: The name of the application.
+
+        :param dict config: The config of a single ``Application`` instance,
+            as extracted from the ``applications`` ``dict`` in
+            ``_applications_from_configuration``.
+
+        :raises ConfigurationError: if the ``environment`` element of
+            ``config`` is not a ``dict`` or ``dict``-like value.
+
+        :returns: ``None`` if there is no ``environment`` element in the
+            config, or the ``dict`` of environment variables if there is.
+
+        """
+        invalid_env_message = (
+            "Application '{application_name}' has a config error. "
+            "'environment' must be a dictionary of key/value pairs. ").format(
+                application_name=application_name)
+
+        environment = config.pop('environment', None)
+        if environment:
+            if not isinstance(environment, dict):
+                raise ConfigurationError(
+                    invalid_env_message + "Got type '{envtype}'".format(
+                        envtype=type(environment).__name__)
+                )
+            for key, value in environment.iteritems():
+                if not isinstance(value, types.StringTypes):
+                    raise ConfigurationError(
+                        ("Application '{application_name}' has a config "
+                         "error. Environment variable '{key}' must be of "
+                         "type string or unicode; got '{envtype}'.").format(
+                            application_name=application_name,
+                            key=key,
+                            envtype=type(value).__name__
+                        )
+                    )
+        return environment
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -63,7 +116,7 @@ class Configuration(object):
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Missing value for '{message}'.").format(
-                         application_name=application_name, message=e.message)
+                        application_name=application_name, message=e.message)
                 )
 
             try:
@@ -72,7 +125,7 @@ class Configuration(object):
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Invalid Docker image name. {message}").format(
-                         application_name=application_name, message=e.message)
+                        application_name=application_name, message=e.message)
                 )
 
             ports = []
@@ -90,14 +143,15 @@ class Configuration(object):
                     if port:
                         raise ValueError(
                             "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(port.keys())))
+                                keys=', '.join(sorted(port.keys()))))
                     ports.append(Port(internal_port=internal_port,
                                       external_port=external_port))
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Invalid ports specification. {message}").format(
-                         application_name=application_name, message=e.message))
+                        application_name=application_name, message=e.message)
+                )
 
             volume = None
             if "volume" in config:
@@ -111,28 +165,34 @@ class Configuration(object):
                         )
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint {path} contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
+
+                    if not (self._lenient and mountpoint is None):
+                        if not isinstance(mountpoint, str):
+                            raise ValueError(
+                                "Mountpoint {path} contains non-ASCII "
+                                "(unsupported).".format(
+                                    path=mountpoint
+                                )
                             )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint {path} is not an absolute path."
-                            .format(
-                                path=mountpoint
+                        if not os.path.isabs(mountpoint):
+                            raise ValueError(
+                                "Mountpoint {path} is not an absolute path."
+                                .format(
+                                    path=mountpoint
+                                )
                             )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError("Unrecognised keys: {keys}.".format(
-                            keys=', '.join(sorted(configured_volume.keys()))
-                        ))
+                        configured_volume.pop('mountpoint')
+                        if configured_volume:
+                            raise ValueError(
+                                "Unrecognised keys: {keys}.".format(
+                                    keys=', '.join(sorted(
+                                        configured_volume.keys()))
+                                ))
+                        mountpoint = FilePath(mountpoint)
+
                     volume = AttachedVolume(
                         name=application_name,
-                        mountpoint=FilePath(mountpoint)
+                        mountpoint=mountpoint
                         )
                 except ValueError as e:
                     raise ConfigurationError(
@@ -144,18 +204,22 @@ class Configuration(object):
                         )
                     )
 
+            environment = self._parse_environment_config(
+                application_name, config)
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
-                ports=frozenset(ports))
+                ports=frozenset(ports),
+                environment=environment)
 
             if config:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
-                         application_name=application_name,
-                         keys=', '.join(config.keys()))
+                        application_name=application_name,
+                        keys=', '.join(sorted(config.keys())))
                 )
         return applications
 
@@ -226,9 +290,7 @@ class Configuration(object):
         :param dict deployment_configuration: Map of node names to application
             names.
 
-        :raises ValueError: if there are validation errors.
-
-        :raises KeyError: if there are validation errors.
+        :raises ConfigurationError: if there are validation errors.
 
         :returns: A ``Deployment`` object.
         """
@@ -240,3 +302,66 @@ class Configuration(object):
 
 
 model_from_configuration = Configuration().model_from_configuration
+
+
+def current_from_configuration(current_configuration):
+    """
+    Validate and coerce the supplied current cluster configuration into a
+    ``Deployment`` instance.
+
+    The passed in configuration is the aggregated output of
+    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+
+    :param dict current_configuration: Map of node names to list of
+        application maps.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``Deployment`` object.
+    """
+    configuration = Configuration(lenient=True)
+    nodes = []
+    for hostname, applications in current_configuration.items():
+        node_applications = configuration._applications_from_configuration(
+            applications)
+        nodes.append(Node(hostname=hostname,
+                          applications=frozenset(node_applications.values())))
+    return Deployment(nodes=frozenset(nodes))
+
+
+def configuration_to_yaml(applications):
+    """
+    Generate YAML representation of a node's applications.
+
+    A bunch of information is missing, but this is sufficient for the
+    initial requirement of determining what to do about volumes when
+    applying configuration changes.
+    https://github.com/ClusterHQ/flocker/issues/289
+
+    :param applications: ``list`` of ``Application``\ s, typically the
+        current configuration on a node as determined by
+        ``Deployer.discover_node_configuration()``.
+
+    :return: YAML serialized configuration in the application
+        configuration format.
+    """
+    result = {}
+    for application in applications:
+        # XXX image unknown, see
+        # https://github.com/ClusterHQ/flocker/issues/207
+        result[application.name] = {"image": "unknown"}
+        ports = []
+        for port in application.ports:
+            ports.append(
+                {'internal': port.internal_port,
+                 'external': port.external_port}
+            )
+        result[application.name]["ports"] = ports
+        if application.volume:
+            # Until multiple volumes are supported, assume volume name
+            # matches application name, see:
+            # https://github.com/ClusterHQ/flocker/issues/49
+            result[application.name]["volume"] = {
+                "mountpoint": None,
+            }
+    return yaml.safe_dump({"version": 1, "applications": result})

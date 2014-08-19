@@ -65,8 +65,10 @@ class AttachedVolume(object):
     """
 
 
-@attributes(["name", "image", "ports", "volume"],
-            defaults=dict(image=None, ports=frozenset(), volume=None))
+@attributes(["name", "image", "ports", "volume", "environment"],
+            defaults=dict(
+                image=None, ports=frozenset(), volume=None, environment=None)
+            )
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -131,18 +133,35 @@ class Port(object):
     """
 
 
-@attributes(
-    ["applications_to_start", "applications_to_stop", "proxies"],
-    defaults=dict(proxies=frozenset())
-)
-class StateChanges(object):
+@attributes(["volume", "hostname"])
+class VolumeHandoff(object):
     """
-    ``StateChanges`` describes changes necessary to make to the current
-    state. This might be because of user-specified configuration changes.
+    A record representing a volume handoff that needs to be performed from this
+    node.
 
-    :ivar set applications_to_start: The applications which must be started.
-    :ivar set applications_to_stop: The applications which must be stopped.
-    :ivar set proxies: The required full ``set`` of
-        :class:`flocker.route.Proxy` routes to application on other
-        nodes. Defaults to an empty ``frozenset``.
+    See :cls:`flocker.volume.service.VolumeService.handoff`` for more details.
+
+    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be handed off.
+    """
+
+
+@attributes(["going", "coming", "creating"])
+class VolumeChanges(object):
+    """
+    ``VolumeChanges`` describes the volume-related changes necessary to change
+    the current state to the desired state.
+
+    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
+        nodes take over hosting of any volume-having applications being moved
+        away from a node.  These must be handed off.
+
+    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
+        node take over hosting of any volume-having applications being moved to
+        this node.  These must be acquired.
+
+    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
+        node create any new volume-having applications meant to be hosted on
+        this node.  These must be created.
     """

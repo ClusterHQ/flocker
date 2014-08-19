@@ -75,7 +75,8 @@ def make_proxying_tests(make_network):
             proxy_two = self.network.create_proxy_to(ip, port + 1)
 
             self.assertEqual(
-                [proxy_one, proxy_two], self.network.enumerate_proxies())
+                sorted([proxy_one, proxy_two]),
+                sorted(self.network.enumerate_proxies()))
 
         def test_deleted_proxies_not_enumerated(self):
             """

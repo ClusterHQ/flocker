@@ -7,7 +7,8 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit
+from ..gear import (
+    IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit, GearEnvironment)
 
 
 def make_igearclient_tests(fixture):
@@ -90,7 +91,7 @@ def make_igearclient_tests(fixture):
             """A removed unit does not exist."""
             client = fixture(self)
             name = random_name()
-            d = client.add(name, u"busybox")
+            d = client.add(name, u"openshift/busybox-http-app")
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
             d.addCallback(self.assertFalse)
@@ -221,8 +222,11 @@ class UnitInitTests(
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
                 links=(PortMap(internal_port=3306, external_port=103306),),
+                environment=GearEnvironment(
+                    id=u'site-example.com', variables={u'foo': u'bar'})
             ),
-            expected_defaults=dict(ports=(), links=(), container_image=None)
+            expected_defaults=dict(
+                ports=(), links=(), container_image=None, environment=None)
         )
 ):
     """
@@ -246,9 +250,65 @@ class UnitTests(TestCase):
         self.assertEqual(
             "<Unit(name=u'site-example.com', "
             "activation_state=u'active', sub_state=u'running', "
-            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[])>",
+            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[], "
+            "environment=None)>",
+
             repr(Unit(name=u'site-example.com',
                       activation_state=u'active', sub_state=u'running',
                       container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], links=[]))
+                      ports=[], links=[], environment=None))
+        )
+
+
+class GearEnvironmentInitTests(
+        make_with_init_tests(
+            record_type=GearEnvironment,
+            kwargs=dict(
+                id=u'site-example.com',
+                variables=dict(foo="bar"),
+            ),
+        )
+):
+    """
+    Tests for ``GearEnvironment.__init__``.
+    """
+
+
+class GearEnvironmentTests(TestCase):
+    """
+    Tests for ``GearEnvironment``.
+    """
+    def test_to_dict(self):
+        """
+        ``GearEnvironment.to_dict`` returns a dictionary containing the
+        environment ID and the variables in name, value pairs.
+        """
+        expected_id = u'site-example.com'
+        expected_dict = {
+            'id': expected_id,
+            'variables': [
+                {'name': 'foo', 'value': 'bar'},
+                {'name': 'baz', 'value': 'qux'},
+            ]
+        }
+        self.assertEqual(
+            expected_dict,
+            GearEnvironment(
+                id=expected_id, variables=dict(foo='bar', baz='qux')).to_dict()
+        )
+
+    def test_repr(self):
+        """
+        ``GearEnvironment.__repr__`` shows the id and variables.
+        """
+        self.assertEqual(
+            "<GearEnvironment("
+            "id=u'site-example.com', "
+            "variables={'foo': 'bar'})>",
+
+            repr(
+                GearEnvironment(
+                    id=u'site-example.com', variables=dict(foo="bar")
+                )
+            )
         )
