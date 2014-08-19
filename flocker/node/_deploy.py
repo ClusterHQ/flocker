@@ -359,7 +359,7 @@ class Deployer(object):
                 if app.name in not_running
             ]
 
-            # This is an ugly block which could be neatened
+            # XXX This is an ugly block which could be neatened
             for desired_application in desired_node_applications:
                 if desired_application.name in current_state:
                     for current_application in current_node_applications:
@@ -367,7 +367,8 @@ class Deployer(object):
                             if current_application.ports != desired_application.ports:
                                 restart_containers.append(
                                     Sequentially(changes=[
-                                        # You should really need to stop current_application but StopApplication works only on name
+                                        # XXX You should really need to stop current_application but StopApplication works only on name
+                                        # Either that should be changed, or the test should be changed, or it doesn't matter (apart from clarity)
                                         StopApplication(application=desired_application),
                                         StartApplication(application=desired_application)])
                                 )
