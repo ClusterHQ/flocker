@@ -124,6 +124,7 @@ def create_and_copy(test, fixture):
     d.addCallback(created_filesystem)
     return d
 
+
 def make_istoragepool_tests(fixture):
     """Create a TestCase for IStoragePool.
 

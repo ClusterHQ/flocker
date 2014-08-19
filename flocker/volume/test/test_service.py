@@ -98,9 +98,10 @@ class VolumeServiceStartupTests(TestCase):
                                 FilesystemStoragePool(FilePath(self.mktemp())),
                                 reactor=Clock())
         service.startService()
-        service2 = VolumeService(FilePath(path),
-                                 FilesystemStoragePool(FilePath(self.mktemp())),
-                                 reactor=Clock())
+        service2 = VolumeService(
+            FilePath(path),
+            FilesystemStoragePool(FilePath(self.mktemp())),
+            reactor=Clock())
         service2.startService()
         self.assertEqual(service.uuid, service2.uuid)
 
