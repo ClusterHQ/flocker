@@ -344,9 +344,9 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 id=expected_environment_id, variables=expected_variables),
         )
         d.addCallback(
-            # XXX gear status prints to stderr which ordinarily would cause
-            # getProcessOutput to errback. ``errortoo`` turns off that
-            # behaviour.
+            # The ``gear status`` command prints to stderr which ordinarily
+            # would cause getProcessOutput to errback. ``errortoo`` turns off
+            # that behaviour.
             lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
                                              errortoo=True)
         )
