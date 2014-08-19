@@ -9,9 +9,9 @@ FAQ
 	
 Flocker is under active deployment and we receive a lot of questions about how this or that will be done in a future release.  
 You can find these questions in the Future Functionality section below.  
-You can also view `ideas for future releases`_.
+You can also view :doc:`ideas for future versions of Flocker</roadmap/index>`.
 
-If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel #clusterhq or `the flocker Google group`.
+If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel #clusterhq or `the flocker Google group`_.
 
 ZFS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,6 +58,6 @@ This works because eg port 3306 inside one app server gets routed via an ephemer
 
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
 
-.. _ideas for future releases: :doc:/roadmap/index
+
 .. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
