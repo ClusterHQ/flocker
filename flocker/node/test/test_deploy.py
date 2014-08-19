@@ -1110,6 +1110,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
 
+        # XXX As mentioned in implementation:
+        # This is saying that the application to be stopped has the new ports
+        # I've left it like this for now because the StopApplication implementation doesn't care about ports and I'm not sure what needs changing, StopApplication or this test or nothing
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
                                   StartApplication(application=application)]),
