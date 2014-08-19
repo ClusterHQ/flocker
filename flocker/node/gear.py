@@ -81,7 +81,8 @@ class Unit(object):
         ports inside the container are routed to ports on the host.
 
     :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
-        will be supplied to the gear unit.
+        will be supplied to the gear unit or ``None`` if there are no
+        environment variables for this unit.
     """
 
 
