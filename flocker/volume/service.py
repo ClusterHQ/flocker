@@ -70,7 +70,7 @@ class VolumeService(Service):
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
         self.uuid = config[u"uuid"]
-        #return self._pool.startService()
+        self.pool.startService()
 
     def create(self, name):
         """Create a new volume.

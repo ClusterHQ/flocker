@@ -16,6 +16,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
+from twisted.application.service import IService
 
 from pytz import UTC
 
@@ -106,6 +107,13 @@ def make_istoragepool_tests(fixture):
             """The tested object provides :class:`IStoragePool`."""
             pool = fixture(self)
             self.assertTrue(verifyObject(IStoragePool, pool))
+
+        def test_service(self):
+            """
+            The tested object provides :class:`IStoragePool`.
+            """
+            pool = fixture(self)
+            self.assertTrue(verifyObject(IService, pool))
 
         def test_create_filesystem(self):
             """``create()`` returns a :class:`IFilesystem` provider."""
