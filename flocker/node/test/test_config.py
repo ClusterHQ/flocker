@@ -303,17 +303,17 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='clusterhq/mysql', tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=3306,
-                    external_port=3306)]),
+                                      external_port=3306)]),
                 volume=AttachedVolume(name='mysql-hybridcluster',
-                    mountpoint=FilePath(b'/var/lib/mysql'))
+                                      mountpoint=FilePath(b'/var/lib/mysql'))
             ),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='clusterhq/wordpress',
-                    tag='v1.0.0'),
+                                  tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80, external_port=8080)]),
                 volume=AttachedVolume(name='site-hybridcluster',
-                    mountpoint=FilePath(b'/var/www/data')),
+                                      mountpoint=FilePath(b'/var/www/data')),
                 environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                 }.items())
@@ -322,7 +322,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         applications_set = frozenset(applications.values())
         expected_applications_set = frozenset(expected_applications.values())
         self.assertEqual(applications_set, expected_applications_set)
-        
+
     def test_ports_missing_internal(self):
         """
         ``Configuration._applications_from_configuration`` raises a

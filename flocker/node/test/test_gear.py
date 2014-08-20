@@ -294,7 +294,9 @@ class GearEnvironmentTests(TestCase):
         self.assertEqual(
             expected_dict,
             GearEnvironment(
-                id=expected_id, variables=frozenset(dict(foo='bar', baz='qux').items())).to_dict()
+                id=expected_id, variables=frozenset(dict(
+                    foo='bar', baz='qux'
+                ).items())).to_dict()
         )
 
     def test_repr(self):
