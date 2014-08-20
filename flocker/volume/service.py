@@ -40,9 +40,6 @@ class VolumeService(Service):
 
     :ivar unicode uuid: A unique identifier for this particular node's
         volume manager. Only available once the service has started.
-
-    :ivar pool: A `flocker.volume.filesystems.interface.IStoragePool`
-        provider where the volume manager stores its volumes.
     """
 
     def __init__(self, config_path, pool, reactor):
