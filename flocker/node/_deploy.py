@@ -89,8 +89,11 @@ class InParallel(object):
     Failures in one change do not prevent other changes from continuing.
     """
     def run(self, deployer):
-        return gatherResults((change.run(deployer) for change in self.changes),
-                             consumeErrors=True)
+        return gatherDeferreds(
+            (change.run(deployer) for change in self.changes),
+            logErrors=True,
+            consumeErrors=True
+        )
 
 
 @implementer(IStateChange)
