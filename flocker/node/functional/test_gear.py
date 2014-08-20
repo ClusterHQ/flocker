@@ -331,10 +331,10 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image_name = image.build()
         unit_name = random_name()
         expected_environment_id = random_name()
-        expected_variables = {
+        expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
-        }
+        }.items())
         d = self.start_container(
             unit_name=unit_name,
             image_name=image_name,
