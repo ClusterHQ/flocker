@@ -273,6 +273,56 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         }
         self.assertEqual(expected_applications, applications)
 
+    def test_frozenset_of_applications(self):
+        """
+        ``Configuration._applications_from_configuration`` returns a `dict`
+        of `Application` instances from which a `frozenset` can be created.
+        """
+        parser = Configuration()
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql'},
+                },
+                'site-hybridcluster': {
+                    'image': 'clusterhq/wordpress:v1.0.0',
+                    'ports': [dict(internal=80, external=8080)],
+                    'volume': {'mountpoint': b'/var/www/data'},
+                    'environment': {
+                        'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
+                    }
+                }
+            }
+        )
+        applications = parser._applications_from_configuration(config)
+        expected_applications = {
+            'mysql-hybridcluster': Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='clusterhq/mysql', tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=3306,
+                    external_port=3306)]),
+                volume=AttachedVolume(name='mysql-hybridcluster',
+                    mountpoint=FilePath(b'/var/lib/mysql'))
+            ),
+            'site-hybridcluster': Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='clusterhq/wordpress',
+                    tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80, external_port=8080)]),
+                volume=AttachedVolume(name='site-hybridcluster',
+                    mountpoint=FilePath(b'/var/www/data')),
+                environment=frozenset({
+                    'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
+                }.items())
+            )
+        }
+        applications_set = frozenset(applications.values())
+        expected_applications_set = frozenset(expected_applications.values())
+        self.assertEqual(applications_set, expected_applications_set)
+        
     def test_ports_missing_internal(self):
         """
         ``Configuration._applications_from_configuration`` raises a
