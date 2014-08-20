@@ -12,7 +12,7 @@ from characteristic import attributes
 from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
 from twisted.python.filepath import FilePath
 
-from .gear import GearClient, PortMap
+from .gear import GearClient, PortMap, GearEnvironment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
@@ -115,10 +115,19 @@ class StartApplication(object):
                             application.ports)
         else:
             port_maps = []
+
+        if application.environment is not None:
+            environment = GearEnvironment(
+                id=application.name,
+                variables=application.environment)
+        else:
+            environment = None
+
         d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
+            environment=environment
         ))
         return d
 

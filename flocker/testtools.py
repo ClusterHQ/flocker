@@ -229,12 +229,13 @@ class FlockerScriptTestsMixin(object):
         ``FlockerScriptRunner.main`` exits with status 1 and prints help to
         `stderr` if supplied with unexpected arguments.
         """
-        sys = FakeSysModule(argv=[self.command_name, b'--unexpected_argument'])
+        sys_module = FakeSysModule(
+            argv=[self.command_name, b'--unexpected_argument'])
         script = FlockerScriptRunner(
             reactor=None, script=self.script(), options=self.options(),
-            sys_module=sys)
+            sys_module=sys_module)
         error = self.assertRaises(SystemExit, script.main)
-        error_text = sys.stderr.getvalue()
+        error_text = sys_module.stderr.getvalue()
         self.assertEqual(
             (1, []),
             (error.code, help_problems(self.command_name, error_text))
@@ -827,3 +828,23 @@ def attempt_effective_uid(username, suppress_errors=False):
     finally:
         if restore_euid:
             os.seteuid(original_euid)
+
+
+def assertContainsAll(haystack, needles, test_case):
+    """
+    Assert that all the terms in the needles list are found in the haystack.
+
+    :param test_case: The ``TestCase`` instance on which to call assertions.
+    :param list needles: A list of terms to search for in the ``haystack``.
+    :param haystack: An iterable in which to search for the terms in needles.
+    """
+    for needle in reversed(needles):
+        if needle in haystack:
+            needles.remove(needle)
+
+    if needles:
+        test_case.fail(
+            '{haystack} did not contain {needles}'.format(
+                haystack=haystack, needles=needles
+            )
+        )
