@@ -15,6 +15,7 @@ from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
+    copy, assertVolumesEqual
     )
 from ..filesystems.zfs import (
     ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
@@ -29,10 +30,22 @@ class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
     """``IFilesystemSnapshots`` tests for ZFS."""
 
 
-class IStoragePoolTests(make_istoragepool_tests(
-    lambda test_case: StoragePool(reactor, create_zfs_pool(test_case),
-                                  FilePath(test_case.mktemp())))):
-    """``IStoragePoolTests`` for ZFS storage pool."""
+def build_pool(test_case):
+    """
+    Create a ``StoragePool``.
+
+    :param TestCase test_case: The test in which this pool will exist.
+
+    :return: A new ``StoragePool``.
+    """
+    return StoragePool(reactor, create_zfs_pool(test_case),
+                       FilePath(test_case.mktemp()))
+
+
+class IStoragePoolTests(make_istoragepool_tests(build_pool)):
+    """
+    ``IStoragePoolTests`` for ZFS storage pool.
+    """
 
 
 class VolumeToDatasetTests(TestCase):
@@ -189,10 +202,7 @@ class StoragePoolTests(TestCase):
         A filesystem which is received from a remote filesystem (which is
         writable in its origin pool) is not writeable.
         """
-        def fixture(_):
-            return StoragePool(reactor, create_zfs_pool(self),
-                               FilePath(self.mktemp()))
-        d = create_and_copy(self, fixture)
+        d = create_and_copy(self, build_pool)
 
         def got_volumes(copied):
             self.assertReadOnly(copied.to_volume.get_filesystem().get_path())
@@ -244,4 +254,33 @@ class StoragePoolTests(TestCase):
         def changed_owner(filesystem):
             self.assertReadOnly(filesystem.get_path())
         d.addCallback(changed_owner)
+        return d
+
+    def test_write_update_to_changed_filesystem(self):
+        """
+        Writing an update of the contents of one pool's filesystem to
+        another pool's filesystem that was previously created this way and
+        was since changed drops any changes and updates its contents to
+        the sender's.
+        """
+        d = create_and_copy(self, build_pool)
+
+        def got_volumes(copied):
+            volume, volume2 = copied.from_volume, copied.to_volume
+
+            # Mutate the second volume's filesystem:
+            filesystem2 = volume2.get_filesystem()
+            subprocess.check_call([b"zfs", b"set", b"readonly=off",
+                                   filesystem2.name])
+            path2 = filesystem2.get_path()
+            path2.child(b"extra").setContent(b"lalala")
+
+            # Writing from first volume to second volume should revert
+            # any changes to the second volume:
+            path = volume.get_filesystem().get_path()
+            path.child(b"anotherfile").setContent(b"hello")
+            path.child(b"file").remove()
+            copy(volume, volume2)
+            assertVolumesEqual(self, volume, volume2)
+        d.addCallback(got_volumes)
         return d

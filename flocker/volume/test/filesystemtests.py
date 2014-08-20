@@ -125,6 +125,30 @@ def create_and_copy(test, fixture):
     return d
 
 
+def assertVolumesEqual(test, first, second):
+    """
+    Assert that two filesystems have the same contents.
+
+    :param TestCase test: A ``TestCase`` that will be the context for this
+        operation.
+    :param Volume first: First volume.
+    :param Volume second: Second volume.
+    """
+    first = first.get_filesystem().get_path()
+    second = second.get_filesystem().get_path()
+
+    def get_contents(path):
+        result = {}
+        for child in path.children():
+            if child.isdir():
+                value = get_contents(child)
+            else:
+                value = child.getContent()
+            result[child.basename()] = value
+        return result
+    test.assertEqual(get_contents(first), get_contents(second))
+
+
 def make_istoragepool_tests(fixture):
     """Create a TestCase for IStoragePool.
 
@@ -277,26 +301,6 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
             return d
 
-        def assertVolumesEqual(self, first, second):
-            """Assert that two filesystems have the same contents.
-
-            :param Volume first: First volume.
-            :param Volume second: Second volume.
-            """
-            first = first.get_filesystem().get_path()
-            second = second.get_filesystem().get_path()
-
-            def get_contents(path):
-                result = {}
-                for child in path.children():
-                    if child.isdir():
-                        value = get_contents(child)
-                    else:
-                        value = child.getContent()
-                    result[child.basename()] = value
-                return result
-            self.assertEqual(get_contents(first), get_contents(second))
-
         def test_write_new_filesystem(self):
             """Writing the contents of one pool's filesystem to another pool's
             filesystem creates that filesystem with the given contents.
@@ -304,7 +308,7 @@ def make_istoragepool_tests(fixture):
             d = create_and_copy(self, fixture)
 
             def got_volumes(copy_volumes):
-                self.assertVolumesEqual(copy_volumes.from_volume,
+                assertVolumesEqual(self, copy_volumes.from_volume,
                                         copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
@@ -321,32 +325,8 @@ def make_istoragepool_tests(fixture):
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
                 copy(copy_volumes.from_volume, copy_volumes.to_volume)
-                self.assertVolumesEqual(copy_volumes.from_volume,
+                assertVolumesEqual(self, copy_volumes.from_volume,
                                         copy_volumes.to_volume)
-            d.addCallback(got_volumes)
-            return d
-
-        def test_write_update_to_changed_filesystem(self):
-            """Writing an update of the contents of one pool's filesystem to
-            another pool's filesystem that was previously created this way and
-            was since changed drops any changes and updates its contents to
-            the sender's.
-            """
-            d = create_and_copy(self, fixture)
-
-            def got_volumes(copied):
-                volume, volume2 = copied.from_volume, copied.to_volume
-                # Mutate the second volume's filesystem:
-                path2 = volume2.get_filesystem().get_path()
-                path2.child(b"extra").setContent(b"lalala")
-
-                # Writing from first volume to second volume should revert
-                # any changes to the second volume:
-                path = volume.get_filesystem().get_path()
-                path.child(b"anotherfile").setContent(b"hello")
-                path.child(b"file").remove()
-                copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
             d.addCallback(got_volumes)
             return d
 
@@ -359,7 +339,7 @@ def make_istoragepool_tests(fixture):
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
+                assertVolumesEqual(self, volume, volume2)
             d.addCallback(got_volumes)
             return d
 
@@ -462,7 +442,7 @@ def make_istoragepool_tests(fixture):
                 to_filesystem = volume2.get_filesystem()
                 with to_filesystem.writer() as writer:
                     writer.write(b"NOT A REAL THING")
-                self.assertVolumesEqual(volume, volume2)
+                assertVolumesEqual(self, volume, volume2)
             d.addCallback(got_volumes)
             return d
 
