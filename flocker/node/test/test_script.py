@@ -59,7 +59,8 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         script = ChangeStateScript(lambda: service)
         running_before_main = service.running
         self.patch(
-            script._deployer, 'change_node_state', lambda *args, **kwargs: None)
+            script._deployer, 'change_node_state',
+            lambda *args, **kwargs: None)
         options = dict(deployment=object(),
                        current=object(),
                        hostname="")
