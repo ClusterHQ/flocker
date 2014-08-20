@@ -10,6 +10,7 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet import reactor
+from twisted.python.filepath import FilePath
 
 from yaml import safe_load
 from yaml.error import YAMLError
@@ -18,7 +19,8 @@ from zope.interface import implementer
 
 from ._config import configuration_to_yaml
 
-from ..volume.script import VolumeOptions, VolumeScript
+from ..volume.filesystems.zfs import StoragePool
+from ..volume.service import VolumeService, DEFAULT_CONFIG_PATH
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 from . import (ConfigurationError, model_from_configuration, Deployer,
@@ -124,9 +126,10 @@ def _default_volume_service():
 
     :return: A ``VolumeService``.
     """
-    options = VolumeOptions()
-    options.postOptions()
-    return VolumeScript().create_volume_service(reactor, options)
+    # XXX duplicate code; better factoring would make this easier to solve:
+    # https://github.com/ClusterHQ/flocker/issues/305
+    pool = StoragePool(reactor, b"flocker", FilePath(b"/flocker"))
+    return VolumeService(DEFAULT_CONFIG_PATH, pool, reactor)
 
 
 @implementer(ICommandLineScript)
@@ -138,6 +141,7 @@ class ChangeStateScript(object):
 
     :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
         state of the current node.
+    :ivar VolumeService _service: The volume manager for this node.
     """
     def __init__(self, create_volume_service=_default_volume_service):
         """
@@ -145,12 +149,14 @@ class ChangeStateScript(object):
             ``VolumeService``, defaulting to a standard production-configured
             service.
         """
-        self._deployer = Deployer(create_volume_service())
+        self._service = create_volume_service()
+        self._deployer = Deployer(self._service)
 
     def main(self, reactor, options):
         """
         See :py:meth:`ICommandLineScript.main` for parameter documentation.
         """
+        self._service.startService()
         return self._deployer.change_node_state(
             desired_state=options['deployment'],
             current_cluster_state=options['current'],

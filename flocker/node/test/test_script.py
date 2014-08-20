@@ -72,7 +72,7 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
-        script = ChangeStateScript(lambda: None)
+        script = ChangeStateScript(lambda: Service())
 
         change_node_state_calls = []
 
