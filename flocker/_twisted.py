@@ -71,6 +71,8 @@ As such all code in this module was released under the following terms:
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from twisted.internet.defer import gatherResults, Deferred
+from twisted.python.log import err
 
 # From https://twistedmatrix.com/trac/ticket/5786
 def timeoutDeferred(reactor, deferred, seconds):
@@ -110,3 +112,38 @@ def timeoutDeferred(reactor, deferred, seconds):
     deferred.addBoth(cancelTimeout)
 
     return delayedTimeOutCall
+
+
+def _log_and_return_failure(self, failure, log_err):
+    """
+    Log and return the supplied failure.
+
+    :param Failure failure: The ``Failure`` to be logged.
+    :param log_err: A logging function which will be called with the supplied
+        ``Failure``.
+    :returns: The supplied ``Failure``.
+    """
+    log_err(failure)
+    return failure
+
+
+def gatherDeferreds(deferredList, consumeErrors=False, errorLogger=err):
+    """
+    Return a deferred which fires when all of the supplied deferreds have
+    themselves fired.
+
+    Any errback will be logged by ``error_logger`` unless ``error_logger`` is
+    set to ``None``. The default error_logger is ``twisted.python.log.err``.
+
+    Questions:
+     * Do we need to have a fireOnFirstError option in this function?
+     * Do we even need to return the results? The current use cases don't have
+       any interesting results.
+     * Should consumeErrors default to True? Perhaps it should only be True if
+       error logging is enabled?
+    """
+    # if errorLogger is not None:
+    #     for deferred in deferredList:
+    #         deferred.addErrback(_log_and_return_failure, errorLogger)
+
+    # return gatherResults(deferredList, consumeErrors=consumeErrors)

@@ -9,7 +9,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
+from twisted.internet.defer import gatherResults, fail, succeed
 from twisted.python.filepath import FilePath
 
 from .gear import GearClient, PortMap, GearEnvironment
@@ -19,6 +19,7 @@ from ._model import (
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager
 from ..common._ipc import ProcessNode
+from .._twisted import gather_deferreds
 
 
 # Path to SSH private key available on nodes and used to communicate
@@ -224,8 +225,7 @@ class SetProxies(object):
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
             except:
                 results.append(fail())
-        return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
-
+        return gather_deferreds(results)
 
 class Deployer(object):
     """
