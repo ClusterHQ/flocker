@@ -80,6 +80,7 @@ class Configuration(object):
                             envtype=type(value).__name__
                         )
                     )
+            environment = frozenset(environment.items())
         return environment
 
     def _applications_from_configuration(self, application_configuration):
@@ -207,15 +208,12 @@ class Configuration(object):
             environment = self._parse_environment_config(
                 application_name, config)
 
-            if environment is None:
-                environment = dict()
-
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
-                environment=frozenset(sorted(environment.items())))
+                environment=environment)
 
             if config:
                 raise ConfigurationError(

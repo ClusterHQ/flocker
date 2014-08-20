@@ -67,7 +67,7 @@ class AttachedVolume(object):
 
 @attributes(["name", "image", "ports", "volume", "environment"],
             defaults=dict(
-                image=None, ports=frozenset(), volume=None, environment=frozenset())
+                image=None, ports=frozenset(), volume=None, environment=None)
             )
 class Application(object):
     """
@@ -92,6 +92,10 @@ class Application(object):
 
     :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
+
+    :ivar frozenset environment: A ``frozenset`` of environment variables
+        that should be exposed in the ``Application`` container, or ``None``
+        if no environment variables are specified.
     """
 
 

@@ -96,7 +96,7 @@ class ApplicationTests(SynchronousTestCase):
                                   ports=None)
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, environment=frozenset([]))>",
+            "volume=None, environment=None)>",
             repr(application)
         )
 

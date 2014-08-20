@@ -221,10 +221,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = Configuration()
         environment_vars = parser._parse_environment_config(
             'site-hybridcluster', config['site-hybridcluster'])
-        expected_result = {
+        expected_result = frozenset({
             'MYSQL_PORT_3306_TCP': u'tcp://172.16.255.250:3306',
             'WP_ADMIN_USERNAME': u'administrator',
-        }
+        }.items())
         self.assertEqual(expected_result, environment_vars)
 
     def test_dict_of_applications(self):
@@ -266,10 +266,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
-                environment=frozenset(sorted({
+                environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
                     'WP_ADMIN_USERNAME': 'administrator'
-                }.items())))
+                }.items()))
         }
         self.assertEqual(expected_applications, applications)
 
