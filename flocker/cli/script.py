@@ -24,7 +24,7 @@ from ..node import ConfigurationError, model_from_configuration
 
 from ..common import ProcessNode
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
-
+from .._twisted import gatherDeferreds
 
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
@@ -120,18 +120,19 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        d = DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+        d = gatherDeferreds(results, logErrors=True)
 
         # Exit with ssh's output if it failed for some reason:
-        def got_failure(failure):
-            if failure.value.subFailure.check(CalledProcessError):
-                raise SystemExit(
-                    b"Error connecting to cluster node: " +
-                    failure.value.subFailure.value.output)
-            else:
-                return failure
+        def called_process_failure(successes, failures):
+            for failure in failures:
+                failure.trap(CalledProcessError)
 
-        d.addErrback(got_failure)
+            raise SystemExit(
+                b"Error connecting to one or more cluster node: " +
+                '\n'.join(failure.value.output for failure in failures)
+            )
+
+        d.addErrback(called_process_failure)
         return d
 
     def main(self, reactor, options):
