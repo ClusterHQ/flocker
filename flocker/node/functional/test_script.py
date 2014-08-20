@@ -29,13 +29,6 @@ class FlockerChangeStateTests(TestCase):
     """Tests for ``flocker-changestate``."""
 
     @_require_installed
-    # We really shouldn't need root, except there's a bug in this code
-    # such that it overwrites /etc/flocker/volume.json - see
-    # https://github.com/ClusterHQ/flocker/issues/301
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_version(self):
         """
         ``flocker-changestate`` is a command available on the system path
@@ -47,14 +40,7 @@ class FlockerChangeStateTests(TestCase):
 class ChangeStateScriptTests(TestCase):
     """
     Tests for ``ChangeStateScript``.
-
-    XXX these tests overwrite the global volume manager config file:
-    https://github.com/ClusterHQ/flocker/issues/301
     """
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_volume_service(self):
         """
         ``ChangeStateScript._deployer`` is created by default with a
@@ -112,13 +98,6 @@ class FlockerReportStateTests(TestCase):
     """Tests for ``flocker-reportstate``."""
 
     @_require_installed
-    # We really shouldn't need root, except there's a bug in this code
-    # such that it overwrites /etc/flocker/volume.json - see
-    # https://github.com/ClusterHQ/flocker/issues/301
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_version(self):
         """
         ``flocker-reportstate`` is a command available on the system path
