@@ -266,10 +266,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
-                environment={
+                environment=frozenset(sorted({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
                     'WP_ADMIN_USERNAME': 'administrator'
-                })
+                }.items())))
         }
         self.assertEqual(expected_applications, applications)
 

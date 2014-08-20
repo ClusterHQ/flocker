@@ -67,7 +67,7 @@ class AttachedVolume(object):
 
 @attributes(["name", "image", "ports", "volume", "environment"],
             defaults=dict(
-                image=None, ports=frozenset(), volume=None, environment=None)
+                image=None, ports=frozenset(), volume=None, environment=frozenset())
             )
 class Application(object):
     """
