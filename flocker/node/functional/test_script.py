@@ -3,6 +3,7 @@
 """
 Functional tests for the ``flocker-changestate`` command line tool.
 """
+
 from os import getuid
 from subprocess import check_output
 from unittest import skipUnless
