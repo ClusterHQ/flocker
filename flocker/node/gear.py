@@ -38,7 +38,8 @@ class GearEnvironment(object):
         the Gear REST API.
         """
         variables = []
-        for k, v in self.variables.items():
+        for k in sorted(self.variables):
+            v = self.variables[k]
             variables.append(dict(name=k, value=v))
         return dict(id=self.id, variables=variables)
 

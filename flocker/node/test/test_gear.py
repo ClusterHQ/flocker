@@ -287,8 +287,8 @@ class GearEnvironmentTests(TestCase):
         expected_dict = {
             'id': expected_id,
             'variables': [
-                {'name': 'foo', 'value': 'bar'},
-                {'name': 'baz', 'value': 'qux'},
+               {'name': 'baz', 'value': 'qux'},
+               {'name': 'foo', 'value': 'bar'},
             ]
         }
         self.assertEqual(
