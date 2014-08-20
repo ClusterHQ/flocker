@@ -69,7 +69,8 @@ class Configuration(object):
                     invalid_env_message + "Got type '{envtype}'".format(
                         envtype=type(environment).__name__)
                 )
-            for key, value in environment.iteritems():
+            for key in sorted(environment):
+                value = environment[key]
                 if not isinstance(value, types.StringTypes):
                     raise ConfigurationError(
                         ("Application '{application_name}' has a config "
