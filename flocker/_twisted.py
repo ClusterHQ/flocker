@@ -127,13 +127,14 @@ def _log_and_return_failure(self, failure, log_err):
     return failure
 
 
-def gatherDeferreds(deferredList, consumeErrors=False, errorLogger=err):
+def gatherDeferreds(deferredList, consumeErrors=False, logErrors=False,
+                    errorLogger=None):
     """
     Return a deferred which fires when all of the supplied deferreds have
     themselves fired.
 
-    Any errback will be logged by ``error_logger`` unless ``error_logger`` is
-    set to ``None``. The default error_logger is ``twisted.python.log.err``.
+    If ``logErrors`` is ``True``, then any errback will be logged by
+    ``errorLogger``. The default errorLogger is ``twisted.python.log.err``.
 
     Questions:
      * Do we need to have a fireOnFirstError option in this function?
@@ -142,7 +143,10 @@ def gatherDeferreds(deferredList, consumeErrors=False, errorLogger=err):
      * Should consumeErrors default to True? Perhaps it should only be True if
        error logging is enabled?
     """
-    # if errorLogger is not None:
+    # if errorLogger is None:
+    #     errorLogger = err
+
+    # if logErrors:
     #     for deferred in deferredList:
     #         deferred.addErrback(_log_and_return_failure, errorLogger)
 

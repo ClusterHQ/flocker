@@ -19,7 +19,7 @@ from ._model import (
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager
 from ..common._ipc import ProcessNode
-from .._twisted import gather_deferreds
+from .._twisted import gatherDeferreds
 
 
 # Path to SSH private key available on nodes and used to communicate
@@ -225,7 +225,7 @@ class SetProxies(object):
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
             except:
                 results.append(fail())
-        return gather_deferreds(results)
+        return gatherDeferreds(results, logErrors=True)
 
 class Deployer(object):
     """
