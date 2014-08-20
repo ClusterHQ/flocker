@@ -63,6 +63,13 @@ class ChangeStateScriptTests(TestCase):
         self.assertIsInstance(ChangeStateScript()._deployer.volume_service,
                               VolumeService)
 
+    def test_volume_service_running(self):
+        """
+        ``ChangeStateScript._deployer`` is created by default with a
+        ``VolumeService`` that is not running.
+        """
+        self.assertFalse(ChangeStateScript()._deployer.volume_service.running)
+
     def test_volume_service_config_path(self):
         """
         ``ChangeStateScript._deployer`` is created by default with a

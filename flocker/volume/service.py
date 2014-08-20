@@ -53,6 +53,7 @@ class VolumeService(Service):
         self._reactor = reactor
 
     def startService(self):
+        Service.startService(self)
         parent = self._config_path.parent()
         try:
             if not parent.exists():
