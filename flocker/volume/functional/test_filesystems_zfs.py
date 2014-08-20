@@ -19,7 +19,7 @@ from ..filesystems.zfs import (
     ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
     )
 from ..service import Volume
-from ..testtools import create_zfs_pool
+from ..testtools import create_zfs_pool, service_for_pool
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
@@ -40,7 +40,7 @@ class VolumeToDatasetTests(TestCase):
         """``volume_to_dataset`` includes the UUID, dataset
         name and (for future functionality) a default branch name.
         """
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=None)
+        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", service=None)
         self.assertEqual(volume_to_dataset(volume),
                          b"my-uuid.myvolumename")
 
@@ -52,7 +52,8 @@ class StoragePoolTests(TestCase):
         """Mountpoints are children of the mount root."""
         mount_root = FilePath(self.mktemp())
         pool = StoragePool(reactor, create_zfs_pool(self), mount_root)
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
 
         d = pool.create(volume)
 
@@ -67,7 +68,8 @@ class StoragePoolTests(TestCase):
         mount_root = FilePath(self.mktemp())
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
 
         d = pool.create(volume)
 
@@ -83,7 +85,8 @@ class StoragePoolTests(TestCase):
         mount_root = FilePath(self.mktemp())
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", _pool=pool)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
 
         d = pool.create(volume)
 
@@ -107,8 +110,10 @@ class StoragePoolTests(TestCase):
         """
         pool = StoragePool(reactor, create_zfs_pool(self),
                            FilePath(self.mktemp()))
-        volume = Volume(uuid=u"my-uuid", name=u"volume", _pool=pool)
-        new_volume = Volume(uuid=u"other-uuid", name=u"volume", _pool=pool)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
+        new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                            service=service)
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
 
