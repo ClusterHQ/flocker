@@ -22,9 +22,8 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
 
-from ..common import ProcessNode
+from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
-from .._twisted import gatherDeferreds
 
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
@@ -120,19 +119,18 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        d = gatherDeferreds(results, logErrors=True)
+        d = gather_deferreds(results)
 
         # Exit with ssh's output if it failed for some reason:
-        def called_process_failure(successes, failures):
-            for failure in failures:
-                failure.trap(CalledProcessError)
+        def got_failure(failure):
+            if failure.value.subFailure.check(CalledProcessError):
+                raise SystemExit(
+                    b"Error connecting to cluster node: " +
+                    failure.value.subFailure.value.output)
+            else:
+                return failure
 
-            raise SystemExit(
-                b"Error connecting to one or more cluster node: " +
-                '\n'.join(failure.value.output for failure in failures)
-            )
-
-        d.addErrback(called_process_failure)
+        d.addErrback(got_failure)
         return d
 
     def main(self, reactor, options):
