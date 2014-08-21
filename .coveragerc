@@ -1,3 +1,3 @@
 [run]
 omit =
-    flocker/_version.py
+    */flocker/_version.py
