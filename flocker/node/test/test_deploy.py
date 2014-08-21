@@ -1320,6 +1320,7 @@ class SetProxiesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
+        self.flushLoggedErrors(ZeroDivisionError)
 
     def test_create_proxy_errors_as_errbacks(self):
         """
@@ -1339,6 +1340,7 @@ class SetProxiesTests(SynchronousTestCase):
             exception.value.subFailure.value,
             ZeroDivisionError
         )
+        self.flushLoggedErrors(ZeroDivisionError)
 
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
