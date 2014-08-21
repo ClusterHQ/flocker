@@ -1,19 +1,26 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 # -*- test-case-name: flocker.node.test.test_deploy -*-
 
+"""
+Various helpers for dealing with Deferred APIs in flocker.
+"""
+
 from twisted.internet.defer import gatherResults
 from twisted.python import log
 
 
 class GatherDeferredsAPI(object):
     """
-    An API for gather_deferreds which allows logging to be disabled for certain
-    unit tests.
+    An API for gather_deferreds which logs errors in all its supplied deferreds,
+    but which allows logging to be disabled for certain unit tests.
+
+    :ivar log_errors: See ``__init__``.
     """
     def __init__(self, log_errors=True):
         """
         :param bool log_errors: A flag which controls whether error logging is
-            enabled.
+            enabled. Allows logging behaviour to be overridden in tests. Default
+            is ``True``.
         """
         self.log_errors = log_errors
 
@@ -34,6 +41,12 @@ class GatherDeferredsAPI(object):
 
         Any errback in the supplied deferreds will be handled and logged with a
         call to ``twisted.python.log.err``.
+
+        :param list deferreds: A ``list`` of deferreds whose results will be
+            gathered.
+        :returns: A ``Deferred`` which calls back when all the supplied
+            ``deferreds`` have succeeded or which will errback when at least one
+            has failed.
         """
         if self.log_errors:
             for deferred in deferreds:
