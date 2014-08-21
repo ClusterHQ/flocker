@@ -287,14 +287,16 @@ class GearEnvironmentTests(TestCase):
         expected_dict = {
             'id': expected_id,
             'variables': [
-                {'name': 'foo', 'value': 'bar'},
                 {'name': 'baz', 'value': 'qux'},
+                {'name': 'foo', 'value': 'bar'},
             ]
         }
         self.assertEqual(
             expected_dict,
             GearEnvironment(
-                id=expected_id, variables=dict(foo='bar', baz='qux')).to_dict()
+                id=expected_id, variables=frozenset(dict(
+                    foo='bar', baz='qux'
+                ).items())).to_dict()
         )
 
     def test_repr(self):
