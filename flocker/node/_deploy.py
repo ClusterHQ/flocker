@@ -392,6 +392,23 @@ class Deployer(object):
             if start_restart:
                 phases.append(InParallel(changes=start_restart))
 
+            # TODO: Log instead of print
+            # TODO: Rewrite TDD
+            # TODO: Get list of containers to be restarted
+            # TODO: Are the logs clear enough? Bad because this is on one
+            # node only, perhaps `flocker-changestate` will aggregate these
+            # somehow
+            print "Current config is:"
+            print current_node_applications
+            print "Desired config is:"
+            print desired_node_applications
+            print "Containers to be started:"
+            print start_names
+            print "Containers to be stopped:"
+            print stop_names
+            print "Containers to be restarted:"
+            print "TODO"
+
         d.addCallback(find_differences)
         d.addCallback(lambda _: Sequentially(changes=phases))
         return d
