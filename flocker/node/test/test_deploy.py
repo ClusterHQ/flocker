@@ -285,6 +285,7 @@ class InParallelTests(SynchronousTestCase):
         result = change.run(object())
         failure = self.failureResultOf(result, FirstError)
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
+        self.flushLoggedErrors(RuntimeError)
 
 
 class StartApplicationTests(SynchronousTestCase):

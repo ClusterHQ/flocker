@@ -89,7 +89,7 @@ class InParallel(object):
     """
     def run(self, deployer):
         return gather_deferreds(
-            (change.run(deployer) for change in self.changes))
+            [change.run(deployer) for change in self.changes])
 
 
 @implementer(IStateChange)
