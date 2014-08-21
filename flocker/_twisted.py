@@ -71,8 +71,8 @@ As such all code in this module was released under the following terms:
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-from twisted.internet.defer import gatherResults, Deferred
-from twisted.python.log import err
+from twisted.internet.defer import gatherResults
+from twisted.python import log
 
 # From https://twistedmatrix.com/trac/ticket/5786
 def timeoutDeferred(reactor, deferred, seconds):
@@ -114,40 +114,25 @@ def timeoutDeferred(reactor, deferred, seconds):
     return delayedTimeOutCall
 
 
-def _log_and_return_failure(self, failure, log_err):
+def _log_and_return_failure(self, failure):
     """
     Log and return the supplied failure.
 
     :param Failure failure: The ``Failure`` to be logged.
-    :param log_err: A logging function which will be called with the supplied
-        ``Failure``.
     :returns: The supplied ``Failure``.
     """
-    log_err(failure)
+    log.err(failure)
     return failure
 
 
-def gatherDeferreds(deferredList, consumeErrors=False, logErrors=False,
-                    errorLogger=None):
+def gather_deferreds(deferreds):
     """
     Return a deferred which fires when all of the supplied deferreds have
     themselves fired.
 
-    If ``logErrors`` is ``True``, then any errback will be logged by
-    ``errorLogger``. The default errorLogger is ``twisted.python.log.err``.
-
-    Questions:
-     * Do we need to have a fireOnFirstError option in this function?
-     * Do we even need to return the results? The current use cases don't have
-       any interesting results.
-     * Should consumeErrors default to True? Perhaps it should only be True if
-       error logging is enabled?
+    Any errback in the supplied deferreds will be handled and logged with a call
+    to ``twisted.python.log.err``.
     """
-    # if errorLogger is None:
-    #     errorLogger = err
-
-    # if logErrors:
-    #     for deferred in deferredList:
-    #         deferred.addErrback(_log_and_return_failure, errorLogger)
-
-    # return gatherResults(deferredList, consumeErrors=consumeErrors)
+    for deferred in deferreds:
+        deferred.addErrback(_log_and_return_failure)
+    return gatherResults(deferreds)
