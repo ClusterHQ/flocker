@@ -273,10 +273,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         }
         self.assertEqual(expected_applications, applications)
 
-    def test_frozenset_of_applications(self):
+    def test_applications_hashable(self):
         """
-        ``Configuration._applications_from_configuration`` returns a `dict`
-        of `Application` instances from which a `frozenset` can be created.
+        `Application` instances returned by
+        ``Configuration._applications_from_configuration`` are hashable
+        and a `frozenset` of `Application` instances can be created.
         """
         parser = Configuration()
         config = dict(

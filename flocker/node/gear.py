@@ -30,6 +30,9 @@ class GearEnvironment(object):
     """
     A collection of Geard unit environment variables associated with an
     environment ID.
+
+    :ivar frozenset variables: A ``frozenset`` of tuples containing
+        key and value pairs representing the environment variables.
     """
 
     def to_dict(self):

@@ -351,9 +351,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(
             assertContainsAll,
             test_case=self,
-            needles=[
-                '{}={}\n'.format(k, v) for k, v in dict(
-                    expected_variables).items()
-            ],
+            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
         )
         return d

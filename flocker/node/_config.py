@@ -54,7 +54,9 @@ class Configuration(object):
             ``config`` is not a ``dict`` or ``dict``-like value.
 
         :returns: ``None`` if there is no ``environment`` element in the
-            config, or the ``frozenset`` of environment variables if there is.
+            config, or the ``frozenset`` of environment variables if there is,
+            in the form of a ``frozenset`` of ``tuple`` \s mapped to
+            (key, value)
 
         """
         invalid_env_message = (
