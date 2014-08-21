@@ -25,6 +25,7 @@ from ..node import ConfigurationError, model_from_configuration
 from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
+
 @attributes(['node', 'hostname'])
 class NodeTarget(object):
     """

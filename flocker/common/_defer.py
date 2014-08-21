@@ -4,6 +4,7 @@
 from twisted.internet.defer import gatherResults
 from twisted.python import log
 
+
 class GatherDeferredsAPI(object):
     """
     An API for gather_deferreds which allows logging to be disabled for certain
@@ -31,8 +32,8 @@ class GatherDeferredsAPI(object):
         Return a deferred which fires when all of the supplied deferreds have
         themselves fired.
 
-        Any errback in the supplied deferreds will be handled and logged with a call
-        to ``twisted.python.log.err``.
+        Any errback in the supplied deferreds will be handled and logged with a
+        call to ``twisted.python.log.err``.
         """
         if self.log_errors:
             for deferred in deferreds:
