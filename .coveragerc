@@ -1,0 +1,3 @@
+[report]
+omit =
+    flocker/_version.py
