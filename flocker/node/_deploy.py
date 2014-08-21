@@ -18,8 +18,7 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager
-from ..common._ipc import ProcessNode
-from .._twisted import gatherDeferreds
+from ..common import ProcessNode, gather_deferreds
 
 
 # Path to SSH private key available on nodes and used to communicate
@@ -89,11 +88,8 @@ class InParallel(object):
     Failures in one change do not prevent other changes from continuing.
     """
     def run(self, deployer):
-        return gatherDeferreds(
-            (change.run(deployer) for change in self.changes),
-            logErrors=True,
-            consumeErrors=True
-        )
+        return gather_deferreds(
+            (change.run(deployer) for change in self.changes))
 
 
 @implementer(IStateChange)
