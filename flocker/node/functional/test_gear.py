@@ -352,6 +352,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
             assertContainsAll,
             test_case=self,
             needles=[
-                '{}={}\n'.format(k, v) for k, v in expected_variables.items()],
+                '{}={}\n'.format(k, v) for k, v in dict(expected_variables).items()],
         )
         return d
