@@ -209,9 +209,6 @@ class SetProxies(object):
     """
     def run(self, deployer):
         results = []
-        # XXX: Errors in these operations should be logged. See
-        # https://github.com/ClusterHQ/flocker/issues/296
-
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
         for proxy in deployer.network.enumerate_proxies():
@@ -224,7 +221,8 @@ class SetProxies(object):
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
             except:
                 results.append(fail())
-        return gatherDeferreds(results, logErrors=True)
+        return gather_deferreds(results)
+
 
 class Deployer(object):
     """
