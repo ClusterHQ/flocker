@@ -2,7 +2,7 @@ from twisted.trial.unittest import TestCase
 
 class LogAndReturnFailureTests(TestCase):
     """
-    Tests for ``_twisted._log_and_return_failure`` .
+    Tests for ``_log_and_return_failure``.
     """
     def test_failure_logged(self):
         """
@@ -22,32 +22,20 @@ class LogAndReturnFailureTests(TestCase):
 
 class GatherDeferredsTests(TestCase):
     """
-    Tests for ``_twisted.gather_deferreds``
+    Tests for ``gather_deferreds``.
     """
-    def test_consume_errors_default(self):
-        """
-        If there are errbacks in the supplied ``Deferred``s they are unhandled
-        by default.
-        """
-
     def test_consume_errors_true(self):
         """
-        If ``consumeErrors`` is ``True`` the unhandled errbacks in the supplied
-        ``Deferred``s are handled.
+        The unhandled errbacks in the supplied ``Deferred``s are handled.
         """
 
-    def test_no_logging(self):
+    def test_fire_on_first_failure(self):
         """
-        If ``errorLogger`` is ``None``, none of the failures are logged.
-        """
-
-    def test_default_logger(self):
-        """
-        ``errorLogger`` is ``twisted.python.log.err`` by default.
+        The first errback in the supplied list of deferreds causes the returned
+        deferred to errback with that failure.
         """
 
-    def test_error_logger_overrride(self):
+    def test_logging(self):
         """
-        If a customer ``errorLogger`` is supplied, it is called once for each
-        failure in the supplied ``Deferred``s.
+        Failures in the supplied deferreds are logged.
         """
