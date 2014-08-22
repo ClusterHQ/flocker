@@ -36,14 +36,14 @@ class GatherDeferredsAPI(object):
 
     def gather_deferreds(self, deferreds):
         """
-        Return a deferred which fires when all of the supplied deferreds have
-        themselves fired.
+        Return a ``Deferred`` which fires when all of the supplied
+        ``Deferred``\ s have themselves fired.
 
-        Any errback in the supplied deferreds will be handled and logged with a
-        call to ``twisted.python.log.err``.
+        Any errback in the supplied ``Deferred``\ s will be handled and logged
+        with a call to ``twisted.python.log.err``.
 
-        :param list deferreds: A ``list`` of deferreds whose results will be
-            gathered.
+        :param list deferreds: A ``list`` of ``Deferred``\ s whose results will
+            be gathered.
         :returns: A ``Deferred`` which calls back when all the supplied
             ``deferreds`` have succeeded or which will errback when at least
             one has failed.
