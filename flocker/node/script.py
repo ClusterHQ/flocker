@@ -20,7 +20,8 @@ from zope.interface import implementer
 from ._config import configuration_to_yaml
 
 from ..volume.filesystems.zfs import StoragePool
-from ..volume.service import VolumeService, DEFAULT_CONFIG_PATH
+from ..volume.service import (
+    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 from . import (ConfigurationError, model_from_configuration, Deployer,
@@ -128,7 +129,7 @@ def _default_volume_service():
     """
     # XXX duplicate code; better factoring would make this easier to solve:
     # https://github.com/ClusterHQ/flocker/issues/305
-    pool = StoragePool(reactor, b"flocker", FilePath(b"/flocker"))
+    pool = StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT)
     return VolumeService(DEFAULT_CONFIG_PATH, pool, reactor)
 
 

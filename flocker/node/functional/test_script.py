@@ -10,10 +10,10 @@ from unittest import skipUnless
 
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 
-from ...volume.service import VolumeService, DEFAULT_CONFIG_PATH
+from ...volume.service import (
+    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
 from ...volume.filesystems.zfs import StoragePool
 from ..script import ChangeStateScript
 from ... import __version__
@@ -73,7 +73,7 @@ class ChangeStateScriptTests(TestCase):
         """
         self.assertEqual(
             ChangeStateScript()._deployer.volume_service._pool,
-            StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
+            StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT))
 
     @if_gear_configured
     def test_deployer_gear_client(self):

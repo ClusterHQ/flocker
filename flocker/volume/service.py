@@ -26,6 +26,7 @@ from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
+FLOCKER_MOUNTPOINT = FilePath(b"/flocker")
 
 WAIT_FOR_VOLUME_INTERVAL = 0.1
 
