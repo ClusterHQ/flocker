@@ -21,7 +21,7 @@ class GatherDeferredsTests(TestCase):
 
     def test_success(self):
         """
-        The successful results of the supplied ``Deferred``s are returned.
+        The successful results of the supplied ``deferreds`` are returned.
         """
         expected_result1 = object()
         expected_result2 = object()
@@ -34,7 +34,8 @@ class GatherDeferredsTests(TestCase):
 
     def test_consume_errors_true(self):
         """
-        The unhandled errbacks in the supplied ``Deferred``s are handled.
+        Errors in the supplied ``deferreds`` are always consumed so that they
+        are not logged during garbage collection.
         """
         d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
             [fail(ZeroDivisionError('test_consume_errors1')),
@@ -45,8 +46,8 @@ class GatherDeferredsTests(TestCase):
 
     def test_fire_on_first_failure(self):
         """
-        The first of the supplied list of deferreds to errback, causes the
-        returned deferred to errback with that failure.
+        The first of the supplied list of ``deferreds`` to errback, causes the
+        returned ``Deferred`` to errback with that failure.
         """
         expected_error = ZeroDivisionError('test_fire_on_first_failure1')
         d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
@@ -58,7 +59,7 @@ class GatherDeferredsTests(TestCase):
 
     def test_logging(self):
         """
-        Failures in the supplied deferreds are all logged.
+        Failures in the supplied ``deferreds`` are all logged.
         """
         messages = []
         log.addObserver(messages.append)
