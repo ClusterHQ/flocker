@@ -39,4 +39,3 @@ def gather_deferreds(deferreds):
     # Then return the result of the first gather.
     gathering.addCallback(lambda ignored: first_failure)
     return gathering
-
