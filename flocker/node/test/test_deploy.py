@@ -1342,6 +1342,28 @@ class SetProxiesTests(SynchronousTestCase):
         )
         self.flushLoggedErrors(ZeroDivisionError)
 
+    def test_create_proxy_errors_all_logged(self):
+        """
+        Exceptions raised in `create_proxy_to` operations are all logged.
+        """
+        fake_network = make_memory_network()
+        fake_network.create_proxy_to = lambda ip, port: 1/0
+
+        api = Deployer(
+            create_volume_service(self), gear_client=FakeGearClient(),
+            network=fake_network)
+
+        d = SetProxies(
+            ports=[Proxy(ip=u'192.0.2.100', port=3306),
+                   Proxy(ip=u'192.0.2.101', port=3306),
+                   Proxy(ip=u'192.0.2.102', port=3306)]
+        ).run(api)
+
+        self.failureResultOf(d, FirstError)
+
+        failures = self.flushLoggedErrors(ZeroDivisionError)
+        self.assertEqual(3, len(failures))
+
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
