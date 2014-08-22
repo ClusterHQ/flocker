@@ -1,6 +1,6 @@
-==================
-What's New in v0.2
-==================
+==============================
+What's New in the Next Release
+==============================
 
 * Added support for environment variables in application configuration.
 
