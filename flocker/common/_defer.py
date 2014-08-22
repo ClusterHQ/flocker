@@ -42,11 +42,15 @@ class GatherDeferredsAPI(object):
         Any errback in the supplied ``Deferred``\ s will be handled and logged
         with a call to ``twisted.python.log.err``.
 
+        See ``twisted.internet.defer.gatherResults`` which this function wraps.
+
         :param list deferreds: A ``list`` of ``Deferred``\ s whose results will
             be gathered.
-        :returns: A ``Deferred`` which calls back when all the supplied
-            ``deferreds`` have succeeded or which will errback when at least
-            one has failed.
+        :returns: A ``Deferred`` which calls back with a ``list`` of all the
+            results of the supplied ``deferreds`` when all the supplied
+            ``deferreds`` have succeeded or which will errback with a
+            ``FirstError`` failure as soon as one of the supplied ``deferreds`
+            fails.
         """
         if self.log_errors:
             for deferred in deferreds:
