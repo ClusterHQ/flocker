@@ -18,3 +18,4 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    installation
    tutorial/index
    postgres
+   mysql-example
