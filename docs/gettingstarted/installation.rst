@@ -7,7 +7,7 @@ This should be installed on a machine with SSH credentials to control the cluste
 (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
 There is also a ``flocker-node`` package which is installed on each node in the cluster.
-It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities. 
+It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
 These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
 .. note:: For now the ``flocker-node`` package is pre-installed by the `Vagrant configuration in the tutorial <tutorial>`_.
@@ -22,8 +22,8 @@ Installing ``flocker-cli``
 Linux
 -----
 
-Before you install ``flocker-cli`` you will need a compiler, Python 2.7 and the ``virtualenv`` Python utility installed.
-On Fedora 20 you can do so by running:
+Before you install ``flocker-cli`` you will need a compiler, Python 2.7, and the ``virtualenv`` Python utility installed.
+On Fedora 20 you can install these by running:
 
 .. code-block:: console
 
@@ -35,7 +35,7 @@ On Ubuntu or Debian you can run:
 
    alice@mercury:~$ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
 
-Then run the following script to do the actual install:
+Then run the following script to install ``flocker-cli``:
 
 :download:`linux-install.sh`
 
@@ -59,7 +59,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
    0.1.0
    alice@mercury:~/flocker-tutorial$
 
-If you want to omit the prefix path you can e.g. add the appropriate directory to your ``$PATH``.
+If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
 .. code-block:: console
