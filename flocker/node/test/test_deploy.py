@@ -287,6 +287,25 @@ class InParallelTests(SynchronousTestCase):
         self.assertEqual(failure.value.subFailure.type, RuntimeError)
         self.flushLoggedErrors(RuntimeError)
 
+    def test_failure_all_logged(self):
+        """
+        Errors in the async operations performed by ``InParallel.run`` are all
+        logged.
+        """
+        subchanges = [
+            FakeChange(fail(ZeroDivisionError('e1'))),
+            FakeChange(fail(ZeroDivisionError('e2'))),
+            FakeChange(fail(ZeroDivisionError('e3'))),
+        ]
+        change = InParallel(changes=subchanges)
+        result = change.run(deployer=object())
+        self.failureResultOf(result, FirstError)
+
+        self.assertEqual(
+            len(subchanges),
+            len(self.flushLoggedErrors(ZeroDivisionError))
+        )
+
 
 class StartApplicationTests(SynchronousTestCase):
     """
