@@ -1,4 +1,12 @@
 ==================
+What's New in v0.2
+==================
+
+* Added support for environment variables in application configuration.
+
+  * See :doc:`./configuration` for more information.
+
+==================
 What's New in v0.1
 ==================
 

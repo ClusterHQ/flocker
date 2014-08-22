@@ -1,7 +1,9 @@
 "version": 1
 "applications":
   "mysql-volume-example":
-    "image": "clusterhq/mysql"
+    "image": "mysql"
+    "environment":
+      "MYSQL_ROOT_PASSWORD": "clusterhq"
     "ports":
     - "internal": 3306
       "external": 3306

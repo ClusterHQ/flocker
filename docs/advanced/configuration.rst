@@ -49,6 +49,22 @@ The following parameters are optional when defining an application:
   It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
   The value for this key must be a string giving an absolute path.
 
+  .. code-block:: yaml
+
+     "volume":
+       "mountpoint": "/var/www/data"
+
+- ``environment``
+
+  This is an optional mapping of key/value pairs for environment variables that will be applied to the application container.
+  Keys and values for environment variables must be strings and only ASCII characters are supported at this time.
+
+  .. code-block:: yaml
+
+     "environment":
+       "foo": "bar"
+       "baz": "qux"
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml
@@ -57,6 +73,9 @@ Here's an example of a simple but complete configuration defining one applicatio
   "applications":
     "site-clusterhq.com":
       "image": "clusterhq/clusterhq-website"
+      "environment":
+        "WP_ADMIN_USERNAME": "administrator"
+        "WP_ADMIN_PASSWORD": "password"
       "ports":
       - "internal": 80
         "external": 8080
