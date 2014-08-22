@@ -10,7 +10,6 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet import reactor
-from twisted.python.filepath import FilePath
 
 from yaml import safe_load
 from yaml.error import YAMLError
@@ -21,7 +20,7 @@ from ._config import configuration_to_yaml
 
 from ..volume.filesystems.zfs import StoragePool
 from ..volume.service import (
-    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
+    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL)
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
 from . import (ConfigurationError, model_from_configuration, Deployer,
@@ -129,7 +128,7 @@ def _default_volume_service():
     """
     # XXX duplicate code; better factoring would make this easier to solve:
     # https://github.com/ClusterHQ/flocker/issues/305
-    pool = StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT)
+    pool = StoragePool(reactor, FLOCKER_POOL, FLOCKER_MOUNTPOINT)
     return VolumeService(DEFAULT_CONFIG_PATH, pool, reactor)
 
 
