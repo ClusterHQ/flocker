@@ -1,4 +1,4 @@
-from .._defer import GatherDeferredsAPI, gather_deferreds
+from .._defer import gather_deferreds
 
 from twisted.internet.defer import fail, FirstError, succeed
 from twisted.python import log
@@ -10,15 +10,6 @@ class GatherDeferredsTests(TestCase):
     """
     Tests for ``gather_deferreds``.
     """
-    def test_gather_deferreds_api(self):
-        """
-        ``gather_deferreds`` is ``GatherDeferredsAPI.gather_deferreds``.
-        """
-        self.assertIs(
-            GatherDeferredsAPI.gather_deferreds.__func__,
-            gather_deferreds.__func__
-        )
-
     def test_success(self):
         """
         The successful results of the supplied ``deferreds`` are returned.
@@ -26,7 +17,7 @@ class GatherDeferredsTests(TestCase):
         expected_result1 = object()
         expected_result2 = object()
 
-        d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
+        d = gather_deferreds(
             [succeed(expected_result1), succeed(expected_result2)])
 
         results = self.successResultOf(d)
@@ -37,12 +28,12 @@ class GatherDeferredsTests(TestCase):
         Errors in the supplied ``deferreds`` are always consumed so that they
         are not logged during garbage collection.
         """
-        d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
+        d = gather_deferreds(
             [fail(ZeroDivisionError('test_consume_errors1')),
              fail(ZeroDivisionError('test_consume_errors2'))])
 
         self.failureResultOf(d, FirstError)
-        self.assertEqual([], self.flushLoggedErrors(ZeroDivisionError))
+        self.flushLoggedErrors(ZeroDivisionError)
 
     def test_fire_on_first_failure(self):
         """
@@ -50,12 +41,13 @@ class GatherDeferredsTests(TestCase):
         returned ``Deferred`` to errback with that failure.
         """
         expected_error = ZeroDivisionError('test_fire_on_first_failure1')
-        d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
+        d = gather_deferreds(
             [fail(expected_error),
              fail(ZeroDivisionError('test_fire_on_first_failure2'))])
 
         failure = self.failureResultOf(d, FirstError)
         self.assertEqual(expected_error, failure.value.subFailure.value)
+        self.flushLoggedErrors(ZeroDivisionError)
 
     def test_logging(self):
         """
@@ -67,7 +59,7 @@ class GatherDeferredsTests(TestCase):
         expected_failure1 = Failure(ZeroDivisionError('test_logging1'))
         expected_failure2 = Failure(ZeroDivisionError('test_logging2'))
 
-        d = GatherDeferredsAPI(log_errors=True).gather_deferreds(
+        d = gather_deferreds(
             [fail(expected_failure1), fail(expected_failure2)])
 
         self.failureResultOf(d, FirstError)
