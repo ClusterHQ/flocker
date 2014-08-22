@@ -160,9 +160,8 @@ class FlockerDeployConfigureSSHTests(TestCase):
         ]
 
         error_iterator = (e for e in expected_errors)
-        configure_ssh_calls = []
+
         def fail(host, port):
-            configure_ssh_calls.append((host, port))
             raise error_iterator.next()
 
         self.config.configure_ssh = fail
