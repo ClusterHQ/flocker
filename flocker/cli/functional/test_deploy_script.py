@@ -192,15 +192,9 @@ class FlockerDeployConfigureSSHTests(TestCase):
         def check_logs(ignored_first_error):
             failures = self.flushLoggedErrors(ZeroDivisionError)
             self.assertEqual(
-                expected_errors[:1],
+                expected_errors,
                 [f.value for f in failures]
             )
 
         result.addErrback(check_logs)
-
-        def check_remaining_logs():
-            failures = self.flushLoggedErrors(ZeroDivisionError)
-
-        self.addCleanup(check_remaining_logs)
-
         return result

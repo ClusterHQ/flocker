@@ -8,6 +8,11 @@ Various helpers for dealing with Deferred APIs in flocker.
 from twisted.internet.defer import gatherResults
 from twisted.python import log
 
+class GatheredFailure(object):
+    """
+    """
+    def __init__(self, failure):
+        self.failure = failure
 
 class GatherDeferredsAPI(object):
     """
@@ -31,8 +36,8 @@ class GatherDeferredsAPI(object):
         :param Failure failure: The ``Failure`` to be logged.
         :returns: The supplied ``Failure``.
         """
-        log.err(failure)
-        return failure
+        if self.log_errors:
+            log.err(failure)
 
     def gather_deferreds(self, deferreds):
         """
@@ -52,10 +57,18 @@ class GatherDeferredsAPI(object):
             ``FirstError`` failure as soon as one of the supplied ``deferreds`
             fails.
         """
-        if self.log_errors:
-            for deferred in deferreds:
-                deferred.addErrback(self._log_and_return_failure)
-        return gatherResults(deferreds, consumeErrors=True)
+        # Gather once to get the results OR the first failure
+        first_failure = gatherResults(deferreds)
+
+        for deferred in deferreds:
+            deferred.addErrback(self._log_and_return_failure)
+        # After adding logging callbacks, gather again so as to wait for all the
+        # supplied deferreds to fire.
+        gathering = gatherResults(deferreds)
+
+        # Then return the result of the first gather.
+        gathering.addCallback(lambda ignored: first_failure)
+        return gathering
 
 
 gather_deferreds = GatherDeferredsAPI().gather_deferreds
