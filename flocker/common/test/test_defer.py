@@ -12,9 +12,12 @@ class GatherDeferredsTests(TestCase):
     """
     def test_gather_deferreds_api(self):
         """
-        ``gather_deferreds`` is bound to an instance of ``GatherDeferredsAPI``.
+        ``gather_deferreds`` is ``GatherDeferredsAPI.gather_deferreds``.
         """
-        self.assertIs(GatherDeferredsAPI, gather_deferreds.im_class)
+        self.assertIs(
+            GatherDeferredsAPI.gather_deferreds.__func__,
+            gather_deferreds.__func__
+        )
 
     def test_success(self):
         """
