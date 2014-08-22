@@ -21,9 +21,9 @@ The Docker image we'll be using is quite big, so you may wish to pre-fetch it to
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 docker pull clusterhq/mysql
+   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 docker pull mysql
    ...
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.251 docker pull clusterhq/mysql
+   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.251 docker pull mysql
    ...
    alice@mercury:~/flocker-mysql$
 
@@ -46,7 +46,7 @@ Download and save the following configuration files to your ``flocker-mysql`` (o
    :language: yaml
 
 This is a very simple example where we simply map MySQL's default port 3306 in the container to 3306 on our host and specify the volume mountpoint in the container where the actual data is stored.
-We will be using the ``clusterhq/mysql`` image and deploying to one of our virtual nodes.
+We will be using the ``mysql`` image and deploying to one of our virtual nodes.
 Run ``flocker-deploy`` to download the image and get the container running:
 
 .. code-block:: console
@@ -60,7 +60,7 @@ Run ``ssh root@172.16.255.250 docker ps`` and you should see the container runni
 
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
-   f6ee0fbd0446        clusterhq/mysql:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:3306->3306/tcp   mysql-volume-example
+   f6ee0fbd0446        mysql:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:3306->3306/tcp   mysql-volume-example
 
 **Note:** It can take a few moments after ``flocker-deploy`` completes for the container to appear here.
 If you don't see it immediately, keep running the above ``docker ps`` command until you have output similar to the above.
@@ -165,7 +165,7 @@ Now we'll verify that our application has moved to the other VM:
 
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
-   51b5b09a46bb        clusterhq/mysql:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:3306->3306/tcp   mysql-volume-example
+   51b5b09a46bb        mysql:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:3306->3306/tcp   mysql-volume-example
    alice@mercury:~/flocker-mysql$
 
 And is no longer running on the original host:
