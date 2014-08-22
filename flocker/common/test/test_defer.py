@@ -34,7 +34,8 @@ class GatherDeferredsTests(TestCase):
         The unhandled errbacks in the supplied ``Deferred``s are handled.
         """
         d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
-            [fail(ZeroDivisionError('test_consume_errors'))])
+            [fail(ZeroDivisionError('test_consume_errors1')),
+             fail(ZeroDivisionError('test_consume_errors2'))])
 
         self.failureResultOf(d, FirstError)
         self.assertEqual([], self.flushLoggedErrors(ZeroDivisionError))
@@ -44,9 +45,10 @@ class GatherDeferredsTests(TestCase):
         The first errback in the supplied list of deferreds causes the returned
         deferred to errback with that failure.
         """
-        expected_error = ZeroDivisionError('test_fire_on_first_failure')
+        expected_error = ZeroDivisionError('test_fire_on_first_failure1')
         d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
-            [fail(expected_error)])
+            [fail(expected_error),
+             fail(ZeroDivisionError('test_fire_on_first_failure2'))])
 
         failure = self.failureResultOf(d, FirstError)
         self.assertEqual(expected_error, failure.value.subFailure.value)
