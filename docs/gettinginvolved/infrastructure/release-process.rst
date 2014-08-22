@@ -216,8 +216,10 @@ Announcing Releases
 
 - Update download links on https://clusterhq.com
 
-  XXX Arrange to have download links on a page on https://clusterhq.com somewhere.
-  See https://github.com/ClusterHQ/flocker/issues/359 and https://github.com/ClusterHQ/flocker/issues/488
+  XXX Arrange to have download links on a page on https://clusterhq.com. See:   
+
+  - https://github.com/ClusterHQ/flocker/issues/359 and
+  - https://github.com/ClusterHQ/flocker/issues/488
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
