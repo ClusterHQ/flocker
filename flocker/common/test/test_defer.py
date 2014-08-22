@@ -45,8 +45,8 @@ class GatherDeferredsTests(TestCase):
 
     def test_fire_on_first_failure(self):
         """
-        The first errback in the supplied list of deferreds causes the returned
-        deferred to errback with that failure.
+        The first of the supplied list of deferreds to errback, causes the
+        returned deferred to errback with that failure.
         """
         expected_error = ZeroDivisionError('test_fire_on_first_failure1')
         d = GatherDeferredsAPI(log_errors=False).gather_deferreds(
