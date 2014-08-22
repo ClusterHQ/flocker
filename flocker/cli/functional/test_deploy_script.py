@@ -96,8 +96,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
     def test_sshkey_installation_failure(self):
         """
         ``DeployScript._configure_ssh`` fires with an errback if one of the
-        configuration attempts fails. All failed configuration attempts are
-        logged.
+        configuration attempts fails.
         """
         def fail(host, port):
             raise ZeroDivisionError()
@@ -125,7 +124,7 @@ class FlockerDeployConfigureSSHTests(TestCase):
         """
         ``DeployScript._configure_ssh`` fires with a ``SystemExit`` errback
         containing the SSH process output if one of the configuration
-        attempts fails. All errors in the SSH commands are logged.
+        attempts fails.
         """
         def fail(host, port):
             raise CalledProcessError(1, "ssh", output=b"onoes")
@@ -148,4 +147,60 @@ class FlockerDeployConfigureSSHTests(TestCase):
             exc.args, (b"Error connecting to cluster node: onoes",)))
         # Handle errors logged by gather_deferreds
         self.addCleanup(self.flushLoggedErrors, CalledProcessError)
+        return result
+
+    def test_sshkey_installation_failure_logging(self):
+        """
+        ``DeployScript._configure_ssh`` logs all failed configuration attempts.
+        """
+        expected_errors = [
+            ZeroDivisionError("error1"),
+            ZeroDivisionError("error2"),
+            ZeroDivisionError("error3"),
+        ]
+
+        error_iterator = (e for e in expected_errors)
+        configure_ssh_calls = []
+        def fail(host, port):
+            configure_ssh_calls.append((host, port))
+            raise error_iterator.next()
+
+        self.config.configure_ssh = fail
+
+        deployment = Deployment(
+            nodes=frozenset([
+                Node(
+                    hostname=b'node1.example.com',
+                    applications=None
+                ),
+                Node(
+                    hostname=b'node2.example.com',
+                    applications=None
+                ),
+                Node(
+                    hostname=b'node3.example.com',
+                    applications=None
+                ),
+
+            ])
+        )
+
+        script = DeployScript(
+            ssh_configuration=self.config, ssh_port=self.server.port)
+        result = script._configure_ssh(deployment)
+
+        def check_logs(ignored_first_error):
+            failures = self.flushLoggedErrors(ZeroDivisionError)
+            self.assertEqual(
+                expected_errors[:1],
+                [f.value for f in failures]
+            )
+
+        result.addErrback(check_logs)
+
+        def check_remaining_logs():
+            failures = self.flushLoggedErrors(ZeroDivisionError)
+
+        self.addCleanup(check_remaining_logs)
+
         return result
