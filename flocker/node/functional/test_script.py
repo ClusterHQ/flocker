@@ -3,16 +3,17 @@
 """
 Functional tests for the ``flocker-changestate`` command line tool.
 """
+
 from os import getuid
 from subprocess import check_output
 from unittest import skipUnless
 
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
-from twisted.python.filepath import FilePath
 from twisted.internet import reactor
 
-from ...volume.service import VolumeService, DEFAULT_CONFIG_PATH
+from ...volume.service import (
+    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
 from ...volume.filesystems.zfs import StoragePool
 from ..script import ChangeStateScript
 from ... import __version__
@@ -29,13 +30,6 @@ class FlockerChangeStateTests(TestCase):
     """Tests for ``flocker-changestate``."""
 
     @_require_installed
-    # We really shouldn't need root, except there's a bug in this code
-    # such that it overwrites /etc/flocker/volume.json - see
-    # https://github.com/ClusterHQ/flocker/issues/301
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_version(self):
         """
         ``flocker-changestate`` is a command available on the system path
@@ -47,14 +41,7 @@ class FlockerChangeStateTests(TestCase):
 class ChangeStateScriptTests(TestCase):
     """
     Tests for ``ChangeStateScript``.
-
-    XXX these tests overwrite the global volume manager config file:
-    https://github.com/ClusterHQ/flocker/issues/301
     """
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_volume_service(self):
         """
         ``ChangeStateScript._deployer`` is created by default with a
@@ -62,6 +49,13 @@ class ChangeStateScriptTests(TestCase):
         """
         self.assertIsInstance(ChangeStateScript()._deployer.volume_service,
                               VolumeService)
+
+    def test_volume_service_running(self):
+        """
+        ``ChangeStateScript._deployer`` is created by default with a
+        ``VolumeService`` that is not running.
+        """
+        self.assertFalse(ChangeStateScript()._deployer.volume_service.running)
 
     def test_volume_service_config_path(self):
         """
@@ -79,7 +73,7 @@ class ChangeStateScriptTests(TestCase):
         """
         self.assertEqual(
             ChangeStateScript()._deployer.volume_service.pool,
-            StoragePool(reactor, b"flocker", FilePath(b"/flocker")))
+            StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT))
 
     @if_gear_configured
     def test_deployer_gear_client(self):
@@ -105,13 +99,6 @@ class FlockerReportStateTests(TestCase):
     """Tests for ``flocker-reportstate``."""
 
     @_require_installed
-    # We really shouldn't need root, except there's a bug in this code
-    # such that it overwrites /etc/flocker/volume.json - see
-    # https://github.com/ClusterHQ/flocker/issues/301
-    @_require_root
-    def setUp(self):
-        pass
-
     def test_version(self):
         """
         ``flocker-reportstate`` is a command available on the system path

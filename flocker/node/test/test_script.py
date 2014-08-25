@@ -8,6 +8,7 @@ from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
+from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
 from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
@@ -49,12 +50,30 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         script = ChangeStateScript(lambda: service)
         self.assertIs(script._deployer.volume_service, service)
 
+    def test_main_starts_service(self):
+        """
+        ``ChangeStateScript.main`` starts the volume service that was created
+        by the given callable.
+        """
+        service = Service()
+        script = ChangeStateScript(lambda: service)
+        running_before_main = service.running
+        self.patch(
+            script._deployer, 'change_node_state',
+            lambda *args, **kwargs: None)
+        options = dict(deployment=object(),
+                       current=object(),
+                       hostname="")
+        script.main(None, options)
+        self.assertEqual((running_before_main, service.running),
+                         (False, True))
+
     def test_main_calls_deployer_change_node_state(self):
         """
         ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
-        script = ChangeStateScript(lambda: None)
+        script = ChangeStateScript(lambda: Service())
 
         change_node_state_calls = []
 
