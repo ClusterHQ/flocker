@@ -7,13 +7,13 @@ Volume manager service, the main entry point that manages volumes.
 
 from __future__ import absolute_import
 
-from zope.interface import implementer
-
 import os
 import sys
 import json
 import stat
 from uuid import UUID, uuid4
+
+from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
@@ -409,6 +409,11 @@ class VolumeScript(object):
         return service
 
     def __init__(self, volume_script, sys_module=sys):
+        """
+        :param ICommandLineVolumeScript volume_script: Another script
+            implementation which will be passed a started ``VolumeService``
+            along with the reactor and script options.
+        """
         self._volume_script = volume_script
         self._sys_module = sys_module
 
@@ -416,3 +421,17 @@ class VolumeScript(object):
         service = self.create_volume_service(self._sys_module.stderr, reactor, options)
         service.startService()
         return self._volume_script.main(reactor, options, service)
+
+
+class ICommandLineVolumeScript(Interface):
+    """
+    A script which requires a running ``VolumeService`` and can be run by
+    ``FlockerScriptRunner`` and `VolumeScript``.
+    """
+    def main(reactor, options, volume_service):
+        """
+        :param VolumeService volume_service: An already-started volume service.
+
+        See ``ICommandLineScript.main`` for documentation for the other
+        parameters and return value.
+        """
