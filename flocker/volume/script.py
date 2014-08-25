@@ -11,18 +11,18 @@ from twisted.internet.defer import succeed, maybeDeferred
 from zope.interface import implementer
 
 from .service import (
-    VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
-    FLOCKER_MOUNTPOINT, FLOCKER_POOL,
+    DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL,
+    VolumeScript, ICommandLineVolumeScript
     )
-from .filesystems.zfs import StoragePool
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
+    flocker_standard_options, FlockerScriptRunner
+    )
 
 
 __all__ = [
     'flocker_volume_main',
     'VolumeOptions',
-    'VolumeScript',
+    'VolumeManagerScript',
 ]
 
 
@@ -126,15 +126,11 @@ class VolumeOptions(Options):
         self["config"] = FilePath(self["config"])
 
 
-@implementer(ICommandLineScript)
-class VolumeScript(object):
-    """A volume manager script.
-
-    :ivar IService _service: ``VolumeService`` by default but can be overridden
-        for testing purposes.
+@implementer(ICommandLineVolumeScript)
+class VolumeManagerScript(object):
     """
-    _service_factory = VolumeService
-
+    A volume manager script.
+    """
     def __init__(self, sys_module=None):
         """
         :param sys_module: An optional ``sys`` like fake module for use in
@@ -144,29 +140,6 @@ class VolumeScript(object):
             sys_module = sys
         self._sys_module = sys_module
 
-    def create_volume_service(self, reactor, options):
-        """
-        Create a ``VolumeService`` for the given arguments.
-
-        This should probably be elsewhere:
-        https://github.com/ClusterHQ/flocker/issues/305
-
-        :return: The started ``VolumeService``.
-        """
-        pool = StoragePool(reactor, options["pool"],
-                           FilePath(options["mountpoint"]))
-        service = self._service_factory(
-            config_path=options["config"], pool=pool, reactor=reactor)
-        try:
-            service.startService()
-        except CreateConfigurationError as e:
-            self._sys_module.stderr.write(
-                b"Writing config file %s failed: %s\n" % (
-                    options["config"].path, e)
-            )
-            raise SystemExit(1)
-        return service
-
     def main(self, reactor, options):
         """
         Run a volume management operation.
@@ -174,7 +147,8 @@ class VolumeScript(object):
         The volume manager will be configured according to the supplied
         options.
 
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+        See :py:meth:`ICommandLineVolumeScript.main` for parameter
+            documentation.
         """
         service = self.create_volume_service(reactor, options)
         if options.subCommand is not None:
@@ -185,6 +159,6 @@ class VolumeScript(object):
 
 def flocker_volume_main():
     return FlockerScriptRunner(
-        script=VolumeScript(),
+        script=VolumeScript(VolumeManagerScript()),
         options=VolumeOptions()
     ).main()

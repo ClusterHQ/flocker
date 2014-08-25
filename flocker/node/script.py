@@ -9,7 +9,6 @@ tools.
 import sys
 
 from twisted.python.usage import Options, UsageError
-from twisted.internet import reactor
 
 from yaml import safe_load
 from yaml.error import YAMLError
@@ -18,11 +17,9 @@ from zope.interface import implementer
 
 from ._config import configuration_to_yaml
 
-from ..volume.filesystems.zfs import StoragePool
-from ..volume.service import (
-    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL)
+from ..volume.service import ICommandLineVolumeScript, VolumeScript
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
+    flocker_standard_options, FlockerScriptRunner)
 from . import (ConfigurationError, model_from_configuration, Deployer,
                current_from_configuration)
 
@@ -120,44 +117,20 @@ class ChangeStateOptions(Options):
         self["current"] = current_from_configuration(current_config)
 
 
-def _default_volume_service():
-    """
-    Create a ``VolumeService`` using the default configuration.
-
-    :return: A ``VolumeService``.
-    """
-    # XXX duplicate code; better factoring would make this easier to solve:
-    # https://github.com/ClusterHQ/flocker/issues/305
-    pool = StoragePool(reactor, FLOCKER_POOL, FLOCKER_MOUNTPOINT)
-    return VolumeService(DEFAULT_CONFIG_PATH, pool, reactor)
-
-
-@implementer(ICommandLineScript)
+@implementer(ICommandLineVolumeScript)
 class ChangeStateScript(object):
     """
     A command to get a node into a desired state by pushing volumes, starting
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
-
-    :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
-        state of the current node.
-    :ivar VolumeService _service: The volume manager for this node.
     """
-    def __init__(self, create_volume_service=_default_volume_service):
+    def main(self, reactor, options, volume_service):
         """
-        :param create_volume_service: Callable that returns a
-            ``VolumeService``, defaulting to a standard production-configured
-            service.
+        See :py:meth:`ICommandLineVolumeScript.main` for parameter
+            documentation.
         """
-        self._service = create_volume_service()
-        self._deployer = Deployer(self._service)
-
-    def main(self, reactor, options):
-        """
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
-        """
-        self._service.startService()
-        return self._deployer.change_node_state(
+        deployer = Deployer(volume_service)
+        return deployer.change_node_state(
             desired_state=options['deployment'],
             current_cluster_state=options['current'],
             hostname=options['hostname']
@@ -166,7 +139,7 @@ class ChangeStateScript(object):
 
 def flocker_changestate_main():
     return FlockerScriptRunner(
-        script=ChangeStateScript(),
+        script=VolumeScript(ChangeStateScript()),
         options=ChangeStateOptions()
     ).main()
 
@@ -184,33 +157,27 @@ class ReportStateOptions(Options):
     synopsis = ("Usage: flocker-reportstate [OPTIONS]")
 
 
-@implementer(ICommandLineScript)
+@implementer(ICommandLineVolumeScript)
 class ReportStateScript(object):
     """
     A command to return the state of a node.
 
-    :ivar Deployer _deployer: A :class:`Deployer` instance used to change the
-        state of the current node.
+    :ivar GearClient gear_client: See the ``gear_client`` parameter to
+        ``__init__``.
     """
-    def __init__(self,
-                 create_volume_service=_default_volume_service,
-                 gear_client=None):
+    def __init__(self, gear_client=None):
         """
-        :param create_volume_service: Callable that returns a
-            ``VolumeService``, defaulting to a standard production-configured
-            service.
-        :param gear_client: A ``GearClient`` instance, optional.
+        :param GearClient gear_client: The object to use to talk to the Gear
+            server.
         """
-        self._deployer = Deployer(create_volume_service(), gear_client)
+        self._gear_client = gear_client
 
     def _print_yaml(self, result):
         sys.stdout.write(result)
 
-    def main(self, reactor, options):
-        """
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
-        """
-        d = self._deployer.discover_node_configuration()
+    def main(self, reactor, options, volume_service):
+        deployer = Deployer(volume_service)
+        d = deployer.discover_node_configuration()
         d.addCallback(lambda state: configuration_to_yaml(
             list(state.running + state.not_running)))
         d.addCallback(self._print_yaml)
@@ -219,6 +186,6 @@ class ReportStateScript(object):
 
 def flocker_reportstate_main():
     return FlockerScriptRunner(
-        script=ReportStateScript(),
+        script=VolumeScript(ReportStateScript()),
         options=ReportStateOptions()
     ).main()

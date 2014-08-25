@@ -1,11 +1,16 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 # -*- test-case-name: flocker.volume.test.test_service -*-
 
-"""Volume manager service, the main entry point that manages volumes."""
+"""
+Volume manager service, the main entry point that manages volumes.
+"""
 
 from __future__ import absolute_import
 
+from zope.interface import implementer
+
 import os
+import sys
 import json
 import stat
 from uuid import UUID, uuid4
@@ -22,8 +27,8 @@ from twisted.internet.task import LoopingCall
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
-from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
-
+from .filesystems.zfs import _AccumulatingProtocol, CommandFailed, StoragePool
+from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
 FLOCKER_MOUNTPOINT = FilePath(b"/flocker")
@@ -371,3 +376,43 @@ class Volume(object):
         d.addErrback(lambda failure: failure.trap(CommandFailed))
         d.addCallback(lambda _: None)
         return d
+
+
+@implementer(ICommandLineScript)
+class VolumeScript(object):
+    """
+    :ivar _service_factory: ``VolumeService`` by default but can be
+        overridden for testing purposes.
+    """
+    @classmethod
+    def create_volume_service(cls, stderr, reactor, options):
+        """
+        Create a ``VolumeService`` for the given arguments.
+
+        This should probably be elsewhere:
+        https://github.com/ClusterHQ/flocker/issues/305
+
+        :return: The started ``VolumeService``.
+        """
+        pool = StoragePool(reactor, options["pool"],
+                           FilePath(options["mountpoint"]))
+        service = cls._service_factory(
+            config_path=options["config"], pool=pool, reactor=reactor)
+        try:
+            service.startService()
+        except CreateConfigurationError as e:
+            stderr.write(
+                b"Writing config file %s failed: %s\n" % (
+                    options["config"].path, e)
+            )
+            raise SystemExit(1)
+        return service
+
+    def __init__(self, volume_script, sys_module=sys):
+        self._volume_script = volume_script
+        self._sys_module = sys_module
+
+    def main(self, reactor, options):
+        service = self.create_volume_service(self._sys_module.stderr, reactor, options)
+        service.startService()
+        return self._volume_script.main(reactor, options, service)
