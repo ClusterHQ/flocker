@@ -131,15 +131,6 @@ class VolumeManagerScript(object):
     """
     A volume manager script.
     """
-    def __init__(self, sys_module=None):
-        """
-        :param sys_module: An optional ``sys`` like fake module for use in
-            testing. Defaults to ``sys``.
-        """
-        if sys_module is None:
-            sys_module = sys
-        self._sys_module = sys_module
-
     def main(self, reactor, options):
         """
         Run a volume management operation.
