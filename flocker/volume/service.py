@@ -37,7 +37,8 @@ class CreateConfigurationError(Exception):
 
 
 class VolumeService(Service):
-    """Main service for volume management.
+    """
+    Main service for volume management.
 
     :ivar unicode uuid: A unique identifier for this particular node's
         volume manager. Only available once the service has started.
@@ -51,7 +52,7 @@ class VolumeService(Service):
         :param reactor: A ``twisted.internet.interface.IReactorTime`` provider.
         """
         self._config_path = config_path
-        self._pool = pool
+        self.pool = pool
         self._reactor = reactor
 
     def startService(self):
@@ -76,8 +77,8 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
-        d = self._pool.create(volume)
+        volume = Volume(uuid=self.uuid, name=name, service=self)
+        d = self.pool.create(volume)
 
         def created(filesystem):
             filesystem.get_path().chmod(
@@ -98,7 +99,7 @@ class VolumeService(Service):
 
         :return: A ``Volume``.
         """
-        return Volume(uuid=self.uuid, name=name, _pool=self._pool)
+        return Volume(uuid=self.uuid, name=name, service=self)
 
     def wait_for_volume(self, name):
         """
@@ -110,7 +111,7 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        volume = Volume(uuid=self.uuid, name=name, _pool=self._pool)
+        volume = Volume(uuid=self.uuid, name=name, service=self)
 
         def check_for_volume(volumes):
             if volume in volumes:
@@ -132,7 +133,7 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with an iterator of :class:`Volume`.
         """
-        enumerating = self._pool.enumerate()
+        enumerating = self.pool.enumerate()
 
         def enumerated(filesystems):
             for filesystem in filesystems:
@@ -155,7 +156,7 @@ class VolumeService(Service):
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name.decode('utf8'),
-                    _pool=self._pool)
+                    service=self)
         enumerating.addCallback(enumerated)
         return enumerating
 
@@ -206,7 +207,7 @@ class VolumeService(Service):
         """
         if volume_uuid == self.uuid:
             raise ValueError()
-        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        volume = Volume(uuid=volume_uuid, name=volume_name, service=self)
         with volume.get_filesystem().writer() as writer:
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
@@ -228,7 +229,7 @@ class VolumeService(Service):
         """
         if volume_uuid == self.uuid:
             return fail(ValueError("Can't acquire already-owned volume"))
-        volume = Volume(uuid=volume_uuid, name=volume_name, _pool=self._pool)
+        volume = Volume(uuid=volume_uuid, name=volume_name, service=self)
         return volume.change_owner(self.uuid)
 
     def handoff(self, volume, destination):
@@ -278,17 +279,27 @@ def _docker_command(reactor, arguments):
     return d
 
 
-@attributes(["uuid", "name", "_pool"])
+@attributes(["uuid", "name", "service"])
 class Volume(object):
-    """A data volume's identifier.
+    """
+    A data volume's identifier.
 
-    :ivar unicode uuid: The UUID of the volume manager that owns this volume.
+    :ivar unicode uuid: The UUID of the volume manager that owns
+        this volume.
     :ivar unicode name: The name of the volume. Since volume names must
         match Docker container names, the characters used should be limited to
         those that Docker allows for container names.
-    :ivar _pool: A `flocker.volume.filesystems.interface.IStoragePool`
-        provider where the volume's filesystem is stored.
+    :ivar VolumeService service: The service that stores this volume.
     """
+    def locally_owned(self):
+        """
+        Return whether this volume is locally owned.
+
+        :return: ``True`` if volume's owner is the ``VolumeService`` that
+            is storing it, otherwise ``False``.
+        """
+        return self.uuid == self.service.uuid
+
     def change_owner(self, new_owner_uuid):
         """
         Change which volume manager owns this volume.
@@ -299,8 +310,8 @@ class Volume(object):
             instance once the ownership has been changed.
         """
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
-                            _pool=self._pool)
-        d = self._pool.change_owner(self, new_volume)
+                            service=self.service)
+        d = self.service.pool.change_owner(self, new_volume)
 
         def filesystem_changed(_):
             return new_volume
@@ -312,7 +323,7 @@ class Volume(object):
 
         :return: The ``IFilesystem`` provider for the volume.
         """
-        return self._pool.get(self)
+        return self.service.pool.get(self)
 
     @property
     def _container_name(self):

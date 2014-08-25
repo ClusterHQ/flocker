@@ -92,6 +92,11 @@ class Application(object):
 
     :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
+
+    :ivar frozenset environment: A ``frozenset`` of environment variables
+        that should be exposed in the ``Application`` container, or ``None``
+        if no environment variables are specified. A ``frozenset`` of
+        variables contains a ``tuple`` series mapping (key, value).
     """
 
 

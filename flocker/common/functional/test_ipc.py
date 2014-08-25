@@ -204,8 +204,8 @@ class MutatingProcessNode(ProcessNode):
         :return: Modified command arguments.
         """
         return remote_command[:1] + [
-            b"--pool", self.to_service._pool._name,
-            b"--mountpoint", self.to_service._pool._mount_root.path
+            b"--pool", self.to_service.pool._name,
+            b"--mountpoint", self.to_service.pool._mount_root.path
         ] + remote_command[1:]
 
     def run(self, remote_command):

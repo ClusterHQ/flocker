@@ -1,4 +1,4 @@
-Want to get your hands dirty? Skip ahead to `the tutorial`_.
+Want to get your hands dirty? Skip ahead to the `tutorial`_.
 
 Flocker |coveralls|
 ===================
@@ -42,7 +42,6 @@ You can run all of the tox environments using the command ``tox``.
 
 Flocker is also tested using `continuous integration`_.
 
-.. _the tutorial: https://docs.clusterhq.com/en/latest/tutorial/index.html
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com
 .. _installing Flocker: https://docs.clusterhq.com/en/latest/gettingstarted/installation.html
