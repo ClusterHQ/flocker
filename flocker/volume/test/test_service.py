@@ -632,9 +632,9 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
 
         options = VolumeOptions()
         options.parseOptions([
-                b"--config", config.path,
-                b"--pool", pool,
-                b"--mountpoint", mountpoint.path,
+            b"--config", config.path,
+            b"--pool", pool,
+            b"--mountpoint", mountpoint.path,
         ])
 
         stderr = StringIO()
@@ -642,8 +642,8 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
 
         service = VolumeScript._create_volume_service(stderr, reactor, options)
         self.assertEqual(
-                (True, config, StoragePool(reactor, pool, mountpoint)),
-                (service.running, service._config_path, service.pool)
+            (True, config, StoragePool(reactor, pool, mountpoint)),
+            (service.running, service._config_path, service.pool)
         )
 
     def test_service_factory(self):
