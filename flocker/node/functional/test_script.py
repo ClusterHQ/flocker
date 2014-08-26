@@ -49,7 +49,7 @@ class ChangeStateScriptTests(TestCase):
         """
         # Trial will fail the test if the returned Deferred fires with an
         # exception:
-        return ChangeStateScript()._deployer.gear_client.list()
+        return ChangeStateScript()._gear_client.list()
 
 
 class ReportStateScriptTests(TestCase):
