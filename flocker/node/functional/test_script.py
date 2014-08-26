@@ -39,7 +39,8 @@ class ChangeStateScriptTests(TestCase):
     """
     def test_deployer_gear_client(self):
         """
-        ``ChangeState._deployer`` is configured with the default gear client.
+        ``ChangeState._gear_client`` is configured with the default gear
+        client.
         """
         self.assertIs(None, ChangeStateScript()._gear_client)
 
