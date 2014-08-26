@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import json
 from uuid import uuid4
 from StringIO import StringIO
@@ -691,3 +692,9 @@ class VolumeScriptMainTests(SynchronousTestCase):
             [(reactor, options, service)],
             script.calls
         )
+
+    def test_default_stderr(self):
+        """
+        ``VolumeScript`` defaults to using the ``sys`` module.
+        """
+        self.assertIs(sys, VolumeScript(object())._sys_module)
