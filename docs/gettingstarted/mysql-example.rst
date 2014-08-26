@@ -10,8 +10,20 @@ The data in the database will be moved along with the application.
 Create the Virtual Machines
 ===========================
 
-We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
-If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
+We'll be using a similar Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
+Download the MySQL example Vagrantfile below and save it to a new ``flocker-mysql`` directory (you can call the directory anything you like).
+
+:download:`mysql.Vagrantfile`
+
+You will need to save this file with the name ``Vagrantfile`` (no extension).
+
+Now we'll boot up the virtual machines:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-mysql$ vagrant up
+   Bringing machine 'node1' up with 'virtualbox' provider...
+   ==> node1: Importing base box 'clusterhq/flocker-dev'...
 
 
 Download the Docker Image
@@ -33,7 +45,7 @@ These commands may take several minutes to complete, depending on your hardware 
 Launch MySQL
 ============
 
-Download and save the following configuration files to your ``flocker-mysql`` (or any empty) directory:
+Download and save the following configuration files to your ``flocker-mysql`` directory:
 
 :download:`mysql-application.yml`
 
