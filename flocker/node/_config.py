@@ -85,6 +85,38 @@ class Configuration(object):
             environment = frozenset(environment.items())
         return environment
 
+    def _parse_link_configuration(self, application_name, links_config):
+        links = []
+        try:
+            for link in links_config:
+                try:
+                    local_port = link.pop('local_port')
+                except KeyError:
+                    raise ValueError("Missing local port.")
+                try:
+                    remote_port = link.pop('remote_port')
+                except KeyError:
+                    raise ValueError("Missing remote port.")
+                try:
+                    application = link.pop('application')
+                except KeyError:
+                    raise ValueError("Missing application.")
+
+                if link:
+                    raise ValueError(
+                        "Unrecognised keys: {keys}.".format(
+                            keys=', '.join(sorted(link))))
+                links.append(Link(local_port=local_port,
+                                  remote_port=remote_port,
+                                  application=application))
+        except ValueError as e:
+            raise ConfigurationError(
+                ("Application '{application_name}' has a config error. "
+                 "Invalid links specification. {message}").format(
+                     application_name=application_name, message=e.message))
+
+        return links
+
     def _applications_from_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration.
@@ -156,34 +188,9 @@ class Configuration(object):
                         application_name=application_name, message=e.message)
                 )
 
-            links = []
-            try:
-                for link in config.pop('links', []):
-                    try:
-                        local_port = link.pop('local_port')
-                    except KeyError:
-                        raise ValueError("Missing local port.")
-                    try:
-                        remote_port = link.pop('remote_port')
-                    except KeyError:
-                        raise ValueError("Missing remote port.")
-                    try:
-                        application = link.pop('application')
-                    except KeyError:
-                        raise ValueError("Missing application.")
+            links = self._parse_link_configuration(
+                application_name, config.pop('links', []))
 
-                    if link:
-                        raise ValueError(
-                            "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(sorted(link))))
-                    links.append(Link(local_port=local_port,
-                                      remote_port=remote_port,
-                                      application=application))
-            except ValueError as e:
-                raise ConfigurationError(
-                    ("Application '{application_name}' has a config error. "
-                     "Invalid links specification. {message}").format(
-                         application_name=application_name, message=e.message))
 
             volume = None
             if "volume" in config:
