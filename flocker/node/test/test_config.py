@@ -39,16 +39,22 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 }
             }
         }
+        possible_exceptions = [
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Environment variable 'MYSQL_PORT_3306_TCP' must be of type "
+            "string or unicode; got 'int'.",
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Environment variable 'WP_ADMIN_USERNAME' must be of type "
+            "string or unicode; got 'NoneType'."
+        ]
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
                                       config['mysql-hybridcluster'])
-        self.assertEqual(
-            "Application 'mysql-hybridcluster' has a config error. "
-            "Environment variable 'MYSQL_PORT_3306_TCP' must be of type "
-            "string or unicode; got 'int'.",
-            exception.message
+        self.assertIn(
+            exception.message,
+            possible_exceptions
         )
 
     def test_error_on_environment_vars_not_dict(self):
