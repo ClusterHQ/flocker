@@ -571,6 +571,7 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
     """
     Tests for ``VolumeScript._create_volume_service``.
     """
+    @skip_on_broken_permissions
     def test_exit(self):
         """
         ``VolumeScript._create_volume_service`` raises ``SystemExit`` with a
@@ -581,9 +582,10 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         reactor = object()
         options = VolumeOptions()
         options.parseOptions([])
-        exc = self.assertRaises(
-            SystemExit, VolumeScript._create_volume_service,
-            stderr, reactor, options)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            exc = self.assertRaises(
+                SystemExit, VolumeScript._create_volume_service,
+                stderr, reactor, options)
         self.assertEqual((1,), exc.args)
 
     def test_details_written(self):
