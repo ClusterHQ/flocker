@@ -123,6 +123,9 @@ class ChangeStateScript(object):
     A command to get a node into a desired state by pushing volumes, starting
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
+
+    :ivar GearClient _gear_client: See the ``gear_client`` parameter to
+        ``__init__``.
     """
     def __init__(self, gear_client=None):
         """
@@ -132,10 +135,6 @@ class ChangeStateScript(object):
         self._gear_client = gear_client
 
     def main(self, reactor, options, volume_service):
-        """
-        See :py:meth:`ICommandLineVolumeScript.main` for parameter
-            documentation.
-        """
         deployer = Deployer(volume_service, self._gear_client)
         return deployer.change_node_state(
             desired_state=options['deployment'],
@@ -169,7 +168,7 @@ class ReportStateScript(object):
     """
     A command to return the state of a node.
 
-    :ivar GearClient gear_client: See the ``gear_client`` parameter to
+    :ivar GearClient _gear_client: See the ``gear_client`` parameter to
         ``__init__``.
     """
     _stdout = sys.stdout
