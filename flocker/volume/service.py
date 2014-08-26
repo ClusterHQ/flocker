@@ -384,6 +384,8 @@ class VolumeScript(object):
     :ivar _service_factory: ``VolumeService`` by default but can be
         overridden for testing purposes.
     """
+    _service_factory = VolumeService
+
     @classmethod
     def create_volume_service(cls, stderr, reactor, options):
         """
