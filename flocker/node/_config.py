@@ -101,6 +101,11 @@ class Configuration(object):
                     application = link.pop('application')
                 except KeyError:
                     raise ValueError("Missing application.")
+                try:
+                    alias = link.pop('alias')
+                except KeyError:
+                    raise ValueError("Missing alias.")
+
 
                 if link:
                     raise ValueError(
@@ -108,7 +113,8 @@ class Configuration(object):
                             keys=', '.join(sorted(link))))
                 links.append(Link(local_port=local_port,
                                   remote_port=remote_port,
-                                  application=application))
+                                  application=application,
+                                  alias=alias))
         except ValueError as e:
             raise ConfigurationError(
                 ("Application '{application_name}' has a config error. "

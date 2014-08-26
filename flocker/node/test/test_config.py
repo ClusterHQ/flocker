@@ -403,7 +403,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
                 links=[{'remote_port': 90,
-                        'application': 'mysql-hybridcluster'}],
+                        'application': 'mysql-hybridcluster',
+                        'alias': 'mysql'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -426,7 +427,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
                 links=[{'local_port': 90,
-                        'application': 'mysql-hybridcluster'}],
+                        'application': 'mysql-hybridcluster',
+                        'alias': 'mysql'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -448,7 +450,30 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'local_port': 90, 'remote_port': 100}],
+                links=[{'local_port': 90, 'remote_port': 100, 'alias': 'mysql'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing application.",
+            exception.message
+        )
+
+    def test_links_missing_alias(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the alias.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'local_port': 90, 'remote_port': 100,
+                        'application': 'mysql-hybridcluster'}],
                 )})
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
@@ -470,7 +495,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                links=[{'remote_port': 90, 'local_port': 40,
+                links=[{'remote_port': 90, 'local_port': 40, 'alias': 'other',
                         'application': 'otherapp', 'foo': 5, 'bar': 'six'}],
                 )})
         parser = Configuration()

@@ -137,6 +137,21 @@ class Port(object):
     """
 
 
+@attributes(['local_port', 'remote_port', 'application', 'alias'])
+class Link(object):
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
+
+    :ivar int local_port: The ports to connect.
+    :ivar int remote_port:
+    :ivar unicode application: The remote application to connect to.
+    :ivar unicode alias: Environment variable prefix to use for exposing
+        connection information ...
+    """
+
+
 @attributes(["volume", "hostname"])
 class VolumeHandoff(object):
     """
@@ -168,17 +183,4 @@ class VolumeChanges(object):
     :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
         node create any new volume-having applications meant to be hosted on
         this node.  These must be created.
-    """
-
-
-@attributes(['local_port', 'remote_port', 'application'])
-class Link(object):
-    """
-    A record representing the mapping between a port exposed internally to
-    an application, and the corresponding external port of a possibly remote
-    application.
-
-    :ivar int local_port: The ports to connect.
-    :ivar int remote_port:
-    :ivar unicode application: The remote application to connect to.
     """
