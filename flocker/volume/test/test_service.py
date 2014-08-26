@@ -8,16 +8,17 @@ import json
 from uuid import uuid4
 from StringIO import StringIO
 
+from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
-from twisted.application.service import IService
+from twisted.application.service import IService, Service
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume,
-    WAIT_FOR_VOLUME_INTERVAL, VolumeScript
+    WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
     )
 from ..script import VolumeOptions
 
@@ -585,7 +586,6 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
             stderr, reactor, options)
         self.assertEqual((1,), exc.args)
 
-
     def test_details_written(self):
         """
         ``VolumeScript._create_volume_service`` writes details of the error to
@@ -609,7 +609,6 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
             "Writing config file {} failed: Permission denied\n".format(
                 config.path).encode("ascii"),
             stderr.getvalue())
-
 
     def test_options(self):
         """
@@ -635,4 +634,60 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         self.assertEqual(
                 (True, config, StoragePool(reactor, pool, mountpoint)),
                 (service.running, service._config_path, service.pool)
+        )
+
+    def test_service_factory(self):
+        """
+        ``VolumeScript._create_volume_service`` uses
+        ``VolumeScript._service_factory`` to create a ``VolumeService`` (or
+        whatever else that hook decides to create).
+        """
+        expected = Service()
+        script = VolumeScript(object())
+        self.patch(
+            VolumeScript, "_service_factory",
+            staticmethod(lambda config_path, pool, reactor: expected))
+
+        options = VolumeOptions()
+        options.parseOptions([])
+        service = script._create_volume_service(
+            object(), object(), options)
+        self.assertIs(service, expected)
+
+
+class VolumeScriptMainTests(SynchronousTestCase):
+    """
+    Tests for ``VolumeScript.main``.
+    """
+    def test_arguments(self):
+        """
+        ``VolumeScript.main`` calls the ``main`` method of the script object
+        the ``VolumeScript`` was initialized with, passing the same reactor and
+        options and also the running ``VolumeService``.
+        """
+        @implementer(ICommandLineVolumeScript)
+        class VolumeServiceScript(object):
+            def __init__(self):
+                self.calls = []
+
+            def main(self, reactor, options, service):
+                self.calls.append((reactor, options, service))
+
+        script = VolumeServiceScript()
+        helper = VolumeScript(script)
+
+        reactor = object()
+        options = VolumeOptions()
+        options.parseOptions([])
+
+        service = Service()
+        self.patch(
+            VolumeScript, "_service_factory",
+            staticmethod(lambda *args, **kwargs: service))
+
+        helper.main(reactor, options)
+
+        self.assertEqual(
+            [(reactor, options, service)],
+            script.calls
         )
