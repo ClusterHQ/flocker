@@ -113,6 +113,9 @@ class ProcessNode(object):
             # On some Ubuntu versions (and perhaps elsewhere) not
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
+            b"-oControlMaster=no",
+            # Connect as root, since we need superuser permissions for
+            # ZFS and Docker:
             b"-o", b"GSSAPIAuthentication=no",
             b"-p", b"%d" % (port,), host), quote=quote)
 
