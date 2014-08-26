@@ -4,7 +4,6 @@
 Tests for :module:`flocker.node.script`.
 """
 
-import sys
 from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -12,7 +11,7 @@ from twisted.python.usage import UsageError
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
-from ...testtools import FlockerScriptTestsMixin, StandardOptionsTestsMixin
+from ...testtools import StandardOptionsTestsMixin
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)

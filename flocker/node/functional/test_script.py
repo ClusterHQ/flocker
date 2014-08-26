@@ -10,11 +10,7 @@ from unittest import skipUnless
 
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
-from twisted.internet import reactor
 
-from ...volume.service import (
-    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
-from ...volume.filesystems.zfs import StoragePool
 from ..script import ChangeStateScript
 from ... import __version__
 
@@ -23,7 +19,6 @@ _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
 _require_root = skipUnless(getuid() == 0,
                            "Root required to run these tests.")
-from ..testtools import if_gear_configured
 
 
 class FlockerChangeStateTests(TestCase):
