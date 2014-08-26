@@ -578,10 +578,16 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         non-zero code if ``VolumeService.startService`` raises
         ``CreateConfigurationError``.
         """
+        directory = FilePath(self.mktemp())
+        directory.makedirs()
+        directory.chmod(0o000)
+        self.addCleanup(directory.chmod, 0o777)
+        config = directory.child("config.yml")
+
         stderr = StringIO()
         reactor = object()
         options = VolumeOptions()
-        options.parseOptions([])
+        options.parseOptions([b"--config", config.path])
         with attempt_effective_uid('nobody', suppress_errors=True):
             exc = self.assertRaises(
                 SystemExit, VolumeScript._create_volume_service,
