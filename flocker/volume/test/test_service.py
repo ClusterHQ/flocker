@@ -556,7 +556,6 @@ class WaitForVolumeTests(TestCase):
 
     def test_remote_volume(self):
         """
-        If the volume doesn't exist, the ``Deferred`` returned by
         The ``Deferred`` returned by ``VolumeService.wait_for_volume`` does not
         fire when a remote volume with the same name is received.
         """
