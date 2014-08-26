@@ -381,18 +381,19 @@ class Volume(object):
 @implementer(ICommandLineScript)
 class VolumeScript(object):
     """
+    ``VolumeScript`` is a command line script helper which creates and starts a
+    ``VolumeService`` and then makes it available to another object which
+    implements the rest of the behavior for the command line script.
+
     :ivar _service_factory: ``VolumeService`` by default but can be
         overridden for testing purposes.
     """
     _service_factory = VolumeService
 
     @classmethod
-    def create_volume_service(cls, stderr, reactor, options):
+    def _create_volume_service(cls, stderr, reactor, options):
         """
         Create a ``VolumeService`` for the given arguments.
-
-        This should probably be elsewhere:
-        https://github.com/ClusterHQ/flocker/issues/305
 
         :return: The started ``VolumeService``.
         """
@@ -420,8 +421,11 @@ class VolumeScript(object):
         self._sys_module = sys_module
 
     def main(self, reactor, options):
-        service = self.create_volume_service(self._sys_module.stderr, reactor, options)
-        service.startService()
+        """
+        Create and start the ``VolumeService`` and then delegate the rest to
+        the other script object this object was initialized.
+        """
+        service = self._create_volume_service(self._sys_module.stderr, reactor, options)
         return self._volume_script.main(reactor, options, service)
 
 

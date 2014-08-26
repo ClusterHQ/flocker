@@ -6,18 +6,21 @@ from __future__ import absolute_import
 
 import json
 from uuid import uuid4
+from StringIO import StringIO
 
 from zope.interface.verify import verifyObject
 
 from twisted.application.service import IService
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath, Permissions
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume,
-    WAIT_FOR_VOLUME_INTERVAL
+    WAIT_FOR_VOLUME_INTERVAL, VolumeScript
     )
+from ..script import VolumeOptions
+
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ..testtools import create_volume_service
@@ -560,3 +563,24 @@ class WaitForVolumeTests(TestCase):
         self.successResultOf(self.pool.create(remote_volume))
 
         self.assertNoResult(self.service.wait_for_volume(u'volume'))
+
+
+class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
+    """
+    Tests for ``VolumeScript._create_volume_service``.
+    """
+    def test_exit(self):
+        """
+        ``VolumeScript._create_volume_service`` raises ``SystemExit`` with a
+        non-zero code if ``VolumeService.startService`` raises
+        ``CreateConfigurationError``.
+        """
+        stderr = StringIO()
+        reactor = object()
+        options = VolumeOptions()
+        options.parseOptions([])
+        exc = self.assertRaises(
+            SystemExit, VolumeScript._create_volume_service,
+            stderr, reactor, options)
+        self.assertEqual((1,), exc.args)
+
