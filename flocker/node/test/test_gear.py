@@ -291,7 +291,7 @@ class GearEnvironmentTests(TestCase):
                 {'name': 'foo', 'value': 'bar'},
             ]
         }
-        gear_dict =  GearEnvironment(
+        gear_dict = GearEnvironment(
             id=expected_id, variables=frozenset(dict(
                 foo='bar', baz='qux'
             ).items())).to_dict()
