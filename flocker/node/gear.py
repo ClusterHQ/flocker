@@ -25,10 +25,31 @@ class GearError(Exception):
     """Unexpected error received from gear daemon."""
 
 
+@attributes(["id", "variables"])
+class GearEnvironment(object):
+    """
+    A collection of Geard unit environment variables associated with an
+    environment ID.
+
+    :ivar frozenset variables: A ``frozenset`` of tuples containing
+        key and value pairs representing the environment variables.
+    """
+
+    def to_dict(self):
+        """
+        Convert to a dictionary suitable for serialising to JSON and then on to
+        the Gear REST API.
+        """
+        variables = []
+        for k, v in self.variables:
+            variables.append(dict(name=k, value=v))
+        return dict(id=self.id, variables=variables)
+
+
 @attributes(["name", "activation_state", "sub_state", "container_image",
-             "ports", "links"],
+             "ports", "links", "environment"],
             defaults=dict(sub_state=None, container_image=None,
-                          ports=(), links=()))
+                          ports=(), links=(), environment=None))
 class Unit(object):
     """
     Information about a unit managed by geard/systemd.
@@ -61,6 +82,10 @@ class Unit(object):
 
     :ivar list links: The ``PortMap`` instances which define how connections to
         ports inside the container are routed to ports on the host.
+
+    :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
+        will be supplied to the gear unit or ``None`` if there are no
+        environment variables for this unit.
     """
 
 
@@ -74,7 +99,7 @@ class IGearClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, links=None):
+    def add(unit_name, image_name, ports=None, links=None, environment=None):
         """
         Install and start a new unit.
 
@@ -95,6 +120,10 @@ class IGearClient(Interface):
 
         :param list links: A list of ``PortMap``\ s mapping ports forwarded
             from the container to ports on the host.
+
+        :param GearEnvironment environment: A ``GearEnvironment`` associating
+            key value pairs with an environment ID. Default ``None`` means that
+            no environment variables will be supplied to the unit.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -201,7 +230,8 @@ class GearClient(object):
             d.addCallback(lambda data: fail(GearError(response.code, data)))
         return d
 
-    def add(self, unit_name, image_name, ports=None, links=None):
+    def add(self, unit_name, image_name, ports=None, links=None,
+            environment=None):
         """
         See ``IGearClient.add`` for base documentation.
 
@@ -217,6 +247,11 @@ class GearClient(object):
         address on the host. So if your service or NAT rule on the host is
         configured for 127.0.0.1 only, it won't receive any traffic. See
         https://github.com/openshift/geard/issues/224
+
+        XXX: If an environment is supplied, ``gear`` will create an environment
+        file with the given ID. But it will not remove that environment file
+        when this unit is removed or when there are no longer any references to
+        the environment ID. See https://github.com/ClusterHQ/flocker/issues/585
         """
         if ports is None:
             ports = []
@@ -240,6 +275,9 @@ class GearClient(object):
                  u'ToHost': u'127.0.0.1',
                  u'ToPort': link.external_port}
             )
+
+        if environment is not None:
+            data['Environment'] = environment.to_dict()
 
         checked = self.exists(unit_name)
         checked.addCallback(
@@ -318,7 +356,7 @@ class FakeGearClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), links=()):
+    def add(self, unit_name, image_name, ports=(), links=(), environment=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -326,6 +364,7 @@ class FakeGearClient(object):
             container_image=image_name,
             ports=ports,
             links=links,
+            environment=environment,
             activation_state=u'active'
         )
         return succeed(None)

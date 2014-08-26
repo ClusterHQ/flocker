@@ -68,7 +68,7 @@ def make_iremote_volume_manager(fixture):
             def pushed(_):
                 to_volume = Volume(uuid=service_pair.from_service.uuid,
                                    name=u"thevolume",
-                                   _pool=service_pair.to_service._pool)
+                                   service=service_pair.to_service)
                 d = service_pair.to_service.enumerate()
 
                 def got_volumes(volumes):
@@ -96,7 +96,7 @@ def make_iremote_volume_manager(fixture):
             def pushed(_):
                 to_volume = Volume(uuid=service_pair.from_service.uuid,
                                    name=u"thevolume",
-                                   _pool=service_pair.to_service._pool)
+                                   service=service_pair.to_service)
                 root = to_volume.get_filesystem().get_path()
                 self.assertEqual(root.child(b"afile.txt").getContent(),
                                  b"WORKS!")
@@ -136,7 +136,7 @@ def make_iremote_volume_manager(fixture):
                 d.addCallback(lambda results: self.assertEqual(
                     list(results),
                     [Volume(uuid=to_service.uuid, name=pushed_volume.name,
-                            _pool=to_service._pool)]))
+                            service=to_service)]))
                 return d
             created.addCallback(got_volume)
             return created
@@ -161,7 +161,7 @@ def make_iremote_volume_manager(fixture):
 
                 filesystem = Volume(uuid=to_service.uuid,
                                     name=pushed_volume.name,
-                                    _pool=to_service._pool).get_filesystem()
+                                    service=to_service).get_filesystem()
                 new_root = filesystem.get_path()
                 self.assertEqual(new_root.child(b"test").getContent(),
                                  b"some data")

@@ -19,7 +19,7 @@ If you haven't already started up the Vagrant virtual machines follow the :doc:`
 Download the Docker Image
 =========================
 
-The official ``postgres`` Docker image is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
+The official ``postgres`` Docker image is quite big, so you may wish to pull it to your nodes so you don't have to wait for downloads half-way through this example.
 (We use the ``-t`` option to ``ssh`` so that progress is displayed; if you omit it the pull will still work but you may not get any output for a long time.)
 
 .. code-block:: console
@@ -83,7 +83,7 @@ Insert a Row in the Database
 
 Now we have a connection, we'll create a new database with the simplest possible structure; a single table with one integer column.
 We'll then switch our connection to use the new database and insert a row.
-From the running psql client shell:
+From the running ``psql`` client shell:
 
 .. code-block:: console
 

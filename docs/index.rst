@@ -19,4 +19,5 @@ Contents:
    advanced/index
    gettinginvolved/index
    roadmap/index
+   faq/index
    authors

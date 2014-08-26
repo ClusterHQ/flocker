@@ -58,7 +58,7 @@ Application Configuration
 * Application configuration describes what you want to run in a container.
 
   * it identifies a Docker image
-  * an optional volume mountpoint
+  * an optional volume mount point
   * externally "routed" ports
 
 * This configuration is expected to be shared between development, staging, production, etc environments.
@@ -90,8 +90,8 @@ Initial Implementation Strategy
 * ``flocker-deploy`` then connects to each node over SSH and runs ``flocker-changestate`` to make the necessary deployment changes.
 * Nodes might connect to each other over SSH to copy volume data to the necessary place.
 
-flocker-changestate
--------------------
+``flocker-changestate``
+-----------------------
 
 * This is installed on nodes participating in the Flocker cluster.
 * Accepts the desired global configuration and current global state.
@@ -106,9 +106,9 @@ flocker-changestate
 Managing Containers
 -------------------
 
-* `Geard`_ is used to start, stop, and enumerate containers.
-* Geard works by creating systemd units.
-* Systemd units are a good way to provide admin tools for:
+* `geard`_ is used to start, stop, and enumerate containers.
+* ``geard`` works by creating ``systemd`` units.
+* ``systemd`` units are a good way to provide admin tools for:
 
   * Logging and state inspection.
   * Starting/stopping (including at boot).
@@ -120,9 +120,9 @@ Managing Volumes
 
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
-* Geard automatically associates the "data" container's volumes with the actual container.
+* ``geard`` automatically associates the "data" container's volumes with the actual container.
 
-  * Association is done based on container names by Geard.
+  * Association is done based on container names by ``geard``.
 
 * Data model
   * Volumes are owned by a specific node.
@@ -145,7 +145,7 @@ Managing Routes
 * Containers claim TCP port numbers with the application configuration that defines them.
 * Connections to that TCP port on the node that is running the container are proxied (NAT'd) into the container for whatever software is listening for them there.
 * Connections to that TCP port on any other node in the Flocker cluster are proxied (NAT'd) to the node that is running the container.
-* Proxying is done using iptables.
+* Proxying is done using ``iptables``.
 
 
 User Experience
@@ -159,5 +159,5 @@ User Experience
 
 * Your sysadmin runs a command like ``flocker-deploy deployment-config.yml application-config.yml`` on their laptop.
 
-.. _Geard: https://github.com/openshift/geard
+.. _geard: https://github.com/openshift/geard
 

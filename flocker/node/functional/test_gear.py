@@ -13,15 +13,16 @@ from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet import reactor
+from twisted.internet.utils import getProcessOutput
 
 from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, make_capture_protocol,
-    ProtocolPoppingFactory, DockerImageBuilder)
+    ProtocolPoppingFactory, DockerImageBuilder, assertContainsAll)
 
 from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, PortMap
+from ..gear import GearClient, GearError, PortMap, GearEnvironment
 from ..testtools import if_gear_configured, wait_for_unit_state
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
@@ -45,7 +46,8 @@ class GearClientTests(TestCase):
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_states=(u'active',)):
+                        ports=None, links=None, expected_states=(u'active',),
+                        environment=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -65,12 +67,14 @@ class GearClientTests(TestCase):
             image_name=image_name,
             ports=ports,
             links=links,
+            environment=environment,
         )
         self.addCleanup(client.remove, unit_name)
 
         d.addCallback(lambda _: wait_for_unit_state(client, unit_name,
                                                     expected_states))
         d.addCallback(lambda _: client)
+
         return d
 
     def test_add_starts_container(self):
@@ -309,4 +313,44 @@ CMD sh -c "trap \"\" 2; sleep 3"
             # non-existent containers:
             self.assertEqual(process.wait(), 1)
         d.addCallback(removed)
+        return d
+
+    @_if_root
+    def test_add_with_environment(self):
+        """
+        ``GearClient.add`` accepts an environment object whose ID and variables
+        are used when starting a docker image.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        unit_name = random_name()
+        expected_environment_id = random_name()
+        expected_variables = frozenset({
+            'key1': 'value1',
+            'key2': 'value2',
+        }.items())
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            environment=GearEnvironment(
+                id=expected_environment_id, variables=expected_variables),
+        )
+        d.addCallback(
+            # The ``gear status`` command prints to stderr which ordinarily
+            # would cause getProcessOutput to errback. ``errortoo`` turns off
+            # that behaviour.
+            lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
+                                             errortoo=True)
+        )
+        d.addCallback(
+            assertContainsAll,
+            test_case=self,
+            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
+        )
         return d

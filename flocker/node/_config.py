@@ -8,6 +8,7 @@ APIs for parsing and validating configuration.
 from __future__ import unicode_literals, absolute_import
 
 import os
+import types
 import yaml
 
 from twisted.python.filepath import FilePath
@@ -38,6 +39,51 @@ class Configuration(object):
             the mountpoint is unknown.
         """
         self._lenient = lenient
+
+    def _parse_environment_config(self, application_name, config):
+        """
+        Validate and return an application config's environment variables.
+
+        :param unicode application_name: The name of the application.
+
+        :param dict config: The config of a single ``Application`` instance,
+            as extracted from the ``applications`` ``dict`` in
+            ``_applications_from_configuration``.
+
+        :raises ConfigurationError: if the ``environment`` element of
+            ``config`` is not a ``dict`` or ``dict``-like value.
+
+        :returns: ``None`` if there is no ``environment`` element in the
+            config, or the ``frozenset`` of environment variables if there is,
+            in the form of a ``frozenset`` of ``tuple`` \s mapped to
+            (key, value)
+
+        """
+        invalid_env_message = (
+            "Application '{application_name}' has a config error. "
+            "'environment' must be a dictionary of key/value pairs. ").format(
+                application_name=application_name)
+
+        environment = config.pop('environment', None)
+        if environment:
+            if not isinstance(environment, dict):
+                raise ConfigurationError(
+                    invalid_env_message + "Got type '{envtype}'".format(
+                        envtype=type(environment).__name__)
+                )
+            for key, value in environment.iteritems():
+                if not isinstance(value, types.StringTypes):
+                    raise ConfigurationError(
+                        ("Application '{application_name}' has a config "
+                         "error. Environment variable '{key}' must be of "
+                         "type string or unicode; got '{envtype}'.").format(
+                            application_name=application_name,
+                            key=key,
+                            envtype=type(value).__name__
+                        )
+                    )
+            environment = frozenset(environment.items())
+        return environment
 
     def _applications_from_configuration(self, application_configuration):
         """
@@ -73,7 +119,7 @@ class Configuration(object):
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Missing value for '{message}'.").format(
-                         application_name=application_name, message=e.message)
+                        application_name=application_name, message=e.message)
                 )
 
             try:
@@ -82,7 +128,7 @@ class Configuration(object):
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Invalid Docker image name. {message}").format(
-                         application_name=application_name, message=e.message)
+                        application_name=application_name, message=e.message)
                 )
 
             ports = []
@@ -107,7 +153,8 @@ class Configuration(object):
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Invalid ports specification. {message}").format(
-                         application_name=application_name, message=e.message))
+                        application_name=application_name, message=e.message)
+                )
 
             links = []
             try:
@@ -189,19 +236,23 @@ class Configuration(object):
                         )
                     )
 
+            environment = self._parse_environment_config(
+                application_name, config)
+
             applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
-                links=frozenset(links))
+                links=frozenset(links),
+                environment=environment)
 
             if config:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
                      "Unrecognised keys: {keys}.").format(
-                         application_name=application_name,
-                         keys=', '.join(sorted(config.keys())))
+                        application_name=application_name,
+                        keys=', '.join(sorted(config.keys())))
                 )
         return applications
 

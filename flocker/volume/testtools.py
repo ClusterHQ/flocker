@@ -40,6 +40,22 @@ def create_volume_service(test):
     return service
 
 
+def service_for_pool(test, pool):
+    """
+    Create a ``VolumeService`` wrapping a pool suitable for use in tests.
+
+    :param TestCase test: A unit test which will shut down the service
+        when done.
+    :param IStoragePool pool: The pool to wrap.
+
+    :return: A ``VolumeService``.
+    """
+    service = VolumeService(FilePath(test.mktemp()), pool, None)
+    service.startService()
+    test.addCleanup(service.stopService)
+    return service
+
+
 def create_zfs_pool(test_case):
     """Create a new ZFS pool, then delete it after the test is over.
 
@@ -86,8 +102,8 @@ class MutatingProcessNode(ProcessNode):
         :return: Modified command arguments.
         """
         return remote_command[:1] + [
-            b"--pool", self.to_service._pool._name,
-            b"--mountpoint", self.to_service._pool._mount_root.path
+            b"--pool", self.to_service.pool._name,
+            b"--mountpoint", self.to_service.pool._mount_root.path
         ] + remote_command[1:]
 
     def run(self, remote_command):

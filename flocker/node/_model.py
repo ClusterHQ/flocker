@@ -65,9 +65,9 @@ class AttachedVolume(object):
     """
 
 
-@attributes(["name", "image", "ports", "volume", "links"],
+@attributes(["name", "image", "ports", "volume", "links", "environment"],
             defaults=dict(image=None, ports=frozenset(), volume=None,
-                          links=frozenset()))
+                          links=frozenset(), environment=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -91,6 +91,11 @@ class Application(object):
 
     :ivar frozenset links: A ``frozenset`` of ``Link``s that
         should be created between applications.
+
+    :ivar frozenset environment: A ``frozenset`` of environment variables
+        that should be exposed in the ``Application`` container, or ``None``
+        if no environment variables are specified. A ``frozenset`` of
+        variables contains a ``tuple`` series mapping (key, value).
     """
 
 

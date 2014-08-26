@@ -38,7 +38,7 @@ Volumes are created with three parameters:
 * The logical name; this must be the same as the name of the container it will be mounted in.
   For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
 * A mount path, indicating where within a container the volume will be mounted.
-  For example, for a Mongo server this would be ``"/var/lib/mongodb"`` since that is where Mongo stores its data.
+  For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
 The ZFS dataset name is a combination of the UUID and the logical name, e.g. ``1234.myapp-mongodb``.
 
@@ -47,7 +47,7 @@ Docker Integration
 ******************
 
 Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-For example, if you create a volume called ``"myapp-mongodb"`` with mountpoint ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
+For example, if you create a volume called ``"myapp-mongodb"`` with mount point ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
 
 You can then use this volume manually using ``--volumes-from``:
 
@@ -57,13 +57,13 @@ You can then use this volume manually using ``--volumes-from``:
 
 The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
 
-Even easier, geard and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
+Even easier, ``geard`` and therefore the Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
 
 
 Push and Handoff
 ****************
 
-Push and handoffs are currently done over SSH between nodes, with ad-hoc calls to the ``flocker-volume`` command-line tool.
+Push and handoffs are currently done over SSH between nodes, with ad hoc calls to the ``flocker-volume`` command-line tool.
 In future releases this will be switched to a real protocol and later on to communication between long-running daemons rather than short-lived scripts.
 (See `#154 <https://github.com/ClusterHQ/flocker/issues/154>`_\ .)
 

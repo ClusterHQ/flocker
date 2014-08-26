@@ -13,7 +13,10 @@
 
 from twisted.python.filepath import FilePath
 
-import sys
+import sys, os
+
+# Check if we are building on readthedocs
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 # -- General configuration -----------------------------------------------------
 
@@ -23,6 +26,10 @@ import sys
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.ifconfig']
+
+if not on_rtd:
+    # readthedocs doesn't install dependencies
+    extensions.append('sphinxcontrib.spelling')
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -76,6 +83,11 @@ class FlockerLanguage(SearchEnglish):
 # English rather than defining our own language.
 sphinx_languages['en'] = FlockerLanguage
 language = 'en'
+
+# String specifying a file containing a list of words known to be spelled correctly but that do not appear in the language dictionary
+# See:
+# http://sphinxcontrib-spelling.readthedocs.org/en/latest/customize.html#input-options
+spelling_word_list_filename='spelling_wordlist.txt'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
