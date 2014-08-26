@@ -13,7 +13,10 @@
 
 from twisted.python.filepath import FilePath
 
-import sys
+import sys, os
+
+# Check if we are building on readthedocs
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 # -- General configuration -----------------------------------------------------
 
@@ -22,8 +25,11 @@ import sys
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.ifconfig',
-              'sphinxcontrib.spelling']
+extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.ifconfig']
+
+if not on_rtd:
+    # readthedocs doesn't install dependencies
+    extensions.append('sphinxcontrib.spelling')
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

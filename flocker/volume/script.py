@@ -12,6 +12,7 @@ from zope.interface import implementer
 
 from .service import (
     VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
+    FLOCKER_MOUNTPOINT, FLOCKER_POOL,
     )
 from .filesystems.zfs import StoragePool
 from ..common.script import (
@@ -108,9 +109,9 @@ class VolumeOptions(Options):
          "The path to the config file."],
         # Maybe we can come up with something better in
         # https://github.com/ClusterHQ/flocker/issues/125
-        ["pool", None, b"flocker",
+        ["pool", None, FLOCKER_POOL,
          "The ZFS pool to use for volumes."],
-        ["mountpoint", None, b"/flocker",
+        ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
          "The path where ZFS filesystems will be mounted."],
     ]
 

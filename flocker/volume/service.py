@@ -26,6 +26,8 @@ from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
 
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
+FLOCKER_MOUNTPOINT = FilePath(b"/flocker")
+FLOCKER_POOL = b"flocker"
 
 WAIT_FOR_VOLUME_INTERVAL = 0.1
 
@@ -55,6 +57,7 @@ class VolumeService(Service):
         self._reactor = reactor
 
     def startService(self):
+        Service.startService(self)
         parent = self._config_path.parent()
         try:
             if not parent.exists():

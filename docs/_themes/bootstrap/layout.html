@@ -186,6 +186,19 @@
         <div class="content row">
             {%- block document %}
                 <div class="span9">
+                    <script>
+                        var release_re = /^[0-9]+\.[0-9]+\.[0-9]+$/
+                        if (!'{{ release }}'.match(release_re)) {
+                            document.write(
+                    '<div class="admonition note"> \
+                        <p class="last"> \
+                            <strong>Warning!</strong> \
+                            You are reading an <strong>in-development version</strong> \
+                            of the documentation. \
+                            Some of the functionality may not work as expected.</p> \
+                    </div>');
+                        }
+                    </script>
                     {% block body %} {% endblock %}
                     <div id="bottomnav">
                         {{ relbar(bottom=True) }}
