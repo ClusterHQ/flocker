@@ -10,14 +10,8 @@ The data in the database will be moved along with the application.
 Create the Virtual Machines
 ===========================
 
-We'll be using a similar Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
-Download the MySQL example Vagrantfile below and save it to a new ``flocker-mysql`` directory (you can call the directory anything you like).
-
-:download:`mysql.Vagrantfile`
-
-You will need to save this file with the name ``Vagrantfile`` (no extension).
-
-Now we'll boot up the virtual machines:
+We'll be re-using the virtual machines defined in the Vagrant configuration for :doc:`the MongoDB tutorial <./tutorial/index>`.
+If you have since shutdown or destroyed those VMs, boot them up again:
 
 .. code-block:: console
 
@@ -29,7 +23,7 @@ Now we'll boot up the virtual machines:
 Download the Docker Image
 =========================
 
-The Docker image we'll be using is quite big, so you may wish to pre-fetch it to your nodes so you don't have to wait for downloads half-way through this example.
+The Docker image we'll be using is quite large, so you should pre-fetch it to your nodes.
 
 .. code-block:: console
 
@@ -41,11 +35,18 @@ The Docker image we'll be using is quite big, so you may wish to pre-fetch it to
 
 These commands may take several minutes to complete, depending on your hardware and the speed of your internet connection.
 
+.. note::
+
+   Flocker uses the Linux port of ZFS to manage data volumes.
+   Recent versions of MySQL introduced the ``innodb_use_native_aio`` configuration option, which defaults to on and causes InnoDB to use the Linux asynchronous I/O subsystem.
+   At this time, asynchronous I/O is not supported by ZFS on Linux and therefore MySQL should be launched with ``innodb_use_native_aio`` set to ``0``.
+   Some minor tweaking of the MySQL image to set this option will therefore be necessary if you wish to use ``mysql:latest``.
+
 
 Launch MySQL
 ============
 
-Download and save the following configuration files to your ``flocker-mysql`` directory:
+Download and save the following configuration files to the ``flocker-mysql`` directory:
 
 :download:`mysql-application.yml`
 
@@ -57,9 +58,9 @@ Download and save the following configuration files to your ``flocker-mysql`` di
 .. literalinclude:: mysql-deployment.yml
    :language: yaml
 
-This is a very simple example where we simply map MySQL's default port 3306 in the container to 3306 on our host and specify the volume mountpoint in the container where the actual data is stored.
-We will be using the ``mysql`` image and deploying to one of our virtual nodes.
-Run ``flocker-deploy`` to download the image and get the container running:
+This is an example where we simply map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mountpoint in the container where the actual data is stored.
+We will be using the ``mysql`` image and deploying to one of the virtual nodes.
+Run ``flocker-deploy`` to instantiate the container on its specified host:
 
 .. code-block:: console
 
@@ -74,15 +75,17 @@ Run ``ssh root@172.16.255.250 docker ps`` and you should see the container runni
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    f6ee0fbd0446        mysql:5.6.17   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:3306->3306/tcp   mysql-volume-example
 
-**Note:** It can take a few moments after ``flocker-deploy`` completes for the container to appear here.
-If you don't see it immediately, keep running the above ``docker ps`` command until you have output similar to the above.
+.. note::
+   
+   It can take a few moments after ``flocker-deploy`` completes for the container to appear here.
+   If you don't see it immediately, keep running the ``docker ps`` command until you have output similar to the above.
 
 Connect to MySQL
 ================
 
-We can now use the ``mysql`` client on our host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
-Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application config.
-Our example MySQL image sets the ``root`` user password to ``admin`` so we'll connect to MySQL using those credentials and specifying the IP address of our virtual machine as the host.
+We can now use the ``mysql`` client on the host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
+Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application config.
+Our example MySQL image sets the ``root`` user password to ``admin`` so we'll connect to MySQL using those credentials and specify the IP address of the virtual machine as the host.
 
 .. code-block:: console
 
@@ -117,7 +120,7 @@ Let's have a look at the databases already in the system:
    3 rows in set (0.00 sec)
 
 These are the databases used by MySQL itself and bundled as part of a new installation of the MySQL server.
-We'll now create a new database for our own test data, create a simple table and save some data.
+We'll now create a new database for some test data, create a table and save some data.
 
 .. code-block:: console
 
@@ -151,27 +154,27 @@ Next we'll verify the data has been saved and can be retrieved with a ``SELECT``
 
    alice@mercury:~/flocker-mysql$
 
-As we have above, type in ``quit`` after you've run the ``SELECT`` query to exit the MySQL client.
+.. note:: Type in ``quit`` after you've run the ``SELECT`` query to exit the MySQL client.
 
 Create a New Deployment Config and Move the Application
 =======================================================
 
 Download the new deployment configuration and save to your ``flocker-mysql`` directory.
-This new configuration simply tells ``flocker-deploy`` to move our container to a different node, by specifying a new IP address to deploy the application on.
+This new configuration tells ``flocker-deploy`` to move the container to a different node, by specifying a new IP address to deploy the application with.
 
 :download:`mysql-deployment-moved.yml`
 
 .. literalinclude:: mysql-deployment-moved.yml
    :language: yaml
 
-Now run ``flocker-deploy`` on the new config:
+Now run ``flocker-deploy`` with the new configuration files:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-mysql$ flocker-deploy mysql-deployment-moved.yml mysql-application.yml
    alice@mercury:~/flocker-mysql$
 
-Now we'll verify that our application has moved to the other VM:
+Now we'll verify that the application has moved to the other VM:
 
 .. code-block:: console
 
@@ -189,7 +192,7 @@ And is no longer running on the original host:
    alice@mercury:~/flocker-mysql$
 
 
-Verify Our Data Has Moved With the Application
+Verify the Data Has Moved With the Application
 ==============================================
 
 We'll now connect to the second node via the MySQL client, using the same authentication credentials as before.

@@ -7,6 +7,7 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
 $bootstrap = <<SCRIPT
 set -e
@@ -40,7 +41,7 @@ cp ~vagrant/.ssh/authorized_keys /root/.ssh
 mkdir -p /opt/flocker
 truncate --size 1G /opt/flocker/pool-vdev
 zpool create flocker /opt/flocker/pool-vdev
-
+docker pull mysql:5.6.17
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
