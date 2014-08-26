@@ -8,23 +8,13 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
-from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin)
+from ...testtools import StandardOptionsTestsMixin
 from ..script import VolumeOptions, VolumeManagerScript
 
 
-class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+class VolumeManagerScriptMainTests(SynchronousTestCase):
     """
-    Tests for L{VolumeScript}.
-    """
-    script = VolumeManagerScript
-    options = VolumeOptions
-    command_name = u'flocker-volume'
-
-
-class VolumeScriptMainTests(SynchronousTestCase):
-    """
-    Tests for ``VolumeScript.main``.
+    Tests for ``VolumeManagerScript.main``.
     """
     def test_deferred_result(self):
         """

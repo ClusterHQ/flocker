@@ -42,39 +42,6 @@ class ChangeStateScriptTests(TestCase):
     """
     Tests for ``ChangeStateScript``.
     """
-    def test_volume_service(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService``.
-        """
-        self.assertIsInstance(ChangeStateScript()._deployer.volume_service,
-                              VolumeService)
-
-    def test_volume_service_running(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` that is not running.
-        """
-        self.assertFalse(ChangeStateScript()._deployer.volume_service.running)
-
-    def test_volume_service_config_path(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` with the default config path.
-        """
-        self.assertEqual(
-            ChangeStateScript()._deployer.volume_service._config_path,
-            DEFAULT_CONFIG_PATH)
-
-    def test_volume_service_pool(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` whose pool is the default ZFS pool.
-        """
-        self.assertEqual(
-            ChangeStateScript()._deployer.volume_service.pool,
-            StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT))
-
     @if_gear_configured
     def test_deployer_gear_client(self):
         """

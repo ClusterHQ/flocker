@@ -4,6 +4,7 @@
 Tests for :module:`flocker.node.script`.
 """
 
+import sys
 from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
@@ -18,66 +19,24 @@ from ..script import (
 from ..gear import FakeGearClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
+
 from ...volume.testtools import create_volume_service
-
-
-class ChangeStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
-    """
-    Tests for ``ChangeStateScript``.
-    """
-    script = staticmethod(lambda: ChangeStateScript(lambda: None))
-    options = ChangeStateOptions
-    command_name = u'flocker-changestate'
 
 
 class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
     """
-    def test_deployer_type(self):
-        """
-        ``ChangeStateScript._deployer`` is an instance of :class:`Deployer`.
-        """
-        script = ChangeStateScript(lambda: None)
-        self.assertIsInstance(script._deployer, Deployer)
-
-    def test_deployer_volume_service(self):
-        """
-        ``ChangeStateScript._deployer`` is configured with a volume service
-        created by the given callable.
-        """
-        service = object()
-        script = ChangeStateScript(lambda: service)
-        self.assertIs(script._deployer.volume_service, service)
-
-    def test_main_starts_service(self):
-        """
-        ``ChangeStateScript.main`` starts the volume service that was created
-        by the given callable.
-        """
-        service = Service()
-        script = ChangeStateScript(lambda: service)
-        running_before_main = service.running
-        self.patch(
-            script._deployer, 'change_node_state',
-            lambda *args, **kwargs: None)
-        options = dict(deployment=object(),
-                       current=object(),
-                       hostname="")
-        script.main(None, options)
-        self.assertEqual((running_before_main, service.running),
-                         (False, True))
-
     def test_main_calls_deployer_change_node_state(self):
         """
         ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
-        script = ChangeStateScript(lambda: Service())
+        script = ChangeStateScript()
 
         change_node_state_calls = []
 
-        def spy_change_node_state(desired_state, current_cluster_state,
+        def spy_change_node_state(self, desired_state, current_cluster_state,
                                   hostname):
             """
             A stand in for ``Deployer.change_node_state`` which records calls
@@ -87,7 +46,7 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
                                             current_cluster_state, hostname))
 
         self.patch(
-            script._deployer, 'change_node_state', spy_change_node_state)
+            Deployer, 'change_node_state', spy_change_node_state)
 
         expected_deployment = object()
         expected_current = object()
@@ -95,7 +54,8 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         options = dict(deployment=expected_deployment,
                        current=expected_current,
                        hostname=expected_hostname)
-        script.main(reactor=object(), options=options)
+        script.main(
+            reactor=object(), options=options, volume_service=Service())
 
         self.assertEqual(
             [(expected_deployment, expected_current, expected_hostname)],
@@ -345,26 +305,10 @@ class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertEqual(str(e), b"Wrong number of arguments.")
 
 
-class ReportStateScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
-    """
-    Tests for ``ReportStateScript``.
-    """
-    script = staticmethod(lambda: ReportStateScript(lambda: None))
-    options = ReportStateOptions
-    command_name = u'flocker-reportstate'
-
-
 class ReportStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ReportStateScript.main``.
     """
-    def test_deployer_type(self):
-        """
-        ``ReportStateScript._deployer`` is an instance of :class:`Deployer`.
-        """
-        script = ReportStateScript(lambda: None)
-        self.assertIsInstance(script._deployer, Deployer)
-
     def test_yaml_callback(self):
         """
         ``ReportStateScript.main`` returns a deferred which writes out the
@@ -385,13 +329,10 @@ class ReportStateScriptMainTests(SynchronousTestCase):
             'version': 1
         }
 
-        script = ReportStateScript(lambda: create_volume_service(self),
-                                   fake_gear)
+        script = ReportStateScript(fake_gear)
         content = StringIO()
-
-        def content_capture(data):
-            content.write(data)
-            content.seek(0)
-        self.patch(script, '_print_yaml', content_capture)
-        script.main(reactor=object(), options=[])
-        self.assertEqual(safe_load(content.read()), expected)
+        self.patch(script, '_stdout', content)
+        script.main(
+            reactor=object(), options=[],
+            volume_service=create_volume_service(self))
+        self.assertEqual(safe_load(content.getvalue()), expected)

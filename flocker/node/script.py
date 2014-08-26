@@ -165,6 +165,8 @@ class ReportStateScript(object):
     :ivar GearClient gear_client: See the ``gear_client`` parameter to
         ``__init__``.
     """
+    _stdout = sys.stdout
+
     def __init__(self, gear_client=None):
         """
         :param GearClient gear_client: The object to use to talk to the Gear
@@ -173,10 +175,10 @@ class ReportStateScript(object):
         self._gear_client = gear_client
 
     def _print_yaml(self, result):
-        sys.stdout.write(result)
+        self._stdout.write(result)
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service)
+        deployer = Deployer(volume_service, self._gear_client)
         d = deployer.discover_node_configuration()
         d.addCallback(lambda state: configuration_to_yaml(
             list(state.running + state.not_running)))

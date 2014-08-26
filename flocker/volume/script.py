@@ -131,7 +131,7 @@ class VolumeManagerScript(object):
     """
     A volume manager script.
     """
-    def main(self, reactor, options):
+    def main(self, reactor, options, service):
         """
         Run a volume management operation.
 
@@ -141,7 +141,6 @@ class VolumeManagerScript(object):
         See :py:meth:`ICommandLineVolumeScript.main` for parameter
             documentation.
         """
-        service = self.create_volume_service(reactor, options)
         if options.subCommand is not None:
             return maybeDeferred(options.subOptions.run, service)
         else:
