@@ -308,8 +308,8 @@ def make_istoragepool_tests(fixture):
             d = create_and_copy(self, fixture)
 
             def got_volumes(copy_volumes):
-                assertVolumesEqual(self, copy_volumes.from_volume,
-                                        copy_volumes.to_volume)
+                assertVolumesEqual(
+                    self, copy_volumes.from_volume, copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
@@ -325,8 +325,8 @@ def make_istoragepool_tests(fixture):
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
                 copy(copy_volumes.from_volume, copy_volumes.to_volume)
-                assertVolumesEqual(self, copy_volumes.from_volume,
-                                        copy_volumes.to_volume)
+                assertVolumesEqual(
+                    self, copy_volumes.from_volume, copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
