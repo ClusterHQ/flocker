@@ -22,6 +22,7 @@ from ..service import (
 from ..script import VolumeOptions
 
 from ..filesystems.memory import FilesystemStoragePool
+from ..filesystems.zfs import StoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ..testtools import create_volume_service
 from ...common import FakeNode
@@ -608,3 +609,30 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
             "Writing config file {} failed: Permission denied\n".format(
                 config.path).encode("ascii"),
             stderr.getvalue())
+
+
+    def test_options(self):
+        """
+        When successful, ``VolumeScript._create_volume_service`` returns a
+        running ``VolumeService`` initialized with the pool, mountpoint, and
+        configuration path given by the ``options`` argument.
+        """
+        pool = b"some-pool"
+        mountpoint = FilePath(self.mktemp())
+        config = FilePath(self.mktemp())
+
+        options = VolumeOptions()
+        options.parseOptions([
+                b"--config", config.path,
+                b"--pool", pool,
+                b"--mountpoint", mountpoint.path,
+        ])
+
+        stderr = StringIO()
+        reactor = object()
+
+        service = VolumeScript._create_volume_service(stderr, reactor, options)
+        self.assertEqual(
+                (True, config, StoragePool(reactor, pool, mountpoint)),
+                (service.running, service._config_path, service.pool)
+        )
