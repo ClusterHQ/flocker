@@ -594,6 +594,7 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
                 stderr, reactor, options)
         self.assertEqual((1,), exc.args)
 
+    @skip_on_broken_permissions
     def test_details_written(self):
         """
         ``VolumeScript._create_volume_service`` writes details of the error to
@@ -610,9 +611,10 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         reactor = object()
         options = VolumeOptions()
         options.parseOptions([b"--config", config.path])
-        self.assertRaises(
-            SystemExit, VolumeScript._create_volume_service,
-            stderr, reactor, options)
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(
+                SystemExit, VolumeScript._create_volume_service,
+                stderr, reactor, options)
         self.assertEqual(
             "Writing config file {} failed: Permission denied\n".format(
                 config.path).encode("ascii"),
