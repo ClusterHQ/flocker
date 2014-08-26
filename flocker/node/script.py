@@ -124,12 +124,19 @@ class ChangeStateScript(object):
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
     """
+    def __init__(self, gear_client=None):
+        """
+        :param GearClient gear_client: The object to use to talk to the Gear
+            server.
+        """
+        self._gear_client = gear_client
+
     def main(self, reactor, options, volume_service):
         """
         See :py:meth:`ICommandLineVolumeScript.main` for parameter
             documentation.
         """
-        deployer = Deployer(volume_service)
+        deployer = Deployer(volume_service, self._gear_client)
         return deployer.change_node_state(
             desired_state=options['deployment'],
             current_cluster_state=options['current'],
