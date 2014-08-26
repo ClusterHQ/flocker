@@ -42,14 +42,11 @@ class ChangeStateScriptTests(TestCase):
     """
     Tests for ``ChangeStateScript``.
     """
-    @if_gear_configured
     def test_deployer_gear_client(self):
         """
-        ``ChangeState._deployer`` is configured with a gear client that works.
+        ``ChangeState._deployer`` is configured with the default gear client.
         """
-        # Trial will fail the test if the returned Deferred fires with an
-        # exception:
-        return ChangeStateScript()._gear_client.list()
+        self.assertIs(None, ChangeStateScript()._gear_client)
 
 
 class ReportStateScriptTests(TestCase):
