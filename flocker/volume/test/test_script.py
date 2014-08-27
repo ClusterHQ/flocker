@@ -51,6 +51,12 @@ class DummyVolumeOptions(Options):
     """
 
 
-MakeVolumeOptionsTests = make_volume_options_tests(DummyVolumeOptions)
+class MakeVolumeOptionsTests(make_volume_options_tests(DummyVolumeOptions)):
+    """
+    Tests for ``make_volume_options``.
+    """
 
-StandardVolumeOptionsTests = make_volume_options_tests(VolumeOptions)
+class StandardVolumeOptionsTests(make_volume_options_tests(VolumeOptions)):
+    """
+    Tests for ``VolumeService`` specific arguments of ``VolumeOptions``.
+    """
