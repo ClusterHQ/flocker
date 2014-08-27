@@ -41,7 +41,7 @@ class GatherDeferredsTests(TestCase):
         """
         d1 = Deferred()
         d2 = Deferred()
-        gather_deferreds([d1, d2])
+        gathering = gather_deferreds([d1, d2])
 
         # The deferred fires with an error
         expected_error = ZeroDivisionError()
@@ -50,6 +50,8 @@ class GatherDeferredsTests(TestCase):
         # d2 has not yet fired, but the error is logged immediately
         logged_errors = self.flushLoggedErrors(ZeroDivisionError)
         self.assertEqual([expected_error], [f.value for f in logged_errors])
+
+        self.assertNoResult(gathering)
 
     def test_success(self):
         """
