@@ -28,6 +28,13 @@ __all__ = [
 
 
 def flocker_volume_options(cls):
+    """
+    A class decorator to add ``VolumeService`` specific command line options to
+    flocker commands.
+
+    :param cls: The class to decorate.
+    :return: The decorated class.
+    """
     original_parameters = getattr(cls, "optParameters", [])
     cls.optParameters = original_parameters + [
         ["config", None, DEFAULT_CONFIG_PATH.path,
