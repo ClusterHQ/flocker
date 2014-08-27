@@ -155,6 +155,16 @@ def create_realistic_servicepair(test):
 
 
 def make_volume_options_tests(make_options, extra_arguments=None):
+    """
+    Make a ``TestCase`` to test the ``VolumeService`` specific arguments added
+    to an ``Options`` class by the ``flocker_volume_options`` class decorator.
+
+    :param make_options: A zero-argument callable which will be called to
+        produce the ``Options`` instance under test.
+    :param extra_arguments: An optional ``list`` of non-VolumeService related
+        arguments which are required by the ``Options`` instance under test.
+    :return: A ``SynchronousTestCase``.
+    """
     if extra_arguments is None:
         extra_arguments = []
 
@@ -162,6 +172,10 @@ def make_volume_options_tests(make_options, extra_arguments=None):
         options.parseOptions(argv + extra_arguments)
 
     class VolumeOptionsTests(SynchronousTestCase):
+        """
+        Tests for ``Options`` subclasses decorated with
+        ``flocker_volume_options``.
+        """
         def test_default_config(self):
             """
             By default the config file is ``b'/etc/flocker/volume.json'``.
