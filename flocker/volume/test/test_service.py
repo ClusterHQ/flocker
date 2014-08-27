@@ -592,7 +592,7 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
             exc = self.assertRaises(
                 SystemExit, VolumeScript._create_volume_service,
                 stderr, reactor, options)
-        self.assertEqual((1,), exc.args)
+        self.assertEqual(1, exc.code)
 
     @skip_on_broken_permissions
     def test_details_written(self):
