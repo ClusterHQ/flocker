@@ -85,10 +85,20 @@ class Configuration(object):
             environment = frozenset(environment.items())
         return environment
 
-    def _parse_link_configuration(self, application_name, links_config):
+    def _parse_link_configuration(self, application_name, config):
+        """
+        Validate and retrun an application config's links.
+
+        :param unicode application_name: The name of the application
+
+        :param dict config: The ``links`` configuration stanza of this
+            application.
+
+        :returns: A ``frozenset`` of ``Link``s specfied for this application.
+        """
         links = []
         try:
-            for link in links_config:
+            for link in config:
                 try:
                     local_port = link.pop('local_port')
                 except KeyError:
@@ -116,7 +126,7 @@ class Configuration(object):
                  "Invalid links specification. {message}").format(
                      application_name=application_name, message=e.message))
 
-        return links
+        return frozenset(links)
 
     def _applications_from_configuration(self, application_configuration):
         """
@@ -252,7 +262,7 @@ class Configuration(object):
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
-                links=frozenset(links),
+                links=links,
                 environment=environment)
 
             if config:
