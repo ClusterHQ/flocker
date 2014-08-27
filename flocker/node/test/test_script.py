@@ -76,13 +76,17 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
         )
 
 
-StandardChangeStateOptionsTests = make_volume_options_tests(
-    ChangeStateOptions, extra_arguments=[
-        safe_dump(dict(version=1, nodes={})),
-        safe_dump(dict(version=1, applications={})),
-        safe_dump({}),
-        b"node001",
-    ])
+class StandardChangeStateOptionsTests(
+        make_volume_options_tests(
+            ChangeStateOptions, extra_arguments=[
+                safe_dump(dict(version=1, nodes={})),
+                safe_dump(dict(version=1, applications={})),
+                safe_dump({}),
+                b"node001",
+            ])):
+    """
+    Tests for the volume configuration arguments of ``ChangeStateOptions``.
+    """
 
 
 class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
