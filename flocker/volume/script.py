@@ -21,9 +21,34 @@ from ..common.script import (
 
 __all__ = [
     'flocker_volume_main',
+    'flocker_volume_options',
     'VolumeOptions',
     'VolumeManagerScript',
 ]
+
+
+def flocker_volume_options(cls):
+    original_parameters = getattr(cls, "optParameters", [])
+    cls.optParameters = original_parameters + [
+        ["config", None, DEFAULT_CONFIG_PATH.path,
+         "The path to the config file."],
+        # Maybe we can come up with something better in
+        # https://github.com/ClusterHQ/flocker/issues/125
+        ["pool", None, FLOCKER_POOL,
+         "The ZFS pool to use for volumes."],
+        ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
+         "The path where ZFS filesystems will be mounted."],
+    ]
+
+    original_postOptions = cls.postOptions
+
+    def postOptions(self):
+        self["config"] = FilePath(self["config"])
+        original_postOptions(self)
+
+    cls.postOptions = postOptions
+
+    return cls
 
 
 class _ReceiveSubcommandOptions(Options):
@@ -95,6 +120,7 @@ class _AcquireSubcommandOptions(Options):
 
 
 @flocker_standard_options
+@flocker_volume_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
 
@@ -104,26 +130,12 @@ class VolumeOptions(Options):
     """
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
-    optParameters = [
-        ["config", None, DEFAULT_CONFIG_PATH.path,
-         "The path to the config file."],
-        # Maybe we can come up with something better in
-        # https://github.com/ClusterHQ/flocker/issues/125
-        ["pool", None, FLOCKER_POOL,
-         "The ZFS pool to use for volumes."],
-        ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
-         "The path where ZFS filesystems will be mounted."],
-    ]
-
     subCommands = [
         ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
         ["acquire", None, _AcquireSubcommandOptions,
          "Acquire a remotely owned volume."],
     ]
-
-    def postOptions(self):
-        self["config"] = FilePath(self["config"])
 
 
 @implementer(ICommandLineVolumeScript)

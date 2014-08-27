@@ -17,7 +17,9 @@ from zope.interface import implementer
 
 from ._config import configuration_to_yaml
 
-from ..volume.service import ICommandLineVolumeScript, VolumeScript
+from ..volume.service import (
+    ICommandLineVolumeScript, VolumeScript)
+from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner)
 from . import (ConfigurationError, model_from_configuration, Deployer,
@@ -34,6 +36,7 @@ __all__ = [
 
 
 @flocker_standard_options
+@flocker_volume_options
 class ChangeStateOptions(Options):
     """
     Command line options for ``flocker-changestate`` management tool.
@@ -69,10 +72,13 @@ class ChangeStateOptions(Options):
 
         :param bytes deployment_config: The YAML string describing the desired
             deployment configuration.
+
         :param bytes application_config: The YAML string describing the desired
             application configuration.
-        :param bytes application_config: The YAML string describing the current
+
+        :param bytes current_config: The YAML string describing the current
             cluster configuration.
+
         :param bytes hostname: The ascii encoded hostname of this node.
 
         :raises UsageError: If the configuration files cannot be parsed as YAML
@@ -151,6 +157,7 @@ def flocker_changestate_main():
 
 
 @flocker_standard_options
+@flocker_volume_options
 class ReportStateOptions(Options):
     """
     Command line options for ``flocker-reportstate`` management tool.

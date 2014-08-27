@@ -12,6 +12,8 @@ from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
+from ...volume.test.test_script import make_volume_options_tests
+
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
@@ -60,6 +62,15 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
             [(expected_deployment, expected_current, expected_hostname)],
             change_node_state_calls
         )
+
+
+StandardChangeStateOptionsTests = make_volume_options_tests(
+    ChangeStateOptions, extra_arguments=[
+        safe_dump(dict(version=1, nodes={})),
+        safe_dump(dict(version=1, applications={})),
+        safe_dump({}),
+        b"node001",
+    ])
 
 
 class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
@@ -275,6 +286,9 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             "Non-ASCII hostname: {hostname}".format(hostname=hostname),
             str(e)
         )
+
+
+StandardReportStateOptionsTests = make_volume_options_tests(ReportStateOptions)
 
 
 class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):

@@ -7,9 +7,17 @@ Tests for :module:`flocker.volume.script`.
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
+from twisted.python.usage import Options
 
-from ...testtools import StandardOptionsTestsMixin
-from ..script import VolumeOptions, VolumeManagerScript
+from ...testtools import (
+    StandardOptionsTestsMixin
+)
+from ..testtools import (
+    make_volume_options_tests
+)
+from ..script import (
+    VolumeOptions, VolumeManagerScript, flocker_volume_options
+)
 
 
 class VolumeManagerScriptMainTests(SynchronousTestCase):
@@ -29,19 +37,20 @@ class VolumeManagerScriptMainTests(SynchronousTestCase):
 
 
 class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """Tests for :class:`FlockerVolumeOptions`."""
+    """
+    Tests for :class:`VolumeOptions`.
+    """
     options = VolumeOptions
 
-    def test_default_config(self):
-        """By default the config file is ``b'/etc/flocker/volume.json'``."""
-        options = self.options()
-        options.parseOptions([])
-        self.assertEqual(options["config"],
-                         FilePath(b"/etc/flocker/volume.json"))
 
-    def test_custom_config(self):
-        """A custom config file can be specified with ``--config``."""
-        options = self.options()
-        options.parseOptions([b"--config", b"/path/somefile.json"])
-        self.assertEqual(options["config"],
-                         FilePath(b"/path/somefile.json"))
+@flocker_volume_options
+class DummyVolumeOptions(Options):
+    """
+    An ``Options`` class that uses ``flocker_volume_options`` for the purposes
+    of testing.
+    """
+
+
+MakeVolumeOptionsTests = make_volume_options_tests(DummyVolumeOptions)
+
+VolumeOptionsTests = make_volume_options_tests(VolumeOptions)
