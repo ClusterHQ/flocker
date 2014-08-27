@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, NodeState, SSH_PRIVATE_KEY_PATH)
+                Port, Link, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
@@ -421,6 +421,67 @@ class StartApplicationTests(SynchronousTestCase):
             None,
             fake_gear._units[application_name].environment
         )
+
+    def test_links(self):
+        """
+        ``StartApplication.run()`` passes environment variables to connect to the
+        remote application to ``GearClient.add``.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            links=frozenset([Link(alias="alias", local_port=80,
+                                  remote_port=8080)]))
+
+        StartApplication(application=application).run(deployer)
+
+        variables = {
+            'ALIAS_PORT_TCP_80': 'tcp://FIXME:8080',
+            'ALIAS_PORT_TCP_80_HOST': 'FIXME',
+            'ALIAS_PORT_TCP_80_PORT': '8080',
+            'ALIAS_PORT_TCP_80_PROTO': 'TCP',
+        }
+        expected_environment = GearEnvironment(
+            id=application_name, variables=variables.copy())
+
+        self.assertEqual(
+            expected_environment,
+            fake_gear._units[application_name].environment
+        )
+
+    def test_link_to_environment(self):
+        """
+        ``StartApplication._link_to_environment(link)`` returns a dictonary
+        with keys used by docker to represent links. Specifically
+        ``<alias>_PORT_TCP_<local_port>`` and the broken out variants
+        ``_HOST``, ``_PORT`` and ``_PROTO``.
+        """
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            links=frozenset([Link(alias="dash-alias", local_port=80,
+                                  remote_port=8080)]))
+
+        environment = StartApplication(application=application,
+                                       hostname="the-host")
+        self.assertEqual(
+            environment,
+            {
+                'DASH_ALIAS_PORT_TCP_80': 'tcp://the-host:8080',
+                'DASH_ALIAS_PORT_TCP_80_HOST': 'the-host',
+                'DASH_ALIAS_PORT_TCP_80_PORT': '8080',
+                'DASH_ALIAS_PORT_TCP_80_PROTO': 'TCP',
+            })
+
+
 
 
 class StopApplicationTests(SynchronousTestCase):
