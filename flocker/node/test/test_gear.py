@@ -297,6 +297,7 @@ class GearEnvironmentTests(TestCase):
             ).items())).to_dict()
 
         gear_dict['variables'] = sorted(gear_dict['variables'])
+        expected_dict['variables'] = sorted(expected_dict['variables'])
 
         self.assertEqual(expected_dict, gear_dict)
 
