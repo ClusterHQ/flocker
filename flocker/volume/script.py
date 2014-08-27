@@ -53,6 +53,7 @@ def flocker_volume_options(cls):
 
     def postOptions(self):
         self["config"] = FilePath(self["config"])
+        self["mountpoint"] = FilePath(self["mountpoint"])
         original_postOptions(self)
 
     cls.postOptions = postOptions
