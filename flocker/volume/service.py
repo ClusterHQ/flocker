@@ -423,7 +423,7 @@ class VolumeScript(object):
     def main(self, reactor, options):
         """
         Create and start the ``VolumeService`` and then delegate the rest to
-        the other script object this object was initialized.
+        the other script object that this object was initialized with.
         """
         service = self._create_volume_service(
             self._sys_module.stderr, reactor, options)
