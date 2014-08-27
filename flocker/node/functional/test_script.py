@@ -32,16 +32,6 @@ class FlockerChangeStateTests(TestCase):
         self.assertEqual(result, b"%s\n" % (__version__,))
 
 
-class ReportStateScriptTests(TestCase):
-    """
-    Tests for ``ReportStateScript``.
-    """
-
-    @_require_root
-    def setUp(self):
-        pass
-
-
 class FlockerReportStateTests(TestCase):
     """Tests for ``flocker-reportstate``."""
 
