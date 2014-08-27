@@ -21,21 +21,35 @@ def gather_deferreds(deferreds):
 
     :param list deferreds: A ``list`` of ``Deferred``\ s whose results will
         be gathered.
-    :returns: A ``Deferred`` which calls back with a ``list`` of all the
-        results of the supplied ``deferreds`` when all the supplied
-        ``deferreds`` have succeeded or which will errback with a
-        ``FirstError`` failure as soon as one of the supplied ``deferreds`
-        fails.
+    :returns: A ``Deferred`` which fires only when all the supplied
+        ``deferreds`` have fired. If all the supplied ``deferreds`` succeed the
+        result will callback with a ``list`` of all the results.  If any of the
+        supplied ``deferreds`` fail, the result will errback with a
+        ``FirstError`` failure containing a reference to the failure produced
+        by the first of the ``deferreds`` to fail.
     """
     # Gather once to get the results OR the first failure
-    first_failure = gatherResults(deferreds)
+    results_or_first_failure = gatherResults(deferreds)
+
+    def log_and_discard(failure):
+        """
+        Log the supplied failure and discard it.
+
+        The failure is deliberately discarded so as to prevent any further
+        logging of this failure when the deferred is eventually garbage
+        collected.
+
+        :param Failure failure: The ``Failure`` to be logged.
+        """
+        log.err(failure)
 
     for deferred in deferreds:
-        deferred.addErrback(lambda failure: log.err(failure))
+        deferred.addErrback(log_and_discard)
+
     # After adding logging callbacks, gather again so as to wait for all
     # the supplied deferreds to fire.
     gathering = gatherResults(deferreds)
 
     # Then return the result of the first gather.
-    gathering.addCallback(lambda ignored: first_failure)
+    gathering.addCallback(lambda ignored: results_or_first_failure)
     return gathering
