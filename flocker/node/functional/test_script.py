@@ -11,7 +11,6 @@ from unittest import skipUnless
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
-from ..script import ChangeStateScript
 from ... import __version__
 
 
@@ -31,18 +30,6 @@ class FlockerChangeStateTests(TestCase):
         """
         result = check_output([b"flocker-changestate"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
-
-
-class ChangeStateScriptTests(TestCase):
-    """
-    Tests for ``ChangeStateScript``.
-    """
-    def test_deployer_gear_client(self):
-        """
-        ``ChangeState._gear_client`` is configured with the default gear
-        client.
-        """
-        self.assertIs(None, ChangeStateScript()._gear_client)
 
 
 class ReportStateScriptTests(TestCase):

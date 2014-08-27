@@ -24,6 +24,18 @@ from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 from ...volume.testtools import create_volume_service
 
 
+class ChangeStateScriptTests(SynchronousTestCase):
+    """
+    Tests for ``ChangeStateScript``.
+    """
+    def test_deployer_gear_client(self):
+        """
+        ``ChangeState._gear_client`` is configured with the default gear
+        client.
+        """
+        self.assertIs(None, ChangeStateScript()._gear_client)
+
+
 class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript.main``.
