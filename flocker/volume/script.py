@@ -38,7 +38,9 @@ def flocker_volume_options(cls):
     original_parameters = getattr(cls, "optParameters", [])
     cls.optParameters = original_parameters + [
         ["config", None, DEFAULT_CONFIG_PATH.path,
-         "The path to the config file."],
+         "The path to the Flocker volume configuration file, "
+         "containing the UUID of the Flocker volume service on this node. "
+         "This file will be created if it does not already exist."],
         # Maybe we can come up with something better in
         # https://github.com/ClusterHQ/flocker/issues/125
         ["pool", None, FLOCKER_POOL,
