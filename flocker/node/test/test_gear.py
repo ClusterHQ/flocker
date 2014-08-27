@@ -291,13 +291,15 @@ class GearEnvironmentTests(TestCase):
                 {'name': 'foo', 'value': 'bar'},
             ]
         }
-        self.assertEqual(
-            expected_dict,
-            GearEnvironment(
-                id=expected_id, variables=frozenset(dict(
-                    foo='bar', baz='qux'
-                ).items())).to_dict()
-        )
+        gear_dict = GearEnvironment(
+            id=expected_id, variables=frozenset(dict(
+                foo='bar', baz='qux'
+            ).items())).to_dict()
+
+        gear_dict['variables'] = sorted(gear_dict['variables'])
+        expected_dict['variables'] = sorted(expected_dict['variables'])
+
+        self.assertEqual(expected_dict, gear_dict)
 
     def test_repr(self):
         """
