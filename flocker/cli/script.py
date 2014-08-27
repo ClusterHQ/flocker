@@ -22,7 +22,7 @@ from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import ConfigurationError, model_from_configuration
 
-from ..common import ProcessNode
+from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
 
 
@@ -120,7 +120,7 @@ class DeployScript(object):
                     node.hostname, self.ssh_port
                 )
             )
-        d = DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+        d = gather_deferreds(results)
 
         # Exit with ssh's output if it failed for some reason:
         def got_failure(failure):

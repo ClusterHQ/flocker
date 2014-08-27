@@ -9,7 +9,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
-from twisted.internet.defer import gatherResults, fail, DeferredList, succeed
+from twisted.internet.defer import gatherResults, fail, succeed
 from twisted.python.filepath import FilePath
 
 from .gear import GearClient, PortMap, GearEnvironment
@@ -18,7 +18,7 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager
-from ..common._ipc import ProcessNode
+from ..common import ProcessNode, gather_deferreds
 
 
 # Path to SSH private key available on nodes and used to communicate
@@ -88,8 +88,8 @@ class InParallel(object):
     Failures in one change do not prevent other changes from continuing.
     """
     def run(self, deployer):
-        return gatherResults((change.run(deployer) for change in self.changes),
-                             consumeErrors=True)
+        return gather_deferreds(
+            [change.run(deployer) for change in self.changes])
 
 
 @implementer(IStateChange)
@@ -209,9 +209,6 @@ class SetProxies(object):
     """
     def run(self, deployer):
         results = []
-        # XXX: Errors in these operations should be logged. See
-        # https://github.com/ClusterHQ/flocker/issues/296
-
         # XXX: The proxy manipulation operations are blocking. Convert to a
         # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
         for proxy in deployer.network.enumerate_proxies():
@@ -224,7 +221,7 @@ class SetProxies(object):
                 deployer.network.create_proxy_to(proxy.ip, proxy.port)
             except:
                 results.append(fail())
-        return DeferredList(results, fireOnOneErrback=True, consumeErrors=True)
+        return gather_deferreds(results)
 
 
 class Deployer(object):
