@@ -52,7 +52,7 @@ The following parameters are optional when defining an application:
 - ``links``
 
   This is an optional list of links to make to other containers.
-  Connection to the local port in the application are forwarded to the remote port of the other application.
+  The container environment will be populated with environment variables pointing at the remote port.
 
   .. code-block:: yaml
 
