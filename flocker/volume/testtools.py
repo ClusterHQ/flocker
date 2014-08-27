@@ -171,7 +171,6 @@ def make_volume_options_tests(make_options, extra_arguments=None):
             self.assertEqual(
                 FilePath(b"/etc/flocker/volume.json"), options["config"])
 
-
         def test_config(self):
             """
             The options class accepts a ``--config`` parameter.
