@@ -93,7 +93,7 @@ class InParallel(object):
 
 
 @implementer(IStateChange)
-@attributes(["application"])
+@attributes(["application", "hostname"])
 class StartApplication(object):
     """
     Launch the supplied application as a gear unit.
@@ -116,20 +116,45 @@ class StartApplication(object):
         else:
             port_maps = []
 
+        environment = {}
+
+        for link in application.links:
+            environment.update(self._link_to_environment(link, self.hostname))
+
+
         if application.environment is not None:
-            environment = GearEnvironment(
+            environment.update(application.environment)
+
+        if environment:
+            gear_environment = GearEnvironment(
                 id=application.name,
-                variables=application.environment)
+                variables=environment)
         else:
-            environment = None
+            gear_environment = None
 
         d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=environment
+            environment=gear_environment
         ))
         return d
+
+
+    @staticmethod
+    def _link_to_environment(link, hostname):
+        """
+        """
+        alias = link.alias.upper().replace('-', "_")
+        base = '%s_PORT_TCP_%d' % (alias, link.local_port)
+
+        return {
+            base: u'tcp://%s:%d' % (hostname, link.remote_port),
+            base + '_HOST': hostname,
+            base + '_PORT': u'%d' % (link.remote_port,),
+            base + '_PROTO': u'tcp',
+        }
+
 
 
 @implementer(IStateChange)
@@ -352,7 +377,7 @@ class Deployer(object):
                 desired_local_state)
 
             start_containers = [
-                StartApplication(application=app)
+                StartApplication(application=app, hostname=hostname)
                 for app in desired_node_applications
                 if app.name in start_names
             ]
@@ -362,7 +387,8 @@ class Deployer(object):
             ]
             restart_containers = [
                 Sequentially(changes=[StopApplication(application=app),
-                                      StartApplication(application=app)])
+                                      StartApplication(application=app,
+                                                       hostname=hostname)])
                 for app in desired_node_applications
                 if app.name in not_running
             ]

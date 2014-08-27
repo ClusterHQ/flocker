@@ -445,7 +445,7 @@ class StartApplicationTests(SynchronousTestCase):
             'ALIAS_PORT_TCP_80': 'tcp://FIXME:8080',
             'ALIAS_PORT_TCP_80_HOST': 'FIXME',
             'ALIAS_PORT_TCP_80_PORT': '8080',
-            'ALIAS_PORT_TCP_80_PROTO': 'TCP',
+            'ALIAS_PORT_TCP_80_PROTO': 'tcp',
         }
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
@@ -462,23 +462,16 @@ class StartApplicationTests(SynchronousTestCase):
         ``<alias>_PORT_TCP_<local_port>`` and the broken out variants
         ``_HOST``, ``_PORT`` and ``_PROTO``.
         """
-        application_name = u'site-example.com'
-        application = Application(
-            name=application_name,
-            image=DockerImage(repository=u'clusterhq/postgresql',
-                              tag=u'9.3.5'),
-            links=frozenset([Link(alias="dash-alias", local_port=80,
-                                  remote_port=8080)]))
+        link = Link(alias="dash-alias", local_port=80, remote_port=8080)
 
-        environment = StartApplication(application=application,
-                                       hostname="the-host")
+        environment = StartApplication._link_to_environment(link, 'the-host')
         self.assertEqual(
             environment,
             {
                 'DASH_ALIAS_PORT_TCP_80': 'tcp://the-host:8080',
                 'DASH_ALIAS_PORT_TCP_80_HOST': 'the-host',
                 'DASH_ALIAS_PORT_TCP_80_PORT': '8080',
-                'DASH_ALIAS_PORT_TCP_80_PROTO': 'TCP',
+                'DASH_ALIAS_PORT_TCP_80_PROTO': 'tcp',
             })
 
 
