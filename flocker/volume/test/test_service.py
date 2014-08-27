@@ -662,7 +662,7 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         options.parseOptions([])
         service = script._create_volume_service(
             object(), object(), options)
-        self.assertIs(service, expected)
+        self.assertIs(expected, service)
 
 
 class VolumeScriptMainTests(SynchronousTestCase):
