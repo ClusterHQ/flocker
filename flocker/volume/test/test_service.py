@@ -680,8 +680,8 @@ class VolumeScriptMainTests(SynchronousTestCase):
             def __init__(self):
                 self.calls = []
 
-            def main(self, reactor, options, service):
-                self.calls.append((reactor, options, service))
+            def main(self, reactor, options, volume_service):
+                self.calls.append((reactor, options, volume_service))
 
         script = VolumeServiceScript()
         helper = VolumeScript(script)
