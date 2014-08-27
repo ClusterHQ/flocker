@@ -53,4 +53,4 @@ class DummyVolumeOptions(Options):
 
 MakeVolumeOptionsTests = make_volume_options_tests(DummyVolumeOptions)
 
-VolumeOptionsTests = make_volume_options_tests(VolumeOptions)
+StandardVolumeOptionsTests = make_volume_options_tests(VolumeOptions)
