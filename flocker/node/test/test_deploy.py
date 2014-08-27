@@ -302,26 +302,21 @@ class StartApplicationTests(SynchronousTestCase):
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
-        links = frozenset([Link(local_port=90, remote_port=9090,
-                                application=u'otherapp')])
         application = Application(
             name=u'site-example.com',
             image=docker_image,
             ports=ports,
-            links=links,
         )
         start_result = StartApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
-        gear_links = [PortMap(internal_port=90, external_port=9090)]
         self.assertEqual(
-            (None, True, docker_image.full_name, port_maps, gear_links),
+            (None, True, docker_image.full_name, port_maps),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
              fake_gear._units[application.name].container_image,
-             fake_gear._units[application.name].ports,
-             fake_gear._units[application.name].links)
+             fake_gear._units[application.name].ports)
         )
 
     def test_already_exists(self):
