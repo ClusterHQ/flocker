@@ -304,7 +304,11 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         )
 
 
-StandardReportStateOptionsTests = make_volume_options_tests(ReportStateOptions)
+class StandardReportStateOptionsTests(
+        make_volume_options_tests(ReportStateOptions)):
+    """
+    Tests for the volume configuration arguments of ``ReportStateOptions``.
+    """
 
 
 class ReportStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
