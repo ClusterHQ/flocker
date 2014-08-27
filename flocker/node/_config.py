@@ -98,10 +98,6 @@ class Configuration(object):
                 except KeyError:
                     raise ValueError("Missing remote port.")
                 try:
-                    application = link.pop('application')
-                except KeyError:
-                    raise ValueError("Missing application.")
-                try:
                     alias = link.pop('alias')
                 except KeyError:
                     raise ValueError("Missing alias.")
@@ -113,7 +109,6 @@ class Configuration(object):
                             keys=', '.join(sorted(link))))
                 links.append(Link(local_port=local_port,
                                   remote_port=remote_port,
-                                  application=application,
                                   alias=alias))
         except ValueError as e:
             raise ConfigurationError(

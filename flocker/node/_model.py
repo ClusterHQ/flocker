@@ -137,18 +137,19 @@ class Port(object):
     """
 
 
-@attributes(['local_port', 'remote_port', 'application', 'alias'])
+@attributes(['local_port', 'remote_port', 'alias'])
 class Link(object):
     """
     A record representing the mapping between a port exposed internally to
     an application, and the corresponding external port of a possibly remote
     application.
 
-    :ivar int local_port: The ports to connect.
-    :ivar int remote_port:
-    :ivar unicode application: The remote application to connect to.
+    :ivar int local_port: The port the local application expects to access.
+        This is used to determine the environment variables to populate in the
+        container.
+    :ivar int remote_port: The port exposed externally by the remote application.
     :ivar unicode alias: Environment variable prefix to use for exposing
-        connection information ...
+        connection information.
     """
 
 

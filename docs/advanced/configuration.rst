@@ -59,7 +59,6 @@ The following parameters are optional when defining an application:
      "links":
      - "local_port": 80
        "remote_port": 8080
-       "application": "other-app"
        "alias": "other"
 
 Here's an example of a simple but complete configuration defining one application:
