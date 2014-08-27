@@ -51,7 +51,8 @@ class GatherDeferredsTests(TestCase):
         logged_errors = self.flushLoggedErrors(ZeroDivisionError)
         self.assertEqual([expected_error], [f.value for f in logged_errors])
 
-        self.assertNoResult(gathering)
+        d2.callback(None)
+        self.failureResultOf(gathering)
 
     def test_success(self):
         """
