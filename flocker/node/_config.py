@@ -112,7 +112,6 @@ class Configuration(object):
                 except KeyError:
                     raise ValueError("Missing alias.")
 
-
                 if link:
                     raise ValueError(
                         "Unrecognised keys: {keys}.".format(
@@ -201,7 +200,6 @@ class Configuration(object):
 
             links = self._parse_link_configuration(
                 application_name, config.pop('links', []))
-
 
             volume = None
             if "volume" in config:

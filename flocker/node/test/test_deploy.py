@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, NodeState, SSH_PRIVATE_KEY_PATH, Link)
+                Port, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies)

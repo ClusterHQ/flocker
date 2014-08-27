@@ -147,7 +147,8 @@ class Link(object):
     :ivar int local_port: The port the local application expects to access.
         This is used to determine the environment variables to populate in the
         container.
-    :ivar int remote_port: The port exposed externally by the remote application.
+    :ivar int remote_port: The port exposed externally by the remote
+        application.
     :ivar unicode alias: Environment variable prefix to use for exposing
         connection information.
     """
