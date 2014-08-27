@@ -110,12 +110,12 @@ class ProcessNode(object):
             # SSH by the time Flocker is production-ready and security is
             # a concern.
             b"-o", b"StrictHostKeyChecking=no",
+            # The tests hang if ControlMaster is set, since OpenSSH won't
+            # ever close the connection to the test server.
+            b"-oControlMaster=no",
             # On some Ubuntu versions (and perhaps elsewhere) not
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
-            b"-oControlMaster=no",
-            # Connect as root, since we need superuser permissions for
-            # ZFS and Docker:
             b"-o", b"GSSAPIAuthentication=no",
             b"-p", b"%d" % (port,), host), quote=quote)
 
