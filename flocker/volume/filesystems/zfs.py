@@ -286,6 +286,17 @@ class StoragePool(Service):
         """
         Service.startService(self)
 
+        # These next things are logically part of the storage pool creation
+        # process.  Since Flocker itself doesn't yet have any involvement with
+        # that process, it's difficult to find a better time/place to set these
+        # properties than here - ie, "every time we're about to interact with
+        # the storage pool".  In the future it would be better if we could do
+        # these things one-off - sometime around when the pool is created or
+        # when Flocker is first installed, for example.  Then we could get rid
+        # of these operations from this method (which eliminates the motivation
+        # for StoragePool being an IService implementation).
+        # https://github.com/ClusterHQ/flocker/issues/635
+
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
