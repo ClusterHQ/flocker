@@ -30,7 +30,7 @@ class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
     """``IFilesystemSnapshots`` tests for ZFS."""
 
 
-def build_pool(reactor, test_case):
+def build_pool(test_case):
     """
     Create a ``StoragePool``.
 
@@ -42,10 +42,7 @@ def build_pool(reactor, test_case):
                        FilePath(test_case.mktemp()))
 
 
-_fixture = lambda case: build_pool(reactor, case)
-
-
-class IStoragePoolTests(make_istoragepool_tests(_fixture)):
+class IStoragePoolTests(make_istoragepool_tests(build_pool)):
     """
     ``IStoragePoolTests`` for ZFS storage pool.
     """
@@ -160,7 +157,7 @@ class StoragePoolTests(TestCase):
         """
         A filesystem which is created for a locally owned volume is writeable.
         """
-        pool = build_pool(reactor, self)
+        pool = build_pool(self)
         service = service_for_pool(self, pool)
         volume = service.get(u"myvolumename")
 
@@ -187,7 +184,7 @@ class StoragePoolTests(TestCase):
         A filesystem which is created for a remotely owned volume is not
         writeable.
         """
-        pool = build_pool(reactor, self)
+        pool = build_pool(self)
         service = service_for_pool(self, pool)
         volume = Volume(uuid=u"remoteone", name=u"vol", service=service)
 
@@ -215,7 +212,7 @@ class StoragePoolTests(TestCase):
         A filesystem which was previously remotely owned and is now locally
         owned becomes writeable.
         """
-        pool = build_pool(reactor, self)
+        pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(u"myvolumename")
         remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
@@ -238,7 +235,7 @@ class StoragePoolTests(TestCase):
         A filesystem which was previously locally owned and is now remotely
         owned becomes unwriteable.
         """
-        pool = build_pool(reactor, self)
+        pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(u"myvolumename")
         remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
