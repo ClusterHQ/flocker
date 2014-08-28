@@ -154,8 +154,8 @@ class SyncCommandTests(SynchronousTestCase):
     @validateLogging(error_status_logged)
     def test_error_exit(self, logger):
         """
-        If the child process run by ``_sync_command_error_squashed``
-        exits fails to find the specified encounters an error, the function nevertheless returns ``None``.
+        If the child process run by ``_sync_command_error_squashed`` exits with
+        an an error status then the function nevertheless returns ``None``.
         """
         result = _sync_command_error_squashed(
             [b"python", b"-c", b"raise SystemExit(1)"],
@@ -164,7 +164,8 @@ class SyncCommandTests(SynchronousTestCase):
 
     def test_success(self):
         """
-        ``_sync_command_error_squashed`` runs the given command and returns ``None``.
+        ``_sync_command_error_squashed`` runs the given command and returns
+        ``None``.
         """
         result = _sync_command_error_squashed(
             [b"python", b"-c", b""],
