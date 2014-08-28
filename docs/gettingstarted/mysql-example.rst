@@ -27,9 +27,9 @@ The Docker image we'll be using is quite large, so you should pre-fetch it to yo
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 docker pull mysql:5.6.17
+   alice@mercury:~/flocker-mysql$ ssh -t root@172.16.255.250 docker pull mysql:5.6.17
    ...
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.251 docker pull mysql:5.6.17
+   alice@mercury:~/flocker-mysql$ ssh -t root@172.16.255.251 docker pull mysql:5.6.17
    ...
    alice@mercury:~/flocker-mysql$
 
@@ -37,10 +37,8 @@ These commands may take several minutes to complete, depending on your hardware 
 
 .. note::
 
-   Flocker uses the Linux port of ZFS to manage data volumes.
-   Recent versions of MySQL introduced the ``innodb_use_native_aio`` configuration option, which defaults to on and causes InnoDB to use the Linux asynchronous I/O subsystem.
-   At this time, asynchronous I/O is not supported by ZFS on Linux and therefore MySQL should be launched with ``innodb_use_native_aio`` set to ``0``.
-   Some minor tweaking of the MySQL image to set this option will therefore be necessary if you wish to use ``mysql:latest``.
+   We use the mysql:5.6.17 docker image in this tutorial for compatibility with ZFS.
+   Newer versions of the MySQL docker image enable asynchronous I/O, which is not yet supported by ZFS on Linux.
 
 
 Launch MySQL
@@ -58,7 +56,7 @@ Download and save the following configuration files to the ``flocker-mysql`` dir
 .. literalinclude:: mysql-deployment.yml
    :language: yaml
 
-This is an example where we simply map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mountpoint in the container where the actual data is stored.
+This is an example where we map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mountpoint in the container where the data is stored.
 We will be using the ``mysql`` image and deploying to one of the virtual nodes.
 Run ``flocker-deploy`` to instantiate the container on its specified host:
 
