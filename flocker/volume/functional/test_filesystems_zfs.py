@@ -43,11 +43,12 @@ def build_pool(reactor, test_case):
 
 
 _fixture = lambda case: build_pool(reactor, case)
+
+
 class IStoragePoolTests(make_istoragepool_tests(_fixture)):
     """
     ``IStoragePoolTests`` for ZFS storage pool.
     """
-del _fixture
 
 
 class VolumeToDatasetTests(TestCase):
