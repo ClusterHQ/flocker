@@ -22,7 +22,7 @@ from ...testtools import FakeProcessReactor
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
-    _sync_zfs_command_error_squashed, ZFS_ERROR
+    _sync_command_error_squashed, ZFS_ERROR
     )
 
 
@@ -117,17 +117,17 @@ def command_error_logged(case, logger):
     case.assertEqual(1, len(errors))
 
 
-class SyncZFSCommandTests(SynchronousTestCase):
+class SyncCommandTests(SynchronousTestCase):
     """
-    Tests for ``_sync_zfs_command_error_squashed``.
+    Tests for ``_sync_command_error_squashed``.
     """
     @validateLogging(command_error_logged)
     def test_error_squashed(self, logger):
         """
-        If the child process run by ``_sync_zfs_command_error_squashed``
+        If the child process run by ``_sync_command_error_squashed``
         encounters an error, the function nevertheless returns ``None``.
         """
-        result = _sync_zfs_command_error_squashed(
+        result = _sync_command_error_squashed(
             [b"nonsense garbage made up no such command"],
             logger)
         self.assertIs(None, result)
