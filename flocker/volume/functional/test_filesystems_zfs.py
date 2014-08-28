@@ -30,7 +30,7 @@ class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
     """``IFilesystemSnapshots`` tests for ZFS."""
 
 
-def build_pool(test_case):
+def build_pool(reactor, test_case):
     """
     Create a ``StoragePool``.
 
@@ -42,7 +42,7 @@ def build_pool(test_case):
                        FilePath(test_case.mktemp()))
 
 
-class IStoragePoolTests(make_istoragepool_tests(build_pool)):
+class IStoragePoolTests(make_istoragepool_tests(reactor, build_pool)):
     """
     ``IStoragePoolTests`` for ZFS storage pool.
     """
@@ -157,8 +157,7 @@ class StoragePoolTests(TestCase):
         """
         A filesystem which is created for a locally owned volume is writeable.
         """
-        pool = StoragePool(reactor, create_zfs_pool(self),
-                           FilePath(self.mktemp()))
+        pool = build_pool(reactor, self)
         service = service_for_pool(self, pool)
         volume = service.get(u"myvolumename")
 
