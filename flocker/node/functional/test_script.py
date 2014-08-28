@@ -10,12 +10,7 @@ from unittest import skipUnless
 
 from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
-from twisted.internet import reactor
 
-from ...volume.service import (
-    VolumeService, DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT)
-from ...volume.filesystems.zfs import StoragePool
-from ..script import ChangeStateScript
 from ... import __version__
 
 
@@ -23,7 +18,6 @@ _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
 _require_root = skipUnless(getuid() == 0,
                            "Root required to run these tests.")
-from ..testtools import if_gear_configured
 
 
 class FlockerChangeStateTests(TestCase):
@@ -36,63 +30,6 @@ class FlockerChangeStateTests(TestCase):
         """
         result = check_output([b"flocker-changestate"] + [b"--version"])
         self.assertEqual(result, b"%s\n" % (__version__,))
-
-
-class ChangeStateScriptTests(TestCase):
-    """
-    Tests for ``ChangeStateScript``.
-    """
-    def test_volume_service(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService``.
-        """
-        self.assertIsInstance(ChangeStateScript()._deployer.volume_service,
-                              VolumeService)
-
-    def test_volume_service_running(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` that is not running.
-        """
-        self.assertFalse(ChangeStateScript()._deployer.volume_service.running)
-
-    def test_volume_service_config_path(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` with the default config path.
-        """
-        self.assertEqual(
-            ChangeStateScript()._deployer.volume_service._config_path,
-            DEFAULT_CONFIG_PATH)
-
-    def test_volume_service_pool(self):
-        """
-        ``ChangeStateScript._deployer`` is created by default with a
-        ``VolumeService`` whose pool is the default ZFS pool.
-        """
-        self.assertEqual(
-            ChangeStateScript()._deployer.volume_service.pool,
-            StoragePool(reactor, b"flocker", FLOCKER_MOUNTPOINT))
-
-    @if_gear_configured
-    def test_deployer_gear_client(self):
-        """
-        ``ChangeState._deployer`` is configured with a gear client that works.
-        """
-        # Trial will fail the test if the returned Deferred fires with an
-        # exception:
-        return ChangeStateScript()._deployer.gear_client.list()
-
-
-class ReportStateScriptTests(TestCase):
-    """
-    Tests for ``ReportStateScript``.
-    """
-
-    @_require_root
-    def setUp(self):
-        pass
 
 
 class FlockerReportStateTests(TestCase):

@@ -89,7 +89,8 @@ class Configuration(object):
                         application_name=application_name)
             for key, value in environment.iteritems():
                 _check_type(value=key, types=types.StringTypes,
-                            description="Environment variable name must be a string",
+                            description="Environment variable name "
+                                        "must be a string",
                             application_name=application_name)
                 _check_type(value=value, types=types.StringTypes,
                             description="Environment variable '{key}' "
@@ -130,7 +131,8 @@ class Configuration(object):
                 try:
                     remote_port = link.pop('remote_port')
                     _check_type(value=remote_port, types=(int,),
-                                description="Link's remote port must be an int",
+                                description="Link's remote port "
+                                            "must be an int",
                                 application_name=application_name)
                 except KeyError:
                     raise ValueError("Missing remote port.")
