@@ -184,8 +184,7 @@ class StoragePoolTests(TestCase):
         A filesystem which is created for a remotely owned volume is not
         writeable.
         """
-        pool = StoragePool(reactor, create_zfs_pool(self),
-                           FilePath(self.mktemp()))
+        pool = build_pool(reactor, self)
         service = service_for_pool(self, pool)
         volume = Volume(uuid=u"remoteone", name=u"vol", service=service)
 
@@ -213,8 +212,7 @@ class StoragePoolTests(TestCase):
         A filesystem which was previously remotely owned and is now locally
         owned becomes writeable.
         """
-        pool = StoragePool(reactor, create_zfs_pool(self),
-                           FilePath(self.mktemp()))
+        pool = build_pool(reactor, self)
         service = service_for_pool(self, pool)
         local_volume = service.get(u"myvolumename")
         remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
@@ -237,8 +235,7 @@ class StoragePoolTests(TestCase):
         A filesystem which was previously locally owned and is now remotely
         owned becomes unwriteable.
         """
-        pool = StoragePool(reactor, create_zfs_pool(self),
-                           FilePath(self.mktemp()))
+        pool = build_pool(reactor, self)
         service = service_for_pool(self, pool)
         local_volume = service.get(u"myvolumename")
         remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
