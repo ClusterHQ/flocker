@@ -42,10 +42,12 @@ def build_pool(reactor, test_case):
                        FilePath(test_case.mktemp()))
 
 
-class IStoragePoolTests(make_istoragepool_tests(reactor, build_pool)):
+_fixture = lambda case: build_pool(reactor, case)
+class IStoragePoolTests(make_istoragepool_tests(_fixture)):
     """
     ``IStoragePoolTests`` for ZFS storage pool.
     """
+del _fixture
 
 
 class VolumeToDatasetTests(TestCase):
