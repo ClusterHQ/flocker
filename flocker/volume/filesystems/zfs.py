@@ -15,7 +15,7 @@ from characteristic import with_cmp, with_repr
 
 from zope.interface import implementer
 
-from eliot import Field, MessageType
+from eliot import Field, MessageType, Logger
 
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
@@ -267,6 +267,7 @@ class StoragePool(Service):
     Locally owned datasets have this overridden with an explicit
     ```readonly=off`` property set on them.
     """
+    logger = Logger()
 
     def __init__(self, reactor, name, mount_root):
         """
@@ -300,13 +301,15 @@ class StoragePool(Service):
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
-        _sync_zfs_command_error_squashed([b"set", b"readonly=on", self._name])
+        _sync_zfs_command_error_squashed(
+            [b"set", b"readonly=on", self._name], self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
-        _sync_zfs_command_error_squashed([b"set", b"canmount=off", self._name])
+        _sync_zfs_command_error_squashed(
+            [b"set", b"canmount=off", self._name], self.logger)
 
     def create(self, volume):
         filesystem = self.get(volume)
