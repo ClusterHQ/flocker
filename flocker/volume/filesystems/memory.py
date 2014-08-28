@@ -79,7 +79,8 @@ class DirectoryFilesystem(object):
 
 @implementer(IStoragePool)
 class FilesystemStoragePool(Service):
-    """A :class:`IStoragePool` implementation that just creates directories.
+    """
+    A :class:`IStoragePool` implementation that just creates directories.
 
     Rather than mounting actual filesystems, they are emulated by simply
     creating a directory for each filesystem.
