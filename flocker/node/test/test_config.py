@@ -46,8 +46,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config['mysql-hybridcluster'])
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Environment variable 'MYSQL_PORT_3306_TCP' must be of type "
-            "string or unicode; got 'int'.",
+            "Environment variable 'MYSQL_PORT_3306_TCP' must be a string; "
+            "got type 'int'.",
             exception.message
         )
 
@@ -70,8 +70,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config['mysql-hybridcluster'])
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "'environment' must be a dictionary of key/value pairs. "
-            "Got type 'unicode'",
+            "'environment' must be a dictionary of key/value pairs; "
+            "got type 'unicode'.",
             exception.message
         )
 

@@ -81,29 +81,17 @@ class Configuration(object):
             (key, value)
 
         """
-        invalid_env_message = (
-            "Application '{application_name}' has a config error. "
-            "'environment' must be a dictionary of key/value pairs. ").format(
-                application_name=application_name)
-
         environment = config.pop('environment', None)
         if environment:
-            if not isinstance(environment, dict):
-                raise ConfigurationError(
-                    invalid_env_message + "Got type '{envtype}'".format(
-                        envtype=type(environment).__name__)
-                )
+            _check_type(value=environment, types=(dict,),
+                        description="'environment' must be a dictionary of "
+                                    "key/value pairs",
+                        application_name=application_name)
             for key, value in environment.iteritems():
-                if not isinstance(value, types.StringTypes):
-                    raise ConfigurationError(
-                        ("Application '{application_name}' has a config "
-                         "error. Environment variable '{key}' must be of "
-                         "type string or unicode; got '{envtype}'.").format(
-                            application_name=application_name,
-                            key=key,
-                            envtype=type(value).__name__
-                        )
-                    )
+                _check_type(value=value, types=types.StringTypes,
+                            description="Environment variable '{key}' "
+                                        "must be a string".format(key=key),
+                            application_name=application_name)
             environment = frozenset(environment.items())
         return environment
 
