@@ -100,17 +100,17 @@ ZFS_ERROR = MessageType(
     u"The zfs command signaled an error.")
 
 
-def _sync_zfs_command_error_squashed(arguments, logger):
+def _sync_command_error_squashed(arguments, logger):
     """
-    Synchronously run the ``zfs`` command-line tool with the given arguments.
+    Synchronously a command-line tool with the given arguments.
 
     :param arguments: A ``list`` of ``bytes``, command-line arguments to
-    ``zfs``.
+        execute.
     """
     message = None
     log_arguments = b" ".join(arguments)
     try:
-        process = Popen([b"zfs"] + arguments, stdout=PIPE, stderr=STDOUT)
+        process = Popen(arguments, stdout=PIPE, stderr=STDOUT)
         output = process.stdout.read()
         status = process.wait()
     except Exception as e:
@@ -298,15 +298,15 @@ class StoragePool(Service):
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
-        _sync_zfs_command_error_squashed(
-            [b"set", b"readonly=on", self._name], self.logger)
+        _sync_command_error_squashed(
+            [b"zfs", b"set", b"readonly=on", self._name], self.logger)
 
         # If the root dataset is read-only then it's not possible to create
         # mountpoints in it for its child datasets.  Avoid mounting it to avoid
         # this problem.  This should be fine since we don't ever intend to put
         # any actual data into the root dataset.
-        _sync_zfs_command_error_squashed(
-            [b"set", b"canmount=off", self._name], self.logger)
+        _sync_command_error_squashed(
+            [b"zfs", b"set", b"canmount=off", self._name], self.logger)
 
     def create(self, volume):
         filesystem = self.get(volume)
