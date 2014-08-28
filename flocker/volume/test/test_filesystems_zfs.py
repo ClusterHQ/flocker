@@ -15,11 +15,14 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 
+from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
+
 from ...testtools import FakeProcessReactor
 
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
+    _sync_zfs_command_error_squashed, ZFS_ERROR
     )
 
 
@@ -100,6 +103,34 @@ class ZFSCommandTests(SynchronousTestCase):
         exception = ProcessTerminated(99)
         process_protocol.processEnded(Failure(exception))
         self.assertEqual(self.failureResultOf(result).value, exception)
+
+
+def command_error_logged(case, logger):
+    errors = LoggedMessage.ofType(logger.messages, ZFS_ERROR)
+    assertContainsFields(
+        case, errors[0].message,
+        {'status': 1,
+         'zfs_command': 'nonsense garbage made up no such command',
+         'output': '[Errno 2] No such file or directory',
+         u'message_type': 'filesystem:zfs:error',
+         u'task_level': u'/'})
+    case.assertEqual(1, len(errors))
+
+
+class SyncZFSCommandTests(SynchronousTestCase):
+    """
+    Tests for ``_sync_zfs_command_error_squashed``.
+    """
+    @validateLogging(command_error_logged)
+    def test_error_squashed(self, logger):
+        """
+        If the child process run by ``_sync_zfs_command_error_squashed``
+        encounters an error, the function nevertheless returns ``None``.
+        """
+        result = _sync_zfs_command_error_squashed(
+            [b"nonsense garbage made up no such command"],
+            logger)
+        self.assertIs(None, result)
 
 
 class ZFSSnapshotsTests(SynchronousTestCase):
