@@ -83,11 +83,11 @@ Connect to MySQL
 
 We can now use the ``mysql`` client on the host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
 Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application config.
-Our example MySQL image sets the ``root`` user password to ``admin`` so we'll connect to MySQL using those credentials and specify the IP address of the virtual machine as the host.
+Our example MySQL image sets the ``root`` user password to ``clusterhq`` so we'll connect to MySQL using those credentials and specify the IP address of the virtual machine as the host.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ mysql -h172.16.255.250 -uroot -padmin
+   alice@mercury:~/flocker-mysql$ mysql -h172.16.255.250 -uroot -pclusterhq
 
    Welcome to the MySQL monitor.  Commands end with ; or \g.
    Your MySQL connection id is 3
@@ -197,7 +197,7 @@ We'll now connect to the second node via the MySQL client, using the same authen
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ mysql -h172.16.255.251 -uroot -padmin
+   alice@mercury:~/flocker-mysql$ mysql -h172.16.255.251 -uroot -pclusterhq
 
    Welcome to the MySQL monitor.  Commands end with ; or \g.
    Your MySQL connection id is 1
