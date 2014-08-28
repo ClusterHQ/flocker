@@ -76,8 +76,10 @@ class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(
         name=u'site-example.com', image=object(),
-        ports=None, volume=None, environment=None
-    )
+        ports=None, volume=None, environment=None,
+        links=frozenset(),
+    ),
+    expected_defaults={'links': None},
 )):
     """
     Tests for ``Application.__init__``.

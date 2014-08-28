@@ -399,6 +399,7 @@ def configuration_to_yaml(applications):
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
+
         ports = []
         for port in application.ports:
             ports.append(
@@ -406,6 +407,17 @@ def configuration_to_yaml(applications):
                  'external': port.external_port}
             )
         result[application.name]["ports"] = ports
+
+        if application.links:
+            links = []
+            for link in application.links:
+                links.append({
+                    'local_port': link.local_port,
+                    'remote_port': link.remote_port,
+                    'alias': link.alias,
+                    })
+            result[application.name]["links"] = links
+
         if application.volume:
             # Until multiple volumes are supported, assume volume name
             # matches application name, see:

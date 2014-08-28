@@ -67,7 +67,7 @@ class AttachedVolume(object):
 
 @attributes(["name", "image", "ports", "volume", "links", "environment"],
             defaults=dict(image=None, ports=frozenset(), volume=None,
-                          links=frozenset(), environment=None))
+                          links=None, environment=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -75,6 +75,9 @@ class Application(object):
     XXX: The image attribute defaults to ``None`` until we have a way to
     interrogate geard for the docker images associated with its
     containers. See https://github.com/ClusterHQ/flocker/issues/207
+
+    XXX The links attribute defaults to ``None`` until we have a way to
+    interrogate configured links.
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
@@ -90,7 +93,8 @@ class Application(object):
         ``AttachedVolume`` instance.
 
     :ivar frozenset links: A ``frozenset`` of ``Link``s that
-        should be created between applications.
+        should be created between applications, or ``None`` if configuration
+        information isn't available.
 
     :ivar frozenset environment: A ``frozenset`` of environment variables
         that should be exposed in the ``Application`` container, or ``None``

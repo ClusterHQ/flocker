@@ -15,7 +15,7 @@ from .._config import (
     current_from_configuration,
     )
 from .._model import (
-    Application, AttachedVolume, DockerImage, Deployment, Node, Port,
+    Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
 )
 
 
@@ -257,6 +257,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     mountpoint=FilePath(b'/var/mysql/data'))),
@@ -266,6 +267,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
+                links=frozenset(),
                 environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
                     'WP_ADMIN_USERNAME': 'administrator'
@@ -292,10 +294,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'site-hybridcluster': {
                     'image': 'clusterhq/wordpress:v1.0.0',
                     'ports': [dict(internal=80, external=8080)],
+                    'links': [{'alias': 'mysql', 'local_port': 3306,
+                               'remote_port': 3306}],
                     'volume': {'mountpoint': b'/var/www/data'},
                     'environment': {
                         'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
-                    }
+                    },
                 }
             }
         )
@@ -306,6 +310,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='clusterhq/mysql', tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=3306,
                                       external_port=3306)]),
+                links=frozenset(),
                 volume=AttachedVolume(name='mysql-hybridcluster',
                                       mountpoint=FilePath(b'/var/lib/mysql'))
             ),
@@ -314,6 +319,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='clusterhq/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80, external_port=8080)]),
+                links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'mysql')]),
                 volume=AttachedVolume(name='site-hybridcluster',
                                       mountpoint=FilePath(b'/var/www/data')),
                 environment=frozenset({
@@ -623,6 +630,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     mountpoint=None)),
@@ -812,7 +820,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 repository='flocker/mysql',
                                 tag='v1.2.3'
                             ),
-                            ports=frozenset(),),
+                            ports=frozenset(),
+                            links=frozenset(),
+                        ),
                     ])
                 ),
                 Node(
@@ -825,6 +835,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 tag='v1.2.3'
                             ),
                             ports=frozenset(),
+                            links=frozenset(),
                         ),
                     ])
                 )
@@ -929,6 +940,36 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         }
         self.assertEqual(safe_load(result), expected)
 
+    def test_application_links(self):
+        """
+        The dictionary includes a representation of each supplied application,
+        including links to other application when the ``Application`` specifies
+        these.
+        """
+        applications = {
+            Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')])
+            )
+        }
+        result = configuration_to_yaml(applications)
+        expected = {
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [],
+                    'links': [{'local_port': 3306, 'remote_port': 63306,
+                               'alias': 'mysql'}]
+                },
+            },
+            'version': 1
+        }
+        self.assertEqual(safe_load(result), expected)
+
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
@@ -979,6 +1020,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     # Mountpoint will only be available once
@@ -991,7 +1033,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')]),
             )
         }
         expected_applications = {
@@ -999,6 +1044,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name=b'mysql-hybridcluster',
                 image=DockerImage(repository='unknown'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
                     mountpoint=None,
@@ -1008,7 +1054,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name=b'site-hybridcluster',
                 image=DockerImage(repository='unknown'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')]),
             )
         }
         result = configuration_to_yaml(applications)
@@ -1043,10 +1092,13 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                 ),
                 Application(
                     name='site-hybridcluster',
                     image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    links=frozenset(),
                 )]))]))
         self.assertEqual(expected,
                          current_from_configuration(config))
@@ -1080,11 +1132,14 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='site-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                 )])),
             Node(hostname='example.net', applications=frozenset([
                 Application(
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    links=frozenset(),
                 )]))]))
         self.assertEqual(expected,
                          current_from_configuration(config))
@@ -1110,6 +1165,7 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                     volume=AttachedVolume(
                         name='mysql-hybridcluster',
                         mountpoint=None,
