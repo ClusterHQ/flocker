@@ -1,6 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""ZFS APIs."""
+"""
+ZFS APIs.
+"""
 
 from __future__ import absolute_import
 

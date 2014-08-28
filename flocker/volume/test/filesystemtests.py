@@ -163,19 +163,23 @@ def make_istoragepool_tests(fixture):
         These are functional tests if run against real filesystems.
         """
         def test_interface(self):
-            """The tested object provides :class:`IStoragePool`."""
+            """
+            The tested object provides :class:`IStoragePool`.
+            """
             pool = fixture(self)
             self.assertTrue(verifyObject(IStoragePool, pool))
 
         def test_service(self):
             """
-            The tested object provides :class:`IStoragePool`.
+            The tested object provides :class:`IService`.
             """
             pool = fixture(self)
             self.assertTrue(verifyObject(IService, pool))
 
         def test_create_filesystem(self):
-            """``create()`` returns a :class:`IFilesystem` provider."""
+            """
+            ``create()`` returns a :class:`IFilesystem` provider.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -187,7 +191,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_names_create_different_filesystems(self):
-            """Two calls to ``create()`` with different volume names return
+            """
+            Two calls to ``create()`` with different volume names return
             different filesystems.
             """
             pool = fixture(self)
@@ -206,7 +211,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_uuid_create_different_filesystems(self):
-            """Two calls to ``create()`` with different volume manager UUIDs
+            """
+            Two calls to ``create()`` with different volume manager UUIDs
             return different filesystems.
             """
             pool = fixture(self)
@@ -225,8 +231,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_get_filesystem(self):
-            """``get()`` returns the same :class:`IFilesystem` provider as the
-            earlier created one."""
+            """
+            ``get()`` returns the same :class:`IFilesystem` provider as the
+            earlier created one.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -241,11 +249,8 @@ def make_istoragepool_tests(fixture):
 
         def test_mountpoint(self):
             """
-            The volume's filesystem has a mountpoint which is a
-            directory.
+            The volume's filesystem has a mountpoint which is a directory.
             """
-            """The volume's filesystem has a mountpoint which is a
-            directory."""
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -257,7 +262,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_volume_mountpoints_different(self):
-            """Each volume has its own mountpoint."""
+            """
+            Each volume has its own mountpoint.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -272,7 +279,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_reader_cleanup(self):
-            """The reader does not leave any open file descriptors behind."""
+            """
+            The reader does not leave any open file descriptors behind.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -286,7 +295,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_writer_cleanup(self):
-            """The writer does not leave any open file descriptors behind."""
+            """
+            The writer does not leave any open file descriptors behind.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -302,7 +313,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_write_new_filesystem(self):
-            """Writing the contents of one pool's filesystem to another pool's
+            """
+            Writing the contents of one pool's filesystem to another pool's
             filesystem creates that filesystem with the given contents.
             """
             d = create_and_copy(self, fixture)
@@ -314,7 +326,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_write_update_to_unchanged_filesystem(self):
-            """Writing an update of the contents of one pool's filesystem to
+            """
+            Writing an update of the contents of one pool's filesystem to
             another pool's filesystem that was previously created this way but
             is unchanged updates its contents.
             """
@@ -331,8 +344,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_multiple_writes(self):
-            """Writing the same contents to a filesystem twice does not result
-            in an error.
+            """
+            Writing the same contents to a filesystem twice does not result in
+            an error.
             """
             d = create_and_copy(self, fixture)
 
@@ -344,8 +358,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_exception_passes_through_read(self):
-            """If an exception is raised in the context of the reader, it is not
-            swallowed."""
+            """
+            If an exception is raised in the context of the reader, it is not
+            swallowed.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -358,8 +374,10 @@ def make_istoragepool_tests(fixture):
             return self.assertFailure(d, RuntimeError)
 
         def test_exception_passes_through_write(self):
-            """If an exception is raised in the context of the writer, it is not
-            swallowed."""
+            """
+            If an exception is raised in the context of the writer, it is not
+            swallowed.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -372,8 +390,10 @@ def make_istoragepool_tests(fixture):
             return self.assertFailure(d, RuntimeError)
 
         def test_exception_cleanup_through_read(self):
-            """If an exception is raised in the context of the reader, no
-            filedescriptors are leaked."""
+            """
+            If an exception is raised in the context of the reader, no
+            filedescriptors are leaked.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -390,8 +410,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_exception_cleanup_through_write(self):
-            """If an exception is raised in the context of the writer, no
-            filedescriptors are leaked."""
+            """
+            If an exception is raised in the context of the writer, no
+            filedescriptors are leaked.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -408,8 +430,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_exception_aborts_write(self):
-            """If an exception is raised in the context of the writer, no
-            changes are made to the filesystem."""
+            """
+            If an exception is raised in the context of the writer, no changes
+            are made to the filesystem.
+            """
             d = create_and_copy(self, fixture)
 
             def got_volumes(copied):
@@ -433,8 +457,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_garbage_in_write(self):
-            """If garbage is written to the writer, no changes are made to the
-            filesystem."""
+            """
+            If garbage is written to the writer, no changes are made to the
+            filesystem.
+            """
             d = create_and_copy(self, fixture)
 
             def got_volumes(copied):
@@ -447,8 +473,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_enumerate_no_filesystems(self):
-            """Lacking any filesystems, ``enumerate()`` returns an empty
-            result."""
+            """
+            Lacking any filesystems, ``enumerate()`` returns an empty result.
+            """
             pool = fixture(self)
             enumerating = pool.enumerate()
             enumerating.addCallback(self.assertEqual, set())
@@ -498,9 +525,13 @@ def make_istoragepool_tests(fixture):
             return enumerating.addCallback(enumerated)
 
         def test_consistent_naming_pattern(self):
-            """``IFilesystem.get_path().basename()`` has a consistent naming
-            pattern. This test should be removed as part of:
-                https://github.com/ClusterHQ/flocker/issues/78"""
+            """
+            ``IFilesystem.get_path().basename()`` has a consistent naming
+            pattern.
+
+            This test should be removed as part of:
+                https://github.com/ClusterHQ/flocker/issues/78
+            """
             pool = fixture(self)
             volume_name = u"myvolumename"
             service = service_for_pool(self, pool)
