@@ -11,19 +11,53 @@ from twisted.internet.defer import succeed, maybeDeferred
 from zope.interface import implementer
 
 from .service import (
-    VolumeService, CreateConfigurationError, DEFAULT_CONFIG_PATH,
-    FLOCKER_MOUNTPOINT, FLOCKER_POOL,
+    DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL,
+    VolumeScript, ICommandLineVolumeScript
     )
-from .filesystems.zfs import StoragePool
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner, ICommandLineScript)
+    flocker_standard_options, FlockerScriptRunner
+    )
 
 
 __all__ = [
     'flocker_volume_main',
+    'flocker_volume_options',
     'VolumeOptions',
-    'VolumeScript',
+    'VolumeManagerScript',
 ]
+
+
+def flocker_volume_options(cls):
+    """
+    A class decorator to add ``VolumeService`` specific command line options to
+    flocker commands.
+
+    :param cls: The class to decorate.
+    :return: The decorated class.
+    """
+    original_parameters = getattr(cls, "optParameters", [])
+    cls.optParameters = original_parameters + [
+        ["config", None, DEFAULT_CONFIG_PATH.path,
+         "The path to the Flocker volume configuration file, "
+         "containing the UUID of the Flocker volume service on this node. "
+         "This file will be created if it does not already exist."],
+        # Maybe we can come up with something better in
+        # https://github.com/ClusterHQ/flocker/issues/125
+        ["pool", None, FLOCKER_POOL,
+         "The ZFS pool to use for volumes."],
+        ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
+         "The path where ZFS filesystems will be mounted."],
+    ]
+
+    original_postOptions = cls.postOptions
+
+    def postOptions(self):
+        self["config"] = FilePath(self["config"])
+        original_postOptions(self)
+
+    cls.postOptions = postOptions
+
+    return cls
 
 
 class _ReceiveSubcommandOptions(Options):
@@ -95,6 +129,7 @@ class _AcquireSubcommandOptions(Options):
 
 
 @flocker_standard_options
+@flocker_volume_options
 class VolumeOptions(Options):
     """Command line options for ``flocker-volume`` volume management tool."""
 
@@ -104,17 +139,6 @@ class VolumeOptions(Options):
     """
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
-    optParameters = [
-        ["config", None, DEFAULT_CONFIG_PATH.path,
-         "The path to the config file."],
-        # Maybe we can come up with something better in
-        # https://github.com/ClusterHQ/flocker/issues/125
-        ["pool", None, FLOCKER_POOL,
-         "The ZFS pool to use for volumes."],
-        ["mountpoint", None, FLOCKER_MOUNTPOINT.path,
-         "The path where ZFS filesystems will be mounted."],
-    ]
-
     subCommands = [
         ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
@@ -122,61 +146,22 @@ class VolumeOptions(Options):
          "Acquire a remotely owned volume."],
     ]
 
-    def postOptions(self):
-        self["config"] = FilePath(self["config"])
 
-
-@implementer(ICommandLineScript)
-class VolumeScript(object):
-    """A volume manager script.
-
-    :ivar IService _service: ``VolumeService`` by default but can be overridden
-        for testing purposes.
+@implementer(ICommandLineVolumeScript)
+class VolumeManagerScript(object):
     """
-    _service_factory = VolumeService
-
-    def __init__(self, sys_module=None):
-        """
-        :param sys_module: An optional ``sys`` like fake module for use in
-            testing. Defaults to ``sys``.
-        """
-        if sys_module is None:
-            sys_module = sys
-        self._sys_module = sys_module
-
-    def create_volume_service(self, reactor, options):
-        """
-        Create a ``VolumeService`` for the given arguments.
-
-        This should probably be elsewhere:
-        https://github.com/ClusterHQ/flocker/issues/305
-
-        :return: The started ``VolumeService``.
-        """
-        pool = StoragePool(reactor, options["pool"],
-                           FilePath(options["mountpoint"]))
-        service = self._service_factory(
-            config_path=options["config"], pool=pool, reactor=reactor)
-        try:
-            service.startService()
-        except CreateConfigurationError as e:
-            self._sys_module.stderr.write(
-                b"Writing config file %s failed: %s\n" % (
-                    options["config"].path, e)
-            )
-            raise SystemExit(1)
-        return service
-
-    def main(self, reactor, options):
+    A volume manager script.
+    """
+    def main(self, reactor, options, service):
         """
         Run a volume management operation.
 
         The volume manager will be configured according to the supplied
         options.
 
-        See :py:meth:`ICommandLineScript.main` for parameter documentation.
+        See :py:meth:`ICommandLineVolumeScript.main` for parameter
+            documentation.
         """
-        service = self.create_volume_service(reactor, options)
         if options.subCommand is not None:
             return maybeDeferred(options.subOptions.run, service)
         else:
@@ -185,6 +170,6 @@ class VolumeScript(object):
 
 def flocker_volume_main():
     return FlockerScriptRunner(
-        script=VolumeScript(),
+        script=VolumeScript(VolumeManagerScript()),
         options=VolumeOptions()
     ).main()

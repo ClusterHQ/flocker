@@ -116,6 +116,8 @@ class FlockerDeployConfigureSSHTests(TestCase):
         result = script._configure_ssh(deployment)
         result.addErrback(lambda f: f.value.subFailure)
         result = self.assertFailure(result, ZeroDivisionError)
+        # Handle errors logged by gather_deferreds
+        self.addCleanup(self.flushLoggedErrors, ZeroDivisionError)
         return result
 
     def test_sshkey_installation_ssh_process_failure(self):
@@ -143,4 +145,55 @@ class FlockerDeployConfigureSSHTests(TestCase):
         result = self.assertFailure(result, SystemExit)
         result.addCallback(lambda exc: self.assertEqual(
             exc.args, (b"Error connecting to cluster node: onoes",)))
+        # Handle errors logged by gather_deferreds
+        self.addCleanup(self.flushLoggedErrors, CalledProcessError)
+        return result
+
+    def test_sshkey_installation_failure_logging(self):
+        """
+        ``DeployScript._configure_ssh`` logs all failed configuration attempts.
+        """
+        expected_errors = [
+            ZeroDivisionError("error1"),
+            ZeroDivisionError("error2"),
+            ZeroDivisionError("error3"),
+        ]
+
+        error_iterator = (e for e in expected_errors)
+
+        def fail(host, port):
+            raise error_iterator.next()
+
+        self.config.configure_ssh = fail
+
+        deployment = Deployment(
+            nodes=frozenset([
+                Node(
+                    hostname=b'node1.example.com',
+                    applications=None
+                ),
+                Node(
+                    hostname=b'node2.example.com',
+                    applications=None
+                ),
+                Node(
+                    hostname=b'node3.example.com',
+                    applications=None
+                ),
+
+            ])
+        )
+
+        script = DeployScript(
+            ssh_configuration=self.config, ssh_port=self.server.port)
+        result = script._configure_ssh(deployment)
+
+        def check_logs(ignored_first_error):
+            failures = self.flushLoggedErrors(ZeroDivisionError)
+            self.assertEqual(
+                expected_errors,
+                [f.value for f in failures]
+            )
+
+        result.addErrback(check_logs)
         return result
