@@ -9,7 +9,7 @@ from __future__ import absolute_import
 import os
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import STDOUT, PIPE, Popen
+from subprocess import STDOUT, PIPE, Popen, check_call
 
 from characteristic import with_cmp, with_repr
 
@@ -167,9 +167,8 @@ class Filesystem(object):
         # I'm just using UUIDs, and hopefully requirements will become
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
-        subprocess.check_call([b"zfs", b"snapshot", snapshot])
-        process = subprocess.Popen([b"zfs", b"send", snapshot],
-                                   stdout=subprocess.PIPE)
+        check_call([b"zfs", b"snapshot", snapshot])
+        process = Popen([b"zfs", b"send", snapshot], stdout=PIPE)
         try:
             yield process.stdout
         finally:
@@ -182,8 +181,7 @@ class Filesystem(object):
         # The temporary filesystem will be unnecessary once we have
         # https://github.com/ClusterHQ/flocker/issues/46
         temp_filesystem = b"%s/%s" % (self.pool, random_name())
-        process = subprocess.Popen([b"zfs", b"recv", b"-F", temp_filesystem],
-                                   stdin=subprocess.PIPE)
+        process = Popen([b"zfs", b"recv", b"-F", temp_filesystem], stdin=PIPE)
         succeeded = False
         try:
             yield process.stdin
@@ -192,16 +190,15 @@ class Filesystem(object):
             succeeded = not process.wait()
         if succeeded:
             with open(os.devnull) as discard:
-                exists = not subprocess.Popen(
+                exists = not Popen(
                     [b"zfs", b"list", self.name],
                     stderr=discard, stdout=discard).wait()
             if exists:
-                subprocess.check_call([b"zfs", b"destroy", b"-R", self.name])
-            subprocess.check_call([b"zfs", b"rename", temp_filesystem,
-                                   self.name])
-            subprocess.check_call([b"zfs", b"set",
-                                   b"mountpoint=" + self._mountpoint.path,
-                                   self.name])
+                check_call([b"zfs", b"destroy", b"-R", self.name])
+            check_call([b"zfs", b"rename", temp_filesystem, self.name])
+            check_call([b"zfs", b"set",
+                        b"mountpoint=" + self._mountpoint.path,
+                        self.name])
 
 
 @implementer(IFilesystemSnapshots)
