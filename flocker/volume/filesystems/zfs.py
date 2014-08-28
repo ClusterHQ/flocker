@@ -243,6 +243,7 @@ class StoragePool(Service):
         self._mount_root = mount_root
 
     def startService(self):
+        Service.startService(self)
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
