@@ -490,6 +490,113 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_link_alias_not_stringtypes(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an alias that is not of
+        ``types.StringTypes``.
+        """
+        links = [
+            {
+                'alias': ['not', 'a', 'string'],
+                'local_port': 1234,
+                'remote_port': 5678,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link alias must be a string; got type 'list'.",
+            exception.message
+        )
+
+    def test_error_on_link_local_port_not_int(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an local port that is
+        not of type ``int``.
+        """
+        links = [
+            {
+                'alias': "some-service",
+                'local_port': 1.2,
+                'remote_port': 5678,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link's local port must be an int; got type 'float'.",
+            exception.message
+        )
+
+    def test_error_on_link_remote_port_not_int(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an remote port that is
+        not of type ``int``.
+        """
+        links = [
+            {
+                'alias': "some-service",
+                'local_port': 1234,
+                'remote_port': 56.78,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link's remote port must be an int; got type 'float'.",
+            exception.message
+        )
+
+    def test_error_on_links_not_list(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration's
+        ``u"links"`` key is not a dictionary.
+        """
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      u'not-a-list')
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "'links' must be a list of dictionaries; "
+            "got type 'unicode'.",
+            exception.message
+        )
+
+    def test_error_on_link_not_dictonary(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a link is not a dictionary.
+        """
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      [u'not-a-dictionary'])
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link must be a dictionary; "
+            "got type 'unicode'.",
+            exception.message
+        )
+
     def test_error_on_volume_extra_keys(self):
         """
         ``Configuration._applications_from_configuration`` raises a
