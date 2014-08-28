@@ -225,10 +225,11 @@ class StoragePool(Service):
     """
     A ZFS storage pool.
 
-    Remotely owned filesystems are mounted read-only, to prevent changes
-    that would break ``zfs recv``. This is done by having the root dataset
-    be ``readonly=on`` and thus inherited by default. Locally owned
-    datasets have ```readonly=off`` property set on them.
+    Remotely owned filesystems are mounted read-only to prevent changes
+    (divergence which would break ``zfs recv``).  This is done by having the
+    root dataset be ``readonly=on`` - which is inherited by all child datasets.
+    Locally owned datasets have this overridden with an explicit
+    ```readonly=off`` property set on them.
     """
 
     def __init__(self, reactor, name, mount_root):
@@ -248,9 +249,10 @@ class StoragePool(Service):
         # doesn't support Deferred results, and in any case startup can be
         # synchronous with no ill effects.
         subprocess.check_call([b"zfs", b"set", b"readonly=on", self._name])
-        # If we're read-only, mounting directories within the mounted ZFS
-        # dataset causes issues... and anyway we don't expect to ever do
-        # anything in the root dataset.
+        # If the root dataset is read-only then it's not possible to create
+        # mountpoints in it for its child datasets.  Avoid mounting it to avoid
+        # this problem.  This should be fine since we don't ever intend to put
+        # any actual data into the root dataset.
         subprocess.check_call([b"zfs", b"set", b"canmount=off", self._name])
 
     def create(self, volume):
