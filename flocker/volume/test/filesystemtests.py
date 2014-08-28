@@ -176,6 +176,15 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             self.assertTrue(verifyObject(IService, pool))
 
+        def test_running(self):
+            """
+            The tested object is ``running`` after its ``startService`` method
+            is called.
+            """
+            pool = fixture(self)
+            pool.startService()
+            self.assertTrue(pool.running)
+
         def test_create_filesystem(self):
             """
             ``create()`` returns a :class:`IFilesystem` provider.
