@@ -88,6 +88,9 @@ class Configuration(object):
                                     "key/value pairs",
                         application_name=application_name)
             for key, value in environment.iteritems():
+                _check_type(value=key, types=types.StringTypes,
+                            description="Environment variable name must be a string",
+                            application_name=application_name)
                 _check_type(value=value, types=types.StringTypes,
                             description="Environment variable '{key}' "
                                         "must be a string".format(key=key),

@@ -51,6 +51,33 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_environment_var_name_not_stringtypes(self):
+        """
+        ``Configuration._applications.from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration's
+        ``u"environment"`` dictionary contains a key that is not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'mysql-hybridcluster': {
+                'image': 'clusterhq/mysql',
+                'environment': {
+                    56: "test",
+                }
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_environment_config,
+                                      'mysql-hybridcluster',
+                                      config['mysql-hybridcluster'])
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Environment variable name must be a string; "
+            "got type 'int'.",
+            exception.message
+        )
+
     def test_error_on_environment_vars_not_dict(self):
         """
         ``Configuration._applications.from_configuration`` raises a
