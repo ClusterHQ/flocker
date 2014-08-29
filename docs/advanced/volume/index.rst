@@ -26,6 +26,9 @@ A volume manager can also *handoff* a volume to a remote volume manager, i.e. tr
 The remote volume manager becomes the owner of the volume and subsequently it is able to write to the volume.
 The volume manager that did the handoff ceases to own the volume and subsequently is not allowed to write to the volume.
 
+Volumes are mounted read-write by the manager which owns them.
+They are mounted read-only by any other manager which has a copy.
+
 
 Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
