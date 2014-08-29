@@ -868,7 +868,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'clusterhq/flocker',
                               tag=u'release-14.0'),
-            ports=frozenset([]),
+            ports=frozenset(),
         )
 
         nodes = frozenset([
@@ -896,7 +896,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         fake_gear = FakeGearClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), gear_client=fake_gear,
                        network=make_memory_network())
-        desired = Deployment(nodes=frozenset([]))
+        desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
