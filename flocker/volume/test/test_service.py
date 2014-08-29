@@ -650,10 +650,6 @@ class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
         mountpoint = FilePath(self.mktemp())
         config = FilePath(self.mktemp())
 
-        # Ugh.  Don't let this test run random zfs commands.
-        import subprocess
-        self.patch(subprocess, "check_call", lambda *a, **kw: None)
-
         options = VolumeOptions()
         options.parseOptions([
             b"--config", config.path,
