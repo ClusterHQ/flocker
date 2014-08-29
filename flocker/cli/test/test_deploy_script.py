@@ -149,13 +149,15 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             name=u'mysql-hybridcluster',
             image=DockerImage(
                 repository=u'hybridlogic/mysql5.9', tag=u'latest'),
-            ports=frozenset([]),
+            ports=frozenset(),
+            links=frozenset(),
         )
         site = Application(
             name=u'site-hybridcluster.com',
             image=DockerImage(
                 repository=u'hybridlogic/nginx', tag=u'v1.2.3'),
-            ports=frozenset([]),
+            ports=frozenset(),
+            links=frozenset(),
         )
 
         node1 = Node(hostname=u'node1.test', applications=frozenset([db]))

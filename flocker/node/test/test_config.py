@@ -15,7 +15,7 @@ from .._config import (
     current_from_configuration,
     )
 from .._model import (
-    Application, AttachedVolume, DockerImage, Deployment, Node, Port
+    Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
 )
 
 
@@ -41,8 +41,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         }
         error_message = (
             "Application 'mysql-hybridcluster' has a config error. "
-            "Environment variable 'MYSQL_PORT_3306_TCP' must be of type "
-            "string or unicode; got 'int'.")
+            "Environment variable 'MYSQL_PORT_3306_TCP' must be a string; "
+            "got type 'int'.")
         parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
@@ -51,6 +51,35 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             exception.message,
             error_message
+        )
+
+    def test_error_on_environment_var_name_not_stringtypes(self):
+        """
+        ``Configuration._applications.from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration's
+        ``u"environment"`` dictionary contains a key that is not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'mysql-hybridcluster': {
+                'image': 'clusterhq/mysql',
+                'environment': {
+                    56: "test",
+                }
+            }
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Environment variable name must be a string; "
+            "got type 'int'.")
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_environment_config,
+                                      'mysql-hybridcluster',
+                                      config['mysql-hybridcluster'])
+        self.assertEqual(
+            exception.message,
+            error_message,
         )
 
     def test_error_on_environment_vars_not_dict(self):
@@ -72,8 +101,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       config['mysql-hybridcluster'])
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "'environment' must be a dictionary of key/value pairs. "
-            "Got type 'unicode'",
+            "'environment' must be a dictionary of key/value pairs; "
+            "got type 'unicode'.",
             exception.message
         )
 
@@ -259,6 +288,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     mountpoint=FilePath(b'/var/mysql/data'))),
@@ -268,10 +298,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
+                links=frozenset(),
                 environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306',
                     'WP_ADMIN_USERNAME': 'administrator'
-                }.items()))
+                }.items())
+            ),
         }
         self.assertEqual(expected_applications, applications)
 
@@ -293,10 +325,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'site-hybridcluster': {
                     'image': 'clusterhq/wordpress:v1.0.0',
                     'ports': [dict(internal=80, external=8080)],
+                    'links': [{'alias': 'mysql', 'local_port': 3306,
+                               'remote_port': 3306}],
                     'volume': {'mountpoint': b'/var/www/data'},
                     'environment': {
                         'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
-                    }
+                    },
                 }
             }
         )
@@ -307,6 +341,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='clusterhq/mysql', tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=3306,
                                       external_port=3306)]),
+                links=frozenset(),
                 volume=AttachedVolume(name='mysql-hybridcluster',
                                       mountpoint=FilePath(b'/var/lib/mysql'))
             ),
@@ -315,6 +350,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='clusterhq/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80, external_port=8080)]),
+                links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'mysql')]),
                 volume=AttachedVolume(name='site-hybridcluster',
                                       mountpoint=FilePath(b'/var/www/data')),
                 environment=frozenset({
@@ -390,6 +427,204 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
+
+    def test_links_missing_local_port(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the remote port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'remote_port': 90,
+                        'alias': 'mysql'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing local port.",
+            exception.message
+        )
+
+    def test_links_missing_remote_port(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the local port.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'local_port': 90,
+                        'alias': 'mysql'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing remote port.",
+            exception.message
+        )
+
+    def test_links_missing_alias(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that is missing the alias.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'local_port': 90, 'remote_port': 100}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Missing alias.",
+            exception.message
+        )
+
+    def test_links_extra_keys(self):
+        """
+        ``Configuration._applications_from_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration has a link
+        entry that has extra keys.
+        """
+        config = dict(
+            version=1,
+            applications={'mysql-hybridcluster': dict(
+                image='busybox',
+                links=[{'remote_port': 90, 'local_port': 40, 'alias': 'other',
+                        'foo': 5, 'bar': 'six'}],
+                )})
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._applications_from_configuration,
+                                      config)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Invalid links specification. Unrecognised keys: bar, foo.",
+            exception.message
+        )
+
+    def test_error_on_link_alias_not_stringtypes(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an alias that is not of
+        ``types.StringTypes``.
+        """
+        links = [
+            {
+                'alias': ['not', 'a', 'string'],
+                'local_port': 1234,
+                'remote_port': 5678,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link alias must be a string; got type 'list'.",
+            exception.message
+        )
+
+    def test_error_on_link_local_port_not_int(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an local port that is
+        not of type ``int``.
+        """
+        links = [
+            {
+                'alias': "some-service",
+                'local_port': 1.2,
+                'remote_port': 5678,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link's local port must be an int; got type 'float'.",
+            exception.message
+        )
+
+    def test_error_on_link_remote_port_not_int(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a configured link has an remote port that is
+        not of type ``int``.
+        """
+        links = [
+            {
+                'alias': "some-service",
+                'local_port': 1234,
+                'remote_port': 56.78,
+            }
+        ]
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      links)
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link's remote port must be an int; got type 'float'.",
+            exception.message
+        )
+
+    def test_error_on_links_not_list(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if the application_configuration's
+        ``u"links"`` key is not a dictionary.
+        """
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      u'not-a-list')
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "'links' must be a list of dictionaries; "
+            "got type 'unicode'.",
+            exception.message
+        )
+
+    def test_error_on_link_not_dictonary(self):
+        """
+        ``Configuration._parse_link_configuration`` raises a
+        ``ConfigurationError`` if a link is not a dictionary.
+        """
+        parser = Configuration()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse_link_configuration,
+                                      'mysql-hybridcluster',
+                                      [u'not-a-dictionary'])
+        self.assertEqual(
+            "Application 'mysql-hybridcluster' has a config error. "
+            "Link must be a dictionary; "
+            "got type 'unicode'.",
             exception.message
         )
 
@@ -533,6 +768,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     mountpoint=None)),
@@ -722,7 +958,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 repository='flocker/mysql',
                                 tag='v1.2.3'
                             ),
-                            ports=frozenset(),),
+                            ports=frozenset(),
+                            links=frozenset(),
+                        ),
                     ])
                 ),
                 Node(
@@ -735,6 +973,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                                 tag='v1.2.3'
                             ),
                             ports=frozenset(),
+                            links=frozenset(),
                         ),
                     ])
                 )
@@ -839,6 +1078,36 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         }
         self.assertEqual(safe_load(result), expected)
 
+    def test_application_links(self):
+        """
+        The dictionary includes a representation of each supplied application,
+        including links to other application when the ``Application`` specifies
+        these.
+        """
+        applications = {
+            Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')])
+            )
+        }
+        result = configuration_to_yaml(applications)
+        expected = {
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [],
+                    'links': [{'local_port': 3306, 'remote_port': 63306,
+                               'alias': 'mysql'}]
+                },
+            },
+            'version': 1
+        }
+        self.assertEqual(safe_load(result), expected)
+
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
@@ -889,6 +1158,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     # Mountpoint will only be available once
@@ -901,7 +1171,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')]),
             )
         }
         expected_applications = {
@@ -909,6 +1182,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name=b'mysql-hybridcluster',
                 image=DockerImage(repository='unknown'),
                 ports=frozenset(),
+                links=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
                     mountpoint=None,
@@ -918,7 +1192,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 name=b'site-hybridcluster',
                 image=DockerImage(repository='unknown'),
                 ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306,
+                                      remote_port=63306,
+                                      alias='mysql')]),
             )
         }
         result = configuration_to_yaml(applications)
@@ -953,10 +1230,13 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                 ),
                 Application(
                     name='site-hybridcluster',
                     image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    links=frozenset(),
                 )]))]))
         self.assertEqual(expected,
                          current_from_configuration(config))
@@ -990,11 +1270,14 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='site-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                 )])),
             Node(hostname='example.net', applications=frozenset([
                 Application(
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
+                    ports=frozenset(),
+                    links=frozenset(),
                 )]))]))
         self.assertEqual(expected,
                          current_from_configuration(config))
@@ -1020,6 +1303,7 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                     name='mysql-hybridcluster',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                     volume=AttachedVolume(
                         name='mysql-hybridcluster',
                         mountpoint=None,
