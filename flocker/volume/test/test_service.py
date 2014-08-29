@@ -4,21 +4,27 @@
 
 from __future__ import absolute_import
 
+import sys
 import json
 from uuid import uuid4
+from StringIO import StringIO
 
+from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
-from twisted.application.service import IService
+from twisted.application.service import IService, Service
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath, Permissions
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
     VolumeService, CreateConfigurationError, Volume,
-    WAIT_FOR_VOLUME_INTERVAL
+    WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
     )
+from ..script import VolumeOptions
+
 from ..filesystems.memory import FilesystemStoragePool
+from ..filesystems.zfs import StoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ..testtools import create_volume_service
 from ...common import FakeNode
@@ -550,7 +556,6 @@ class WaitForVolumeTests(TestCase):
 
     def test_remote_volume(self):
         """
-        If the volume doesn't exist, the ``Deferred`` returned by
         The ``Deferred`` returned by ``VolumeService.wait_for_volume`` does not
         fire when a remote volume with the same name is received.
         """
@@ -560,3 +565,145 @@ class WaitForVolumeTests(TestCase):
         self.successResultOf(self.pool.create(remote_volume))
 
         self.assertNoResult(self.service.wait_for_volume(u'volume'))
+
+
+class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):
+    """
+    Tests for ``VolumeScript._create_volume_service``.
+    """
+    @skip_on_broken_permissions
+    def test_exit(self):
+        """
+        ``VolumeScript._create_volume_service`` raises ``SystemExit`` with a
+        non-zero code if ``VolumeService.startService`` raises
+        ``CreateConfigurationError``.
+        """
+        directory = FilePath(self.mktemp())
+        directory.makedirs()
+        directory.chmod(0o000)
+        self.addCleanup(directory.chmod, 0o777)
+        config = directory.child("config.yml")
+
+        stderr = StringIO()
+        reactor = object()
+        options = VolumeOptions()
+        options.parseOptions([b"--config", config.path])
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            exc = self.assertRaises(
+                SystemExit, VolumeScript._create_volume_service,
+                stderr, reactor, options)
+        self.assertEqual(1, exc.code)
+
+    @skip_on_broken_permissions
+    def test_details_written(self):
+        """
+        ``VolumeScript._create_volume_service`` writes details of the error to
+        the given ``stderr`` if ``VolumeService.startService`` raises
+        ``CreateConfigurationError``.
+        """
+        directory = FilePath(self.mktemp())
+        directory.makedirs()
+        directory.chmod(0o000)
+        self.addCleanup(directory.chmod, 0o777)
+        config = directory.child("config.yml")
+
+        stderr = StringIO()
+        reactor = object()
+        options = VolumeOptions()
+        options.parseOptions([b"--config", config.path])
+        with attempt_effective_uid('nobody', suppress_errors=True):
+            self.assertRaises(
+                SystemExit, VolumeScript._create_volume_service,
+                stderr, reactor, options)
+        self.assertEqual(
+            "Writing config file {} failed: Permission denied\n".format(
+                config.path).encode("ascii"),
+            stderr.getvalue())
+
+    def test_options(self):
+        """
+        When successful, ``VolumeScript._create_volume_service`` returns a
+        running ``VolumeService`` initialized with the pool, mountpoint, and
+        configuration path given by the ``options`` argument.
+        """
+        pool = b"some-pool"
+        mountpoint = FilePath(self.mktemp())
+        config = FilePath(self.mktemp())
+
+        options = VolumeOptions()
+        options.parseOptions([
+            b"--config", config.path,
+            b"--pool", pool,
+            b"--mountpoint", mountpoint.path,
+        ])
+
+        stderr = StringIO()
+        reactor = object()
+
+        service = VolumeScript._create_volume_service(stderr, reactor, options)
+        self.assertEqual(
+            (True, config, StoragePool(reactor, pool, mountpoint)),
+            (service.running, service._config_path, service.pool)
+        )
+
+    def test_service_factory(self):
+        """
+        ``VolumeScript._create_volume_service`` uses
+        ``VolumeScript._service_factory`` to create a ``VolumeService`` (or
+        whatever else that hook decides to create).
+        """
+        expected = Service()
+        script = VolumeScript(object())
+        self.patch(
+            VolumeScript, "_service_factory",
+            staticmethod(lambda config_path, pool, reactor: expected))
+
+        options = VolumeOptions()
+        options.parseOptions([])
+        service = script._create_volume_service(
+            object(), object(), options)
+        self.assertIs(expected, service)
+
+
+class VolumeScriptMainTests(SynchronousTestCase):
+    """
+    Tests for ``VolumeScript.main``.
+    """
+    def test_arguments(self):
+        """
+        ``VolumeScript.main`` calls the ``main`` method of the script object
+        the ``VolumeScript`` was initialized with, passing the same reactor and
+        options and also the running ``VolumeService``.
+        """
+        @implementer(ICommandLineVolumeScript)
+        class VolumeServiceScript(object):
+            def __init__(self):
+                self.calls = []
+
+            def main(self, reactor, options, volume_service):
+                self.calls.append((reactor, options, volume_service))
+
+        script = VolumeServiceScript()
+        helper = VolumeScript(script)
+
+        reactor = object()
+        options = VolumeOptions()
+        options.parseOptions([])
+
+        service = Service()
+        self.patch(
+            VolumeScript, "_service_factory",
+            staticmethod(lambda *args, **kwargs: service))
+
+        helper.main(reactor, options)
+
+        self.assertEqual(
+            [(reactor, options, service)],
+            script.calls
+        )
+
+    def test_default_stderr(self):
+        """
+        ``VolumeScript`` defaults to using the ``sys`` module.
+        """
+        self.assertIs(sys, VolumeScript(object())._sys_module)

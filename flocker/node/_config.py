@@ -27,6 +27,28 @@ class ConfigurationError(Exception):
     """
 
 
+def _check_type(value, types, description, application_name):
+    """
+    Checks ``value`` has type in ``types``.
+
+    :param value: Value whose type is to be checked
+    :param tuple types: Tuple of types value can be.
+    :param str description: Description of expected type.
+    :param application_name unicode: Name of application whose config
+        contains ``value``.
+
+    :raises ConfigurationError: If ``value`` is not of type in ``types``.
+    """
+    if not isinstance(value, types):
+        raise ConfigurationError(
+            "Application '{application_name}' has a config "
+            "error. {description}; got type '{type}'.".format(
+                application_name=application_name,
+                description=description,
+                type=type(value).__name__,
+            ))
+
+
 class Configuration(object):
     """
     Validate and parse configurations.
@@ -59,29 +81,23 @@ class Configuration(object):
             (key, value)
 
         """
-        invalid_env_message = (
-            "Application '{application_name}' has a config error. "
-            "'environment' must be a dictionary of key/value pairs. ").format(
-                application_name=application_name)
-
         environment = config.pop('environment', None)
         if environment:
-            if not isinstance(environment, dict):
-                raise ConfigurationError(
-                    invalid_env_message + "Got type '{envtype}'".format(
-                        envtype=type(environment).__name__)
-                )
+            _check_type(value=environment, types=(dict,),
+                        description="'environment' must be a dictionary of "
+                                    "key/value pairs",
+                        application_name=application_name)
             for key, value in environment.iteritems():
-                if not isinstance(value, types.StringTypes):
-                    raise ConfigurationError(
-                        ("Application '{application_name}' has a config "
-                         "error. Environment variable '{key}' must be of "
-                         "type string or unicode; got '{envtype}'.").format(
-                            application_name=application_name,
-                            key=key,
-                            envtype=type(value).__name__
-                        )
-                    )
+                # We should normailzie strings to either bytes or unicode here
+                # https://github.com/ClusterHQ/flocker/issues/636
+                _check_type(value=key, types=types.StringTypes,
+                            description="Environment variable name "
+                                        "must be a string",
+                            application_name=application_name)
+                _check_type(value=value, types=types.StringTypes,
+                            description="Environment variable '{key}' "
+                                        "must be a string".format(key=key),
+                            application_name=application_name)
             environment = frozenset(environment.items())
         return environment
 
@@ -97,18 +113,39 @@ class Configuration(object):
         :returns: A ``frozenset`` of ``Link``s specfied for this application.
         """
         links = []
+        _check_type(value=config, types=(list,),
+                    description="'links' must be a list of dictionaries",
+                    application_name=application_name)
         try:
             for link in config:
+                _check_type(value=link, types=(dict,),
+                            description="Link must be a dictionary",
+                            application_name=application_name)
+
                 try:
                     local_port = link.pop('local_port')
+                    _check_type(value=local_port, types=(int,),
+                                description="Link's local port must be an int",
+                                application_name=application_name)
                 except KeyError:
                     raise ValueError("Missing local port.")
+
                 try:
                     remote_port = link.pop('remote_port')
+                    _check_type(value=remote_port, types=(int,),
+                                description="Link's remote port "
+                                            "must be an int",
+                                application_name=application_name)
                 except KeyError:
                     raise ValueError("Missing remote port.")
+
                 try:
+                    # We should normailzie strings to either bytes or unicode here
+                    # https://github.com/ClusterHQ/flocker/issues/636
                     alias = link.pop('alias')
+                    _check_type(value=alias, types=types.StringTypes,
+                                description="Link alias must be a string",
+                                application_name=application_name)
                 except KeyError:
                     raise ValueError("Missing alias.")
 
@@ -399,6 +436,7 @@ def configuration_to_yaml(applications):
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
+
         ports = []
         for port in application.ports:
             ports.append(
@@ -406,6 +444,17 @@ def configuration_to_yaml(applications):
                  'external': port.external_port}
             )
         result[application.name]["ports"] = ports
+
+        if application.links:
+            links = []
+            for link in application.links:
+                links.append({
+                    'local_port': link.local_port,
+                    'remote_port': link.remote_port,
+                    'alias': link.alias,
+                    })
+            result[application.name]["links"] = links
+
         if application.volume:
             # Until multiple volumes are supported, assume volume name
             # matches application name, see:

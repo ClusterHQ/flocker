@@ -135,6 +135,9 @@ class OpenSSHConfiguration(object):
              # this leads for mDNS lookups on every SSH, which can slow down
              # connections very noticeably
              b"-oGSSAPIAuthentication=no",
+             # The tests hang if ControlMaster is set, since OpenSSH won't
+             # ever close the connection to the test server.
+             b"-oControlMaster=no",
              # Connect as root, since we need superuser permissions for
              # ZFS and Docker:
              b"-l", b"root",

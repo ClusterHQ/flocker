@@ -1,14 +1,19 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 # -*- test-case-name: flocker.volume.test.test_service -*-
 
-"""Volume manager service, the main entry point that manages volumes."""
+"""
+Volume manager service, the main entry point that manages volumes.
+"""
 
 from __future__ import absolute_import
 
 import os
+import sys
 import json
 import stat
 from uuid import UUID, uuid4
+
+from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
@@ -22,8 +27,8 @@ from twisted.internet.task import LoopingCall
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
-from .filesystems.zfs import _AccumulatingProtocol, CommandFailed
-
+from .filesystems.zfs import _AccumulatingProtocol, CommandFailed, StoragePool
+from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
 FLOCKER_MOUNTPOINT = FilePath(b"/flocker")
@@ -371,3 +376,69 @@ class Volume(object):
         d.addErrback(lambda failure: failure.trap(CommandFailed))
         d.addCallback(lambda _: None)
         return d
+
+
+@implementer(ICommandLineScript)
+class VolumeScript(object):
+    """
+    ``VolumeScript`` is a command line script helper which creates and starts a
+    ``VolumeService`` and then makes it available to another object which
+    implements the rest of the behavior for the command line script.
+
+    :ivar _service_factory: ``VolumeService`` by default but can be
+        overridden for testing purposes.
+    """
+    _service_factory = VolumeService
+
+    @classmethod
+    def _create_volume_service(cls, stderr, reactor, options):
+        """
+        Create a ``VolumeService`` for the given arguments.
+
+        :return: The started ``VolumeService``.
+        """
+        pool = StoragePool(reactor, options["pool"],
+                           FilePath(options["mountpoint"]))
+        service = cls._service_factory(
+            config_path=options["config"], pool=pool, reactor=reactor)
+        try:
+            service.startService()
+        except CreateConfigurationError as e:
+            stderr.write(
+                b"Writing config file %s failed: %s\n" % (
+                    options["config"].path, e)
+            )
+            raise SystemExit(1)
+        return service
+
+    def __init__(self, volume_script, sys_module=sys):
+        """
+        :param ICommandLineVolumeScript volume_script: Another script
+            implementation which will be passed a started ``VolumeService``
+            along with the reactor and script options.
+        """
+        self._volume_script = volume_script
+        self._sys_module = sys_module
+
+    def main(self, reactor, options):
+        """
+        Create and start the ``VolumeService`` and then delegate the rest to
+        the other script object that this object was initialized with.
+        """
+        service = self._create_volume_service(
+            self._sys_module.stderr, reactor, options)
+        return self._volume_script.main(reactor, options, service)
+
+
+class ICommandLineVolumeScript(Interface):
+    """
+    A script which requires a running ``VolumeService`` and can be run by
+    ``FlockerScriptRunner`` and `VolumeScript``.
+    """
+    def main(reactor, options, volume_service):
+        """
+        :param VolumeService volume_service: An already-started volume service.
+
+        See ``ICommandLineScript.main`` for documentation for the other
+        parameters and return value.
+        """

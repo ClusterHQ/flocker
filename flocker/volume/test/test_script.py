@@ -1,111 +1,63 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.volume.script`."""
-
-import sys
+"""
+Tests for :module:`flocker.volume.script`.
+"""
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
+from twisted.application.service import Service
+from twisted.python.usage import Options
 
 from ...testtools import (
-    FlockerScriptTestsMixin, StandardOptionsTestsMixin, FakeSysModule)
-from ..script import VolumeOptions, VolumeScript
-from ..service import VolumeService, CreateConfigurationError
+    StandardOptionsTestsMixin
+)
+from ..testtools import (
+    make_volume_options_tests
+)
+from ..script import (
+    VolumeOptions, VolumeManagerScript, flocker_volume_options
+)
 
 
-class VolumeScriptTests(FlockerScriptTestsMixin, SynchronousTestCase):
+class VolumeManagerScriptMainTests(SynchronousTestCase):
     """
-    Tests for L{VolumeScript}.
+    Tests for ``VolumeManagerScript.main``.
     """
-    script = VolumeScript
-    options = VolumeOptions
-    command_name = u'flocker-volume'
-
-
-class VolumeScriptInitTests(SynchronousTestCase):
-    """
-    Tests for ``VolumeScript.__init__``.
-    """
-    def test_sys_module_default(self):
-        """
-        ``VolumeScript._sys_module`` is ``sys`` by default.
-        """
-        self.assertIs(sys, VolumeScript()._sys_module)
-
-    def test_sys_module_override(self):
-        """
-        ``VolumeScript._sys_module`` can be overridden in the constructor.
-        """
-        dummy_sys = object()
-        self.assertIs(dummy_sys,
-                      VolumeScript(sys_module=dummy_sys)._sys_module)
-
-    def test_service_factory_default(self):
-        """
-        ``VolumeScript._service_factory`` is ``VolumeService`` by default.
-        """
-        self.assertIs(VolumeService, VolumeScript._service_factory)
-
-
-class VolumeScriptMainTests(SynchronousTestCase):
-    """
-    Tests for ``VolumeScript.main``.
-    """
-    def test_create_configuration_error(self):
-        """
-        ``VolumeScript.main`` catches ``CreateConfigurationError``\ s raised by
-        ``startService`` and writes an error message to stderr before exiting
-        with code 1.
-        """
-        class RaisingService(object):
-            def __init__(self, config_path, pool, reactor):
-                pass
-
-            def startService(self):
-                raise CreateConfigurationError('Foo')
-
-        fake_sys = FakeSysModule()
-        script = VolumeScript(sys_module=fake_sys)
-        script._service_factory = RaisingService
-        dummy_reactor = object()
-        options = VolumeOptions()
-        options["config"] = FilePath(b'/foo/bar/baz')
-        error = self.assertRaises(
-            SystemExit, script.main, dummy_reactor, options)
-
-        self.assertEqual(
-            (1, b'Writing config file /foo/bar/baz failed: Foo\n'),
-            (error.code, fake_sys.stderr.getvalue())
-        )
-
     def test_deferred_result(self):
         """
         ``VolumeScript.main`` returns a ``Deferred`` on success.
         """
-        script = VolumeScript()
+        script = VolumeManagerScript()
         options = VolumeOptions()
         options["config"] = FilePath(self.mktemp())
         dummy_reactor = object()
-        self.assertIs(
-            None,
-            self.successResultOf(script.main(dummy_reactor, options))
-        )
+        result = script.main(dummy_reactor, options, Service())
+        self.assertIs(None, self.successResultOf(result))
 
 
 class VolumeOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
-    """Tests for :class:`FlockerVolumeOptions`."""
+    """
+    Tests for :class:`VolumeOptions`.
+    """
     options = VolumeOptions
 
-    def test_default_config(self):
-        """By default the config file is ``b'/etc/flocker/volume.json'``."""
-        options = self.options()
-        options.parseOptions([])
-        self.assertEqual(options["config"],
-                         FilePath(b"/etc/flocker/volume.json"))
 
-    def test_custom_config(self):
-        """A custom config file can be specified with ``--config``."""
-        options = self.options()
-        options.parseOptions([b"--config", b"/path/somefile.json"])
-        self.assertEqual(options["config"],
-                         FilePath(b"/path/somefile.json"))
+@flocker_volume_options
+class DummyVolumeOptions(Options):
+    """
+    An ``Options`` class that uses ``flocker_volume_options`` for the purposes
+    of testing.
+    """
+
+
+class MakeVolumeOptionsTests(make_volume_options_tests(DummyVolumeOptions)):
+    """
+    Tests for ``make_volume_options``.
+    """
+
+
+class StandardVolumeOptionsTests(make_volume_options_tests(VolumeOptions)):
+    """
+    Tests for ``VolumeService`` specific arguments of ``VolumeOptions``.
+    """

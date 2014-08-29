@@ -76,8 +76,10 @@ class ApplicationInitTests(make_with_init_tests(
     record_type=Application,
     kwargs=dict(
         name=u'site-example.com', image=object(),
-        ports=None, volume=None, environment=None
-    )
+        ports=None, volume=None, environment=None,
+        links=frozenset(),
+    ),
+    expected_defaults={'links': None},
 )):
     """
     Tests for ``Application.__init__``.
@@ -93,10 +95,10 @@ class ApplicationTests(SynchronousTestCase):
         ``Application.__repr__`` includes the name, image, ports, and links.
         """
         application = Application(name=u'site-example.com', image=None,
-                                  ports=None, links=None)
+                                  ports=None, links=frozenset())
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, links=None, environment=None)>",
+            "volume=None, links=frozenset([]), environment=None)>",
             repr(application)
         )
 
