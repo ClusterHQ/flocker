@@ -30,14 +30,14 @@
 {%- macro sidebar() %}
     {%- if render_sidebar %}
         <div class="sphinxsidebar">
-            <h3>Contents</h3>
-            <div class="sphinxsidebarwrapper" id="toctree">
-                {{ toctree(collapse=false, maxdepth=4) }}
-            </div>
-            
             <div class="sphinxsidebarwrapper">
                 <h3>Search</h3>
                 {{ seachbox() }}
+            </div>
+
+            <h3>Contents</h3>
+            <div class="sphinxsidebarwrapper" id="toctree">
+                {{ toctree(collapse=false, maxdepth=4) }}
             </div>
         </div>
         
