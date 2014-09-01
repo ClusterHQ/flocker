@@ -285,7 +285,7 @@ p {
     margin-left: 0;
 }
 
-.pagination {
+.pagination, .btn-group {
     text-transform: capitalize;
 }
 
