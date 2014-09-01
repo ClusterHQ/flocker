@@ -210,9 +210,7 @@ Release
 Announcing Releases
 ~~~~~~~~~~~~~~~~~~~
 
-- Announcement
-
-  - on the IRC channel - ``#clusterhq`` on ``irc.freenode.net``
+- Announce the release on the IRC channel - ``#clusterhq`` on ``irc.freenode.net``
 
 - Update download links on https://clusterhq.com
 
