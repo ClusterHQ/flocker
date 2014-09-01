@@ -204,7 +204,7 @@ XXX Arrange to have download links on a page on https://clusterhq.com.
 See:
 
   - https://github.com/ClusterHQ/flocker/issues/359 and
-  - https://github.com/ClusterHQ/flocker/issues/488
+  - https://www.pivotaltracker.com/n/projects/946740/stories/75538272
 
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
