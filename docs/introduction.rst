@@ -4,7 +4,7 @@ Introduction
 
 Motivation for Building Flocker
 ===============================
-Flocker lets you move your Docker containers and their data together between hosts.
+Flocker lets you move your Docker containers and their data together between Linux hosts.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible.
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
