@@ -10,7 +10,6 @@ By the end of the release process we will have:
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
-- announcement on IRC
 - download links on https://clusterhq.com
 
 
@@ -26,8 +25,6 @@ Software
 
 - a web browser
 
-- an IRC client
-
 - an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
 
 - an up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_
@@ -37,15 +34,6 @@ Access
 
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`__),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
-
-- Ability to change topic in ``#clusterhq``.
-  Ensure that you have ``+t`` next to your nickname in the output of::
-
-     /msg ChanServ access list #clusterhq
-
-  Somebody with ``+f`` can grant access by running::
-
-     /msg ChanServ access add #clusterhq <nickname> +t
 
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 
@@ -207,14 +195,13 @@ Release
 
 #. Make a Pull Request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
-Announcing Releases
-~~~~~~~~~~~~~~~~~~~
+Update Download Links
+~~~~~~~~~~~~~~~~~~~~~
 
-- Announce the release on the IRC channel - ``#clusterhq`` on ``irc.freenode.net``
+Update download links on https://clusterhq.com.
 
-- Update download links on https://clusterhq.com
-
-  XXX Arrange to have download links on a page on https://clusterhq.com. See:   
+XXX Arrange to have download links on a page on https://clusterhq.com.
+See:
 
   - https://github.com/ClusterHQ/flocker/issues/359 and
   - https://github.com/ClusterHQ/flocker/issues/488
