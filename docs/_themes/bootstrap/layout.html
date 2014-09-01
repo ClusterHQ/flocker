@@ -20,10 +20,12 @@
 {%- macro sidebar() %}
     {%- if render_sidebar %}
         <div class="sphinxsidebar">
-            <div class="sphinxsidebarwrapper">
-                <h3>Search</h3>
-                {{ seachbox() }}
-            </div>
+            {%- if pagename != "search" %}
+                <div class="sphinxsidebarwrapper">
+                    <h3>Search</h3>
+                    {{ seachbox() }}
+                </div>
+            {%- endif %}
 
             <h3>Contents</h3>
             <div class="sphinxsidebarwrapper" id="toctree">
