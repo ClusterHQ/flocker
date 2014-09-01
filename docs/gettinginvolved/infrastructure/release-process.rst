@@ -198,7 +198,7 @@ Release
 Update Download Links
 ~~~~~~~~~~~~~~~~~~~~~
 
-Update download links on https://clusterhq.com.
+XXX Update download links on https://clusterhq.com:
 
 XXX Arrange to have download links on a page on https://clusterhq.com.
 See:
