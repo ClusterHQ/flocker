@@ -326,6 +326,7 @@ class StartApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             ports=ports,
+            links=frozenset(),
         )
         start_result = StartApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
@@ -350,7 +351,8 @@ class StartApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
         result1 = StartApplication(application=application).run(api)
@@ -372,7 +374,8 @@ class StartApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var"))
+                                  mountpoint=FilePath(b"/var")),
+            links=frozenset(),
         )
 
         # This would be better to test with a verified fake:
@@ -407,7 +410,9 @@ class StartApplicationTests(SynchronousTestCase):
             name=application_name,
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
-            environment=variables.copy())
+            environment=variables.copy(),
+            links=frozenset(),
+        )
 
         StartApplication(application=application).run(deployer)
 
@@ -433,7 +438,9 @@ class StartApplicationTests(SynchronousTestCase):
             name=application_name,
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
-            environment=None)
+            environment=None,
+            links=frozenset(),
+        )
 
         StartApplication(application=application).run(deployer)
 
@@ -512,7 +519,8 @@ class StopApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
         StartApplication(application=application).run(api)
@@ -537,7 +545,8 @@ class StopApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
         result = StopApplication(application=application).run(api)
         result = self.successResultOf(result)
@@ -557,7 +566,8 @@ class StopApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var"))
+                                  mountpoint=FilePath(b"/var")),
+            links=frozenset(),
         )
 
         # This would be better to test with a verified fake:
@@ -593,7 +603,8 @@ APPLICATION_WITH_VOLUME = Application(
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    )
+    ),
+    links=frozenset(),
 )
 
 # XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
@@ -608,7 +619,8 @@ DISCOVERED_APPLICATION_WITH_VOLUME = Application(
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=None,
-    )
+    ),
+    links=frozenset(),
 )
 
 
@@ -1238,7 +1250,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 # see https://github.com/ClusterHQ/flocker/issues/49
                 name=u"another",
                 mountpoint=FilePath(b"/blah"),
-            )
+            ),
+            links=frozenset(),
         )
         # XXX don't know image or volume because of
         # https://github.com/ClusterHQ/flocker/issues/289
@@ -1477,7 +1490,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         application = Application(
             name=expected_application_name,
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
         nodes = frozenset([
