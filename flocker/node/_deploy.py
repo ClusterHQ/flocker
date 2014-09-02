@@ -121,7 +121,6 @@ class StartApplication(object):
         for link in application.links:
             environment.update(self._link_to_environment(link, self.hostname))
 
-
         if application.environment is not None:
             environment.update(application.environment)
 
@@ -140,7 +139,6 @@ class StartApplication(object):
         ))
         return d
 
-
     @staticmethod
     def _link_to_environment(link, hostname):
         """
@@ -154,7 +152,6 @@ class StartApplication(object):
             base + '_PORT': u'%d' % (link.remote_port,),
             base + '_PROTO': u'tcp',
         }
-
 
 
 @implementer(IStateChange)

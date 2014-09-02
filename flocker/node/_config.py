@@ -140,8 +140,8 @@ class Configuration(object):
                     raise ValueError("Missing remote port.")
 
                 try:
-                    # We should normailzie strings to either bytes or unicode here
-                    # https://github.com/ClusterHQ/flocker/issues/636
+                    # We should normailzie strings to either bytes or unicode
+                    # here https://github.com/ClusterHQ/flocker/issues/636
                     alias = link.pop('alias')
                     _check_type(value=alias, types=types.StringTypes,
                                 description="Link alias must be a string",
