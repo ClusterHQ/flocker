@@ -295,8 +295,8 @@ class IncrementalPushTests(TestCase):
         and writer are found to share a snapshot.
         """
         pool = build_pool(self)
-        volume = Volume(
-            uuid=u"incremental-push", name=u"incremental-push", service=None)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"incremental-push")
         creating = pool.create(volume)
 
         def created(filesystem):
