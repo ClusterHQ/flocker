@@ -37,8 +37,8 @@ These commands may take several minutes to complete, depending on your hardware 
 
 .. note::
 
-   We use the mysql:5.6.17 docker image in this tutorial for compatibility with ZFS.
-   Newer versions of the MySQL docker image enable asynchronous I/O, which is not yet supported by ZFS on Linux.
+   We use the ``mysql:5.6.17`` Docker image in this tutorial for compatibility with ZFS.
+   Newer versions of the MySQL Docker image enable asynchronous I/O, which is not yet supported by ZFS on Linux.
 
 
 Launch MySQL
