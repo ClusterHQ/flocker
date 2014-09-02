@@ -112,7 +112,9 @@ SequentiallyIStateChangeTests = make_istatechange_tests(
 InParallelIStateChangeTests = make_istatechange_tests(
     InParallel, dict(changes=[1]), dict(changes=[2]))
 StartApplicationIStateChangeTests = make_istatechange_tests(
-    StartApplication, dict(application=1), dict(application=2))
+    StartApplication,
+    dict(application=1, hostname="node1.example.com"),
+    dict(application=2, hostname="node2.example.com"))
 StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication, dict(application=1), dict(application=2))
 SetProxiesIStateChangeTests = make_istatechange_tests(
@@ -328,7 +330,8 @@ class StartApplicationTests(SynchronousTestCase):
             ports=ports,
             links=frozenset(),
         )
-        start_result = StartApplication(application=application).run(api)
+        start_result = StartApplication(application=application,
+                                        hostname="node1.example.com").run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
@@ -355,10 +358,12 @@ class StartApplicationTests(SynchronousTestCase):
             links=frozenset(),
         )
 
-        result1 = StartApplication(application=application).run(api)
+        result1 = StartApplication(application=application,
+                                   hostname="node1.example.com").run(api)
         self.successResultOf(result1)
 
-        result2 = StartApplication(application=application).run(api)
+        result2 = StartApplication(application=application,
+                                   hostname="node1.example.com").run(api)
         self.failureResultOf(result2, AlreadyExists)
 
     def test_volume_exposed_on_start(self):
@@ -390,7 +395,8 @@ class StartApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "expose_to_docker", expose_to_docker)
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
 
@@ -414,7 +420,8 @@ class StartApplicationTests(SynchronousTestCase):
             links=frozenset(),
         )
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
 
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
@@ -442,7 +449,8 @@ class StartApplicationTests(SynchronousTestCase):
             links=frozenset(),
         )
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
 
         self.assertEqual(
             None,
@@ -451,8 +459,8 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_links(self):
         """
-        ``StartApplication.run()`` passes environment variables to connect to the
-        remote application to ``GearClient.add``.
+        ``StartApplication.run()`` passes environment variables to connect to
+        the remote application to ``GearClient.add``.
         """
         volume_service = create_volume_service(self)
         fake_gear = FakeGearClient()
@@ -466,11 +474,12 @@ class StartApplicationTests(SynchronousTestCase):
             links=frozenset([Link(alias="alias", local_port=80,
                                   remote_port=8080)]))
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
 
         variables = {
-            'ALIAS_PORT_TCP_80': 'tcp://FIXME:8080',
-            'ALIAS_PORT_TCP_80_HOST': 'FIXME',
+            'ALIAS_PORT_TCP_80': 'tcp://node1.example.com:8080',
+            'ALIAS_PORT_TCP_80_HOST': 'node1.example.com',
             'ALIAS_PORT_TCP_80_PORT': '8080',
             'ALIAS_PORT_TCP_80_PROTO': 'tcp',
         }
@@ -502,8 +511,6 @@ class StartApplicationTests(SynchronousTestCase):
             })
 
 
-
-
 class StopApplicationTests(SynchronousTestCase):
     """
     Tests for ``StopApplication``.
@@ -523,7 +530,8 @@ class StopApplicationTests(SynchronousTestCase):
             links=frozenset(),
         )
 
-        StartApplication(application=application).run(api)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(api)
         existed = fake_gear.exists(application.name)
         stop_result = StopApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
@@ -583,8 +591,9 @@ class StopApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "remove_from_docker", remove_from_docker)
 
-        self.successResultOf(StartApplication(application=application).run(
-            deployer))
+        self.successResultOf(StartApplication(application=application,
+                                              hostname="node1.example.com",
+                                              ).run(deployer))
         self.successResultOf(StopApplication(application=application).run(
             deployer))
         self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
@@ -886,7 +895,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = Sequentially(changes=[InParallel(
-            changes=[StartApplication(application=application)])])
+            changes=[StartApplication(application=application,
+                                      hostname="node.example.com")])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -1019,7 +1029,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(changes=[CreateVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME)])])
+                application=APPLICATION_WITH_VOLUME,
+                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
@@ -1071,7 +1082,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(changes=[WaitForVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME)])])
+                application=APPLICATION_WITH_VOLUME,
+                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_volume_handoff(self):
@@ -1195,18 +1207,19 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         nodes = frozenset([
             Node(
-                hostname=u'node.example.com',
+                hostname=u'n.example.com',
                 applications=frozenset([application])
             )
         ])
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+                                                  hostname=u'n.example.com')
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application)]),
+                                  StartApplication(application=application,
+                                                   hostname="n.example.com")]),
         ])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -1317,7 +1330,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
             InParallel(changes=[
-                StartApplication(application=another_application)]),
+                StartApplication(application=another_application,
+                                 hostname="node1.example.com")]),
         ])
         self.assertEqual(expected, changes)
 
