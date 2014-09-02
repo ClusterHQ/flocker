@@ -56,7 +56,7 @@ Download and save the following configuration files to the ``flocker-mysql`` dir
 .. literalinclude:: mysql-deployment.yml
    :language: yaml
 
-This is an example where we map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mountpoint in the container where the data is stored.
+This is an example where we map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mount point in the container where the data is stored.
 We will be using the ``mysql`` image and deploying to one of the virtual nodes.
 Run ``flocker-deploy`` to instantiate the container on its specified host:
 
