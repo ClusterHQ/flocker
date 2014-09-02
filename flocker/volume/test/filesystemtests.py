@@ -16,6 +16,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
+from twisted.application.service import IService
 
 from pytz import UTC
 
@@ -89,6 +90,65 @@ class CopyVolumes(object):
     """
 
 
+def create_and_copy(test, fixture):
+    """
+    Create a volume's filesystem on one pool, copy to another pool.
+
+    :param TestCase test: A ``TestCase`` that will be the context for this
+        operation.
+    :param fixture: Callable that takes ``TestCase`` and returns a
+        ``IStoragePool`` provider.
+
+    :return: ``Deferred`` that fires with the two volumes in a
+        ``CopyVolumes``.
+    """
+    pool = fixture(test)
+    service = service_for_pool(test, pool)
+    volume = service.get(u"myvolumename")
+    pool2 = fixture(test)
+    service2 = service_for_pool(test, pool2)
+    volume2 = Volume(
+        uuid=service.uuid,
+        name=u"myvolumename",
+        service=service2,
+    )
+
+    d = pool.create(volume)
+
+    def created_filesystem(filesystem):
+        path = filesystem.get_path()
+        path.child(b"file").setContent(b"some bytes")
+        path.child(b"directory").makedirs()
+        copy(volume, volume2)
+        return CopyVolumes(from_volume=volume, to_volume=volume2)
+    d.addCallback(created_filesystem)
+    return d
+
+
+def assertVolumesEqual(test, first, second):
+    """
+    Assert that two filesystems have the same contents.
+
+    :param TestCase test: A ``TestCase`` that will be the context for this
+        operation.
+    :param Volume first: First volume.
+    :param Volume second: Second volume.
+    """
+    first = first.get_filesystem().get_path()
+    second = second.get_filesystem().get_path()
+
+    def get_contents(path):
+        result = {}
+        for child in path.children():
+            if child.isdir():
+                value = get_contents(child)
+            else:
+                value = child.getContent()
+            result[child.basename()] = value
+        return result
+    test.assertEqual(get_contents(first), get_contents(second))
+
+
 def make_istoragepool_tests(fixture):
     """Create a TestCase for IStoragePool.
 
@@ -103,12 +163,32 @@ def make_istoragepool_tests(fixture):
         These are functional tests if run against real filesystems.
         """
         def test_interface(self):
-            """The tested object provides :class:`IStoragePool`."""
+            """
+            The tested object provides :class:`IStoragePool`.
+            """
             pool = fixture(self)
             self.assertTrue(verifyObject(IStoragePool, pool))
 
+        def test_service(self):
+            """
+            The tested object provides :class:`IService`.
+            """
+            pool = fixture(self)
+            self.assertTrue(verifyObject(IService, pool))
+
+        def test_running(self):
+            """
+            The tested object is ``running`` after its ``startService`` method
+            is called.
+            """
+            pool = fixture(self)
+            pool.startService()
+            self.assertTrue(pool.running)
+
         def test_create_filesystem(self):
-            """``create()`` returns a :class:`IFilesystem` provider."""
+            """
+            ``create()`` returns a :class:`IFilesystem` provider.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -120,7 +200,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_names_create_different_filesystems(self):
-            """Two calls to ``create()`` with different volume names return
+            """
+            Two calls to ``create()`` with different volume names return
             different filesystems.
             """
             pool = fixture(self)
@@ -139,7 +220,8 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_uuid_create_different_filesystems(self):
-            """Two calls to ``create()`` with different volume manager UUIDs
+            """
+            Two calls to ``create()`` with different volume manager UUIDs
             return different filesystems.
             """
             pool = fixture(self)
@@ -158,8 +240,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_get_filesystem(self):
-            """``get()`` returns the same :class:`IFilesystem` provider as the
-            earlier created one."""
+            """
+            ``get()`` returns the same :class:`IFilesystem` provider as the
+            earlier created one.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -174,11 +258,8 @@ def make_istoragepool_tests(fixture):
 
         def test_mountpoint(self):
             """
-            The volume's filesystem has a mountpoint which is a
-            directory.
+            The volume's filesystem has a mountpoint which is a directory.
             """
-            """The volume's filesystem has a mountpoint which is a
-            directory."""
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -190,7 +271,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_two_volume_mountpoints_different(self):
-            """Each volume has its own mountpoint."""
+            """
+            Each volume has its own mountpoint.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -205,7 +288,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_reader_cleanup(self):
-            """The reader does not leave any open file descriptors behind."""
+            """
+            The reader does not leave any open file descriptors behind.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -219,7 +304,9 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_writer_cleanup(self):
-            """The writer does not leave any open file descriptors behind."""
+            """
+            The writer does not leave any open file descriptors behind.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -234,124 +321,56 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
             return d
 
-        def assertVolumesEqual(self, first, second):
-            """Assert that two filesystems have the same contents.
-
-            :param Volume first: First volume.
-            :param Volume second: Second volume.
-            """
-            first = first.get_filesystem().get_path()
-            second = second.get_filesystem().get_path()
-
-            def get_contents(path):
-                result = {}
-                for child in path.children():
-                    if child.isdir():
-                        value = get_contents(child)
-                    else:
-                        value = child.getContent()
-                    result[child.basename()] = value
-                return result
-            self.assertEqual(get_contents(first), get_contents(second))
-
-        def create_and_copy(self):
-            """Create a volume's filesystem on one pool, copy to another pool.
-
-            :return: ``Deferred`` that fires with the two volumes in a
-                ``CopyVolumes``.
-            """
-            pool = fixture(self)
-            service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
-            pool2 = fixture(self)
-            service2 = service_for_pool(self, pool2)
-            volume2 = Volume(
-                uuid=service.uuid,
-                name=u"myvolumename",
-                service=service2,
-            )
-
-            d = gatherResults([pool.create(volume), pool2.create(volume2)])
-
-            def created_filesystem(results):
-                filesystem, filesystem2 = results
-                path = filesystem.get_path()
-                path.child(b"file").setContent(b"some bytes")
-                path.child(b"directory").makedirs()
-                copy(volume, volume2)
-                return CopyVolumes(from_volume=volume, to_volume=volume2)
-            d.addCallback(created_filesystem)
-            return d
-
         def test_write_new_filesystem(self):
-            """Writing the contents of one pool's filesystem to another pool's
+            """
+            Writing the contents of one pool's filesystem to another pool's
             filesystem creates that filesystem with the given contents.
             """
-            d = self.create_and_copy()
+            d = create_and_copy(self, fixture)
 
             def got_volumes(copy_volumes):
-                self.assertVolumesEqual(copy_volumes.from_volume,
-                                        copy_volumes.to_volume)
+                assertVolumesEqual(
+                    self, copy_volumes.from_volume, copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
         def test_write_update_to_unchanged_filesystem(self):
-            """Writing an update of the contents of one pool's filesystem to
+            """
+            Writing an update of the contents of one pool's filesystem to
             another pool's filesystem that was previously created this way but
             is unchanged updates its contents.
             """
-            d = self.create_and_copy()
+            d = create_and_copy(self, fixture)
 
             def got_volumes(copy_volumes):
                 path = copy_volumes.from_volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
                 copy(copy_volumes.from_volume, copy_volumes.to_volume)
-                self.assertVolumesEqual(copy_volumes.from_volume,
-                                        copy_volumes.to_volume)
-            d.addCallback(got_volumes)
-            return d
-
-        def test_write_update_to_changed_filesystem(self):
-            """Writing an update of the contents of one pool's filesystem to
-            another pool's filesystem that was previously created this way and
-            was since changed drops any changes and updates its contents to
-            the sender's.
-            """
-            d = self.create_and_copy()
-
-            def got_volumes(copied):
-                volume, volume2 = copied.from_volume, copied.to_volume
-                # Mutate the second volume's filesystem:
-                path2 = volume2.get_filesystem().get_path()
-                path2.child(b"extra").setContent(b"lalala")
-
-                # Writing from first volume to second volume should revert
-                # any changes to the second volume:
-                path = volume.get_filesystem().get_path()
-                path.child(b"anotherfile").setContent(b"hello")
-                path.child(b"file").remove()
-                copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
+                assertVolumesEqual(
+                    self, copy_volumes.from_volume, copy_volumes.to_volume)
             d.addCallback(got_volumes)
             return d
 
         def test_multiple_writes(self):
-            """Writing the same contents to a filesystem twice does not result
-            in an error.
             """
-            d = self.create_and_copy()
+            Writing the same contents to a filesystem twice does not result in
+            an error.
+            """
+            d = create_and_copy(self, fixture)
 
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 copy(volume, volume2)
-                self.assertVolumesEqual(volume, volume2)
+                assertVolumesEqual(self, volume, volume2)
             d.addCallback(got_volumes)
             return d
 
         def test_exception_passes_through_read(self):
-            """If an exception is raised in the context of the reader, it is not
-            swallowed."""
+            """
+            If an exception is raised in the context of the reader, it is not
+            swallowed.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -364,8 +383,10 @@ def make_istoragepool_tests(fixture):
             return self.assertFailure(d, RuntimeError)
 
         def test_exception_passes_through_write(self):
-            """If an exception is raised in the context of the writer, it is not
-            swallowed."""
+            """
+            If an exception is raised in the context of the writer, it is not
+            swallowed.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -378,8 +399,10 @@ def make_istoragepool_tests(fixture):
             return self.assertFailure(d, RuntimeError)
 
         def test_exception_cleanup_through_read(self):
-            """If an exception is raised in the context of the reader, no
-            filedescriptors are leaked."""
+            """
+            If an exception is raised in the context of the reader, no
+            filedescriptors are leaked.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -396,8 +419,10 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_exception_cleanup_through_write(self):
-            """If an exception is raised in the context of the writer, no
-            filedescriptors are leaked."""
+            """
+            If an exception is raised in the context of the writer, no
+            filedescriptors are leaked.
+            """
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(u"myvolumename")
@@ -414,9 +439,11 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_exception_aborts_write(self):
-            """If an exception is raised in the context of the writer, no
-            changes are made to the filesystem."""
-            d = self.create_and_copy()
+            """
+            If an exception is raised in the context of the writer, no changes
+            are made to the filesystem.
+            """
+            d = create_and_copy(self, fixture)
 
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
@@ -439,22 +466,25 @@ def make_istoragepool_tests(fixture):
             return d
 
         def test_garbage_in_write(self):
-            """If garbage is written to the writer, no changes are made to the
-            filesystem."""
-            d = self.create_and_copy()
+            """
+            If garbage is written to the writer, no changes are made to the
+            filesystem.
+            """
+            d = create_and_copy(self, fixture)
 
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
                 to_filesystem = volume2.get_filesystem()
                 with to_filesystem.writer() as writer:
                     writer.write(b"NOT A REAL THING")
-                self.assertVolumesEqual(volume, volume2)
+                assertVolumesEqual(self, volume, volume2)
             d.addCallback(got_volumes)
             return d
 
         def test_enumerate_no_filesystems(self):
-            """Lacking any filesystems, ``enumerate()`` returns an empty
-            result."""
+            """
+            Lacking any filesystems, ``enumerate()`` returns an empty result.
+            """
             pool = fixture(self)
             enumerating = pool.enumerate()
             enumerating.addCallback(self.assertEqual, set())
@@ -504,9 +534,13 @@ def make_istoragepool_tests(fixture):
             return enumerating.addCallback(enumerated)
 
         def test_consistent_naming_pattern(self):
-            """``IFilesystem.get_path().basename()`` has a consistent naming
-            pattern. This test should be removed as part of:
-                https://github.com/ClusterHQ/flocker/issues/78"""
+            """
+            ``IFilesystem.get_path().basename()`` has a consistent naming
+            pattern.
+
+            This test should be removed as part of:
+                https://github.com/ClusterHQ/flocker/issues/78
+            """
             pool = fixture(self)
             volume_name = u"myvolumename"
             service = service_for_pool(self, pool)

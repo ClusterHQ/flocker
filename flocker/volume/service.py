@@ -52,8 +52,9 @@ class VolumeService(Service):
     def __init__(self, config_path, pool, reactor):
         """
         :param FilePath config_path: Path to the volume manager config file.
-        :param pool: A `flocker.volume.filesystems.interface.IStoragePool`
-            provider.
+        :param pool: An object that is both a
+            ``flocker.volume.filesystems.interface.IStoragePool`` provider
+            and a ``twisted.application.service.IService`` provider.
         :param reactor: A ``twisted.internet.interface.IReactorTime`` provider.
         """
         self._config_path = config_path
@@ -74,6 +75,7 @@ class VolumeService(Service):
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
         self.uuid = config[u"uuid"]
+        self.pool.startService()
 
     def create(self, name):
         """Create a new volume.
@@ -101,6 +103,9 @@ class VolumeService(Service):
         way.
 
         :param unicode name: The name of the volume.
+
+        :param uuid: Either ``None``, in which case the local UUID will be
+            used, or a UUID to use for the volume.
 
         :return: A ``Volume``.
         """

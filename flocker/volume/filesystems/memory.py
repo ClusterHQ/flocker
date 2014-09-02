@@ -13,6 +13,7 @@ from zope.interface import implementer
 from characteristic import attributes
 
 from twisted.internet.defer import succeed, fail
+from twisted.application.service import Service
 
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
@@ -77,8 +78,9 @@ class DirectoryFilesystem(object):
 
 
 @implementer(IStoragePool)
-class FilesystemStoragePool(object):
-    """A :class:`IStoragePool` implementation that just creates directories.
+class FilesystemStoragePool(Service):
+    """
+    A :class:`IStoragePool` implementation that just creates directories.
 
     Rather than mounting actual filesystems, they are emulated by simply
     creating a directory for each filesystem.

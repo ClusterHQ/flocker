@@ -43,17 +43,16 @@ class VolumeServiceStartupTests(TestCase):
 
     def test_no_config_UUID(self):
         """If no config file exists in the given path, a new UUID is chosen."""
-        service = VolumeService(FilePath(self.mktemp()), None, reactor=Clock())
-        service.startService()
-        service2 = VolumeService(FilePath(self.mktemp()), None,
-                                 reactor=Clock())
-        service2.startService()
+        service = create_volume_service(self)
+        service2 = create_volume_service(self)
         self.assertNotEqual(service.uuid, service2.uuid)
 
     def test_no_config_written(self):
         """If no config file exists, a new one is written with the UUID."""
         path = FilePath(self.mktemp())
-        service = VolumeService(path, None, reactor=Clock())
+        service = VolumeService(path,
+                                FilesystemStoragePool(FilePath(self.mktemp())),
+                                reactor=Clock())
         service.startService()
         config = json.loads(path.getContent())
         self.assertEqual({u"uuid": service.uuid, u"version": 1}, config)
@@ -62,7 +61,9 @@ class VolumeServiceStartupTests(TestCase):
         """The config file's parent directory is created if it
         doesn't exist."""
         path = FilePath(self.mktemp()).child(b"config.json")
-        service = VolumeService(path, None, reactor=Clock())
+        service = VolumeService(path,
+                                FilesystemStoragePool(FilePath(self.mktemp())),
+                                reactor=Clock())
         service.startService()
         self.assertTrue(path.exists())
 
@@ -75,7 +76,9 @@ class VolumeServiceStartupTests(TestCase):
         path.chmod(0)
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"dir").child(b"config.json")
-        service = VolumeService(path, None, reactor=Clock())
+        service = VolumeService(path,
+                                FilesystemStoragePool(FilePath(self.mktemp())),
+                                reactor=Clock())
         with attempt_effective_uid('nobody', suppress_errors=True):
             self.assertRaises(CreateConfigurationError, service.startService)
 
@@ -88,18 +91,35 @@ class VolumeServiceStartupTests(TestCase):
         path.chmod(0)
         self.addCleanup(path.chmod, 0o777)
         path = path.child(b"config.json")
-        service = VolumeService(path, None, reactor=Clock())
+        service = VolumeService(path,
+                                FilesystemStoragePool(FilePath(self.mktemp())),
+                                reactor=Clock())
         with attempt_effective_uid('nobody', suppress_errors=True):
             self.assertRaises(CreateConfigurationError, service.startService)
 
     def test_config(self):
         """If a config file exists, the UUID is loaded from it."""
         path = self.mktemp()
-        service = VolumeService(FilePath(path), None, reactor=Clock())
+        service = VolumeService(FilePath(path),
+                                FilesystemStoragePool(FilePath(self.mktemp())),
+                                reactor=Clock())
         service.startService()
-        service2 = VolumeService(FilePath(path), None, reactor=Clock())
+        service2 = VolumeService(
+            FilePath(path),
+            FilesystemStoragePool(FilePath(self.mktemp())),
+            reactor=Clock())
         service2.startService()
         self.assertEqual(service.uuid, service2.uuid)
+
+    def test_start_pool(self):
+        """
+        The storage pool service is started by ``VolumeService.startService``.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, Clock())
+        running_before_start = pool.running
+        service.startService()
+        self.assertEqual((running_before_start, pool.running), (False, True))
 
 
 class VolumeServiceAPITests(TestCase):
