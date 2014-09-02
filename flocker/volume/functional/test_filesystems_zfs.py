@@ -2,6 +2,9 @@
 
 """Functional tests for ZFS filesystem implementation.
 
+These tests require the ability to create a new ZFS storage pool (using
+``zpool``) and the ability to interact with that pool (using ``zfs``).
+
 Further coverage is provided in
 :module:`flocker.volume.test.test_filesystems_zfs`.
 """
@@ -280,3 +283,50 @@ class StoragePoolTests(TestCase):
             assertVolumesEqual(self, volume, volume2)
         d.addCallback(got_volumes)
         return d
+
+
+class IncrementalPushTests(TestCase):
+    """
+    Tests for incremental push based on ZFS snapshots.
+    """
+    def test_less_data(self):
+        """
+        Fewer bytes are available from ``Filesystem.reader`` when the reader
+        and writer are found to share a snapshot.
+        """
+        pool = build_pool(self)
+        volume = Volume(
+            uuid=u"incremental-push", name=u"incremental-push", service=None)
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Put some data onto the volume so there is a baseline against
+            # which to compare.
+            path = filesystem.get_path()
+            path.child(b"some-data").setContent(b"hello world" * 1024)
+
+            # TODO: Snapshots are created implicitly by `reader`.  So abuse
+            # that fact to get a snapshot.  An incremental send based on this
+            # snapshot will be able to exclude the data written above.
+            # Ultimately it would be better to have an API the purpose of which
+            # is explicitly to take a snapshot and to use that here instead of
+            # relying on `reader` to do this.
+            with filesystem.reader() as reader:
+                # Capture the size of this stream for later comparison.
+                complete_size = len(reader.read())
+
+            # Perform another send, supplying snapshots available on the writer
+            # so an incremental stream can be constructed.
+            snapshots = filesystem.snapshots()
+            with filesystem.reader(snapshots) as reader:
+                incremental_size = len(reader.read())
+
+            self.assertTrue(
+                incremental_size < complete_size,
+                "Bytes of data for incremental send ({}) was not fewer than "
+                "bytes of data for complete send ({}).".format(
+                    incremental_size, complete_size)
+            )
+
+        creating.addCallback(created)
+        return creating
