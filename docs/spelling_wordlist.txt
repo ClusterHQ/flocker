@@ -8,12 +8,14 @@ filename
 filesystem
 filesystems
 Flocker
+Freenode
 handoff
 handoffs
 hoc
 Homebrew
 hostname
 Kubernetes
+libswarm
 Mesos
 multi
 NAT'd
