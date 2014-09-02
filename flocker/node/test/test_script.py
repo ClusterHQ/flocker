@@ -103,7 +103,10 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         application = Application(
             name=u'mysql-hybridcluster',
             image=DockerImage(repository=u'hybridlogic/mysql5.9',
-                              tag=u'latest'))
+                              tag=u'latest'),
+            ports=frozenset(),
+            links=frozenset(),
+            )
 
         node = Node(hostname='node1.example.com',
                     applications=frozenset([application]))
@@ -167,6 +170,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     name='mysql-something',
                     image=DockerImage.from_string('unknown'),
                     ports=frozenset(),
+                    links=frozenset(),
                     volume=AttachedVolume(
                         name='mysql-something',
                         mountpoint=None,

@@ -6,38 +6,30 @@
 
 {%- macro relbar(bottom=False) %}
     <div class="related">
-        <ul class="nav{% if bottom %} pagination pull-right{% endif %}"{% if not bottom %} id="navul"{% endif %}>
-            {%- block rootrellink %}
-                <li class=""><a class="" href="{{ pathto(master_doc) }}">{{ project|e }}</a></li>
-            {%- endblock %}
-            {%- for parent in parents %}
-                <li><a href="{{ parent.link|e }}"
-                        {% if loop.last %}{{ accesskey("U") }}{% endif %}>{{ parent.title }}</a>
-                </li>
-            {%- endfor %}
+        <div class="{% if bottom %}pull-right btn-group{% endif %}">
             {%- for rellink in rellinks|reverse %}
-                <li>
-                    <a href="{{ pathto(rellink[0]) }}"
-                       title="{{ rellink[1]|striptags|e }}" {{ accesskey(rellink[2]) }}>{{ rellink[3] }}</a>
-                    {%- if not loop.first %}{% endif %}
-                </li>
+                <a href="{{ pathto(rellink[0]) }}" class="btn"
+                   title="{{ rellink[1]|striptags|e }}" {{ accesskey(rellink[2]) }}>{{ rellink[3] }}</a>
+                {%- if not loop.first %}{% endif %}
             {%- endfor %}
             {%- block relbaritems %} {% endblock %}
-        </ul>
+        </div>
     </div>
 {%- endmacro %}
 
 {%- macro sidebar() %}
     {%- if render_sidebar %}
         <div class="sphinxsidebar">
+            {%- if pagename != "search" %}
+                <div class="sphinxsidebarwrapper">
+                    <h3>Search</h3>
+                    {{ seachbox() }}
+                </div>
+            {%- endif %}
+
             <h3>Contents</h3>
             <div class="sphinxsidebarwrapper" id="toctree">
                 {{ toctree(collapse=false, maxdepth=4) }}
-            </div>
-            
-            <div class="sphinxsidebarwrapper">
-                <h3>Search</h3>
-                {{ seachbox() }}
             </div>
         </div>
         
@@ -172,9 +164,6 @@
                     <a href="https://clusterhq.com/"><img src="//clusterhq.com/wp-content/themes/hybrid-cluster-v3/assets/img/hc-logo.png" id="logo"/></a>
                 {%- endblock %}
 
-                <div class="pull-right" id="nav">
-                    {%- block relbar1 %}{{ relbar() }}{% endblock %}
-                </div>
             </div>
         </div>
     </div>

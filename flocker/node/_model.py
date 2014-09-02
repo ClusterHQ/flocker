@@ -65,20 +65,19 @@ class AttachedVolume(object):
     """
 
 
-@attributes(["name", "image", "ports", "volume", "environment"],
-            defaults=dict(
-                image=None, ports=frozenset(), volume=None, environment=None)
-            )
+@attributes(["name", "image", "ports", "volume", "links", "environment"],
+            defaults=dict(image=None, ports=frozenset(), volume=None,
+                          links=None, environment=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image and ports attributes defaults to `None` until we have a way
-    to interrogate geard for the docker images associated with its containers.
-    See https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The image attribute defaults to ``None`` until we have a way to
+    interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
-    XXX: Only the name is compared in equality checks. See
-    https://github.com/ClusterHQ/flocker/issues/267
+    XXX The links attribute defaults to ``None`` until we have a way to
+    interrogate configured links.
 
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
@@ -92,6 +91,10 @@ class Application(object):
 
     :ivar volume: ``None`` if there is no volume, otherwise an
         ``AttachedVolume`` instance.
+
+    :ivar frozenset links: A ``frozenset`` of ``Link``s that
+        should be created between applications, or ``None`` if configuration
+        information isn't available.
 
     :ivar frozenset environment: A ``frozenset`` of environment variables
         that should be exposed in the ``Application`` container, or ``None``
@@ -135,6 +138,23 @@ class Port(object):
 
     :ivar int internal_port: The port number exposed by the application.
     :ivar int external_port: The port number exposed to the outside world.
+    """
+
+
+@attributes(['local_port', 'remote_port', 'alias'])
+class Link(object):
+    """
+    A record representing the mapping between a port exposed internally to
+    an application, and the corresponding external port of a possibly remote
+    application.
+
+    :ivar int local_port: The port the local application expects to access.
+        This is used to determine the environment variables to populate in the
+        container.
+    :ivar int remote_port: The port exposed externally by the remote
+        application.
+    :ivar unicode alias: Environment variable prefix to use for exposing
+        connection information.
     """
 
 
