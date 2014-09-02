@@ -105,10 +105,13 @@ ZFS_ERROR = MessageType(
 
 def _sync_command_error_squashed(arguments, logger):
     """
-    Synchronously a command-line tool with the given arguments.
+    Synchronously run a command-line tool with the given arguments.
 
     :param arguments: A ``list`` of ``bytes``, command-line arguments to
         execute.
+
+    :param eliot.Logger logger: The log writer to use to log errors running the
+        zfs command.
     """
     message = None
     log_arguments = b" ".join(arguments)
