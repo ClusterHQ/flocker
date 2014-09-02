@@ -283,6 +283,7 @@ p {
 .sphinxsidebarwrapper>ul {
     list-style-type: none;
     margin-left: 0;
+    word-break: break-word;
 }
 
 .pagination, .btn-group {
