@@ -2,6 +2,7 @@ Btrfs
 Buildbot
 Copr
 dataset
+Deis
 failover
 filename
 filesystem
@@ -12,6 +13,8 @@ handoffs
 hoc
 Homebrew
 hostname
+Kubernetes
+Mesos
 multi
 NAT'd
 pre
