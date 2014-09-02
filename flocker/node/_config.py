@@ -141,7 +141,7 @@ class Configuration(object):
 
                 try:
                     # We should normailzie strings to either bytes or unicode
-                    # here https://github.com/ClusterHQ/flocker/issues/636
+                    # here. https://github.com/ClusterHQ/flocker/issues/636
                     alias = link.pop('alias')
                     _check_type(value=alias, types=types.StringTypes,
                                 description="Link alias must be a string",

@@ -37,8 +37,8 @@ These commands may take several minutes to complete, depending on your hardware 
 
 .. note::
 
-   We use the mysql:5.6.17 docker image in this tutorial for compatibility with ZFS.
-   Newer versions of the MySQL docker image enable asynchronous I/O, which is not yet supported by ZFS on Linux.
+   We use the ``mysql:5.6.17`` Docker image in this tutorial for compatibility with ZFS.
+   Newer versions of the MySQL Docker image enable asynchronous I/O, which is not yet supported by ZFS on Linux.
 
 
 Launch MySQL
@@ -56,7 +56,7 @@ Download and save the following configuration files to the ``flocker-mysql`` dir
 .. literalinclude:: mysql-deployment.yml
    :language: yaml
 
-This is an example where we map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mountpoint in the container where the data is stored.
+This is an example where we map MySQL's default port 3306 in the container to 3306 on the host and specify the volume mount point in the container where the data is stored.
 We will be using the ``mysql`` image and deploying to one of the virtual nodes.
 Run ``flocker-deploy`` to instantiate the container on its specified host:
 
@@ -82,7 +82,7 @@ Connect to MySQL
 ================
 
 We can now use the ``mysql`` client on the host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
-Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application config.
+Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application configuration.
 Our example MySQL image sets the ``root`` user password to ``clusterhq`` so we'll connect to MySQL using those credentials and specify the IP address of the virtual machine as the host.
 
 .. code-block:: console
@@ -154,8 +154,8 @@ Next we'll verify the data has been saved and can be retrieved with a ``SELECT``
 
 .. note:: Type in ``quit`` after you've run the ``SELECT`` query to exit the MySQL client.
 
-Create a New Deployment Config and Move the Application
-=======================================================
+Create a New Deployment Configuration and Move the Application
+==============================================================
 
 Download the new deployment configuration and save to your ``flocker-mysql`` directory.
 This new configuration tells ``flocker-deploy`` to move the container to a different node, by specifying a new IP address to deploy the application with.

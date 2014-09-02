@@ -64,7 +64,7 @@ div.admonition p {
     padding: 0;
 }
 p.admonition-title {
-    display: none;
+    font-weight: bold;
 }
 
 .descname {
@@ -283,9 +283,10 @@ p {
 .sphinxsidebarwrapper>ul {
     list-style-type: none;
     margin-left: 0;
+    word-break: break-word;
 }
 
-.pagination {
+.pagination, .btn-group {
     text-transform: capitalize;
 }
 
