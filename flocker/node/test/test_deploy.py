@@ -17,7 +17,8 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 Port, Link, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies,
+    _link_environment)
 from .._model import AttachedVolume
 from ..gear import (
     GearClient, FakeGearClient, AlreadyExists, Unit, PortMap, GearEnvironment)
@@ -491,23 +492,33 @@ class StartApplicationTests(SynchronousTestCase):
             fake_gear._units[application_name].environment
         )
 
-    def test_link_to_environment(self):
+
+class LinkEnviromentTests(SynchronousTestCase):
+    """
+    Tets for ``_link_environment``.
+    """
+
+    def test_link_environment(self):
         """
-        ``StartApplication._link_to_environment(link)`` returns a dictonary
+        ``_link_environment(link)`` returns a dictonary
         with keys used by docker to represent links. Specifically
         ``<alias>_PORT_TCP_<local_port>`` and the broken out variants
         ``_HOST``, ``_PORT`` and ``_PROTO``.
         """
-        link = Link(alias="dash-alias", local_port=80, remote_port=8080)
 
-        environment = StartApplication._link_to_environment(link, 'the-host')
+        environment = _link_environment(
+            protocol="udp",
+            alias="dash-alias",
+            local_port=80,
+            hostname=u"the-host",
+            remote_port=8080)
         self.assertEqual(
             environment,
             {
-                'DASH_ALIAS_PORT_TCP_80': 'tcp://the-host:8080',
-                'DASH_ALIAS_PORT_TCP_80_HOST': 'the-host',
-                'DASH_ALIAS_PORT_TCP_80_PORT': '8080',
-                'DASH_ALIAS_PORT_TCP_80_PROTO': 'tcp',
+                u'DASH_ALIAS_PORT_UDP_80': u'udp://the-host:8080',
+                u'DASH_ALIAS_PORT_UDP_80_PROTO': u'udp',
+                u'DASH_ALIAS_PORT_UDP_80_HOST': u'the-host',
+                u'DASH_ALIAS_PORT_UDP_80_PORT': u'8080',
             })
 
 

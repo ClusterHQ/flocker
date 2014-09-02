@@ -119,7 +119,14 @@ class StartApplication(object):
         environment = {}
 
         for link in application.links:
-            environment.update(self._link_to_environment(link, self.hostname))
+            environment.update(_link_environment(
+               protocol=u"tcp",
+               alias=link.alias,
+               local_port=link.local_port,
+               hostname=self.hostname,
+               remote_port=link.remote_port,
+               ))
+
 
         if application.environment is not None:
             environment.update(application.environment)
@@ -139,19 +146,30 @@ class StartApplication(object):
         ))
         return d
 
-    @staticmethod
-    def _link_to_environment(link, hostname):
-        """
-        """
-        alias = link.alias.upper().replace('-', "_")
-        base = '%s_PORT_TCP_%d' % (alias, link.local_port)
 
-        return {
-            base: u'tcp://%s:%d' % (hostname, link.remote_port),
-            base + '_HOST': hostname,
-            base + '_PORT': u'%d' % (link.remote_port,),
-            base + '_PROTO': u'tcp',
-        }
+def _link_environment(protocol, alias, local_port, hostname, remote_port):
+    """
+    Generate the environment variables used for defining a docker link.
+
+    Docker containers expect an enviroment variable
+    `<alias>_PORT_TCP_<local_port>`` which contains the URL of the remote end
+    of a link, as well as parsed variants ``_HOST``, ``_PORT``, ``_PROTO``.
+
+    :param unicode protocol: The protocol used for the link.
+    :param unicode alias: The name of the link.
+    :param int local_port: The port the local application expects to access.
+    :param unicode hostname: The remote hostname to connect to.
+    :param int remote_port: The remote port to connect to.
+    """
+    alias = alias.upper().replace(u'-', u"_")
+    base = u'%s_PORT_%s_%d' % (alias, protocol.upper(), local_port)
+
+    return {
+        base: u'%s://%s:%d' % (protocol, hostname, remote_port),
+        base + u'_HOST': hostname,
+        base + u'_PORT': u'%d' % (remote_port,),
+        base + u'_PROTO': protocol,
+    }
 
 
 @implementer(IStateChange)
