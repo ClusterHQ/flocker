@@ -31,7 +31,7 @@ ZFS is production quality code.
 Future Functionality
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-How does Flocker integrate with Kubernetes/Mesos/Deis/CoreOS/my favorite orchestration framework?
+How does Flocker integrate with Kubernetes / Mesos / Deis / CoreOS / my favorite orchestration framework?
 **************************************************************************************************************
 Over time, we hope that Flocker becomes the de facto way for managing storage volumes with your favorite orchestration framework.  
 We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
