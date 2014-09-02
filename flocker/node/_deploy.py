@@ -134,7 +134,7 @@ class StartApplication(object):
         if environment:
             gear_environment = GearEnvironment(
                 id=application.name,
-                variables=environment)
+                variables=frozenset(environment.iteritems()))
         else:
             gear_environment = None
 

@@ -412,7 +412,7 @@ class StartApplicationTests(SynchronousTestCase):
         deployer = Deployer(volume_service, fake_gear)
 
         application_name = u'site-example.com'
-        variables = dict(foo=u"bar", baz=u"qux")
+        variables = frozenset({u'foo': u"bar", u"baz": u"qux"}.iteritems())
         application = Application(
             name=application_name,
             image=DockerImage(repository=u'clusterhq/postgresql',
@@ -478,12 +478,12 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
 
-        variables = {
+        variables = frozenset({
             'ALIAS_PORT_TCP_80': 'tcp://node1.example.com:8080',
             'ALIAS_PORT_TCP_80_HOST': 'node1.example.com',
             'ALIAS_PORT_TCP_80_PORT': '8080',
             'ALIAS_PORT_TCP_80_PROTO': 'tcp',
-        }
+        }.iteritems())
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
 
