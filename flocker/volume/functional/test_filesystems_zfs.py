@@ -13,6 +13,7 @@ import subprocess
 import errno
 
 from twisted.internet import reactor
+from twisted.internet.task import cooperate
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
@@ -21,7 +22,7 @@ from ..test.filesystemtests import (
     copy, assertVolumesEqual
     )
 from ..filesystems.zfs import (
-    ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
+    Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset, zfs_command,
     )
 from ..service import Volume
 from ..testtools import create_zfs_pool, service_for_pool
@@ -330,3 +331,48 @@ class IncrementalPushTests(TestCase):
 
         creating.addCallback(created)
         return creating
+
+
+class FilesystemTests(TestCase):
+    """
+    ZFS-specific tests for ``Filesystem``.
+    """
+    def test_snapshots(self):
+        """
+        The ``Deferred`` returned by ``Filesystem.snapshots`` fires with a
+        ``list`` of ``Snapshot`` instances corresponding to the snapshots that
+        exist for the ZFS filesystem to which the ``Filesystem`` instance
+        corresponds.
+        """
+        expected_names = [b"foo", b"bar"]
+
+        # Create a filesystem and a couple snapshots.
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"snapshot-enumeration")
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Save it for later.
+            self.filesystem = filesystem
+
+            # Take a couple snapshots now that there is a filesystem.
+            return cooperate(
+                zfs_command(reactor, [b"snapshot", name])
+                for name in expected_names).whenDone()
+
+        snapshotting = creating.addCallback(created)
+
+        def snapshotted(ignored):
+            # Now that some snapshots exist, interrogate the system.
+            return self.filesystem.snapshots()
+
+        loading = snapshotting.addCallback(snapshotted)
+
+        def loaded(snapshots):
+            self.assertEqual(
+                list(Snapshot(name) for name in expected_names),
+                snapshots)
+
+        loading.addCallback(loaded)
+        return loading

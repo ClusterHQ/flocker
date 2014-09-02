@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from uuid import uuid4
 from subprocess import STDOUT, PIPE, Popen, check_call
 
-from characteristic import with_cmp, with_repr
+from characteristic import attributes, with_cmp, with_repr
 
 from zope.interface import implementer
 
@@ -128,6 +128,15 @@ def _sync_command_error_squashed(arguments, logger):
                 zfs_command=log_arguments, output=output, status=status)
     if message is not None:
         message.write(logger)
+
+
+@attributes(["name"])
+class Snapshot(object):
+    """
+    A snapshot of a ZFS filesystem.
+
+    :ivar unicode name: The name of the snapshot.
+    """
 
 
 @implementer(IFilesystem)
