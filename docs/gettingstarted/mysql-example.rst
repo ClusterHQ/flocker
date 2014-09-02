@@ -82,7 +82,7 @@ Connect to MySQL
 ================
 
 We can now use the ``mysql`` client on the host machine (you will need to install this if you do not already have it) to connect to the MySQL server running inside the container.
-Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application config.
+Connect using the client to the IP address of the virtual machine, using the port number we exposed in the application configuration.
 Our example MySQL image sets the ``root`` user password to ``clusterhq`` so we'll connect to MySQL using those credentials and specify the IP address of the virtual machine as the host.
 
 .. code-block:: console
@@ -154,8 +154,8 @@ Next we'll verify the data has been saved and can be retrieved with a ``SELECT``
 
 .. note:: Type in ``quit`` after you've run the ``SELECT`` query to exit the MySQL client.
 
-Create a New Deployment Config and Move the Application
-=======================================================
+Create a New Deployment Configuration and Move the Application
+==============================================================
 
 Download the new deployment configuration and save to your ``flocker-mysql`` directory.
 This new configuration tells ``flocker-deploy`` to move the container to a different node, by specifying a new IP address to deploy the application with.
