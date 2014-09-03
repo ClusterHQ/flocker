@@ -232,7 +232,8 @@ class ZFSSnapshots(object):
         return d
 
     def list(self):
-        """List ZFS snapshots known to the volume manager.
+        """
+        List ZFS snapshots known to the volume manager.
 
         Snapshots whose names cannot be decoded are presumed not to be
         related to Flocker, and therefore will not be included in the
