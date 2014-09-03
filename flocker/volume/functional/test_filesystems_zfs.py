@@ -369,8 +369,14 @@ class FilesystemTests(TestCase):
 
             # Take a couple snapshots now that there is a filesystem.
             return cooperate(
-                zfs_command(reactor, [b"snapshot", name])
-                for name in expected_names).whenDone()
+                zfs_command(
+                    reactor, [
+                        b"snapshot",
+                        u"{}@{}".format(filesystem.name, name).encode("ascii"),
+                    ]
+                )
+                for name in expected_names
+            ).whenDone()
 
         snapshotting = creating.addCallback(created)
 
