@@ -664,10 +664,11 @@ def make_istoragepool_tests(fixture):
             creating = pool.create(volume)
 
             def created(filesystem):
-                return filesystem.snapshots()
+                loading = filesystem.snapshots()
+                loading.addCallback(self.assertEqual, [])
+                return loading
 
-            loading = creating.addCallback(created)
-            loading.addCallback(self.assertEqual, [])
-            return loading
+            creating.addCallback(created)
+            return creating
 
     return IStoragePoolTests
