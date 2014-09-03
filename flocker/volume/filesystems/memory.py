@@ -48,6 +48,13 @@ class DirectoryFilesystem(object):
     def get_path(self):
         return self.path
 
+    def snapshots(self):
+        """
+        There is no support for snapshotting ``DirectoryFilesystem``.  So there
+        are never any snapshots.
+        """
+        return []
+
     @contextmanager
     def reader(self):
         """Package up filesystem contents as a tarball."""

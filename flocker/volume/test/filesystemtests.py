@@ -652,4 +652,22 @@ def make_istoragepool_tests(fixture):
 
             return self.assertFailure(d, FilesystemAlreadyExists)
 
+        def test_no_snapshots(self):
+            """
+            If there are no snapshots of a given filesystem,
+            ``Filesystem.snapshots`` returns a ``Deferred`` that fires with an
+            empty ``list``.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(u"snapshot-enumeration")
+            creating = pool.create(volume)
+
+            def created(filesystem):
+                return filesystem.snapshots()
+
+            loading = creating.addCallback(created)
+            loading.addCallback(self.assertEqual, [])
+            return loading
+
     return IStoragePoolTests
