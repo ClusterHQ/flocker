@@ -120,13 +120,12 @@ class StartApplication(object):
 
         for link in application.links:
             environment.update(_link_environment(
-               protocol=u"tcp",
-               alias=link.alias,
-               local_port=link.local_port,
-               hostname=self.hostname,
-               remote_port=link.remote_port,
-               ))
-
+                protocol=u"tcp",
+                alias=link.alias,
+                local_port=link.local_port,
+                hostname=self.hostname,
+                remote_port=link.remote_port,
+                ))
 
         if application.environment is not None:
             environment.update(application.environment)

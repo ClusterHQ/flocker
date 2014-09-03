@@ -9,7 +9,8 @@ from subprocess import check_call
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import Deployer, Deployment, Application, DockerImage, Node, AttachedVolume
+from .. import (
+    Deployer, Deployment, Application, DockerImage, Node, AttachedVolume)
 from ..gear import GearClient
 from ..testtools import wait_for_unit_state, if_gear_configured
 from ...testtools import random_name, DockerImageBuilder, assertContainsAll
@@ -82,8 +83,7 @@ class DeployerTests(TestCase):
         gear_client = GearClient("127.0.0.1")
         self.addCleanup(gear_client.remove, application_name)
 
-
-        volume_service=create_volume_service(self)
+        volume_service = create_volume_service(self)
         deployer = Deployer(volume_service, gear_client,
                             make_memory_network())
 
@@ -109,7 +109,8 @@ class DeployerTests(TestCase):
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(gear_client, application_name,
+        d.addCallback(lambda _: wait_for_unit_state(gear_client,
+                                                    application_name,
                                                     [u'active']))
 
         def started(_):
@@ -120,6 +121,7 @@ class DeployerTests(TestCase):
             assertContainsAll(
                 haystack=contents,
                 test_case=self,
-                needles=['{}={}\n'.format(k, v) for k, v in expected_variables])
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables])
         d.addCallback(started)
         return d
