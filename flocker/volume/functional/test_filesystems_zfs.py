@@ -301,6 +301,9 @@ class IncrementalPushTests(TestCase):
         creating = pool.create(volume)
 
         def created(filesystem):
+            # Save it for later use.
+            self.filesystem = filesystem
+
             # Put some data onto the volume so there is a baseline against
             # which to compare.
             path = filesystem.get_path()
@@ -314,23 +317,31 @@ class IncrementalPushTests(TestCase):
             # relying on `reader` to do this.
             with filesystem.reader() as reader:
                 # Capture the size of this stream for later comparison.
-                complete_size = len(reader.read())
+                self.complete_size = len(reader.read())
 
+            # Capture the snapshots that exist now so they can be given as an
+            # argument to the reader method.
+            snapshots = filesystem.snapshots()
+            return snapshots
+
+        loading = creating.addCallback(created)
+
+        def loaded(snapshots):
             # Perform another send, supplying snapshots available on the writer
             # so an incremental stream can be constructed.
-            snapshots = filesystem.snapshots()
-            with filesystem.reader(snapshots) as reader:
+
+            with self.filesystem.reader(snapshots) as reader:
                 incremental_size = len(reader.read())
 
             self.assertTrue(
-                incremental_size < complete_size,
+                incremental_size < self.complete_size,
                 "Bytes of data for incremental send ({}) was not fewer than "
                 "bytes of data for complete send ({}).".format(
-                    incremental_size, complete_size)
+                    incremental_size, self.complete_size)
             )
 
-        creating.addCallback(created)
-        return creating
+        loading.addCallback(loaded)
+        return loading
 
 
 class FilesystemTests(TestCase):
