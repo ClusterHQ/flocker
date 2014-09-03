@@ -130,7 +130,6 @@ class DeployerTests(TestCase):
         d.addCallback(started)
         return d
 
-
     @if_gear_configured
     def test_links(self):
         """
@@ -165,7 +164,6 @@ class DeployerTests(TestCase):
         link = Link(alias=u"alias",
                     local_port=80,
                     remote_port=8080)
-
 
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
