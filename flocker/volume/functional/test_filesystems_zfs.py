@@ -20,10 +20,11 @@ from twisted.python.filepath import FilePath
 from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
     copy, assertVolumesEqual
-    )
+)
 from ..filesystems.zfs import (
-    Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset, zfs_command,
-    )
+    Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
+    zfs_command,
+)
 from ..service import Volume
 from ..testtools import create_zfs_pool, service_for_pool
 
