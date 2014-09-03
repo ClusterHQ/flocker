@@ -153,10 +153,11 @@ def _latest_common_snapshot(some, others):
         ``some`` and ``others`` If no ``Snapshot`` appears in both, ``None`` is
         returned.
     """
-    try:
-        return next(iter(set(some) & set(others)))
-    except StopIteration:
-        return None
+    in_others = set(others).__contains__
+    for snapshot in reversed(some):
+        if in_others(snapshot):
+            return snapshot
+    return None
 
 
 @implementer(IFilesystem)

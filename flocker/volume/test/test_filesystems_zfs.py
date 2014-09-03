@@ -23,8 +23,9 @@ from ...testtools import FakeProcessReactor
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
-    _sync_command_error_squashed, ZFS_ERROR
-    )
+    _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
+    Snapshot,
+)
 
 
 class FilesystemTests(SynchronousTestCase):
@@ -303,3 +304,60 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name])
+
+
+class LatestCommonSnapshotTests(SynchronousTestCase):
+    """
+    Tests for ``_latest_common_snapshot``.
+    """
+    def test_no_common(self):
+        """
+        If there are no common ``Snapshot`` instances in the two ``list``\ s,
+        ``_latest_common_snapshot`` returns ``None``.
+        """
+        self.assertIs(
+            None,
+            _latest_common_snapshot(
+                [Snapshot(name=b"a")], [Snapshot(name=b"b")]))
+
+    def test_empty_list(self):
+        """
+        If one of the ``list``\ s passed to ``_latest_common_snapshot`` is
+        empty, ``None`` is returned.
+        """
+        self.assertIs(
+            None, _latest_common_snapshot([Snapshot(name=b"a")], []))
+
+    def test_last_snapshot_common(self):
+        """
+        If the last ``Snapshot`` in the ``list``\ s passed to
+        ``_latest_common_snapshot`` is the same, it is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        c = Snapshot(name=b"c")
+        self.assertEqual(
+            a, _latest_common_snapshot([b, a], [c, a]))
+
+    def test_earlier_snapshot_common(self):
+        """
+        If only one ``Snapshot`` is common to the two lists and it appears
+        somewhere in the middle, it is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        c = Snapshot(name=b"c")
+        d = Snapshot(name=b"d")
+        e = Snapshot(name=b"e")
+        self.assertEqual(
+            a, _latest_common_snapshot([b, a, c], [d, a, e]))
+
+    def test_multiple_common(self):
+        """
+        If multiple ``Snapshot``\ s are common to the two lists, the one which
+        appears closest to the end is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        self.assertEqual(
+            b, _latest_common_snapshot([a, b], [a, b]))
