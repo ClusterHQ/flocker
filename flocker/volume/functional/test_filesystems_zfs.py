@@ -371,7 +371,7 @@ class FilesystemTests(TestCase):
 
         def loaded(snapshots):
             self.assertEqual(
-                list(Snapshot(name) for name in expected_names),
+                list(Snapshot(name=name) for name in expected_names),
                 snapshots)
 
         loading.addCallback(loaded)
