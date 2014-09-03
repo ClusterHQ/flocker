@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
-    Deployer, Deployment, Application, DockerImage, Node, AttachedVolume)
+    Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
 from ..gear import GearClient
 from ..testtools import wait_for_unit_state, if_gear_configured
 from ...testtools import random_name, DockerImageBuilder, assertContainsAll
@@ -69,6 +69,10 @@ class DeployerTests(TestCase):
 
     @if_gear_configured
     def test_environment(self):
+        """
+        The environment specified in an ``Application`` is passed to the
+        container.
+        """
         docker_dir = FilePath(self.mktemp())
         docker_dir.makedirs()
         docker_dir.child(b"Dockerfile").setContent(
@@ -104,6 +108,76 @@ class DeployerTests(TestCase):
                          mountpoint=FilePath('/data'),
                          ),
                      links=frozenset(),
+                     )]))]))
+
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
+        d.addCallback(lambda _: wait_for_unit_state(gear_client,
+                                                    application_name,
+                                                    [u'active']))
+
+        def started(_):
+            volume = volume_service.get(application_name)
+            path = volume.get_filesystem().get_path()
+            contents = path.child(b'env').getContent()
+
+            assertContainsAll(
+                haystack=contents,
+                test_case=self,
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables])
+        d.addCallback(started)
+        return d
+
+
+    @if_gear_configured
+    def test_links(self):
+        """
+        The links specified in an ``Application`` are passed to the
+        container as environment variables..
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", "env > /data/env && sleep 1"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
+        application_name = random_name()
+
+        gear_client = GearClient("127.0.0.1")
+        self.addCleanup(gear_client.remove, application_name)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service, gear_client,
+                            make_memory_network())
+
+        expected_variables = frozenset({
+            'ALIAS_PORT_TCP_80': 'tcp://localhost:8080',
+            'ALIAS_PORT_TCP_80_PROTO': 'tcp',
+            'ALIAS_PORT_TCP_80_HOST': 'localhost',
+            'ALIAS_PORT_TCP_80_PORT': '8080',
+        }.items())
+
+        link = Link(alias=u"alias",
+                    local_port=80,
+                    remote_port=8080)
+
+
+        desired_state = Deployment(nodes=frozenset([
+            Node(hostname=u"localhost",
+                 applications=frozenset([Application(
+                     name=application_name,
+                     image=DockerImage.from_string(
+                         image_name),
+                     links=frozenset([link]),
+                     volume=AttachedVolume(
+                         name=application_name,
+                         mountpoint=FilePath('/data'),
+                         ),
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
