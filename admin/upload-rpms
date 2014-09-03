@@ -62,7 +62,7 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     rpm_directory.createDirectory()
     # Download existing repository
     check_call([
-        b'gsutil', b'cp', b'-R', target_repo + b'/**', rpm_directory.path])
+        b'gsutil', b'cp', b'-R', target_repo + b'/*', rpm_directory.path])
 
     # Download requested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
@@ -85,7 +85,7 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     # Upload updated repository
     check_call(
         [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
-         rpm_directory.path + b'/**', target_repo])
+         rpm_directory.path + b'/*', target_repo])
 
 
 def upload_rpms(scratch_directory, version, target_server, build_server):
