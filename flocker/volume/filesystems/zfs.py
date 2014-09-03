@@ -205,10 +205,10 @@ class Filesystem(object):
         """
         Send zfs stream of contents.
 
-        :param list snapshots: ``Snapshot`` instances, ordered from newest to
-            oldest, which are available on the writer.  The reader may generate
-            a partial stream which relies on one of these snapshots in order to
-            minimize the data to be transferred.
+        :param list remote_snapshots: ``Snapshot`` instances, ordered from
+            oldest to newest, which are available on the writer.  The reader
+            may generate a partial stream which relies on one of these
+            snapshots in order to minimize the data to be transferred.
         """
         # The existing snapshot code uses Twisted, so we're not using it
         # in this iteration.  What's worse, though, is that it's not clear
