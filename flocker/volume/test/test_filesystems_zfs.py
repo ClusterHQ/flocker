@@ -221,7 +221,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         snapshots.list()
         self.assertEqual(reactor.processes[0].args,
                          [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
-                          b"-o", b"name", b"-s", b"name", b"mypool"])
+                          b"-o", b"name", b"-s", b"creation", b"mypool"])
 
     def test_list_result_root_dataset(self):
         """
