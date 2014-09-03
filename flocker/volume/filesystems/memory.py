@@ -53,7 +53,7 @@ class DirectoryFilesystem(object):
         There is no support for snapshotting ``DirectoryFilesystem``.  So there
         are never any snapshots.
         """
-        return []
+        return succeed([])
 
     @contextmanager
     def reader(self):
