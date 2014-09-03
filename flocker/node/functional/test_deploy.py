@@ -73,12 +73,7 @@ class DeployerTests(TestCase):
         The environment specified in an ``Application`` is passed to the
         container.
         """
-        docker_dir = FilePath(self.mktemp())
-        docker_dir.makedirs()
-        docker_dir.child(b"Dockerfile").setContent(
-            b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "env > /data/env && sleep 1"]'
-        )
+        docker_dir = FilePath(__file__).sibling('env-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
@@ -136,12 +131,7 @@ class DeployerTests(TestCase):
         The links specified in an ``Application`` are passed to the
         container as environment variables..
         """
-        docker_dir = FilePath(self.mktemp())
-        docker_dir.makedirs()
-        docker_dir.child(b"Dockerfile").setContent(
-            b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "env > /data/env && sleep 1"]'
-        )
+        docker_dir = FilePath(__file__).sibling('env-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
 
