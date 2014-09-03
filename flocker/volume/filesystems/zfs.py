@@ -9,7 +9,7 @@ from __future__ import absolute_import
 import os
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import STDOUT, PIPE, Popen, check_call
+from subprocess import STDOUT, PIPE, Popen, check_call, check_output
 
 from characteristic import attributes, with_cmp, with_repr
 
@@ -139,6 +139,26 @@ class Snapshot(object):
     """
 
 
+def _latest_common_snapshot(some, others):
+    """
+    Pick the most recent snapshot that is common to two snapshot lists.
+
+    :param list some: One ``list`` of ``Snapshot`` instances to consider,
+        ordered from oldest to newest.
+
+    :param list others: Another ``list`` of ``Snapshot`` instances to consider,
+        ordered from oldest to newest.
+
+    :return: The ``Snapshot`` instance which occurs closest to the end of both
+        ``some`` and ``others`` If no ``Snapshot`` appears in both, ``None`` is
+        returned.
+    """
+    try:
+        return next(iter(set(some) & set(others)))
+    except StopIteration:
+        return None
+
+
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
 @with_repr(["pool", "dataset"])
@@ -149,7 +169,7 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
-    def __init__(self, pool, dataset, mountpoint=None):
+    def __init__(self, pool, dataset, mountpoint=None, reactor=None):
         """
         :param pool: The filesystem's pool name, e.g. ``b"hpool"``.
 
@@ -162,6 +182,12 @@ class Filesystem(object):
         self.pool = pool
         self.dataset = dataset
         self._mountpoint = mountpoint
+        if reactor is None:
+            from twisted.internet import reactor
+        self._reactor = reactor
+
+    def snapshots(self):
+        return _list_snapshots(self._reactor, self)
 
     @property
     def name(self):
@@ -174,8 +200,15 @@ class Filesystem(object):
         return self._mountpoint
 
     @contextmanager
-    def reader(self):
-        """Send zfs stream of contents."""
+    def reader(self, remote_snapshots=None):
+        """
+        Send zfs stream of contents.
+
+        :param list snapshots: ``Snapshot`` instances, ordered from newest to
+            oldest, which are available on the writer.  The reader may generate
+            a partial stream which relies on one of these snapshots in order to
+            minimize the data to be transferred.
+        """
         # The existing snapshot code uses Twisted, so we're not using it
         # in this iteration.  What's worse, though, is that it's not clear
         # if the current snapshot naming scheme makes any sense, and
@@ -184,7 +217,31 @@ class Filesystem(object):
         # clearer as we iterate.
         snapshot = b"%s@%s" % (self.name, uuid4())
         check_call([b"zfs", b"snapshot", snapshot])
-        process = Popen([b"zfs", b"send", snapshot], stdout=PIPE)
+
+        # Determine whether there is a shared snapshot which can be used as the
+        # basis for an incremental send.
+        local_snapshots = _parse_snapshots(
+            check_output([b"zfs"] + _list_snapshots_command(self)),
+            self
+        )
+
+        if remote_snapshots is None:
+            remote_snapshots = []
+
+        latest_common_snapshot = _latest_common_snapshot(
+            remote_snapshots, local_snapshots)
+
+        if latest_common_snapshot is None:
+            identifier = [snapshot]
+        else:
+            identifier = [
+                b"-i",
+                u"{}@{}".format(
+                    self.name, latest_common_snapshot.name).encode("ascii"),
+                snapshot,
+            ]
+
+        process = Popen([b"zfs", b"send"] + identifier, stdout=PIPE)
         try:
             yield process.stdout
         finally:
