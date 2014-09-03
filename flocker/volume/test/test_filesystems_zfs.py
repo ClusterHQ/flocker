@@ -223,10 +223,10 @@ class ZFSSnapshotsTests(SynchronousTestCase):
                          [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
                           b"-o", b"name", b"-s", b"name", b"mypool"])
 
-    def test_list_result(self):
+    def test_list_result_root_dataset(self):
         """
-        ``ZFSSnapshots.list`` parses out the snapshot names from the results of
-        the command.
+        ``ZFSSnapshots.list`` parses out the snapshot names of the root dataset
+        from the results of the command.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
@@ -239,6 +239,26 @@ class ZFSSnapshotsTests(SynchronousTestCase):
             1, b"mypool@%s\n" % (name.to_bytes(),))
         process_protocol.childDataReceived(
             1, b"mypool@%s\n" % (name2.to_bytes(),))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), [name, name2])
+
+    def test_list_result_child_dataset(self):
+        """
+        ``ZFSSnapshots.list`` parses out the snapshot names of a non-root
+        dataset from the results of the command.
+        """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", b"myfs"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+        name2 = SnapshotName(datetime.now(UTC), b"node2")
+
+        d = snapshots.list()
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(
+            1, b"mypool/myfs@%s\n" % (name.to_bytes(),))
+        process_protocol.childDataReceived(
+            1, b"mypool/myfs@%s\n" % (name2.to_bytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name, name2])
