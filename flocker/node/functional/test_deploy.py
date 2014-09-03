@@ -129,7 +129,7 @@ class DeployerTests(TestCase):
     def test_links(self):
         """
         The links specified in an ``Application`` are passed to the
-        container as environment variables..
+        container as environment variables.
         """
         docker_dir = FilePath(__file__).sibling('env-docker')
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
