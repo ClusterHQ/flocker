@@ -48,12 +48,19 @@ class IFilesystem(Interface):
         :return: The path as a ``FilePath``.
         """
 
-    def reader():
-        """Context manager that allows reading the contents of the filesystem.
+    def reader(destination_hints=None):
+        """
+        Context manager that allows reading the contents of the filesystem.
 
         A blocking API, for now.
 
         The returned file-like object will be closed by this object.
+
+        :param destination_hints: If ``None``, the output stream is not
+            specific to any destination and so the full contents will e
+            included. If the output of ``write_hints()`` on the receiving
+            side is passed in (as ``bytes``) the reader may be able to
+            return a customized stream for writing to that destination.
 
         :return: A file-like object from whom the filesystem's data can be
             read as ``bytes``.
@@ -75,6 +82,15 @@ class IFilesystem(Interface):
         :return: A file-like object which when written to with output of
             :meth:`IFilesystem.reader` will populate the volume's
             filesystem.
+        """
+
+    def write_hints():
+        """
+        Return information that might be useful to someone writing to this
+        filesystem.
+
+        :return: ``bytes`` in a format readable by writers of the same
+            kind of filesystem.
         """
 
     def __eq__(other):

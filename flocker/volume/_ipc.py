@@ -46,6 +46,17 @@ class IRemoteVolumeManager(Interface):
         :return: The UUID of the remote volume manager (as ``unicode``).
         """
 
+    def write_hints(volume):
+        """
+        Ask the remote volume manager for hints about how to update the volume
+        on the destination.
+
+        :param Volume volume: The volume which will subsequentially be pushed to
+            by the remote volume manager.
+
+        :return: The hints, as ``bytes``.
+        """
+
 
 @implementer(IRemoteVolumeManager)
 @with_cmp(["_destination", "_config_path"])
@@ -78,6 +89,14 @@ class RemoteVolumeManager(object):
              volume.uuid.encode(b"ascii"),
              volume.name.encode("ascii")]).decode("ascii")
 
+    # def write_hints(self, volume):
+    #     return self._destination.get_output(
+    #         [b"flocker-volume",
+    #          b"--config", self._config_path.path,
+    #          b"write-hints",
+    #          volume.uuid.encode(b"ascii"),
+    #          volume.name.encode("ascii")]).decode("ascii")
+
 
 @implementer(IRemoteVolumeManager)
 class LocalVolumeManager(object):
@@ -101,3 +120,6 @@ class LocalVolumeManager(object):
     def acquire(self, volume):
         self._service.acquire(volume.uuid, volume.name)
         return self._service.uuid
+
+    # def write_hints(self, volume):
+    #    return volume.get_filesystem().write_hints()

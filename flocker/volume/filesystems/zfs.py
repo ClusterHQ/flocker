@@ -165,7 +165,7 @@ class Filesystem(object):
         return self._mountpoint
 
     @contextmanager
-    def reader(self):
+    def reader(self, destination_hints=None):
         """Send zfs stream of contents."""
         # The existing snapshot code uses Twisted, so we're not using it
         # in this iteration.  What's worse, though, is that it's not clear
@@ -173,6 +173,14 @@ class Filesystem(object):
         # moreover it violates abstraction boundaries. So as first pass
         # I'm just using UUIDs, and hopefully requirements will become
         # clearer as we iterate.
+
+        # XXX If destination_hints was given:
+        # 1. convert to list of snapshots:
+        # 2. Calculate local list of snapshots
+        # 3. Find the newest snapshot that is in both lists.
+        # 4. We can now do an incremental `zfs send` with that snapshot as the
+        #    starting point and the new snapshot as the end point.
+
         snapshot = b"%s@%s" % (self.name, uuid4())
         check_call([b"zfs", b"snapshot", snapshot])
         process = Popen([b"zfs", b"send", snapshot], stdout=PIPE)
@@ -206,6 +214,12 @@ class Filesystem(object):
             check_call([b"zfs", b"set",
                         b"mountpoint=" + self._mountpoint.path,
                         self.name])
+
+    def write_hints(self):
+        # Return list of all snapshots of this filesystem, sorted in
+        # descending order of creation (i.e. newer ones first), one per
+        # line.
+        pass
 
 
 @implementer(IFilesystemSnapshots)

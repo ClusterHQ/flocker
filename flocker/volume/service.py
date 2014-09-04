@@ -193,8 +193,9 @@ class VolumeService(Service):
         if volume.uuid != self.uuid:
             raise ValueError()
         fs = volume.get_filesystem()
+        write_hints = destination.write_hints(volume)
         with destination.receive(volume) as receiver:
-            with fs.reader() as contents:
+            with fs.reader(write_hints) as contents:
                 for chunk in iter(lambda: contents.read(1024 * 1024), b""):
                     receiver.write(chunk)
 

@@ -49,7 +49,7 @@ class DirectoryFilesystem(object):
         return self.path
 
     @contextmanager
-    def reader(self):
+    def reader(self, destination_hints=None):
         """Package up filesystem contents as a tarball."""
         result = BytesIO()
         tarball = TarFile(fileobj=result, mode="w")
@@ -75,6 +75,9 @@ class DirectoryFilesystem(object):
             # This should really be dealt with, e.g. logged:
             # https://github.com/ClusterHQ/flocker/issues/122
             pass
+
+    # def write_hints():
+    #    return b"" # Nothing useful here
 
 
 @implementer(IStoragePool)
