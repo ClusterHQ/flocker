@@ -254,18 +254,14 @@ class RemoteVolumeManagerTests(TestCase):
         """
         Receiving calls ``flocker-volume`` remotely with ``receive`` command.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
 
         remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
-        with remote.receive(volume):
+        with remote.receive(self.volume):
             pass
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"receive", volume.uuid.encode("ascii"),
+                          b"receive", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
 
     def test_receive_default_config(self):
@@ -273,19 +269,15 @@ class RemoteVolumeManagerTests(TestCase):
         ``RemoteVolumeManager`` by default calls ``flocker-volume`` with
         default config path.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
 
         remote = RemoteVolumeManager(node)
-        with remote.receive(volume):
+        with remote.receive(self.volume):
             pass
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
-                          b"receive", volume.uuid.encode("ascii"),
+                          b"receive", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
 
     def test_acquire_destination_run(self):
@@ -293,16 +285,12 @@ class RemoteVolumeManagerTests(TestCase):
         ``RemoteVolumeManager.acquire()`` calls ``flocker-volume`` remotely
         with ``acquire`` command.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode([b"remoteuuid"])
 
         remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
-        remote.acquire(volume)
+        remote.acquire(self.volume)
 
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"acquire", volume.uuid.encode("ascii"),
+                          b"acquire", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
