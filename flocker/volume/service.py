@@ -170,7 +170,7 @@ class VolumeService(Service):
         enumerating.addCallback(enumerated)
         return enumerating
 
-    def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
+    def push(self, volume, destination):
         """
         Push the latest data in the volume to a remote destination.
 
@@ -183,9 +183,6 @@ class VolumeService(Service):
 
         :param IRemoteVolumeManager destination: The remote volume manager
             to push to.
-
-        :param FilePath config_path: Path to configuration file for the
-            remote ``flocker-volume``.
 
         :raises ValueError: If the uuid of the volume is different than
             our own; only locally-owned volumes can be pushed.
