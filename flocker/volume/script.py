@@ -82,9 +82,11 @@ class _SnapshotsSubcommandOptions(Options):
         volume = Volume(uuid=self["uuid"], name=self["name"], service=service)
         filesystem = volume.get_filesystem()
         snapshots = filesystem.snapshots()
+
         def got_snapshots(snapshots):
             for snapshot in snapshots:
                 sys.stdout.write(snapshot.name + b"\n")
+
         snapshots.addCallback(got_snapshots)
         return snapshots
 
