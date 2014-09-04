@@ -13,6 +13,7 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
+from ..filesystems.zfs import Snapshot
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
     IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager)
@@ -211,12 +212,44 @@ class LocalVolumeManagerInterfaceTests(
     """
     Tests for ``LocalVolumeManager`` as a ``IRemoteVolumeManager``.
     """
+    def test_snapshots(self):
+        """
+        ``LocalVolumeManager.snapshots`` returns a ``Deferred`` that fires with
+        ``[]`` because ``DirectoryFilesystem`` does not support snapshots.
+        """
+        pair = create_local_servicepair(self)
+        volume = self.successResultOf(pair.from_service.create(u"myvolume"))
+        self.assertEqual(
+            [], self.successResultOf(pair.remote.snapshots(volume)))
 
 
 class RemoteVolumeManagerTests(TestCase):
     """
     Tests for ``RemoteVolumeManager``.
     """
+    def setUp(self):
+        self.pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        self.service = VolumeService(
+            FilePath(self.mktemp()), self.pool, reactor=Clock())
+        self.service.startService()
+        self.volume = self.successResultOf(self.service.create(u"myvolume"))
+
+    def test_snapshots_destination_run(self):
+        """
+        ``RemoteVolumeManager.snapshots`` calls ``flocker-volume`` remotely
+        with the ``snapshots`` sub-command.
+        """
+        node = FakeNode([b"abc\ndef\n"])
+
+        remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
+        snapshots = self.successResultOf(remote.snapshots(self.volume))
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"snapshots", self.volume.uuid.encode("ascii"),
+                          b"myvolume"])
+        self.assertEqual(
+            [Snapshot(name="abc"), Snapshot(name="def")], snapshots)
+
     def test_receive_destination_run(self):
         """
         Receiving calls ``flocker-volume`` remotely with ``receive`` command.

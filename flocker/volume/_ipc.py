@@ -24,6 +24,17 @@ class IRemoteVolumeManager(Interface):
     """
     A remote volume manager with which one can communicate somehow.
     """
+    def snapshots(volume):
+        """
+        Retrieve a list of the snapshots which exist for the given volume.
+
+        :param Volume volume: The volume for which to retrieve snapshots.
+
+        :return: A ``Deferred`` that fires with a ``list`` of ``Snapshot``
+            instances giving the snapshot information.  The snapshots are
+            ordered from oldest to newest.
+        """
+
     def receive(volume):
         """
         Context manager that returns a file-like object to which a volume's
