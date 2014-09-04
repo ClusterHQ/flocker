@@ -479,10 +479,10 @@ class StartApplicationTests(SynchronousTestCase):
                          hostname="node1.example.com").run(deployer)
 
         variables = frozenset({
-            'ALIAS_PORT_TCP_80': 'tcp://node1.example.com:8080',
-            'ALIAS_PORT_TCP_80_HOST': 'node1.example.com',
-            'ALIAS_PORT_TCP_80_PORT': '8080',
-            'ALIAS_PORT_TCP_80_PROTO': 'tcp',
+            'ALIAS_PORT_80_TCP': 'tcp://node1.example.com:8080',
+            'ALIAS_PORT_80_TCP_ADDR': 'node1.example.com',
+            'ALIAS_PORT_80_TCP_PORT': '8080',
+            'ALIAS_PORT_80_TCP_PROTO': 'tcp',
         }.iteritems())
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
@@ -502,8 +502,8 @@ class LinkEnviromentTests(SynchronousTestCase):
         """
         ``_link_environment(link)`` returns a dictonary
         with keys used by docker to represent links. Specifically
-        ``<alias>_PORT_TCP_<local_port>`` and the broken out variants
-        ``_HOST``, ``_PORT`` and ``_PROTO``.
+        ``<alias>_PORT_<local_port>_<protocol>`` and the broken out variants
+        ``_ADDR``, ``_PORT`` and ``_PROTO``.
         """
 
         environment = _link_environment(
@@ -515,10 +515,10 @@ class LinkEnviromentTests(SynchronousTestCase):
         self.assertEqual(
             environment,
             {
-                u'DASH_ALIAS_PORT_UDP_80': u'udp://the-host:8080',
-                u'DASH_ALIAS_PORT_UDP_80_PROTO': u'udp',
-                u'DASH_ALIAS_PORT_UDP_80_HOST': u'the-host',
-                u'DASH_ALIAS_PORT_UDP_80_PORT': u'8080',
+                u'DASH_ALIAS_PORT_80_UDP': u'udp://the-host:8080',
+                u'DASH_ALIAS_PORT_80_UDP_PROTO': u'udp',
+                u'DASH_ALIAS_PORT_80_UDP_ADDR': u'the-host',
+                u'DASH_ALIAS_PORT_80_UDP_PORT': u'8080',
             })
 
 

@@ -145,10 +145,10 @@ class DeployerTests(TestCase):
                             make_memory_network())
 
         expected_variables = frozenset({
-            'ALIAS_PORT_TCP_80': 'tcp://localhost:8080',
-            'ALIAS_PORT_TCP_80_PROTO': 'tcp',
-            'ALIAS_PORT_TCP_80_HOST': 'localhost',
-            'ALIAS_PORT_TCP_80_PORT': '8080',
+            'ALIAS_PORT_80_TCP': 'tcp://localhost:8080',
+            'ALIAS_PORT_80_TCP_PROTO': 'tcp',
+            'ALIAS_PORT_80_TCP_ADDR': 'localhost',
+            'ALIAS_PORT_80_TCP_PORT': '8080',
         }.items())
 
         link = Link(alias=u"alias",

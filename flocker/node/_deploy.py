@@ -161,11 +161,11 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
     :param int remote_port: The remote port to connect to.
     """
     alias = alias.upper().replace(u'-', u"_")
-    base = u'%s_PORT_%s_%d' % (alias, protocol.upper(), local_port)
+    base = u'%s_PORT_%d_%s' % (alias, local_port, protocol.upper())
 
     return {
         base: u'%s://%s:%d' % (protocol, hostname, remote_port),
-        base + u'_HOST': hostname,
+        base + u'_ADDR': hostname,
         base + u'_PORT': u'%d' % (remote_port,),
         base + u'_PROTO': protocol,
     }
