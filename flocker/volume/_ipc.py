@@ -17,7 +17,10 @@ from characteristic import with_cmp
 
 from zope.interface import Interface, implementer
 
+from twisted.internet.defer import succeed
+
 from .service import DEFAULT_CONFIG_PATH
+from .filesystems.zfs import Snapshot
 
 
 class IRemoteVolumeManager(Interface):
@@ -74,6 +77,24 @@ class RemoteVolumeManager(object):
         self._destination = destination
         self._config_path = config_path
 
+    def snapshots(self, volume):
+        """
+        Run ``flocker-volume snapshots`` on the destination and parse the
+        output into a ``list`` of ``Snapshot`` instances.
+        """
+        data = self._destination.get_output(
+            [b"flocker-volume",
+             b"--config", self._config_path.path,
+             b"snapshots",
+             volume.uuid.encode("ascii"),
+             volume.name.encode("ascii")]
+        )
+        return succeed([
+            Snapshot(name=name)
+            for name
+            in data.splitlines()
+        ])
+
     def receive(self, volume):
         return self._destination.run([b"flocker-volume",
                                       b"--config", self._config_path.path,
@@ -101,6 +122,12 @@ class LocalVolumeManager(object):
         :param VolumeService service: The service to communicate with.
         """
         self._service = service
+
+    def snapshots(self, volume):
+        """
+        Interrogate the volume's filesystem for its snapshots.
+        """
+        return volume.get_filesystem().snapshots()
 
     @contextmanager
     def receive(self, volume):
