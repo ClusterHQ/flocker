@@ -10,7 +10,7 @@ By the end of the release process we will have:
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
 
-If this is not a major or minor release (i.e. not a weekly development release), we will also have:
+If this is a major or minor release (i.e. not a weekly development release), we will also have:
 
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 - download links on https://clusterhq.com
