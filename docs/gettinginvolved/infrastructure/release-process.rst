@@ -216,8 +216,8 @@ Release
 
      .. code-block:: console
 
-        wget "https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-${VERSION}.tar.gz"
-        sha1sum "Flocker-${VERSION}.tar.gz"
+        $ sha1sum "dist/Flocker-${VERSION}.tar.gz"
+        ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.1.tar.gz
 
    - Commit the changes and push
 
