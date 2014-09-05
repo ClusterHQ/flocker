@@ -178,8 +178,10 @@ class VolumeServiceAPITests(TestCase):
                           RemoteVolumeManager(FakeNode()))
 
     def test_push_writes_filesystem(self):
-        """Pushing a locally-owned volume writes its filesystem to the remote
-        process."""
+        """
+        Pushing a locally-owned volume writes its filesystem to the remote
+        process.
+        """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
@@ -188,10 +190,52 @@ class VolumeServiceAPITests(TestCase):
         filesystem.get_path().child(b"foo").setContent(b"blah")
         with filesystem.reader() as reader:
             data = reader.read()
-        node = FakeNode()
+        node = FakeNode([
+            # Hard-code the knowledge that first `flocker-volume snapshots` is run
+            b"",
+        ])
 
-        service.push(volume, RemoteVolumeManager(node))
+        self.successResultOf(service.push(volume, RemoteVolumeManager(node)))
+
         self.assertEqual(node.stdin.read(), data)
+
+    def test_push_with_snapshots(self):
+        """
+        Pushing a locally-owned volume to a remote volume manager which has a
+        snapshot in common with the local volume manager results in an
+        incremental data stream.
+        """
+        from io import BytesIO
+        from contextlib import contextmanager
+        class FakeVolumeManager(object):
+            def __init__(self):
+                self.written = []
+
+            def snapshots(iself, volume):
+                return volume.get_filesystem().snapshots()
+
+            @contextmanager
+            def receive(self, volume):
+                writer = BytesIO()
+                yield writer
+                self.written.append(writer)
+
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+        filesystem.snapshot(b"stuff")
+
+        remote_manager = FakeVolumeManager()
+
+        self.successResultOf(service.push(volume, remote_manager))
+
+        writer = remote_manager.written.pop()
+        self.assertEqual(
+            [b"incremental stream based on", b"stuff"],
+            writer.getvalue().splitlines()[-2:])
+
 
     def test_receive_local_uuid(self):
         """If a volume with same uuid as service is received, ``ValueError`` is

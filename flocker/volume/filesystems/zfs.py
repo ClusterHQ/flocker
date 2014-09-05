@@ -268,11 +268,35 @@ class Filesystem(object):
 
     @contextmanager
     def writer(self):
-        """Read in zfs stream."""
-        # The temporary filesystem will be unnecessary once we have
-        # https://github.com/ClusterHQ/flocker/issues/46
-        temp_filesystem = b"%s/%s" % (self.pool, random_name())
-        process = Popen([b"zfs", b"recv", b"-F", temp_filesystem], stdin=PIPE)
+        """
+        Read in zfs stream.
+        """
+        if self._exists():
+            # If the filesystem already exists then this should be an
+            # incremental data stream to up date it to a more recent snapshot.
+            # If that's not the case then we're about to screw up - but that's
+            # all we can handle for now.  Using existence of the filesystem to
+            # determine whether the stream is incremental or not is definitely
+            # a hack.  When we replace this mechanism with a proper API we
+            # should make it include that information.
+            #
+            # -e means "if the stream says it is for foo/bar/baz then receive
+            # into baz".  I don't know why self.name is also required,
+            # then. XXX try -d self.pool instead. XXX it works without -e w/
+            # self.name too.
+            #
+            #
+            # -F means force.  If the stream is based on not-quite-the-latest
+            # snapshot then we have to throw away all the snapshots newer than
+            # it in order to receive the stream.  To do that you have to
+            # force.
+            #
+            cmd = [b"zfs", b"receive", b"-F", self.name]
+        else:
+            # If the filesystem doesn't already exist then this is a complete
+            # data stream.
+            cmd = [b"zfs", b"receive", self.name]
+        process = Popen(cmd, stdin=PIPE)
         succeeded = False
         try:
             yield process.stdin
@@ -280,13 +304,6 @@ class Filesystem(object):
             process.stdin.close()
             succeeded = not process.wait()
         if succeeded:
-            with open(os.devnull) as discard:
-                exists = not Popen(
-                    [b"zfs", b"list", self.name],
-                    stderr=discard, stdout=discard).wait()
-            if exists:
-                check_call([b"zfs", b"destroy", b"-R", self.name])
-            check_call([b"zfs", b"rename", temp_filesystem, self.name])
             check_call([b"zfs", b"set",
                         b"mountpoint=" + self._mountpoint.path,
                         self.name])

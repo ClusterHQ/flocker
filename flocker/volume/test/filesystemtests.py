@@ -75,10 +75,14 @@ def copy(from_volume, to_volume):
     """
     from_filesystem = from_volume.get_filesystem()
     to_filesystem = to_volume.get_filesystem()
-    with from_filesystem.reader() as reader:
-        with to_filesystem.writer() as writer:
-            for chunk in iter(lambda: reader.read(4096), b""):
-                writer.write(chunk)
+    getting_snapshots = to_filesystem.snapshots()
+    def got_snapshots(snapshots):
+        with from_filesystem.reader(snapshots) as reader:
+            with to_filesystem.writer() as writer:
+                for chunk in iter(lambda: reader.read(4096), b""):
+                    writer.write(chunk)
+    getting_snapshots.addCallback(got_snapshots)
+    return getting_snapshots
 
 
 @attributes(["from_volume", "to_volume"])
@@ -119,8 +123,12 @@ def create_and_copy(test, fixture):
         path = filesystem.get_path()
         path.child(b"file").setContent(b"some bytes")
         path.child(b"directory").makedirs()
-        copy(volume, volume2)
-        return CopyVolumes(from_volume=volume, to_volume=volume2)
+        copying = copy(volume, volume2)
+        copying.addCallback(
+            lambda ignored:
+                CopyVolumes(from_volume=volume, to_volume=volume2)
+        )
+        return copying
     d.addCallback(created_filesystem)
     return d
 
@@ -346,9 +354,13 @@ def make_istoragepool_tests(fixture):
                 path = copy_volumes.from_volume.get_filesystem().get_path()
                 path.child(b"anotherfile").setContent(b"hello")
                 path.child(b"file").remove()
-                copy(copy_volumes.from_volume, copy_volumes.to_volume)
-                assertVolumesEqual(
-                    self, copy_volumes.from_volume, copy_volumes.to_volume)
+                copying = copy(
+                    copy_volumes.from_volume, copy_volumes.to_volume)
+                def copied(ignored):
+                    assertVolumesEqual(
+                        self, copy_volumes.from_volume, copy_volumes.to_volume)
+                copying.addCallback(copied)
+                return copying
             d.addCallback(got_volumes)
             return d
 
@@ -361,8 +373,11 @@ def make_istoragepool_tests(fixture):
 
             def got_volumes(copied):
                 volume, volume2 = copied.from_volume, copied.to_volume
-                copy(volume, volume2)
-                assertVolumesEqual(self, volume, volume2)
+                copying = copy(volume, volume2)
+                def copied(ignored):
+                    assertVolumesEqual(self, volume, volume2)
+                copying.addCallback(copied)
+                return copying
             d.addCallback(got_volumes)
             return d
 
