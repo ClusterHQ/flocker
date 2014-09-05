@@ -9,7 +9,9 @@ from __future__ import absolute_import
 import os
 from contextlib import contextmanager
 from uuid import uuid4
-from subprocess import STDOUT, PIPE, Popen, check_call, check_output
+from subprocess import (
+    CalledProcessError, STDOUT, PIPE, Popen, check_call, check_output
+)
 
 from characteristic import attributes, with_cmp, with_repr
 
@@ -20,7 +22,7 @@ from eliot import Field, MessageType, Logger
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
@@ -187,8 +189,23 @@ class Filesystem(object):
             from twisted.internet import reactor
         self._reactor = reactor
 
+    def _exists(self):
+        """
+        Determine whether this filesystem exists locally.
+
+        :return: ``True`` if there is a filesystem with this name, ``False``
+            otherwise.
+        """
+        try:
+            check_output([b"zfs", b"list", self.name], stderr=STDOUT)
+        except CalledProcessError:
+            return False
+        return True
+
     def snapshots(self):
-        return _list_snapshots(self._reactor, self)
+        if self._exists():
+            return _list_snapshots(self._reactor, self)
+        return succeed([])
 
     @property
     def name(self):
