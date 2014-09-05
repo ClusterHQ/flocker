@@ -44,8 +44,8 @@ Access
 Preliminary Step: Pre-populating RPM Repository
 -----------------------------------------------
 
-This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
-If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
+.. warning:: This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
+             If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
 
 These steps must be performed from a machine with the ClusterHQ Copr repository installed.
 You can either use the :doc:`Flocker development environment <vagrant>`
@@ -181,8 +181,8 @@ Release
 
 #. Build tagged docs at Read the Docs:
 
-   .. note:: Do not do this for weekly releases.
-             The feature documentation may not be complete and may not have been tested.
+   .. warning:: Skip this entire step for weekly releases.
+                The features and documentation in weekly releases may not be complete and may not have been tested.
 
    #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
@@ -241,6 +241,8 @@ Release
 
 Update Download Links
 ~~~~~~~~~~~~~~~~~~~~~
+
+.. warning:: Skip this entire step for weekly releases.
 
 XXX Update download links on https://clusterhq.com:
 
