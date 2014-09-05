@@ -57,12 +57,18 @@ class IFilesystem(Interface):
             which exist of this filesystem.
         """
 
-    def reader():
-        """Context manager that allows reading the contents of the filesystem.
+    def reader(remote_snapshots=None):
+        """
+        Context manager that allows reading the contents of the filesystem.
 
         A blocking API, for now.
 
         The returned file-like object will be closed by this object.
+
+        :param list remote_snapshots: The snapshots which are available on the
+            writer.  The snapshots are ordered from oldest to newest.  An
+            incremental data stream may be generated based on one of these if
+            possible.
 
         :return: A file-like object from whom the filesystem's data can be
             read as ``bytes``.

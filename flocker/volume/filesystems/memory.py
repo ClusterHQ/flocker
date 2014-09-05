@@ -56,13 +56,27 @@ class DirectoryFilesystem(object):
         return succeed([])
 
     @contextmanager
-    def reader(self):
-        """Package up filesystem contents as a tarball."""
+    def reader(self, remote_snapshots=None):
+        """
+        Package up filesystem contents as a tarball.
+        """
         result = BytesIO()
         tarball = TarFile(fileobj=result, mode="w")
         for child in self.path.children():
             tarball.add(child.path, arcname=child.basename(), recursive=True)
         tarball.close()
+
+        # You can append anything to the end of a tar stream without corrupting
+        # it.  Smuggle some data about the snapshots through here.  This lets
+        # tests verify that an incremental stream is really being produced
+        # without forcing us to implement actual incremental streams on top of
+        # dumb directories.
+        if remote_snapshots:
+            result.write(
+                u"\nincremental stream based on\n{}".format(
+                    u"\n".join(snapshot.name for snapshot in remote_snapshots)
+                ).encode("ascii")
+            )
         result.seek(0, 0)
         yield result
 
