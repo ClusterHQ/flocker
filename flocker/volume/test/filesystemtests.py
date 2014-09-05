@@ -76,11 +76,19 @@ def copy(from_volume, to_volume):
     from_filesystem = from_volume.get_filesystem()
     to_filesystem = to_volume.get_filesystem()
     getting_snapshots = to_filesystem.snapshots()
+    print 'Getting snapshots'
     def got_snapshots(snapshots):
+        print 'Got snapshots'
         with from_filesystem.reader(snapshots) as reader:
+            print 'Got reader'
             with to_filesystem.writer() as writer:
+                print 'Got writer'
                 for chunk in iter(lambda: reader.read(4096), b""):
+                    print 'Writing chunk'
                     writer.write(chunk)
+                    print 'Wrote chunk'
+                print 'Finished copy'
+        print 'Really finished copy'
     getting_snapshots.addCallback(got_snapshots)
     return getting_snapshots
 

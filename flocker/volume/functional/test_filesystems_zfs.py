@@ -273,17 +273,27 @@ class StoragePoolTests(TestCase):
             to_filesystem = to_volume.get_filesystem()
             subprocess.check_call([b"zfs", b"set", b"readonly=off",
                                    to_filesystem.name])
+
+            print 'Read/write'
+
             to_path = to_filesystem.get_path()
             to_path.child(b"extra").setContent(b"lalala")
+
+            print 'Mutated'
 
             # Writing from first volume to second volume should revert
             # any changes to the second volume:
             from_path = from_volume.get_filesystem().get_path()
             from_path.child(b"anotherfile").setContent(b"hello")
             from_path.child(b"file").remove()
+
+            print 'Mutated from'
+
             copying = copy(from_volume, to_volume)
             def copied(ignored):
+                print 'Copied'
                 assertVolumesEqual(self, from_volume, to_volume)
+                print 'Equal'
             copying.addCallback(copied)
             return copying
         d.addCallback(got_volumes)
