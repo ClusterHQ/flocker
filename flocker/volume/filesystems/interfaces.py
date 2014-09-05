@@ -48,6 +48,15 @@ class IFilesystem(Interface):
         :return: The path as a ``FilePath``.
         """
 
+    def snapshots():
+        """
+        Retrieve the information about the snapshots of this filesystem.
+
+        :return: A ``Deferred`` that fires with a ``list`` of ``Snapshot``
+            instances, ordered from oldest to newest, describing the snapshots
+            which exist of this filesystem.
+        """
+
     def reader():
         """Context manager that allows reading the contents of the filesystem.
 

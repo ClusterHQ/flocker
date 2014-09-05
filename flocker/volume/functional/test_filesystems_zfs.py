@@ -2,6 +2,9 @@
 
 """Functional tests for ZFS filesystem implementation.
 
+These tests require the ability to create a new ZFS storage pool (using
+``zpool``) and the ability to interact with that pool (using ``zfs``).
+
 Further coverage is provided in
 :module:`flocker.volume.test.test_filesystems_zfs`.
 """
@@ -10,16 +13,18 @@ import subprocess
 import errno
 
 from twisted.internet import reactor
+from twisted.internet.task import cooperate
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
     copy, assertVolumesEqual
-    )
+)
 from ..filesystems.zfs import (
-    ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
-    )
+    Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
+    zfs_command,
+)
 from ..service import Volume
 from ..testtools import create_zfs_pool, service_for_pool
 
@@ -280,3 +285,112 @@ class StoragePoolTests(TestCase):
             assertVolumesEqual(self, volume, volume2)
         d.addCallback(got_volumes)
         return d
+
+
+class IncrementalPushTests(TestCase):
+    """
+    Tests for incremental push based on ZFS snapshots.
+    """
+    def test_less_data(self):
+        """
+        Fewer bytes are available from ``Filesystem.reader`` when the reader
+        and writer are found to share a snapshot.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"incremental-push")
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Save it for later use.
+            self.filesystem = filesystem
+
+            # Put some data onto the volume so there is a baseline against
+            # which to compare.
+            path = filesystem.get_path()
+            path.child(b"some-data").setContent(b"hello world" * 1024)
+
+            # TODO: Snapshots are created implicitly by `reader`.  So abuse
+            # that fact to get a snapshot.  An incremental send based on this
+            # snapshot will be able to exclude the data written above.
+            # Ultimately it would be better to have an API the purpose of which
+            # is explicitly to take a snapshot and to use that here instead of
+            # relying on `reader` to do this.
+            with filesystem.reader() as reader:
+                # Capture the size of this stream for later comparison.
+                self.complete_size = len(reader.read())
+
+            # Capture the snapshots that exist now so they can be given as an
+            # argument to the reader method.
+            snapshots = filesystem.snapshots()
+            return snapshots
+
+        loading = creating.addCallback(created)
+
+        def loaded(snapshots):
+            # Perform another send, supplying snapshots available on the writer
+            # so an incremental stream can be constructed.
+
+            with self.filesystem.reader(snapshots) as reader:
+                incremental_size = len(reader.read())
+
+            self.assertTrue(
+                incremental_size < self.complete_size,
+                "Bytes of data for incremental send ({}) was not fewer than "
+                "bytes of data for complete send ({}).".format(
+                    incremental_size, self.complete_size)
+            )
+
+        loading.addCallback(loaded)
+        return loading
+
+
+class FilesystemTests(TestCase):
+    """
+    ZFS-specific tests for ``Filesystem``.
+    """
+    def test_snapshots(self):
+        """
+        The ``Deferred`` returned by ``Filesystem.snapshots`` fires with a
+        ``list`` of ``Snapshot`` instances corresponding to the snapshots that
+        exist for the ZFS filesystem to which the ``Filesystem`` instance
+        corresponds.
+        """
+        expected_names = [b"foo", b"bar"]
+
+        # Create a filesystem and a couple snapshots.
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"snapshot-enumeration")
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Save it for later.
+            self.filesystem = filesystem
+
+            # Take a couple snapshots now that there is a filesystem.
+            return cooperate(
+                zfs_command(
+                    reactor, [
+                        b"snapshot",
+                        u"{}@{}".format(filesystem.name, name).encode("ascii"),
+                    ]
+                )
+                for name in expected_names
+            ).whenDone()
+
+        snapshotting = creating.addCallback(created)
+
+        def snapshotted(ignored):
+            # Now that some snapshots exist, interrogate the system.
+            return self.filesystem.snapshots()
+
+        loading = snapshotting.addCallback(snapshotted)
+
+        def loaded(snapshots):
+            self.assertEqual(
+                list(Snapshot(name=name) for name in expected_names),
+                snapshots)
+
+        loading.addCallback(loaded)
+        return loading
