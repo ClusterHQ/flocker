@@ -354,13 +354,13 @@ def _parse_snapshots(data, filesystem):
 
     :param bytes data: The output to parse.
 
-    :param Filesystem filesystem: The filesystem the snapshots of which to
-        extract.  If the output includes snapshots for other filesystems (eg
+    :param Filesystem filesystem: The filesystem from which to extract
+        snapshots.  If the output includes snapshots for other filesystems (eg
         siblings or children) they are excluded from the result.
 
-    :return list: A ``list`` of ``Snapshot`` instances giving the names of the
-        snapshots in the output.  The order of the list is the same as the
-        order of the snapshots in the data being parsed.
+    :return list: A ``list`` of ``Snapshot`` instances corresponding to the
+        names of the snapshots in the output.  The order of the list is the
+        same as the order of the snapshots in the data being parsed.
     """
     result = []
     for line in data.splitlines():
