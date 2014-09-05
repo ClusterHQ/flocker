@@ -157,9 +157,9 @@ def _latest_common_snapshot(some, others):
         ``some`` and ``others`` If no ``Snapshot`` appears in both, ``None`` is
         returned.
     """
-    in_others = set(others).__contains__
+    others_set = set(others)
     for snapshot in reversed(some):
-        if in_others(snapshot):
+        if snapshot in others_set:
             return snapshot
     return None
 
