@@ -166,9 +166,11 @@ Release
 
    .. code-block:: console
 
-      python setup.py bdist_wheel
-      python setup.py sdist
-      gsutil cp -a public-read "dist/Flocker-${VERSION}*" gs://archive.clusterhq.com/downloads/flocker/
+      python setup.py sdist bdist_wheel
+      gsutil cp -a public-read \
+          "dist/Flocker-${VERSION}.tar.gz" \
+          "dist/Flocker-${VERSION}-py2-none-any.whl" \
+          gs://archive.clusterhq.com/downloads/flocker/
       admin/upload-rpms "${VERSION}"
 
 #. Build tagged docs at Read the Docs:
