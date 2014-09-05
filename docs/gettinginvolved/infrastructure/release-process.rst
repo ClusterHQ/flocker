@@ -100,8 +100,8 @@ Preparing for a release
 
 #. Update the version numbers in:
 
-   - :download:`docs/gettingstarted/linux-install.sh <../../gettingstarted/linux-install.sh>` and
-   - :download:`docs/gettingstarted/tutorial/Vagrantfile <../../gettingstarted/tutorial/Vagrantfile>` (two RPMs).
+   - `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>` and
+   - `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>` (two RPMs).
    - Then commit the changes:
 
      .. code-block:: console
