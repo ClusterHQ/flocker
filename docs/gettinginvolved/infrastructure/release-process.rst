@@ -162,7 +162,7 @@ Release
 
       $ gsutil config
 
-#. Build python packages for upload, and upload them to ``archive.clusterhq.com``, as well as uploading the RPMs:
+#. Build python packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
 
@@ -171,6 +171,12 @@ Release
           "dist/Flocker-${VERSION}.tar.gz" \
           "dist/Flocker-${VERSION}-py2-none-any.whl" \
           gs://archive.clusterhq.com/downloads/flocker/
+
+
+#. Build RPM packages and upload them to ``archive.clusterhq.com``
+
+   .. code-block:: console
+
       admin/upload-rpms "${VERSION}"
 
 #. Build tagged docs at Read the Docs:
