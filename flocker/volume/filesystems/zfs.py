@@ -137,6 +137,10 @@ class Snapshot(object):
 
     :ivar unicode name: The name of the snapshot.
     """
+    # TODO: The name should probably be a SnapshotName instead of unicode.
+    # However, SnapshotName enforces a convention that we might not want to
+    # use.  Fix the convention before trying to adopt it here.
+    # https://github.com/ClusterHQ/flocker/issues/668
 
 
 def _latest_common_snapshot(some, others):
@@ -153,9 +157,9 @@ def _latest_common_snapshot(some, others):
         ``some`` and ``others`` If no ``Snapshot`` appears in both, ``None`` is
         returned.
     """
-    in_others = set(others).__contains__
+    others_set = set(others)
     for snapshot in reversed(some):
-        if in_others(snapshot):
+        if snapshot in others_set:
             return snapshot
     return None
 
@@ -350,13 +354,13 @@ def _parse_snapshots(data, filesystem):
 
     :param bytes data: The output to parse.
 
-    :param Filesystem filesystem: The filesystem the snapshots of which to
-        extract.  If the output includes snapshots for other filesystems (eg
+    :param Filesystem filesystem: The filesystem from which to extract
+        snapshots.  If the output includes snapshots for other filesystems (eg
         siblings or children) they are excluded from the result.
 
-    :return list: A ``list`` of ``Snapshot`` instances giving the names of the
-        snapshots in the output.  The order of the list is the same as the
-        order of the snapshots in the data being parsed.
+    :return list: A ``list`` of ``Snapshot`` instances corresponding to the
+        names of the snapshots in the output.  The order of the list is the
+        same as the order of the snapshots in the data being parsed.
     """
     result = []
     for line in data.splitlines():
