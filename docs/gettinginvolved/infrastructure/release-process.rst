@@ -214,18 +214,10 @@ Release
 
      .. note:: For weekly releases, only update the `devel` section to prevent users who are following the Flocker tutorial from installing a potentially unstable ``flocker-cli`` package.
 
-     On OS X, you can get the ``sha1`` using:
-
      .. code-block:: console
 
-        brew fetch https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker.rb
-
-     On Linux:
-
-   .. code-block:: console
-
-      wget "https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-${VERSION}.tar.gz"
-      sha1sum "Flocker-${VERSION}.tar.gz"
+        wget "https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-${VERSION}.tar.gz"
+        sha1sum "Flocker-${VERSION}.tar.gz"
 
    - Commit the changes and push
 
