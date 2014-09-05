@@ -137,6 +137,10 @@ class Snapshot(object):
 
     :ivar unicode name: The name of the snapshot.
     """
+    # TODO: The name should probably be a SnapshotName instead of unicode.
+    # However, SnapshotName enforces a convention that we might not want to
+    # use.  Fix the convention before trying to adopt it here.
+    # https://github.com/ClusterHQ/flocker/issues/668
 
 
 def _latest_common_snapshot(some, others):
