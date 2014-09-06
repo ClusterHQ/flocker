@@ -100,6 +100,8 @@ class StartApplication(object):
 
     :ivar Application application: The ``Application`` to create and
         start.
+
+    :ivar unicode hostname: The hostname of the application is running on.
     """
     def run(self, deployer):
         application = self.application
