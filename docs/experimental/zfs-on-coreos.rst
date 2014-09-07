@@ -2,7 +2,7 @@
 ZFS on CoreOS
 =============
 
-This tutorial will show you how to get ZFS running on CoreOS, and then demos ZFS ``send`` and ``receive`` to move a volume from one node to another.
+This tutorial will show you how to get ZFS running on CoreOS.
 
 This is a just one of the prerequisites to getting Flocker_ working on CoreOS_, in order to be able to move stateful services in containers between nodes.
 
