@@ -2,7 +2,7 @@
 ZFS on CoreOS
 =============
 
-This tutorial will show you how to get ZFS running on CoreOS.
+This tutorial will show you how to get ZFS running on CoreOS using an experimental Gentoo prefix.
 
 This is a just one of the prerequisites to getting Flocker_ working on CoreOS_, in order to be able to move stateful services in containers between nodes.
 
@@ -62,11 +62,11 @@ Create a ZFS pool
 
 The easiest way to do this is to create a ZFS pool in a file::
 
-    mkdir -p /opt/flocker
-    truncate --size 1G /opt/flocker/pool-vdev
+    sudo mkdir -p /opt/flocker
+    sudo truncate --size 1G /opt/flocker/pool-vdev
     zpool create flocker /opt/flocker/pool-vdev
 
-(For the adventurous who wants to try running ZFS on a block device, try shutting down your VM, attaching a new disk, booting the VM, running the commands above again, skipping the first two lines and replacing ``/opt/flocker/pool-vdev`` with the block device of the new disk, e.g. ``/dev/sdb``.)
+(For the adventurous who wants to try running ZFS on a block device, try shutting down your VM, attaching a new disk, booting the VM, running the commands after ``gentoo/startprefix ...`` again, then run the last command above, replacing ``/opt/flocker/pool-vdev`` with the block device of the new disk, e.g. ``/dev/sdb``.)
 
 You can now inspect the state of the ZFS pool with ``zpool status``::
 
@@ -84,8 +84,13 @@ You can now inspect the state of the ZFS pool with ``zpool status``::
 
 You can now experiment with ZFS on CoreOS!
 
+Join the conversation!
+======================
+
+Come and hang out with us in ``#clusterhq`` on Freenode, or subscribe to flocker-users_.
 
 .. _Flocker: https://docs.clusterhq.com/en/0.1.0/introduction.html
 .. _CoreOS: https://coreos.com/
 .. _procure: https://coreos.com/docs/#running-coreos
 .. _Vagrant: https://coreos.com/docs/running-coreos/platforms/vagrant/
+.. _flocker-users: https://groups.google.com/forum/#!forum/flocker-users
