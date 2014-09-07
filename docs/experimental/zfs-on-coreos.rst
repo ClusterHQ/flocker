@@ -34,9 +34,9 @@ Perform the following on each node to load the experimental ZFS kernel modules::
     # SSH to the node
     vagrant ssh core-01
     # Download our bits
-    wget http://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-wip.tar.lz4.xz
-    wget http://storage.googleapis.com/experiments-clusterhq/zfs-coreos/liblz4.so.0.0
-    wget http://storage.googleapis.com/experiments-clusterhq/zfs-coreos/lz4c
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-wip.tar.lz4.xz
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/liblz4.so.0.0
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/lz4c
     chmod +x lz4c
     chmod +x liblz4.so.0.0
     # Extract the tarball
