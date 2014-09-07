@@ -15,7 +15,7 @@ The following instructions have been tested against CoreOS 423.0.0 (alpha) and C
 Get a CoreOS cluster
 ====================
 
-If you have not already, procure_ two or more CoreOS machines.
+If you have not already, procure_ one or more CoreOS machines.
 
 For this tutorial, we are using CoreOS on Vagrant_ on OSX::
 
