@@ -15,7 +15,7 @@ The following instructions have been tested against CoreOS 423.0.0 (alpha) and C
 Get a CoreOS cluster
 ====================
 
-If you have not already, procure two or more CoreOS machines.
+If you have not already, procure_ two or more CoreOS machines.
 
 For this tutorial, we are using CoreOS on Vagrant_ on OSX::
 
@@ -24,7 +24,7 @@ For this tutorial, we are using CoreOS on Vagrant_ on OSX::
     cp config.rb.sample config.rb
     vagrant up --provider=virtualbox
 
-Now perform the remainder of the installation instructions on all of your nodes.
+Now perform the remainder of the installation instructions on each of your nodes.
 
 Download our ZFS environment
 ============================
@@ -87,4 +87,5 @@ You can now experiment with ZFS on CoreOS!
 
 .. _Flocker: https://docs.clusterhq.com/en/0.1.0/introduction.html
 .. _CoreOS: https://coreos.com/
+.. _procure: https://coreos.com/docs/#running-coreos
 .. _Vagrant: https://coreos.com/docs/running-coreos/platforms/vagrant/
