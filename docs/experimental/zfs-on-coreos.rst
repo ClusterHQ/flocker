@@ -17,14 +17,14 @@ Get a CoreOS cluster
 
 If you have not already, procure_ one or more CoreOS machines.
 
-For this tutorial, we are using CoreOS on Vagrant_ on OSX::
+For this tutorial, we will just start up a single CoreOS VM using Vagrant_ on OSX::
 
-    git clone https://github.com/coreos/coreos-vagrant.git
-    cd coreos-vagrant
+    git clone https://github.com/coreos/coreos-vagrant.git coreos-vagrant-zfs
+    cd coreos-vagrant-zfs
     cp config.rb.sample config.rb
     vagrant up --provider=virtualbox
 
-Now perform the remainder of the installation instructions on each of your nodes.
+If you wish, you can perform the following setup on multiple nodes.
 
 Download our ZFS environment
 ============================
