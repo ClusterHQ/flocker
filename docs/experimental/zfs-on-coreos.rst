@@ -66,7 +66,7 @@ The easiest way to do this is to create a ZFS pool in a file::
     sudo truncate --size 1G /opt/flocker/pool-vdev
     zpool create flocker /opt/flocker/pool-vdev
 
-(For the adventurous who wants to try running ZFS on a real block device, try the following: shut down your VM, attach a new disk, boot the VM, run the commands after ``gentoo/startprefix ...`` again, then run the final command above, replacing ``/opt/flocker/pool-vdev`` with the block device of the new disk, e.g. ``/dev/sdb``.)
+(For the adventurous who wants to try running ZFS on a real block device, try the following: shut down your VM, attach a new disk, boot the VM, log back in, run the commands after ``gentoo/startprefix ...`` again, then run only the final command above, replacing ``/opt/flocker/pool-vdev`` with the block device of the new disk, e.g. ``/dev/sdb``.)
 
 You can now inspect the state of the ZFS pool with ``zpool status``::
 
