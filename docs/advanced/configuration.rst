@@ -59,7 +59,7 @@ The following parameters are optional when defining an application:
 
      OTHER_PORT_TCP_80=tcp://example.com:1234
      OTHER_PORT_TCP_80_PROTO=tcp
-     OTHER_PORT_TCP_80_HOST=example.com
+     OTHER_PORT_TCP_80_ADDR.com
      OTHER_PORT_TCP_80_PORT=1234
 
   .. warning::
