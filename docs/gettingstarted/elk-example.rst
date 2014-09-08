@@ -23,9 +23,14 @@ Download the Docker Images
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull XXX
+   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch 
+   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-kibana
    ...
-   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.251 docker pull XXX
+   # XXX This gets tedious to repeat all three on the second node, perhaps we
+   # need a script to do the pre-caching or perhaps we only use one node for this
+   # example.
+   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.251 docker pull ...
    ...
    alice@mercury:~/flocker-elk$
 
