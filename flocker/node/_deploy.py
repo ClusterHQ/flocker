@@ -93,13 +93,15 @@ class InParallel(object):
 
 
 @implementer(IStateChange)
-@attributes(["application"])
+@attributes(["application", "hostname"])
 class StartApplication(object):
     """
     Launch the supplied application as a gear unit.
 
     :ivar Application application: The ``Application`` to create and
         start.
+
+    :ivar unicode hostname: The hostname of the application is running on.
     """
     def run(self, deployer):
         application = self.application
@@ -116,20 +118,59 @@ class StartApplication(object):
         else:
             port_maps = []
 
+        environment = {}
+
+        for link in application.links:
+            environment.update(_link_environment(
+                protocol=u"tcp",
+                alias=link.alias,
+                local_port=link.local_port,
+                hostname=self.hostname,
+                remote_port=link.remote_port,
+                ))
+
         if application.environment is not None:
-            environment = GearEnvironment(
+            environment.update(application.environment)
+
+        if environment:
+            gear_environment = GearEnvironment(
                 id=application.name,
-                variables=application.environment)
+                variables=frozenset(environment.iteritems()))
         else:
-            environment = None
+            gear_environment = None
 
         d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=environment
+            environment=gear_environment
         ))
         return d
+
+
+def _link_environment(protocol, alias, local_port, hostname, remote_port):
+    """
+    Generate the environment variables used for defining a docker link.
+
+    Docker containers expect an enviroment variable
+    `<alias>_PORT_<local_port>_TCP`` which contains the URL of the remote end
+    of a link, as well as parsed variants ``_ADDR``, ``_PORT``, ``_PROTO``.
+
+    :param unicode protocol: The protocol used for the link.
+    :param unicode alias: The name of the link.
+    :param int local_port: The port the local application expects to access.
+    :param unicode hostname: The remote hostname to connect to.
+    :param int remote_port: The remote port to connect to.
+    """
+    alias = alias.upper().replace(u'-', u"_")
+    base = u'%s_PORT_%d_%s' % (alias, local_port, protocol.upper())
+
+    return {
+        base: u'%s://%s:%d' % (protocol, hostname, remote_port),
+        base + u'_ADDR': hostname,
+        base + u'_PORT': u'%d' % (remote_port,),
+        base + u'_PROTO': protocol,
+    }
 
 
 @implementer(IStateChange)
@@ -349,7 +390,7 @@ class Deployer(object):
                 desired_local_state)
 
             start_containers = [
-                StartApplication(application=app)
+                StartApplication(application=app, hostname=hostname)
                 for app in desired_node_applications
                 if app.name in start_names
             ]
@@ -359,7 +400,8 @@ class Deployer(object):
             ]
             restart_containers = [
                 Sequentially(changes=[StopApplication(application=app),
-                                      StartApplication(application=app)])
+                                      StartApplication(application=app,
+                                                       hostname=hostname)])
                 for app in desired_node_applications
                 if app.name in not_running
             ]
