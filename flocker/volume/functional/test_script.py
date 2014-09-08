@@ -79,3 +79,26 @@ class FlockerVolumeTests(TestCase):
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
                          % (config.path,))
+
+
+class FlockerVolumeSnapshotsTests(TestCase):
+    """
+    Tests for ``flocker-volume snapshots``.
+    """
+    @_require_installed
+    def test_snapshots(self):
+        """
+        The output of ``flocker-volume snapshots`` is the name of each snapshot
+        that exists for the identified filesystem, one per line.
+        """
+        pool_name = create_zfs_pool(self)
+        dataset = pool_name + b"/myuuid.myfilesystem"
+        check_output([b"zfs", b"create", b"-p", dataset])
+        check_output([b"zfs", b"snapshot", dataset + b"@somesnapshot"])
+        check_output([b"zfs", b"snapshot", dataset + b"@lastsnapshot"])
+        config_path = FilePath(self.mktemp())
+        snapshots = run(
+            b"--config", config_path.path,
+            b"--pool", pool_name,
+            b"snapshots", b"myuuid", b"myfilesystem")
+        self.assertEqual(snapshots, b"somesnapshot\nlastsnapshot\n")
