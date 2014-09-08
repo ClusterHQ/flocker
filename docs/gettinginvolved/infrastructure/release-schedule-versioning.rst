@@ -1,0 +1,38 @@
+Release Schedule and Versioning
+===============================
+
+Goals
+-----
+
+The goals of the release schedule are:
+
+* Make new features and bugfixes available to users as quickly as possible.
+* Practice releasing so that we are less likely to make mistakes.
+* Improve the automation of releases through experience.
+
+Schedule
+--------
+
+We will make a new release of Flocker each week.
+This will proceed according to the :ref:`release-process`.
+The releases will happen on Tusday of each week.
+If nobody is available in the ClusterHQ offices to create a release, the week will be skipped.
+
+After each release is distributed, the engineer which performed the release will create tickets for any improvements which could be made.
+
+Versioning
+----------
+
+Released version numbers take the form of `X.Y.Z`.
+The current value of `X` is 0 until the project is ready for production.
+
+`Y` is the "marketing version".
+ClusterHQ's marketing department is made aware of the content of a release ahead of time.
+If the marketing department decides that this release is sufficiently important to publicise then `Y` is incremented and `Z` is set to 0.
+
+`Z` is incremented for each standard weekly release.
+
+Patch Releases
+--------------
+
+ClusterHQ will not be producing patch releases until the project is ready for production.
