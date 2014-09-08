@@ -153,8 +153,8 @@ def _link_environment(protocol, alias, local_port, hostname, remote_port):
     Generate the environment variables used for defining a docker link.
 
     Docker containers expect an enviroment variable
-    `<alias>_PORT_TCP_<local_port>`` which contains the URL of the remote end
-    of a link, as well as parsed variants ``_HOST``, ``_PORT``, ``_PROTO``.
+    `<alias>_PORT_<local_port>_TCP`` which contains the URL of the remote end
+    of a link, as well as parsed variants ``_ADDR``, ``_PORT``, ``_PROTO``.
 
     :param unicode protocol: The protocol used for the link.
     :param unicode alias: The name of the link.
