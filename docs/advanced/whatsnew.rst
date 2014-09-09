@@ -2,13 +2,10 @@
 What's New in the Next Release
 ==============================
 
-* Added support for environment variables in application configuration.
+* Moving volumes between nodes is now done with a :doc:`two-phase push<./orchestration>` that should dramatically decrease application downtime when moving large amounts of data.
+* Added support for environment variables in the :doc:`application configuration<./configuration>`.
+* Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
 
-  * See :doc:`./configuration` for more information.
-
-* Added basic support for links between containers in application configuration.
-
-  * See :doc:`./configuration` for more information.
 
 ==================
 What's New in v0.1

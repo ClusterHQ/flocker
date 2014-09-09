@@ -9,5 +9,6 @@ Advanced Documentation
    usage
    configuration
    volume/index
+   orchestration
    routing/index
    debugging
