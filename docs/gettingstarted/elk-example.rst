@@ -82,6 +82,10 @@ You can verify that by running ``docker ps``:
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
+   CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
+   abc5c08557d4        tomprince/test-kibana:latest          /usr/bin/twistd -n w   20 seconds ago      Up 19 seconds       0.0.0.0:80->8080/tcp               kibana              
+   b4e9f08b3d1d        tomprince/test-elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
+   44a4ee72d9ab        tomprince/test-logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash            
    alice@mercury:~/flocker-tutorial$
 
 Connect to ``Kibana``
