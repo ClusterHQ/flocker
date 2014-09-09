@@ -108,7 +108,10 @@ So next we'll use ``telnet`` to connect to Logstash port 5000 and feed it some m
    alice@mercury:~/flocker-tutorial$ telnet 172.16.255.250 5000
    {"firstname": "Joe", "lastname": "Bloggs"}
    {"firstname": "Fred", "lastname": "Bloggs"}
-   ...
+   ^]
+
+   telnet> quit
+   Connection closed.
    alice@mercury:~/flocker-tutorial$
 
 Now refresh the ``Kibana`` web interface and you should see those messages.
