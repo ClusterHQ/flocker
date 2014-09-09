@@ -15,7 +15,7 @@ Schedule
 
 We will make a new release of Flocker each week.
 This will proceed according to the :doc:`release-process`.
-The releases will happen on Tusday of each week.
+The releases will happen on Tuesday of each week.
 If nobody is available in the ClusterHQ offices to create a release, the week will be skipped.
 
 After each release is distributed, the engineer who performed the release will create issues for any improvements which could be made.
