@@ -32,15 +32,15 @@ Download the Docker Images
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.250 docker pull tomprince/test-elasticsearch
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.250 docker pull tomprince/test-logstash
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.250 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-kibana
    ...
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.251 docker pull tomprince/test-elasticsearch
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.251 docker pull tomprince/test-logstash
-   alice@mercury:~/flocker-elk$ ssh --tty root@172.16.255.251 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-kibana
    ...
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$
 
 .. note:: We use the ``--tty`` option to ``ssh`` so that progress is displayed.
           If you omit it the pull will still work but you may not get any output for a long time.
@@ -65,16 +65,16 @@ Run ``flocker-deploy`` to start the three applications:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
+   alice@mercury:~/flocker-tutorial$
 
 All three applications should now be running in separate containers on node1.
 You can verify that by running ``docker ps``:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh root@172.16.255.250 docker ps
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
+   alice@mercury:~/flocker-tutorial$
 
 Connect to ``Kibana``
 =====================
@@ -95,10 +95,10 @@ For example:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ telnet ssh 172.16.255.250 5000
+   alice@mercury:~/flocker-tutorial$ telnet ssh 172.16.255.250 5000
 
    ...
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$
 
 Now refresh the ``Kibana`` web interface and you should see those messages.
 
@@ -117,24 +117,24 @@ Now run ``flocker-deploy`` with the new configuration:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment.yml elk-application.yml
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
+   alice@mercury:~/flocker-tutorial$
 
 Now we'll verify that the ``ElasticSearch`` application has moved to the other VM:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh root@172.16.255.251 docker ps
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    XXX: insert output
 
 And is no longer running on the original host:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh root@172.16.255.250 docker ps
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    XXX: Insert output
-   alice@mercury:~/flocker-elk$
+   alice@mercury:~/flocker-tutorial$
 
 If you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
 If you generate more log messages, they should show up in the ``Kibana`` web interface.
