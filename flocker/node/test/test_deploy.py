@@ -14,7 +14,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, Link, NodeState, SSH_PRIVATE_KEY_PATH)
+                Port, Link, NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
@@ -26,8 +26,7 @@ from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
-from ...volume._ipc import RemoteVolumeManager
-from ...common._ipc import ProcessNode
+from ...volume._ipc import RemoteVolumeManager, standard_node
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -1680,6 +1679,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         destination nodex.
         """
         volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
 
         result = []
 
@@ -1692,14 +1692,12 @@ class HandoffVolumeTests(SynchronousTestCase):
         handoff = HandoffVolume(
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var/blah")),
-            hostname=b"dest.example.com")
+            hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
             result,
             [volume_service.get(u"myvol"),
-             RemoteVolumeManager(ProcessNode.using_ssh(
-                 b"dest.example.com", 22, b"root",
-                 SSH_PRIVATE_KEY_PATH))])
+             RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
         """

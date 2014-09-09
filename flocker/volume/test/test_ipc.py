@@ -16,9 +16,11 @@ from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
 from ..filesystems.zfs import Snapshot
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
-    IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager)
+    IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager,
+    standard_node, SSH_PRIVATE_KEY_PATH)
 from ..testtools import ServicePair
 from ...common import FakeNode
+from ...common._ipc import ProcessNode
 
 
 def make_iremote_volume_manager(fixture):
@@ -294,3 +296,17 @@ class RemoteVolumeManagerTests(TestCase):
                          [b"flocker-volume", b"--config", b"/path/to/json",
                           b"acquire", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
+
+
+class StandardNodeTests(TestCase):
+    """
+    Tests for ``standard_node``.
+    """
+    def test_ssh_as_root(self):
+        """
+        ``standard_node`` returns a node that will SSH as root using the
+        private key for the cluster.
+        """
+        node = standard_node(b'example.com')
+        self.assertEqual(node, ProcessNode.using_ssh(
+            b'example.com', 22, b'root', SSH_PRIVATE_KEY_PATH))

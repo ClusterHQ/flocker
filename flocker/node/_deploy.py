@@ -10,22 +10,14 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
-from twisted.python.filepath import FilePath
 
 from .gear import GearClient, PortMap, GearEnvironment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
-from ..volume._ipc import RemoteVolumeManager
-from ..common import ProcessNode, gather_deferreds
-
-
-# Path to SSH private key available on nodes and used to communicate
-# across nodes.
-# XXX duplicate of same information in flocker.cli:
-# https://github.com/ClusterHQ/flocker/issues/390
-SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..common import gather_deferreds
 
 
 @attributes(["running", "not_running"])
@@ -233,9 +225,7 @@ class HandoffVolume(object):
     """
     def run(self, deployer):
         service = deployer.volume_service
-        destination = ProcessNode.using_ssh(
-            self.hostname, 22, b"root",
-            SSH_PRIVATE_KEY_PATH)
+        destination = standard_node(self.hostname)
         return service.handoff(service.get(self.volume.name),
                                RemoteVolumeManager(destination))
 

@@ -18,9 +18,28 @@ from characteristic import with_cmp
 from zope.interface import Interface, implementer
 
 from twisted.internet.defer import succeed
+from twisted.python.filepath import FilePath
 
+from ..common._ipc import ProcessNode
 from .service import DEFAULT_CONFIG_PATH
 from .filesystems.zfs import Snapshot
+
+
+# Path to SSH private key available on nodes and used to communicate
+# across nodes.
+# XXX duplicate of same information in flocker.cli:
+# https://github.com/ClusterHQ/flocker/issues/390
+SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+
+
+def standard_node(hostname):
+    """
+    Create the default production ``INode`` for the given hostname.
+
+    :param bytes hostname: The host to connect to.
+    :return: A ``INode`` that can connect to the given hostname using SSH.
+    """
+    return ProcessNode.using_ssh(hostname, 22, b"root", SSH_PRIVATE_KEY_PATH)
 
 
 class IRemoteVolumeManager(Interface):
