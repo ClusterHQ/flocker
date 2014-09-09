@@ -87,7 +87,7 @@ Preparing for a release
 
    .. code-block:: console
 
-      git clone git@github.com:ClusterHQ/flocker.git flocker-0.1.1
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
 
 #. Checkout the branch for the release:
 
