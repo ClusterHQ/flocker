@@ -18,7 +18,7 @@ This will proceed according to the :doc:`release-process`.
 The releases will happen on Tusday of each week.
 If nobody is available in the ClusterHQ offices to create a release, the week will be skipped.
 
-After each release is distributed, the engineer which performed the release will create tickets for any improvements which could be made.
+After each release is distributed, the engineer who performed the release will create issues for any improvements which could be made.
 
 Versioning
 ----------
