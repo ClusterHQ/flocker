@@ -17,7 +17,7 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
                 Port, Link, NodeState, SSH_PRIVATE_KEY_PATH)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies,
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
     _link_environment)
 from .._model import AttachedVolume
 from ..gear import (
@@ -126,6 +126,9 @@ CreateVolumeIStateChangeTests = make_istatechange_tests(
     CreateVolume, dict(volume=1), dict(volume=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
     HandoffVolume, dict(volume=1, hostname=b"123"),
+    dict(volume=2, hostname=b"123"))
+PushVolumeIStateChangeTests = make_istatechange_tests(
+    PushVolume, dict(volume=1, hostname=b"123"),
     dict(volume=2, hostname=b"123"))
 
 

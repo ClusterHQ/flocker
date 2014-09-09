@@ -240,8 +240,8 @@ class HandoffVolume(object):
                                RemoteVolumeManager(destination))
 
 
-#@implementer(IStateChange)
-#@attributes(["volume", "hostname"])
+@implementer(IStateChange)
+@attributes(["volume", "hostname"])
 class PushVolume(object):
     """
     A volume push that needs to be performed from this node to another
