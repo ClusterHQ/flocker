@@ -33,11 +33,19 @@ Download the Docker Images
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch
+   ...
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-logstash
+   ...
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-kibana
    ...
+   alice@mercury:~/flocker-tutorial$
+
+.. code-block:: console
+
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-elasticsearch
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-logstash
+   ...
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-log-stash
+   ...
    alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-kibana
    ...
    alice@mercury:~/flocker-tutorial$
