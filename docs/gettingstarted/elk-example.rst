@@ -16,13 +16,11 @@ Then we'll use ``flocker-deploy`` to move the ElasticSearch container to the sec
 The ElasticSearch data will be moved with the application.
 The Logstash and Kibana applications will now connect to ElasticSearch on node2.
 
-The requirements are the same as the MongoDB tutorial.
-
 
 Create the Virtual Machines
 ===========================
 
-We'll be using the same Vagrant configuration as :doc:`the MongoDB tutorial <./tutorial/index>`.
+We'll use the same Vagrant environment as :doc:`the MongoDB tutorial <./tutorial/index>`.
 If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
 
 
