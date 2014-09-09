@@ -4,7 +4,7 @@ Release Schedule and Versioning
 Goals
 -----
 
-The goals of the release schedule are:
+The goals of the release schedule are to:
 
 * Make new features and bugfixes available to users as quickly as possible.
 * Practice releasing so that we are less likely to make mistakes.
