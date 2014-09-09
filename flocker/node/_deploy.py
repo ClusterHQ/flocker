@@ -429,7 +429,8 @@ class Deployer(object):
             # data.
             if volumes.going:
                 phases.append(InParallel(changes=[
-                    PushVolume(volume=handoff.volume, hostname=handoff.hostname)
+                    PushVolume(volume=handoff.volume,
+                               hostname=handoff.hostname)
                     for handoff in volumes.going]))
 
             if stop_containers:
