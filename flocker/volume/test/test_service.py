@@ -4,8 +4,11 @@
 
 from __future__ import absolute_import
 
+from io import BytesIO
 import sys
 import json
+from contextlib import contextmanager
+
 from uuid import uuid4
 from StringIO import StringIO
 
@@ -205,8 +208,6 @@ class VolumeServiceAPITests(TestCase):
         snapshot in common with the local volume manager results in an
         incremental data stream.
         """
-        from io import BytesIO
-        from contextlib import contextmanager
         class FakeVolumeManager(object):
             def __init__(self):
                 self.written = []
