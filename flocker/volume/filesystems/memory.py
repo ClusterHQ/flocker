@@ -59,6 +59,9 @@ class DirectoryFilesystem(object):
     def _snapshots(self):
         """
         Load the pretend snapshot data.
+
+        :return: A ``list`` of ``Snapshot`` instances.  These will correspond
+            to the pretend snapshots taken by the ``snapshot`` method.
         """
         try:
             data = self.get_path().child(b".snapshots").getContent()
