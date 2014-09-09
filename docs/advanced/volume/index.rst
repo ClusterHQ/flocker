@@ -72,6 +72,11 @@ In future releases this will be switched to a real protocol and later on to comm
 
 When a volume is pushed a ``zfs send`` is used to serialize its data for transmission to the remote machine, which does a ``zfs receive`` to decode the data and create or update the corresponding ZFS dataset.
 
+If the sending node determines that it has a snapshot of the volume in common with the receiving node
+(as determined using ``flocker-volume snapshot``)
+then it will construct an incremental data stream based on that snapshot.
+This can drastically reduce the amount of data that needs to be transferred between the two nodes.
+
 Handoff involves renaming the ZFS dataset to change the owner UUID encoded in the dataset name.
 For example, imagine two volume managers with UUIDs ``1234`` and ``5678`` and a dataset called ``mydata``.
 
