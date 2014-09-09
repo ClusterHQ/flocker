@@ -23,14 +23,14 @@ After each release is distributed, the engineer who performed the release will c
 Versioning
 ----------
 
-Released version numbers take the form of `X.Y.Z`.
-The current value of `X` is 0 until the project is ready for production.
+Released version numbers take the form of ``X.Y.Z``.
+The current value of ``X`` is 0 until the project is ready for production.
 
-`Y` is the "marketing version".
+``Y`` is the "marketing version".
 ClusterHQ's marketing department is made aware of the content of a release ahead of time.
-If the marketing department decides that this release is sufficiently important to publicize then `Y` is incremented and `Z` is set to 0.
+If the marketing department decides that this release is sufficiently important to publicize then ``Y`` is incremented and ``Z`` is set to 0.
 
-`Z` is incremented for each standard weekly release.
+``Z`` is incremented for each standard weekly release.
 
 Patch Releases
 --------------
