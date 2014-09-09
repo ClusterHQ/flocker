@@ -80,7 +80,7 @@ Preparing for a release
 
 #. File a ticket
 
-   #. Call it "Release $RELEASE"
+   #. Call it "Release flocker $VERSION"
    #. Assign it to yourself
 
 #. Create a clean, local working copy of Flocker with no modifications
