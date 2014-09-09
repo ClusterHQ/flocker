@@ -139,15 +139,17 @@ Now we'll verify that the ``ElasticSearch`` application has moved to the other V
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
-   XXX: insert output
+   CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
+   894d1656b74d        tomprince/test-elasticsearch:latest   /bin/sh -c 'source /   2 minutes ago       Up 2 minutes        9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
 
 And is no longer running on the original host:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
-   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
-   XXX: Insert output
+   CONTAINER ID        IMAGE                            COMMAND                CREATED             STATUS              PORTS                    NAMES
+   abc5c08557d4        tomprince/test-kibana:latest     /usr/bin/twistd -n w   45 minutes ago      Up 45 minutes       0.0.0.0:80->8080/tcp     kibana              
+   44a4ee72d9ab        tomprince/test-logstash:latest   /bin/sh -c /usr/loca   45 minutes ago      Up 45 minutes       0.0.0.0:5000->5000/tcp   logstash  
    alice@mercury:~/flocker-tutorial$
 
 If you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
