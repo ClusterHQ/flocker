@@ -101,7 +101,7 @@ Generate Log Messages
 =====================
 
 ````Logstash```` has been configured to accept JSON encoded messages on port 5000.
-So next we'll use ``telnet`` to connect to Logstash port 5000 and feed it some messages using ``telnet``.
+So next we'll use ``telnet`` to connect to ``Logstash`` port 5000 and feed it some messages using ``telnet``.
 
 .. code-block:: console
 
