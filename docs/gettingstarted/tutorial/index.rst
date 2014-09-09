@@ -21,4 +21,3 @@ If you have any feedback or problems, you can :ref:`talk-to-us`.
    moving-applications
    exposing-ports
    volumes
-   cleanup
