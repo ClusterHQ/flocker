@@ -100,21 +100,20 @@ You should see the ``Kibana`` web interface but there won't be any messages yet.
 Generate Log Messages
 =====================
 
-For this tutorial, ````Logstash```` has been configured to accept JSON encoded messages on port 5000.
-Use ``telnet`` to connect to port 5000.
-Type some JSON formatted messages.
-For example:
+````Logstash```` has been configured to accept JSON encoded messages on port 5000.
+So next we'll use ``telnet`` to connect to Logstash port 5000 and feed it some messages using ``telnet``.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ telnet ssh 172.16.255.250 5000
-
+   alice@mercury:~/flocker-tutorial$ telnet 172.16.255.250 5000
+   {"firstname": "Joe", "lastname": "Bloggs"}
+   {"firstname": "Fred", "lastname": "Bloggs"}
    ...
    alice@mercury:~/flocker-tutorial$
 
 Now refresh the ``Kibana`` web interface and you should see those messages.
 
-XXX: Insert screen shot.
+.. image:: elk-example-kibana-messages1.png
 
 Move ``ElasticSearch`` to node2
 ===============================
