@@ -212,7 +212,7 @@ class VolumeServiceAPITests(TestCase):
             def __init__(self):
                 self.written = []
 
-            def snapshots(iself, volume):
+            def snapshots(self, volume):
                 return volume.get_filesystem().snapshots()
 
             @contextmanager
