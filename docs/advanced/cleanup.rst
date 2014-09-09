@@ -10,8 +10,8 @@ This will enable you to test, play around with Flocker or repeat the deployment 
 
 .. note::
 
-   This process will destroy all applications and their associated data deployed by Flocker on the target nodes.
-   In addition, the verbatim commands documented below will destroy **all** Docker containers and Geard units on the target nodes, regardless of whether or not they were deployed via Flocker.
+   This process will destroy all applications and their associated data deployed by Flocker on the target node.
+   In addition, the verbatim commands documented below will destroy **all** Docker containers and Geard units on the target node, regardless of whether or not they were deployed via Flocker.
    *Proceed at your own risk and only if you fully understand the effects of executing these commands.*
 
 You can run the necessary cleanup commands via SSH. The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251``.
@@ -56,7 +56,6 @@ To remove ZFS volumes created by Flocker, you will need to list the volumes on e
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs list -H -o name'
    flocker   
    flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mongodb-volume-example
-   
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mongodb-volume-example'
    
 
