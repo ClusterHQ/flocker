@@ -2,7 +2,13 @@
 Example: Linking Containers
 ===========================
 
-Once you've successfully followed through :doc:`./tutorial/index` this example will show you how to deploy an ElasticSearch-Logstash-Kibana stack of linked containers with Flocker.
+In this example you will learn how to deploy ElasticSearch, Logstash, and Kibana with Flocker.
+This example demonstrates how applications running in separate Docker containers can be linked together, so that they can connect to one another, even when they are deployed on separate nodes.
+
+Logstash receives logged messages and relays them to ElasticSearch.
+ElasticSearch stores the logged messages in a database.
+Kibana connects to ElasticSearch to retrieve the logged messages and presents them in a web interface.
+
 We'll insert some data, then use ``flocker-deploy`` to move one of the containers to another virtual machine.
 The data will be moved along with the application.
 
