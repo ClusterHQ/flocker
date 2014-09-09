@@ -140,7 +140,7 @@ Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
 
-   .. note:: The example above uses `Virtualenvwrapper <https://pypi.python.org/pypi/virtualenvwrapper>`_ but you can use `VirtualEnv <https://pypi.python.org/pypi/virtualenv>`_ directly if you prefer.
+   .. note:: The example above uses `virtualenvwrapper <https://pypi.python.org/pypi/virtualenvwrapper>`_ but you can use `virtualenv <https://pypi.python.org/pypi/virtualenv>`_ directly if you prefer.
 
 #. Tag the version being released:
 
