@@ -43,10 +43,10 @@ Download the Docker Images
           If you omit it the pull will still work but you may not get any output for a long time.
 
 
-Launch XXX
-==========
+Deploy on Node1
+===============
 
-Download and save the following configuration files to your ``flocker-postgres`` directory:
+Download and save the following configuration files to your ``flocker-tutorial`` directory:
 
 :download:`elk-application.yml`
 
@@ -58,24 +58,23 @@ Download and save the following configuration files to your ``flocker-postgres``
 .. literalinclude:: elk-deployment.yml
    :language: yaml
 
-Run ``flocker-deploy`` to download the images and get the container running:
+Run ``flocker-deploy`` to start the three applications:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-elk$
 
-You can keep running ``ssh root@172.16.255.250 docker ps`` until you see the container running:
+All three applications should now be running in separate containers on node1.
+You can verify that by running ``docker ps``:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-elk$ ssh root@172.16.255.250 docker ps
-   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
-   f6ee0fbd0446        XXX:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   XXX-XXX-XXX
    alice@mercury:~/flocker-elk$
 
-Connect to XXX
-==============
+Connect to Kibana
+=================
 
 Connect to the IP address of our virtual machine, using the port number we exposed in our application configuration.
 
