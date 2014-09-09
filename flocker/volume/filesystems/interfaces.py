@@ -65,10 +65,11 @@ class IFilesystem(Interface):
 
         The returned file-like object will be closed by this object.
 
-        :param list remote_snapshots: The snapshots which are available on the
-            writer.  The snapshots are ordered from oldest to newest.  An
+        :param remote_snapshots: An iterable of the snapshots which are
+            available on the writer, ordered from oldest to newest.  An
             incremental data stream may be generated based on one of these if
-            possible.
+            possible.  If no value is passed then a complete data stream will
+            be generated.
 
         :return: A file-like object from whom the filesystem's data can be
             read as ``bytes``.
