@@ -240,6 +240,32 @@ class HandoffVolume(object):
                                RemoteVolumeManager(destination))
 
 
+#@implementer(IStateChange)
+#@attributes(["volume", "hostname"])
+class PushVolume(object):
+    """
+    A volume push that needs to be performed from this node to another
+    node.
+
+    See :cls:`flocker.volume.VolumeService.push` for more details.
+
+    :ivar AttachedVolume volume: The volume to push.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be pushed.
+    """
+    def run(self, deployer):
+        # XXX refactor duplicate code in HandoffVolume.run to utility of some
+        # sort:
+
+        # service = deployer.volume_service
+        # destination = ProcessNode.using_ssh(
+        #     self.hostname, 22, b"root",
+        #     SSH_PRIVATE_KEY_PATH)
+        # return service.push(service.get(self.volume.name),
+        #                     RemoteVolumeManager(destination))
+        pass
+
+
 @implementer(IStateChange)
 @attributes(["ports"])
 class SetProxies(object):
@@ -411,6 +437,16 @@ class Deployer(object):
             # configuration.
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
+
+            # Do an initial push of all volumes that are going to move, so
+            # that the final push which happens during handoff is a quick
+            # incremental push. This should significantly reduces the
+            # application downtime caused by the time it takes to copy
+            # data.
+            #if volumes.going:
+            #    phases.append(InParallel(changes=[
+            #        PushVolume(volume=handoff.volume, hostname=handoff.hostname)
+            #        for handoff in volumes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))
