@@ -244,16 +244,10 @@ class PushVolume(object):
          meant to be pushed.
     """
     def run(self, deployer):
-        # XXX refactor duplicate code in HandoffVolume.run to utility of some
-        # sort:
-
-        # service = deployer.volume_service
-        # destination = ProcessNode.using_ssh(
-        #     self.hostname, 22, b"root",
-        #     SSH_PRIVATE_KEY_PATH)
-        # return service.push(service.get(self.volume.name),
-        #                     RemoteVolumeManager(destination))
-        pass
+        service = deployer.volume_service
+        destination = standard_node(self.hostname)
+        return service.push(service.get(self.volume.name),
+                            RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)

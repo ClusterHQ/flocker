@@ -1701,8 +1701,8 @@ class HandoffVolumeTests(SynchronousTestCase):
 
     def test_return(self):
         """
-        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
-        named volume is available.
+        ``HandoffVolume.run()`` returns the result of
+        ``VolumeService.handoff``.
         """
         result = Deferred()
         volume_service = create_volume_service(self)
@@ -1717,3 +1717,53 @@ class HandoffVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)
+
+
+class PushVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``PushVolume``.
+    """
+    def test_push(self):
+        """
+        ``PushVolume.run()`` hands off the named volume to the given
+        destination nodex.
+        """
+        volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
+
+        result = []
+
+        def _push(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "push", _push)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=hostname)
+        push.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(standard_node(hostname))])
+
+    def test_return(self):
+        """
+        ``PushVolume.run()`` returns the result of
+        ``VolumeService.push``.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "push",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        push_result = push.run(deployer)
+        self.assertIs(push_result, result)
