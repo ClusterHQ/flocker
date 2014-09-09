@@ -2,13 +2,13 @@
 Cleaning Up
 ===========
 
-Flocker does not currently implement a tool to purge containers and state from deployment nodes that have had applications and volumes installed via `flocker-deploy`.
+Flocker does not currently implement a tool to purge containers and state from deployment nodes that have had applications and volumes installed via ``flocker-deploy``.
 Adding a cleanup tool is `on the Flocker development path`_ for a later release.
 
 Until this feature is available, you may wish to manually purge deployment nodes of all containers and state created by Flocker.
 This will enable you to test, play around with Flocker or repeat the deployment process (for example, if you have followed through the tutorial and would like to clean up the virtual machines to start again without having to destroy and rebuild them).
 
-You can run the necessary cleanup commands via SSH. The tutorial's virtual machines are created with IP addresses `172.16.255.250` and `172.16.255.251` - if you have deployed applications via Flocker to any other nodes, replace those IP addresses in the commands below.
+You can run the necessary cleanup commands via SSH. The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251`` - if you have deployed applications via Flocker to any other nodes, replace those IP addresses in the commands below.
 
 
 Removing Containers
