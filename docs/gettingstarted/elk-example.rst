@@ -76,21 +76,30 @@ You can verify that by running ``docker ps``:
 Connect to Kibana
 =================
 
-Connect to the IP address of our virtual machine, using the port number we exposed in our application configuration.
+Browse to port 80 on node1 with your web browser.
+You should see the Kibana web interface.
+There won't be any messages yet.
+
+XXX: Insert screenshot.
+
+Generate Log Messages
+=====================
+
+For this tutorial, Logstash has been configured to accept JSON encoded messages on port 5000.
+Use ``telnet`` to connect to port 5000.
+Type some JSON formatted messages.
+For example:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ XXX
-   > XXX
-   > exit
+   alice@mercury:~/flocker-elk$ telnet ssh 172.16.255.250 5000
+
+   ...
    alice@mercury:~/flocker-elk$
 
+Now refresh the Kibana web interface and you should see those messages.
 
-Add some data
-=============
-
-XXX
-
+XXX: Insert screenshot.
 
 Create a New Deployment Configuration and Move the Application
 ==============================================================
