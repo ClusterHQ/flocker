@@ -91,11 +91,11 @@ You can verify that by running ``docker ps``:
 Connect to ``Kibana``
 =====================
 
-Browse to port 80 on node1 with your web browser.
-You should see the ``Kibana`` web interface.
-There won't be any messages yet.
+Browse to port 80 on node1 (http://172.16.255.250) with your web browser.
+You should see the ``Kibana`` web interface but there won't be any messages yet.
 
-XXX: Insert screen shot.
+.. image:: elk-example-kibana-empty.png
+
 
 Generate Log Messages
 =====================
