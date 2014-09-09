@@ -187,6 +187,7 @@ Release
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
    #. Set the default version to that version
+
       .. warning:: Skip this step for weekly releases and pre-releases.
                    The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
                    We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
