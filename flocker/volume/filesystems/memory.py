@@ -88,7 +88,7 @@ class DirectoryFilesystem(object):
         Pretend to take a snapshot.  Assign it the given name.
         """
         self.get_path().child(b".snapshots").setContent(
-            "\n".join([
+            b"\n".join([
                 snapshot.name for snapshot in self._snapshots()] + [name])
         )
 
