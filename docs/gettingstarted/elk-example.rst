@@ -43,7 +43,7 @@ Download the Docker Images
    alice@mercury:~/flocker-tutorial$
 
 .. note:: We use the ``--tty`` option to ``ssh`` so that progress is displayed.
-          If you omit it the pull will still work but you may not get any output for a long time.
+          If you omit it, the pull will still work but you may not get any output for a long time.
 
 
 Deploy on Node1
