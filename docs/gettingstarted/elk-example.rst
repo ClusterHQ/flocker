@@ -20,8 +20,11 @@ The Logstash and Kibana applications will now connect to ElasticSearch on node2.
 Create the Virtual Machines
 ===========================
 
-We'll use the same Vagrant environment as :doc:`the MongoDB tutorial <./tutorial/index>`.
+We'll use the same Vagrant environment as in :doc:`the MongoDB tutorial <./tutorial/index>`.
 If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
+
+.. warning:: The Flocker application links feature demonstrated in this example was introduced in Flocker-0.1.2. 
+          If you have previously run the tutorial using an older version of Flocker, you must destroy and recreate the Vagrant environment.
 
 
 Download the Docker Images
