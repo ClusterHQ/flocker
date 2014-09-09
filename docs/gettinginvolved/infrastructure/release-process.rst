@@ -199,6 +199,8 @@ Release
 
 #. Update the Homebrew recipe
 
+   The aim of this step is to provide a version specific ``homebrew`` recipe for each release.
+
    - Checkout the `homebrew-tap`_ repository.
 
      .. code-block:: console
@@ -211,6 +213,10 @@ Release
 
         git checkout -b release/flocker-${VERSION%pre*} origin/master
         git push origin --set-upstream release/flocker-${VERSION%pre*}
+
+   - Create a ``flocker-{VERSION}.rb`` file
+
+     Copy the last recipe file and rename it for this release.
 
    - Update recipe file with the new version number and new ``sha1`` checksum.
 
