@@ -287,8 +287,8 @@ class Filesystem(object):
             # -e means "if the stream says it is for foo/bar/baz then receive
             # into baz".  I don't know why self.name is also required,
             # then. XXX try -d self.pool instead. XXX it works without -e w/
-            # self.name too.
-            #
+            # self.name too. XXX Delete this paragraph if we go ahead with just
+            # `-F` in the implementation.
             #
             # -F means force.  If the stream is based on not-quite-the-latest
             # snapshot then we have to throw away all the snapshots newer than
