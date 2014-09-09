@@ -2,19 +2,19 @@
 Example: Linking Containers
 ===========================
 
-In this example you will learn how to deploy ElasticSearch, Logstash, and Kibana with Flocker.
+In this example you will learn how to deploy ``ElasticSearch``, ``Logstash``, and ``Kibana`` with Flocker.
 This example demonstrates how applications running in separate Docker containers can be linked together, so that they can connect to one another, even when they are deployed on separate nodes.
 
 The three applications are connected as follows:
-* Logstash receives logged messages and relays them to ElasticSearch.
-* ElasticSearch stores the logged messages in a database.
-* Kibana connects to ElasticSearch to retrieve the logged messages and presents them in a web interface.
+* ``Logstash`` receives logged messages and relays them to ``ElasticSearch``.
+* ``ElasticSearch`` stores the logged messages in a database.
+* ``Kibana`` connects to ``ElasticSearch`` to retrieve the logged messages and presents them in a web interface.
 
 We'll start by deploying all three applications on node1.
-Then we'll generate some log messages and view them in the Kibana web interface.
-Then we'll use ``flocker-deploy`` to move the ElasticSearch container to the second node.
-The ElasticSearch data will be moved with the application.
-The Logstash and Kibana applications will now connect to ElasticSearch on node2.
+Then we'll generate some log messages and view them in the ``Kibana`` web interface.
+Then we'll use ``flocker-deploy`` to move the ``ElasticSearch`` container to the second node.
+The ``ElasticSearch`` data will be moved with the application.
+The ``Logstash`` and ``Kibana`` applications will now connect to ``ElasticSearch`` on node2.
 
 
 Create the Virtual Machines
@@ -76,19 +76,19 @@ You can verify that by running ``docker ps``:
    alice@mercury:~/flocker-elk$ ssh root@172.16.255.250 docker ps
    alice@mercury:~/flocker-elk$
 
-Connect to Kibana
-=================
+Connect to ``Kibana``
+=====================
 
 Browse to port 80 on node1 with your web browser.
-You should see the Kibana web interface.
+You should see the ``Kibana`` web interface.
 There won't be any messages yet.
 
-XXX: Insert screenshot.
+XXX: Insert screen shot.
 
 Generate Log Messages
 =====================
 
-For this tutorial, Logstash has been configured to accept JSON encoded messages on port 5000.
+For this tutorial, ````Logstash```` has been configured to accept JSON encoded messages on port 5000.
 Use ``telnet`` to connect to port 5000.
 Type some JSON formatted messages.
 For example:
@@ -100,14 +100,14 @@ For example:
    ...
    alice@mercury:~/flocker-elk$
 
-Now refresh the Kibana web interface and you should see those messages.
+Now refresh the ``Kibana`` web interface and you should see those messages.
 
-XXX: Insert screenshot.
+XXX: Insert screen shot.
 
-Move ElasticSearch to node2
-===========================
+Move ``ElasticSearch`` to node2
+===============================
 
-Edit the ``elk-deployment.yml`` file so that ElasticSearch is on node2.
+Edit the ``elk-deployment.yml`` file so that ``ElasticSearch`` is on node2.
 It should now look like:
 
 .. literalinclude:: elk-deployment-moved.yml
@@ -120,7 +120,7 @@ Now run ``flocker-deploy`` with the new configuration:
    alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-elk$
 
-Now we'll verify that the ElasticSearch application has moved to the other VM:
+Now we'll verify that the ``ElasticSearch`` application has moved to the other VM:
 
 .. code-block:: console
 
@@ -136,14 +136,14 @@ And is no longer running on the original host:
    XXX: Insert output
    alice@mercury:~/flocker-elk$
 
-If you refresh the Kibana web interface, you should see the log messages that were logged earlier.
-If you generate more log messages, they should show up in the Kibana web interface.
+If you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
+If you generate more log messages, they should show up in the ``Kibana`` web interface.
 
 
 Conclusion
 ==========
 
-This concludes our example for using Flocker with ElasticSearch, Logstash, and Kibana.
+This concludes our example for using Flocker with ``ElasticSearch``, ``Logstash``, and ``Kibana``.
 
 You have seen how applications can be configured so that they are able to connect to on another across nodes. 
 And you have once again seen how Flocker will quickly and transparently move a Docker container and its data between nodes.
