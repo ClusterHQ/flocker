@@ -5,12 +5,16 @@ Example: Linking Containers
 In this example you will learn how to deploy ElasticSearch, Logstash, and Kibana with Flocker.
 This example demonstrates how applications running in separate Docker containers can be linked together, so that they can connect to one another, even when they are deployed on separate nodes.
 
-Logstash receives logged messages and relays them to ElasticSearch.
-ElasticSearch stores the logged messages in a database.
-Kibana connects to ElasticSearch to retrieve the logged messages and presents them in a web interface.
+The three applications are connected as follows:
+* Logstash receives logged messages and relays them to ElasticSearch.
+* ElasticSearch stores the logged messages in a database.
+* Kibana connects to ElasticSearch to retrieve the logged messages and presents them in a web interface.
 
-We'll insert some data, then use ``flocker-deploy`` to move one of the containers to another virtual machine.
-The data will be moved along with the application.
+We'll start by deploying all three applications on node1.
+Then we'll generate some log messages and view them in the Kibana web interface.
+Then we'll use ``flocker-deploy`` to move the ElasticSearch container to the second node.
+The ElasticSearch data will be moved with the application.
+The Logstash and Kibana applications will now connect to ElasticSearch on node2.
 
 The requirements are the same as the MongoDB tutorial.
 
@@ -29,7 +33,7 @@ Download the Docker Images
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch 
+   alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch
    alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-logstash
    alice@mercury:~/flocker-elk$ ssh -t root@172.16.255.250 docker pull tomprince/test-kibana
    ...
@@ -141,7 +145,7 @@ You will find that Flocker has moved our volume with the container and our data 
    psql (9.3.5)
    You are now connected to database "flockertest" as user "postgres".
    flockertest=# select * from testtable;
-    testcolumn 
+    testcolumn
    ------------
              3
    (1 row)
