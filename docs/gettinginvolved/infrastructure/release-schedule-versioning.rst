@@ -1,5 +1,5 @@
-Release Schedule and Versioning
-===============================
+Release Schedule and Version Numbers
+====================================
 
 Goals
 -----
@@ -20,8 +20,8 @@ If nobody is available in the ClusterHQ offices to create a release, the week wi
 
 After each release is distributed, the engineer who performed the release will create issues for any improvements which could be made.
 
-Versioning
-----------
+Version Numbers
+---------------
 
 Released version numbers take the form of ``X.Y.Z``.
 The current value of ``X`` is 0 until the project is ready for production.
