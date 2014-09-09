@@ -6,6 +6,7 @@ In this example you will learn how to deploy ``ElasticSearch``, ``Logstash``, an
 This example demonstrates how applications running in separate Docker containers can be linked together, so that they can connect to one another, even when they are deployed on separate nodes.
 
 The three applications are connected as follows:
+
 * ``Logstash`` receives logged messages and relays them to ``ElasticSearch``.
 * ``ElasticSearch`` stores the logged messages in a database.
 * ``Kibana`` connects to ``ElasticSearch`` to retrieve the logged messages and presents them in a web interface.
