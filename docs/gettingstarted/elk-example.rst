@@ -32,17 +32,17 @@ Download the Docker Images
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-elasticsearch
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-logstash
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.250 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-kibana
    ...
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-elasticsearch
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-logstash
-   alice@mercury:~/flocker-tutorial$ ssh --tty root@172.16.255.251 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-kibana
    ...
    alice@mercury:~/flocker-tutorial$
 
-.. note:: We use the ``--tty`` option to ``ssh`` so that progress is displayed.
+.. note:: We use the ``-t`` option to ``ssh`` so that progress is displayed.
           If you omit it, the pull will still work but you may not get any output for a long time.
 
 
