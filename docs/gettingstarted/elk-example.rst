@@ -101,31 +101,28 @@ Now refresh the Kibana web interface and you should see those messages.
 
 XXX: Insert screenshot.
 
-Create a New Deployment Configuration and Move the Application
-==============================================================
+Move ElasticSearch to node2
+===========================
 
-Download the new deployment configuration and save to your ``flocker-elk`` directory.
-
-:download:`elk-deployment-moved.yml`
+Edit the ``elk-deployment.yml`` file so that ElasticSearch is on node2.
+It should now look like:
 
 .. literalinclude:: elk-deployment-moved.yml
    :language: yaml
 
-Now run ``flocker-deploy`` on the new configuration:
+Now run ``flocker-deploy`` with the new configuration:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment-moved.yml elk-application.yml
+   alice@mercury:~/flocker-elk$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-elk$
 
-Now we'll verify that our application has moved to the other VM:
+Now we'll verify that the ElasticSearch application has moved to the other VM:
 
 .. code-block:: console
 
    alice@mercury:~/flocker-elk$ ssh root@172.16.255.251 docker ps
-   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
-   51b5b09a46bb        clusterhq/XXX:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   XXX
-   alice@mercury:~/flocker-postgres$
+   XXX: insert output
 
 And is no longer running on the original host:
 
@@ -133,6 +130,7 @@ And is no longer running on the original host:
 
    alice@mercury:~/flocker-elk$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   XXX: Insert output
    alice@mercury:~/flocker-elk$
 
 Verify Our Data Has Moved with the Application
