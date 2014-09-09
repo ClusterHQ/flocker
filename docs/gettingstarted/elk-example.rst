@@ -133,28 +133,16 @@ And is no longer running on the original host:
    XXX: Insert output
    alice@mercury:~/flocker-elk$
 
-Verify Our Data Has Moved with the Application
-==============================================
+If you refresh the Kibana web interface, you should see the log messages that were logged earlier.
+If you generate more log messages, they should show up in the Kibana web interface.
 
-Query the ``flockertest`` database for the data we previously inserted.
-You will find that Flocker has moved our volume with the container and our data has been preserved.
 
-.. code-block:: console
+Conclusion
+==========
 
-   alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
-   psql (9.3.5)
-   Type "help" for help.
+This concludes our example for using Flocker with ElasticSearch, Logstash, and Kibana.
 
-   postgres=# \connect flockertest;
-   psql (9.3.5)
-   You are now connected to database "flockertest" as user "postgres".
-   flockertest=# select * from testtable;
-    testcolumn
-   ------------
-             3
-   (1 row)
-
-This concludes our example for using Flocker with PostgreSQL.
-Now you've successfully followed through both our tutorial and a further working example of what you can do with flocker, you may now wish to read through the :doc:`../advanced/index`.
+You have seen how applications can be configured so that they are able to connect to on another across nodes. 
+And you have once again seen how Flocker will quickly and transparently move a Docker container and its data between nodes.
 
 .. _`PostgreSQL`: https://www.postgresql.org/download/
