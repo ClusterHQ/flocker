@@ -1150,6 +1150,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(
@@ -1337,6 +1339,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             mountpoint=FilePath(b"/blah"),
         )
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(

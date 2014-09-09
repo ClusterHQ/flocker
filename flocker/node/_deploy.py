@@ -427,10 +427,10 @@ class Deployer(object):
             # incremental push. This should significantly reduces the
             # application downtime caused by the time it takes to copy
             # data.
-            #if volumes.going:
-            #    phases.append(InParallel(changes=[
-            #        PushVolume(volume=handoff.volume, hostname=handoff.hostname)
-            #        for handoff in volumes.going]))
+            if volumes.going:
+                phases.append(InParallel(changes=[
+                    PushVolume(volume=handoff.volume, hostname=handoff.hostname)
+                    for handoff in volumes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))
