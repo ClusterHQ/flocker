@@ -13,9 +13,8 @@ The three applications are connected as follows:
 
 We'll start by deploying all three applications on node1.
 Then we'll generate some log messages and view them in the ``Kibana`` web interface.
-Then we'll use ``flocker-deploy`` to move the ``ElasticSearch`` container to the second node.
-The ``ElasticSearch`` data will be moved with the application.
-The ``Logstash`` and ``Kibana`` applications will now connect to ``ElasticSearch`` on node2.
+Finally we'll use ``flocker-deploy`` to move the ``ElasticSearch`` container to the second node.
+The ``ElasticSearch`` data will be moved with the application and the ``Logstash`` and ``Kibana`` applications will now connect to ``ElasticSearch`` on node2.
 
 
 Create the Virtual Machines
