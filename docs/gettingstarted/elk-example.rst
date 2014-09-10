@@ -2,14 +2,14 @@
 Example: Linking Containers
 ===========================
 
-In this example you will learn how to deploy ``ElasticSearch``, ``Logstash``, and ``Kibana`` with Flocker.
-This example demonstrates how applications running in separate Docker containers can be linked together, so that they can connect to one another, even when they are deployed on separate nodes.
+Flocker-0.1.2 introduces support for `Docker Container Linking`_.
+In this example you will learn how to deploy ``ElasticSearch``, ``Logstash``, and ``Kibana`` with Flocker, demonstrating how applications running in separate Docker containers can be linked together such that they can connect to one another, even when they are deployed on separate nodes.
 
 The three applications are connected as follows:
 
 * ``Logstash`` receives logged messages and relays them to ``ElasticSearch``.
 * ``ElasticSearch`` stores the logged messages in a database.
-* ``Kibana`` connects to ``ElasticSearch`` to retrieve the logged messages and presents them in a web interface.
+* ``Kibana`` connects to ``ElasticSearch`` to retrieve the logged messages and present them in a web interface.
 
 We'll start by deploying all three applications on node1.
 Then we'll generate some log messages and view them in the ``Kibana`` web interface.
@@ -20,8 +20,8 @@ The ``ElasticSearch`` data will be moved with the application and the ``Logstash
 Create the Virtual Machines
 ===========================
 
-We'll use the same Vagrant environment as in :doc:`the MongoDB tutorial <./tutorial/index>`.
-If you haven't already started up the Vagrant virtual machines follow the :doc:`setup instructions <./tutorial/vagrant-setup>`.
+We'll use the same Vagrant environment as in the :doc:`MongoDB tutorial <./tutorial/index>`.
+If you haven't already started up the Vagrant virtual machines follow the :ref:`setup instructions <VagrantSetup>`.
 
 .. warning:: The Flocker application links feature demonstrated in this example was introduced in Flocker-0.1.2. 
           If you have previously run the tutorial using an older version of Flocker, you must destroy and recreate the Vagrant environment.
@@ -76,8 +76,18 @@ Run ``flocker-deploy`` to start the three applications:
    alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-tutorial$
 
+In the Flocker application configuration above, we have defined a link between the ``Logstash`` and ``Elasticsearch`` containers by specifying the ports and an alias for the application container we want to link. The application YAML above is broadly equivalent to a set of Docker commands as follows:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 9200:9200 --name=elasticsearch -v /var/lib/elasticsearch/ tomprince/test-elasticsearch
+   ...
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 80:8080 --name=kibana tomprince/test-kibana
+   ...
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 5000:5000 --name=logstash --link elasticsearch:es tomprince/test-logstash
+
 All three applications should now be running in separate containers on node1.
-You can verify that by running ``docker ps``:
+You can verify this by running ``docker ps`` over an SSH connection:
 
 .. code-block:: console
 
@@ -87,6 +97,7 @@ You can verify that by running ``docker ps``:
    b4e9f08b3d1d        tomprince/test-elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
    44a4ee72d9ab        tomprince/test-logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash            
    alice@mercury:~/flocker-tutorial$
+
 
 Connect to ``Kibana``
 =====================
@@ -117,6 +128,7 @@ So next we'll use ``telnet`` to connect to ``Logstash`` port 5000 and feed it so
 Now refresh the ``Kibana`` web interface and you should see those messages.
 
 .. image:: elk-example-kibana-messages1.png
+
 
 Move ``ElasticSearch`` to node2
 ===============================
@@ -165,3 +177,4 @@ You have seen how applications can be configured so that they are able to connec
 And you have once again seen how Flocker will quickly and transparently move a Docker container and its data between nodes.
 
 .. _`PostgreSQL`: https://www.postgresql.org/download/
+.. _`Docker Container Linking`: https://docs.docker.com/userguide/dockerlinks/
