@@ -1,11 +1,11 @@
-===========================
-Data-Oriented Orchestration
-===========================
+========================
+Data-Oriented Clustering
+========================
 
 Minimal Downtime Volume Migration
 =================================
 
-Flocker's orchestration logic builds on the functionality of the volume manager (see :doc:`./volume/index`) to provide efficient support for moving containers with data across nodes.
+Flocker's cluster management logic builds on the functionality of the volume manager (see :doc:`./volume/index`) to provide efficient support for moving containers with data across nodes.
 
 Consider a MongoDB application with a 20GB volume being moved from node A to node B.
 The naive implementation of shutting down the database on node A, copying the data to node B and then starting the database back up on node B would cause quite a bit of downtime. Instead Flocker follows the following procedure:
