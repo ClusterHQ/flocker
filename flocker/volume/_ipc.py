@@ -36,6 +36,9 @@ def standard_node(hostname):
     """
     Create the default production ``INode`` for the given hostname.
 
+    That is, a node that SSHes as root to port 22 on the given hostname
+    and authenticates using the cluster private key.
+
     :param bytes hostname: The host to connect to.
     :return: A ``INode`` that can connect to the given hostname using SSH.
     """
