@@ -107,7 +107,7 @@ Preparing for a release
 
      .. code-block:: console
 
-        git commit -am "Bumped version number in installers and Vagrantfiles"
+        git commit -am "Bumped version numbers"
         git push
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
