@@ -279,4 +279,5 @@ texinfo_documents = [
 intersphinx_mapping = {'http://docs.python.org/': None}
 
 # Don't check anchors because many websites use #! for AJAX magic
+# http://sphinx-doc.org/config.html#confval-linkcheck_anchors
 linkcheck_anchors = False
