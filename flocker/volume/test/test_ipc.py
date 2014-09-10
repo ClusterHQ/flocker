@@ -304,8 +304,8 @@ class StandardNodeTests(TestCase):
     """
     def test_ssh_as_root(self):
         """
-        ``standard_node`` returns a node that will SSH as root using the
-        private key for the cluster.
+        ``standard_node`` returns a node that will SSH as root to port 22
+        using the private key for the cluster.
         """
         node = standard_node(b'example.com')
         self.assertEqual(node, ProcessNode.using_ssh(
