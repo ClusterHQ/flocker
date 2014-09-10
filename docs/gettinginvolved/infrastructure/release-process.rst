@@ -103,23 +103,33 @@ Preparing for a release
    - `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
    - `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_ (two RPMs).
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output)
-   - Then commit the changes:
+   - Commit the changes:
 
      .. code-block:: console
 
         git commit -am "Bumped version numbers"
-        git push
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
    XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
 
+     .. code-block:: console
+
+        git commit -am "Updated NEWS"
+
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
 
-   XXX: Process to be decided.
-   If we modify the copyright in the release branch, then we'll need to merge that back to master.
-   It should probably just be updated routinely each year.
-   See https://github.com/ClusterHQ/flocker/issues/525
+   XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/525
+
+     .. code-block:: console
+
+        git commit -am "Updated copyright"
+
+#. Push the changes
+
+     .. code-block:: console
+
+        git push
 
 #. Ensure all the tests pass on BuildBot.
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
