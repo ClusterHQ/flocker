@@ -9,7 +9,7 @@ Advanced Documentation
    usage
    configuration
    volume/index
-   orchestration
+   clustering
    routing/index
    debugging
-   cleanup   
+   cleanup
