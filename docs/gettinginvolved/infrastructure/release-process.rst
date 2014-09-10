@@ -76,7 +76,7 @@ Preparing for a release
 
      .. code-block:: console
 
-        export VERSION=0.1.1
+        export VERSION=0.1.2
 
 #. File a ticket
 
