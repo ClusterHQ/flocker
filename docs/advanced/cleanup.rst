@@ -25,7 +25,7 @@ Docker containers must be stopped before they can be removed.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -aq | xargs --no-run-if-empty docker stop'
+   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -q | xargs --no-run-if-empty docker stop'
 
 
 Removing Containers
@@ -49,14 +49,20 @@ Removing Gear Units
 Removing ZFS Volumes
 ====================
 
-To remove ZFS volumes created by Flocker, you will need to list the volumes on each host and then use the unique IDs in conjunction with the `zfs destroy` command.
+To remove ZFS volumes created by Flocker, you can list the volumes on each host and then use the unique IDs in conjunction with the `zfs destroy` command.
 
 .. code-block:: console
 
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs list -H -o name'
    flocker   
-   flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mongodb-volume-example
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mongodb-volume-example'
+   flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example
+   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example'
    
+Alternatively if you wish to destroy **all** datasets created by Flocker, you can run the following command:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-mysql$ zfs destroy -r flocker
+
 
 .. _`on the Flocker development path`: https://github.com/ClusterHQ/flocker/issues/682
