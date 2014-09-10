@@ -5,7 +5,7 @@ What's New
 Next Release
 ============
 
-* Moving volumes between nodes is now done with a :doc:`two-phase push<./orchestration>` that should dramatically decrease application downtime when moving large amounts of data.
+* Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :doc:`application configuration<./configuration>`.
 * Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
 
