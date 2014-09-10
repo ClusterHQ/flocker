@@ -1729,8 +1729,8 @@ class PushVolumeTests(SynchronousTestCase):
     """
     def test_push(self):
         """
-        ``PushVolume.run()`` hands off the named volume to the given
-        destination nodex.
+        ``PushVolume.run()`` pushes the named volume to the given destination
+        node.
         """
         volume_service = create_volume_service(self)
         hostname = b"dest.example.com"
