@@ -58,7 +58,7 @@ To remove ZFS volumes created by Flocker, you can list the volumes on each host 
    flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example
    alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example'
    
-Alternatively if you wish to destroy **all** datasets created by Flocker, you can run the following command:
+Alternatively if you wish to destroy **all** data sets created by Flocker, you can run the following command:
 
 .. code-block:: console
 
