@@ -228,23 +228,30 @@ Release
 
      Copy the last recipe file and rename it for this release.
 
-   - Update recipe file with the new version number and new ``sha1`` checksum.
+   - Update recipe file
 
-     .. note:: For weekly releases, only update the `devel` section to prevent users who are following the Flocker tutorial from installing a potentially unstable ``flocker-cli`` package.
+     - Update the version number
 
-     .. code-block:: console
+       The version number is included in the class name with all dots and dashes removed.
+       e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
 
-        $ sha1sum "dist/Flocker-${VERSION}.tar.gz"
-        ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.1.tar.gz
+     - Update the ``sha1`` checksum.
 
-   - Commit the changes and push
+       .. code-block:: console
 
-     .. code-block:: console
+          sha1sum "dist/Flocker-${VERSION}.tar.gz"
+          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.1.tar.gz
 
-        git commit -am "Bumped version number and checksum in homebrew recipe"
-        git push
+     - Commit the changes and push
 
-   - Test the brew by installing it directly from a GitHub link
+       .. code-block:: console
+
+          git commit -am "Bumped version number and checksum in homebrew recipe"
+          git push
+
+   - Test the new recipe
+
+     Try installing the new recipe directly from a GitHub link
 
      .. code-block:: console
 
@@ -252,7 +259,9 @@ Release
 
      See https://github.com/Homebrew/homebrew/wiki/FAQ#how-do-i-get-a-formula-from-someone-elses-branch
 
-   - Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
+   - Make a pull request
+
+     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
 
 #. Make a pull request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
