@@ -184,7 +184,7 @@ This completes the Vagrant-related setup.
 Upgrading the Vagrant Environment
 =================================
 
-The Vagrantfile used in this tutorial installs an RPM package called ``flocker-node`` on both the nodes.
+The ``Vagrantfile`` used in this tutorial installs an RPM package called ``flocker-node`` on both the nodes.
 If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``flocker-node`` before continuing with the following tutorials.
 
 First check the current Flocker version on the nodes.
@@ -209,7 +209,7 @@ There are two ways upgrade:
 
    Here are the steps:
 
-   If you have the original Vagrantfile, change to its parent directory and run ``vagrant destroy``.
+   If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
 
    .. code-block:: console
 
