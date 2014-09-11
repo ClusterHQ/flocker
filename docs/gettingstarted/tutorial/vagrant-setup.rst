@@ -181,6 +181,24 @@ Note that you will need to make the same substitution in commands used throughou
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
+Upgrading the Vagrant Environment
+=================================
+
+The Vagrantfile used in this tutorial changes with each new Flocker release.
+If you already have a tutorial environment from a previous release, you'll need to upgrade the Vagrant nodes before continuing with the following tutorials.
+Here are the steps:
+
+#. Check the current version
+
+   You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.
+
+   .. code-block:: console
+
+      [~/flocker-tutorial]$ ssh root@172.16.255.250 flocker-reportstate --version
+      0.1.0
+
+#.
+
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
