@@ -32,21 +32,21 @@ Download the Docker Images
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/elasticsearch
    ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/logstash
    ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/kibana
    ...
    alice@mercury:~/flocker-tutorial$
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/elasticsearch
    ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-log-stash
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/logstash
    ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/kibana
    ...
    alice@mercury:~/flocker-tutorial$
 
@@ -80,11 +80,11 @@ In the Flocker application configuration above, we have defined a link between t
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 9200:9200 --name=elasticsearch -v /var/lib/elasticsearch/ tomprince/test-elasticsearch
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 9200:9200 --name=elasticsearch -v /var/lib/elasticsearch/ clusterhq/elasticsearch
    ...
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 80:8080 --name=kibana tomprince/test-kibana
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 80:8080 --name=kibana clusterhq/kibana
    ...
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 5000:5000 --name=logstash --link elasticsearch:es tomprince/test-logstash
+   alice@mercury:~/flocker-tutorial$ docker run -d -p 5000:5000 --name=logstash --link elasticsearch:es clusterhq/logstash
 
 All three applications should now be running in separate containers on node1.
 You can verify this by running ``docker ps`` over an SSH connection:
@@ -93,9 +93,9 @@ You can verify this by running ``docker ps`` over an SSH connection:
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
-   abc5c08557d4        tomprince/test-kibana:latest          /usr/bin/twistd -n w   20 seconds ago      Up 19 seconds       0.0.0.0:80->8080/tcp               kibana              
-   b4e9f08b3d1d        tomprince/test-elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
-   44a4ee72d9ab        tomprince/test-logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash            
+   abc5c08557d4        clusterhq/kibana:latest          /usr/bin/twistd -n w   20 seconds ago      Up 19 seconds       0.0.0.0:80->8080/tcp               kibana              
+   b4e9f08b3d1d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
+   44a4ee72d9ab        clusterhq/logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash            
    alice@mercury:~/flocker-tutorial$
 
 
@@ -152,7 +152,7 @@ Now we'll verify that the ``ElasticSearch`` application has moved to the other V
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
-   894d1656b74d        tomprince/test-elasticsearch:latest   /bin/sh -c 'source /   2 minutes ago       Up 2 minutes        9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
+   894d1656b74d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   2 minutes ago       Up 2 minutes        9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
 
 And is no longer running on the original host:
 
@@ -160,8 +160,8 @@ And is no longer running on the original host:
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                            COMMAND                CREATED             STATUS              PORTS                    NAMES
-   abc5c08557d4        tomprince/test-kibana:latest     /usr/bin/twistd -n w   45 minutes ago      Up 45 minutes       0.0.0.0:80->8080/tcp     kibana              
-   44a4ee72d9ab        tomprince/test-logstash:latest   /bin/sh -c /usr/loca   45 minutes ago      Up 45 minutes       0.0.0.0:5000->5000/tcp   logstash  
+   abc5c08557d4        clusterhq/kibana:latest     /usr/bin/twistd -n w   45 minutes ago      Up 45 minutes       0.0.0.0:80->8080/tcp     kibana              
+   44a4ee72d9ab        clusterhq/logstash:latest   /bin/sh -c /usr/loca   45 minutes ago      Up 45 minutes       0.0.0.0:5000->5000/tcp   logstash  
    alice@mercury:~/flocker-tutorial$
 
 If you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
