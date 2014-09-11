@@ -193,9 +193,9 @@ You can do this by logging into each node and running the ``flocker-reportstate`
    .. code-block:: console
 
       [~/flocker-tutorial]$ ssh root@172.16.255.250 flocker-reportstate --version
-      0.1.0
+      0.1.2
 
-Only proceed if you find that you are running an older version of flocker.
+Only proceed if you find that you are running an older version of Flocker.
 
 There are two ways upgrade:
 
