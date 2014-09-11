@@ -1,8 +1,9 @@
-======================
-Example: Running MySQL
-======================
+====================================
+Example: Using Environment Variables
+====================================
 
-Once you've successfully followed through :doc:`./tutorial/index` this example will show you how to deploy a MySQL container with Flocker.
+Once you've successfully followed through :doc:`./tutorial/index` this example will demonstrate Flocker's capability to apply custom environment variables to an application container, by showing you how to deploy an example MySQL application where an environment variable will be used to set the database server's root user password.
+
 We'll insert some data, then use ``flocker-deploy`` to move the MySQL server container to another virtual machine.
 The data in the database will be moved along with the application.
 
