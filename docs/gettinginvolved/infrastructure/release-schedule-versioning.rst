@@ -19,6 +19,8 @@ The releases will happen on Tuesday of each week.
 If nobody is available in the ClusterHQ organization to create a release, the week will be skipped.
 
 After each release is distributed, the engineer who performed the release will create issues for any improvements which could be made.
+The release engineer should then spend 4-8 hours working on fixing issues related to improving the release process.
+If there is an issue that will likely take over 8 hours then they should consult the team manager before starting them.
 
 Version Numbers
 ---------------
