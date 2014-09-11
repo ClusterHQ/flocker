@@ -190,20 +190,18 @@ If you already have a tutorial environment from a previous release, you'll need 
 First check the current Flocker version on the nodes.
 You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.
 
-   .. code-block:: console
+.. code-block:: console
 
-      [~/flocker-tutorial]$ ssh root@172.16.255.250 flocker-reportstate --version
-      0.1.2
+   [~/flocker-tutorial]$ ssh root@172.16.255.250 flocker-reportstate --version
+   0.1.2
 
 Only proceed if you find that you are running an older version of Flocker.
 
-If you find that you *are* running an out-of-date version, you now need to rebuild the tutorial environment.
+If you find that you *are* running an older version, you now need to rebuild the tutorial environment.
 
-This will ensure that you have the latest version and that you are using a pristine tutorial environment.
+This will ensure that you have the latest Flocker version and that you are using a pristine tutorial environment.
 
 .. warning:: This will completely remove the existing nodes and their data.
-
-Here are the steps:
 
 If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
 
