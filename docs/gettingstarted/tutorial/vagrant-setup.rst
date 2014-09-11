@@ -197,59 +197,35 @@ You can do this by logging into each node and running the ``flocker-reportstate`
 
 Only proceed if you find that you are running an older version of Flocker.
 
-There are two ways upgrade:
+If you find that you *are* running an out-of-date version, you now need to rebuild the tutorial environment.
 
-#. Recreate the tutorial environment
+This will ensure that you have the latest version and that you are using a pristine tutorial environment.
 
-   This is the recommended method.
-   It is reliable and ensures that you have the latest pristine tutorial environment.
-   But it is slower because the Vagrant images have to be downloaded and provisioned again.
+.. warning:: This will completely remove the existing nodes and their data.
 
-   .. warning:: This will completely remove the existing nodes and their data.
+Here are the steps:
 
-   Here are the steps:
+If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
 
-   If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
+.. code-block:: console
 
-   .. code-block:: console
+   [~/flocker-tutorial]$ vagrant destroy
+       node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
+   ==> node2: Forcing shutdown of VM...
+   ==> node2: Destroying VM and associated drives...
+   ==> node2: Running cleanup tasks for 'shell' provisioner...
+       node1: Are you sure you want to destroy the 'node1' VM? [y/N] y
+   ==> node1: Forcing shutdown of VM...
+   ==> node1: Destroying VM and associated drives...
+   ==> node1: Running cleanup tasks for 'shell' provisioner...
 
-      [~/flocker-tutorial]$ vagrant destroy
-          node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
-      ==> node2: Forcing shutdown of VM...
-      ==> node2: Destroying VM and associated drives...
-      ==> node2: Running cleanup tasks for 'shell' provisioner...
-          node1: Are you sure you want to destroy the 'node1' VM? [y/N] y
-      ==> node1: Forcing shutdown of VM...
-      ==> node1: Destroying VM and associated drives...
-      ==> node1: Running cleanup tasks for 'shell' provisioner...
+Then download the latest ``Vagrantfile`` and run ``vagrant up``.
 
-   Then download the latest ``Vagrantfile`` and run ``vagrant up``.
+.. code-block:: console
 
-   .. code-block:: console
-
-      [~/flocker-tutorial]$ vagrant up
-      Bringing machine 'node1' up with 'virtualbox' provider...
-      Bringing machine 'node2' up with 'virtualbox' provider...
-
-#. Upgrade the ``flocker-node`` package in place.
-
-   This option is faster, but it will only update the ``flocker-node`` package.
-   You will not get upgrades to other packages or to the base Vagrant base images.
-   In this case we use ``yum`` to upgrade the ``flocker-node`` package to a specific version.
-   You will be prompted to confirm that you want to upgrade.
-
-   .. code-block:: console
-
-      [~/flocker-tutorial]$ ssh -t root@172.16.255.250 yum upgrade flocker-node-0.1.2
-      ...
-      Updated:
-        flocker-node.noarch 0:0.1.2-1.fc20
-
-      Dependency Updated:
-        python-flocker.noarch 0:0.1.2-1.fc20
-
-      Complete!
-      Connection to 172.16.255.250 closed.
+   [~/flocker-tutorial]$ vagrant up
+   Bringing machine 'node1' up with 'virtualbox' provider...
+   Bringing machine 'node2' up with 'virtualbox' provider...
 
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
