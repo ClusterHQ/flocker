@@ -227,6 +227,9 @@ Then download the latest ``Vagrantfile`` and run ``vagrant up``.
    Bringing machine 'node1' up with 'virtualbox' provider...
    Bringing machine 'node2' up with 'virtualbox' provider...
 
+Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can delete the existing nodes directly from ``VirtualBox``.
+The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
+
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
