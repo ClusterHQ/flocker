@@ -23,12 +23,14 @@ Create the Virtual Machines
 We'll use the same Vagrant environment as in the :doc:`MongoDB tutorial <./tutorial/index>`.
 If you haven't already started up the Vagrant virtual machines follow the :ref:`setup instructions <VagrantSetup>`.
 
-.. warning:: The Flocker application links feature demonstrated in this example was introduced in Flocker-0.1.2. 
+.. warning:: The Flocker application links feature demonstrated in this example was introduced in Flocker-0.1.2.
           If you have previously run the tutorial using an older version of Flocker, you must destroy and recreate the Vagrant environment.
 
 
 Download the Docker Images
 ==========================
+
+In this step we will prepare the nodes by downloading all the required Docker images.
 
 .. code-block:: console
 
@@ -76,15 +78,7 @@ Run ``flocker-deploy`` to start the three applications:
    alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-tutorial$
 
-In the Flocker application configuration above, we have defined a link between the ``Logstash`` and ``Elasticsearch`` containers by specifying the ports and an alias for the application container we want to link. The application YAML above is broadly equivalent to a set of Docker commands as follows:
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 9200:9200 --name=elasticsearch -v /var/lib/elasticsearch/ clusterhq/elasticsearch
-   ...
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 80:8080 --name=kibana clusterhq/kibana
-   ...
-   alice@mercury:~/flocker-tutorial$ docker run -d -p 5000:5000 --name=logstash --link elasticsearch:es clusterhq/logstash
+In the Flocker application configuration above, we have defined a link between the ``Logstash`` and ``Elasticsearch`` containers by specifying the ports and an alias for the application container we want to link.
 
 All three applications should now be running in separate containers on node1.
 You can verify this by running ``docker ps`` over an SSH connection:
@@ -93,9 +87,9 @@ You can verify this by running ``docker ps`` over an SSH connection:
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
-   abc5c08557d4        clusterhq/kibana:latest          /usr/bin/twistd -n w   20 seconds ago      Up 19 seconds       0.0.0.0:80->8080/tcp               kibana              
-   b4e9f08b3d1d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
-   44a4ee72d9ab        clusterhq/logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash            
+   abc5c08557d4        clusterhq/kibana:latest          /usr/bin/twistd -n w   20 seconds ago      Up 19 seconds       0.0.0.0:80->8080/tcp               kibana
+   b4e9f08b3d1d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   21 seconds ago      Up 19 seconds       9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch
+   44a4ee72d9ab        clusterhq/logstash:latest        /bin/sh -c /usr/loca   21 seconds ago      Up 19 seconds       0.0.0.0:5000->5000/tcp             logstash
    alice@mercury:~/flocker-tutorial$
 
 
@@ -152,7 +146,7 @@ Now we'll verify that the ``ElasticSearch`` application has moved to the other V
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
    CONTAINER ID        IMAGE                                 COMMAND                CREATED             STATUS              PORTS                              NAMES
-   894d1656b74d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   2 minutes ago       Up 2 minutes        9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch       
+   894d1656b74d        clusterhq/elasticsearch:latest   /bin/sh -c 'source /   2 minutes ago       Up 2 minutes        9300/tcp, 0.0.0.0:9200->9200/tcp   elasticsearch
 
 And is no longer running on the original host:
 
@@ -160,8 +154,8 @@ And is no longer running on the original host:
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                            COMMAND                CREATED             STATUS              PORTS                    NAMES
-   abc5c08557d4        clusterhq/kibana:latest     /usr/bin/twistd -n w   45 minutes ago      Up 45 minutes       0.0.0.0:80->8080/tcp     kibana              
-   44a4ee72d9ab        clusterhq/logstash:latest   /bin/sh -c /usr/loca   45 minutes ago      Up 45 minutes       0.0.0.0:5000->5000/tcp   logstash  
+   abc5c08557d4        clusterhq/kibana:latest     /usr/bin/twistd -n w   45 minutes ago      Up 45 minutes       0.0.0.0:80->8080/tcp     kibana
+   44a4ee72d9ab        clusterhq/logstash:latest   /bin/sh -c /usr/loca   45 minutes ago      Up 45 minutes       0.0.0.0:5000->5000/tcp   logstash
    alice@mercury:~/flocker-tutorial$
 
 If you refresh the ``Kibana`` web interface, you should see the log messages that were logged earlier.
@@ -173,7 +167,7 @@ Conclusion
 
 This concludes our example for using Flocker with ``ElasticSearch``, ``Logstash``, and ``Kibana``.
 
-You have seen how applications can be configured so that they are able to connect to on another across nodes. 
+You have seen how applications can be configured so that they are able to connect to on another across nodes.
 And you have once again seen how Flocker will quickly and transparently move a Docker container and its data between nodes.
 
 .. _`PostgreSQL`: https://www.postgresql.org/download/
