@@ -37,12 +37,16 @@ class IGearClientTests(make_igearclient_tests(
         pass
 
 
-class GearClientTests(TestCase):
-    """Implementation-specific tests for ``GearClient``."""
+class GearClientTestsMixin(object):
+    """Implementation-specific tests mixin for ``GearClient``."""
 
-    @if_gear_configured
-    def setUp(self):
-        pass
+    def make_client(self):
+        """
+        Create a client.
+
+        :return: A ``IGearClient`` provider.
+        """
+        raise NotImplementedError("Implement in subclasses")
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
@@ -61,7 +65,7 @@ class GearClientTests(TestCase):
         :return: ``Deferred`` that fires with the ``GearClient`` when the unit
             reaches the expected state.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         d = client.add(
             unit_name=unit_name,
             image_name=image_name,
@@ -100,7 +104,7 @@ class GearClientTests(TestCase):
         """``GearClient.add`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
@@ -114,7 +118,7 @@ class GearClientTests(TestCase):
         """``GearClient.remove`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         # Illegal container name should make gear complain when we try to
         # remove it:
         d = client.remove(u"!!##!!")
@@ -354,3 +358,14 @@ CMD sh -c "trap \"\" 2; sleep 3"
             needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
         )
         return d
+
+
+class GearClientTests(TestCase, GearClientTestsMixin):
+    """Implementation-specific tests for ``GearClient``."""
+
+    @if_gear_configured
+    def setUp(self):
+        pass
+
+    def make_client(self):
+        return GearClient("127.0.0.1")

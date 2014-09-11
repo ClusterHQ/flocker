@@ -7,7 +7,10 @@ Functional tests for :module:`flocker.node.docker`.
 from unittest import skipIf
 from subprocess import Popen
 
+from twisted.trial.unittest import TestCase
+
 from ..test.test_gear import make_igearclient_tests
+from ..functional.test_gear import GearClientTestsMixin
 from ..docker import DockerClient
 
 
@@ -25,3 +28,16 @@ class IGearClientTests(make_igearclient_tests(
     @_if_docker
     def setUp(self):
         pass
+
+
+class DockerClientTests(GearClientTestsMixin, TestCase):
+    """
+    Functional tests for ``DockerClient``.
+    """
+
+    @_if_docker
+    def setUp(self):
+        pass
+
+    def make_client(self):
+        return DockerClient()
