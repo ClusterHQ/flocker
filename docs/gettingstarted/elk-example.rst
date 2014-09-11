@@ -131,6 +131,7 @@ Edit the ``elk-deployment.yml`` file so that ``ElasticSearch`` is on node2.
 It should now look like:
 
 .. literalinclude:: elk-deployment-moved.yml
+   :emphasize-lines: 4
    :language: yaml
 
 Now run ``flocker-deploy`` with the new configuration:
