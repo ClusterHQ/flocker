@@ -172,4 +172,4 @@ You have seen how applications can be configured so that they are able to connec
 And you have once again seen how Flocker will quickly and transparently move a Docker container and its data between nodes.
 
 .. _`PostgreSQL`: https://www.postgresql.org/download/
-.. _`Docker Container Linking`: https://docs.docker.com/userguide/dockerlinks/
+.. _`Docker Container Linking`: http://docs.docker.com/userguide/dockerlinks/
