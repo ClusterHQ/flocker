@@ -38,7 +38,12 @@ class IGearClientTests(make_igearclient_tests(
 
 
 class GearClientTestsMixin(object):
-    """Implementation-specific tests mixin for ``GearClient``."""
+    """
+    Implementation-specific tests mixin for ``GearClient`` and similar
+    classes.
+    """
+    # Override with Exception subclass used by the client
+    clientException = None
 
     def make_client(self):
         """
@@ -112,7 +117,7 @@ class GearClientTestsMixin(object):
         # Illegal container name should make gear complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
-        return self.assertFailure(d, GearError)
+        return self.assertFailure(d, self.clientException)
 
     def test_remove_error(self):
         """``GearClient.remove`` returns ``Deferred`` that errbacks with
@@ -122,36 +127,7 @@ class GearClientTestsMixin(object):
         # Illegal container name should make gear complain when we try to
         # remove it:
         d = client.remove(u"!!##!!")
-        return self.assertFailure(d, GearError)
-
-    def test_stopped_is_listed(self):
-        """
-        ``GearClient.list()`` includes stopped units.
-
-        In certain old versions of geard the API was such that you had to
-        explicitly request stopped units to be listed, so we want to make
-        sure this keeps working.
-        """
-        name = random_name()
-        d = self.start_container(name)
-
-        def started(client):
-            self.addCleanup(client.remove, name)
-
-            # Stop the unit, an operation that is not exposed directly by
-            # our current API:
-            stopped = client._container_request(
-                b"PUT", name, operation=b"stopped")
-            stopped.addCallback(client._ensure_ok)
-            stopped.addCallback(lambda _: client)
-            return stopped
-        d.addCallback(started)
-
-        def stopped(client):
-            return wait_for_unit_state(
-                client, name, (u"inactive", u"deactivating", u"failed"))
-        d.addCallback(stopped)
-        return d
+        return self.assertFailure(d, self.clientException)
 
     def test_dead_is_listed(self):
         """
@@ -367,5 +343,36 @@ class GearClientTests(TestCase, GearClientTestsMixin):
     def setUp(self):
         pass
 
+    clientException = GearClient
+
     def make_client(self):
         return GearClient("127.0.0.1")
+
+    def test_stopped_is_listed(self):
+        """
+        ``GearClient.list()`` includes stopped units.
+
+        In certain old versions of geard the API was such that you had to
+        explicitly request stopped units to be listed, so we want to make
+        sure this keeps working.
+        """
+        name = random_name()
+        d = self.start_container(name)
+
+        def started(client):
+            self.addCleanup(client.remove, name)
+
+            # Stop the unit, an operation that is not exposed directly by
+            # our current API:
+            stopped = client._container_request(
+                b"PUT", name, operation=b"stopped")
+            stopped.addCallback(client._ensure_ok)
+            stopped.addCallback(lambda _: client)
+            return stopped
+        d.addCallback(started)
+
+        def stopped(client):
+            return wait_for_unit_state(
+                client, name, (u"inactive", u"deactivating", u"failed"))
+        d.addCallback(stopped)
+        return d

@@ -16,11 +16,6 @@ from twisted.internet.threads import deferToThread
 from .gear import IGearClient, AlreadyExists, Unit
 
 
-# We namespace containers we manage so we don't clobber containers managed
-# by others:
-CONTAINER_NAMESPACE = u"flocker--"
-
-
 @implementer(IGearClient)
 class DockerClient(object):
     """
@@ -28,8 +23,12 @@ class DockerClient(object):
 
     Some operations can take a while (e.g. stopping a container), so we
     use a thread pool.
+
+    :ivar unicode namespace: A namespace prefix to add to container names
+        so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self):
+    def __init__(self, namespace=u"flocker--"):
+        self.namespace = namespace
         self._client = Client(version="1.12")
 
     def _to_container_name(self, unit_name):
@@ -40,7 +39,7 @@ class DockerClient(object):
 
         :return unicode: The container's name.
         """
-        return CONTAINER_NAMESPACE + unit_name
+        return self.namespace + unit_name
 
     def add(self, unit_name, image_name, ports=None, links=None,
             environment=None):
@@ -91,13 +90,13 @@ class DockerClient(object):
                 data = self._client.inspect_container(i)
                 state = u"active" if data[u"State"][u"Running"] else u"inactive"
                 name = data[u"Name"]
-                if not name.startswith(u"/" + CONTAINER_NAMESPACE):
+                if not name.startswith(u"/" + self.namespace):
                     continue
                 else:
-                    name = name[1 + len(CONTAINER_NAMESPACE):]
+                    name = name[1 + len(self.namespace):]
                 result.add(Unit(name=name,
                                 activation_state=state,
-                                sub_state=u"",
+                                sub_state=None,
                                 # We'll add this and the other available
                                 # info later, for now we're just aiming at
                                 # GearClient compatibility.
