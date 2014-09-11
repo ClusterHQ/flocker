@@ -16,11 +16,7 @@ set -e
 # Make it possible to install flocker-node
 # XXX https://github.com/ClusterHQ/flocker/issues/306 for better secure downloads:
 yum localinstall -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-
-# For reasons I do not understand this doesn't work (https://github.com/ClusterHQ/flocker/issues/510):
-#yum install -y flocker-node
-# So instead do it the stupid way:
-yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/python-flocker-0.1.2-1.fc20.noarch.rpm https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/flocker-node-0.1.2-1.fc20.noarch.rpm
+yum install -y flocker-node-0.1.2
 
 # At the end of this bootstrap we'll (indirectly) ask Docker to write a very
 # large file to its temporary directory.  /tmp is a small tmpfs mount which
