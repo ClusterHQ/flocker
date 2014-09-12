@@ -43,4 +43,7 @@ class DockerClientTests(GearClientTestsMixin, TestCase):
     clientException = APIError
 
     def make_client(self):
+        # The gear tests which we're (temporarily) reusing assume
+        # container name matches unit name, so we disable namespacing for
+        # these tests.
         return DockerClient(namespace=u"")
