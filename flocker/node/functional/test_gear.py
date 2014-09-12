@@ -119,16 +119,6 @@ class GearClientTestsMixin(object):
         d = client.add(u"!!!###!!!", u"busybox")
         return self.assertFailure(d, self.clientException)
 
-    def test_remove_error(self):
-        """``GearClient.remove`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
-        """
-        client = self.make_client()
-        # Illegal container name should make gear complain when we try to
-        # remove it:
-        d = client.remove(u"!!##!!")
-        return self.assertFailure(d, self.clientException)
-
     def test_dead_is_listed(self):
         """
         ``GearClient.list()`` includes dead units.
@@ -376,3 +366,13 @@ class GearClientTests(TestCase, GearClientTestsMixin):
             self.assertEqual(process.wait(), 1)
         d.addCallback(removed)
         return d
+
+    def test_remove_error(self):
+        """``GearClient.remove`` returns ``Deferred`` that errbacks with
+        ``GearError`` if response code is not a success response code.
+        """
+        client = self.make_client()
+        # Illegal container name should make gear complain when we try to
+        # remove it:
+        d = client.remove(u"!!##!!")
+        return self.assertFailure(d, self.clientException)
