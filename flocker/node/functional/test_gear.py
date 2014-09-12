@@ -299,6 +299,7 @@ class GearClientTests(TestCase, GearClientTestsMixin):
         d.addCallback(stopped)
         return d
 
+    # Links feature in geard is not used by Flocker, as it turns out.
     def test_add_with_links(self):
         """
         ``GearClient.add`` accepts a links argument which sets up links between
@@ -348,6 +349,8 @@ class GearClientTests(TestCase, GearClientTestsMixin):
 
         return d
 
+    # Covered by IGearClientTests.test_removed_does_not_exist for
+    # DockerClient.
     def test_slow_removed_unit_does_not_exist(self):
         """
         ``remove()`` only fires once the Docker container has shut down.
@@ -367,6 +370,8 @@ class GearClientTests(TestCase, GearClientTestsMixin):
         d.addCallback(removed)
         return d
 
+    # Necessary for DockerClient, but I can't figure out how to make it
+    # work.
     def test_remove_error(self):
         """``GearClient.remove`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
