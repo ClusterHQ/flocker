@@ -8,6 +8,7 @@ from unittest import skipIf
 from subprocess import Popen
 
 from docker.errors import APIError
+from docker import Client
 
 from twisted.trial.unittest import TestCase
 
@@ -47,3 +48,23 @@ class DockerClientTests(GearClientTestsMixin, TestCase):
         # container name matches unit name, so we disable namespacing for
         # these tests.
         return DockerClient(namespace=u"")
+
+    def test_pull_image_if_necessary(self):
+        """
+        The Docker image is pulled if it is unavailable locally.
+        """
+        image = u"busybox"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name()
+        client = self.make_client()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+        d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
+        return d

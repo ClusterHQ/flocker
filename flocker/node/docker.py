@@ -49,12 +49,23 @@ class DockerClient(object):
         if ports is None:
             ports = []
 
-        def _add():
+        def _create():
             self._client.create_container(
                 image_name,
                 name=container_name,
                 environment=environment,
                 ports=[p.internal_port for p in ports])
+
+        def _add():
+            # See https://docs.docker.com/reference/api/docker_remote_api_v1.14/#31-inside-docker-run
+            try:
+                _create()
+            except APIError as e:
+                if e.response.status_code == 404:
+                    self._client.pull(image_name)
+                    _create()
+                else:
+                    raise
             self._client.start(container_name,
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
