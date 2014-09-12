@@ -19,3 +19,4 @@ This Getting Started guide will walk you step-by-step through installing Flocker
    tutorial/index
    postgres
    mysql-example
+   elk-example

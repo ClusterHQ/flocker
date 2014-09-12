@@ -12,7 +12,7 @@ from zope.interface import implementer
 
 from .service import (
     DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL,
-    VolumeScript, ICommandLineVolumeScript
+    Volume, VolumeScript, ICommandLineVolumeScript
     )
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner
@@ -58,6 +58,37 @@ def flocker_volume_options(cls):
     cls.postOptions = postOptions
 
     return cls
+
+
+class _SnapshotsSubcommandOptions(Options):
+    """
+    Command line options for ``flocker-volume snapshots``.
+    """
+
+    longdesc = """List local snapshots of a particular volume.
+
+    Parameters:
+
+    * owner-uuid: The UUID of the volume manager that owns the volume.
+
+    * name: The name of the volume.
+    """
+
+    def parseArgs(self, uuid, name):
+        self["uuid"] = uuid.decode("ascii")
+        self["name"] = name.decode("ascii")
+
+    def run(self, service):
+        volume = Volume(uuid=self["uuid"], name=self["name"], service=service)
+        filesystem = volume.get_filesystem()
+        snapshots = filesystem.snapshots()
+
+        def got_snapshots(snapshots):
+            for snapshot in snapshots:
+                sys.stdout.write(snapshot.name + b"\n")
+
+        snapshots.addCallback(got_snapshots)
+        return snapshots
 
 
 class _ReceiveSubcommandOptions(Options):
@@ -140,6 +171,8 @@ class VolumeOptions(Options):
     synopsis = "Usage: flocker-volume [OPTIONS]"
 
     subCommands = [
+        ["snapshots", None, _SnapshotsSubcommandOptions,
+         "List snapshots for a volume."],
         ["receive", None, _ReceiveSubcommandOptions,
          "Receive a remotely pushed volume."],
         ["acquire", None, _AcquireSubcommandOptions,

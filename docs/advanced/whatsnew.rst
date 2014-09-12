@@ -6,6 +6,10 @@ What's New in the Next Release
 
   * See :doc:`./configuration` for more information.
 
+* Added basic support for links between containers in application configuration.
+
+  * See :doc:`./configuration` for more information.
+
 ==================
 What's New in v0.1
 ==================

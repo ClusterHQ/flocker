@@ -277,3 +277,10 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+
+# Don't check anchors because many websites use #! for AJAX magic
+# http://sphinx-doc.org/config.html#confval-linkcheck_anchors
+linkcheck_anchors = False
+
+# Don't check links to tutorial IPs
+linkcheck_ignore = [r'http://172\.16\.255\.']
