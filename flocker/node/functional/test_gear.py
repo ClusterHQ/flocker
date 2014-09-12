@@ -275,7 +275,7 @@ class GearClientTests(TestCase, GearClientTestsMixin):
     def setUp(self):
         pass
 
-    clientException = GearClient
+    clientException = GearError
 
     def make_client(self):
         return GearClient("127.0.0.1")
