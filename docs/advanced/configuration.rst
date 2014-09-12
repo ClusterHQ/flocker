@@ -70,7 +70,7 @@ The following parameters are optional when defining an application:
      As you may have noticed in the example above, unlike Docker links, the destination port will not be the port used to create the environment variable names.
      Flocker implements linking via the ports exposed to the network, whereas Docker creates an internal tunnel between linked containers, an approach that is not compatible with the deployment of links across multiple nodes.
      
-     It is also worth nothing that at this time, only TCP links are supported by Flocker, therefore the ``TCP`` portion of the environment variable names and the ``tcp`` value of the ``_PROTO`` and ``_TCP`` variables are not configurable.
+     It is also worth noting that at this time, only TCP links are supported by Flocker, therefore the ``TCP`` portion of the environment variable names and the ``tcp`` value of the ``_PROTO`` and ``_TCP`` variables are not configurable.
 
 - ``volume``
 
