@@ -227,25 +227,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    def test_slow_removed_unit_does_not_exist(self):
-        """
-        ``remove()`` only fires once the Docker container has shut down.
-        """
-        client = GearClient(b"127.0.0.1")
-        name = random_name()
-        image = self.build_slow_shutdown_image()
-        d = self.start_container(name, image)
-        d.addCallback(lambda _: client.remove(name))
-
-        def removed(_):
-            process = subprocess.Popen(
-                [b"docker", b"inspect", name.encode("ascii")])
-            # Inspect gives non-zero exit code for stopped and
-            # non-existent containers:
-            self.assertEqual(process.wait(), 1)
-        d.addCallback(removed)
-        return d
-
     @_if_root
     def test_add_with_environment(self):
         """
@@ -375,4 +356,23 @@ class GearClientTests(TestCase, GearClientTestsMixin):
             return capture_finished
         d.addCallback(started)
 
+        return d
+
+    def test_slow_removed_unit_does_not_exist(self):
+        """
+        ``remove()`` only fires once the Docker container has shut down.
+        """
+        client = GearClient(b"127.0.0.1")
+        name = random_name()
+        image = self.build_slow_shutdown_image()
+        d = self.start_container(name, image)
+        d.addCallback(lambda _: client.remove(name))
+
+        def removed(_):
+            process = subprocess.Popen(
+                [b"docker", b"inspect", name.encode("ascii")])
+            # Inspect gives non-zero exit code for stopped and
+            # non-existent containers:
+            self.assertEqual(process.wait(), 1)
+        d.addCallback(removed)
         return d
