@@ -81,7 +81,6 @@ class DockerClient(object):
         return d
 
     def exists(self, unit_name):
-        # XXX inefficient!
         d = self.list()
 
         def got_units(units):
@@ -98,6 +97,8 @@ class DockerClient(object):
             except APIError as e:
                 if e.response.status_code == 404:
                     return
+                # Can't figure out how to get test coverage for this, but
+                # it's definitely necessary:
                 raise
         d = deferToThread(_remove)
         return d
