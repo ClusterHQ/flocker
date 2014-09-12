@@ -27,10 +27,10 @@ class MakeRpmVersionTests(TestCase):
     """
     Tests for ``make_rpm_version``.
     """
-    def test_all(self):
+    def test_good(self):
         """
-        Test that supplied ``flocker_version_number`` s give the expected
-        ``rpm_version`` s.
+        ``make_rpm_version`` gives the expected ``rpm_version`` instances when
+        supplied with valid ``flocker_version_number``s.
         """
         expected = {
             '0.1.0': rpm_version('0.1.0', '1'),
@@ -53,6 +53,19 @@ class MakeRpmVersionTests(TestCase):
 
         if unexpected_results:
             self.fail(unexpected_results)
+
+    def test_non_integer_suffix(self):
+        """
+        ``make_rpm_version`` raises ``Exception`` when supplied with a version
+        with a non-integer pre or dev suffix number.
+        """
+        with self.assertRaises(Exception) as exception:
+            make_rpm_version('0.1.2preX')
+
+        self.assertEqual(
+            u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
+            unicode(exception.exception)
+        )
 
 
 def make_rpm_version(flocker_version):
@@ -88,7 +101,7 @@ def make_rpm_version(flocker_version):
                 raise Exception(
                     'Non-integer value "{}" for "{}". '
                     'Supplied version {}'.format(
-                        release, suffix, flocker_version))
+                        suffix_number, suffix, flocker_version))
             break
     else:
         # Neither of the expected suffixes was found, the tag can be used as
