@@ -68,3 +68,31 @@ class DockerClientTests(GearClientTestsMixin, TestCase):
         d = client.add(name, image)
         d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
         return d
+
+    def test_namespacing(self):
+        """
+        Containers are created with the ``DockerClient`` namespace prefixed to
+        their container name.
+        """
+        docker = Client()
+        name = random_name()
+        client = DockerClient(namespace=u"testing-")
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: self.assertTrue(
+            docker.inspect_container(u"testing-" + name)))
+        return d
+
+    def test_default_namespace(self):
+        """
+        The default namespace is `u"flocker--"`.
+        """
+        docker = Client()
+        name = random_name()
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: self.assertTrue(
+            docker.inspect_container(u"flocker--" + name)))
+        return d
+
