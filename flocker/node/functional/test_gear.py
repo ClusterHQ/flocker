@@ -322,10 +322,10 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 id=expected_environment_id, variables=expected_variables),
         )
         d.addCallback(
-            # The ``gear status`` command prints to stderr which ordinarily
-            # would cause getProcessOutput to errback. ``errortoo`` turns off
-            # that behaviour.
-            lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
+            lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
+                                             env=os.environ,
+                                             # Capturing stderr makes
+                                             # debugging easier:
                                              errortoo=True)
         )
         d.addCallback(

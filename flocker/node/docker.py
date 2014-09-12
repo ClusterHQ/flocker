@@ -45,8 +45,12 @@ class DockerClient(object):
             environment=None):
         container_name = self._to_container_name(unit_name)
         def _add():
+            env = (dict(environment.variables) if environment
+                   else None)
+            print env
             self._client.create_container(image_name,
-                                          name=container_name)
+                                          name=container_name,
+                                          environment=env)
             self._client.start(container_name)
         d = deferToThread(_add)
 
