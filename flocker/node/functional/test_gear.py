@@ -40,7 +40,7 @@ class IGearClientTests(make_igearclient_tests(
 class GearClientTestsMixin(object):
     """
     Implementation-specific tests mixin for ``GearClient`` and similar
-    classes.
+    classes (in particular, ``DockerClient``).
     """
     # Override with Exception subclass used by the client
     clientException = None
@@ -212,55 +212,6 @@ class GearClientTestsMixin(object):
         d.addCallback(started)
         return d
 
-    def test_add_with_links(self):
-        """
-        ``GearClient.add`` accepts a links argument which sets up links between
-        container local ports and host local ports.
-        """
-        internal_port = 31337
-        expected_bytes = b'foo bar baz'
-        # Create a Docker image
-        image = DockerImageBuilder(
-            test=self,
-            source_dir=FilePath(__file__).sibling('sendbytes-docker'),
-        )
-        image_name = image.build(
-            dockerfile_variables=dict(
-                host=b'127.0.0.1',
-                port=internal_port,
-                bytes=expected_bytes,
-                timeout=30
-            )
-        )
-
-        # This is the target of the proxy which will be created.
-        server = TCP4ServerEndpoint(reactor, 0)
-        capture_finished, protocol = make_capture_protocol()
-
-        def check_data(data):
-            self.assertEqual(expected_bytes, data)
-        capture_finished.addCallback(check_data)
-
-        factory = ProtocolPoppingFactory(protocols=[protocol])
-        d = server.listen(factory)
-
-        def start_container(port):
-            self.addCleanup(port.stopListening)
-            host_port = port.getHost().port
-            return self.start_container(
-                unit_name=random_name(),
-                image_name=image_name,
-                links=[PortMap(internal_port=internal_port,
-                               external_port=host_port)]
-            )
-        d.addCallback(start_container)
-
-        def started(ignored):
-            return capture_finished
-        d.addCallback(started)
-
-        return d
-
     def build_slow_shutdown_image(self):
         """
         Create a Docker image that takes a while to shut down.
@@ -375,4 +326,53 @@ class GearClientTests(TestCase, GearClientTestsMixin):
             return wait_for_unit_state(
                 client, name, (u"inactive", u"deactivating", u"failed"))
         d.addCallback(stopped)
+        return d
+
+    def test_add_with_links(self):
+        """
+        ``GearClient.add`` accepts a links argument which sets up links between
+        container local ports and host local ports.
+        """
+        internal_port = 31337
+        expected_bytes = b'foo bar baz'
+        # Create a Docker image
+        image = DockerImageBuilder(
+            test=self,
+            source_dir=FilePath(__file__).sibling('sendbytes-docker'),
+        )
+        image_name = image.build(
+            dockerfile_variables=dict(
+                host=b'127.0.0.1',
+                port=internal_port,
+                bytes=expected_bytes,
+                timeout=30
+            )
+        )
+
+        # This is the target of the proxy which will be created.
+        server = TCP4ServerEndpoint(reactor, 0)
+        capture_finished, protocol = make_capture_protocol()
+
+        def check_data(data):
+            self.assertEqual(expected_bytes, data)
+        capture_finished.addCallback(check_data)
+
+        factory = ProtocolPoppingFactory(protocols=[protocol])
+        d = server.listen(factory)
+
+        def start_container(port):
+            self.addCleanup(port.stopListening)
+            host_port = port.getHost().port
+            return self.start_container(
+                unit_name=random_name(),
+                image_name=image_name,
+                links=[PortMap(internal_port=internal_port,
+                               external_port=host_port)]
+            )
+        d.addCallback(start_container)
+
+        def started(ignored):
+            return capture_finished
+        d.addCallback(started)
+
         return d
