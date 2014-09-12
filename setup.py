@@ -5,13 +5,14 @@
 
 import os
 from setuptools import setup, find_packages
-
+from distutils.core import Command
 import versioneer
 versioneer.vcs = "git"
 versioneer.versionfile_source = "flocker/_version.py"
 versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
+
 
 def rpm_version(flocker_version):
     """
@@ -30,7 +31,8 @@ def rpm_version(flocker_version):
                 release = '.'.join(['0', release, suffix] + since_tag)
             else:
                 raise Exception(
-                    'Non-integer value "{}" for "{}". Supplied version {}'.format(
+                    'Non-integer value "{}" for "{}". '
+                    'Supplied version {}'.format(
                         release, suffix, flocker_version))
             break
     else:
@@ -40,7 +42,7 @@ def rpm_version(flocker_version):
 
     return version, release
 
-from distutils.core import Command
+
 class cmd_generate_spec(Command):
     description = "Generate python-flocker.spec with current version."
     user_options = []
