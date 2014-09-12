@@ -44,14 +44,20 @@ class DockerClient(object):
     def add(self, unit_name, image_name, ports=None, links=None,
             environment=None):
         container_name = self._to_container_name(unit_name)
+        if environment is not None:
+            environment = dict(environment.variables)
+        if ports is None:
+            ports = []
+
         def _add():
-            env = (dict(environment.variables) if environment
-                   else None)
-            print env
-            self._client.create_container(image_name,
-                                          name=container_name,
-                                          environment=env)
-            self._client.start(container_name)
+            self._client.create_container(
+                image_name,
+                name=container_name,
+                environment=environment,
+                ports=[p.internal_port for p in ports])
+            self._client.start(container_name,
+                               port_bindings={p.internal_port: p.external_port
+                                              for p in ports})
         d = deferToThread(_add)
 
         def _extract_error(failure):
