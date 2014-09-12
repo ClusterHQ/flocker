@@ -95,4 +95,3 @@ class DockerClientTests(GearClientTestsMixin, TestCase):
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
         return d
-

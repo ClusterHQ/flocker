@@ -57,11 +57,11 @@ class DockerClient(object):
                 ports=[p.internal_port for p in ports])
 
         def _add():
-            # See https://docs.docker.com/reference/api/docker_remote_api_v1.14/#31-inside-docker-run
             try:
                 _create()
             except APIError as e:
                 if e.response.status_code == 404:
+                    # Image was not found, so we need to pull it first:
                     self._client.pull(image_name)
                     _create()
                 else:
@@ -90,6 +90,7 @@ class DockerClient(object):
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
+
         def _remove():
             try:
                 self._client.stop(container_name)
@@ -110,7 +111,8 @@ class DockerClient(object):
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
                 data = self._client.inspect_container(i)
-                state = u"active" if data[u"State"][u"Running"] else u"inactive"
+                state = (u"active" if data[u"State"][u"Running"]
+                         else u"inactive")
                 name = data[u"Name"]
                 if not name.startswith(u"/" + self.namespace):
                     continue
@@ -122,7 +124,6 @@ class DockerClient(object):
                                 # We'll add this and the other available
                                 # info later, for now we're just aiming at
                                 # GearClient compatibility.
-                                container_image=None,
-                            ))
+                                container_image=None))
             return result
         return deferToThread(_list)
