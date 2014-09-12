@@ -1,7 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-#
-# Generate a Flocker package that can be deployed onto cluster nodes.
-#
+
+"""
+Generate a Flocker package that can be deployed onto cluster nodes.
+"""
 
 if __name__ == '__main__':
     from setup import main
