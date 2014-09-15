@@ -6,7 +6,7 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name, make_with_init_tests
+from ...testtools import random_name, make_with_init_tests, loop_until
 from ..gear import (
     IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit, GearEnvironment)
 
@@ -34,6 +34,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"busybox")
+            d.addCallback(lambda _: loop_until(lambda: client.exists(name)))
             d.addCallback(lambda _: client.remove(name))
             return d
 
@@ -47,6 +48,7 @@ def make_igearclient_tests(fixture):
                 self.addCleanup(client.remove, name)
                 return client.add(name, u"busybox")
             d.addCallback(added)
+            d.addCallback(lambda _: loop_until(lambda: client.exists(name)))
             d = self.assertFailure(d, AlreadyExists)
             d.addCallback(lambda exc: self.assertEqual(exc.args[0], name))
             return d
@@ -92,6 +94,7 @@ def make_igearclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             d = client.add(name, u"openshift/busybox-http-app")
+            d.addCallback(lambda _: loop_until(lambda: client.exists(name)))
             d.addCallback(lambda _: client.remove(name))
             d.addCallback(lambda _: client.exists(name))
             d.addCallback(self.assertFalse)
