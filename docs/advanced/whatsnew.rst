@@ -2,6 +2,8 @@
 What's New in the Next Release
 ==============================
 
+.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+
 * Added support for environment variables in application configuration.
 
   * See :doc:`./configuration` for more information.
