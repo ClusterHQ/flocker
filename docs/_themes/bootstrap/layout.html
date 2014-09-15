@@ -22,7 +22,6 @@
         <div class="sphinxsidebar">
             {%- if pagename != "search" %}
                 <div class="sphinxsidebarwrapper">
-                    <h3>Search</h3>
                     {{ seachbox() }}
                 </div>
             {%- endif %}
@@ -45,7 +44,9 @@
     {%- if pagename != "search" %}
         <form class="navbar-search" action="{{ pathto('search') }}"
               method="get">
-            <label for="search" class="search-label">Search</label>
+            <h3>
+                <label for="search" class="search-label">Search</label>
+            </h3>
             <input type="text" name="q" placeholder="search" id="search"/>
             <input type="hidden" name="check_keywords" value="yes"/>
             <input type="hidden" name="area" value="default"/>
