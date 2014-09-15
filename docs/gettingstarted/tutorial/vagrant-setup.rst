@@ -192,8 +192,9 @@ You can do this by logging into each node and running the ``flocker-reportstate`
 
 .. code-block:: console
 
-   [~/flocker-tutorial]$ ssh root@172.16.255.250 flocker-reportstate --version
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-reportstate --version
    0.1.2
+   alice@mercury:~/flocker-tutorial$
 
 Only proceed if you find that you are running an older version of Flocker.
 
@@ -207,7 +208,7 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
 
 .. code-block:: console
 
-   [~/flocker-tutorial]$ vagrant destroy
+   alice@mercury:~/flocker-tutorial$ vagrant destroy
        node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
    ==> node2: Forcing shutdown of VM...
    ==> node2: Destroying VM and associated drives...
@@ -216,14 +217,16 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
    ==> node1: Forcing shutdown of VM...
    ==> node1: Destroying VM and associated drives...
    ==> node1: Running cleanup tasks for 'shell' provisioner...
+   alice@mercury:~/flocker-tutorial$
 
 Then download the latest ``Vagrantfile`` and run ``vagrant up``.
 
 .. code-block:: console
 
-   [~/flocker-tutorial]$ vagrant up
+   alice@mercury:~/flocker-tutorial$ vagrant up
    Bringing machine 'node1' up with 'virtualbox' provider...
    Bringing machine 'node2' up with 'virtualbox' provider...
+   alice@mercury:~/flocker-tutorial$
 
 Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can delete the existing nodes directly from ``VirtualBox``.
 The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
