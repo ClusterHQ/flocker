@@ -68,6 +68,8 @@ See the official `MongoDB installation guide`_ for your system.
 Creating Vagrant VMs Needed for Flocker
 ---------------------------------------
 
+.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
 
@@ -180,6 +182,9 @@ Note that you will need to make the same substitution in commands used throughou
 
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
+
+
+.. _upgrading-vagrant-environment:
 
 Upgrading the Vagrant Environment
 =================================
