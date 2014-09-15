@@ -13,10 +13,10 @@ from docker.errors import APIError
 
 from twisted.internet.threads import deferToThread
 
-from .gear import IGearClient, AlreadyExists, Unit
+from .gear import IDockerClient, AlreadyExists, Unit
 
 
-@implementer(IGearClient)
+@implementer(IDockerClient)
 class DockerClient(object):
     """
     Talk to the real Docker server directly.

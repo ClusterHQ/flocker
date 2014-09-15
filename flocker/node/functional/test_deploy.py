@@ -11,7 +11,7 @@ from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
-from ..gear import GearClient
+from ..docker import DockerClient
 from ..testtools import wait_for_unit_state, if_gear_configured
 from ...testtools import random_name, DockerImageBuilder, assertContainsAll
 from ...volume.testtools import create_volume_service
@@ -29,7 +29,7 @@ class DeployerTests(TestCase):
         when ``Deployer.change_node_state`` is run.
         """
         name = random_name()
-        gear_client = GearClient("127.0.0.1")
+        gear_client = DockerClient()
         deployer = Deployer(create_volume_service(self), gear_client,
                             make_memory_network())
         self.addCleanup(gear_client.remove, name)
@@ -79,7 +79,7 @@ class DeployerTests(TestCase):
 
         application_name = random_name()
 
-        gear_client = GearClient("127.0.0.1")
+        gear_client = DockerClient()
         self.addCleanup(gear_client.remove, application_name)
 
         volume_service = create_volume_service(self)
@@ -137,7 +137,7 @@ class DeployerTests(TestCase):
 
         application_name = random_name()
 
-        gear_client = GearClient("127.0.0.1")
+        gear_client = DockerClient()
         self.addCleanup(gear_client.remove, application_name)
 
         volume_service = create_volume_service(self)

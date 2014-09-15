@@ -17,7 +17,7 @@ from ...volume.test.test_script import make_volume_options_tests
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
-from ..gear import FakeGearClient, Unit
+from ..gear import FakeDockerClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 
@@ -356,7 +356,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        fake_gear = FakeGearClient(units=units)
+        fake_gear = FakeDockerClient(units=units)
 
         expected = {
             'applications': {

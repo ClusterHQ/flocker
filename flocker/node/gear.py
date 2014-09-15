@@ -2,27 +2,15 @@
 
 """Client implementation for talking to the geard daemon."""
 
-import json
-
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
 from twisted.internet.defer import succeed, fail
-from twisted.internet.task import deferLater
-from twisted.internet import reactor
-
-from treq import request, content
-
-GEAR_PORT = 43273
 
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
-
-
-class GearError(Exception):
-    """Unexpected error received from gear daemon."""
 
 
 @attributes(["id", "variables"])
@@ -89,9 +77,12 @@ class Unit(object):
     """
 
 
-class IGearClient(Interface):
+class IDockerClient(Interface):
     """
-    A client for the geard HTTP API.
+    A client for the Docker HTTP API.
+
+    Currently somewhat geard-flavored, this will be fixed in followup
+    issues.
 
     Note the difference in semantics between the results of ``add()``
     (firing does not indicate application started successfully)
@@ -159,187 +150,9 @@ class IGearClient(Interface):
         """
 
 
-@implementer(IGearClient)
-class GearClient(object):
-    """Talk to the gear daemon over HTTP.
-
-    :ivar bytes _base_url: Base URL for gear.
-    """
-
-    def __init__(self, hostname):
-        """
-        :param unicode hostname: Gear host to connect to.
-        """
-        self._base_url = b"http://%s:%d" % (hostname.encode("ascii"),
-                                            GEAR_PORT)
-
-    def _container_request(self, method, unit_name, operation=None, data=None):
-        """Send HTTP request to gear.
-
-        :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
-
-        :param unicode unit_name: The name of the unit.
-
-        :param operation: ``None``, or extra ``unicode`` path element to add to
-            the request URL path.
-
-        :param data: ``None``, or object with a body for the request that
-            can be serialized to JSON.
-
-        :return: A ``Defered`` that fires with a response object.
-        """
-        path = b"/container/" + unit_name.encode("ascii")
-        if operation is not None:
-            path += b"/" + operation
-        return self._request(method, path, data=data)
-
-    def _request(self, method, path, data=None):
-        """Send HTTP request to gear.
-
-        :param bytes method: The HTTP method to send, e.g. ``b"GET"``.
-
-        :param bytes path: Path to request.
-
-        :param data: ``None``, or object with a body for the request that
-            can be serialized to JSON.
-
-        :return: A ``Defered`` that fires with a response object.
-        """
-        url = self._base_url + path
-        if data is not None:
-            data = json.dumps(data)
-
-        return request(method, url, data=data, persistent=False)
-
-    def _ensure_ok(self, response):
-        """Make sure response indicates success.
-
-        Also reads the body to ensure connection is closed.
-
-        :param response: Response from treq request,
-            ``twisted.web.iweb.IResponse`` provider.
-
-        :return: ``Deferred`` that errbacks with ``GearError`` if the response
-            is not successful (2xx HTTP response code).
-        """
-        d = content(response)
-        # geard uses a variety of 2xx response codes. Filed treq issue
-        # about having "is this a success?" API:
-        # https://github.com/dreid/treq/issues/62
-        if response.code // 100 != 2:
-            d.addCallback(lambda data: fail(GearError(response.code, data)))
-        return d
-
-    def add(self, unit_name, image_name, ports=None, links=None,
-            environment=None):
-        """
-        See ``IGearClient.add`` for base documentation.
-
-        Gear `NetworkLinks` are currently fixed to destination localhost. This
-        allows us to control the actual target of the link using proxy / nat
-        rules on the host machine without having to restart the gear unit.
-
-        XXX: If gear allowed us to reconfigure links this wouldn't be
-        necessary. See https://github.com/openshift/geard/issues/223
-
-        XXX: As long as we need to set the target as 127.0.0.1 its also worth
-        noting that gear will actually route the traffic to a non-loopback
-        address on the host. So if your service or NAT rule on the host is
-        configured for 127.0.0.1 only, it won't receive any traffic. See
-        https://github.com/openshift/geard/issues/224
-
-        XXX: If an environment is supplied, ``gear`` will create an environment
-        file with the given ID. But it will not remove that environment file
-        when this unit is removed or when there are no longer any references to
-        the environment ID. See https://github.com/ClusterHQ/flocker/issues/585
-        """
-        if ports is None:
-            ports = []
-
-        if links is None:
-            links = []
-
-        data = {
-            u"Image": image_name, u"Started": True, u'Ports': [],
-            u'NetworkLinks': []}
-
-        for port in ports:
-            data['Ports'].append(
-                {u'Internal': port.internal_port,
-                 u'External': port.external_port})
-
-        for link in links:
-            data['NetworkLinks'].append(
-                {u'FromHost': u'127.0.0.1',
-                 u'FromPort': link.internal_port,
-                 u'ToHost': u'127.0.0.1',
-                 u'ToPort': link.external_port}
-            )
-
-        if environment is not None:
-            data['Environment'] = environment.to_dict()
-
-        checked = self.exists(unit_name)
-        checked.addCallback(
-            lambda exists: fail(AlreadyExists(unit_name)) if exists else None)
-        checked.addCallback(
-            lambda _: self._container_request(b"PUT", unit_name, data=data))
-        checked.addCallback(self._ensure_ok)
-        return checked
-
-    def exists(self, unit_name):
-        d = self.list()
-
-        def got_units(units):
-            return unit_name in [unit.name for unit in units]
-        d.addCallback(got_units)
-        return d
-
-    def remove(self, unit_name):
-        d = self._container_request(b"PUT", unit_name, operation=b"stopped")
-        d.addCallback(self._ensure_ok)
-
-        def check_if_stopped(_=None):
-            listing = self.list()
-
-            def got_listing(units):
-                matching_units = [unit for unit in units
-                                  if unit.name == unit_name]
-                if not matching_units:
-                    return
-                unit = matching_units[0]
-                if unit.activation_state in (u"failed", u"inactive"):
-                    return
-                return deferLater(reactor, 0.1, check_if_stopped)
-            listing.addCallback(got_listing)
-            return listing
-        d.addCallback(check_if_stopped)
-        d.addCallback(lambda _: self._container_request(b"DELETE", unit_name))
-        d.addCallback(self._ensure_ok)
-        return d
-
-    def list(self):
-        d = self._request(b"GET", b"/containers?all=1")
-        d.addCallback(content)
-
-        def got_body(data):
-            values = json.loads(data)[u"Containers"]
-            # XXX: GearClient.list should also return container_image
-            # information.
-            # See https://github.com/ClusterHQ/flocker/issues/207
-            # container_image=image_name,
-            return set([Unit(name=unit[u"Id"],
-                             activation_state=unit[u"ActiveState"],
-                             sub_state=unit[u"SubState"],
-                             container_image=None)
-                        for unit in values])
-        d.addCallback(got_body)
-        return d
-
-
-@implementer(IGearClient)
-class FakeGearClient(object):
-    """In-memory fake that simulates talking to a gear daemon.
+@implementer(IDockerClient)
+class FakeDockerClient(object):
+    """In-memory fake that simulates talking to a docker daemon.
 
     The state the the simulated units is stored in memory.
 

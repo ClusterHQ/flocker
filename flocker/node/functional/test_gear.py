@@ -7,7 +7,6 @@ import json
 import subprocess
 from unittest import skipIf
 
-from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
@@ -21,20 +20,11 @@ from ...testtools import (
     loop_until, find_free_port, make_capture_protocol,
     ProtocolPoppingFactory, DockerImageBuilder, assertContainsAll)
 
-from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, PortMap, GearEnvironment
+from ..test.test_gear import random_name
+from ..gear import PortMap, GearEnvironment
 from ..testtools import if_gear_configured, wait_for_unit_state
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
-
-
-class IGearClientTests(make_igearclient_tests(
-        lambda test_case: GearClient("127.0.0.1"))):
-    """``IGearClient`` tests for ``GearClient``."""
-
-    @if_gear_configured
-    def setUp(self):
-        pass
 
 
 class GearClientTestsMixin(object):
@@ -258,17 +248,13 @@ CMD sh -c "trap \"\" 2; sleep 3"
         return d
 
 
-class GearClientTests(TestCase, GearClientTestsMixin):
+# XXX just delete once #64 is all set.
+class GearClientTests(GearClientTestsMixin):
     """Implementation-specific tests for ``GearClient``."""
 
     @if_gear_configured
     def setUp(self):
         pass
-
-    clientException = GearError
-
-    def make_client(self):
-        return GearClient("127.0.0.1")
 
     def test_stopped_is_listed(self):
         """
