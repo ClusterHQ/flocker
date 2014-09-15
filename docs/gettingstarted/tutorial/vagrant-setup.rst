@@ -228,7 +228,7 @@ Then download the latest ``Vagrantfile`` and run ``vagrant up``.
    Bringing machine 'node2' up with 'virtualbox' provider...
    alice@mercury:~/flocker-tutorial$
 
-Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can remove the existing nodes directly from ``VirtualBox``.
+Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can remove the existing nodes `directly from VirtualBox`_.
 The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
 
 .. _`Homebrew`: http://brew.sh/
@@ -236,3 +236,4 @@ The two virtual machines will have names like ``flocker-tutorial_node1_141045091
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
 .. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
+.. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568
