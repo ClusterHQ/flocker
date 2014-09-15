@@ -1,6 +1,6 @@
-============
-Introduction
-============
+=======================
+Introduction to Flocker
+=======================
 
 Motivation for Building Flocker
 ===============================
