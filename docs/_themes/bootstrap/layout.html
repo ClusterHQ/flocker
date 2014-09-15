@@ -45,6 +45,7 @@
     {%- if pagename != "search" %}
         <form class="navbar-search" action="{{ pathto('search') }}"
               method="get">
+            <label for="search" class="search-label">Search</label>
             <input type="text" name="q" placeholder="search" id="search"/>
             <input type="hidden" name="check_keywords" value="yes"/>
             <input type="hidden" name="area" value="default"/>
