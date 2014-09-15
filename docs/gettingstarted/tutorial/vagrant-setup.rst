@@ -219,7 +219,7 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
    ==> node1: Running cleanup tasks for 'shell' provisioner...
    alice@mercury:~/flocker-tutorial$
 
-Then download the latest ``Vagrantfile`` and run ``vagrant up``.
+Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` and run ``vagrant up``.
 
 .. code-block:: console
 
