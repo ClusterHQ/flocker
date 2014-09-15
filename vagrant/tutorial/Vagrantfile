@@ -8,9 +8,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/fedora20-updated"
   # Configure base system
   config.vm.provision :shell, :path => "bootstrap.sh", :privileged => true
-  # Configure pip (for root and vagrant)
-  config.vm.provision :shell, :path => "pip.sh", :privileged => true
-  config.vm.provision :shell, :path => "pip.sh", :privileged => false
   # Prepare caches
   config.vm.provision :shell, :path => "cache.sh", :privileged => true
   # Cleanup
