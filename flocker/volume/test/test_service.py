@@ -455,8 +455,8 @@ class VolumeTests(TestCase):
         """
         The volume's container name adds ``"-data"`` suffix to the volume name.
 
-        This ensures that geard will automatically mount it into a
-        container whose name matches that of the volume.
+        This ensures that our geard-emulation will automatically mount it
+        into a container whose name matches that of the volume.
         """
         volume = Volume(uuid=u"123", name=u"456", service=object())
         self.assertEqual(volume._container_name, b"456-data")

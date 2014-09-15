@@ -8,26 +8,27 @@ from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests, loop_until
 from ..gear import (
-    IGearClient, FakeGearClient, AlreadyExists, PortMap, Unit, GearEnvironment)
+    IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
+    GearEnvironment)
 
 
-def make_igearclient_tests(fixture):
+def make_idockerclient_tests(fixture):
     """
-    Create a TestCase for IGearClient.
+    Create a TestCase for IDockerClient.
 
-    :param fixture: A fixture that returns a :class:`IGearClient`
+    :param fixture: A fixture that returns a :class:`IDockerClient`
         provider.
     """
-    class IGearClientTests(TestCase):
+    class IDockerClientTests(TestCase):
         """
-        Tests for :class:`IGearClientTests`.
+        Tests for :class:`IDockerClientTests`.
 
         These are functional tests if run against a real geard.
         """
         def test_interface(self):
-            """The tested object provides :class:`IGearClient`."""
+            """The tested object provides :class:`IDockerClient`."""
             client = fixture(self)
-            self.assertTrue(verifyObject(IGearClient, client))
+            self.assertTrue(verifyObject(IDockerClient, client))
 
         def test_add_and_remove(self):
             """An added unit can be removed without an error."""
@@ -109,7 +110,7 @@ def make_igearclient_tests(fixture):
             d.addCallback(lambda _: client.list())
 
             def got_list(units):
-                # XXX: GearClient.list should also return container_image
+                # XXX: DockerClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
                 activating = Unit(name=name, activation_state=u"activating",
@@ -136,32 +137,33 @@ def make_igearclient_tests(fixture):
             d.addCallback(got_list)
             return d
 
-    return IGearClientTests
+    return IDockerClientTests
 
 
-class FakeIGearClientTests(make_igearclient_tests(lambda t: FakeGearClient())):
+class FakeIDockerClientTests(
+        make_idockerclient_tests(lambda t: FakeDockerClient())):
     """
-    ``IGearClient`` tests for ``FakeGearClient``.
+    ``IDockerClient`` tests for ``FakeDockerClient``.
     """
 
 
-class FakeGearClientImplementationTests(TestCase):
+class FakeDockerClientImplementationTests(TestCase):
     """
-    Tests for implementation details of ``FakeGearClient``.
+    Tests for implementation details of ``FakeDockerClient``.
     """
     def test_units_default(self):
         """
-        ``FakeGearClient._units`` is an empty dict by default.
+        ``FakeDockerClient._units`` is an empty dict by default.
         """
-        self.assertEqual({}, FakeGearClient()._units)
+        self.assertEqual({}, FakeDockerClient()._units)
 
     def test_units_override(self):
         """
-        ``FakeGearClient._units`` can be supplied in the constructor.
+        ``FakeDockerClient._units`` can be supplied in the constructor.
         """
         units = {u'foo': Unit(name=u'foo', activation_state=u'active',
                               container_image=u'flocker/flocker:v1.0.0')}
-        self.assertEqual(units, FakeGearClient(units=units)._units)
+        self.assertEqual(units, FakeDockerClient(units=units)._units)
 
 
 class PortMapInitTests(

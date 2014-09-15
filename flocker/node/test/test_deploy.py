@@ -37,7 +37,7 @@ class DeployerAttributesTests(SynchronousTestCase):
     """
     def test_docker_client_default(self):
         """
-        ``Deployer.docker_client`` is a ``GearClient`` by default.
+        ``Deployer.docker_client`` is a ``DockerClient`` by default.
         """
         self.assertIsInstance(
             Deployer(None).docker_client,
@@ -405,7 +405,7 @@ class StartApplicationTests(SynchronousTestCase):
     def test_environment_supplied_to_gear(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
-        application to ``GearClient.add`` as a ``GearEnvironment`` instance
+        application to ``DockerClient.add`` as a ``GearEnvironment`` instance
         with an ``id`` matching the application name.
         """
         volume_service = create_volume_service(self)
@@ -462,7 +462,7 @@ class StartApplicationTests(SynchronousTestCase):
     def test_links(self):
         """
         ``StartApplication.run()`` passes environment variables to connect to
-        the remote application to ``GearClient.add``.
+        the remote application to ``DockerClient.add``.
         """
         volume_service = create_volume_service(self)
         fake_gear = FakeDockerClient()

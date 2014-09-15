@@ -162,7 +162,8 @@ class FakeDockerClient(object):
     def __init__(self, units=None):
         """
         :param dict units: A dictionary of canned ``Unit``\ s which will be
-            manipulated and returned by the methods of this ``FakeGearClient``.
+        manipulated and returned by the methods of this
+        ``FakeDockerClient``.
         :type units: ``dict`` mapping `unit_name` to ``Unit``\ .
         """
         if units is None:
@@ -192,7 +193,7 @@ class FakeDockerClient(object):
 
     def list(self):
         # XXX: This is a hack so that functional and unit tests that use
-        # GearClient.list can pass until the real GearClient.list can also
+        # DockerClient.list can pass until the real DockerClient.list can also
         # return container_image information, ports and links.
         # See https://github.com/ClusterHQ/flocker/issues/207
         incomplete_units = set()
