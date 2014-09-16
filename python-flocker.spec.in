@@ -23,7 +23,7 @@ BuildRequires:  PyYAML = 3.10
 BuildRequires:  python-treq = 0.2.1
 BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-ipaddr = 2.1.10
-BuildRequires:  python-docker = 0.3.2
+BuildRequires:  python-docker-py = 0.3.2
 # The test suite runs the ssh command-line client and uses other utilities such
 # as ssh-keygen.
 BuildRequires: openssh-clients
