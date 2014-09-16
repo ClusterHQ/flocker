@@ -22,7 +22,8 @@ class DockerClient(object):
     Talk to the real Docker server directly.
 
     Some operations can take a while (e.g. stopping a container), so we
-    use a thread pool.
+    use a thread pool. See https://github.com/ClusterHQ/flocker/issues/718
+    for using a custom thread pool.
 
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
