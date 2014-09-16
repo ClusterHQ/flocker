@@ -12,7 +12,7 @@ from docker import Client
 from docker.errors import APIError
 
 from twisted.internet.threads import deferToThread
-from twisted.web.http import NOT_FOUND
+from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from .gear import IGearClient, AlreadyExists, Unit
 
@@ -68,6 +68,13 @@ class DockerClient(object):
                     _create()
                 else:
                     raise
+            # Just because we got a response doesn't mean Docker has
+            # actually updated any internal state yet! So if e.g. we did a
+            # stop on this container Docker might well complain it knows
+            # not the container of which we speak. To prevent this we poll
+            # until it does exist.
+            while not self._blocking_exists(container_name):
+                continue
             self._client.start(container_name,
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
@@ -82,13 +89,24 @@ class DockerClient(object):
         d.addErrback(_extract_error)
         return d
 
-    def exists(self, unit_name):
-        d = self.list()
+    def _blocking_exists(self, container_name):
+        """
+        Blocking API to check if container exists.
 
-        def got_units(units):
-            return unit_name in [unit.name for unit in units]
-        d.addCallback(got_units)
-        return d
+        :param unicode container_name: The name of the container whose
+            existence we're checking.
+
+        :return: ``True`` if unit exists, otherwise ``False``.
+        """
+        try:
+            self._client.inspect_container(container_name)
+            return True
+        except APIError:
+            return False
+
+    def exists(self, unit_name):
+        container_name = self._to_container_name(unit_name)
+        return deferToThread(self._blocking_exists, container_name)
 
     def remove(self, unit_name):
         container_name = self._to_container_name(unit_name)
@@ -98,7 +116,11 @@ class DockerClient(object):
                 self._client.stop(container_name)
                 self._client.remove_container(container_name)
             except APIError as e:
-                if e.response.status_code == NOT_FOUND:
+                # 500 error code is used for "this was already stopped" in
+                # older versions of Docker. Newer versions of Docker API
+                # give NOT_MODIFIED instead, so we can fix this when we upgrade:
+                # https://github.com/ClusterHQ/flocker/issues/721
+                if e.response.status_code in (NOT_FOUND, INTERNAL_SERVER_ERROR):
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
