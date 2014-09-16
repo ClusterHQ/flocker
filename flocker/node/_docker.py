@@ -115,10 +115,10 @@ class DockerClient(object):
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
-                if not name.startswith(u"/" + self.namespace):
-                    continue
-                else:
+                if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
+                else:
+                    continue
                 result.add(Unit(name=name,
                                 activation_state=state,
                                 sub_state=None,
