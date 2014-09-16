@@ -51,7 +51,8 @@ class DeployerTests(TestCase):
 
         def started(_):
             # Now that it's running, stop it behind our back:
-            check_call([b"docker", b"stop", name])
+            check_call([b"docker", b"stop",
+                        docker_client._to_container_name(name)])
             return wait_for_unit_state(docker_client, name,
                                        [u'inactive', u'failed'])
         d.addCallback(started)

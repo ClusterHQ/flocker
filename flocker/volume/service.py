@@ -341,7 +341,7 @@ class Volume(object):
 
         :return: Container name as ``bytes``.
         """
-        return b"%s-data" % (self.name.encode("ascii"),)
+        return b"flocker--%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
         """

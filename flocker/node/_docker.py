@@ -46,6 +46,8 @@ class DockerClient(object):
     def add(self, unit_name, image_name, ports=None, links=None,
             environment=None):
         container_name = self._to_container_name(unit_name)
+        data_container_name = container_name + u"-data"
+
         if environment is not None:
             environment = dict(environment.variables)
         if ports is None:
@@ -75,7 +77,12 @@ class DockerClient(object):
             # until it does exist.
             while not self._blocking_exists(container_name):
                 continue
+            if self._blocking_exists(data_container_name):
+                volumes_from = [data_container_name]
+            else:
+                volumes_from = None
             self._client.start(container_name,
+                               volumes_from=volumes_from,
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
