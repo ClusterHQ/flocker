@@ -1,6 +1,8 @@
 Btrfs
 Buildbot
 Copr
+config
+configs
 dataset
 Deis
 failover
