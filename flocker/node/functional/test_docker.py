@@ -10,11 +10,11 @@ from docker.errors import APIError
 from docker import Client
 
 from twisted.trial.unittest import TestCase
-
-from ...testtools import random_name, if_docker_configured
+from ...testtools import random_name
 from ..test.test_gear import make_idockerclient_tests
 from ..functional.test_gear import DockerClientTestsMixin
 from .._docker import DockerClient
+from ..testtools import if_docker_configured
 
 
 class IDockerClientTests(make_idockerclient_tests(

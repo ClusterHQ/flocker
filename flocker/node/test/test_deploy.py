@@ -22,7 +22,7 @@ from .._deploy import (
 from .._model import AttachedVolume
 from ..gear import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, GearEnvironment)
-from ..docker import DockerClient
+from .._docker import DockerClient
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume

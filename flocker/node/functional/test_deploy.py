@@ -11,7 +11,7 @@ from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
-from ..docker import DockerClient
+from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import random_name, DockerImageBuilder, assertContainsAll
 from ...volume.testtools import create_volume_service

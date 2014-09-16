@@ -13,7 +13,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from twisted.python.filepath import FilePath
 
 from .gear import PortMap, GearEnvironment
-from .docker import DockerClient
+from ._docker import DockerClient
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
