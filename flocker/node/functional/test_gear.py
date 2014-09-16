@@ -193,6 +193,9 @@ class DockerClientTestsMixin(object):
         """
         Create a Docker image that takes a while to shut down.
 
+        This should really use Python instead of shell:
+        https://github.com/ClusterHQ/flocker/issues/719
+
         :return: The name of created Docker image.
         """
         path = FilePath(self.mktemp())

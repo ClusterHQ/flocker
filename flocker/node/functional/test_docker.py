@@ -1,18 +1,20 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Functional tests for :module:`flocker.node.docker`.
+Functional tests for :module:`flocker.node._docker`.
 """
+
+from __future__ import absolute_import
+
 from docker.errors import APIError
 from docker import Client
 
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name
+from ...testtools import random_name, if_docker_configured
 from ..test.test_gear import make_idockerclient_tests
 from ..functional.test_gear import DockerClientTestsMixin
-from ..docker import DockerClient
-from ..testtools import if_docker_configured
+from .._docker import DockerClient
 
 
 class IDockerClientTests(make_idockerclient_tests(

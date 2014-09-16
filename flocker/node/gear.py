@@ -124,7 +124,8 @@ class IDockerClient(Interface):
         """
         Check whether the unit exists.
 
-        :param unicode unit_name: The name of the unit to create.
+        :param unicode unit_name: The name of the unit whose existence
+            we're checking.
 
         :return: ``Deferred`` that fires with ``True`` if unit exists,
             otherwise ``False``.
