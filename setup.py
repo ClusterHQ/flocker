@@ -90,6 +90,8 @@ setup(
     },
 
     install_requires=[
+        "setuptools >= 1.4",
+
         "eliot == 0.4.0",
         "zope.interface == 4.0.5",
         "pytz",

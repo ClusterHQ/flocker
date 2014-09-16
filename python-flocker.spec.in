@@ -29,7 +29,7 @@ BuildRequires: openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
-Requires:       python
+Requires:       python-setuptools
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       pytz
 Requires:       python-characteristic = 0.1.0
