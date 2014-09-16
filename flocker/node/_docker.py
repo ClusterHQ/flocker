@@ -118,9 +118,10 @@ class DockerClient(object):
             except APIError as e:
                 # 500 error code is used for "this was already stopped" in
                 # older versions of Docker. Newer versions of Docker API
-                # give NOT_MODIFIED instead, so we can fix this when we upgrade:
-                # https://github.com/ClusterHQ/flocker/issues/721
-                if e.response.status_code in (NOT_FOUND, INTERNAL_SERVER_ERROR):
+                # give NOT_MODIFIED instead, so we can fix this when we
+                # upgrade: https://github.com/ClusterHQ/flocker/issues/721
+                if e.response.status_code in (
+                        NOT_FOUND, INTERNAL_SERVER_ERROR):
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
