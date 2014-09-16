@@ -1,8 +1,10 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Functional tests for :module:`flocker.node.docker`.
+Functional tests for :module:`flocker.node._docker`.
 """
+
+from __future__ import absolute_import
 
 from unittest import skipIf
 from subprocess import Popen
@@ -15,7 +17,7 @@ from twisted.trial.unittest import TestCase
 from ...testtools import random_name
 from ..test.test_gear import make_igearclient_tests
 from ..functional.test_gear import GearClientTestsMixin
-from ..docker import DockerClient
+from .._docker import DockerClient
 
 
 # This is terible (https://github.com/ClusterHQ/flocker/issues/85):
