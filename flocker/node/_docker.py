@@ -12,6 +12,7 @@ from docker import Client
 from docker.errors import APIError
 
 from twisted.internet.threads import deferToThread
+from twisted.web.http import NOT_FOUND
 
 from .gear import IGearClient, AlreadyExists, Unit
 
@@ -61,7 +62,7 @@ class DockerClient(object):
             try:
                 _create()
             except APIError as e:
-                if e.response.status_code == 404:
+                if e.response.status_code == NOT_FOUND:
                     # Image was not found, so we need to pull it first:
                     self._client.pull(image_name)
                     _create()
@@ -97,7 +98,7 @@ class DockerClient(object):
                 self._client.stop(container_name)
                 self._client.remove_container(container_name)
             except APIError as e:
-                if e.response.status_code == 404:
+                if e.response.status_code == NOT_FOUND:
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
