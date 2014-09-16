@@ -5,8 +5,7 @@
 set -e
 
 # Make it possible to install flocker-node
-# XXX https://github.com/ClusterHQ/flocker/issues/306 for better secure downloads:
-yum install -y http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
+yum install -y https://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
 yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
 yum install -y flocker-node-0.1.2
 

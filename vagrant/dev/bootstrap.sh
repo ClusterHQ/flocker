@@ -5,7 +5,7 @@
 set -e
 
 # Install useful yum repos
-yum localinstall -y http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
+yum install -y https://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
 curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo
 
 # Install packages
