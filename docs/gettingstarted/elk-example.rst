@@ -100,7 +100,7 @@ Browse to port 80 on node1 (http://172.16.255.250) with your web browser.
 You should see the ``Kibana`` web interface but there won't be any messages yet.
 
 .. image:: elk-example-kibana-empty.png
-
+   :alt: The Kibana web interface shows that in the last day there have been no events.
 
 Generate Log Messages
 =====================
@@ -122,6 +122,7 @@ So next we'll use ``telnet`` to connect to ``Logstash`` port 5000 and feed it so
 Now refresh the ``Kibana`` web interface and you should see those messages.
 
 .. image:: elk-example-kibana-messages1.png
+   :alt: The Kibana web interface shows that there have been two events in the last five minutes.
 
 
 Move ``ElasticSearch`` to node2
