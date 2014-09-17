@@ -125,6 +125,10 @@ Requirements for Contributions
 
    Document tool usage as part of big-picture documentation.
    Identify useful goals the user may want to accomplish and document tools within the context of accomplishing those goals.
+   Documentation should be as accessible and inclusive as possible.
+   Avoid language and markup which assumes the ability to precisely use a mouse and keyboard, or that the reader has perfect vision.
+   Create alternative but equal documentation for the visually impaired, for example, by using alternative text on all images.
+   If in doubt, particularly about markup changes, use http://achecker.ca/ and fix any "Known Problems" and "Likely Problems".
 
 4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
 

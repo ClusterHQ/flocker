@@ -2,6 +2,9 @@
 What's New
 ==========
 
+.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+
+
 Next Release
 ============
 
