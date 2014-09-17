@@ -198,10 +198,8 @@ You can do this by logging into each node and running the ``flocker-reportstate`
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-reportstate --version
-   0.1.2
-   alice@mercury:~/flocker-tutorial$
 
-Only proceed if you find that you are running an older version of Flocker.
+Only proceed if you find that you are running an older version of Flocker than |version|.
 
 If you find that you *are* running an older version, you now need to rebuild the tutorial environment.
 
