@@ -67,6 +67,14 @@ release = version
 from sphinx.search.en import SearchEnglish
 from sphinx.search import languages as sphinx_languages
 
+class VersionFilter(Filter):
+    """
+    If a word is part of the version, it is not a spelling mistake.
+    """
+
+    def _skip(self, word):
+        return word in version
+
 class FlockerLanguage(SearchEnglish):
     """
     Workaround for https://bitbucket.org/birkenfeld/sphinx/issue/1529/
@@ -83,6 +91,9 @@ class FlockerLanguage(SearchEnglish):
 # English rather than defining our own language.
 sphinx_languages['en'] = FlockerLanguage
 language = 'en'
+
+# The version is not a spelling mistake
+spelling_filters = [VersionFilter]
 
 # String specifying a file containing a list of words known to be spelled correctly but that do not appear in the language dictionary
 # See:
