@@ -194,7 +194,9 @@ class VolumeServiceAPITests(TestCase):
         with filesystem.reader() as reader:
             data = reader.read()
         node = FakeNode([
-            # Hard-code the knowledge that first `flocker-volume snapshots` is run
+            # Hard-code the knowledge that first `flocker-volume snapshots` is
+            # run.  It doesn't need to produce any particular output for this
+            # test, it just needs to not fail.
             b"",
         ])
 
@@ -208,6 +210,7 @@ class VolumeServiceAPITests(TestCase):
         snapshot in common with the local volume manager results in an
         incremental data stream.
         """
+
         class FakeVolumeManager(object):
             def __init__(self):
                 self.written = []
@@ -237,10 +240,11 @@ class VolumeServiceAPITests(TestCase):
             [b"incremental stream based on", b"stuff"],
             writer.getvalue().splitlines()[-2:])
 
-
     def test_receive_local_uuid(self):
-        """If a volume with same uuid as service is received, ``ValueError`` is
-        raised."""
+        """
+        If a volume with same uuid as service is received, ``ValueError`` is
+        raised.
+        """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()

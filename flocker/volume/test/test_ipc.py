@@ -46,9 +46,11 @@ def make_iremote_volume_manager(fixture):
             """
             service_pair = fixture(self)
             creating = service_pair.from_service.create(u"newvolume")
+
             def created(volume):
                 return service_pair.remote.snapshots(volume)
             getting_snapshots = creating.addCallback(created)
+
             def got_snapshots(snapshots):
                 self.assertEqual([], snapshots)
             getting_snapshots.addCallback(got_snapshots)
@@ -132,7 +134,8 @@ def make_iremote_volume_manager(fixture):
             created = service_pair.from_service.create(u"myvolume")
 
             def got_volume(volume):
-                pushing = service_pair.from_service.push(volume, service_pair.remote)
+                pushing = service_pair.from_service.push(
+                    volume, service_pair.remote)
                 pushing.addCallback(lambda ignored: volume)
                 return pushing
             created.addCallback(got_volume)

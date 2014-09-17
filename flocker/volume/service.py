@@ -264,6 +264,7 @@ class VolumeService(Service):
             volume is not locally owned).
         """
         pushing = maybeDeferred(self.push, volume, destination)
+
         def pushed(ignored):
             remote_uuid = destination.acquire(volume)
             return volume.change_owner(remote_uuid)
