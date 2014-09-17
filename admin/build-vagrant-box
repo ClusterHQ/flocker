@@ -1,0 +1,64 @@
+#!/usr/bin/python
+"""
+Build a base vagrant image.
+"""
+
+from _preamble import TOPLEVEL, BASEPATH
+from pipes import quote
+from subprocess import call, CalledProcessError
+from flocker import __version__
+
+def run(command, **kwargs):
+    """
+    Echo and run a command..
+    :param list command: Comandd to run.
+    :param kwargs: Extra args to pass to ``subprcoess.call``.
+    """
+    print "Running %s\n" % (b' '.join(map(quote, command)))
+    try:
+        call(command, **kwargs)
+    except CalledProcessError as e:
+        print 'Failed %d:  %s\n' % (e.returncode, ' '.join(map(quote, command)))
+        raise SystemExit(e.returncode)
+
+
+
+def build_box(path, name, version):
+    """
+    Build a vagrant box.
+
+    :param FilePath path: Directory containting ``Vagrantfile``.
+    :param bytes name: Base name of vagrant box. Used to build filename.
+    :param bytes version: Version of vagrant box. Used to build filename.
+    """
+    run(['vagrant', 'up'], cwd=path.path)
+    run(['vagrant', 'package', '--output',
+         '%s-%s.box' % (name, version)],
+         cwd=path.path)
+    run(['vagrant', 'destroy'], cwd=path.path)
+
+
+def main(*args):
+    args = list(*args)
+
+    if BASEPATH.basename() == 'build':
+        path = BASEPATH.parent()
+        box = path.basename()
+    else:
+        try:
+            box = args.pop(0)
+        except IndexError:
+            print "build-vagrant-box: must specify box"
+            raise SystemExit(1)
+        path = TOPLEVEL.descendant(['vagrant', box])
+
+    if args:
+        print "build-vagrant-box: too many arguments"
+        raise SystemExit(1)
+
+    print "Building %s box from %s." % (box, path.path)
+    build_box(path.path, 'flocker-' + box, __version__)
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
