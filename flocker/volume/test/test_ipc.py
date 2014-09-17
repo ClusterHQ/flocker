@@ -39,6 +39,23 @@ def make_iremote_volume_manager(fixture):
             self.assertTrue(verifyObject(IRemoteVolumeManager,
                                          service_pair.remote))
 
+        def test_snapshots_no_filesystem(self):
+            """
+            If the filesystem does not exist on the remote manager, an empty
+            list of snapshots is returned.
+            """
+            service_pair = fixture(self)
+            creating = service_pair.from_service.create(u"newvolume")
+
+            def created(volume):
+                return service_pair.remote.snapshots(volume)
+            getting_snapshots = creating.addCallback(created)
+
+            def got_snapshots(snapshots):
+                self.assertEqual([], snapshots)
+            getting_snapshots.addCallback(got_snapshots)
+            return getting_snapshots
+
         def test_receive_exceptions_pass_through(self):
             """
             Exceptions raised in the ``receive()`` context manager are not
@@ -117,8 +134,10 @@ def make_iremote_volume_manager(fixture):
             created = service_pair.from_service.create(u"myvolume")
 
             def got_volume(volume):
-                service_pair.from_service.push(volume, service_pair.remote)
-                return volume
+                pushing = service_pair.from_service.push(
+                    volume, service_pair.remote)
+                pushing.addCallback(lambda ignored: volume)
+                return pushing
             created.addCallback(got_volume)
             return created
 
@@ -155,17 +174,21 @@ def make_iremote_volume_manager(fixture):
                 root = pushed_volume.get_filesystem().get_path()
                 root.child(b"test").setContent(b"some data")
                 # Re-push with updated contents:
-                service_pair.from_service.push(pushed_volume,
-                                               service_pair.remote)
+                pushing = service_pair.from_service.push(
+                    pushed_volume, service_pair.remote)
 
-                service_pair.remote.acquire(pushed_volume)
+                def pushed(ignored):
+                    service_pair.remote.acquire(pushed_volume)
 
-                filesystem = Volume(uuid=to_service.uuid,
-                                    name=pushed_volume.name,
-                                    service=to_service).get_filesystem()
-                new_root = filesystem.get_path()
-                self.assertEqual(new_root.child(b"test").getContent(),
-                                 b"some data")
+                    filesystem = Volume(uuid=to_service.uuid,
+                                        name=pushed_volume.name,
+                                        service=to_service).get_filesystem()
+                    new_root = filesystem.get_path()
+                    self.assertEqual(new_root.child(b"test").getContent(),
+                                     b"some data")
+                pushing.addCallback(pushed)
+                return pushing
+
             created.addCallback(got_volume)
             return created
 
