@@ -11,3 +11,4 @@ Advanced Documentation
    volume/index
    routing/index
    debugging
+   cleanup   
