@@ -87,22 +87,13 @@ language = 'en'
 
 from enchant.tokenize import Filter
 
-class AcronymFilter(Filter):
-    """If a word looks like an acronym (all upper case letters),
-    ignore it.
-    """
-
-    def _skip(self, word):
-        return (word == word.upper() # all caps
-                or
-                # pluralized acronym ("URLs")
-                (word[-1].lower() == 's'
-                 and
-                 word[:-1] == word[:-1].upper()
-                 )
-                )
-
-spelling_filters = [AcronymFilter]
+sys.path.insert(0, FilePath(__file__).parent().path)
+from filters import IgnoreWordsFilterFactory
+# The version can be similar to "0.1.2-99-ge08b10f", but is not a spelling
+# error
+IgnoreVersionFilter = IgnoreWordsFilterFactory([version])
+spelling_filters = [IgnoreVersionFilter]
+del sys.path[0]
 
 # String specifying a file containing a list of words known to be spelled correctly but that do not appear in the language dictionary
 # See:
