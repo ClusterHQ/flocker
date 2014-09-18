@@ -130,6 +130,9 @@ class LibZFSCore(object):
         except TypeError:
             raise ValueError("type must be a DMU_OST_* constant")
 
+        if b"\0" in fsname:
+            raise TypeError("fsname may not contain NUL")
+
         result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
         if result != 0:
             raise Exception("lzc_create failed", result, strerror(result))
