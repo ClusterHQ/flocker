@@ -133,7 +133,7 @@ Preparing for a release
 
 #. Ensure all the tests pass on BuildBot:
 
-   Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
+   Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
 #. Do the acceptance tests:
 
@@ -161,7 +161,7 @@ Release
       git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
-#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+#. Go to the `BuildBot web status`_ and force a build on the tag.
 
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
@@ -287,3 +287,4 @@ See:
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+.. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
