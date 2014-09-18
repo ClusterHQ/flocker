@@ -150,7 +150,7 @@ class LibZFSCore(object):
         :param bytes fsname: The name of the new object.
 
         :param int type: The type of the new object.  One of the ``DMU_OST_*``
-            constants (for example, ``DMO_OST_ZFS``).
+            constants (for example, ``DMU_OST_ZFS``).
 
         :param props: not implemented
         """
