@@ -55,9 +55,9 @@ class LibZFSCore(object):
     def __init__(self):
         self._ffi = FFI()
         self._ffi.cdef("\n".join([
-            source
+            getattr(module, kind)
+            for kind in ["typedef", "prototype"]
             for module in self._modules
-            for source in [module.typedef, module.prototype]
             ]))
         self._lib = self._ffi.verify(
             source="\n".join([
