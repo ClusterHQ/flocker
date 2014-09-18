@@ -243,7 +243,7 @@ Release
        .. code-block:: console
 
           sha1sum "dist/Flocker-${VERSION}.tar.gz"
-          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.1.tar.gz
+          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
 
      - Commit the changes and push
 
