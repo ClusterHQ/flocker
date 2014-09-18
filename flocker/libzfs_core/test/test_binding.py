@@ -96,7 +96,6 @@ class CreateTests(TestCase):
         """
         fsname = self.pool_name + b"/test_creation_error"
         self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
-        exc = self.assertRaises(
-            ZFSError, self.lib.lzc_create,
-            fsname, self.lib.DMU_OST_ZFS, [])
-        self.assertEqual(exc, [])
+        with self.assertRaises(ZFSError) as ctx:
+            self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
+        self.assertEqual(ctx.exception, [])
