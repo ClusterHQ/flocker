@@ -10,7 +10,7 @@ This is a just one of the prerequisites to getting Flocker_ working on CoreOS_, 
 
     This is a highly experimental proof-of-concept and should not be used for anything resembling production use cases.
 
-The following instructions have been tested against CoreOS 423.0.0 (alpha) and CoreOS 367.1.0 (stable) and may or may not work against different versions.
+The following instructions have been tested against CoreOS 440.0.0 (alpha) and may or may not work against different versions.
 
 Get a CoreOS cluster
 ====================
@@ -34,13 +34,13 @@ Perform the following on each node to load the experimental ZFS kernel modules::
     # SSH to the node
     vagrant ssh core-01
     # Download our bits
-    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-wip.tar.lz4.xz
-    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/liblz4.so.0.0
-    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/lz4c
-    chmod +x lz4c
-    chmod +x liblz4.so.0.0
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
+    # Import public key from signing key pair from key server:
+    gpg --recv-keys 'FD27D483' --keyserver hkp://subkeys.pgp.net
+    # Verify signature
+    gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     # Extract the tarball
-    xzcat coreos-gentoo-prefix-wip.tar.lz4.xz | env LD_LIBRARY_PATH=. ./lz4c -d | tar x
+    tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
     # Enter Gentoo Prefix Shell
     gentoo/startprefix
     # Load modules
@@ -96,3 +96,8 @@ Come and hang out with us in ``#clusterhq`` on Freenode, or subscribe to flocker
 .. _procure: https://coreos.com/docs/#running-coreos
 .. _Vagrant: https://coreos.com/docs/running-coreos/platforms/vagrant/
 .. _flocker-users: https://groups.google.com/forum/#!forum/flocker-users
+
+Additional documentation
+=================
+Information on how the tarball was created and how to rebuild the kernel
+modules is located in gentoo/NOTES inside the tarball.
