@@ -118,7 +118,12 @@ class LibZFSCore(object):
     def lzc_create(self, fsname, type, props):
         """
         """
-        if type not in self._objset_types:
+        try:
+            # If `type` is unhashable the containment test itself will raise
+            # TypeError.
+            if type not in self._objset_types:
+                raise TypeError()
+        except TypeError:
             raise ValueError("type must be a DMU_OST_* constant")
 
         return self._lib.lzc_create(fsname, type, self._ffi.NULL)
