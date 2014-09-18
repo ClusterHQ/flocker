@@ -37,9 +37,9 @@ class _lzc(_module):
     header = """
 #include <libzfs_core.h>
 """
+    # Not in 0.6.3
+    # integer_constants = ["LZC_SEND_FLAG_EMBED_DATA"]
     typedef = ""
-
-    integer_constants = ["LZC_SEND_FLAG_EMBED_DATA"]
     prototype = """
 int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
 """
