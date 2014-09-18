@@ -87,7 +87,8 @@ class LibZFSCore(object):
 
     def __init__(self):
         self._ffi = FFI()
-        self._ffi.cdef(_assemble_cdef(self._modules))
+        source = _assemble_cdef(self._modules)
+        self._ffi.cdef(source)
         self._lib = self._ffi.verify(
             source="\n".join([
                 module.header
