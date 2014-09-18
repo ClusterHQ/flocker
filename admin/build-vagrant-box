@@ -5,18 +5,19 @@ Build a base vagrant image.
 
 from _preamble import TOPLEVEL, BASEPATH
 from pipes import quote
-from subprocess import call, CalledProcessError
+from subprocess import check_call, CalledProcessError
 from flocker import __version__
 
 def run(command, **kwargs):
     """
     Echo and run a command..
+
     :param list command: Comandd to run.
-    :param kwargs: Extra args to pass to ``subprcoess.call``.
+    :param kwargs: Extra args to pass to ``subprocess.call``.
     """
     print "Running %s\n" % (b' '.join(map(quote, command)))
     try:
-        call(command, **kwargs)
+        check_call(command, **kwargs)
     except CalledProcessError as e:
         print 'Failed %d:  %s\n' % (e.returncode, ' '.join(map(quote, command)))
         raise SystemExit(e.returncode)
