@@ -145,6 +145,14 @@ class LibZFSCore(object):
 
     def lzc_create(self, fsname, type, props):
         """
+        Create a new object.
+
+        :param bytes fsname: The name of the new object.
+
+        :param int type: The type of the new object.  One of the ``DMU_OST_*``
+            constants (for example, ``DMO_OST_ZFS``).
+
+        :param props: not implemented
         """
         try:
             # If `type` is unhashable the containment test itself will raise
