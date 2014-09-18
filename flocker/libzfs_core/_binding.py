@@ -56,6 +56,9 @@ class _lzc(_module):
     # integer_constants = ["LZC_SEND_FLAG_EMBED_DATA"]
     typedef = ""
     prototype = """
+int libzfs_core_init(void);
+void libzfs_core_fini(void);
+
 int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
 """
 
@@ -113,10 +116,14 @@ class LibZFSCore(object):
             if name.startswith("DMU_OST_")
         }
 
+        # TODO: libzfs_core_fini?
+        self._lib.libzfs_core_init()
+
     @classmethod
     def build(cls):
-        lib = cls()
-        return lib._ffi, lib
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance._ffi, cls._instance
 
 
     def lzc_create(self, fsname, type, props):
