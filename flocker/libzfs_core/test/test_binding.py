@@ -136,9 +136,9 @@ class CreateTests(TestCase):
         self.lib.lzc_create(
             fsname, self.lib.DMU_OST_ZFS,
             [
-                # (b"aclinherit", aclinherit),
-                # (b"copies", copies),
-                (b"mlslabel", mlslabel),
+                (b"aclinherit", aclinherit),
+                (b"copies", copies),
+                # (b"mlslabel", mlslabel),
                 (b"flocker:testing", user)
              ]
         )
