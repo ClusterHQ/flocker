@@ -4,6 +4,8 @@ Build a base vagrant image.
 """
 
 from _preamble import TOPLEVEL, BASEPATH
+
+import os
 from pipes import quote
 from subprocess import check_call, CalledProcessError
 from flocker import __version__
@@ -24,15 +26,21 @@ def run(command, **kwargs):
 
 
 
-def build_box(path, name, version):
+def build_box(path, name, version, branch):
     """
     Build a vagrant box.
 
     :param FilePath path: Directory containting ``Vagrantfile``.
     :param bytes name: Base name of vagrant box. Used to build filename.
     :param bytes version: Version of vagrant box. Used to build filename.
+    :param bytes branch: Branch to get flocker RPMs from.
     """
-    run(['vagrant', 'up'], cwd=path.path)
+    env = os.environ.copy()
+    env.update({
+        'FLOCKER_VERSION': version.replace('-', '_'),
+        'FLOCKER_BRANCH': branch,
+        })
+    run(['vagrant', 'up'], cwd=path.path, env=env)
     run(['vagrant', 'package', '--output',
          '%s-%s.box' % (name, version)],
          cwd=path.path)
@@ -54,11 +62,16 @@ def main(*args):
         path = TOPLEVEL.descendant(['vagrant', box])
 
     if args:
+        branch = args.pop(0)
+    else:
+        branch = ''
+
+    if args:
         print "build-vagrant-box: too many arguments"
         raise SystemExit(1)
 
     print "Building %s box from %s." % (box, path.path)
-    build_box(path, 'flocker-' + box, __version__)
+    build_box(path, 'flocker-' + box, __version__, branch)
 
 if __name__ == '__main__':
     import sys
