@@ -118,40 +118,44 @@ class CreateTests(TestCase):
             (ctx.exception.context, ctx.exception.errno)
         )
 
-    def test_create_with_properties(self):
+    def _property_test(self, name, value):
+        fsname = self.pool_name + b"/test_create_with_properties"
+
+        self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [(name, value)])
+        properties = check_output([
+            b"zfs", b"list",
+            # Without a header
+            b"-H",
+            # Only output the properties we touched.
+            b"-o", name,
+            # Only produce output related to this filesystem.
+            fsname,
+        ])
+        self.assertEqual(
+            [value],
+            properties.split()
+        )
+
+    def test_create_with_aclinherit(self):
         """
         Properties can be set on the newly created filesystem by passing a list
         of two-tuples of property names and values as the third argument to
         ``lzc_create``.
         """
         # A string property with a fixed set of valid values.
-        aclinherit = b"discard"
+        self._property_test(b"aclinherit", b"discard")
+
+
+    def test_create_with_copies(self):
         # An integer property.
-        copies = 2
+        self._property_test(b"copies", 2)
+
+
+    def test_create_with_mlslabel(self):
         # A string property accepting arbitrary values.
-        mlslabel = b"somelabel"
-        fsname = self.pool_name + b"/test_create_with_properties"
+        self._property_test(b"mlslabel", b"somelabel")
+
+
+    def test_create_with_user(self):
         # A custom user property
-        user = b"somestuff"
-        self.lib.lzc_create(
-            fsname, self.lib.DMU_OST_ZFS,
-            [
-                (b"aclinherit", aclinherit),
-                (b"copies", copies),
-                # (b"mlslabel", mlslabel),
-                (b"flocker:testing", user)
-             ]
-        )
-        properties = check_output([
-            b"zfs", b"list",
-            # Without a header
-            b"-H",
-            # Only output the properties we touched.
-            b"-o", b"aclinherit,copies,mlslabel,flocker:testing",
-            # Only produce output related to this filesystem.
-            fsname,
-        ])
-        self.assertEqual(
-            [aclinherit, u"{}".format(copies).encode("ascii"), mlslabel, user],
-            properties.split()
-        )
+        self._property_test(b"flocker:testing", b"somestuff")
