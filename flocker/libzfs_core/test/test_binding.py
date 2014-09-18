@@ -117,3 +117,39 @@ class CreateTests(TestCase):
             ("lzc_create", ENOENT),
             (ctx.exception.context, ctx.exception.errno)
         )
+
+    def test_create_with_properties(self):
+        """
+        Properties can be set on the newly created filesystem by passing a list
+        of two-tuples of property names and values as the third argument to
+        ``lzc_create``.
+        """
+        # A string property with a fixed set of valid values.
+        aclinherit = b"discard"
+        # An integer property.
+        copies = 2
+        # A string property accepting arbitrary values.
+        mlslabel = b"somelabel"
+        fsname = self.pool_name + b"/test_create_with_properties"
+        # A custom user property
+        user = b"somestuff"
+        self.lib.lzc_create(
+            fsname, self.lib.DMU_OST_ZFS,
+            [(b"aclinherit", aclinherit),
+             (b"copies", copies),
+             (b"mlslabel", mlslabel),
+             (b"flocker:testing", user)]
+        )
+        properties = check_output([
+            b"zfs", b"list",
+            # Without a header
+            b"-H",
+            # Only output the properties we touched.
+            b"-o", b"aclinherit,copies,mlslabel,flocker:testing",
+            # Only produce output related to this filesystem.
+            fsname,
+        ])
+        self.assertEqual(
+            [aclinherit, u"{}".format(copies).encode("ascii"), mlslabel, user],
+            properties.split()
+        )
