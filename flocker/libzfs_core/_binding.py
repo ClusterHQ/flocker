@@ -91,6 +91,7 @@ class LibZFSCore(object):
     :var set _objset_types: The values of all of the ``DMU_OST_*`` constants.
     """
     _modules = [_sys, _nvpair, _lzc]
+    _instance = None
 
     def __init__(self):
         self._ffi = FFI()
