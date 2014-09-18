@@ -29,7 +29,7 @@ typedef struct {
 
 int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
 """)
-        self._ffi.verify(
+        self._lib = self._ffi.verify(
             source="""
 #include <libzfs_core.h>
 """,
@@ -46,4 +46,4 @@ int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
     def lzc_create(self, fsname, type, props):
         """
         """
-        return self._ffi.lzc_create(fsname, type, props)
+        return self._lib.lzc_create(fsname, type, props)
