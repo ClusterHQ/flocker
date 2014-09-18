@@ -4,6 +4,9 @@
 Using Environment Variables
 ===========================
 
+MySQL Example
+=============
+
 Flocker supports passing environment variables to a container via its :doc:`Application Configuration <../../advanced/configuration>`.
 This example will use a configured environment variable to set the root user password for a MySQL service running inside a container.
 
