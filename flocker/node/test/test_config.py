@@ -23,6 +23,136 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
+    def test_valid_fig_config_detected(self):
+        """
+        An application configuration in valid fig format is a
+        dictionary containing, at a minimum, a key representing the
+        label of the application, in turn containing an "image" key,
+        with optional keys of "ports", "environment", "volumes"
+        and "links".
+        
+        Detecting a valid fig config therefore is equivalent to:
+        application configuration is of type dictionary, containing
+        one or more dictionaries which each contain an "image" key and
+        do not contain any invalid keys.
+        """        
+        self.fail("Not implemented yet.")
+    
+    def test_dict_of_applications_from_fig(self):
+        """
+        ``Configuration._applications_from_fig_configuration`` returns a
+        ``dict`` of ``Application`` instances, one for each application key
+        in the supplied configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_not_dict(self):
+        """
+        If the application config is a dictionary with one or more arbitrary
+        keys (representing app labels) but the value of any key is not itself
+        a dictionary, a ``ConfigurationError`` is raised.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_missing_image(self):
+        """
+        A single fig application configuration is not valid if it does not
+        contain an "image" key. If this is detected, ``ConfigurationError``
+        is raised.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_unrecognised_key(self):
+        """
+        A single fig application configuration is not valid if it contains
+        any keys besides "image", "environment", "ports", "volumes" or
+        "links". If an invalid key is detected, ``ConfigurationError``
+        is raised.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_ports_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "ports" key of a fig
+        compatible application config is not a list.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_malformed_ports(self):
+        """
+        A single fig application config is not valid if the "ports" key
+        is present and the value is not a string in "host:container" format.
+        If an invalid ports config is detected, ``ConfigurationError``
+        is raised.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_ports_not_integers(self):
+        """
+        A ``ConfigurationError`` is raised if the parsed "ports" string
+        in a fig application config is not a pair of integer values.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_links_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "links" key of a fig
+        compatible application config is not a list.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_links_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application
+        config's "links" list is not of ``types.StringTypes``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_unknown_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that cannot be mapped to any
+        application present in the entire applications configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_environment_not_dict(self):
+        """
+        A ``ConfigurationError`` is raised if the "environments" key of a fig
+        application config is not a dictionary.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_env_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "environment" dictionary
+        in a fig application config contains a key whose value is not of
+        ``types.StringTypes``.
+        """
+        self.fail("Not implemented yet.")
+        
+    def test_invalid_fig_config_image_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "image" key
+        in a fig application config is a value not of
+        ``types.StringTypes``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_volumes_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        compatible application config is not a list.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_volumes_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application's
+        "volumes" list is not of ``types.StringTypes``.
+        """
+        self.fail("Not implemented yet.")
+
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
