@@ -105,7 +105,11 @@ Preparing for a release
 
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the ``yum install`` line in ``vagrant/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 3 locations).
+#. Update the version number in:
+    * ``docs/gettingstarted/linux-install.sh``
+    * the ``yum install`` line in ``vagrant/tutorial/Vagrantfile``
+    * the ``box_version`` in ``docs/tutorial/gettingstarted/tutorial/Vagrantfile``
+    * the Homebrew recipe in the `homebrew-tap`_ repository
 
 #. Update the ``sha1`` in the Homebrew recipe in the `homebrew-tap`_.
 
