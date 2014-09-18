@@ -6,11 +6,11 @@ Unit tests for ``libzfs_core._binding``.
 
 from __future__ import absolute_import
 
-from os import strerror, urandom
+from os import urandom
 from os.path import abspath
 from unittest import TestCase, skip
 from subprocess import check_call, check_output
-from errno import EEXIST
+from errno import ENOENT
 
 from .._error import ZFSError
 from .._binding import LibZFSCore
@@ -114,6 +114,6 @@ class CreateTests(TestCase):
         with self.assertRaises(ZFSError) as ctx:
             self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
         self.assertEqual(
-            ("lzc_create", EEXIST),
+            ("lzc_create", ENOENT),
             (ctx.exception.context, ctx.exception.errno)
         )
