@@ -17,18 +17,23 @@ class _module(object):
 
 class _sys(_module):
     header = "#include <sys/fs/zfs.h>"
-    integer_constants = []
+    integer_constants = [
+        # Values of dmu_objset_type_t.  These could be declared in the enum
+        # below but doing it here gets them automatically exposed on LibZFSCore
+        # for us.
+        "DMU_OST_NONE",
+        "DMU_OST_META",
+        "DMU_OST_ZFS",
+        "DMU_OST_ZVOL",
+        # "/* For testing only! */"
+        "DMU_OST_OTHER",
+        # "/* Be careful! */"
+        "DMU_OST_ANY",
+        "DMU_OST_NUMTYPES",
+        ],
+
     typedef = """
-enum dmu_objset_type_t {
-    DMU_OST_NONE,
-    DMU_OST_META,
-    DMU_OST_ZFS,
-    DMU_OST_ZVOL,
-    /* For testing only! */
-    DMU_OST_OTHER,
-    /* Be careful! */
-    DMU_OST_ANY,
-    DMU_OST_NUMTYPES
+enum dmu_objset_type_t { ...; };
 };
 """
 
@@ -78,6 +83,8 @@ class LibZFSCore(object):
     is in the use of native Python types where they are equivalent to the C
     type used by the libzfs_core C API (rather than exposing FFI-based versions
     of those types).
+
+    :var set _storage_types: The values of all of the ``DMU_OST_*`` constants.
     """
     _modules = [_sys, _nvpair, _lzc]
 
@@ -97,6 +104,13 @@ class LibZFSCore(object):
             for name in module.integer_constants:
                 setattr(self, name, getattr(self._lib, name))
 
+        self._storage_types = {
+            value
+            for (name, value)
+            in vars(self)
+            if name.startswith("DMU_OST_")
+        }
+
     @classmethod
     def build(cls):
         lib = cls()
@@ -106,4 +120,7 @@ class LibZFSCore(object):
     def lzc_create(self, fsname, type, props):
         """
         """
-        return self._lib.lzc_create(fsname, self._ffi.NULL, self._ffi.NULL)
+        if type not in self._storage_types:
+            raise ValueError("type must be a DMU_OST_* constant")
+
+        return self._lib.lzc_create(fsname, type, self._ffi.NULL)
