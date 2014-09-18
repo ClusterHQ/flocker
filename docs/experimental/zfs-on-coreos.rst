@@ -98,6 +98,6 @@ Come and hang out with us in ``#clusterhq`` on Freenode, or subscribe to flocker
 .. _flocker-users: https://groups.google.com/forum/#!forum/flocker-users
 
 Additional documentation
-=================
+========================
 Information on how the tarball was created and how to rebuild the kernel
 modules is located in gentoo/NOTES inside the tarball.
