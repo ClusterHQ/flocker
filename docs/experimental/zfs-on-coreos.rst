@@ -34,7 +34,7 @@ Perform the following on each node to load the experimental ZFS kernel modules::
     # SSH to the node
     vagrant ssh core-01
     # Download our bits
-    wget http://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     # Import public key from signing key pair from key server:
     gpg --recv-keys 'FD27D483' --keyserver hkp://subkeys.pgp.net
     # Verify signature
