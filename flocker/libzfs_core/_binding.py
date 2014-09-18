@@ -51,7 +51,7 @@ typedef struct {
 } nvlist_t;
 """
     prototype = """
-int nvlist_alloc(nvlist_t **, uint_t, int);
+int nvlist_alloc(nvlist_t **, unsigned, int);
 void nvlist_free(nvlist_t *);
 """
 
