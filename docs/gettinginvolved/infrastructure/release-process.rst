@@ -89,14 +89,12 @@ Preparing for a release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
 
-#. Checkout the branch for the release:
+#. Create a branch for the release and push it to GitHub:
 
-   - Make a branch and push it to GitHub:
+   .. code-block:: console
 
-     .. code-block:: console
-
-        git checkout -b release/flocker-${VERSION} origin/master
-        git push origin --set-upstream release/flocker-${VERSION}
+      git checkout -b release/flocker-${VERSION} origin/master
+      git push origin --set-upstream release/flocker-${VERSION}
 
 #. Update the version numbers in:
 
