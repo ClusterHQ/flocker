@@ -10,7 +10,7 @@ from os import urandom
 from os.path import abspath
 from unittest import TestCase, skip
 from subprocess import check_call, check_output
-from errno import ENOENT
+from errno import ENOENT, EEXIST
 
 from .._error import ZFSError
 from .._binding import LibZFSCore
