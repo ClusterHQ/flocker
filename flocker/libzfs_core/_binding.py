@@ -30,8 +30,7 @@ class _sys(_module):
         # "/* Be careful! */"
         "DMU_OST_ANY",
         "DMU_OST_NUMTYPES",
-        ],
-
+        ]
     typedef = """
 enum dmu_objset_type_t { ...; };
 };
