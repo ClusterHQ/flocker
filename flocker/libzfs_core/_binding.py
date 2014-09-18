@@ -42,6 +42,14 @@ int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
 """
 
 
+def _assemble_cdef(modules):
+    return "\n".join([
+        getattr(module, kind)
+        for kind in ["typedef", "prototype"]
+        for module in modules
+        ])
+
+
 class LibZFSCore(object):
     """
     ``LibZFSCore`` uses ``cffi`` to expose the libzfs_core C API as a Python
@@ -50,15 +58,11 @@ class LibZFSCore(object):
     type used by the libzfs_core C API (rather than exposing FFI-based versions
     of those types).
     """
-    _modules = [_nvpair, _lzc]
+    _modules = [_sys, _nvpair, _lzc]
 
     def __init__(self):
         self._ffi = FFI()
-        self._ffi.cdef("\n".join([
-            getattr(module, kind)
-            for kind in ["typedef", "prototype"]
-            for module in self._modules
-            ]))
+        self._ffi.cdef(_assemble_cdef(self._modules))
         self._lib = self._ffi.verify(
             source="\n".join([
                 module.header
