@@ -135,10 +135,12 @@ class CreateTests(TestCase):
         user = b"somestuff"
         self.lib.lzc_create(
             fsname, self.lib.DMU_OST_ZFS,
-            [(b"aclinherit", aclinherit),
-             (b"copies", copies),
-             (b"mlslabel", mlslabel),
-             (b"flocker:testing", user)]
+            [
+                # (b"aclinherit", aclinherit),
+                # (b"copies", copies),
+                # (b"mlslabel", mlslabel),
+                (b"flocker:testing", user)
+             ]
         )
         properties = check_output([
             b"zfs", b"list",
