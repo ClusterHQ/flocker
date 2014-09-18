@@ -8,7 +8,7 @@ from __future__ import absolute_import
 
 from os import urandom
 from os.path import abspath
-from unittest import TestCase
+from unittest import TestCase, skip
 from subprocess import check_call, check_output
 
 from .._binding import LibZFSCore
@@ -19,8 +19,7 @@ class SendFlagsTests(TestCase):
     """
     Tests for ``LibZFSCore.LZC_SEND_FLAG_*``.
     """
-    skip = "There are no flags yet."
-
+    @skip("There are no flags yet.")
     def setUp(self):
         self.lib = LibZFSCore()
 
