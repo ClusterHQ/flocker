@@ -65,6 +65,8 @@ docs/_build/
 
 # Vagrant
 .vagrant
+vagrant/tutorial/*.box
+vagrant/dev/*.box
 
 # RPM stuff
 python-flocker.spec
