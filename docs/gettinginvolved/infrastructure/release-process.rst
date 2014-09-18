@@ -152,7 +152,7 @@ Release
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
 
-   .. note:: The example above uses `virtualenvwrapper <https://pypi.python.org/pypi/virtualenvwrapper>`_ but you can use `virtualenv <https://pypi.python.org/pypi/virtualenv>`_ directly if you prefer.
+   .. note:: The example above uses `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
 #. Tag the version being released:
 
@@ -288,3 +288,5 @@ See:
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
+.. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
+.. _virtualenv: https://pypi.python.org/pypi/virtualenv
