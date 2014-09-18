@@ -21,6 +21,8 @@ class _sys(_module):
         # Values of dmu_objset_type_t.  These could be declared in the enum
         # below but doing it here gets them automatically exposed on LibZFSCore
         # for us.
+        #
+        # (Data Management Unit - Object Set Type, by the way)
         "DMU_OST_NONE",
         "DMU_OST_META",
         "DMU_OST_ZFS",
