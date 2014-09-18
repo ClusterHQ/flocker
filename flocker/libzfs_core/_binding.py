@@ -6,7 +6,6 @@ CFFI-based bindings to <libzfs_core.h>.
 
 from __future__ import absolute_import
 
-from os import strerror
 from itertools import chain
 
 from cffi import FFI
