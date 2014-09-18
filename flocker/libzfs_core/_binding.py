@@ -10,6 +10,7 @@ from cffi import FFI
 
 class _module(object):
     header = ""
+    integer_constants = []
     typedef = ""
     prototype = ""
 
@@ -37,17 +38,28 @@ class _lzc(_module):
 #include <libzfs_core.h>
 """
     typedef = ""
+
+    integer_constants = ["LZC_SEND_FLAG_EMBED_DATA"]
     prototype = """
 int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
 """
 
+def _assemble_cdef_integer_constants(names):
+    return "\n".join([
+        "static const int " + name + ";"
+        for name in names
+    ]) + "\n"
+
 
 def _assemble_cdef(modules):
+    assemblers = {
+        "integer_constants": _assemble_cdef_integer_constants,
+    }
     return "\n".join([
-        getattr(module, kind)
-        for kind in ["typedef", "prototype"]
+        assemblers.get(kind, lambda s: s)(getattr(module, kind))
+        for kind in ["integer_constants", "typedef", "prototype"]
         for module in modules
-        ])
+    ])
 
 
 class LibZFSCore(object):
@@ -71,6 +83,10 @@ class LibZFSCore(object):
             extra_compile_args=["-I", "/usr/include/libzfs", "-I", "/usr/include/libspl", "-D", "HAVE_IOCTL_IN_SYS_IOCTL_H"],
             libraries=["zfs_core"],
         )
+
+        for module in self._modules:
+            for name in module.integer_constants:
+                setattr(self, name, getattr(self._lib, name))
 
     @classmethod
     def build(cls):
