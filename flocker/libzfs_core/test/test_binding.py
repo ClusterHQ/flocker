@@ -90,13 +90,27 @@ class CreateTests(TestCase):
         self.assertIn(self.pool_name + b"/test_created", names)
 
 
-    def test_creation_error(self):
+    def test_creation_error_duplicate(self):
         """
         ``lzc_create`` raises ``ZFSError`` if a filesystem with the given name
         already exists.
         """
         fsname = self.pool_name + b"/test_creation_error"
         self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
+        with self.assertRaises(ZFSError) as ctx:
+            self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
+        self.assertEqual(
+            ("lzc_create", EEXIST),
+            (ctx.exception.context, ctx.exception.errno)
+        )
+
+
+    def test_create_error_missing_pool(self):
+        """
+        ``lzc_create`` raises ``ZFSError`` if any parent of the given
+        filesystem does not already exist.
+        """
+        fsname = self.pool_name + b"/test_creation_error/final_child"
         with self.assertRaises(ZFSError) as ctx:
             self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
         self.assertEqual(
