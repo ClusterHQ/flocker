@@ -86,6 +86,7 @@ sphinx_languages['en'] = FlockerLanguage
 language = 'en'
 
 from enchant.tokenize import Filter
+
 class AcronymFilter(Filter):
     """If a word looks like an acronym (all upper case letters),
     ignore it.
