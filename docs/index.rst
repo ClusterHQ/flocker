@@ -17,6 +17,7 @@ Contents:
    introduction
    gettingstarted/index
    advanced/index
+   experimental/zfs-on-coreos
    gettinginvolved/index
    roadmap/index
    faq/index
