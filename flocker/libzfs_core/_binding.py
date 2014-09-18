@@ -159,4 +159,4 @@ class LibZFSCore(object):
 
         result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
         if result != 0:
-            raise ZFSError("lzc_create failed", result, strerror(result))
+            raise ZFSError("lzc_create", result)
