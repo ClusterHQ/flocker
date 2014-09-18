@@ -53,7 +53,7 @@ typedef struct {
     prototype = """
 int nvlist_alloc(nvlist_t **, unsigned, int);
 void nvlist_free(nvlist_t *);
-int nvlist_add_int64(nvlist_t *, const char *, int64_t);
+int nvlist_add_uint64(nvlist_t *, const char *, uint64_t);
 int nvlist_add_string(nvlist_t *, const char *, const char *);
 """
 
@@ -114,7 +114,7 @@ def _to_nvlist(lib, pairs):
 
 def _add_nvpair(lib, nvlist, k, v):
     adders = {
-        int: lib._lib.nvlist_add_int64,
+        int: lib._lib.nvlist_add_uint64,
         str: lib._lib.nvlist_add_string,
     }
     if adders[type(v)](nvlist[0], k, v):
