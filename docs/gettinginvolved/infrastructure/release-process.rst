@@ -197,7 +197,7 @@ Release
    #. Enable the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version to that version
+   #. Set the default version to that version.
 
       .. warning:: Skip this step for weekly releases and pre-releases.
                    The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
