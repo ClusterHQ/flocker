@@ -32,7 +32,7 @@ class _sys(_module):
         "DMU_OST_NUMTYPES",
         ]
     typedef = """
-typedef ... dmu_objset_type_t;
+typedef enum { ... } dmu_objset_type_t;
 """
 
 class _nvpair(_module):
