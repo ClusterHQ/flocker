@@ -86,7 +86,7 @@ class CreateTests(TestCase):
             b"-H",
             # Names only
             b"-o", b"name",
-            ])
+        ])
         self.assertIn(self.pool_name + b"/test_created", names)
 
 
