@@ -78,12 +78,12 @@ Preparing for a release
 
         export VERSION=0.1.2
 
-#. File a ticket
+#. File a ticket:
 
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
 
-#. Create a clean, local working copy of Flocker with no modifications
+#. Create a clean, local working copy of Flocker with no modifications:
 
    .. code-block:: console
 
@@ -107,7 +107,7 @@ Preparing for a release
 
         git commit -am "Bumped version numbers"
 
-#. Ensure the release notes in :file:`NEWS` are up-to-date.
+#. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/523
@@ -116,7 +116,7 @@ Preparing for a release
 
         git commit -am "Updated NEWS"
 
-#. Ensure copyright dates in :file:`LICENSE` are up-to-date.
+#. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/525
@@ -125,16 +125,19 @@ Preparing for a release
 
         git commit -am "Updated copyright"
 
-#. Push the changes
+#. Push the changes:
 
      .. code-block:: console
 
         git push
 
-#. Ensure all the tests pass on BuildBot.
+#. Ensure all the tests pass on BuildBot:
+
    Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
 
-#. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
+#. Do the acceptance tests:
+
+   XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
 
 Release
