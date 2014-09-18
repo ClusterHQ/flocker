@@ -95,8 +95,8 @@ class CreateTests(TestCase):
         already exists.
         """
         fsname = self.pool_name + b"/test_creation_error"
-        self.libz.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
+        self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
         exc = self.assertRaises(
-            ZFSError, self.libz.lzc_create,
+            ZFSError, self.lib.lzc_create,
             fsname, self.lib.DMU_OST_ZFS, [])
         self.assertEqual(exc, [])
