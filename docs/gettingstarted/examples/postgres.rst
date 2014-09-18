@@ -1,25 +1,39 @@
 :tocdepth: 1
 
+==================
+Running PostgreSQL
+==================
+
+Create the Virtual Machines
 ===========================
-Example: Running PostgreSQL
-===========================
+
+You can reuse the Virtual Machines defined in the Vagrant configuration for :doc:`the MongoDB tutorial <../tutorial/index>`.
+If you have since shutdown or destroyed those VMs, boot them up again:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ vagrant up
+   Bringing machine 'node1' up with 'virtualbox' provider...
+   ==> node1: Importing base box 'clusterhq/flocker-dev'...
 
 Download the Docker Image
 =========================
 
-The official ``postgres`` Docker image is quite big, so you may wish to pull it to your nodes so you don't have to wait for downloads half-way through this example.
+The Docker image used by this example is quite large, so you should pre-fetch it to your nodes.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ ssh -t root@172.16.255.250 docker pull postgres
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull postgres
    ...
-   alice@mercury:~/flocker-postgres$ ssh -t root@172.16.255.251 docker pull postgres
+   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull postgres
+   ...
+   alice@mercury:~/flocker-tutorial$
 
 
 Launch PostgreSQL
 =================
 
-Download and save the following configuration files to your ``flocker-postgres`` directory:
+Download and save the following configuration files to your ``flocker-tutorial`` directory:
 
 :download:`postgres-application.yml`
 
@@ -30,29 +44,42 @@ Download and save the following configuration files to your ``flocker-postgres``
 
 .. literalinclude:: postgres-deployment.yml
    :language: yaml
+   
+Now run ``flocker-deploy`` to deploy the PostgreSQL application to the target Virtual Machine.
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ flocker-deploy postgres-deployment.yml postgres-application.yml
-   alice@mercury:~/flocker-postgres$
+   alice@mercury:~/flocker-tutorial$ flocker-deploy postgres-deployment.yml postgres-application.yml
+   alice@mercury:~/flocker-tutorial$
+   
+Confirm the container is running in its destination host:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   f6ee0fbd0446        postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
+   alice@mercury:~/flocker-tutorial$
+
 
 Connect to PostgreSQL
 =====================
 
-We can now use the ``psql`` client on our host machine to connect to the PostgreSQL server running inside the container.
-Connect using the client to the IP address of our virtual machine, using the port number we exposed in our application configuration.
+You can now use the ``psql`` client on the host machine to connect to the PostgreSQL server running inside the container.
+Connect using the client to the IP address of the Virtual Machine, using the port number exposed in the application configuration:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.250 --port 5432 --username postgres
+   alice@mercury:~/flocker-tutorial$ psql postgres --host 172.16.255.250 --port 5432 --username postgres
    psql (9.3.5)
    Type "help" for help.
 
    postgres=#
 
+This verifies the PostgreSQL service is successfully running inside its container.
 
-Insert a Row in the Database
-============================
+Insert a Row into the Database
+==============================
 
 .. code-block:: console
  
@@ -77,22 +104,45 @@ Insert a Row in the Database
 Move the Application
 ====================
 
+Download and save the following configuration file to your ``flocker-tutorial`` directory:
+
 :download:`postgres-deployment-moved.yml`
 
 .. literalinclude:: postgres-deployment-moved.yml
    :language: yaml
+   
+Then run ``flocker-deploy`` to move the PostgreSQL application along with its data to the new destination host:
 
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ flocker-deploy postgres-deployment-moved.yml postgres-application.yml
-   alice@mercury:~/flocker-postgres$
+   alice@mercury:~/flocker-tutorial$ flocker-deploy postgres-deployment-moved.yml postgres-application.yml
+   alice@mercury:~/flocker-tutorial$
 
 Verify Data Has Moved
 =====================
 
+Confirm the application has moved to the target Virtual Machine:
+
 .. code-block:: console
 
-   alice@mercury:~/flocker-postgres$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.251 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   51b5b09a46bb        clusterhq/postgres:latest   /bin/sh -c /init    7 seconds ago       Up 6 seconds        0.0.0.0:5432->5432/tcp   postgres-volume-example
+   alice@mercury:~/flocker-tutorial$
+
+And is no longer running on the original host:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
+   CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
+   alice@mercury:~/flocker-tutorial$
+   
+You can now connect to PostgreSQL on its host and confirm the sample data has also moved:
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ psql postgres --host 172.16.255.251 --port 5432 --username postgres
    psql (9.3.5)
    Type "help" for help.
 
@@ -105,3 +155,4 @@ Verify Data Has Moved
              3
    (1 row)
 
+This concludes the PostgreSQL example.
