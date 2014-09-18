@@ -19,6 +19,8 @@ class SendFlagsTests(TestCase):
     """
     Tests for ``LibZFSCore.LZC_SEND_FLAG_*``.
     """
+    skip = "There are no flags yet."
+
     def setUp(self):
         self.lib = LibZFSCore()
 
