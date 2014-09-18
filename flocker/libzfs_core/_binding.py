@@ -32,7 +32,10 @@ int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
         self._ffi.verify(
             source="""
 #include <libzfs_core.h>
-""")
+""",
+            extra_compile_args=["-I", "/usr/include/libzfs", "-I", "/usr/include/libspl", "-D", "HAVE_IOCTL_IN_SYS_IOCTL_H"],
+            libraries=["zfs_core"],
+        )
 
     @classmethod
     def build(cls):
