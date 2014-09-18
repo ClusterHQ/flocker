@@ -128,4 +128,6 @@ class LibZFSCore(object):
         except TypeError:
             raise ValueError("type must be a DMU_OST_* constant")
 
-        return self._lib.lzc_create(fsname, type, self._ffi.NULL)
+        result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
+        if result != 0:
+            raise Exception("lzc_create failed", result)
