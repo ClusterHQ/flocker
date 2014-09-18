@@ -17,10 +17,19 @@ class _module(object):
 
 class _sys(_module):
     header = "#include <sys/fs/zfs.h>"
+    integer_constants = []
     typedef = """
-typedef struct {
-    ...;
-}  dmu_objset_type_t;
+enum dmu_objset_type_t {
+    DMU_OST_NONE,
+    DMU_OST_META,
+    DMU_OST_ZFS,
+    DMU_OST_ZVOL,
+    /* For testing only! */
+    DMU_OST_OTHER,
+    /* Be careful! */
+    DMU_OST_ANY,
+    DMU_OST_NUMTYPES
+};
 """
 
 
