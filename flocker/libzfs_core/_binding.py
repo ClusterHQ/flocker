@@ -71,4 +71,4 @@ class LibZFSCore(object):
     def lzc_create(self, fsname, type, props):
         """
         """
-        return self._lib.lzc_create(fsname, type, props)
+        return self._lib.lzc_create(fsname, self._ffi.NULL, self._ffi.NULL)
