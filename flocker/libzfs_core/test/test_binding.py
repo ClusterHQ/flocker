@@ -23,7 +23,7 @@ class SendFlagsTests(TestCase):
     """
     @skip("There are no flags yet.")
     def setUp(self):
-        self.lib, self.ffi = LibZFSCore.build()
+        self.ffi, self.lib = LibZFSCore.build()
 
     def test_integer(self):
         """
@@ -37,7 +37,7 @@ class CreateTests(TestCase):
     Tests for ``LibZFSCore.lzc_create``.
     """
     def setUp(self):
-        self.lib, self.ffi = LibZFSCore.build()
+        self.ffi, self.lib = LibZFSCore.build()
         self.pool_name = b"lzctest-" + urandom(4).encode("hex")
         vdev_name = abspath(self.pool_name + b".vdev")
         with open(vdev_name, "wb") as vdev:
