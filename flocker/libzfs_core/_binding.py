@@ -6,6 +6,8 @@ CFFI-based bindings to <libzfs_core.h>.
 
 from __future__ import absolute_import
 
+from os import strerror
+
 from cffi import FFI
 
 class _module(object):
@@ -130,4 +132,4 @@ class LibZFSCore(object):
 
         result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
         if result != 0:
-            raise Exception("lzc_create failed", result)
+            raise Exception("lzc_create failed", result, strerror(result))
