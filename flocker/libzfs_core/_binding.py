@@ -195,7 +195,7 @@ class LibZFSCore(object):
             raise TypeError("fsname may not contain NUL")
 
         if props:
-            props = _to_nvlist(self._ffi, props)
+            props = _to_nvlist(self, props)
         else:
             props = [self._ffi.NULL]
 
