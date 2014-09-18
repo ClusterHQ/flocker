@@ -111,11 +111,11 @@ class LibZFSCore(object):
                 module.header
                 for module in self._modules
             ]),
-            extra_compile_args=list(chain(
+            extra_compile_args=list(chain.from_iterable(
                 module.compiler_arguments
                 for module in self._modules
             )),
-            libraries=list(chain(
+            libraries=list(chain.from_iterable(
                 module.libraries
                 for module in self._modules
             )),
