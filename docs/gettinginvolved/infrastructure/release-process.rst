@@ -24,7 +24,7 @@ Software
 
 - Fedora 20 (``rpmbuild``, ``createrepo``, ``yumdownloader``) - might be possible to install these on Ubuntu though.
 
-  You are advised to perform the release from a :doc:`Flocker development machine <vagrant>`\ , which will have all the requisite software pre-installed.
+  You are advised to perform the release from a :doc:`Flocker development machine <vagrant>` , which will have all the requisite software pre-installed.
 
 - a web browser
 
