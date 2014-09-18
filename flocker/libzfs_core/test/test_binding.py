@@ -50,7 +50,7 @@ class CreateTests(TestCase):
             TypeError, self.lib.lzc_create,
             b"invalid\0name", self.lib.DMU_OST_NONE, [])
 
-    def test_invalid_type(self):
+    def test_invalid_type_value(self):
         """
         If the integer passed to ``lzc_create`` is not one of the allowed
         ``DMU_OST_*`` values then ``ValueError`` is raised.
@@ -58,6 +58,15 @@ class CreateTests(TestCase):
         self.assertRaises(
             ValueError, self.lib.lzc_create,
             b"valid name", self.lib.DMU_OST_NUMTYPES + 1, [])
+
+    def test_invalid_type_type(self):
+        """
+        If the value passed to ``lzc_create`` is not even an integer then
+        ``ValueError`` is raised.
+        """
+        self.assertRaises(
+            ValueError, self.lib.lzc_create,
+            b"valid name", {}, [])
 
     def test_created(self):
         """
