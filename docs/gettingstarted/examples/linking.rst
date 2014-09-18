@@ -104,7 +104,7 @@ Use ``telnet`` to connect to the ``Logstash`` service running in the Virtual Mac
 
 Now refresh the ``Kibana`` web interface and you should see those messages.
 
-.. image:: elk-example-kibana-messages1.png
+.. image:: elk-example-kibana-messages.png
    :alt: The Kibana web interface shows that there have been two events in the last five minutes.
 
 
