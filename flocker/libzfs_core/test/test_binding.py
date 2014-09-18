@@ -100,5 +100,6 @@ class CreateTests(TestCase):
         with self.assertRaises(ZFSError) as ctx:
             self.lib.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
         self.assertEqual(
-            ZFSError("lzc_create", EEXIST),
-            ctx.exception)
+            ("lzc_create", EEXIST),
+            (ctx.exception.context, ctx.exception.errno)
+        )
