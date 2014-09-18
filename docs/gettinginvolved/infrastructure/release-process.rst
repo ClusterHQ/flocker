@@ -111,7 +111,8 @@ Preparing for a release
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date.
 
-   XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
+   XXX: Process to be decided.
+   See https://github.com/ClusterHQ/flocker/issues/523
 
      .. code-block:: console
 
@@ -119,7 +120,8 @@ Preparing for a release
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date.
 
-   XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/525
+   XXX: Process to be decided.
+   See https://github.com/ClusterHQ/flocker/issues/525
 
      .. code-block:: console
 
