@@ -57,7 +57,7 @@ def main(*args):
         raise SystemExit(1)
 
     print "Building %s box from %s." % (box, path.path)
-    build_box(path.path, 'flocker-' + box, __version__)
+    build_box(path, 'flocker-' + box, __version__)
 
 if __name__ == '__main__':
     import sys
