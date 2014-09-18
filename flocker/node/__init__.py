@@ -9,7 +9,7 @@ from ._config import (
     )
 from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume)
-from ._deploy import Deployer, NodeState, SSH_PRIVATE_KEY_PATH
+from ._deploy import Deployer, NodeState
 
 __all__ = [
     'ConfigurationError',
@@ -24,5 +24,4 @@ __all__ = [
     'Link',
     'AttachedVolume',
     'NodeState',
-    'SSH_PRIVATE_KEY_PATH',
 ]

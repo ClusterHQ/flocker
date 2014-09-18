@@ -1,18 +1,20 @@
-==============================
-What's New in the Next Release
-==============================
+==========
+What's New
+==========
 
-* Added support for environment variables in application configuration.
+.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
-  * See :doc:`./configuration` for more information.
 
-* Added basic support for links between containers in application configuration.
+Next Release
+============
 
-  * See :doc:`./configuration` for more information.
+* Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+* Added support for environment variables in the :doc:`application configuration<./configuration>`.
+* Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
 
-==================
-What's New in v0.1
-==================
+
+v0.1
+====
 
 Everything is new since this is our first release.
 

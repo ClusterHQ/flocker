@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+from errno import ENOENT
 from contextlib import contextmanager
 from tarfile import TarFile
 from io import BytesIO
@@ -18,6 +19,7 @@ from twisted.application.service import Service
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
+from .zfs import Snapshot
 
 
 @implementer(IFilesystemSnapshots)
@@ -43,26 +45,75 @@ class CannedFilesystemSnapshots(object):
 @implementer(IFilesystem)
 @attributes(["path"])
 class DirectoryFilesystem(object):
-    """A directory pretending to be an independent filesystem."""
+    """
+    A directory pretending to be an independent filesystem.
 
+    Snapshots are also supported in a pretend way.  A file is kept in the
+    directory recording the names of snapshots which supposedly have been
+    taken.  No other state related to snapshots is tracked (eg, the state of
+    the directory at the time of those snapshots is not recorded).
+    """
     def get_path(self):
         return self.path
 
+    def _snapshots(self):
+        """
+        Load the pretend snapshot data.
+
+        :return: A ``list`` of ``Snapshot`` instances.  These will correspond
+            to the pretend snapshots taken by the ``snapshot`` method.
+        """
+        try:
+            data = self.get_path().child(b".snapshots").getContent()
+        except IOError as e:
+            if e.errno != ENOENT:
+                raise
+            snapshots = []
+        else:
+            snapshots = [
+                Snapshot(name=name)
+                for name
+                in data.splitlines()
+            ]
+        return snapshots
+
     def snapshots(self):
         """
-        There is no support for snapshotting ``DirectoryFilesystem``.  So there
-        are never any snapshots.
+        Retrieve the snapshots which were previously taken, for pretend.
         """
-        return succeed([])
+        return succeed(self._snapshots())
+
+    def snapshot(self, name):
+        """
+        Pretend to take a snapshot.  Assign it the given name.
+        """
+        self.get_path().child(b".snapshots").setContent(
+            b"\n".join([
+                snapshot.name for snapshot in self._snapshots()] + [name])
+        )
 
     @contextmanager
-    def reader(self):
-        """Package up filesystem contents as a tarball."""
+    def reader(self, remote_snapshots=None):
+        """
+        Package up filesystem contents as a tarball.
+        """
         result = BytesIO()
         tarball = TarFile(fileobj=result, mode="w")
         for child in self.path.children():
             tarball.add(child.path, arcname=child.basename(), recursive=True)
         tarball.close()
+
+        # You can append anything to the end of a tar stream without corrupting
+        # it.  Smuggle some data about the snapshots through here.  This lets
+        # tests verify that an incremental stream is really being produced
+        # without forcing us to implement actual incremental streams on top of
+        # dumb directories.
+        if remote_snapshots:
+            result.write(
+                u"\nincremental stream based on\n{}".format(
+                    u"\n".join(snapshot.name for snapshot in remote_snapshots)
+                ).encode("ascii")
+            )
         result.seek(0, 0)
         yield result
 
