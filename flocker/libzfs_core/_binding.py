@@ -105,7 +105,7 @@ class LibZFSCore(object):
         self._objset_types = {
             value
             for (name, value)
-            in vars(self)
+            in vars(self).items()
             if name.startswith("DMU_OST_")
         }
 
