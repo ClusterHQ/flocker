@@ -83,7 +83,7 @@ class LibZFSCore(object):
     type used by the libzfs_core C API (rather than exposing FFI-based versions
     of those types).
 
-    :var set _storage_types: The values of all of the ``DMU_OST_*`` constants.
+    :var set _objset_types: The values of all of the ``DMU_OST_*`` constants.
     """
     _modules = [_sys, _nvpair, _lzc]
 
@@ -103,7 +103,7 @@ class LibZFSCore(object):
             for name in module.integer_constants:
                 setattr(self, name, getattr(self._lib, name))
 
-        self._storage_types = {
+        self._objset_types = {
             value
             for (name, value)
             in vars(self)
@@ -119,7 +119,7 @@ class LibZFSCore(object):
     def lzc_create(self, fsname, type, props):
         """
         """
-        if type not in self._storage_types:
+        if type not in self._objset_types:
             raise ValueError("type must be a DMU_OST_* constant")
 
         return self._lib.lzc_create(fsname, type, self._ffi.NULL)
