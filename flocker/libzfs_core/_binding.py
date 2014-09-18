@@ -53,6 +53,8 @@ typedef struct {
     prototype = """
 int nvlist_alloc(nvlist_t **, unsigned, int);
 void nvlist_free(nvlist_t *);
+int nvlist_add_int64(nvlist_t *, const char *, int64_t);
+int nvlist_add_string(nvlist_t *, const char *, const char *);
 """
 
 
