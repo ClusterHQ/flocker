@@ -27,9 +27,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         An application configuration in valid fig format is a
         dictionary containing, at a minimum, a key representing the
-        label of the application, in turn containing an "image" key,
-        with optional keys of "ports", "environment", "volumes"
-        and "links".
+        label of the application, in turn containing a dictionary with at
+        least an "image" key, optionally with any keys of "ports",
+        "environment", "volumes" and "links".
         
         Detecting a valid fig config therefore is equivalent to:
         application configuration is of type dictionary, containing
