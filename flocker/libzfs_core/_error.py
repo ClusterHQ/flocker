@@ -11,6 +11,10 @@ from os import strerror
 class ZFSError(Exception):
     """
     An error was reported by an ``lzc_*`` API.
+
+    :ivar str context: The name of the API which reported the error.
+    :ivar int errno: The system error number which was reported.
+    :ivar str message: The string message associated with the error number.
     """
     def __init__(self, context, errno):
         self.context = context
