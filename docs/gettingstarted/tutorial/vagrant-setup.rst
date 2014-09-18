@@ -68,6 +68,8 @@ See the official `MongoDB installation guide`_ for your system.
 Creating Vagrant VMs Needed for Flocker
 ---------------------------------------
 
+.. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
+
 Before you can deploy anything with Flocker you'll need a node onto which to deploy it.
 To make this easier, this tutorial uses `Vagrant`_ to create two VirtualBox VMs.
 
@@ -181,8 +183,60 @@ Note that you will need to make the same substitution in commands used throughou
 You now have two VMs running and easy SSH access to them.
 This completes the Vagrant-related setup.
 
+
+.. _upgrading-vagrant-environment:
+
+Upgrading the Vagrant Environment
+=================================
+
+The ``Vagrantfile`` used in this tutorial installs an RPM package called ``flocker-node`` on both the nodes.
+If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``flocker-node`` before continuing with the following tutorials.
+
+First check the current Flocker version on the nodes.
+You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-reportstate --version
+
+Only proceed if you find that you are running an older version of Flocker than "|version|".
+
+If you find that you *are* running an older version, you now need to rebuild the tutorial environment.
+
+This will ensure that you have the latest Flocker version and that you are using a pristine tutorial environment.
+
+.. warning:: This will completely remove the existing nodes and their data.
+
+If you have the original ``Vagrantfile``, change to its parent directory and run ``vagrant destroy``.
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ vagrant destroy
+       node2: Are you sure you want to destroy the 'node2' VM? [y/N] y
+   ==> node2: Forcing shutdown of VM...
+   ==> node2: Destroying VM and associated drives...
+   ==> node2: Running cleanup tasks for 'shell' provisioner...
+       node1: Are you sure you want to destroy the 'node1' VM? [y/N] y
+   ==> node1: Forcing shutdown of VM...
+   ==> node1: Destroying VM and associated drives...
+   ==> node1: Running cleanup tasks for 'shell' provisioner...
+   alice@mercury:~/flocker-tutorial$
+
+Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` and run ``vagrant up``.
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ vagrant up
+   Bringing machine 'node1' up with 'virtualbox' provider...
+   Bringing machine 'node2' up with 'virtualbox' provider...
+   alice@mercury:~/flocker-tutorial$
+
+Alternatively, if you do not have the original ``Vagrantfile`` or if the ``vagrant destroy`` command fails, you can remove the existing nodes `directly from VirtualBox`_.
+The two virtual machines will have names like ``flocker-tutorial_node1_1410450919851_28614`` and ``flocker-tutorial_node2_1410451102837_79031``.
+
 .. _`Homebrew`: http://brew.sh/
 .. _`Vagrant`: https://docs.vagrantup.com/
 .. _`VirtualBox`: https://www.virtualbox.org/
 .. _`vagrant-cachier`: https://github.com/fgrehm/vagrant-cachier
 .. _`MongoDB installation guide`: http://docs.mongodb.org/manual/installation/
+.. _`directly from VirtualBox`: https://www.virtualbox.org/manual/ch01.html#idp55629568

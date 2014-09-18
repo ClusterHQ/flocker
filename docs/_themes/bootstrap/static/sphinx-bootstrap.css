@@ -323,3 +323,7 @@ a.download:before {
     line-height: 1;
     padding-right: 5px;
 }
+
+.sidebar-heading {
+    font-size: 24px;
+}

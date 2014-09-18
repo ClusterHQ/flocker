@@ -1,5 +1,6 @@
 Btrfs
 Buildbot
+checksum
 Copr
 dataset
 Deis
