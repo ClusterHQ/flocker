@@ -132,7 +132,7 @@ class CreateTests(TestCase):
             fsname,
         ])
         self.assertEqual(
-            [value],
+            [u"{}".format(value).encode("ascii")],
             properties.split()
         )
 
