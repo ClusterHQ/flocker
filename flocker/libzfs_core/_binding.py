@@ -11,7 +11,7 @@ from itertools import chain
 
 from cffi import FFI
 
-from ._binding import ZFSError
+from ._error import ZFSError
 
 class _module(object):
     compiler_arguments = []
