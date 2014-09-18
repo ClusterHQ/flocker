@@ -50,6 +50,10 @@ typedef struct {
     ...;
 } nvlist_t;
 """
+    prototype = """
+int nvlist_alloc(nvlist_t **, uint_t, int);
+void nvlist_free(nvlist_t *);
+"""
 
 
 class _lzc(_module):
@@ -88,6 +92,31 @@ def _assemble_cdef(modules):
         for kind in ["integer_constants", "typedef", "prototype"]
         for module in modules
     ])
+
+
+def _to_nvlist(lib, pairs):
+    nvlist = lib._ffi.new("nvlist_t**")
+
+    if lib.nvlist_alloc(nvlist, 0, 0):
+        raise Exception(lib._ffi.errno)
+
+    nvlist = lib._ffi.gc(
+        nvlist,
+        lambda nvlist: lib._lib.nvlist_free(nvlist[0]))
+
+    for (k, v) in pairs:
+        _add_nvpair(lib, nvlist, k, v)
+
+    return nvlist
+
+
+def _add_nvpair(lib, nvlist, k, v):
+    adders = {
+        int: lib._lib.nvlist_add_int64,
+        str: lib._lib.nvlist_add_string,
+    }
+    if adders[type(v)](nvlist[0], k, v):
+        raise Exception(lib._ffi.errno)
 
 
 class LibZFSCore(object):
@@ -165,6 +194,11 @@ class LibZFSCore(object):
         if b"\0" in fsname:
             raise TypeError("fsname may not contain NUL")
 
-        result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
+        if props:
+            props = _to_nvlist(self._ffi, props)
+        else:
+            props = [self._ffi.NULL]
+
+        result = self._lib.lzc_create(fsname, type, props[0])
         if result != 0:
             raise ZFSError("lzc_create", result)
