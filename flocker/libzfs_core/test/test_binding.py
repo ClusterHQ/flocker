@@ -138,7 +138,7 @@ class CreateTests(TestCase):
             [
                 # (b"aclinherit", aclinherit),
                 # (b"copies", copies),
-                # (b"mlslabel", mlslabel),
+                (b"mlslabel", mlslabel),
                 (b"flocker:testing", user)
              ]
         )
