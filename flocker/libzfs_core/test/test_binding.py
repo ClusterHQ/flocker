@@ -40,6 +40,8 @@ class CreateTests(TestCase):
         with open(vdev_name, "wb") as vdev:
             vdev.write(b"\0" * MINIMUM_SIZE)
         check_call([b"zpool", b"create", self.pool_name, vdev_name])
+        self.addCleanup(
+            lambda: check_call([b"zpool", b"destroy", b"-r", self.pool_name]))
 
     def test_nul_exception(self):
         """
