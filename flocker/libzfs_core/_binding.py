@@ -7,10 +7,13 @@ CFFI-based bindings to <libzfs_core.h>.
 from __future__ import absolute_import
 
 from os import strerror
+from itertools import chain
 
 from cffi import FFI
 
 class _module(object):
+    compiler_arguments = []
+    libraries = []
     header = ""
     integer_constants = []
     typedef = ""
@@ -40,7 +43,7 @@ typedef enum { ... } dmu_objset_type_t;
 """
 
 class _nvpair(_module):
-    header = ""
+    compiler_arguments = ["-I", "/usr/include/libspl"]
     typedef = """
 typedef struct {
     ...;
@@ -49,6 +52,12 @@ typedef struct {
 
 
 class _lzc(_module):
+    compiler_arguments = [
+        "-I", "/usr/include/libzfs",
+        "-D", "HAVE_IOCTL_IN_SYS_IOCTL_H",
+    ]
+    libraries = ["zfs_core"]
+
     header = """
 #include <libzfs_core.h>
 """
@@ -102,8 +111,14 @@ class LibZFSCore(object):
                 module.header
                 for module in self._modules
             ]),
-            extra_compile_args=["-I", "/usr/include/libzfs", "-I", "/usr/include/libspl", "-D", "HAVE_IOCTL_IN_SYS_IOCTL_H"],
-            libraries=["zfs_core"],
+            extra_compile_args=list(chain(
+                module.compiler_args
+                for module in self._modules
+            )),
+            libraries=list(chain(
+                module.libraries
+                for module in self._modules
+            )),
         )
 
         for module in self._modules:
