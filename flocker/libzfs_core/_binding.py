@@ -97,7 +97,7 @@ def _assemble_cdef(modules):
 def _to_nvlist(lib, pairs):
     nvlist = lib._ffi.new("nvlist_t**")
 
-    if lib.nvlist_alloc(nvlist, 0, 0):
+    if lib._lib.nvlist_alloc(nvlist, 0, 0):
         raise Exception(lib._ffi.errno)
 
     nvlist = lib._ffi.gc(
