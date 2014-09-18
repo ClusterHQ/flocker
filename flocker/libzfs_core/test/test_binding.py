@@ -72,7 +72,9 @@ class CreateTests(TestCase):
         """
         ``lzc_create`` creates a new ZFS filesystem with the given name.
         """
-        self.lib.lzc_create(self.pool_name + b"/test_created", [], [])
+        self.lib.lzc_create(
+            self.pool_name + b"/test_created",
+            self.lib.DMU_OST_ZFS, [])
         names = check_output([
             b"zfs", b"list",
             # Without a header
