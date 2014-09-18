@@ -11,6 +11,7 @@ from os.path import abspath
 from unittest import TestCase, skip
 from subprocess import check_call, check_output
 
+from .._error import ZFSError
 from .._binding import LibZFSCore
 
 MINIMUM_SIZE = 1024 * 1024 * 64
@@ -86,3 +87,16 @@ class CreateTests(TestCase):
             b"-o", b"name",
             ])
         self.assertIn(self.pool_name + b"/test_created", names)
+
+
+    def test_creation_error(self):
+        """
+        ``lzc_create`` raises ``ZFSError`` if a filesystem with the given name
+        already exists.
+        """
+        fsname = self.pool_name + b"/test_creation_error"
+        self.libz.lzc_create(fsname, self.lib.DMU_OST_ZFS, [])
+        exc = self.assertRaises(
+            ZFSError, self.libz.lzc_create,
+            fsname, self.lib.DMU_OST_ZFS, [])
+        self.assertEqual(exc, [])

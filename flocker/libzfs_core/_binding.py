@@ -11,6 +11,8 @@ from itertools import chain
 
 from cffi import FFI
 
+from ._binding import ZFSError
+
 class _module(object):
     compiler_arguments = []
     libraries = []
@@ -158,4 +160,4 @@ class LibZFSCore(object):
 
         result = self._lib.lzc_create(fsname, type, self._ffi.NULL)
         if result != 0:
-            raise Exception("lzc_create failed", result, strerror(result))
+            raise ZFSError("lzc_create failed", result, strerror(result))
