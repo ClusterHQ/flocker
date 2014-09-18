@@ -33,9 +33,7 @@ class _sys(_module):
         ]
     typedef = """
 typedef ... dmu_objset_type_t;
-};
 """
-
 
 class _nvpair(_module):
     header = ""
