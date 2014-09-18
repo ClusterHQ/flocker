@@ -8,6 +8,34 @@ from __future__ import absolute_import
 
 from cffi import FFI
 
+class _sys(object):
+    header = "#include <sys/fs/zfs.h>"
+    typedef = """
+typedef struct {
+    ...;
+}  dmu_objset_type_t;
+"""
+
+
+class _nvpair(object):
+    header = ""
+    typedef = """
+typedef struct {
+    ...;
+} nvlist_t;
+"""
+
+
+class _lzc(object):
+    header = """
+#include <libzfs_core.h>
+"""
+    typedef = ""
+    prototype = """
+int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
+"""
+
+
 class LibZFSCore(object):
     """
     ``LibZFSCore`` uses ``cffi`` to expose the libzfs_core C API as a Python
@@ -16,23 +44,20 @@ class LibZFSCore(object):
     type used by the libzfs_core C API (rather than exposing FFI-based versions
     of those types).
     """
+    _modules = [_nvpair, _lzc]
+
     def __init__(self):
         self._ffi = FFI()
-        self._ffi.cdef("""
-typedef struct {
-    ...;
-}  dmu_objset_type_t;
-
-typedef struct {
-    ...;
-} nvlist_t;
-
-int lzc_create(const char *, dmu_objset_type_t, nvlist_t *);
-""")
+        self._ffi.cdef("\n".join([
+            source
+            for module in self._modules
+            for source in [module.typedef, module.prototype]
+            ]))
         self._lib = self._ffi.verify(
-            source="""
-#include <libzfs_core.h>
-""",
+            source="\n".join([
+                module.header
+                for module in self._modules
+            ]),
             extra_compile_args=["-I", "/usr/include/libzfs", "-I", "/usr/include/libspl", "-D", "HAVE_IOCTL_IN_SYS_IOCTL_H"],
             libraries=["zfs_core"],
         )
