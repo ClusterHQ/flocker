@@ -105,7 +105,7 @@ Preparing for a release
 
         $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
 
-#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the ``yum install`` line in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 3 locations).
+#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the ``yum install`` line in ``vagrant/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 3 locations).
 
 #. Update the ``sha1`` in the Homebrew recipe in the `homebrew-tap`_.
 
@@ -181,6 +181,8 @@ Release
       python setup.py bdist_wheel
       gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
       admin/upload-rpms "${VERSION}"
+
+#. Build and upload the tutorial :ref:`vagrant box <build-vagrant-box>`.
 
 #. Build tagged docs at Read the Docs:
 

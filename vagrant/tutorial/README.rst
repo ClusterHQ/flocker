@@ -1,3 +1,3 @@
-Code for generating the box for the main vagrant image.
+Code for generating the box for the tutorial vagrant image.
 
-See the `documentation <../../docs/gettinginvolved/infrastructure/vagrant.rst#base-image>`_ for details.
+See the `documentation <../../docs/gettinginvolved/infrastructure/vagrant.rst#boxes`_ for details.
