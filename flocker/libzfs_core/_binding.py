@@ -8,7 +8,13 @@ from __future__ import absolute_import
 
 from cffi import FFI
 
-class _sys(object):
+class _module(object):
+    header = ""
+    typedef = ""
+    prototype = ""
+
+
+class _sys(_module):
     header = "#include <sys/fs/zfs.h>"
     typedef = """
 typedef struct {
@@ -17,7 +23,7 @@ typedef struct {
 """
 
 
-class _nvpair(object):
+class _nvpair(_module):
     header = ""
     typedef = """
 typedef struct {
@@ -26,7 +32,7 @@ typedef struct {
 """
 
 
-class _lzc(object):
+class _lzc(_module):
     header = """
 #include <libzfs_core.h>
 """
