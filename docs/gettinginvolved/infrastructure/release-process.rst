@@ -252,7 +252,7 @@ Release
           git commit -am "Bumped version number and checksum in homebrew recipe"
           git push
 
-   - Test the new recipe
+   - Test the new recipe on OS X with `Homebrew`_ installed
 
      Try installing the new recipe directly from a GitHub link
 
@@ -290,3 +290,4 @@ See:
 .. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
 .. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
+.. _Homebrew: http://brew.sh
