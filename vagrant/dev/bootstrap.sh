@@ -17,6 +17,10 @@ yum install -y rpm-devel rpmlint mock createrepo
 yum install -y docker-io geard
 yum install -y python-devel python-tox python-virtualenv python-pip
 yum install -y python-cffi libffi-devel
+yum install -y yum-utils
+
+# Enable zfs-testing repo
+yum-config-manager --enable zfs-testing
 yum install -y zfs
 
 # Flocker python dependencies
