@@ -173,7 +173,25 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         A ``ConfigurationError`` is raised if the "ports" key of a fig
         compatible application config is not a list.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': '3306:3306',
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_malformed_ports(self):
         """
@@ -182,28 +200,104 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         If an invalid ports config is detected, ``ConfigurationError``
         is raised.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306,3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' must be list of string values in the form of"
+            "'host_port:container_port'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_ports_not_integers(self):
         """
         A ``ConfigurationError`` is raised if the parsed "ports" string
         in a fig application config is not a pair of integer values.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['foo:bar'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' value 'foo:bar' could not be parsed "
+            "in to integer values."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_links_not_list(self):
         """
         A ``ConfigurationError`` is raised if the "links" key of a fig
         compatible application config is not a list.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': 'wordpress',
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_links_not_stringtypes(self):
         """
         A ``ConfigurationError`` is raised if any value in a fig application
         config's "links" list is not of ``types.StringTypes``.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress', 100],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' must be a list of application names."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_unknown_link(self):
         """
@@ -211,14 +305,53 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         "links" key contains an application name that cannot be mapped to any
         application present in the entire applications configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' value 'wordpress' could not be mapped to any "
+            "application; application 'wordpress' does not exist."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_environment_not_dict(self):
         """
         A ``ConfigurationError`` is raised if the "environments" key of a fig
         application config is not a dictionary.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': 'MYSQL_ROOT_PASSWORD=clusterhq',
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'environment' must be a dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_env_not_stringtypes(self):
         """
@@ -226,7 +359,25 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         in a fig application config contains a key whose value is not of
         ``types.StringTypes``.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': ['a', 'b', 'c']},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'environment' value for 'MYSQL_ROOT_PASSWORD' must be a string."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_image_not_stringtypes(self):
         """
@@ -234,21 +385,75 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         in a fig application config is a value not of
         ``types.StringTypes``.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': ['clusterhq', 'mysql'],
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'image' must be a string; got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_volumes_not_list(self):
         """
         A ``ConfigurationError`` is raised if the "volumes" key of a fig
         compatible application config is not a list.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': '/var/lib/mysql',
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'volumes' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_volumes_not_stringtypes(self):
         """
         A ``ConfigurationError`` is raised if any value in a fig application's
         "volumes" list is not of ``types.StringTypes``.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql', 1000],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'volumes' values must be string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_error_on_environment_var_not_stringtypes(self):
         """
