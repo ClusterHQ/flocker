@@ -1742,7 +1742,7 @@ class PushVolumeTests(SynchronousTestCase):
             result.extend([volume, destination])
         self.patch(volume_service, "push", _push)
         deployer = Deployer(volume_service,
-                            gear_client=FakeDockerClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1764,7 +1764,7 @@ class PushVolumeTests(SynchronousTestCase):
         self.patch(volume_service, "push",
                    lambda volume, destination: result)
         deployer = Deployer(volume_service,
-                            gear_client=FakeDockerClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
             volume=AttachedVolume(name=u"myvol",
