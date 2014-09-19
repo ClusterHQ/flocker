@@ -119,7 +119,26 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         contain an "image" key. If this is detected, ``ConfigurationError``
         is raised.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'image': 'mysql:5.6.17',
+            },
+            'wordpress': {
+                'ports': ['8080:80'],
+                'volumes': ['/var/www/wordpress']
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must contain an 'image' key."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_unrecognised_key(self):
         """
@@ -128,7 +147,26 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         "links". If an invalid key is detected, ``ConfigurationError``
         is raised.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'foo': 'bar'
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "Unrecognised keys: foo,"
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_ports_not_list(self):
         """
