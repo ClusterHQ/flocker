@@ -135,8 +135,8 @@ class ChangeStateScript(object):
     """
     def __init__(self, docker_client=None):
         """
-        :param DockerClient docker_client: The object to use to talk to the Gear
-            server.
+        :param DockerClient docker_client: The object to use to talk to the
+            Docker server.
         """
         self._docker_client = docker_client
 
@@ -182,8 +182,8 @@ class ReportStateScript(object):
 
     def __init__(self, docker_client=None):
         """
-        :param DockerClient docker_client: The object to use to talk to the Gear
-            server.
+        :param DockerClient docker_client: The object to use to talk to the
+            Docker server.
         """
         self._docker_client = docker_client
 

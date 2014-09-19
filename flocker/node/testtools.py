@@ -11,7 +11,7 @@ from ..testtools import loop_until
 
 # This is terible (https://github.com/ClusterHQ/flocker/issues/85):
 if_docker_configured = skipIf(Popen([b"docker", b"version"]).wait(),
-                               "Docker must be installed and running.")
+                              "Docker must be installed and running.")
 
 
 def wait_for_unit_state(docker_client, unit_name, expected_activation_states):

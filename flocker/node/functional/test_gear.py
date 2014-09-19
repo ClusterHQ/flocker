@@ -55,8 +55,8 @@ class DockerClientTestsMixin(object):
         :param list links: See ``IDockerClient.add``.
         :param Unit expected_states: A list of activation states to wait for.
 
-        :return: ``Deferred`` that fires with the ``DockerClient`` when the unit
-            reaches the expected state.
+        :return: ``Deferred`` that fires with the ``DockerClient`` when
+            the unit reaches the expected state.
         """
         client = self.make_client()
         d = client.add(
@@ -81,7 +81,9 @@ class DockerClientTestsMixin(object):
 
     @_if_root
     def test_correct_image_used(self):
-        """``DockerClient.add`` creates a container with the specified image."""
+        """
+        ``DockerClient.add`` creates a container with the specified image.
+        """
         name = random_name()
         d = self.start_container(name)
 
@@ -211,8 +213,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
     @_if_root
     def test_add_with_environment(self):
         """
-        ``DockerClient.add`` accepts an environment object whose ID and variables
-        are used when starting a docker image.
+        ``DockerClient.add`` accepts an environment object whose ID and
+        variables are used when starting a docker image.
         """
         docker_dir = FilePath(self.mktemp())
         docker_dir.makedirs()
