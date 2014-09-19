@@ -44,7 +44,7 @@ def build_box(path, name, version, branch):
     run(['vagrant', 'package', '--output',
          '%s%s%s.box' % (name, '-' if version else '', version)],
          cwd=path.path)
-    run(['vagrant', 'destroy'], cwd=path.path)
+    run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
 
 def main(*args):
