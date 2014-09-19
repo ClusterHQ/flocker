@@ -47,7 +47,7 @@ Requires:       python-flocker = %{version}-%{release}
 %package -n flocker-node
 Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
-Requires:       python-docker = 0.3.2
+Requires:       python-docker = 0.4.0
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
 Requires:       geard
