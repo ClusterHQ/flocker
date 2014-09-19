@@ -10,6 +10,7 @@ from pipes import quote
 from subprocess import check_call, CalledProcessError
 from flocker import __version__
 
+
 def run(command, **kwargs):
     """
     Echo and run a command..
@@ -21,9 +22,8 @@ def run(command, **kwargs):
     try:
         check_call(command, **kwargs)
     except CalledProcessError as e:
-        print 'Failed %d:  %s\n' % (e.returncode, ' '.join(map(quote, command)))
+        print 'Failed %d: %s\n' % (e.returncode, ' '.join(map(quote, command)))
         raise SystemExit(e.returncode)
-
 
 
 def build_box(path, name, version, branch):
@@ -43,7 +43,7 @@ def build_box(path, name, version, branch):
     run(['vagrant', 'up'], cwd=path.path, env=env)
     run(['vagrant', 'package', '--output',
          '%s%s%s.box' % (name, '-' if version else '', version)],
-         cwd=path.path)
+        cwd=path.path)
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
 
