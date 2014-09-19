@@ -49,15 +49,69 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``dict`` of ``Application`` instances, one for each application key
         in the supplied configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'volumes': ['/var/lib/mysql'],
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+            }
+        }
+        expected_applications = {
+            'mysql': Application(
+                name='mysql',
+                image=DockerImage(repository='mysql:5.6.17', tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=3306,
+                                      external_port=3306)]),
+                links=frozenset(),
+                environment=frozenset(config['mysql']['environment'].items()),
+                volume=AttachedVolume(
+                    name='mysql',
+                    mountpoint=FilePath(b'/var/lib/mysql'))),
+        }
+        parser = Configuration()
+        applications = parser._applications_from_configuration(config)
+        self.assertEqual(expected_applications, applications)
 
-    def test_invalid_fig_config_not_dict(self):
+    def test_invalid_fig_config_app_not_dict(self):
         """
-        If the application config is a dictionary with one or more arbitrary
-        keys (representing app labels) but the value of any key is not itself
-        a dictionary, a ``ConfigurationError`` is raised.
+        If the application config is not a dictionary, a
+        ``ConfigurationError`` is raised.
         """
-        self.fail("Not implemented yet.")
+        config = ['mysql', {"image": "mysql:5.6.17"}]
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._is_fig_configuration,
+            config
+        )
+        error_message = ("Application configuration must be "
+                         "a dictionary, got list.")
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_value_not_dict(self):
+        """
+        If the application config is a fig-compatible dictionary with one or
+        more arbitrary keys (representing app labels) but the value of any key
+        is not itself a dictionary, a ``ConfigurationError`` is raised.
+        """
+        config = {
+            'mysql': {
+                'image': 'mysql:5.6.17',
+            },
+            'wordpress': "a string"
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must be dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_missing_image(self):
         """

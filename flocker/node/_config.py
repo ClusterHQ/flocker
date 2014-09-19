@@ -344,7 +344,7 @@ class Configuration(object):
         fig = False
         if not isinstance(application_configuration, dict):
             raise ConfigurationError(
-                "Application configuration must be a dictionary, got {type},".
+                "Application configuration must be a dictionary, got {type}.".
                 format(type=type(application_configuration).__name__)
             )
         for application_name, config in (
