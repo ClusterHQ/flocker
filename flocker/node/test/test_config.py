@@ -25,20 +25,27 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     def test_valid_fig_config_detected(self):
         """
+        A dictionary with any arbitrary key containing another
+        dictionary with an "image" key is detected as a valid fig format.
+
+        Note that "valid fig-format" does not necessarily translate to
+        "valid configuration", it just means that the suppled configuration
+        will be treated and parsed as fig-format rather than flocker-format.
+
         An application configuration in valid fig format is a
         dictionary containing, at a minimum, a key representing the
         label of the application, in turn containing a dictionary with at
         least an "image" key, optionally with any keys of "ports",
         "environment", "volumes" and "links".
 
-        Detecting a valid fig config therefore is equivalent to:
-        application configuration is of type dictionary, containing
-        one or more dictionaries which each contain an "image" key and
-        do not contain any invalid keys.
+        A valid fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain at least an "image" key and do not contain any invalid keys.
         """
         config = {
-            'mysql':
-                {'image': 'mysql:5.6.17'}
+            'postgres':
+                {'image': 'sample/postgres'}
         }
         parser = Configuration()
         self.assertTrue(parser._is_fig_configuration(config))
@@ -50,24 +57,26 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         in the supplied configuration.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'volumes': ['/var/lib/mysql'],
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
             }
         }
         expected_applications = {
-            'mysql': Application(
-                name='mysql',
-                image=DockerImage(repository='mysql:5.6.17', tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=3306,
-                                      external_port=3306)]),
+            'wordpress': Application(
+                name='wordpress',
+                image=DockerImage(repository='sample/wordpress', tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]),
                 links=frozenset(),
-                environment=frozenset(config['mysql']['environment'].items()),
+                environment=frozenset(
+                    config['wordpress']['environment'].items()
+                ),
                 volume=AttachedVolume(
-                    name='mysql',
-                    mountpoint=FilePath(b'/var/lib/mysql'))),
+                    name='wordpress',
+                    mountpoint=FilePath(b'/var/www/wordpress'))),
         }
         parser = Configuration()
         applications = parser._applications_from_configuration(config)
@@ -78,7 +87,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         If the application config is not a dictionary, a
         ``ConfigurationError`` is raised.
         """
-        config = ['mysql', {"image": "mysql:5.6.17"}]
+        config = ['wordpress', {"image": "sample/wordpress"}]
         parser = Configuration()
         exception = self.assertRaises(
             ConfigurationError,
@@ -96,10 +105,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         is not itself a dictionary, a ``ConfigurationError`` is raised.
         """
         config = {
-            'mysql': {
-                'image': 'mysql:5.6.17',
+            'postgres': {
+                'image': 'sample/postgres',
             },
-            'wordpress': "a string"
+            'wordpress': str("a string")
         }
         parser = Configuration()
         exception = self.assertRaises(
@@ -118,10 +127,18 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         A single fig application configuration is not valid if it does not
         contain an "image" key. If this is detected, ``ConfigurationError``
         is raised.
+
+        Note that this condition can occur if ``_is_fig_configuration`` has
+        detected a valid fig-style configuration in that there is at least
+        one application that meets the requirement of having an image key,
+        but the overall configuration also contains another application that
+        does not have that key. The validation tested here takes place in
+        ``_applications_from_fig_configuration``, not at the point of
+        detecting if the parsed YAML file is considered to be fig-format.
         """
         config = {
-            'mysql': {
-                'image': 'mysql:5.6.17',
+            'postgres': {
+                'image': 'sample/postgres',
             },
             'wordpress': {
                 'ports': ['8080:80'],
@@ -148,12 +165,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         is raised.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
-                'foo': 'bar'
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'foo': 'bar',
             }
         }
         parser = Configuration()
@@ -163,7 +180,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'wordpress' has a config error. "
             "Unrecognised keys: foo,"
         )
         self.assertEqual(exception.message, error_message)
@@ -174,11 +191,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         compatible application config is not a list.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': '3306:3306',
-                'volumes': ['/var/lib/mysql'],
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': '8080:80',
             }
         }
         parser = Configuration()
@@ -188,7 +205,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'wordpress' has a config error. "
             "'ports' must be a list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
@@ -201,11 +218,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         is raised.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306,3306'],
-                'volumes': ['/var/lib/mysql'],
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080,80'],
             }
         }
         parser = Configuration()
@@ -215,7 +232,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'wordpress' has a config error. "
             "'ports' must be list of string values in the form of"
             "'host_port:container_port'."
         )
@@ -227,11 +244,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         in a fig application config is not a pair of integer values.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
                 'ports': ['foo:bar'],
-                'volumes': ['/var/lib/mysql'],
             }
         }
         parser = Configuration()
@@ -241,7 +258,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'wordpress' has a config error. "
             "'ports' value 'foo:bar' could not be parsed "
             "in to integer values."
         )
@@ -253,11 +270,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         compatible application config is not a list.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/pgsql'],
                 'links': 'wordpress',
             }
         }
@@ -268,7 +285,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'links' must be a list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
@@ -279,11 +296,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         config's "links" list is not of ``types.StringTypes``.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
                 'links': ['wordpress', 100],
             }
         }
@@ -294,7 +311,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'links' must be a list of application names."
         )
         self.assertEqual(exception.message, error_message)
@@ -306,11 +323,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         application present in the entire applications configuration.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
                 'links': ['wordpress'],
             }
         }
@@ -321,7 +338,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'links' value 'wordpress' could not be mapped to any "
             "application; application 'wordpress' does not exist."
         )
@@ -333,11 +350,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         application config is not a dictionary.
         """
         config = {
-            'mysql': {
-                'environment': 'MYSQL_ROOT_PASSWORD=clusterhq',
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+            'postgres': {
+                'environment': 'PG_ROOT_PASSWORD=clusterhq',
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
                 'links': ['wordpress'],
             }
         }
@@ -348,7 +365,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'environment' must be a dictionary; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
@@ -361,10 +378,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         config = {
             'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': ['a', 'b', 'c']},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+                'environment': {'PG_ROOT_PASSWORD': ['a', 'b', 'c']},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
             }
         }
         parser = Configuration()
@@ -374,8 +391,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
-            "'environment' value for 'MYSQL_ROOT_PASSWORD' must be a string."
+            "Application 'postgres' has a config error. "
+            "'environment' value for 'PG_ROOT_PASSWORD' must be a string."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -387,10 +404,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         config = {
             'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': ['clusterhq', 'mysql'],
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql'],
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': ['clusterhq', 'postgres'],
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
             }
         }
         parser = Configuration()
@@ -400,7 +417,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'image' must be a string; got type 'list'."
         )
         self.assertEqual(exception.message, error_message)
@@ -411,11 +428,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         compatible application config is not a list.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': '/var/lib/mysql',
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': '/var/lib/postgres',
             }
         }
         parser = Configuration()
@@ -425,7 +442,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'volumes' must be a list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
@@ -436,11 +453,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         "volumes" list is not of ``types.StringTypes``.
         """
         config = {
-            'mysql': {
-                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
-                'image': 'mysql:5.6.17',
-                'ports': ['3306:3306'],
-                'volumes': ['/var/lib/mysql', 1000],
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', 1000],
             }
         }
         parser = Configuration()
@@ -450,7 +467,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             config
         )
         error_message = (
-            "Application 'mysql' has a config error. "
+            "Application 'postgres' has a config error. "
             "'volumes' values must be string; got type 'int'."
         )
         self.assertEqual(exception.message, error_message)

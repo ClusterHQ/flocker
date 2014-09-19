@@ -178,7 +178,25 @@ class Configuration(object):
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        pass
+        applications = {}
+        for application_name, config in application_configuration.items():
+            try:
+                _check_type(config, dict,
+                            "Application configuration must be dictionary",
+                            application_name)
+                if 'image' not in config:
+                    raise ValueError(
+                        ("Application configuration must "
+                         "contain an 'image' key.")
+                    )
+                # image_name = config['image']
+            except ValueError as e:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "{message}".format(application_name=application_name,
+                                        message=e.message))
+                )
+        return applications
 
     def _applications_from_flocker_configuration(
             self, application_configuration):
@@ -331,6 +349,12 @@ class Configuration(object):
         """
         Detect if the supplied application configuration is in fig-compatible
         format.
+
+        An application configuration in valid fig format is a
+        dictionary containing, at a minimum, a key representing the
+        label of the application, in turn containing a dictionary with at
+        least an "image" key, optionally with any keys of "ports",
+        "environment", "volumes" and "links".
 
         :param dict application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
