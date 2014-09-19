@@ -63,15 +63,17 @@ def main(*args):
 
     if args:
         branch = args.pop(0)
+        version = ''
     else:
         branch = ''
+        version = __version__
 
     if args:
         print "build-vagrant-box: too many arguments"
         raise SystemExit(1)
 
     print "Building %s box from %s." % (box, path.path)
-    build_box(path, 'flocker-' + box, __version__, branch)
+    build_box(path, 'flocker-' + box, version, branch)
 
 if __name__ == '__main__':
     import sys

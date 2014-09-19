@@ -46,5 +46,8 @@ First add the box locally::
    vagrant box add --name clusterhq/flocker-dev flocker-dev-$(python ../../setup.py --version).box
 
 This adds the box with version 0.
-Then change ``config.vm.box_version`` to ``= 0`` in the :file:`Vagrantfile` in the base of the repository,
+Then change ``config.vm.box_version`` to ``= 0`` in the appropriate :file:`Vagrantfile`,
 and then destroy and re-upload that vagrant image.
+
+It is also possible to build a vagrant image based on RPMs from a branch.
+If you pass a branch name to :file:`build`, then it will use the RPMs from the latest build of that branch on buildbot.
