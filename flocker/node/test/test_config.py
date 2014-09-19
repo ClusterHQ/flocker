@@ -30,14 +30,19 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         label of the application, in turn containing a dictionary with at
         least an "image" key, optionally with any keys of "ports",
         "environment", "volumes" and "links".
-        
+
         Detecting a valid fig config therefore is equivalent to:
         application configuration is of type dictionary, containing
         one or more dictionaries which each contain an "image" key and
         do not contain any invalid keys.
-        """        
-        self.fail("Not implemented yet.")
-    
+        """
+        config = {
+            'mysql':
+                {'image': 'mysql:5.6.17'}
+        }
+        parser = Configuration()
+        self.assertTrue(parser._is_fig_configuration(config))
+
     def test_dict_of_applications_from_fig(self):
         """
         ``Configuration._applications_from_fig_configuration`` returns a
@@ -130,7 +135,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``types.StringTypes``.
         """
         self.fail("Not implemented yet.")
-        
+
     def test_invalid_fig_config_image_not_stringtypes(self):
         """
         A ``ConfigurationError`` is raised if the "image" key

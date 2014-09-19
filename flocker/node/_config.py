@@ -164,9 +164,27 @@ class Configuration(object):
 
         return frozenset(links)
 
-    def _applications_from_configuration(self, application_configuration):
+    def _applications_from_fig_configuration(self, application_configuration):
         """
-        Validate and parse a given application configuration.
+        Validate and parse a given application configuration from fig's
+        configuration format.
+
+        :param dict application_configuration: The intermediate configuration
+            representation to load into ``Application`` instances.  See
+            :ref:`Configuration` for details.
+
+        :raises ConfigurationError: if there are validation errors.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
+        pass
+
+    def _applications_from_flocker_configuration(
+            self, application_configuration):
+        """
+        Validate and parse a given application configuration from flocker's
+        configuration format.
 
         :param dict application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
@@ -308,6 +326,56 @@ class Configuration(object):
                         keys=', '.join(sorted(config.keys())))
                 )
         return applications
+
+    def _is_fig_configuration(self, application_configuration):
+        """
+        Detect if the supplied application configuration is in fig-compatible
+        format.
+
+        :param dict application_configuration: The intermediate configuration
+            representation to load into ``Application`` instances.  See
+            :ref:`Configuration` for details.
+
+        :raises ConfigurationError: if the config is not a dictionary.
+
+        :returns: A ``bool`` indicating ``True`` for a fig-style configuration
+            or ``False`` if fig-style is not detected.
+        """
+        fig = False
+        if not isinstance(application_configuration, dict):
+            raise ConfigurationError(
+                "Application configuration must be a dictionary, got {type},".
+                format(type=type(application_configuration).__name__)
+            )
+        for application_name, config in (
+                application_configuration.items()):
+            if isinstance(config, dict):
+                if 'image' in config:
+                    fig = True
+        return fig
+
+    def _applications_from_configuration(self, application_configuration):
+        """
+        Validate a given application configuration as either fig or flocker
+        format and parse appropriately.
+
+        :param dict application_configuration: The intermediate configuration
+            representation to load into ``Application`` instances.  See
+            :ref:`Configuration` for details.
+
+        :raises ConfigurationError: if the config does not validate as either
+            flocker or fig format.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
+        fig = self._is_fig_configuration(application_configuration)
+        if fig:
+            return self._applications_from_fig_configuration(
+                application_configuration)
+        else:
+            return self._applications_from_flocker_configuration(
+                application_configuration)
 
     def _deployment_from_configuration(self, deployment_configuration,
                                        all_applications):
