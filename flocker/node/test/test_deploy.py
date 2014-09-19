@@ -14,10 +14,10 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, Link, NodeState, SSH_PRIVATE_KEY_PATH)
+                Port, Link, NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies,
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
     _link_environment)
 from .._model import AttachedVolume
 from ..gear import (
@@ -27,8 +27,7 @@ from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
-from ...volume._ipc import RemoteVolumeManager
-from ...common._ipc import ProcessNode
+from ...volume._ipc import RemoteVolumeManager, standard_node
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -127,6 +126,9 @@ CreateVolumeIStateChangeTests = make_istatechange_tests(
     CreateVolume, dict(volume=1), dict(volume=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
     HandoffVolume, dict(volume=1, hostname=b"123"),
+    dict(volume=2, hostname=b"123"))
+PushVolumeIStateChangeTests = make_istatechange_tests(
+    PushVolume, dict(volume=1, hostname=b"123"),
     dict(volume=2, hostname=b"123"))
 
 
@@ -1149,6 +1151,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(
@@ -1336,6 +1340,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             mountpoint=FilePath(b"/blah"),
         )
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(
@@ -1678,6 +1684,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         destination nodex.
         """
         volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
 
         result = []
 
@@ -1690,19 +1697,17 @@ class HandoffVolumeTests(SynchronousTestCase):
         handoff = HandoffVolume(
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var/blah")),
-            hostname=b"dest.example.com")
+            hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
             result,
             [volume_service.get(u"myvol"),
-             RemoteVolumeManager(ProcessNode.using_ssh(
-                 b"dest.example.com", 22, b"root",
-                 SSH_PRIVATE_KEY_PATH))])
+             RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
         """
-        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
-        named volume is available.
+        ``HandoffVolume.run()`` returns the result of
+        ``VolumeService.handoff``.
         """
         result = Deferred()
         volume_service = create_volume_service(self)
@@ -1717,3 +1722,53 @@ class HandoffVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)
+
+
+class PushVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``PushVolume``.
+    """
+    def test_push(self):
+        """
+        ``PushVolume.run()`` pushes the named volume to the given destination
+        node.
+        """
+        volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
+
+        result = []
+
+        def _push(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "push", _push)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=hostname)
+        push.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(standard_node(hostname))])
+
+    def test_return(self):
+        """
+        ``PushVolume.run()`` returns the result of
+        ``VolumeService.push``.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "push",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        push_result = push.run(deployer)
+        self.assertIs(push_result, result)
