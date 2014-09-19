@@ -11,6 +11,7 @@ from os.path import abspath
 from unittest import TestCase, skip
 from subprocess import check_call, check_output
 from errno import ENOENT, EEXIST
+from tempfile import mktemp
 
 from .._error import ZFSError
 from .._binding import LibZFSCore
@@ -153,7 +154,7 @@ class CreateTests(TestCase):
 
     def test_create_with_mountpoint(self):
         # A string property accepting arbitrary values.
-        self._property_test(b"mountpoint", self.mktemp())
+        self._property_test(b"mountpoint", mktemp(dir=b"."))
 
 
     def test_create_with_user(self):
