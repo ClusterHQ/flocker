@@ -186,7 +186,7 @@ class DeployScript(object):
         :return: ``Deferred`` that fires with a ``bytes`` in YAML format
             describing the current configuration.
         """
-        command = [b"flocker-reportstate"]
+        command = [b"flocker-reportstate", b"default"]
         results = []
         for target in self._get_destinations(deployment):
             d = deferToThread(target.node.get_output, command)
@@ -222,7 +222,7 @@ class DeployScript(object):
         command = [b"flocker-changestate",
                    deployment_config,
                    application_config,
-                   cluster_config]
+                   cluster_config,]
         results = []
         for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
@@ -230,7 +230,8 @@ class DeployScript(object):
             # https://github.com/ClusterHQ/flocker/issues/347
             results.append(
                 deferToThread(
-                    target.node.get_output, command + [target.hostname]))
+                    target.node.get_output, command +
+                    [target.hostname, b"default"]))
         return DeferredList(results)
 
 

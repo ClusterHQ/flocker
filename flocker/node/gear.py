@@ -58,7 +58,7 @@ class Unit(object):
     to interrogate geard for the docker images associated with its
     containers. See https://github.com/ClusterHQ/flocker/issues/207
 
-    :ivar unicode name: The name of the unit.
+    :ivar ApplicationName name: The name of the unit.
 
     :ivar unicode activation_state: The state of the unit in terms of
         systemd activation. Values indicate whether the unit is installed
@@ -110,7 +110,7 @@ class IGearClient(Interface):
         external ports yet. As a result the final success of application
         startup is out of scope for this method.
 
-        :param unicode unit_name: The name of the unit to create.
+        :param ApplicationName unit_name: The name of the unit to create.
 
         :param unicode image_name: The Docker image to use for the unit.
 
@@ -145,7 +145,7 @@ class IGearClient(Interface):
 
         This can be done multiple times in a row for the same unit.
 
-        :param unicode unit_name: The name of the unit to stop.
+        :param ApplicatinName unit_name: The name of the unit to stop.
 
         :return: ``Deferred`` that fires once the unit has been stopped
             and removed.

@@ -63,7 +63,7 @@ class ChangeStateOptions(Options):
                 "<cluster configuration> <hostname>")
 
     def parseArgs(self, deployment_config, application_config, current_config,
-                  hostname):
+                  hostname, namespace):
         """
         Parse `deployment_config`, `application_config` and `current_config`
         strings as YAML, and into a :class:`Deployment` instance. Assign
@@ -80,6 +80,9 @@ class ChangeStateOptions(Options):
             cluster configuration.
 
         :param bytes hostname: The ascii encoded hostname of this node.
+
+        :param bytes namespace: The namespace within whose applications
+            and volumes this command will be operating.
 
         :raises UsageError: If the configuration files cannot be parsed as YAML
             or if the hostname can not be decoded as ASCII.
@@ -109,8 +112,10 @@ class ChangeStateOptions(Options):
                 "Non-ASCII hostname: {hostname}".format(hostname=hostname)
             )
 
+        self['namespace'] = namespace = namespace.decode('ascii')
         try:
             self['deployment'] = model_from_configuration(
+                namespace=namespace,
                 application_configuration=application_config,
                 deployment_configuration=deployment_config)
         except ConfigurationError as e:
@@ -120,7 +125,7 @@ class ChangeStateOptions(Options):
             )
         # Current configuration is not written by a human, so don't bother
         # with nice error for failure to parse:
-        self["current"] = current_from_configuration(current_config)
+        self["current"] = current_from_configuration(namespace, current_config)
 
 
 @implementer(ICommandLineVolumeScript)
@@ -143,6 +148,7 @@ class ChangeStateScript(object):
     def main(self, reactor, options, volume_service):
         deployer = Deployer(volume_service, self._gear_client)
         return deployer.change_node_state(
+            namespace=options['namespace'],
             desired_state=options['deployment'],
             current_cluster_state=options['current'],
             hostname=options['hostname']
@@ -170,6 +176,10 @@ class ReportStateOptions(Options):
     synopsis = ("Usage: flocker-reportstate [OPTIONS]")
 
 
+    def parseArgs(self, namespace):
+        self['namespace'] = namespace
+
+
 @implementer(ICommandLineVolumeScript)
 class ReportStateScript(object):
     """
@@ -192,7 +202,7 @@ class ReportStateScript(object):
 
     def main(self, reactor, options, volume_service):
         deployer = Deployer(volume_service, self._gear_client)
-        d = deployer.discover_node_configuration()
+        d = deployer.discover_node_configuration(options['namespace'])
         d.addCallback(lambda state: configuration_to_yaml(
             list(state.running + state.not_running)))
         d.addCallback(self._print_yaml)

@@ -15,8 +15,9 @@ from twisted.python.filepath import FilePath
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
-    DockerImage, Node, Port
+    DockerImage, Node, Port, ApplicationName,
 )
+from ..volume.service import VolumeName
 
 
 class ConfigurationError(Exception):
@@ -168,6 +169,8 @@ class Configuration(object):
         """
         Validate and parse a given application configuration.
 
+        :param unicode namespace: The namespace of the configuration.
+
         :param dict application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
             :ref:`Configuration` for details.
@@ -276,7 +279,8 @@ class Configuration(object):
                         mountpoint = FilePath(mountpoint)
 
                     volume = AttachedVolume(
-                        name=application_name,
+                        name=VolumeName(namespace=application_name.namespace,
+                                        id=application_name.id),
                         mountpoint=mountpoint
                         )
                 except ValueError as e:
@@ -293,7 +297,8 @@ class Configuration(object):
                 application_name, config)
 
             applications[application_name] = Application(
-                name=application_name,
+                # XXX technically unicode...
+                name=ApplicationName.from_bytes(application_name),
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
@@ -364,11 +369,14 @@ class Configuration(object):
             nodes.append(node)
         return set(nodes)
 
-    def model_from_configuration(self, application_configuration,
+    def model_from_configuration(self, namespace,
+                                 application_configuration,
                                  deployment_configuration):
         """
         Validate and coerce the supplied application configuration and
         deployment configuration dictionaries into a ``Deployment`` instance.
+
+        :param unicode namespace: The namespace of the configuration.
 
         :param dict application_configuration: Map of applications to Docker
             images.
@@ -381,7 +389,7 @@ class Configuration(object):
         :returns: A ``Deployment`` object.
         """
         applications = self._applications_from_configuration(
-            application_configuration)
+            namespace, application_configuration)
         nodes = self._deployment_from_configuration(
             deployment_configuration, applications)
         return Deployment(nodes=frozenset(nodes))
@@ -390,7 +398,7 @@ class Configuration(object):
 model_from_configuration = Configuration().model_from_configuration
 
 
-def current_from_configuration(current_configuration):
+def current_from_configuration(namespace, current_configuration):
     """
     Validate and coerce the supplied current cluster configuration into a
     ``Deployment`` instance.
@@ -409,7 +417,7 @@ def current_from_configuration(current_configuration):
     nodes = []
     for hostname, applications in current_configuration.items():
         node_applications = configuration._applications_from_configuration(
-            applications)
+            namespace, applications)
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications.values())))
     return Deployment(nodes=frozenset(nodes))
