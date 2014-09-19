@@ -11,6 +11,7 @@ from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.utils import getProcessOutput
+from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
@@ -145,12 +146,12 @@ class DockerClientTestsMixin(object):
 
             def check_error(failure):
                 """
-                Catch ConnectionRefused errors and return False so that
-                loop_until repeats the request.
+                Catch ConnectionRefused errors and response timeouts and return
+                False so that loop_until repeats the request.
 
                 Other error conditions will be passed down the errback chain.
                 """
-                failure.trap(ConnectionRefusedError)
+                failure.trap(ConnectionRefusedError, ResponseNeverReceived)
                 return False
             response.addErrback(check_error)
             return response
