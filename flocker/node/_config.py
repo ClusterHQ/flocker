@@ -165,7 +165,8 @@ class Configuration(object):
 
         return frozenset(links)
 
-    def _applications_from_configuration(self, application_configuration):
+    def _applications_from_configuration(self, namespace,
+                                         application_configuration):
         """
         Validate and parse a given application configuration.
 
@@ -297,8 +298,7 @@ class Configuration(object):
                 application_name, config)
 
             applications[application_name] = Application(
-                # XXX technically unicode...
-                name=ApplicationName.from_bytes(application_name),
+                name=ApplicationName(namespace=namespace, id=application_name),
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
