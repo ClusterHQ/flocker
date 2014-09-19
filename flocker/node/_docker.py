@@ -6,6 +6,8 @@ Docker API client.
 
 from __future__ import absolute_import
 
+from time import sleep
+
 from zope.interface import implementer
 
 from docker import Client
@@ -74,6 +76,7 @@ class DockerClient(object):
             # not the container of which we speak. To prevent this we poll
             # until it does exist.
             while not self._blocking_exists(container_name):
+                sleep(0.001)
                 continue
             self._client.start(container_name,
                                port_bindings={p.internal_port: p.external_port
