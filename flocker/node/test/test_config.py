@@ -23,6 +23,438 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
+    def test_valid_fig_config_detected(self):
+        """
+        An application configuration in valid fig format is a
+        dictionary containing, at a minimum, a key representing the
+        label of the application, in turn containing a dictionary with at
+        least an "image" key, optionally with any keys of "ports",
+        "environment", "volumes" and "links".
+
+        Detecting a valid fig config therefore is equivalent to:
+        application configuration is of type dictionary, containing
+        one or more dictionaries which each contain an "image" key and
+        do not contain any invalid keys.
+        """
+        config = {
+            'mysql':
+                {'image': 'mysql:5.6.17'}
+        }
+        parser = Configuration()
+        self.assertTrue(parser._is_fig_configuration(config))
+
+    def test_dict_of_applications_from_fig(self):
+        """
+        ``Configuration._applications_from_fig_configuration`` returns a
+        ``dict`` of ``Application`` instances, one for each application key
+        in the supplied configuration.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'volumes': ['/var/lib/mysql'],
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+            }
+        }
+        expected_applications = {
+            'mysql': Application(
+                name='mysql',
+                image=DockerImage(repository='mysql:5.6.17', tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=3306,
+                                      external_port=3306)]),
+                links=frozenset(),
+                environment=frozenset(config['mysql']['environment'].items()),
+                volume=AttachedVolume(
+                    name='mysql',
+                    mountpoint=FilePath(b'/var/lib/mysql'))),
+        }
+        parser = Configuration()
+        applications = parser._applications_from_configuration(config)
+        self.assertEqual(expected_applications, applications)
+
+    def test_invalid_fig_config_app_not_dict(self):
+        """
+        If the application config is not a dictionary, a
+        ``ConfigurationError`` is raised.
+        """
+        config = ['mysql', {"image": "mysql:5.6.17"}]
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._is_fig_configuration,
+            config
+        )
+        error_message = ("Application configuration must be "
+                         "a dictionary, got list.")
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_value_not_dict(self):
+        """
+        If the application config is a fig-compatible dictionary with one or
+        more arbitrary keys (representing app labels) but the value of any key
+        is not itself a dictionary, a ``ConfigurationError`` is raised.
+        """
+        config = {
+            'mysql': {
+                'image': 'mysql:5.6.17',
+            },
+            'wordpress': "a string"
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must be dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_missing_image(self):
+        """
+        A single fig application configuration is not valid if it does not
+        contain an "image" key. If this is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'mysql': {
+                'image': 'mysql:5.6.17',
+            },
+            'wordpress': {
+                'ports': ['8080:80'],
+                'volumes': ['/var/www/wordpress']
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must contain an 'image' key."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unrecognised_key(self):
+        """
+        A single fig application configuration is not valid if it contains
+        any keys besides "image", "environment", "ports", "volumes" or
+        "links". If an invalid key is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'foo': 'bar'
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "Unrecognised keys: foo,"
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "ports" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': '3306:3306',
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_malformed_ports(self):
+        """
+        A single fig application config is not valid if the "ports" key
+        is present and the value is not a string in "host:container" format.
+        If an invalid ports config is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306,3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' must be list of string values in the form of"
+            "'host_port:container_port'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_integers(self):
+        """
+        A ``ConfigurationError`` is raised if the parsed "ports" string
+        in a fig application config is not a pair of integer values.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['foo:bar'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'ports' value 'foo:bar' could not be parsed "
+            "in to integer values."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "links" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': 'wordpress',
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application
+        config's "links" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress', 100],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' must be a list of application names."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unknown_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that cannot be mapped to any
+        application present in the entire applications configuration.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'links' value 'wordpress' could not be mapped to any "
+            "application; application 'wordpress' does not exist."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_not_dict(self):
+        """
+        A ``ConfigurationError`` is raised if the "environments" key of a fig
+        application config is not a dictionary.
+        """
+        config = {
+            'mysql': {
+                'environment': 'MYSQL_ROOT_PASSWORD=clusterhq',
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'environment' must be a dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_env_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "environment" dictionary
+        in a fig application config contains a key whose value is not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': ['a', 'b', 'c']},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'environment' value for 'MYSQL_ROOT_PASSWORD' must be a string."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_image_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "image" key
+        in a fig application config is a value not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': ['clusterhq', 'mysql'],
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'image' must be a string; got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': '/var/lib/mysql',
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'volumes' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application's
+        "volumes" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'mysql': {
+                'environment': {'MYSQL_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'mysql:5.6.17',
+                'ports': ['3306:3306'],
+                'volumes': ['/var/lib/mysql', 1000],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'mysql' has a config error. "
+            "'volumes' values must be string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
