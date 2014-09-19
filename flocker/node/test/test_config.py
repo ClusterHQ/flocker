@@ -171,6 +171,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'image': 'sample/wordpress',
                 'ports': ['8080:80'],
                 'foo': 'bar',
+                'spam': 'eggs',
             }
         }
         parser = Configuration()
@@ -181,7 +182,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'wordpress' has a config error. "
-            "Unrecognised keys: foo,"
+            "Unrecognised keys: foo, spam"
         )
         self.assertEqual(exception.message, error_message)
 

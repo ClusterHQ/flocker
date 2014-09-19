@@ -184,12 +184,23 @@ class Configuration(object):
                 _check_type(config, dict,
                             "Application configuration must be dictionary",
                             application_name)
+                allowed_keys = {"image", "environment", "ports",
+                                "links", "volumes"}
+                present_keys = set(config)
+                invalid_keys = present_keys - allowed_keys
+                if invalid_keys:
+                    raise ValueError(
+                        "Unrecognised keys: {keys}".format(
+                            keys=', '.join(invalid_keys)
+                        )
+                    )
                 if 'image' not in config:
                     raise ValueError(
                         ("Application configuration must "
                          "contain an 'image' key.")
                     )
                 # image_name = config['image']
+                
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
