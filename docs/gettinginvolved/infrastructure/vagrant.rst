@@ -50,4 +50,4 @@ Then change ``config.vm.box_version`` to ``= 0`` in the appropriate :file:`Vagra
 and then destroy and re-upload that vagrant image.
 
 It is also possible to build a vagrant image based on RPMs from a branch.
-If you pass a branch name to :file:`build`, then it will use the RPMs from the latest build of that branch on buildbot.
+If you pass a branch name to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
