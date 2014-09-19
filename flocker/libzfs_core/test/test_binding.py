@@ -151,9 +151,9 @@ class CreateTests(TestCase):
         self._property_test(b"copies", 2)
 
 
-    def test_create_with_mlslabel(self):
+    def test_create_with_mountpoint(self):
         # A string property accepting arbitrary values.
-        self._property_test(b"mlslabel", b"somelabel")
+        self._property_test(b"mountpoint", self.mktemp())
 
 
     def test_create_with_user(self):
