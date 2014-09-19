@@ -102,6 +102,11 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
+
+        # These rest of these are for libzfs_core.  Eventually libzfs_core will
+        # be a separate project and Flocker will probably just depend on it.
+        # The bindings are based on cffi.
+        "cffi>=0.8.6",
         ],
 
     extras_require={
