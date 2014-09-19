@@ -12,7 +12,7 @@ from zope.interface import implementer
 
 from .service import (
     DEFAULT_CONFIG_PATH, FLOCKER_MOUNTPOINT, FLOCKER_POOL,
-    Volume, VolumeScript, ICommandLineVolumeScript
+    Volume, VolumeScript, ICommandLineVolumeScript, VolumeName,
     )
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner
@@ -76,7 +76,7 @@ class _SnapshotsSubcommandOptions(Options):
 
     def parseArgs(self, uuid, name):
         self["uuid"] = uuid.decode("ascii")
-        self["name"] = name.decode("ascii")
+        self["name"] = VolumeName.from_bytes(name)
 
     def run(self, service):
         volume = Volume(uuid=self["uuid"], name=self["name"], service=service)
@@ -110,7 +110,7 @@ class _ReceiveSubcommandOptions(Options):
 
     def parseArgs(self, uuid, name):
         self["uuid"] = uuid.decode("ascii")
-        self["name"] = name.decode("ascii")
+        self["name"] = VolumeName.from_bytes(name)
 
     def run(self, service):
         """Run the action for this sub-command.
@@ -142,7 +142,7 @@ class _AcquireSubcommandOptions(Options):
 
     def parseArgs(self, uuid, name):
         self["uuid"] = uuid.decode("ascii")
-        self["name"] = name.decode("ascii")
+        self["name"] = VolumeName.from_bytes(name)
 
     def run(self, service):
         """
