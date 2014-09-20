@@ -280,6 +280,9 @@ class Configuration(object):
                         name=application_name,
                         mountpoint=FilePath(config['volumes'].pop())
                     )
+                # TODO deal with port edge cases, e.g. just container
+                # port specified, or IP and port specified on host
+                # http://www.fig.sh/yml.html
                 if 'ports' in present_keys:
                     _check_type(config['ports'], list,
                                 "'ports' must be a list",
@@ -360,11 +363,16 @@ class Configuration(object):
         for application_name, link in application_links.items():
             applications[application_name].links = []
             for link_definition in link:
-                # TODO check for ports in link_definition
-                # if not found, take from link_definition[target_application]
-                # and store in link_definition[ports]
-                remote_port = None
-                local_port = None
+                remote_port = link_definition['ports']['remote']
+                local_port = link_definition['ports']['local']
+                if not remote_port:
+                    target_application_ports = applications[
+                        link_definition['target_application']].ports
+                    target_ports_object = iter(target_application_ports).next()
+                    local_port = target_ports_object.internal_port
+                    link_definition['ports']['local'] = local_port
+                    remote_port = target_ports_object.external_port
+                    link_definition['ports']['remote'] = remote_port
                 applications[application_name].links.append(
                     Link(local_port=local_port, remote_port=remote_port,
                          alias=link_definition['alias'])
