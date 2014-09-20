@@ -107,7 +107,7 @@ def _to_nvlist(lib, pairs):
         lambda nvlist: lib._lib.nvlist_free(nvlist[0]))
 
     for (k, v, converter) in pairs:
-        converter(lib, nvlist[0], k, v)
+        converter(nvlist[0], k, v)
 
     return nvlist
 
