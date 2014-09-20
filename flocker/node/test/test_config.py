@@ -79,24 +79,38 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/www/wordpress'],
                 'image': 'sample/wordpress',
                 'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306'],
             }
         }
         expected_applications = {
             'wordpress': Application(
                 name='wordpress',
-                image=DockerImage(repository='sample/wordpress', tag='v1.0.0'),
+                image=DockerImage(repository='sample/wordpress', tag='latest'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
-                links=frozenset(),
+                links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'db')]),
                 environment=frozenset(
                     config['wordpress']['environment'].items()
                 ),
                 volume=AttachedVolume(
                     name='wordpress',
                     mountpoint=FilePath(b'/var/www/wordpress'))),
+            'mysql': Application(
+                name='mysql',
+                image=DockerImage(repository='sample/mysql', tag='latest'),
+                ports=frozenset([Port(internal_port=3306,
+                                      external_port=3306)]),
+                environment=None,
+                links=frozenset(),
+                volume=None),
         }
         parser = Configuration()
-        applications = parser._applications_from_configuration(config)
+        applications = parser._applications_from_fig_configuration(config)
         self.assertEqual(expected_applications, applications)
 
     def test_invalid_fig_config_image_and_build(self):
@@ -380,7 +394,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'postgres' has a config error. "
-            "'links' must be a list of application names."
+            "'links' must be a list of application names with optional :alias."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -488,6 +502,32 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         error_message = (
             "Application 'postgres' has a config error. "
             "'image' must be a string; got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_multiple_volumes(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        config is a list containing multiple entries. Only a maximum of
+        one volume per container is currently supported.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', '/var/www/data'],
+            }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Only one volume per application is supported at this time."
         )
         self.assertEqual(exception.message, error_message)
 

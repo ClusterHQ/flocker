@@ -175,9 +175,9 @@ class Configuration(object):
 
         :returns: ``int`` representing the number of identifying keys found.
         """
-        requires_one_key = {'image', 'build'}
+        possible_identifiers = {'image', 'build'}
         config_keys = set(config)
-        return len(requires_one_key & config_keys)
+        return len(possible_identifiers & config_keys)
 
     def _applications_from_fig_configuration(self, application_configuration):
         """
@@ -195,6 +195,7 @@ class Configuration(object):
         """
         applications = {}
         all_application_names = application_configuration.keys()
+        application_links = dict()
         for application_name, config in application_configuration.items():
             try:
                 _check_type(config, dict,
@@ -234,6 +235,15 @@ class Configuration(object):
                 _check_type(config['image'], (str, unicode,),
                             "'image' must be a string",
                             application_name)
+
+                image_name = config['image']
+                image = DockerImage.from_string(image_name)
+                environment = None
+                ports = []
+                volume = None
+                links = []
+                application_links[application_name] = []
+
                 if 'environment' in present_keys:
                     _check_type(config['environment'], dict,
                                 "'environment' must be a dictionary",
@@ -245,6 +255,7 @@ class Configuration(object):
                              .format(var=var)),
                             application_name
                         )
+                    environment = frozenset(config['environment'].items())
                 if 'volumes' in present_keys:
                     _check_type(config['volumes'], list,
                                 "'volumes' must be a list",
@@ -258,6 +269,17 @@ class Configuration(object):
                                      application=application_name,
                                      type=type(volume).__name__)
                             )
+                    if len(config['volumes']) > 1:
+                        raise ConfigurationError(
+                            ("Application '{application}' has a config "
+                             "error. Only one volume per application is "
+                             "supported at this time.").format(
+                                 application=application_name)
+                        )
+                    volume = AttachedVolume(
+                        name=application_name,
+                        mountpoint=FilePath(config['volumes'].pop())
+                    )
                 if 'ports' in present_keys:
                     _check_type(config['ports'], list,
                                 "'ports' must be a list",
@@ -283,6 +305,12 @@ class Configuration(object):
                                     application=application_name,
                                     ports=port)
                             )
+                        ports.append(
+                            Port(
+                                internal_port=parsed_ports[1],
+                                external_port=parsed_ports[0]
+                            )
+                        )
                 if 'links' in present_keys:
                     _check_type(config['links'], list,
                                 "'links' must be a list",
@@ -292,10 +320,15 @@ class Configuration(object):
                             raise ConfigurationError(
                                 ("Application '{application}' has a config "
                                  "error. 'links' must be a list of "
-                                 "application names.")
+                                 "application names with optional :alias.")
                                 .format(application=application_name)
                             )
-                        if link not in all_application_names:
+                        parsed_link = link.split(':')
+                        local_link = parsed_link[0]
+                        aliased_link = local_link
+                        if len(parsed_link) == 2:
+                            aliased_link = parsed_link[1]
+                        if local_link not in all_application_names:
                             raise ConfigurationError(
                                 ("Application '{application}' has a config "
                                  "error. 'links' value '{link}' could not be "
@@ -304,7 +337,19 @@ class Configuration(object):
                                      application=application_name,
                                      link=link)
                             )
-                # image_name = config['image']
+                        application_links[application_name].append({
+                            'target_application': local_link,
+                            'alias': aliased_link,
+                            'ports': {'local': None, 'remote': None}
+                        })
+                applications[application_name] = Application(
+                    name=application_name,
+                    image=image,
+                    volume=volume,
+                    ports=frozenset(ports),
+                    links=frozenset(links),
+                    environment=environment
+                )
 
             except ValueError as e:
                 raise ConfigurationError(
@@ -312,6 +357,20 @@ class Configuration(object):
                      "{message}".format(application_name=application_name,
                                         message=e.message))
                 )
+        for application_name, link in application_links.items():
+            applications[application_name].links = []
+            for link_definition in link:
+                # TODO check for ports in link_definition
+                # if not found, take from link_definition[target_application]
+                # and store in link_definition[ports]
+                remote_port = None
+                local_port = None
+                applications[application_name].links.append(
+                    Link(local_port=local_port, remote_port=remote_port,
+                         alias=link_definition['alias'])
+                )
+            applications[application_name].links = frozenset(
+                applications[application_name].links)
         return applications
 
     def _applications_from_flocker_configuration(
@@ -499,13 +558,12 @@ class Configuration(object):
                          "Must specify either 'build' or 'image'; found both.")
                         .format(app_name=application_name)
                     )
-                # I have noticeably not checked for a case of neither build
-                # nor image (requires_keys == 0) in the block above.
-                # We only check that there is at least one valid fig
-                # service definition in this method, because a config can
-                # be valid fig-format but contain one or more invalid service
-                # definitions. The zero case is therefore validated
-                # inside the  _applications_from_fig_configuration method.
+                # Do not check for zero requires_keys here, it will cause
+                # flocker style or other 3rd party style configs we might
+                # later support to be rejected as invalid fig-style.
+                # The validation that each fig service definition has either
+                # a "build" or an "image" key is performed in the
+                # _applications_from_fig_configuration method.
         return fig
 
     def _applications_from_configuration(self, application_configuration):
