@@ -230,11 +230,47 @@ class Configuration(object):
                             keys=', '.join(invalid_keys)
                         )
                     )
-                if 'image' not in config:
-                    raise ValueError(
-                        ("Application configuration must "
-                         "contain an 'image' key.")
-                    )
+                _check_type(config['image'], (str, unicode,),
+                            "'image' must be a string",
+                            application_name)
+                if 'environment' in present_keys:
+                    _check_type(config['environment'], dict,
+                                "'environment' must be a dictionary",
+                                application_name)
+                    for var, val in config['environment'].items():
+                        _check_type(
+                            val, (str, unicode,),
+                            ("'environment' value for '{var}' must be a string"
+                             .format(var=var)),
+                            application_name
+                        )
+                if 'volumes' in present_keys:
+                    _check_type(config['volumes'], list,
+                                "'volumes' must be a list",
+                                application_name)
+                    for volume in config['volumes']:
+                        if not isinstance(volume, (str, unicode,)):
+                            raise ConfigurationError(
+                                ("Application '{application}' has a config "
+                                 "error. 'volumes' values must be string; got "
+                                 "type '{type}'.").format(
+                                     application=application_name,
+                                     type=type(volume).__name__)
+                            )
+                if 'ports' in present_keys:
+                    pass
+                if 'links' in present_keys:
+                    _check_type(config['links'], list,
+                                "'links' must be a list",
+                                application_name)
+                    for link in config['links']:
+                        if not isinstance(link, (str, unicode,)):
+                            raise ConfigurationError(
+                                ("Application '{application}' has a config "
+                                 "error. 'links' must be a list of "
+                                 "application names.").format(
+                                     application=application_name)
+                            )
                 # image_name = config['image']
 
             except ValueError as e:

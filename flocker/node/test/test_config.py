@@ -340,7 +340,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'image': 'sample/postgres',
                 'ports': ['54320:5432'],
                 'volumes': ['/var/lib/pgsql'],
-                'links': 'wordpress',
+                'links': str('wordpress'),
             }
         }
         parser = Configuration()
@@ -416,7 +416,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         config = {
             'postgres': {
-                'environment': 'PG_ROOT_PASSWORD=clusterhq',
+                'environment': str('PG_ROOT_PASSWORD=clusterhq'),
                 'image': 'sample/postgres',
                 'ports': ['54320:5432'],
                 'volumes': ['/var/lib/postgres'],
@@ -442,7 +442,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``types.StringTypes``.
         """
         config = {
-            'mysql': {
+            'postgres': {
                 'environment': {'PG_ROOT_PASSWORD': ['a', 'b', 'c']},
                 'image': 'sample/postgres',
                 'ports': ['54320:5432'],
@@ -457,7 +457,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'postgres' has a config error. "
-            "'environment' value for 'PG_ROOT_PASSWORD' must be a string."
+            "'environment' value for 'PG_ROOT_PASSWORD' must be a string; "
+            "got type 'list'."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -468,7 +469,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``types.StringTypes``.
         """
         config = {
-            'mysql': {
+            'postgres': {
                 'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
                 'image': ['clusterhq', 'postgres'],
                 'ports': ['54320:5432'],
@@ -497,7 +498,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
                 'image': 'sample/postgres',
                 'ports': ['54320:5432'],
-                'volumes': '/var/lib/postgres',
+                'volumes': str('/var/lib/postgres'),
             }
         }
         parser = Configuration()
