@@ -260,7 +260,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
                 'volumes': ['/var/www/wordpress'],
                 'image': 'sample/wordpress',
-                'ports': '8080:80',
+                'ports': str('8080:80'),
             }
         }
         parser = Configuration()
@@ -298,7 +298,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'wordpress' has a config error. "
-            "'ports' must be list of string values in the form of"
+            "'ports' must be list of string values in the form of "
             "'host_port:container_port'."
         )
         self.assertEqual(exception.message, error_message)
@@ -367,6 +367,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'ports': ['54320:5432'],
                 'volumes': ['/var/lib/postgres'],
                 'links': ['wordpress', 100],
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
             }
         }
         parser = Configuration()

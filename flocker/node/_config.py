@@ -194,6 +194,7 @@ class Configuration(object):
             instances.
         """
         applications = {}
+        all_application_names = application_configuration.keys()
         for application_name, config in application_configuration.items():
             try:
                 _check_type(config, dict,
@@ -258,11 +259,35 @@ class Configuration(object):
                                      type=type(volume).__name__)
                             )
                 if 'ports' in present_keys:
-                    pass
+                    _check_type(config['ports'], list,
+                                "'ports' must be a list",
+                                application_name)
+                    for port in config['ports']:
+                        parsed_ports = port.split(':')
+                        if len(parsed_ports) != 2:
+                            raise ConfigurationError(
+                                ("Application '{application}' has a config "
+                                 "error. 'ports' must be list of string "
+                                 "values in the form of "
+                                 "'host_port:container_port'.".format(
+                                     application=application_name)
+                                )
+                            )
+                        try:
+                            parsed_ports = [int(p) for p in parsed_ports]
+                        except ValueError:
+                            raise ConfigurationError(
+                                ("Application '{application}' has a config "
+                                 "error. 'ports' value '{ports}' could not "
+                                 "be parsed in to integer values.".format(
+                                     application=application_name,
+                                     ports=port)
+                                )
+                            )
                 if 'links' in present_keys:
                     _check_type(config['links'], list,
                                 "'links' must be a list",
-                                application_name)
+                                application_name)                    
                     for link in config['links']:
                         if not isinstance(link, (str, unicode,)):
                             raise ConfigurationError(
@@ -270,6 +295,15 @@ class Configuration(object):
                                  "error. 'links' must be a list of "
                                  "application names.").format(
                                      application=application_name)
+                            )
+                        if not link in all_application_names:
+                            raise ConfigurationError(
+                                ("Application '{application}' has a config "
+                                 "error. 'links' value '{link}' could not be "
+                                 "mapped to any application; application "
+                                 "'{link}' does not exist.").format(
+                                     application=application_name,
+                                     link=link)
                             )
                 # image_name = config['image']
 
@@ -466,6 +500,13 @@ class Configuration(object):
                          "Must specify either 'build' or 'image'; found both.")
                         .format(app_name=application_name)
                     )
+                # I have noticeably not checked for a case of neither build
+                # nor image (requires_keys == 0) in the block above.
+                # We only check that there is at least one valid fig
+                # service definition in this method, because a config can
+                # be valid fig-format but contain one or more invalid service
+                # definitions. The zero case is therefore validated
+                # inside the  _applications_from_fig_configuration method.
         return fig
 
     def _applications_from_configuration(self, application_configuration):
