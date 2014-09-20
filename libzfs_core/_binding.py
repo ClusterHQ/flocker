@@ -203,6 +203,8 @@ class LibZFSCore(object):
 _property_types = {
     b"copies": "uint64",
     b"quota": "uint64",
+
+    b"mountpoint": "string",
 }
 
 def _property_nvpair_converters(lib, properties):
