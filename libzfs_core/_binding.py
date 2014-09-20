@@ -207,8 +207,13 @@ _property_types = {
 
 def _property_nvpair_converters(lib, properties):
     for (name, value) in properties:
+        if b":" in name:
+            # Detect user properties.  They are strings I guess.
+            typename = "string"
+        else:
+            typename = _property_types[name]
         yield (
             name,
             value,
-            getattr(lib, "nvlist_add_" + _property_types[name])
+            getattr(lib, "nvlist_add_" + typename)
         )
