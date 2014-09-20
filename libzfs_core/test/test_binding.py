@@ -152,6 +152,11 @@ class CreateTests(TestCase):
         self._property_test(b"copies", 2)
 
 
+    def test_create_with_quota(self):
+        # An integer property.
+        self._property_test(b"quota", 2 ** 32)
+
+
     def test_create_with_mountpoint(self):
         # A string property accepting arbitrary values.
         self._property_test(b"mountpoint", mktemp(dir=b"."))

@@ -106,19 +106,10 @@ def _to_nvlist(lib, pairs):
         nvlist,
         lambda nvlist: lib._lib.nvlist_free(nvlist[0]))
 
-    for (k, v) in pairs:
-        _add_nvpair(lib, nvlist, k, v)
+    for (k, v, converter) in pairs:
+        converter(lib, nvlist[0], k, v)
 
     return nvlist
-
-
-def _add_nvpair(lib, nvlist, k, v):
-    adders = {
-        int: lib._lib.nvlist_add_uint64,
-        str: lib._lib.nvlist_add_string,
-    }
-    if adders[type(v)](nvlist[0], k, v):
-        raise Exception(lib._ffi.errno)
 
 
 class LibZFSCore(object):
@@ -197,10 +188,27 @@ class LibZFSCore(object):
             raise TypeError("fsname may not contain NUL")
 
         if props:
-            props = _to_nvlist(self, props)
+            props = _to_nvlist(
+                self,
+                _property_nvpair_converters(self._lib, props)
+            )
         else:
             props = [self._ffi.NULL]
 
         result = self._lib.lzc_create(fsname, type, props[0])
         if result != 0:
             raise ZFSError("lzc_create", result)
+
+
+_property_types = {
+    b"copies": "uint64",
+    b"quota": "uint64",
+}
+
+def _property_nvpair_converters(lib, properties):
+    for (name, value) in properties:
+        yield (
+            name,
+            value,
+            getattr(lib, "nvlist_add_" + _property_types[name])
+        )
