@@ -269,9 +269,8 @@ class Configuration(object):
                                 ("Application '{application}' has a config "
                                  "error. 'ports' must be list of string "
                                  "values in the form of "
-                                 "'host_port:container_port'.".format(
+                                 "'host_port:container_port'.").format(
                                      application=application_name)
-                                )
                             )
                         try:
                             parsed_ports = [int(p) for p in parsed_ports]
@@ -279,24 +278,24 @@ class Configuration(object):
                             raise ConfigurationError(
                                 ("Application '{application}' has a config "
                                  "error. 'ports' value '{ports}' could not "
-                                 "be parsed in to integer values.".format(
-                                     application=application_name,
-                                     ports=port)
-                                )
+                                 "be parsed in to integer values.")
+                                .format(
+                                    application=application_name,
+                                    ports=port)
                             )
                 if 'links' in present_keys:
                     _check_type(config['links'], list,
                                 "'links' must be a list",
-                                application_name)                    
+                                application_name)
                     for link in config['links']:
                         if not isinstance(link, (str, unicode,)):
                             raise ConfigurationError(
                                 ("Application '{application}' has a config "
                                  "error. 'links' must be a list of "
-                                 "application names.").format(
-                                     application=application_name)
+                                 "application names.")
+                                .format(application=application_name)
                             )
-                        if not link in all_application_names:
+                        if link not in all_application_names:
                             raise ConfigurationError(
                                 ("Application '{application}' has a config "
                                  "error. 'links' value '{link}' could not be "
