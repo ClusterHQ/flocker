@@ -164,6 +164,21 @@ class Configuration(object):
 
         return frozenset(links)
 
+    def _count_fig_identifier_keys(self, config):
+        """
+        Counts how many of the keys that identify a single application
+        as having a fig-format are found in the supplied application
+        definition.
+
+        :param dict config: A single application definition from
+            the parsed YAML config file.
+
+        :returns: ``int`` representing the number of identifying keys found.
+        """
+        requires_one_key = {'image', 'build'}
+        config_keys = set(config)
+        return len(requires_one_key & config_keys)
+
     def _applications_from_fig_configuration(self, application_configuration):
         """
         Validate and parse a given application configuration from fig's
@@ -184,10 +199,31 @@ class Configuration(object):
                 _check_type(config, dict,
                             "Application configuration must be dictionary",
                             application_name)
+                if self._count_fig_identifier_keys(config) == 0:
+                    raise ValueError(
+                        ("Application configuration must contain either an "
+                         "'image' or 'build' key.")
+                    )
+                if 'build' in config:
+                    raise ValueError(
+                        "'build' is not supported yet; please specify 'image'."
+                    )
+                unsupported_keys = {
+                    'working_dir', 'entrypoint', 'user', 'hostname',
+                    'domainname', 'mem_limit', 'privileged', 'dns', 'net',
+                    'volumes_from', 'expose', 'command'
+                }
                 allowed_keys = {"image", "environment", "ports",
                                 "links", "volumes"}
                 present_keys = set(config)
                 invalid_keys = present_keys - allowed_keys
+                present_unsupported_keys = unsupported_keys & present_keys
+                if present_unsupported_keys:
+                    raise ValueError(
+                        "Unsupported fig keys found: {keys}".format(
+                            keys=', '.join(sorted(present_unsupported_keys))
+                        )
+                    )
                 if invalid_keys:
                     raise ValueError(
                         "Unrecognised keys: {keys}".format(
@@ -200,7 +236,7 @@ class Configuration(object):
                          "contain an 'image' key.")
                     )
                 # image_name = config['image']
-                
+
             except ValueError as e:
                 raise ConfigurationError(
                     ("Application '{application_name}' has a config error. "
@@ -361,11 +397,11 @@ class Configuration(object):
         Detect if the supplied application configuration is in fig-compatible
         format.
 
-        An application configuration in valid fig format is a
-        dictionary containing, at a minimum, a key representing the
-        label of the application, in turn containing a dictionary with at
-        least an "image" key, optionally with any keys of "ports",
-        "environment", "volumes" and "links".
+        A fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain exactly one "image" key or "build" key.
+        http://www.fig.sh/yml.html
 
         :param dict application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
@@ -385,8 +421,15 @@ class Configuration(object):
         for application_name, config in (
                 application_configuration.items()):
             if isinstance(config, dict):
-                if 'image' in config:
+                required_keys = self._count_fig_identifier_keys(config)
+                if required_keys == 1:
                     fig = True
+                elif required_keys > 1:
+                    raise ConfigurationError(
+                        ("Application '{app_name}' has a config error. "
+                         "Must specify either 'build' or 'image'; found both.")
+                        .format(app_name=application_name)
+                    )
         return fig
 
     def _applications_from_configuration(self, application_configuration):

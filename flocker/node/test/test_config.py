@@ -23,29 +23,46 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
-    def test_valid_fig_config_detected(self):
+    def test_valid_fig_config_detected_on_image(self):
         """
-        A dictionary with any arbitrary key containing another
+        A top-level dictionary with any arbitrary key containing another
         dictionary with an "image" key is detected as a valid fig format.
 
         Note that "valid fig-format" does not necessarily translate to
         "valid configuration", it just means that the suppled configuration
         will be treated and parsed as fig-format rather than flocker-format.
 
-        An application configuration in valid fig format is a
-        dictionary containing, at a minimum, a key representing the
-        label of the application, in turn containing a dictionary with at
-        least an "image" key, optionally with any keys of "ports",
-        "environment", "volumes" and "links".
-
         A valid fig-style configuration is defined as:
         Overall application configuration is of type dictionary, containing
         one or more keys which each contain a further dictionary, which
-        contain at least an "image" key and do not contain any invalid keys.
+        contain exactly one "image" key or "build" key and does not contain
+        any invalid keys.
         """
         config = {
             'postgres':
                 {'image': 'sample/postgres'}
+        }
+        parser = Configuration()
+        self.assertTrue(parser._is_fig_configuration(config))
+
+    def test_valid_fig_config_detected_on_build(self):
+        """
+        A top-level dictionary with any arbitrary key containing another
+        dictionary with a "build" key is detected as a valid fig format.
+
+        Note that "valid fig-format" does not necessarily translate to
+        "valid configuration", it just means that the suppled configuration
+        will be treated and parsed as fig-format rather than flocker-format.
+
+        A valid fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain exactly one "image" key or "build" key and does not contain
+        any invalid keys.
+        """
+        config = {
+            'postgres':
+                {'build': '.'}
         }
         parser = Configuration()
         self.assertTrue(parser._is_fig_configuration(config))
@@ -81,6 +98,54 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = Configuration()
         applications = parser._applications_from_configuration(config)
         self.assertEqual(expected_applications, applications)
+
+    def test_invalid_fig_config_image_and_build(self):
+        """
+        A fig-compatible application definition may not have both "image" and
+        "build" keys.
+        """
+        config = {
+            'postgres':
+                {'build': '.', 'image': 'sample/postgres'}
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._is_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Must specify either 'build' or 'image'; found both."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unsupported_keys(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration contains keys for fig features that are
+        not yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'image': 'sample/postgres',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Unsupported fig keys found: dns, entrypoint, expose"
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_app_not_dict(self):
         """
@@ -122,19 +187,17 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
-    def test_invalid_fig_config_missing_image(self):
+    def test_invalid_fig_config_missing_image_or_build(self):
         """
         A single fig application configuration is not valid if it does not
-        contain an "image" key. If this is detected, ``ConfigurationError``
-        is raised.
+        contain exactly one of an "image" key.
+        If this is detected, ``ConfigurationError``        is raised.
 
-        Note that this condition can occur if ``_is_fig_configuration`` has
-        detected a valid fig-style configuration in that there is at least
-        one application that meets the requirement of having an image key,
-        but the overall configuration also contains another application that
-        does not have that key. The validation tested here takes place in
-        ``_applications_from_fig_configuration``, not at the point of
-        detecting if the parsed YAML file is considered to be fig-format.
+        This condition can occur if ``_is_fig_configuration`` has
+        detected a potentially valid fig-style configuration in that there
+        is at least one application that meets the requirement of having an
+        image or build key, but the overall configuration also contains
+        another application that does not have a required key.
         """
         config = {
             'postgres': {
@@ -153,7 +216,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'wordpress' has a config error. "
-            "Application configuration must contain an 'image' key."
+            "Application configuration must contain either an "
+            "'image' or 'build' key."
         )
         self.assertEqual(exception.message, error_message)
 
