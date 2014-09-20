@@ -566,12 +566,15 @@ class Configuration(object):
                          "Must specify either 'build' or 'image'; found both.")
                         .format(app_name=application_name)
                     )
-                # Do not check for zero requires_keys here, it will cause
+                # Do not check for zero required_keys here, it will cause
                 # flocker style or other 3rd party style configs we might
                 # later support to be rejected as invalid fig-style.
                 # The validation that each fig service definition has either
                 # a "build" or an "image" key is performed in the
                 # _applications_from_fig_configuration method.
+                # If, however, we have both required_keys present here,
+                # it is safe to treat the config as fig-style but not valid
+                # and therefore bail immediately.
         return fig
 
     def _applications_from_configuration(self, application_configuration):
