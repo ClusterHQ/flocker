@@ -368,6 +368,8 @@ class Configuration(object):
                 if not remote_port:
                     target_application_ports = applications[
                         link_definition['target_application']].ports
+                    # TODO this doesn't yet deal with multiple Port objects
+                    # in a single application link.
                     target_ports_object = iter(target_application_ports).next()
                     local_port = target_ports_object.internal_port
                     link_definition['ports']['local'] = local_port
