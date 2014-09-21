@@ -376,7 +376,8 @@ class Configuration(object):
                         remote_port = target_ports_object.external_port
                         link_definition['ports'][-1]['remote'] = remote_port
                         applications[application_name].links.append(
-                            Link(local_port=local_port, remote_port=remote_port,
+                            Link(local_port=local_port,
+                                 remote_port=remote_port,
                                  alias=link_definition['alias'])
                         )
                 else:
@@ -384,9 +385,10 @@ class Configuration(object):
                         remote_port = port['remote']
                         local_port = port['local']
                         applications[application_name].links.append(
-                            Link(local_port=local_port, remote_port=remote_port,
+                            Link(local_port=local_port,
+                                 remote_port=remote_port,
                                  alias=link_definition['alias'])
-                        )                                            
+                        )
             applications[application_name].links = frozenset(
                 applications[application_name].links)
         return applications
