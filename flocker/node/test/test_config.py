@@ -115,7 +115,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         }
         parser = Configuration()
         applications = parser._applications_from_fig_configuration(config)
-        #import pdb;pdb.set_trace()
         self.assertEqual(expected_applications, applications)
 
     def test_invalid_fig_config_image_and_build(self):
