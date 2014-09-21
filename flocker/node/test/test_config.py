@@ -83,7 +83,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             },
             'mysql': {
                 'image': 'sample/mysql',
-                'ports': ['3306:3306'],
+                'ports': ['3306:3306', '3307:3307'],
             }
         }
         expected_applications = {
@@ -93,6 +93,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
                 links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'db'),
+                                 Link(local_port=3307, remote_port=3307,
                                       alias=u'db')]),
                 environment=frozenset(
                     config['wordpress']['environment'].items()
@@ -104,13 +106,16 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 name='mysql',
                 image=DockerImage(repository='sample/mysql', tag='latest'),
                 ports=frozenset([Port(internal_port=3306,
-                                      external_port=3306)]),
+                                      external_port=3306),
+                                 Port(internal_port=3307,
+                                      external_port=3307)]),
                 environment=None,
                 links=frozenset(),
                 volume=None),
         }
         parser = Configuration()
         applications = parser._applications_from_fig_configuration(config)
+        #import pdb;pdb.set_trace()
         self.assertEqual(expected_applications, applications)
 
     def test_invalid_fig_config_image_and_build(self):

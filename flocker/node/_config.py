@@ -343,7 +343,7 @@ class Configuration(object):
                         application_links[application_name].append({
                             'target_application': local_link,
                             'alias': aliased_link,
-                            'ports': {'local': None, 'remote': None}
+                            'ports': []
                         })
                 applications[application_name] = Application(
                     name=application_name,
@@ -363,22 +363,30 @@ class Configuration(object):
         for application_name, link in application_links.items():
             applications[application_name].links = []
             for link_definition in link:
-                remote_port = link_definition['ports']['remote']
-                local_port = link_definition['ports']['local']
-                if not remote_port:
+                port_cache = link_definition['ports']
+                if not port_cache:
                     target_application_ports = applications[
                         link_definition['target_application']].ports
-                    # TODO this doesn't yet deal with multiple Port objects
-                    # in a single application link.
-                    target_ports_object = iter(target_application_ports).next()
-                    local_port = target_ports_object.internal_port
-                    link_definition['ports']['local'] = local_port
-                    remote_port = target_ports_object.external_port
-                    link_definition['ports']['remote'] = remote_port
-                applications[application_name].links.append(
-                    Link(local_port=local_port, remote_port=remote_port,
-                         alias=link_definition['alias'])
-                )
+                    target_ports_objects = iter(target_application_ports)
+                    for target_ports_object in target_ports_objects:
+                        local_port = target_ports_object.internal_port
+                        link_definition['ports'].append(
+                            dict(local=None, remote=None))
+                        link_definition['ports'][-1]['local'] = local_port
+                        remote_port = target_ports_object.external_port
+                        link_definition['ports'][-1]['remote'] = remote_port
+                        applications[application_name].links.append(
+                            Link(local_port=local_port, remote_port=remote_port,
+                                 alias=link_definition['alias'])
+                        )
+                else:
+                    for port in port_cache:
+                        remote_port = port['remote']
+                        local_port = port['local']
+                        applications[application_name].links.append(
+                            Link(local_port=local_port, remote_port=remote_port,
+                                 alias=link_definition['alias'])
+                        )                                            
             applications[application_name].links = frozenset(
                 applications[application_name].links)
         return applications
