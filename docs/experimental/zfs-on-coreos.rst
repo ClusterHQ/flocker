@@ -101,3 +101,21 @@ Additional documentation
 ========================
 Information on how the tarball was created and how to rebuild the kernel
 modules is located in `gentoo/NOTES` inside the tarball.
+
+Licensing
+=========
+The licenses of all software included in the tarball are those under which it
+was originally published. All modifications by ClusterHQ to the software are
+released to the community under the licenses of the respective packages. The
+tarball also includes all sources of compiled components, with the sole
+exception being the absence of the kernel sources against which the ZFS kernel
+modules were built. This is because the build procedure leaves them outside of
+the `gentoo` directory. Information on how to obtain kernel sources for CoreOS
+is included in the tarball's `gentoo/NOTES` file. All documentation written by
+ClusterHQ on this topic is released to the community under the CC BY-SA 3.0
+license:
+
+https://creativecommons.org/licenses/by-sa/3.0/us/
+
+In specific, that is this document, `gentoo/NOTES`, statements in the issue
+tracker and comments in IRC.
