@@ -144,7 +144,7 @@ The parameters currently supported to define an application in Fig syntax are:
 
 - ``ports``
 
-  This is an optional list of port mappings to expose to the outside world, with each entry in `external:internal` format.
+  This is an optional list of port mappings to expose to the outside world, with each entry in ``external:internal`` format.
   Connections to the *external* port on the host machine are forwarded to the *internal* port in the container.
   You should wrap port mappings in quotes, as per the example below, to explicitly specify the mappings as strings.
   This is because YAML will parse numbers in the form of ``xx:yy`` as base 60 numbers, leading to erroneous behaviour.
