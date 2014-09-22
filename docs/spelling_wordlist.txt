@@ -1,3 +1,7 @@
+app
+apps
+admin
+sysadmin
 behaviour
 Btrfs
 Buildbot
@@ -16,11 +20,14 @@ handoffs
 hoc
 Homebrew
 hostname
+internet
 Kubernetes
 libswarm
 Mesos
 multi
 NAT'd
+petabyte
+petabytes
 pre
 programmatically
 proxied
