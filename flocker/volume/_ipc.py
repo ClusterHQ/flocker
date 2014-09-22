@@ -109,7 +109,7 @@ class RemoteVolumeManager(object):
              b"--config", self._config_path.path,
              b"snapshots",
              volume.uuid.encode("ascii"),
-             volume.name.encode("ascii")]
+             volume.name.to_bytes()]
         )
         return succeed([
             Snapshot(name=name)
@@ -122,7 +122,7 @@ class RemoteVolumeManager(object):
                                       b"--config", self._config_path.path,
                                       b"receive",
                                       volume.uuid.encode(b"ascii"),
-                                      volume.name.encode("ascii")])
+                                      volume.name.to_bytes()])
 
     def acquire(self, volume):
         return self._destination.get_output(
@@ -130,7 +130,7 @@ class RemoteVolumeManager(object):
              b"--config", self._config_path.path,
              b"acquire",
              volume.uuid.encode(b"ascii"),
-             volume.name.encode("ascii")]).decode("ascii")
+             volume.name.to_bytes()]).decode("ascii")
 
 
 @implementer(IRemoteVolumeManager)

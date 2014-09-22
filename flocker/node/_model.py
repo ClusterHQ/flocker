@@ -54,15 +54,38 @@ class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
 
-    :ivar unicode name: A short, human-readable identifier for this
-        volume. For now this is always the same as the name of the
-        application it is attached to (see
+    :ivar VolumeName name: The volume's name. For now this is always the
+        same as the name of the application it is attached to (see
         https://github.com/ClusterHQ/flocker/issues/49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted, or ``None`` if unknown
         (see https://github.com/ClusterHQ/flocker/issues/289).
     """
+
+
+@attributes(["namespace", "id"])
+class ApplicationName(object):
+    """
+    The application's name within the cluster.
+
+    :ivar unicode namespace: The namespace of the application,
+        e.g. ``u"default"`` is the default namespace.
+
+    :ivar unicode id: A short, human-readable identifier for this
+        application.  For example, ``u"site-example.com"`` or
+        ``u"pgsql-payroll"``.
+    """
+    @classmethod
+    def from_bytes(cls, s):
+        namespace, identifier = s.split(b'.', 1)
+        return ApplicationName(namespace=namespace.decode("ascii"),
+                               id=identifier.decode("ascii"))
+
+    def to_bytes(self):
+        return b"%s.%s" % (self.namespace.encode("ascii"),
+                           self.identifier.encode("ascii"))
+
 
 
 @attributes(["name", "image", "ports", "volume", "links", "environment"],
@@ -79,9 +102,7 @@ class Application(object):
     XXX The links attribute defaults to ``None`` until we have a way to
     interrogate configured links.
 
-    :ivar unicode name: A short, human-readable identifier for this
-        application.  For example, ``u"site-example.com"`` or
-        ``u"pgsql-payroll"``.
+    :ivar ApplicationName name: The application's name.
 
     :ivar DockerImage image: An image that can be used to run this
         containerized application.

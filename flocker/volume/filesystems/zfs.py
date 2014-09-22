@@ -430,7 +430,7 @@ def volume_to_dataset(volume):
     :return: Dataset name as ``bytes``.
     """
     return b"%s.%s" % (volume.uuid.encode("ascii"),
-                       volume.name.encode("ascii"))
+                       volume.name.to_bytes())
 
 
 @implementer(IStoragePool)

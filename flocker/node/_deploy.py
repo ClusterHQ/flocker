@@ -126,7 +126,7 @@ class StartApplication(object):
 
         if environment:
             gear_environment = GearEnvironment(
-                id=application.name,
+                id=application.name, # XXX irrelevant once we switch to Docker
                 variables=frozenset(environment.iteritems()))
         else:
             gear_environment = None
@@ -294,9 +294,11 @@ class Deployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def discover_node_configuration(self):
+    def discover_node_configuration(self, namespace):
         """
         List all the ``Application``\ s running on this node.
+
+        :param unicode namespace: The namespace to limit checks to.
 
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
@@ -304,7 +306,8 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
             volume.name for volume in volumes
-            if volume.uuid == self.volume_service.uuid))
+            if (volume.uuid == self.volume_service.uuid and
+                volume.name.namespace == namespace)))
         d = gatherResults([self.gear_client.list(), volumes])
 
         def applications_from_units(result):
@@ -313,6 +316,9 @@ class Deployer(object):
             running = []
             not_running = []
             for unit in units:
+                if unit.name.namespace != namespace:
+                    continue
+
                 # XXX: The container_image will be available on the
                 # Unit when
                 # https://github.com/ClusterHQ/flocker/issues/207 is
