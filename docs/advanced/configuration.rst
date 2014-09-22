@@ -221,18 +221,18 @@ Here's a complete example of a Fig compatible application configuration for Floc
 
    The following Fig configuration directives are not supported by Flocker at this time.
    
-- ``working_dir``
-- ``entrypoint``
-- ``user``
-- ``hostname``
-- ``domainname``
-- ``mem_limit``
-- ``privileged``
-- ``dns``
-- ``net``
-- ``volumes_from``
-- ``expose``
 - ``command``
+- ``dns``
+- ``domainname``
+- ``entrypoint``
+- ``expose``
+- ``hostname``
+- ``mem_limit``
+- ``net``
+- ``privileged``
+- ``user``
+- ``volumes_from``
+- ``working_dir``
 
 Deployment Configuration
 ------------------------
