@@ -137,14 +137,14 @@ class CreateTests(TestCase):
             properties.split()
         )
 
-    def test_create_with_aclinherit(self):
+    def test_create_with_checksum(self):
         """
         Properties can be set on the newly created filesystem by passing a list
         of two-tuples of property names and values as the third argument to
         ``lzc_create``.
         """
         # A string property with a fixed set of valid values.
-        self._property_test(b"aclinherit", b"discard")
+        self._property_test(b"checksum", b"sha256")
 
 
     def test_create_with_copies(self):

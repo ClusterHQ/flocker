@@ -201,10 +201,28 @@ class LibZFSCore(object):
 
 
 _property_types = {
+    # Correct types gleaned from module/zfs/zfs_ioctl.c, `zfs_check_settable`.
+    # libzfs_core does not expose this information.
     b"copies": "uint64",
     b"quota": "uint64",
+    b"checksum": "uint64",
 
     b"mountpoint": "string",
+}
+
+# XXX Not exposed by libzfs_core.  Thus we cannot actually set the checksum
+# property without assuming ... "private"? ... knowledge about zfs_ioctl.
+_checksum_table = {
+    # include/sys/zio.h - ZIO_CHECKSUM_ON
+    "on": 1,
+    "off": 2, # ZIO_CHECKSUM_OFF
+    "fletcher2": 3, # ZIO_CHECKSUM_FLETCHER_2
+    "fletcher4": 4, # ZIO_CHECKSUM_FLETCHER_4
+    "sha256": 5, # ZIO_CHECKSUM_SHA256
+}
+
+_property_transforms = {
+    b"checksum": _checksum_table,
 }
 
 def _property_nvpair_converters(lib, properties):
@@ -213,6 +231,13 @@ def _property_nvpair_converters(lib, properties):
             # Detect user properties.  They are strings I guess.
             typename = "string"
         else:
+            try:
+                transform = _property_transforms[name]
+            except KeyError:
+                pass
+            else:
+                value = transform[value]
+
             typename = _property_types[name]
         yield (
             name,
