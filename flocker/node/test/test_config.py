@@ -67,6 +67,32 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = Configuration()
         self.assertTrue(parser._is_fig_configuration(config))
 
+    def test_fig_config_parses_as_fig(self):
+        """
+        ``Configuration._applications_from_configuration`` identifies a fig
+        compatible configuration and calls
+        ``Configuration._applications_from_fig_configuration`` to parse it.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+        parser = Configuration()
+        self.patch(parser,
+                   "_applications_from_fig_configuration",
+                   lambda config: True)
+        called_fig_parser = parser._applications_from_configuration(config)
+        self.assertTrue(called_fig_parser)
+
     def test_dict_of_applications_from_fig(self):
         """
         ``Configuration._applications_from_fig_configuration`` returns a
@@ -135,6 +161,33 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         error_message = (
             "Application 'postgres' has a config error. "
             "Must specify either 'build' or 'image'; found both."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_uses_build(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration uses the 'build' directive, which is not
+        yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'build': '.',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = Configuration()
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._applications_from_fig_configuration,
+            config
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'build' is not supported yet; please specify 'image'."
         )
         self.assertEqual(exception.message, error_message)
 
