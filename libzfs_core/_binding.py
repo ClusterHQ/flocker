@@ -211,14 +211,19 @@ _property_types = {
 }
 
 # XXX Not exposed by libzfs_core.  Thus we cannot actually set the checksum
-# property without assuming ... "private"? ... knowledge about zfs_ioctl.
+# property without assuming ... "private"? ... knowledge about zfs_ioctl.  Oops
+# and they're definitely not stable across versions so this strategy is
+# entirely broken.
 _checksum_table = {
     # include/sys/zio.h - ZIO_CHECKSUM_ON
     "on": 1,
     "off": 2, # ZIO_CHECKSUM_OFF
-    "fletcher2": 3, # ZIO_CHECKSUM_FLETCHER_2
-    "fletcher4": 4, # ZIO_CHECKSUM_FLETCHER_4
-    "sha256": 5, # ZIO_CHECKSUM_SHA256
+
+    # 0.6.3 introduced some new constants between OFF and FLETCHER_2, changing
+    # the values of FLETCHER_2, FLETCHER_4, and SHA256.
+    "fletcher2": 6, # ZIO_CHECKSUM_FLETCHER_2
+    "fletcher4": 7, # ZIO_CHECKSUM_FLETCHER_4
+    "sha256": 8, # ZIO_CHECKSUM_SHA256
 }
 
 _property_transforms = {
