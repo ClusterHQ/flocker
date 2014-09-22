@@ -19,4 +19,5 @@ This Getting Started guide will walk you step-by-step through installing Flocker
 
    installation
    tutorial/index
-   examples/index
+   examples/apps
+   examples/features

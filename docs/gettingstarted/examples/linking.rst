@@ -7,7 +7,7 @@ Linking Containers
 ``Elasticsearch``, ``Logstash`` & ``Kibana``
 ============================================
 
-Flocker-0.1.2 introduces support for `Docker Container Linking`_.
+Flocker provides functionality similar to `Docker Container Linking`_.
 In this example you will learn how to deploy ``ElasticSearch``, ``Logstash``, and ``Kibana`` with Flocker, demonstrating how applications running in separate Docker containers can be linked together such that they can connect to one another, even when they are deployed on separate nodes.
 
 The three applications are connected as follows:
