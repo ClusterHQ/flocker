@@ -10,6 +10,9 @@ By the end of the release process we will have:
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
+
+If this is a major or minor release (i.e. not a weekly development release), we will also have:
+
 - download links on https://clusterhq.com
 
 
@@ -19,9 +22,9 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- Fedora 20 (``rpmbuild``, ``createrepo``, ``yumdownloader``) - might be possible to install these on Ubuntu though
+- Fedora 20 (``rpmbuild``, ``createrepo``, ``yumdownloader``) - it may be possible to install these on Ubuntu though.
 
-  You are advised to perform the release from a :doc:`flocker development machine <vagrant>`\ , which will have all the requisite software pre-installed.
+  You are advised to perform the release from a :doc:`Flocker development machine <vagrant>` , which will have all the requisite software pre-installed.
 
 - a web browser
 
@@ -41,8 +44,8 @@ Access
 Preliminary Step: Pre-populating RPM Repository
 -----------------------------------------------
 
-This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
-If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
+.. warning:: This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
+             If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
 
 These steps must be performed from a machine with the ClusterHQ Copr repository installed.
 You can either use the :doc:`Flocker development environment <vagrant>`
@@ -73,95 +76,92 @@ Preparing for a release
 
      .. code-block:: console
 
-        export VERSION=0.0.3
+        export VERSION=0.1.2
 
-   - Sanity check the proposed version number by checking the last version.
-     Check the ClusterHQ website for the last released version.
-     You might also double check the current version by running the following commands:
+#. File a ticket:
 
-     .. code-block:: console
+   #. Set the title to "Release flocker $VERSION"
+   #. Assign it to yourself
 
-        $ python setup.py --version
-        0.0.1-576-ge15c6be
-
-        $ git tag
-        ...
-        0.0.6
-
-#. In a clean, local working copy of Flocker with no modifications, checkout the branch for the release:
-
-   .. note:: All releases of the x.y series will be made from the ``releases/flocker-x.y`` branch.
-
-   - If this is a major or minor release then create the branch for the minor version:
-
-     .. code-block:: console
-
-        git checkout -b release/flocker-${VERSION%.*} origin/master
-        git push origin --set-upstream release/flocker-${VERSION%.*}
-
-   - If this is a patch release then there will already be a branch:
-
-     .. code-block:: console
-
-        $ git checkout -b release/flocker-${VERSION%.*} origin/release/flocker-"${VERSION%.*}"
-
-#. Update the version number in the download in ``docs/gettingstarted/linux-install.sh``, as well as the ``yum install`` line in ``docs/gettingstarted/tutorial/Vagrantfile``, and the Homebrew recipe in the `homebrew-tap`_ repository (a total of 3 locations).
-
-#. Update the ``sha1`` in the Homebrew recipe in the `homebrew-tap`_.
-
-   With Homebrew on OS X you can get the ``sha1`` using ``brew fetch flocker`` if the latest ``flocker.rb`` is in ``/usr/local/Library/formula``.
-
-   On Linux:
+#. Create a clean, local working copy of Flocker with no modifications:
 
    .. code-block:: console
 
-      wget https://github.com/ClusterHQ/flocker/archive/${VERSION}.tar.gz
-      sha1sum ${VERSION}.tar.gz
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
 
-#. Commit the changes:
+#. Create a branch for the release and push it to GitHub:
 
    .. code-block:: console
 
-      git commit -am"Bumped version number in installers and Vagrantfiles"
-      git push
+      git checkout -b release/flocker-${VERSION} origin/master
+      git push origin --set-upstream release/flocker-${VERSION}
 
-#. Ensure the release notes in :file:`NEWS` are up-to-date.
+#. Update the version numbers in:
 
-   XXX: Process to be decided. See https://github.com/ClusterHQ/flocker/issues/523
+   - `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
+   - `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_
+   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output)
+   - Commit the changes:
 
-#. Ensure copyright dates in :file:`LICENSE` are up-to-date.
+     .. code-block:: console
+
+        git commit -am "Bumped version numbers"
+
+#. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
-   If we modify the copyright in the release branch, then we'll need to merge that back to master.
-   It should probably just be updated routinely each year.
+   See https://github.com/ClusterHQ/flocker/issues/523
+
+     .. code-block:: console
+
+        git commit -am "Updated NEWS"
+
+#. Ensure copyright dates in :file:`LICENSE` are up-to-date:
+
+   XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/525
 
-#. Ensure all the tests pass on BuildBot.
-   Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the just-created branch.
-#. Do the acceptance tests. (https://github.com/ClusterHQ/flocker/issues/315)
+     .. code-block:: console
+
+        git commit -am "Updated copyright"
+
+#. Push the changes:
+
+     .. code-block:: console
+
+        git push
+
+#. Ensure all the tests pass on BuildBot:
+
+   Go to the `BuildBot web status`_ and force a build on the just-created branch.
+
+#. Do the acceptance tests:
+
+   XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
 
 Release
 -------
 
-#. Change your working directory to be the Flocker release branch checkout.
+#. Change your working directory to be the Flocker release branch working directory.
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
    .. code-block:: console
 
-      virtualenv ~/Environments/flocker-release
-      . ~/Environments/flocker-release/bin/activate
+      mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
+
+   .. note:: The example above uses `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
 #. Tag the version being released:
 
    .. code-block:: console
 
-      git tag --annotate "${VERSION}" release/flocker-"${VERSION%.*}" -m "Tag version ${VERSION}"
+      git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
-#. Go to the `BuildBot web status <http://build.clusterhq.com/boxes-flocker>`_ and force a build on the tag.
+#. Go to the `BuildBot web status`_ and force a build on the tag.
 
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
@@ -174,29 +174,103 @@ Release
 
       $ gsutil config
 
-#. Build python packages for upload, and upload them to ``archive.clusterhq.com``, as well as uploading the RPMs:
+#. Build python packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
 
-      python setup.py bdist_wheel
-      gsutil cp -a public-read dist/Flocker-"${VERSION}"-py2-none-any.whl gs://archive.clusterhq.com/downloads/flocker/
+      python setup.py sdist bdist_wheel
+      gsutil cp -a public-read \
+          "dist/Flocker-${VERSION}.tar.gz" \
+          "dist/Flocker-${VERSION}-py2-none-any.whl" \
+          gs://archive.clusterhq.com/downloads/flocker/
+
+
+#. Build RPM packages and upload them to ``archive.clusterhq.com``
+
+   .. code-block:: console
+
       admin/upload-rpms "${VERSION}"
 
 #. Build tagged docs at Read the Docs:
 
    #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
+   #. Wait for the documentation to build.
+      The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
    #. Set the default version to that version.
+
+      .. warning:: Skip this step for weekly releases and pre-releases.
+                   The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
+                   We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
+                   Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
+
    #. Force Read the Docs to reload the repository, in case the GitHub webhook fails, by running:
 
       .. code-block:: console
 
          curl -X POST http://readthedocs.org/build/flocker
 
-#. Make a Pull Request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+#. Update the Homebrew recipe
+
+   The aim of this step is to provide a version specific ``homebrew`` recipe for each release.
+
+   - Checkout the `homebrew-tap`_ repository.
+
+     .. code-block:: console
+
+        git clone git@github.com:ClusterHQ/homebrew-tap.git
+
+   - Create a release branch
+
+     .. code-block:: console
+
+        git checkout -b release/flocker-${VERSION%pre*} origin/master
+        git push origin --set-upstream release/flocker-${VERSION%pre*}
+
+   - Create a ``flocker-{VERSION}.rb`` file
+
+     Copy the last recipe file and rename it for this release.
+
+   - Update recipe file
+
+     - Update the version number
+
+       The version number is included in the class name with all dots and dashes removed.
+       e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
+
+     - Update the ``sha1`` checksum.
+
+       .. code-block:: console
+
+          sha1sum "dist/Flocker-${VERSION}.tar.gz"
+          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
+
+     - Commit the changes and push
+
+       .. code-block:: console
+
+          git commit -am "Bumped version number and checksum in homebrew recipe"
+          git push
+
+   - Test the new recipe on OS X with `Homebrew`_ installed
+
+     Try installing the new recipe directly from a GitHub link
+
+     .. code-block:: console
+
+        brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker.rb
+
+   - Make a pull request
+
+     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
+
+#. Make a pull request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+
 
 Update Download Links
 ~~~~~~~~~~~~~~~~~~~~~
+
+.. warning:: Skip this entire step for weekly releases.
 
 XXX Update download links on https://clusterhq.com:
 
@@ -211,3 +285,7 @@ See:
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+.. _BuildBot web status: http://build.clusterhq.com/boxes-flocker
+.. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
+.. _virtualenv: https://pypi.python.org/pypi/virtualenv
+.. _Homebrew: http://brew.sh

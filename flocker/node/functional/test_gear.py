@@ -14,6 +14,7 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
+from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
@@ -37,12 +38,21 @@ class IGearClientTests(make_igearclient_tests(
         pass
 
 
-class GearClientTests(TestCase):
-    """Implementation-specific tests for ``GearClient``."""
+class GearClientTestsMixin(object):
+    """
+    Implementation-specific tests mixin for ``GearClient`` and similar
+    classes (in particular, ``DockerClient``).
+    """
+    # Override with Exception subclass used by the client
+    clientException = None
 
-    @if_gear_configured
-    def setUp(self):
-        pass
+    def make_client(self):
+        """
+        Create a client.
+
+        :return: A ``IGearClient`` provider.
+        """
+        raise NotImplementedError("Implement in subclasses")
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
@@ -61,7 +71,7 @@ class GearClientTests(TestCase):
         :return: ``Deferred`` that fires with the ``GearClient`` when the unit
             reaches the expected state.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         d = client.add(
             unit_name=unit_name,
             image_name=image_name,
@@ -100,7 +110,7 @@ class GearClientTests(TestCase):
         """``GearClient.add`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
@@ -108,46 +118,7 @@ class GearClientTests(TestCase):
         # Illegal container name should make gear complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
-        return self.assertFailure(d, GearError)
-
-    def test_remove_error(self):
-        """``GearClient.remove`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
-        """
-        client = GearClient("127.0.0.1")
-        # Illegal container name should make gear complain when we try to
-        # remove it:
-        d = client.remove(u"!!##!!")
-        return self.assertFailure(d, GearError)
-
-    def test_stopped_is_listed(self):
-        """
-        ``GearClient.list()`` includes stopped units.
-
-        In certain old versions of geard the API was such that you had to
-        explicitly request stopped units to be listed, so we want to make
-        sure this keeps working.
-        """
-        name = random_name()
-        d = self.start_container(name)
-
-        def started(client):
-            self.addCleanup(client.remove, name)
-
-            # Stop the unit, an operation that is not exposed directly by
-            # our current API:
-            stopped = client._container_request(
-                b"PUT", name, operation=b"stopped")
-            stopped.addCallback(client._ensure_ok)
-            stopped.addCallback(lambda _: client)
-            return stopped
-        d.addCallback(started)
-
-        def stopped(client):
-            return wait_for_unit_state(
-                client, name, (u"inactive", u"deactivating", u"failed"))
-        d.addCallback(stopped)
-        return d
+        return self.assertFailure(d, self.clientException)
 
     def test_dead_is_listed(self):
         """
@@ -188,12 +159,12 @@ class GearClientTests(TestCase):
 
             def check_error(failure):
                 """
-                Catch ConnectionRefused errors and return False so that
-                loop_until repeats the request.
+                Catch ConnectionRefused errors and response timeouts and return
+                False so that loop_until repeats the request.
 
                 Other error conditions will be passed down the errback chain.
                 """
-                failure.trap(ConnectionRefusedError)
+                failure.trap(ConnectionRefusedError, ResponseNeverReceived)
                 return False
             response.addErrback(check_error)
             return response
@@ -232,6 +203,107 @@ class GearClientTests(TestCase):
         d.addCallback(started)
         return d
 
+    def build_slow_shutdown_image(self):
+        """
+        Create a Docker image that takes a while to shut down.
+
+        This should really use Python instead of shell:
+        https://github.com/ClusterHQ/flocker/issues/719
+
+        :return: The name of created Docker image.
+        """
+        path = FilePath(self.mktemp())
+        path.makedirs()
+        path.child(b"Dockerfile.in").setContent("""\
+FROM busybox
+CMD sh -c "trap \"\" 2; sleep 3"
+""")
+        image = DockerImageBuilder(test=self, source_dir=path)
+        return image.build()
+
+    @_if_root
+    def test_add_with_environment(self):
+        """
+        ``GearClient.add`` accepts an environment object whose ID and variables
+        are used when starting a docker image.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        unit_name = random_name()
+        expected_environment_id = random_name()
+        expected_variables = frozenset({
+            'key1': 'value1',
+            'key2': 'value2',
+        }.items())
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            environment=GearEnvironment(
+                id=expected_environment_id, variables=expected_variables),
+        )
+        d.addCallback(
+            lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
+                                             env=os.environ,
+                                             # Capturing stderr makes
+                                             # debugging easier:
+                                             errortoo=True)
+        )
+        d.addCallback(
+            assertContainsAll,
+            test_case=self,
+            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
+        )
+        return d
+
+
+class GearClientTests(TestCase, GearClientTestsMixin):
+    """Implementation-specific tests for ``GearClient``."""
+
+    @if_gear_configured
+    def setUp(self):
+        pass
+
+    clientException = GearError
+
+    def make_client(self):
+        return GearClient("127.0.0.1")
+
+    def test_stopped_is_listed(self):
+        """
+        ``GearClient.list()`` includes stopped units.
+
+        In certain old versions of geard the API was such that you had to
+        explicitly request stopped units to be listed, so we want to make
+        sure this keeps working.
+        """
+        name = random_name()
+        d = self.start_container(name)
+
+        def started(client):
+            self.addCleanup(client.remove, name)
+
+            # Stop the unit, an operation that is not exposed directly by
+            # our current API:
+            stopped = client._container_request(
+                b"PUT", name, operation=b"stopped")
+            stopped.addCallback(client._ensure_ok)
+            stopped.addCallback(lambda _: client)
+            return stopped
+        d.addCallback(started)
+
+        def stopped(client):
+            return wait_for_unit_state(
+                client, name, (u"inactive", u"deactivating", u"failed"))
+        d.addCallback(stopped)
+        return d
+
+    # Links feature in geard is not used by Flocker, as it turns out.
     def test_add_with_links(self):
         """
         ``GearClient.add`` accepts a links argument which sets up links between
@@ -281,21 +353,8 @@ class GearClientTests(TestCase):
 
         return d
 
-    def build_slow_shutdown_image(self):
-        """
-        Create a Docker image that takes a while to shut down.
-
-        :return: The name of created Docker image.
-        """
-        path = FilePath(self.mktemp())
-        path.makedirs()
-        path.child(b"Dockerfile.in").setContent("""\
-FROM busybox
-CMD sh -c "trap \"\" 2; sleep 3"
-""")
-        image = DockerImageBuilder(test=self, source_dir=path)
-        return image.build()
-
+    # Covered by IGearClientTests.test_removed_does_not_exist for
+    # DockerClient.
     def test_slow_removed_unit_does_not_exist(self):
         """
         ``remove()`` only fires once the Docker container has shut down.
@@ -315,42 +374,14 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(removed)
         return d
 
-    @_if_root
-    def test_add_with_environment(self):
+    # Necessary for DockerClient, but I can't figure out how to make it
+    # work.
+    def test_remove_error(self):
+        """``GearClient.remove`` returns ``Deferred`` that errbacks with
+        ``GearError`` if response code is not a success response code.
         """
-        ``GearClient.add`` accepts an environment object whose ID and variables
-        are used when starting a docker image.
-        """
-        docker_dir = FilePath(self.mktemp())
-        docker_dir.makedirs()
-        docker_dir.child(b"Dockerfile").setContent(
-            b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
-        )
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
-        unit_name = random_name()
-        expected_environment_id = random_name()
-        expected_variables = frozenset({
-            'key1': 'value1',
-            'key2': 'value2',
-        }.items())
-        d = self.start_container(
-            unit_name=unit_name,
-            image_name=image_name,
-            environment=GearEnvironment(
-                id=expected_environment_id, variables=expected_variables),
-        )
-        d.addCallback(
-            # The ``gear status`` command prints to stderr which ordinarily
-            # would cause getProcessOutput to errback. ``errortoo`` turns off
-            # that behaviour.
-            lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
-                                             errortoo=True)
-        )
-        d.addCallback(
-            assertContainsAll,
-            test_case=self,
-            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
-        )
-        return d
+        client = self.make_client()
+        # Illegal container name should make gear complain when we try to
+        # remove it:
+        d = client.remove(u"!!##!!")
+        return self.assertFailure(d, self.clientException)
