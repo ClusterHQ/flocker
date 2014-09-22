@@ -113,7 +113,7 @@ Here's an example of a simple but complete configuration defining one applicatio
         "mountpoint": "/var/mysql/data"
 
 
-Fig Compatible Application Configuration
+Fig-compatible Application Configuration
 ----------------------------------------
 
 As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s configuration syntax to define applications.
@@ -125,11 +125,11 @@ The parameters currently supported to define an application in Fig syntax are:
   This is the name of the Docker image which will be used to start the container which will run the application.
   Optionally, this may include a tag using the ``<name>:<tag>`` syntax.
 
-  For example, an application which is meant to use version 1.0 of ClusterHQ's ``flocker-dev`` Docker image is configured like this:
+  For example, in an application which is meant to use version 5.6 of ``MySQL``, the Docker image is configured like this:
 
   .. code-block:: yaml
 
-     image: clusterhq/flocker-dev:v1.0
+     image: mysql:5.6
      
 - ``environment``
 
@@ -219,20 +219,8 @@ Here's a complete example of a Fig compatible application configuration for Floc
 
 .. note::
 
-   The following Fig configuration directives are not supported by Flocker at this time.
+   All other Fig configuration directives are not supported by Flocker at this time.
    
-- ``command``
-- ``dns``
-- ``domainname``
-- ``entrypoint``
-- ``expose``
-- ``hostname``
-- ``mem_limit``
-- ``net``
-- ``privileged``
-- ``user``
-- ``volumes_from``
-- ``working_dir``
 
 Deployment Configuration
 ------------------------
