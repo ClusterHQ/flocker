@@ -12,7 +12,7 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
     ConfigurationError, Configuration, configuration_to_yaml,
-    current_from_configuration,
+    current_from_configuration, FigConfiguration,
     )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -42,8 +42,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'postgres':
                 {'image': 'sample/postgres'}
         }
-        parser = Configuration()
-        self.assertTrue(parser._is_fig_configuration(config))
+        parser = FigConfiguration(config)
+        self.assertTrue(parser._is_valid_format())
 
     def test_valid_fig_config_detected_on_build(self):
         """
@@ -64,34 +64,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'postgres':
                 {'build': '.'}
         }
-        parser = Configuration()
-        self.assertTrue(parser._is_fig_configuration(config))
-
-    def test_fig_config_parses_as_fig(self):
-        """
-        ``Configuration._applications_from_configuration`` identifies a fig
-        compatible configuration and calls
-        ``Configuration._applications_from_fig_configuration`` to parse it.
-        """
-        config = {
-            'wordpress': {
-                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                'volumes': ['/var/www/wordpress'],
-                'image': 'sample/wordpress',
-                'ports': ['8080:80'],
-                'links': ['mysql:db'],
-            },
-            'mysql': {
-                'image': 'sample/mysql',
-                'ports': ['3306:3306', '3307:3307'],
-            }
-        }
-        parser = Configuration()
-        self.patch(parser,
-                   "_applications_from_fig_configuration",
-                   lambda config: True)
-        called_fig_parser = parser._applications_from_configuration(config)
-        self.assertTrue(called_fig_parser)
+        parser = FigConfiguration(config)
+        self.assertTrue(parser._is_valid_format())
 
     def test_dict_of_applications_from_fig(self):
         """
@@ -139,8 +113,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=None),
         }
-        parser = Configuration()
-        applications = parser._applications_from_fig_configuration(config)
+        parser = FigConfiguration(config)
+        applications = parser.applications()
         self.assertEqual(expected_applications, applications)
 
     def test_invalid_fig_config_image_and_build(self):
@@ -152,10 +126,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'postgres':
                 {'build': '.', 'image': 'sample/postgres'}
         }
-        parser = Configuration()
         exception = self.assertRaises(
             ConfigurationError,
-            parser._is_fig_configuration,
+            FigConfiguration,
             config
         )
         error_message = (
@@ -179,11 +152,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'entrypoint': '/entry.sh',
                 }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -206,11 +178,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'entrypoint': '/entry.sh',
                 }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -224,10 +195,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` is raised.
         """
         config = ['wordpress', {"image": "sample/wordpress"}]
-        parser = Configuration()
         exception = self.assertRaises(
             ConfigurationError,
-            parser._is_fig_configuration,
+            FigConfiguration,
             config
         )
         error_message = ("Application configuration must be "
@@ -246,11 +216,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             },
             'wordpress': str("a string")
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -279,11 +248,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/www/wordpress']
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -309,11 +277,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'spam': 'eggs',
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -334,11 +301,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'ports': str('8080:80'),
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -361,11 +327,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'ports': ['8080,80'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -387,11 +352,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'ports': ['foo:bar'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'wordpress' has a config error. "
@@ -414,11 +378,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'links': str('wordpress'),
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -443,11 +406,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'image': 'sample/wordpress',
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -470,11 +432,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'links': ['wordpress'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -497,11 +458,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'links': ['wordpress'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -523,11 +483,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/lib/postgres'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -550,11 +509,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/lib/postgres'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -576,11 +534,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/lib/postgres', '/var/www/data'],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -601,11 +558,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': str('/var/lib/postgres'),
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
@@ -626,11 +582,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'volumes': ['/var/lib/postgres', 1000],
             }
         }
-        parser = Configuration()
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            parser._applications_from_fig_configuration,
-            config
+            parser.applications,
         )
         error_message = (
             "Application 'postgres' has a config error. "
