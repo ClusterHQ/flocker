@@ -28,7 +28,7 @@ from ..filesystems.interfaces import (
     FilesystemAlreadyExists,
     )
 from ..snapshots import SnapshotName
-from ..service import Volume
+from ..service import Volume, VolumeName
 
 
 def make_ifilesystemsnapshots_tests(fixture):
@@ -95,6 +95,11 @@ class CopyVolumes(object):
     """
 
 
+# VolumeNames for tests:
+MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+
+
 def create_and_copy(test, fixture):
     """
     Create a volume's filesystem on one pool, copy to another pool.
@@ -109,12 +114,12 @@ def create_and_copy(test, fixture):
     """
     pool = fixture(test)
     service = service_for_pool(test, pool)
-    volume = service.get(u"myvolumename")
+    volume = service.get(MY_VOLUME)
     pool2 = fixture(test)
     service2 = service_for_pool(test, pool2)
     volume2 = Volume(
         uuid=service.uuid,
-        name=u"myvolumename",
+        name=MY_VOLUME,
         service=service2,
     )
 
@@ -200,7 +205,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -215,8 +220,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
-            volume2 = service.get(u"myvolumename2")
+            volume = service.get(MY_VOLUME)
+            volume2 = service.get(MY_VOLUME2)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -235,8 +240,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
-            volume2 = service.get(u"myvolumename2")
+            volume = service.get(MY_VOLUME)
+            volume2 = service.get(MY_VOLUME2)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -255,7 +260,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -271,7 +276,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -285,8 +290,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
-            volume2 = service.get(u"myvolumename2")
+            volume = service.get(MY_VOLUME)
+            volume2 = service.get(MY_VOLUME2)
             d = gatherResults([pool.create(volume), pool.create(volume2)])
 
             def created_filesystems(filesystems):
@@ -302,7 +307,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -318,7 +323,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -391,7 +396,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -407,7 +412,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -423,7 +428,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -443,7 +448,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"myvolumename")
+            volume = service.get(MY_VOLUME)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
@@ -517,8 +522,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"name")
-            volume2 = service.get(u"name2")
+            volume = service.get(MY_VOLUME)
+            volume2 = service.get(MY_VOLUME2)
             creating = gatherResults([
                 pool.create(volume), pool.create(volume2)])
 
@@ -539,7 +544,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"spaced name")
+            volume = service.get(
+                VolumeName(namespace=u"ns", id=u"spaced name"))
             creating = pool.create(volume)
 
             def created(ignored):
@@ -560,7 +566,7 @@ def make_istoragepool_tests(fixture):
                 https://github.com/ClusterHQ/flocker/issues/78
             """
             pool = fixture(self)
-            volume_name = u"myvolumename"
+            volume_name = MY_VOLUME
             service = service_for_pool(self, pool)
             uuid = service.uuid
             volume = service.get(volume_name)
@@ -568,7 +574,8 @@ def make_istoragepool_tests(fixture):
 
             def createdFilesystem(filesystem):
                 name = filesystem.get_path().basename()
-                expected = u"{uuid}.{name}".format(uuid=uuid, name=volume_name)
+                expected = u"{uuid}.{name}".format(
+                    uuid=uuid, name=volume_name.to_bytes())
                 self.assertEqual(name, expected)
             d.addCallback(createdFilesystem)
             return d
@@ -580,8 +587,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"volume")
-            new_volume = Volume(uuid=u"new-uuid", name=u"volume",
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -605,8 +612,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"volume")
-            new_volume = Volume(uuid=u"new-uuid", name=u"volume",
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -631,8 +638,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"volume")
-            new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -659,8 +666,8 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"volume")
-            new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
@@ -678,7 +685,7 @@ def make_istoragepool_tests(fixture):
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(u"snapshot-enumeration")
+            volume = service.get(MY_VOLUME)
             creating = pool.create(volume)
 
             def created(filesystem):
