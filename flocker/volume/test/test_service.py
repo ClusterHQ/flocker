@@ -21,7 +21,7 @@ from twisted.python.filepath import FilePath, Permissions
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 
 from ..service import (
-    VolumeService, CreateConfigurationError, Volume,
+    VolumeService, CreateConfigurationError, Volume, VolumeName,
     WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
     )
 from ..script import VolumeOptions
@@ -31,7 +31,66 @@ from ..filesystems.zfs import StoragePool
 from .._ipc import RemoteVolumeManager, LocalVolumeManager
 from ..testtools import create_volume_service
 from ...common import FakeNode
-from ...testtools import skip_on_broken_permissions, attempt_effective_uid
+from ...testtools import (
+    skip_on_broken_permissions, attempt_effective_uid, make_with_init_tests,
+    )
+
+
+class VolumeNameInitializationTests(make_with_init_tests(
+        VolumeName, {"namespace": u"x", "id": u"y"})):
+    """
+    Tests for :class:`VolumeName` initialization.
+    """
+
+
+class VolumeNameTests(TestCase):
+    """
+    Tests for :class:`VolumeName`.
+    """
+    def test_equality(self):
+        """
+        ``VolumeName`` with same arguments are equal.
+        """
+        name1 = VolumeName(namespace=u"blah", id="bloo")
+        name2 = VolumeName(namespace=u"blah", id="bloo")
+        self.assertEqual([name1 == name2, name1 != name2],
+                         [True, False])
+
+    def test_inequality(self):
+        """
+        ``VolumeName`` with differnt arguments are unequal.
+        """
+        name1 = VolumeName(namespace=u"blah", id="bloo")
+        name2 = VolumeName(namespace=u"blah", id="bloo2")
+        name3 = VolumeName(namespace=u"blah2", id="bloo")
+        self.assertEqual([name1 == name2, name1 == name3, name1 != name2,
+                          name1 != name3], [False, False, True, True])
+
+    def test_to_bytes(self):
+        """
+        ``VolumeName.to_bytes`` converts the volume name to bytes.
+        """
+        name = VolumeName(namespace=u"blah", id="bloo")
+        self.assertEqual(name.to_bytes(), b"blah.bloo")
+
+    def test_from_bytes(self):
+        """
+        ``VolumeName.from_bytes`` converts bytes back into a ``VolumeName``.
+        """
+        self.assertEqual(VolumeName.from_bytes(b"lah.loo"),
+                         VolumeName(namespace=u"lah", id="loo"))
+
+    def test_no_period_in_id(self):
+        """
+        ``VolumeName`` identifiers can't have a period.
+        """
+        self.assertRaises(ValueError, VolumeName, namespace=u"x", id=u".y")
+
+    def test_no_period_in_namespace(self):
+        """
+        ``VolumeName`` namespaces can't have a period.
+        """
+        self.assertRaises(ValueError, VolumeName, namespace=u".x", id=u"y")
 
 
 class VolumeServiceStartupTests(TestCase):

@@ -42,6 +42,52 @@ class CreateConfigurationError(Exception):
     """Create the configuration file failed."""
 
 
+
+@attributes(["namespace", "id"])
+class VolumeName(object):
+    """
+    The volume and its copies' name within the cluster.
+
+    :ivar unicode namespace: The namespace of the volume,
+        e.g. ``u"default"`` is the default namespace.
+
+    :ivar unicode id: The id of the volume,
+        e.g. ``u"postgres-data"``. Since volume ids must match Docker
+        container names, the characters used should be limited to those
+        that Docker allows for container names.
+    """
+    def __init__(self):
+        if u"." in self.namespace or u"." in self.id:
+            raise ValueError(
+                "Periods not allowed in namespaces or identifiers: %s"
+                % (self,))
+
+    @classmethod
+    def from_bytes(cls, name):
+        """
+        Create ``VolumeName`` from its byte representation.
+
+        :param bytes name: The name, output of ``VolumeName.to_bytes``
+            call in past.
+
+        :return: Corresponding ``VolumeName``.
+        """
+        namespace, identifier = name.split(b'.', 1)
+        return VolumeName(namespace=namespace.decode("ascii"),
+                          id=identifier.decode("ascii"))
+
+
+    def to_bytes(self):
+        """
+        Convert the name to ``bytes``.
+
+        :return: ``VolumeName`` encoded as bytes that can be read by
+            ``VolumeName.from_bytes``.
+        """
+        return b"%s.%s" % (self.namespace.encode("ascii"),
+                           self.id.encode("ascii"))
+
+
 class VolumeService(Service):
     """
     Main service for volume management.
