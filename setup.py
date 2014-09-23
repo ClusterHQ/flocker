@@ -105,7 +105,7 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.4.0"
+        #"docker-py == 0.4.0"
         ],
 
     extras_require={
