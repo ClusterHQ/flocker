@@ -38,7 +38,7 @@ Current Functionality
 Which operating systems are supported?
 **************************************
 
-F manages Docker applications and Docker runs on Linux, so Flocker runs on Linux.
+Flocker manages Docker applications and Docker runs on Linux, so Flocker runs on Linux.
 However, you don't need to be running Linux on your development machine in order to manage Docker containers with the ``flocker-cli``.
 See :ref:`installing-flocker-cli` for installation instructions for various operating systems.
 
