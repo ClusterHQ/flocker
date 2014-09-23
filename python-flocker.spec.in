@@ -30,7 +30,7 @@ BuildRequires: openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
-Requires:       python
+Requires:       python-setuptools
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       pytz
 Requires:       python-characteristic = 0.1.0
@@ -47,7 +47,7 @@ Requires:       python-flocker = %{version}-%{release}
 %package -n flocker-node
 Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
-Requires:       python-docker = 0.4.0
+Requires:       python-docker-py = 0.4.0
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
 Requires:       geard
