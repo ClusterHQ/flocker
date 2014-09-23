@@ -43,12 +43,12 @@ Volumes are created with three parameters:
 
 * The UUID of the volume manager that owns the volume.
   The creating volume manager's UUID (see above) is used to supply a value for this parameter.
-* The logical name; this must be the same as the name of the container it will be mounted in.
-  For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
+* The logical name, composed of a namespace and an identifier; this must be the same as the name of the container it will be mounted in.
+  For example, for a container in namespace ``"default"`` named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created in the same namespace.
 * A mount path, indicating where within a container the volume will be mounted.
   For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
-The ZFS dataset name is a combination of the UUID and the logical name, e.g. ``1234.myapp-mongodb``.
+The ZFS dataset name is a combination of the UUID and the logical name (namespace + identifier), e.g. ``1234.default.myapp-mongodb``.
 
 
 Docker Integration
