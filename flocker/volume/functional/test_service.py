@@ -109,7 +109,6 @@ class VolumeTests(TestCase):
         d = service.create(VolumeName(namespace=random_name(),
                                       id=random_name()))
 
-
         def got_volume(volume):
             a_file = volume.get_filesystem().get_path().child(b"somefile.txt")
             a_file.setContent(b"I EXIST!")
@@ -141,7 +140,6 @@ class VolumeTests(TestCase):
         d = service.create(VolumeName(namespace=random_name(),
                                       id=random_name()))
 
-
         def got_volume(volume):
             exposed = volume.expose_to_docker(FilePath(b"/my/path"))
             exposed.addCallback(lambda _: volume.remove_from_docker())
@@ -169,7 +167,6 @@ class VolumeTests(TestCase):
 
         d = service.create(VolumeName(namespace=random_name(),
                                       id=random_name()))
-
 
         d.addCallback(lambda volume: volume.remove_from_docker())
         d.addCallback(self.assertEqual, None)

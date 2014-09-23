@@ -544,7 +544,8 @@ class VolumeTests(TestCase):
         """Volumes are unequal if they have different names."""
         service = object()
         v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
-        v2 = Volume(uuid=u"123", name=VolumeName(namespace=u"mys", id=u"456zz"),
+        v2 = Volume(uuid=u"123",
+                    name=VolumeName(namespace=u"mys", id=u"456zz"),
                     service=service)
         self.assertTrue(v1 != v2)
         self.assertFalse(v1 == v2)

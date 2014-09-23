@@ -42,7 +42,6 @@ class CreateConfigurationError(Exception):
     """Create the configuration file failed."""
 
 
-
 @attributes(["namespace", "id"])
 class VolumeName(object):
     """
@@ -75,7 +74,6 @@ class VolumeName(object):
         namespace, identifier = name.split(b'.', 1)
         return VolumeName(namespace=namespace.decode("ascii"),
                           id=identifier.decode("ascii"))
-
 
     def to_bytes(self):
         """
@@ -203,10 +201,11 @@ class VolumeService(Service):
                     name = VolumeName.from_bytes(name)
                     uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on `.` and get three parts then it's not
-                    # a filesystem Flocker is managing.  Likewise if we can't
-                    # interpret the bit before the `.` as a UUID.  Perhaps a
-                    # user created it, who knows.  Just ignore it.
+                    # If we can't split on `.` and get three parts then
+                    # it's not a filesystem Flocker is managing.  Likewise
+                    # if we can't interpret the bit before the `.` as a
+                    # UUID.  Perhaps a user created it, who knows.  Just
+                    # ignore it.
                     continue
 
                 # Probably shouldn't yield this volume if the uuid doesn't
