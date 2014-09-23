@@ -199,7 +199,7 @@ You can do this by logging into each node and running the ``flocker-reportstate`
 
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 flocker-reportstate --version
 
-Only proceed if you find that you are running an older version of Flocker than "|version|".
+Only proceed if you find that you are running an older version of Flocker than |version|.
 
 If you find that you *are* running an older version, you now need to rebuild the tutorial environment.
 
@@ -221,6 +221,14 @@ If you have the original ``Vagrantfile``, change to its parent directory and run
    ==> node1: Destroying VM and associated drives...
    ==> node1: Running cleanup tasks for 'shell' provisioner...
    alice@mercury:~/flocker-tutorial$
+
+Next delete the cached SSH host keys for the virtual machines as they will change when new VMs are created.
+Failing to do so will cause SSH to think there is a security problem when you connect to the recreated VMs.
+
+.. code-block:: console
+
+   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.250
+   alice@mercury:~/flocker-tutorial$ ssh-keygen -f "$HOME/.ssh/known_hosts" -R 172.16.255.251
 
 Delete the original ``Vagrantfile`` and then download the latest ``Vagrantfile`` and run ``vagrant up``.
 
