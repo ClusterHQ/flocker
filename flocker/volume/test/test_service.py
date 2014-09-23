@@ -184,6 +184,11 @@ class VolumeServiceStartupTests(TestCase):
         self.assertEqual((running_before_start, pool.running), (False, True))
 
 
+# VolumeName for tests:
+MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+
+
 class VolumeServiceAPITests(TestCase):
     """Tests for the ``VolumeService`` API."""
 
@@ -192,17 +197,17 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        d = service.create(u"myvolume")
+        d = service.create(MY_VOLUME)
         self.assertEqual(
             self.successResultOf(d),
-            Volume(uuid=service.uuid, name=u"myvolume", service=service))
+            Volume(uuid=service.uuid, name=MY_VOLUME, service=service))
 
     def test_create_filesystem(self):
         """``create()`` creates the volume's filesystem."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
     @skip_on_broken_permissions
@@ -215,7 +220,7 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
@@ -225,8 +230,8 @@ class VolumeServiceAPITests(TestCase):
         service and with given name.
         """
         service = create_volume_service(self)
-        self.assertEqual(service.get(u"somevolume"),
-                         Volume(uuid=service.uuid, name=u"somevolume",
+        self.assertEqual(service.get(MY_VOLUME),
+                         Volume(uuid=service.uuid, name=MY_VOLUME,
                                 service=service))
 
     def test_push_different_uuid(self):
@@ -235,7 +240,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
 
-        volume = Volume(uuid=u"wronguuid", name=u"blah", service=service)
+        volume = Volume(uuid=u"wronguuid", name=MY_VOLUME, service=service)
         self.assertRaises(ValueError, service.push, volume,
                           RemoteVolumeManager(FakeNode()))
 
@@ -247,7 +252,7 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         filesystem = volume.get_filesystem()
         filesystem.get_path().child(b"foo").setContent(b"blah")
         with filesystem.reader() as reader:
@@ -286,7 +291,7 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         filesystem = volume.get_filesystem()
         filesystem.snapshot(b"stuff")
 
@@ -316,14 +321,15 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         filesystem = volume.get_filesystem()
 
         manager_uuid = unicode(uuid4())
+        new_name = VolumeName(namespace=u"myns", id=u"newvolume")
 
         with filesystem.reader() as reader:
-            service.receive(manager_uuid, u"newvolume", reader)
-        new_volume = Volume(uuid=manager_uuid, name=u"newvolume",
+            service.receive(manager_uuid, new_name, reader)
+        new_volume = Volume(uuid=manager_uuid, name=new_name,
                             service=service)
         d = service.enumerate()
 
@@ -340,16 +346,17 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
+        volume = self.successResultOf(service.create(MY_VOLUME))
         filesystem = volume.get_filesystem()
         filesystem.get_path().child(b"afile").setContent(b"lalala")
 
         manager_uuid = unicode(uuid4())
+        new_name = VolumeName(namespace=u"myns", id=u"newvolume")
 
         with filesystem.reader() as reader:
-            service.receive(manager_uuid, u"newvolume", reader)
+            service.receive(manager_uuid, new_name, reader)
 
-        new_volume = Volume(uuid=manager_uuid, name=u"newvolume",
+        new_volume = Volume(uuid=manager_uuid, name=new_name,
                             service=service)
         root = new_volume.get_filesystem().get_path()
         self.assertTrue(root.child(b"afile").getContent(), b"lalala")
@@ -367,7 +374,8 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        names = {u"somevolume", u"anotherone", u"lastone"}
+        names = set(VolumeName(namespace=u"ns", id=i)
+                    for i in (u"somevolume", u"anotherone", u"lastone"))
         expected = {
             self.successResultOf(service.create(name))
             for name in names}
@@ -378,16 +386,6 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual(
             set((volume.uuid, volume.name) for volume in expected),
             set((volume.uuid, volume.name) for volume in actual))
-
-    def test_enumerate_a_volume_with_period(self):
-        """``enumerate()`` returns a volume previously ``create()``ed when its
-        name includes a period."""
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        expected = self.successResultOf(service.create(u"some.volume"))
-        actual = self.successResultOf(service.enumerate())
-        self.assertEqual([expected], list(actual))
 
     def test_enumerate_skips_other_filesystems(self):
         """
@@ -404,7 +402,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
 
-        name = u"good volume name"
+        name = VolumeName(namespace=u"mynspaces", id=u"good volume name")
         self.successResultOf(service.create(name))
 
         volumes = list(self.successResultOf(service.enumerate()))
@@ -435,7 +433,7 @@ class VolumeServiceAPITests(TestCase):
         remotely-owned volume.
         """
         service = create_volume_service(self)
-        remote_volume = Volume(uuid=u"remote", name=u"blah",
+        remote_volume = Volume(uuid=u"remote", name=MY_VOLUME,
                                service=service)
 
         self.failureResultOf(service.handoff(remote_volume, None),
@@ -449,7 +447,7 @@ class VolumeServiceAPITests(TestCase):
         origin_service = create_volume_service(self)
         destination_service = create_volume_service(self)
 
-        created = origin_service.create(u"avolume")
+        created = origin_service.create(MY_VOLUME)
 
         def got_volume(volume):
             volume.get_filesystem().get_path().child(b"afile").setContent(
@@ -460,7 +458,7 @@ class VolumeServiceAPITests(TestCase):
 
         def handed_off(_):
             expected_volume = Volume(uuid=destination_service.uuid,
-                                     name=u"avolume",
+                                     name=MY_VOLUME,
                                      service=destination_service)
             root = expected_volume.get_filesystem().get_path()
             self.assertEqual(root.child(b"afile").getContent(), b"exists")
@@ -475,7 +473,7 @@ class VolumeServiceAPITests(TestCase):
         origin_service = create_volume_service(self)
         destination_service = create_volume_service(self)
 
-        created = origin_service.create(u"avolume")
+        created = origin_service.create(MY_VOLUME)
 
         def got_volume(volume):
             return origin_service.handoff(
@@ -485,7 +483,7 @@ class VolumeServiceAPITests(TestCase):
 
         def got_origin_volumes(volumes):
             expected_volume = Volume(uuid=destination_service.uuid,
-                                     name=u"avolume",
+                                     name=MY_VOLUME,
                                      service=origin_service)
             self.assertEqual(list(volumes), [expected_volume])
         created.addCallback(got_origin_volumes)
@@ -499,7 +497,7 @@ class VolumeServiceAPITests(TestCase):
         origin_service = create_volume_service(self)
         destination_service = create_volume_service(self)
 
-        created = origin_service.create(u"avolume")
+        created = origin_service.create(MY_VOLUME)
 
         def got_volume(volume):
             volume.get_filesystem().get_path().child(b"afile").setContent(
@@ -510,7 +508,7 @@ class VolumeServiceAPITests(TestCase):
 
         def handed_off(volumes):
             expected_volume = Volume(uuid=destination_service.uuid,
-                                     name=u"avolume",
+                                     name=MY_VOLUME,
                                      service=origin_service)
             root = expected_volume.get_filesystem().get_path()
             self.assertEqual(root.child(b"afile").getContent(), b"exists")
@@ -524,31 +522,32 @@ class VolumeTests(TestCase):
     def test_equality(self):
         """Volumes are equal if they have the same name, uuid and pool."""
         service = object()
-        v1 = Volume(uuid=u"123", name=u"456", service=service)
-        v2 = Volume(uuid=u"123", name=u"456", service=service)
+        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
+        v2 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
         self.assertTrue(v1 == v2)
         self.assertFalse(v1 != v2)
 
     def test_inequality_uuid(self):
         """Volumes are unequal if they have different uuids."""
         service = object()
-        v1 = Volume(uuid=u"123", name=u"456", service=service)
-        v2 = Volume(uuid=u"123zz", name=u"456", service=service)
+        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
+        v2 = Volume(uuid=u"123zz", name=MY_VOLUME, service=service)
         self.assertTrue(v1 != v2)
         self.assertFalse(v1 == v2)
 
     def test_inequality_name(self):
         """Volumes are unequal if they have different names."""
         service = object()
-        v1 = Volume(uuid=u"123", name=u"456", service=service)
-        v2 = Volume(uuid=u"123", name=u"456zz", service=service)
+        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
+        v2 = Volume(uuid=u"123", name=VolumeName(namespace=u"mys", id=u"456zz"),
+                    service=service)
         self.assertTrue(v1 != v2)
         self.assertFalse(v1 == v2)
 
     def test_inequality_pool(self):
         """Volumes are unequal if they have different pools."""
-        v1 = Volume(uuid=u"123", name=u"456", service=object())
-        v2 = Volume(uuid=u"123", name=u"456", service=object())
+        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=object())
+        v2 = Volume(uuid=u"123", name=MY_VOLUME, service=object())
         self.assertTrue(v1 != v2)
         self.assertFalse(v1 == v2)
 
@@ -556,7 +555,7 @@ class VolumeTests(TestCase):
         """``Volume.get_filesystem`` returns the filesystem for the volume."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, None)
-        volume = Volume(uuid=u"123", name=u"456", service=service)
+        volume = Volume(uuid=u"123", name=MY_VOLUME, service=service)
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
 
     def test_container_name(self):
@@ -566,8 +565,8 @@ class VolumeTests(TestCase):
         This ensures that geard will automatically mount it into a
         container whose name matches that of the volume.
         """
-        volume = Volume(uuid=u"123", name=u"456", service=object())
-        self.assertEqual(volume._container_name, b"456-data")
+        volume = Volume(uuid=u"123", name=MY_VOLUME, service=object())
+        self.assertEqual(volume._container_name, b"myns.myvolume-data")
 
     def test_is_locally_owned(self):
         """
@@ -575,8 +574,8 @@ class VolumeTests(TestCase):
         matches that of the local volume manager.
         """
         service = create_volume_service(self)
-        local = service.get(u"one")
-        remote = Volume(uuid=service.uuid + u"extra", name=u"xxx",
+        local = service.get(MY_VOLUME)
+        remote = Volume(uuid=service.uuid + u"extra", name=MY_VOLUME2,
                         service=service)
         self.assertEqual((local.locally_owned(), remote.locally_owned()),
                          (True, False))
@@ -601,16 +600,16 @@ class VolumeOwnerChangeTests(TestCase):
         ``Volume.change_owner`` returns a ``Deferred`` that fires with a new
         ``Volume`` with the new owner UUID and the same name.
         """
-        volume = self.successResultOf(self.service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
         new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         self.assertEqual({'uuid': new_volume.uuid, 'name': new_volume.name},
-                         {'uuid': self.other_uuid, 'name': u"myvolume"})
+                         {'uuid': self.other_uuid, 'name': MY_VOLUME})
 
     def test_filesystem(self):
         """
         The filesystem for the new ``Volume`` preserves data from the old one.
         """
-        volume = self.successResultOf(self.service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
         mount = volume.get_filesystem().get_path()
         mount.child(b'file').setContent(b'content')
         new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
@@ -622,7 +621,7 @@ class VolumeOwnerChangeTests(TestCase):
         The volumes returned from ``VolumeService.enumerate`` replace the old
         volume with the one returned by ``Volume.change_owner``.
         """
-        volume = self.successResultOf(self.service.create(u"myvolume"))
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
         new_volume = self.successResultOf(volume.change_owner(self.other_uuid))
         volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
@@ -649,8 +648,8 @@ class WaitForVolumeTests(TestCase):
         ``VolumeService.wait_for_volume`` has already fired with the
         corresponding ``Volume``.
         """
-        volume = self.successResultOf(self.service.create(u'volume'))
-        wait = self.service.wait_for_volume(u'volume')
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
+        wait = self.service.wait_for_volume(MY_VOLUME)
         self.assertEqual(self.successResultOf(wait), volume)
 
     def test_created_volume(self):
@@ -658,8 +657,8 @@ class WaitForVolumeTests(TestCase):
         The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires
         with the corresponding ``Volume`` after the volume has been created.
         """
-        wait = self.service.wait_for_volume(u'volume')
-        volume = self.successResultOf(self.service.create(u'volume'))
+        wait = self.service.wait_for_volume(MY_VOLUME)
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
         self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
         self.assertEqual(self.successResultOf(wait), volume)
 
@@ -669,9 +668,9 @@ class WaitForVolumeTests(TestCase):
         with the corresponding ``Volume`` after the volume has been created,
         even if the volume is unavailable after the first iteration.
         """
-        wait = self.service.wait_for_volume(u'volume')
+        wait = self.service.wait_for_volume(MY_VOLUME)
         self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
-        volume = self.successResultOf(self.service.create(u'volume'))
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
         self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
         self.assertEqual(self.successResultOf(wait), volume)
 
@@ -680,7 +679,7 @@ class WaitForVolumeTests(TestCase):
         If the volume doesn't exist, the ``Deferred`` returned by
         ``VolumeService.wait_for_volume`` has not fired.
         """
-        self.assertNoResult(self.service.wait_for_volume(u'volume'))
+        self.assertNoResult(self.service.wait_for_volume(MY_VOLUME))
 
     def test_remote_volume(self):
         """
@@ -688,11 +687,11 @@ class WaitForVolumeTests(TestCase):
         fire when a remote volume with the same name is received.
         """
         other_uuid = unicode(uuid4())
-        remote_volume = Volume(uuid=other_uuid, name=u"volume",
+        remote_volume = Volume(uuid=other_uuid, name=MY_VOLUME,
                                service=self.service)
         self.successResultOf(self.pool.create(remote_volume))
 
-        self.assertNoResult(self.service.wait_for_volume(u'volume'))
+        self.assertNoResult(self.service.wait_for_volume(MY_VOLUME))
 
 
 class VolumeScriptCreateVolumeServiceTests(SynchronousTestCase):

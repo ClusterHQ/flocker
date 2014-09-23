@@ -127,7 +127,7 @@ class VolumeService(Service):
     def create(self, name):
         """Create a new volume.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
@@ -149,7 +149,7 @@ class VolumeService(Service):
         Whether or not this volume actually exists is not checked in any
         way.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :param uuid: Either ``None``, in which case the local UUID will be
             used, or a UUID to use for the volume.
@@ -164,7 +164,7 @@ class VolumeService(Service):
 
         Polls the storage pool for the specified volume to appear.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
@@ -200,9 +200,10 @@ class VolumeService(Service):
                 basename = filesystem.get_path().basename()
                 try:
                     uuid, name = basename.split(b".", 1)
+                    name = VolumeName.from_bytes(name)
                     uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on `.` and get two parts then it's not
+                    # If we can't split on `.` and get three parts then it's not
                     # a filesystem Flocker is managing.  Likewise if we can't
                     # interpret the bit before the `.` as a UUID.  Perhaps a
                     # user created it, who knows.  Just ignore it.
@@ -212,7 +213,7 @@ class VolumeService(Service):
                 # match this service's uuid.
                 yield Volume(
                     uuid=unicode(uuid),
-                    name=name.decode('utf8'),
+                    name=name,
                     service=self)
         enumerating.addCallback(enumerated)
         return enumerating
@@ -258,7 +259,7 @@ class VolumeService(Service):
         this service's) can be received.
 
         :param unicode volume_uuid: The volume's UUID.
-        :param unicode volume_name: The volume's name.
+        :param VolumeName volume_name: The volume's name.
         :param input_file: A file-like object, typically ``sys.stdin``, from
             which to read the data.
 
@@ -282,7 +283,7 @@ class VolumeService(Service):
         this service's) can be acquired.
 
         :param unicode volume_uuid: The volume owner's UUID.
-        :param unicode volume_name: The volume's name.
+        :param VolumeName volume_name: The volume's name.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             ``ValueError`` If the uuid of the volume matches our own.
@@ -347,11 +348,16 @@ class Volume(object):
 
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
-    :ivar unicode name: The name of the volume. Since volume names must
+    :ivar VolumeName name: The name of the volume. Since volume names must
         match Docker container names, the characters used should be limited to
         those that Docker allows for container names.
     :ivar VolumeService service: The service that stores this volume.
     """
+    def __init__(self):
+        # XXX Temporary measure to make sure we capture all cases in the
+        # refactoring.
+        assert isinstance(self.name, VolumeName)
+
     def locally_owned(self):
         """
         Return whether this volume is locally owned.
@@ -392,7 +398,7 @@ class Volume(object):
 
         :return: Container name as ``bytes``.
         """
-        return b"%s-data" % (self.name.encode("ascii"),)
+        return b"%s-data" % (self.name.to_bytes(),)
 
     def expose_to_docker(self, mount_path):
         """
