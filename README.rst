@@ -7,7 +7,7 @@ Flocker |coveralls|
   :target: https://coveralls.io/r/ClusterHQ/flocker
   :alt: 'Buildbot build coverage status'
 
-Flocker is a data volume manager and multi-host Docker cluster management tool for Linux.
+Flocker is a data volume manager and multi-host Docker cluster management tool.
 With it you can control your data using the same tools you use for your stateless applications.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 
