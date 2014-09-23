@@ -70,6 +70,7 @@ class FigConfiguration(object):
         self._application_names = self._application_configuration.keys()
         self._applications = {}
         self._application_links = {}
+        self._validated = False
         self._possible_identifiers = {'image', 'build'}
         self._unsupported_keys = {
             "working_dir", "entrypoint", "user", "hostname",
@@ -80,24 +81,22 @@ class FigConfiguration(object):
             "image", "environment", "ports",
             "links", "volumes"
         }
-        if not self._is_valid_format():
-            raise ConfigurationError(
-                "Supplied configuration is not a valid fig format."
-            )
 
     def applications(self):
         """
         Returns the ``Application`` instances parsed from the supplied
         configuration.
 
+        This method should only be called once, in that calling it
+        multiple times will re-parse an already parsed config.
+
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        if not self._applications:
-            self._parse()
+        self._parse()
         return self._applications
 
-    def _is_valid_format(self):
+    def is_valid_format(self):
         """
         Detect if the supplied application configuration is in fig-compatible
         format.
@@ -114,20 +113,20 @@ class FigConfiguration(object):
         :returns: A ``bool`` indicating ``True`` for a fig-style configuration
             or ``False`` if fig-style is not detected.
         """
-        fig = False
+        self._validated = False
         for application_name, config in (
                 self._application_configuration.items()):
             if isinstance(config, dict):
                 required_keys = self._count_identifier_keys(config)
                 if required_keys == 1:
-                    fig = True
+                    self._validated = True
                 elif required_keys > 1:
                     raise ConfigurationError(
                         ("Application '{app_name}' has a config error. "
                          "Must specify either 'build' or 'image'; found both.")
                         .format(app_name=application_name)
                     )
-        return fig
+        return self._validated
 
     def _count_identifier_keys(self, config):
         """
@@ -385,6 +384,11 @@ class FigConfiguration(object):
             instances.
 
         """
+        if not self._validated:
+            if not self.is_valid_format():
+                raise ConfigurationError(
+                    "Supplied configuration does not appear to be Fig format."
+                )
         for application_name, config in (
             self._application_configuration.items()
         ):
@@ -713,10 +717,10 @@ class Configuration(object):
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        try:
-            fig = FigConfiguration(application_configuration)
+        fig = FigConfiguration(application_configuration)
+        if fig.is_valid_format():
             return fig.applications()
-        except ConfigurationError:
+        else:
             return self._applications_from_flocker_configuration(
                 application_configuration)
 

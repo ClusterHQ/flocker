@@ -43,7 +43,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         parser = FigConfiguration(config)
-        self.assertTrue(parser._is_valid_format())
+        self.assertTrue(parser.is_valid_format())
 
     def test_valid_fig_config_detected_on_build(self):
         """
@@ -65,7 +65,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 {'build': '.'}
         }
         parser = FigConfiguration(config)
-        self.assertTrue(parser._is_valid_format())
+        self.assertTrue(parser.is_valid_format())
 
     def test_dict_of_applications_from_fig(self):
         """
@@ -113,9 +113,34 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=None),
         }
-        parser = FigConfiguration(config)
-        applications = parser.applications()
+        parser = Configuration()
+        applications = parser._applications_from_configuration(config)
         self.assertEqual(expected_applications, applications)
+
+    def test_invalid_fig_config_on_parse(self):
+        """
+        ``FigConfiguration._parse`` raises a ``ConfigurationError`` if the
+        supplied configuration has not been pre-validated and subsequently
+        fails to validate as Fig format.
+        """
+        config = {
+            'version': 1,
+            'applications': {
+                'postgres': {
+                    'image': 'sample/postgres',
+                },
+            },
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._parse
+        )
+        error_message = (
+            "Supplied configuration does not "
+            "appear to be Fig format."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_invalid_fig_config_image_and_build(self):
         """
@@ -126,10 +151,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'postgres':
                 {'build': '.', 'image': 'sample/postgres'}
         }
+        parser = FigConfiguration(config)
         exception = self.assertRaises(
             ConfigurationError,
-            FigConfiguration,
-            config
+            parser.is_valid_format
         )
         error_message = (
             "Application 'postgres' has a config error. "
