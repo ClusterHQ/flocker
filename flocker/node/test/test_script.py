@@ -346,11 +346,12 @@ class ReportStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ReportStateScript.main``.
     """
-    def test_yaml_callback(self):
+    def test_yaml_output(self):
         """
-        ``ReportStateScript.main`` returns a deferred which writes out the
-        YAML representation of all the applications (running or not) from
-        ``Deployer.discover_node_configuration``
+        ``ReportStateScript.main`` returns a deferred which fires after the
+        YAML representation of the node state, including applications (running
+        or not) and used TCP port numbers from
+        ``Deployer.discover_node_configuration``, have been written to stdout.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
         unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')

@@ -6,12 +6,10 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-from yaml import safe_load
-
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
-    ConfigurationError, Configuration, configuration_to_yaml,
+    ConfigurationError, Configuration, marshal_configuration,
     current_from_configuration,
     )
 from .._model import (
@@ -982,9 +980,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected_result, result)
 
 
-class ConfigurationToYamlTests(SynchronousTestCase):
+class MarshalConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration.configuration_to_yaml``.
+    Tests for ``Configuration.marshal_configuration``.
     """
     def test_no_applications(self):
         """
@@ -992,15 +990,15 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         applications are supplied.
         """
         applications = set()
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {'applications': {}, 'version': 1}
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_one_application(self):
         """
-        A dictionary of application name -> image is produced where there
-        is only one application in the set passed to the
-        ``configuration_to_yaml`` method.
+        A dictionary of application name -> image is produced where there is
+        only one application in the set passed to the ``marshal_configuration``
+        method.
         """
         applications = {
             Application(
@@ -1011,14 +1009,14 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       tag='v1.0.0'))
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {
             'applications': {
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_multiple_applications(self):
         """
@@ -1038,7 +1036,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                   tag='v1.0.0')
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {
             'applications': {
                 'site-hybridcluster': {
@@ -1049,7 +1047,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_ports(self):
         """
@@ -1066,7 +1064,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       external_port=8080)])
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {
             'applications': {
                 'site-hybridcluster': {
@@ -1076,7 +1074,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_links(self):
         """
@@ -1094,7 +1092,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       alias='mysql')])
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {
             'applications': {
                 'site-hybridcluster': {
@@ -1106,7 +1104,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_with_volume_includes_mountpoint(self):
         """
@@ -1130,7 +1128,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       external_port=8080)])
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         expected = {
             'applications': {
                 'site-hybridcluster': {
@@ -1145,13 +1143,12 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
-    def test_yaml_parsable_configuration(self):
+    def test_able_to_unmarshal_configuration(self):
         """
-        The YAML output of ``configuration_to_yaml`` can be successfully
-        parsed and then loaded in to ``Application``\ s by
-        ``Configuration._applications_from_configuration``
+        ``Configuration._applications_from_configuration`` can load the output
+        of ``marshal_configuration`` into ``Application``\ s.
         """
         applications = {
             Application(
@@ -1198,10 +1195,10 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       alias='mysql')]),
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(applications)
         config = Configuration(lenient=True)
-        apps = config._applications_from_configuration(safe_load(result))
-        self.assertEqual(apps, expected_applications)
+        apps = config._applications_from_configuration(result)
+        self.assertEqual(expected_applications, apps)
 
 
 class CurrentFromConfigurationTests(SynchronousTestCase):

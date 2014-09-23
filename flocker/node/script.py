@@ -10,12 +10,12 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 
-from yaml import safe_load
+from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
 from zope.interface import implementer
 
-from ._config import configuration_to_yaml
+from ._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
@@ -187,15 +187,13 @@ class ReportStateScript(object):
         """
         self._gear_client = gear_client
 
-    def _print_yaml(self, result):
-        self._stdout.write(result)
-
     def main(self, reactor, options, volume_service):
         deployer = Deployer(volume_service, self._gear_client)
         d = deployer.discover_node_configuration()
-        d.addCallback(lambda state: configuration_to_yaml(
+        d.addCallback(lambda state: marshal_configuration(
             list(state.running + state.not_running)))
-        d.addCallback(self._print_yaml)
+        d.addCallback(safe_dump)
+        d.addCallback(self._stdout.write)
         return d
 
 
