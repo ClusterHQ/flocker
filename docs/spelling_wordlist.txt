@@ -25,6 +25,7 @@ libswarm
 Mesos
 multi
 NAT'd
+namespace
 petabyte
 petabytes
 pre
