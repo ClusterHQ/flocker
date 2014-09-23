@@ -35,6 +35,10 @@ def build_box(path, name, version, branch):
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
     """
+    # Destroy the box to begin, so that we are guaranteed
+    # a clean build.
+    run(['vagrant', 'destroy', '-f'], cwd=path.path)
+
     env = os.environ.copy()
     env.update({
         'FLOCKER_VERSION': version.replace('-', '_'),
@@ -44,7 +48,6 @@ def build_box(path, name, version, branch):
     run(['vagrant', 'package', '--output',
          '%s%s%s.box' % (name, '-' if version else '', version)],
         cwd=path.path)
-    run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
 
 def main(*args):
