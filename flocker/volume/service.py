@@ -57,10 +57,10 @@ class VolumeName(object):
         that Docker allows for container names.
     """
     def __init__(self):
-        if u"." in self.namespace or u"." in self.id:
+        if u"." in self.namespace:
             raise ValueError(
-                "Periods not allowed in namespaces or identifiers: %s"
-                % (self,))
+                "Periods not allowed in namespace or identifiers: %s"
+                % (self.namespace,))
 
     @classmethod
     def from_bytes(cls, name):

@@ -80,12 +80,6 @@ class VolumeNameTests(TestCase):
         self.assertEqual(VolumeName.from_bytes(b"lah.loo"),
                          VolumeName(namespace=u"lah", id="loo"))
 
-    def test_no_period_in_id(self):
-        """
-        ``VolumeName`` identifiers can't have a period.
-        """
-        self.assertRaises(ValueError, VolumeName, namespace=u"x", id=u".y")
-
     def test_no_period_in_namespace(self):
         """
         ``VolumeName`` namespaces can't have a period.
@@ -386,6 +380,17 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual(
             set((volume.uuid, volume.name) for volume in expected),
             set((volume.uuid, volume.name) for volume in actual))
+
+    def test_enumerate_a_volume_with_period(self):
+        """``enumerate()`` returns a volume previously ``create()``ed when its
+        name includes a period."""
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        expected = self.successResultOf(service.create(
+            VolumeName(namespace=u"ns", id=u"some.volume")))
+        actual = self.successResultOf(service.enumerate())
+        self.assertEqual([expected], list(actual))
 
     def test_enumerate_skips_other_filesystems(self):
         """
