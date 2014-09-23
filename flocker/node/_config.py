@@ -55,7 +55,7 @@ class FigConfiguration(object):
     """
     def __init__(self, application_configuration):
         """
-        Initializes ``_FigParser`` attributes.
+        Initializes ``FigConfiguration`` attributes and validates config.
 
         :param dict self.application_configuration: The intermediate
             configuration representation to load into ``Application``
