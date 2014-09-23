@@ -5,7 +5,7 @@ Build a base vagrant image.
 
 from _preamble import TOPLEVEL, BASEPATH
 
-import os
+import os, sys
 from pipes import quote
 from subprocess import check_call, CalledProcessError
 from flocker import __version__
@@ -18,11 +18,11 @@ def run(command, **kwargs):
     :param list command: Comandd to run.
     :param kwargs: Extra args to pass to ``subprocess.call``.
     """
-    print "Running %s\n" % (b' '.join(map(quote, command)))
+    sys.stdout.write("Running %s\n" % (b' '.join(map(quote, command))))
     try:
         check_call(command, **kwargs)
     except CalledProcessError as e:
-        print 'Failed %d: %s\n' % (e.returncode, ' '.join(map(quote, command)))
+        sys.stderr.write('Failed %d: %s\n' % (e.returncode, ' '.join(map(quote, command))))
         raise SystemExit(e.returncode)
 
 
@@ -57,7 +57,7 @@ def main(*args):
         try:
             box = args.pop(0)
         except IndexError:
-            print "build-vagrant-box: must specify box"
+            sys.stderr.write("build-vagrant-box: must specify box")
             raise SystemExit(1)
         path = TOPLEVEL.descendant(['vagrant', box])
 
@@ -69,12 +69,11 @@ def main(*args):
         version = __version__
 
     if args:
-        print "build-vagrant-box: too many arguments"
+        sys.stderr.write("build-vagrant-box: too many arguments\n")
         raise SystemExit(1)
 
-    print "Building %s box from %s." % (box, path.path)
+    sys.stdout.write("Building %s box from %s." % (box, path.path))
     build_box(path, 'flocker-' + box, version, branch)
 
 if __name__ == '__main__':
-    import sys
     main(sys.argv[1:])
