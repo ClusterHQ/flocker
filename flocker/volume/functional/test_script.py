@@ -12,6 +12,7 @@ from twisted.python.procutils import which
 
 from ... import __version__
 from ...testtools import skip_on_broken_permissions, attempt_effective_uid
+from ..testtools import create_zfs_pool
 
 _require_installed = skipUnless(which("flocker-volume"),
                                 "flocker-volume not installed")
@@ -58,8 +59,9 @@ class FlockerVolumeTests(TestCase):
 
     def test_config(self):
         """``flocker-volume --config path`` writes a JSON file at that path."""
+        pool = create_zfs_pool(self)
         path = FilePath(self.mktemp())
-        run(b"--config", path.path)
+        run(b"--config", path.path, b"--pool", pool)
         self.assertTrue(json.loads(path.getContent()))
 
     @skip_on_broken_permissions
@@ -77,3 +79,26 @@ class FlockerVolumeTests(TestCase):
         self.assertEqual(result,
                          b"Writing config file %s failed: Permission denied\n"
                          % (config.path,))
+
+
+class FlockerVolumeSnapshotsTests(TestCase):
+    """
+    Tests for ``flocker-volume snapshots``.
+    """
+    @_require_installed
+    def test_snapshots(self):
+        """
+        The output of ``flocker-volume snapshots`` is the name of each snapshot
+        that exists for the identified filesystem, one per line.
+        """
+        pool_name = create_zfs_pool(self)
+        dataset = pool_name + b"/myuuid.myfilesystem"
+        check_output([b"zfs", b"create", b"-p", dataset])
+        check_output([b"zfs", b"snapshot", dataset + b"@somesnapshot"])
+        check_output([b"zfs", b"snapshot", dataset + b"@lastsnapshot"])
+        config_path = FilePath(self.mktemp())
+        snapshots = run(
+            b"--config", config_path.path,
+            b"--pool", pool_name,
+            b"snapshots", b"myuuid", b"myfilesystem")
+        self.assertEqual(snapshots, b"somesnapshot\nlastsnapshot\n")

@@ -1,6 +1,6 @@
-============
-Introduction
-============
+=======================
+Introduction to Flocker
+=======================
 
 Motivation for Building Flocker
 ===============================
@@ -23,9 +23,13 @@ But what happens if you have more than one node?
 The diagram below provides a high level representation of how Flocker addresses these questions.
 
 .. image:: images/flocker-architecture-diagram.jpg
+   :alt: Containers run on physical nodes with Local Storage (ZFS).
+         Flocker's proxying layer allows you to communicate with containers by routing traffic to any node.
+         Filesystem state gets moved around with ZFS.
 
 Architecture
 ============
+
 Below is a high-level overview of Flocker's architecture.  
 For more information, you can follow along with a :doc:`tutorial that walks you through deploying and migrating MongoDB</gettingstarted/tutorial/index>` or read more in our :doc:`advanced documentation</advanced/index>`.
 

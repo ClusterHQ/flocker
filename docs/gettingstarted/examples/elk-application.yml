@@ -1,0 +1,23 @@
+"version": 1
+"applications":
+  "elasticsearch":
+    "image": "clusterhq/elasticsearch"
+    "ports":
+    - "internal": 9200
+      "external": 9200
+    "volume":
+      "mountpoint": "/var/lib/elasticsearch/"
+  "logstash":
+    "image": "clusterhq/logstash"
+    "ports":
+    - "internal": 5000
+      "external": 5000
+    "links":
+    - "local_port": 9200
+      "remote_port": 9200
+      "alias": "es"
+  "kibana":
+    "image": "clusterhq/kibana"
+    "ports":
+    - "internal": 8080
+      "external": 80

@@ -13,11 +13,14 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
+from ..filesystems.zfs import Snapshot
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
-    IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager)
+    IRemoteVolumeManager, RemoteVolumeManager, LocalVolumeManager,
+    standard_node, SSH_PRIVATE_KEY_PATH)
 from ..testtools import ServicePair
 from ...common import FakeNode
+from ...common._ipc import ProcessNode
 
 
 def make_iremote_volume_manager(fixture):
@@ -37,6 +40,23 @@ def make_iremote_volume_manager(fixture):
             service_pair = fixture(self)
             self.assertTrue(verifyObject(IRemoteVolumeManager,
                                          service_pair.remote))
+
+        def test_snapshots_no_filesystem(self):
+            """
+            If the filesystem does not exist on the remote manager, an empty
+            list of snapshots is returned.
+            """
+            service_pair = fixture(self)
+            creating = service_pair.from_service.create(u"newvolume")
+
+            def created(volume):
+                return service_pair.remote.snapshots(volume)
+            getting_snapshots = creating.addCallback(created)
+
+            def got_snapshots(snapshots):
+                self.assertEqual([], snapshots)
+            getting_snapshots.addCallback(got_snapshots)
+            return getting_snapshots
 
         def test_receive_exceptions_pass_through(self):
             """
@@ -116,8 +136,10 @@ def make_iremote_volume_manager(fixture):
             created = service_pair.from_service.create(u"myvolume")
 
             def got_volume(volume):
-                service_pair.from_service.push(volume, service_pair.remote)
-                return volume
+                pushing = service_pair.from_service.push(
+                    volume, service_pair.remote)
+                pushing.addCallback(lambda ignored: volume)
+                return pushing
             created.addCallback(got_volume)
             return created
 
@@ -154,17 +176,21 @@ def make_iremote_volume_manager(fixture):
                 root = pushed_volume.get_filesystem().get_path()
                 root.child(b"test").setContent(b"some data")
                 # Re-push with updated contents:
-                service_pair.from_service.push(pushed_volume,
-                                               service_pair.remote)
+                pushing = service_pair.from_service.push(
+                    pushed_volume, service_pair.remote)
 
-                service_pair.remote.acquire(pushed_volume)
+                def pushed(ignored):
+                    service_pair.remote.acquire(pushed_volume)
 
-                filesystem = Volume(uuid=to_service.uuid,
-                                    name=pushed_volume.name,
-                                    service=to_service).get_filesystem()
-                new_root = filesystem.get_path()
-                self.assertEqual(new_root.child(b"test").getContent(),
-                                 b"some data")
+                    filesystem = Volume(uuid=to_service.uuid,
+                                        name=pushed_volume.name,
+                                        service=to_service).get_filesystem()
+                    new_root = filesystem.get_path()
+                    self.assertEqual(new_root.child(b"test").getContent(),
+                                     b"some data")
+                pushing.addCallback(pushed)
+                return pushing
+
             created.addCallback(got_volume)
             return created
 
@@ -211,28 +237,56 @@ class LocalVolumeManagerInterfaceTests(
     """
     Tests for ``LocalVolumeManager`` as a ``IRemoteVolumeManager``.
     """
+    def test_snapshots(self):
+        """
+        ``LocalVolumeManager.snapshots`` returns a ``Deferred`` that fires with
+        ``[]`` because ``DirectoryFilesystem`` does not support snapshots.
+        """
+        pair = create_local_servicepair(self)
+        volume = self.successResultOf(pair.from_service.create(u"myvolume"))
+        self.assertEqual(
+            [], self.successResultOf(pair.remote.snapshots(volume)))
 
 
 class RemoteVolumeManagerTests(TestCase):
     """
     Tests for ``RemoteVolumeManager``.
     """
+    def setUp(self):
+        self.pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        self.service = VolumeService(
+            FilePath(self.mktemp()), self.pool, reactor=Clock())
+        self.service.startService()
+        self.volume = self.successResultOf(self.service.create(u"myvolume"))
+
+    def test_snapshots_destination_run(self):
+        """
+        ``RemoteVolumeManager.snapshots`` calls ``flocker-volume`` remotely
+        with the ``snapshots`` sub-command.
+        """
+        node = FakeNode([b"abc\ndef\n"])
+
+        remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
+        snapshots = self.successResultOf(remote.snapshots(self.volume))
+        self.assertEqual(node.remote_command,
+                         [b"flocker-volume", b"--config", b"/path/to/json",
+                          b"snapshots", self.volume.uuid.encode("ascii"),
+                          b"myvolume"])
+        self.assertEqual(
+            [Snapshot(name="abc"), Snapshot(name="def")], snapshots)
+
     def test_receive_destination_run(self):
         """
         Receiving calls ``flocker-volume`` remotely with ``receive`` command.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
 
         remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
-        with remote.receive(volume):
+        with remote.receive(self.volume):
             pass
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"receive", volume.uuid.encode("ascii"),
+                          b"receive", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
 
     def test_receive_default_config(self):
@@ -240,19 +294,15 @@ class RemoteVolumeManagerTests(TestCase):
         ``RemoteVolumeManager`` by default calls ``flocker-volume`` with
         default config path.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode()
 
         remote = RemoteVolumeManager(node)
-        with remote.receive(volume):
+        with remote.receive(self.volume):
             pass
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
-                          b"receive", volume.uuid.encode("ascii"),
+                          b"receive", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
 
     def test_acquire_destination_run(self):
@@ -260,16 +310,26 @@ class RemoteVolumeManagerTests(TestCase):
         ``RemoteVolumeManager.acquire()`` calls ``flocker-volume`` remotely
         with ``acquire`` command.
         """
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(u"myvolume"))
         node = FakeNode([b"remoteuuid"])
 
         remote = RemoteVolumeManager(node, FilePath(b"/path/to/json"))
-        remote.acquire(volume)
+        remote.acquire(self.volume)
 
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"acquire", volume.uuid.encode("ascii"),
+                          b"acquire", self.volume.uuid.encode("ascii"),
                           b"myvolume"])
+
+
+class StandardNodeTests(TestCase):
+    """
+    Tests for ``standard_node``.
+    """
+    def test_ssh_as_root(self):
+        """
+        ``standard_node`` returns a node that will SSH as root to port 22
+        using the private key for the cluster.
+        """
+        node = standard_node(b'example.com')
+        self.assertEqual(node, ProcessNode.using_ssh(
+            b'example.com', 22, b'root', SSH_PRIVATE_KEY_PATH))

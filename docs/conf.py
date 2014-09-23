@@ -84,10 +84,18 @@ class FlockerLanguage(SearchEnglish):
 sphinx_languages['en'] = FlockerLanguage
 language = 'en'
 
-# String specifying a file containing a list of words known to be spelled correctly but that do not appear in the language dictionary
+# String specifying a file containing a list of words known to be spelled
+# correctly but that do not appear in the language dictionary.
 # See:
 # http://sphinxcontrib-spelling.readthedocs.org/en/latest/customize.html#input-options
-spelling_word_list_filename='spelling_wordlist.txt'
+spelling_word_list_filename = 'spelling_wordlist.txt'
+
+if not on_rtd:
+    sys.path.insert(0, FilePath(__file__).parent().path)
+    from filters import IgnoreWordsFilterFactory
+    # Don't spell check the version:
+    spelling_filters = [IgnoreWordsFilterFactory({version})]
+    del sys.path[0]
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -277,3 +285,10 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+
+# Don't check anchors because many websites use #! for AJAX magic
+# http://sphinx-doc.org/config.html#confval-linkcheck_anchors
+linkcheck_anchors = False
+
+# Don't check links to tutorial IPs
+linkcheck_ignore = [r'http://172\.16\.255\.']

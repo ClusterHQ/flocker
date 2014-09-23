@@ -10,22 +10,14 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
-from twisted.python.filepath import FilePath
 
 from .gear import GearClient, PortMap, GearEnvironment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
-from ..volume._ipc import RemoteVolumeManager
-from ..common import ProcessNode, gather_deferreds
-
-
-# Path to SSH private key available on nodes and used to communicate
-# across nodes.
-# XXX duplicate of same information in flocker.cli:
-# https://github.com/ClusterHQ/flocker/issues/390
-SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..common import gather_deferreds
 
 
 @attributes(["running", "not_running"])
@@ -93,13 +85,15 @@ class InParallel(object):
 
 
 @implementer(IStateChange)
-@attributes(["application"])
+@attributes(["application", "hostname"])
 class StartApplication(object):
     """
     Launch the supplied application as a gear unit.
 
     :ivar Application application: The ``Application`` to create and
         start.
+
+    :ivar unicode hostname: The hostname of the application is running on.
     """
     def run(self, deployer):
         application = self.application
@@ -116,20 +110,59 @@ class StartApplication(object):
         else:
             port_maps = []
 
+        environment = {}
+
+        for link in application.links:
+            environment.update(_link_environment(
+                protocol=u"tcp",
+                alias=link.alias,
+                local_port=link.local_port,
+                hostname=self.hostname,
+                remote_port=link.remote_port,
+                ))
+
         if application.environment is not None:
-            environment = GearEnvironment(
+            environment.update(application.environment)
+
+        if environment:
+            gear_environment = GearEnvironment(
                 id=application.name,
-                variables=application.environment)
+                variables=frozenset(environment.iteritems()))
         else:
-            environment = None
+            gear_environment = None
 
         d.addCallback(lambda _: deployer.gear_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=environment
+            environment=gear_environment
         ))
         return d
+
+
+def _link_environment(protocol, alias, local_port, hostname, remote_port):
+    """
+    Generate the environment variables used for defining a docker link.
+
+    Docker containers expect an enviroment variable
+    `<alias>_PORT_<local_port>_TCP`` which contains the URL of the remote end
+    of a link, as well as parsed variants ``_ADDR``, ``_PORT``, ``_PROTO``.
+
+    :param unicode protocol: The protocol used for the link.
+    :param unicode alias: The name of the link.
+    :param int local_port: The port the local application expects to access.
+    :param unicode hostname: The remote hostname to connect to.
+    :param int remote_port: The remote port to connect to.
+    """
+    alias = alias.upper().replace(u'-', u"_")
+    base = u'%s_PORT_%d_%s' % (alias, local_port, protocol.upper())
+
+    return {
+        base: u'%s://%s:%d' % (protocol, hostname, remote_port),
+        base + u'_ADDR': hostname,
+        base + u'_PORT': u'%d' % (remote_port,),
+        base + u'_PROTO': protocol,
+    }
 
 
 @implementer(IStateChange)
@@ -192,11 +225,29 @@ class HandoffVolume(object):
     """
     def run(self, deployer):
         service = deployer.volume_service
-        destination = ProcessNode.using_ssh(
-            self.hostname, 22, b"root",
-            SSH_PRIVATE_KEY_PATH)
+        destination = standard_node(self.hostname)
         return service.handoff(service.get(self.volume.name),
                                RemoteVolumeManager(destination))
+
+
+@implementer(IStateChange)
+@attributes(["volume", "hostname"])
+class PushVolume(object):
+    """
+    A volume push that needs to be performed from this node to another
+    node.
+
+    See :cls:`flocker.volume.VolumeService.push` for more details.
+
+    :ivar AttachedVolume volume: The volume to push.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be pushed.
+    """
+    def run(self, deployer):
+        service = deployer.volume_service
+        destination = standard_node(self.hostname)
+        return service.push(service.get(self.volume.name),
+                            RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
@@ -349,7 +400,7 @@ class Deployer(object):
                 desired_local_state)
 
             start_containers = [
-                StartApplication(application=app)
+                StartApplication(application=app, hostname=hostname)
                 for app in desired_node_applications
                 if app.name in start_names
             ]
@@ -359,7 +410,8 @@ class Deployer(object):
             ]
             restart_containers = [
                 Sequentially(changes=[StopApplication(application=app),
-                                      StartApplication(application=app)])
+                                      StartApplication(application=app,
+                                                       hostname=hostname)])
                 for app in desired_node_applications
                 if app.name in not_running
             ]
@@ -369,6 +421,17 @@ class Deployer(object):
             # configuration.
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
+
+            # Do an initial push of all volumes that are going to move, so
+            # that the final push which happens during handoff is a quick
+            # incremental push. This should significantly reduces the
+            # application downtime caused by the time it takes to copy
+            # data.
+            if volumes.going:
+                phases.append(InParallel(changes=[
+                    PushVolume(volume=handoff.volume,
+                               hostname=handoff.hostname)
+                    for handoff in volumes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))

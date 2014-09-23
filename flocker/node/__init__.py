@@ -8,8 +8,8 @@ from ._config import (
     ConfigurationError, model_from_configuration, current_from_configuration,
     )
 from ._model import (
-    Application, Deployment, DockerImage, Node, Port, Link)
-from ._deploy import Deployer, NodeState, SSH_PRIVATE_KEY_PATH
+    Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume)
+from ._deploy import Deployer, NodeState
 
 __all__ = [
     'ConfigurationError',
@@ -22,6 +22,6 @@ __all__ = [
     'Node',
     'Port',
     'Link',
+    'AttachedVolume',
     'NodeState',
-    'SSH_PRIVATE_KEY_PATH',
 ]

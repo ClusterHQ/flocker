@@ -15,12 +15,17 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
 
+from eliot import Logger
+from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
+
 from ...testtools import FakeProcessReactor
 
 from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
-    )
+    _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
+    Snapshot,
+)
 
 
 class FilesystemTests(SynchronousTestCase):
@@ -102,6 +107,73 @@ class ZFSCommandTests(SynchronousTestCase):
         self.assertEqual(self.failureResultOf(result).value, exception)
 
 
+def no_such_executable_logged(case, logger):
+    """
+    Validate the error logging behavior of ``_sync_command_error_squashed``.
+    """
+    errors = LoggedMessage.ofType(logger.messages, ZFS_ERROR)
+    assertContainsFields(
+        case, errors[0].message,
+        {'status': 1,
+         'zfs_command': 'nonsense garbage made up no such command',
+         'output': '[Errno 2] No such file or directory',
+         u'message_type': 'filesystem:zfs:error',
+         u'task_level': u'/'})
+    case.assertEqual(1, len(errors))
+
+
+def error_status_logged(case, logger):
+    """
+    Validate the error logging behavior of ``_sync_command_error_squashed``.
+    """
+    errors = LoggedMessage.ofType(logger.messages, ZFS_ERROR)
+    assertContainsFields(
+        case, errors[0].message,
+        {'status': 1,
+         'zfs_command': 'python -c raise SystemExit(1)',
+         'output': '',
+         u'message_type': 'filesystem:zfs:error',
+         u'task_level': u'/'})
+    case.assertEqual(1, len(errors))
+
+
+class SyncCommandTests(SynchronousTestCase):
+    """
+    Tests for ``_sync_command_error_squashed``.
+    """
+    @validateLogging(no_such_executable_logged)
+    def test_no_such_executable(self, logger):
+        """
+        If the executable specified to ``_sync_command_error_squashed`` cannot
+        be found then the function nevertheless returns ``None``.
+        """
+        result = _sync_command_error_squashed(
+            [b"nonsense garbage made up no such command"],
+            logger)
+        self.assertIs(None, result)
+
+    @validateLogging(error_status_logged)
+    def test_error_exit(self, logger):
+        """
+        If the child process run by ``_sync_command_error_squashed`` exits with
+        an an error status then the function nevertheless returns ``None``.
+        """
+        result = _sync_command_error_squashed(
+            [b"python", b"-c", b"raise SystemExit(1)"],
+            logger)
+        self.assertIs(None, result)
+
+    def test_success(self):
+        """
+        ``_sync_command_error_squashed`` runs the given command and returns
+        ``None``.
+        """
+        result = _sync_command_error_squashed(
+            [b"python", b"-c", b""],
+            Logger())
+        self.assertIs(None, result)
+
+
 class ZFSSnapshotsTests(SynchronousTestCase):
     """Unit tests for ``ZFSSnapshotsTests``."""
 
@@ -150,12 +222,12 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         snapshots.list()
         self.assertEqual(reactor.processes[0].args,
                          [b"zfs", b"list", b"-H", b"-r", b"-t", b"snapshot",
-                          b"-o", b"name", b"-s", b"name", b"mypool"])
+                          b"-o", b"name", b"-s", b"creation", b"mypool"])
 
-    def test_list_result(self):
+    def test_list_result_root_dataset(self):
         """
-        ``ZFSSnapshots.list`` parses out the snapshot names from the results of
-        the command.
+        ``ZFSSnapshots.list`` parses out the snapshot names of the root dataset
+        from the results of the command.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
@@ -168,6 +240,26 @@ class ZFSSnapshotsTests(SynchronousTestCase):
             1, b"mypool@%s\n" % (name.to_bytes(),))
         process_protocol.childDataReceived(
             1, b"mypool@%s\n" % (name2.to_bytes(),))
+        reactor.processes[0].processProtocol.processEnded(
+            Failure(ProcessDone(0)))
+        self.assertEqual(self.successResultOf(d), [name, name2])
+
+    def test_list_result_child_dataset(self):
+        """
+        ``ZFSSnapshots.list`` parses out the snapshot names of a non-root
+        dataset from the results of the command.
+        """
+        reactor = FakeProcessReactor()
+        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", b"myfs"))
+        name = SnapshotName(datetime.now(UTC), b"node")
+        name2 = SnapshotName(datetime.now(UTC), b"node2")
+
+        d = snapshots.list()
+        process_protocol = reactor.processes[0].processProtocol
+        process_protocol.childDataReceived(
+            1, b"mypool/myfs@%s\n" % (name.to_bytes(),))
+        process_protocol.childDataReceived(
+            1, b"mypool/myfs@%s\n" % (name2.to_bytes(),))
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name, name2])
@@ -212,3 +304,60 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), [name])
+
+
+class LatestCommonSnapshotTests(SynchronousTestCase):
+    """
+    Tests for ``_latest_common_snapshot``.
+    """
+    def test_no_common(self):
+        """
+        If there are no common ``Snapshot`` instances in the two ``list``\ s,
+        ``_latest_common_snapshot`` returns ``None``.
+        """
+        self.assertIs(
+            None,
+            _latest_common_snapshot(
+                [Snapshot(name=b"a")], [Snapshot(name=b"b")]))
+
+    def test_empty_list(self):
+        """
+        If one of the ``list``\ s passed to ``_latest_common_snapshot`` is
+        empty, ``None`` is returned.
+        """
+        self.assertIs(
+            None, _latest_common_snapshot([Snapshot(name=b"a")], []))
+
+    def test_last_snapshot_common(self):
+        """
+        If the last ``Snapshot`` in the ``list``\ s passed to
+        ``_latest_common_snapshot`` is the same, it is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        c = Snapshot(name=b"c")
+        self.assertEqual(
+            a, _latest_common_snapshot([b, a], [c, a]))
+
+    def test_earlier_snapshot_common(self):
+        """
+        If only one ``Snapshot`` is common to the two lists and it appears
+        somewhere in the middle, it is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        c = Snapshot(name=b"c")
+        d = Snapshot(name=b"d")
+        e = Snapshot(name=b"e")
+        self.assertEqual(
+            a, _latest_common_snapshot([b, a, c], [d, a, e]))
+
+    def test_multiple_common(self):
+        """
+        If multiple ``Snapshot``\ s are common to the two lists, the one which
+        appears closest to the end is returned.
+        """
+        a = Snapshot(name=b"a")
+        b = Snapshot(name=b"b")
+        self.assertEqual(
+            b, _latest_common_snapshot([a, b], [a, b]))

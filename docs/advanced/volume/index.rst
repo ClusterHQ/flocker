@@ -19,12 +19,20 @@ Volume Ownership
 
 Each volume is owned by a specific volume manager and only that volume manager can write to it.
 To begin with a volume is owned by the volume manager that created it.
+
+.. _volume-push:
+
 A volume manager can *push* volumes it owns to another machine, copying the volume's data to a remote volume manager.
 The copied volume on that remote volume manager will continue to be owned by the local volume manager, and therefore the remote volume manager will not be able to write to it.
+
+.. _volume-handoff:
 
 A volume manager can also *handoff* a volume to a remote volume manager, i.e. transfer ownership.
 The remote volume manager becomes the owner of the volume and subsequently it is able to write to the volume.
 The volume manager that did the handoff ceases to own the volume and subsequently is not allowed to write to the volume.
+
+Volumes are mounted read-write by the manager which owns them.
+They are mounted read-only by any other manager which has a copy.
 
 
 Implementation Details
@@ -68,6 +76,11 @@ In future releases this will be switched to a real protocol and later on to comm
 (See `#154 <https://github.com/ClusterHQ/flocker/issues/154>`_\ .)
 
 When a volume is pushed a ``zfs send`` is used to serialize its data for transmission to the remote machine, which does a ``zfs receive`` to decode the data and create or update the corresponding ZFS dataset.
+
+If the sending node determines that it has a snapshot of the volume in common with the receiving node
+(as determined using ``flocker-volume snapshot``)
+then it will construct an incremental data stream based on that snapshot.
+This can drastically reduce the amount of data that needs to be transferred between the two nodes.
 
 Handoff involves renaming the ZFS dataset to change the owner UUID encoded in the dataset name.
 For example, imagine two volume managers with UUIDs ``1234`` and ``5678`` and a dataset called ``mydata``.

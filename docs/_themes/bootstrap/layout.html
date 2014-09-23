@@ -20,14 +20,15 @@
 {%- macro sidebar() %}
     {%- if render_sidebar %}
         <div class="sphinxsidebar">
-            <h3>Contents</h3>
+            {%- if pagename != "search" %}
+                <div class="sphinxsidebarwrapper">
+                    {{ seachbox() }}
+                </div>
+            {%- endif %}
+
+            <h2 class="sidebar-heading">Contents</h2>
             <div class="sphinxsidebarwrapper" id="toctree">
                 {{ toctree(collapse=false, maxdepth=4) }}
-            </div>
-            
-            <div class="sphinxsidebarwrapper">
-                <h3>Search</h3>
-                {{ seachbox() }}
             </div>
         </div>
         
@@ -43,6 +44,11 @@
     {%- if pagename != "search" %}
         <form class="navbar-search" action="{{ pathto('search') }}"
               method="get">
+            <label for="search">
+                <h2 class="sidebar-heading">
+                    Search
+                </h2>
+            </label>
             <input type="text" name="q" placeholder="search" id="search"/>
             <input type="hidden" name="check_keywords" value="yes"/>
             <input type="hidden" name="area" value="default"/>
@@ -50,7 +56,7 @@
     {%- endif %}
 {%- endmacro -%}
 
-<html>
+<html lang="en">
 <head>
     <meta http-equiv="Content-Type"
           content="text/html; charset={{ encoding }}"/>
@@ -159,7 +165,7 @@
             <div class="container">
 
                 {%- block headerlogo %}
-                    <a href="https://clusterhq.com/"><img src="//clusterhq.com/wp-content/themes/hybrid-cluster-v3/assets/img/hc-logo.png" id="logo"/></a>
+                    <a href="https://clusterhq.com/"><img src="//clusterhq.com/wp-content/themes/hybrid-cluster-v3/assets/img/hc-logo.png" alt="ClusterHQ Container Data Management" id="logo"/></a>
                 {%- endblock %}
 
             </div>
@@ -199,7 +205,7 @@
             {%- block sidebar2 %}
                 <div class="span3">
                     <div id="navsidebar">
-                        <h3>Navigation</h3>
+                        <h2 class="sidebar-heading">Navigation</h2>
                         {{ relbar() }}
                     </div>                    
                     {{ sidebar() }}

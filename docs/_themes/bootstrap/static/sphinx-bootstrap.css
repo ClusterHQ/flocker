@@ -239,7 +239,7 @@ h1, h2, h3, h4, h5 {
     font-family: 'Soho Gothic W01 Medium', Helvetica, Arial, sans-serif;
 }
 
-p {
+body {
     font-family: lato, Helvetica, Arial, sans-serif;
     font-size: 16px;
 }
@@ -283,6 +283,8 @@ p {
 .sphinxsidebarwrapper>ul {
     list-style-type: none;
     margin-left: 0;
+    word-break: break-word;
+    font-size: 14px;
 }
 
 .pagination, .btn-group {
@@ -320,4 +322,8 @@ a.download:before {
     font-weight: normal;
     line-height: 1;
     padding-right: 5px;
+}
+
+.sidebar-heading {
+    font-size: 24px;
 }

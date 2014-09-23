@@ -9,3 +9,4 @@ Contents:
    vagrant
    packaging
    release-process
+   release-schedule-versioning

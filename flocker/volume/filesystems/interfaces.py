@@ -48,12 +48,28 @@ class IFilesystem(Interface):
         :return: The path as a ``FilePath``.
         """
 
-    def reader():
-        """Context manager that allows reading the contents of the filesystem.
+    def snapshots():
+        """
+        Retrieve the information about the snapshots of this filesystem.
+
+        :return: A ``Deferred`` that fires with a ``list`` of ``Snapshot``
+            instances, ordered from oldest to newest, describing the snapshots
+            which exist of this filesystem.
+        """
+
+    def reader(remote_snapshots=None):
+        """
+        Context manager that allows reading the contents of the filesystem.
 
         A blocking API, for now.
 
         The returned file-like object will be closed by this object.
+
+        :param remote_snapshots: An iterable of the snapshots which are
+            available on the writer, ordered from oldest to newest.  An
+            incremental data stream may be generated based on one of these if
+            possible.  If no value is passed then a complete data stream will
+            be generated.
 
         :return: A file-like object from whom the filesystem's data can be
             read as ``bytes``.

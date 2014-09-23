@@ -76,7 +76,7 @@ setup(
     packages=find_packages(),
 
     package_data={
-        'flocker.node.functional': ['sendbytes-docker/*'],
+        'flocker.node.functional': ['sendbytes-docker/*', 'env-docker/*'],
     },
 
     entry_points = {
@@ -102,6 +102,8 @@ setup(
 
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
+
+        "docker-py == 0.4.0"
         ],
 
     extras_require={

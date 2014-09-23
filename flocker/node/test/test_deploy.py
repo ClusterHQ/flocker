@@ -14,10 +14,11 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
 from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, NodeState, SSH_PRIVATE_KEY_PATH)
+                Port, Link, NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies)
+    CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
+    _link_environment)
 from .._model import AttachedVolume
 from ..gear import (
     GearClient, FakeGearClient, AlreadyExists, Unit, PortMap, GearEnvironment)
@@ -25,8 +26,7 @@ from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
 from ...volume.testtools import create_volume_service
-from ...volume._ipc import RemoteVolumeManager
-from ...common._ipc import ProcessNode
+from ...volume._ipc import RemoteVolumeManager, standard_node
 
 
 class DeployerAttributesTests(SynchronousTestCase):
@@ -112,7 +112,9 @@ SequentiallyIStateChangeTests = make_istatechange_tests(
 InParallelIStateChangeTests = make_istatechange_tests(
     InParallel, dict(changes=[1]), dict(changes=[2]))
 StartApplicationIStateChangeTests = make_istatechange_tests(
-    StartApplication, dict(application=1), dict(application=2))
+    StartApplication,
+    dict(application=1, hostname="node1.example.com"),
+    dict(application=2, hostname="node2.example.com"))
 StopApplicationIStageChangeTests = make_istatechange_tests(
     StopApplication, dict(application=1), dict(application=2))
 SetProxiesIStateChangeTests = make_istatechange_tests(
@@ -123,6 +125,9 @@ CreateVolumeIStateChangeTests = make_istatechange_tests(
     CreateVolume, dict(volume=1), dict(volume=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
     HandoffVolume, dict(volume=1, hostname=b"123"),
+    dict(volume=2, hostname=b"123"))
+PushVolumeIStateChangeTests = make_istatechange_tests(
+    PushVolume, dict(volume=1, hostname=b"123"),
     dict(volume=2, hostname=b"123"))
 
 
@@ -326,8 +331,10 @@ class StartApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             ports=ports,
+            links=frozenset(),
         )
-        start_result = StartApplication(application=application).run(api)
+        start_result = StartApplication(application=application,
+                                        hostname="node1.example.com").run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
@@ -350,13 +357,16 @@ class StartApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
-        result1 = StartApplication(application=application).run(api)
+        result1 = StartApplication(application=application,
+                                   hostname="node1.example.com").run(api)
         self.successResultOf(result1)
 
-        result2 = StartApplication(application=application).run(api)
+        result2 = StartApplication(application=application,
+                                   hostname="node1.example.com").run(api)
         self.failureResultOf(result2, AlreadyExists)
 
     def test_volume_exposed_on_start(self):
@@ -372,7 +382,8 @@ class StartApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var"))
+                                  mountpoint=FilePath(b"/var")),
+            links=frozenset(),
         )
 
         # This would be better to test with a verified fake:
@@ -387,7 +398,8 @@ class StartApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "expose_to_docker", expose_to_docker)
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
 
@@ -402,14 +414,17 @@ class StartApplicationTests(SynchronousTestCase):
         deployer = Deployer(volume_service, fake_gear)
 
         application_name = u'site-example.com'
-        variables = dict(foo=u"bar", baz=u"qux")
+        variables = frozenset({u'foo': u"bar", u"baz": u"qux"}.iteritems())
         application = Application(
             name=application_name,
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
-            environment=variables.copy())
+            environment=variables.copy(),
+            links=frozenset(),
+        )
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
 
         expected_environment = GearEnvironment(
             id=application_name, variables=variables.copy())
@@ -433,14 +448,80 @@ class StartApplicationTests(SynchronousTestCase):
             name=application_name,
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
-            environment=None)
+            environment=None,
+            links=frozenset(),
+        )
 
-        StartApplication(application=application).run(deployer)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
 
         self.assertEqual(
             None,
             fake_gear._units[application_name].environment
         )
+
+    def test_links(self):
+        """
+        ``StartApplication.run()`` passes environment variables to connect to
+        the remote application to ``GearClient.add``.
+        """
+        volume_service = create_volume_service(self)
+        fake_gear = FakeGearClient()
+        deployer = Deployer(volume_service, fake_gear)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            links=frozenset([Link(alias="alias", local_port=80,
+                                  remote_port=8080)]))
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+
+        variables = frozenset({
+            'ALIAS_PORT_80_TCP': 'tcp://node1.example.com:8080',
+            'ALIAS_PORT_80_TCP_ADDR': 'node1.example.com',
+            'ALIAS_PORT_80_TCP_PORT': '8080',
+            'ALIAS_PORT_80_TCP_PROTO': 'tcp',
+        }.iteritems())
+        expected_environment = GearEnvironment(
+            id=application_name, variables=variables.copy())
+
+        self.assertEqual(
+            expected_environment,
+            fake_gear._units[application_name].environment
+        )
+
+
+class LinkEnviromentTests(SynchronousTestCase):
+    """
+    Tets for ``_link_environment``.
+    """
+
+    def test_link_environment(self):
+        """
+        ``_link_environment(link)`` returns a dictonary
+        with keys used by docker to represent links. Specifically
+        ``<alias>_PORT_<local_port>_<protocol>`` and the broken out variants
+        ``_ADDR``, ``_PORT`` and ``_PROTO``.
+        """
+
+        environment = _link_environment(
+            protocol="udp",
+            alias="dash-alias",
+            local_port=80,
+            hostname=u"the-host",
+            remote_port=8080)
+        self.assertEqual(
+            environment,
+            {
+                u'DASH_ALIAS_PORT_80_UDP': u'udp://the-host:8080',
+                u'DASH_ALIAS_PORT_80_UDP_PROTO': u'udp',
+                u'DASH_ALIAS_PORT_80_UDP_ADDR': u'the-host',
+                u'DASH_ALIAS_PORT_80_UDP_PORT': u'8080',
+            })
 
 
 class StopApplicationTests(SynchronousTestCase):
@@ -458,10 +539,12 @@ class StopApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
-        StartApplication(application=application).run(api)
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(api)
         existed = fake_gear.exists(application.name)
         stop_result = StopApplication(application=application).run(api)
         exists_result = fake_gear.exists(unit_name=application.name)
@@ -483,7 +566,8 @@ class StopApplicationTests(SynchronousTestCase):
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
         result = StopApplication(application=application).run(api)
         result = self.successResultOf(result)
@@ -503,7 +587,8 @@ class StopApplicationTests(SynchronousTestCase):
             name=u'site-example.com',
             image=docker_image,
             volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var"))
+                                  mountpoint=FilePath(b"/var")),
+            links=frozenset(),
         )
 
         # This would be better to test with a verified fake:
@@ -519,8 +604,9 @@ class StopApplicationTests(SynchronousTestCase):
             return succeed(None)
         self.patch(Volume, "remove_from_docker", remove_from_docker)
 
-        self.successResultOf(StartApplication(application=application).run(
-            deployer))
+        self.successResultOf(StartApplication(application=application,
+                                              hostname="node1.example.com",
+                                              ).run(deployer))
         self.successResultOf(StopApplication(application=application).run(
             deployer))
         self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
@@ -539,7 +625,8 @@ APPLICATION_WITH_VOLUME = Application(
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    )
+    ),
+    links=frozenset(),
 )
 
 # XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
@@ -554,7 +641,8 @@ DISCOVERED_APPLICATION_WITH_VOLUME = Application(
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=None,
-    )
+    ),
+    links=frozenset(),
 )
 
 
@@ -820,7 +908,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         expected = Sequentially(changes=[InParallel(
-            changes=[StartApplication(application=application)])])
+            changes=[StartApplication(application=application,
+                                      hostname="node.example.com")])])
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_only_this_node(self):
@@ -953,7 +1042,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(changes=[CreateVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME)])])
+                application=APPLICATION_WITH_VOLUME,
+                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_volume_wait(self):
@@ -1005,7 +1095,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(changes=[WaitForVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
-                application=APPLICATION_WITH_VOLUME)])])
+                application=APPLICATION_WITH_VOLUME,
+                hostname="node1.example.com")])])
         self.assertEqual(expected, changes)
 
     def test_volume_handoff(self):
@@ -1059,6 +1150,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(
@@ -1129,18 +1222,19 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         nodes = frozenset([
             Node(
-                hostname=u'node.example.com',
+                hostname=u'n.example.com',
                 applications=frozenset([application])
             )
         ])
         desired = Deployment(nodes=nodes)
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
-                                                  hostname=u'node.example.com')
+                                                  hostname=u'n.example.com')
 
         expected = Sequentially(changes=[InParallel(changes=[
             Sequentially(changes=[StopApplication(application=application),
-                                  StartApplication(application=application)]),
+                                  StartApplication(application=application,
+                                                   hostname="n.example.com")]),
         ])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -1184,7 +1278,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 # see https://github.com/ClusterHQ/flocker/issues/49
                 name=u"another",
                 mountpoint=FilePath(b"/blah"),
-            )
+            ),
+            links=frozenset(),
         )
         # XXX don't know image or volume because of
         # https://github.com/ClusterHQ/flocker/issues/289
@@ -1244,13 +1339,16 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             mountpoint=FilePath(b"/blah"),
         )
         expected = Sequentially(changes=[
+            InParallel(changes=[PushVolume(
+                volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
             InParallel(changes=[
-                StartApplication(application=another_application)]),
+                StartApplication(application=another_application,
+                                 hostname="node1.example.com")]),
         ])
         self.assertEqual(expected, changes)
 
@@ -1423,7 +1521,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         application = Application(
             name=expected_application_name,
             image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0')
+                              tag=u'release-14.0'),
+            links=frozenset(),
         )
 
         nodes = frozenset([
@@ -1584,6 +1683,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         destination nodex.
         """
         volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
 
         result = []
 
@@ -1596,19 +1696,17 @@ class HandoffVolumeTests(SynchronousTestCase):
         handoff = HandoffVolume(
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var/blah")),
-            hostname=b"dest.example.com")
+            hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
             result,
             [volume_service.get(u"myvol"),
-             RemoteVolumeManager(ProcessNode.using_ssh(
-                 b"dest.example.com", 22, b"root",
-                 SSH_PRIVATE_KEY_PATH))])
+             RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
         """
-        ``HandoffVolume.run()`` returns a ``Deferred`` that fires when the
-        named volume is available.
+        ``HandoffVolume.run()`` returns the result of
+        ``VolumeService.handoff``.
         """
         result = Deferred()
         volume_service = create_volume_service(self)
@@ -1623,3 +1721,53 @@ class HandoffVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)
+
+
+class PushVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``PushVolume``.
+    """
+    def test_push(self):
+        """
+        ``PushVolume.run()`` pushes the named volume to the given destination
+        node.
+        """
+        volume_service = create_volume_service(self)
+        hostname = b"dest.example.com"
+
+        result = []
+
+        def _push(volume, destination):
+            result.extend([volume, destination])
+        self.patch(volume_service, "push", _push)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var/blah")),
+            hostname=hostname)
+        push.run(deployer)
+        self.assertEqual(
+            result,
+            [volume_service.get(u"myvol"),
+             RemoteVolumeManager(standard_node(hostname))])
+
+    def test_return(self):
+        """
+        ``PushVolume.run()`` returns the result of
+        ``VolumeService.push``.
+        """
+        result = Deferred()
+        volume_service = create_volume_service(self)
+        self.patch(volume_service, "push",
+                   lambda volume, destination: result)
+        deployer = Deployer(volume_service,
+                            gear_client=FakeGearClient(),
+                            network=make_memory_network())
+        push = PushVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var")),
+            hostname=b"dest.example.com")
+        push_result = push.run(deployer)
+        self.assertIs(push_result, result)

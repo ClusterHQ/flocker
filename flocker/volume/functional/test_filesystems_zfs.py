@@ -2,22 +2,29 @@
 
 """Functional tests for ZFS filesystem implementation.
 
+These tests require the ability to create a new ZFS storage pool (using
+``zpool``) and the ability to interact with that pool (using ``zfs``).
+
 Further coverage is provided in
 :module:`flocker.volume.test.test_filesystems_zfs`.
 """
 
 import subprocess
+import errno
 
 from twisted.internet import reactor
+from twisted.internet.task import cooperate
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
-    make_ifilesystemsnapshots_tests, make_istoragepool_tests,
-    )
+    make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
+    copy, assertVolumesEqual
+)
 from ..filesystems.zfs import (
-    ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
-    )
+    Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
+    zfs_command,
+)
 from ..service import Volume
 from ..testtools import create_zfs_pool, service_for_pool
 
@@ -28,10 +35,22 @@ class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
     """``IFilesystemSnapshots`` tests for ZFS."""
 
 
-class IStoragePoolTests(make_istoragepool_tests(
-    lambda test_case: StoragePool(reactor, create_zfs_pool(test_case),
-                                  FilePath(test_case.mktemp())))):
-    """``IStoragePoolTests`` for ZFS storage pool."""
+def build_pool(test_case):
+    """
+    Create a ``StoragePool``.
+
+    :param TestCase test_case: The test in which this pool will exist.
+
+    :return: A new ``StoragePool``.
+    """
+    return StoragePool(reactor, create_zfs_pool(test_case),
+                       FilePath(test_case.mktemp()))
+
+
+class IStoragePoolTests(make_istoragepool_tests(build_pool)):
+    """
+    ``IStoragePoolTests`` for ZFS storage pool.
+    """
 
 
 class VolumeToDatasetTests(TestCase):
@@ -51,6 +70,7 @@ class StoragePoolTests(TestCase):
     def test_mount_root(self):
         """Mountpoints are children of the mount root."""
         mount_root = FilePath(self.mktemp())
+        mount_root.makedirs()
         pool = StoragePool(reactor, create_zfs_pool(self), mount_root)
         service = service_for_pool(self, pool)
         volume = service.get(u"myvolumename")
@@ -117,7 +137,7 @@ class StoragePoolTests(TestCase):
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
 
-        def created_filesystems(igonred):
+        def created_filesystems(ignored):
             filesystem_name = volume.get_filesystem().name
             subprocess.check_call(['zfs', 'unmount', filesystem_name])
             # Create a file hiding under the original mount point
@@ -137,3 +157,246 @@ class StoragePoolTests(TestCase):
                              b'content')
         d.addCallback(changed_owner)
         return d
+
+    def test_locally_owned_created_writeable(self):
+        """
+        A filesystem which is created for a locally owned volume is writeable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"myvolumename")
+
+        d = pool.create(volume)
+
+        def created_filesystems(filesystem):
+            # This would error if writing was not possible:
+            filesystem.get_path().child(b"text").setContent(b"hello")
+        d.addCallback(created_filesystems)
+        return d
+
+    def assertReadOnly(self, path):
+        """
+        Assert writes are not possible to the given filesystem path.
+
+        :param FilePath path: Directory which ought to be read-only.
+        """
+        exc = self.assertRaises(OSError,
+                                path.child(b"text").setContent, b"hello")
+        self.assertEqual(exc.args[0], errno.EROFS)
+
+    def test_remotely_owned_created_readonly(self):
+        """
+        A filesystem which is created for a remotely owned volume is not
+        writeable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = Volume(uuid=u"remoteone", name=u"vol", service=service)
+
+        d = pool.create(volume)
+
+        def created_filesystems(filesystem):
+            self.assertReadOnly(filesystem.get_path())
+        d.addCallback(created_filesystems)
+        return d
+
+    def test_written_created_readonly(self):
+        """
+        A filesystem which is received from a remote filesystem (which is
+        writable in its origin pool) is not writeable.
+        """
+        d = create_and_copy(self, build_pool)
+
+        def got_volumes(copied):
+            self.assertReadOnly(copied.to_volume.get_filesystem().get_path())
+        d.addCallback(got_volumes)
+        return d
+
+    def test_owner_change_to_locally_becomes_writeable(self):
+        """
+        A filesystem which was previously remotely owned and is now locally
+        owned becomes writeable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        local_volume = service.get(u"myvolumename")
+        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                               service=service)
+
+        d = pool.create(remote_volume)
+
+        def created_filesystems(ignored):
+            return pool.change_owner(remote_volume, local_volume)
+        d.addCallback(created_filesystems)
+
+        def changed_owner(filesystem):
+            # This would error if writing was not possible:
+            filesystem.get_path().child(b"text").setContent(b"hello")
+        d.addCallback(changed_owner)
+        return d
+
+    def test_owner_change_to_remote_becomes_readonly(self):
+        """
+        A filesystem which was previously locally owned and is now remotely
+        owned becomes unwriteable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        local_volume = service.get(u"myvolumename")
+        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+                               service=service)
+
+        d = pool.create(local_volume)
+
+        def created_filesystems(ignored):
+            return pool.change_owner(local_volume, remote_volume)
+        d.addCallback(created_filesystems)
+
+        def changed_owner(filesystem):
+            self.assertReadOnly(filesystem.get_path())
+        d.addCallback(changed_owner)
+        return d
+
+    def test_write_update_to_changed_filesystem(self):
+        """
+        Writing an update of the contents of one pool's filesystem to
+        another pool's filesystem that was previously created this way and
+        was since changed drops any changes and updates its contents to
+        the sender's.
+        """
+        d = create_and_copy(self, build_pool)
+
+        def got_volumes(copied):
+            from_volume, to_volume = copied.from_volume, copied.to_volume
+
+            # Mutate the second volume's filesystem:
+            to_filesystem = to_volume.get_filesystem()
+            subprocess.check_call([b"zfs", b"set", b"readonly=off",
+                                   to_filesystem.name])
+
+            to_path = to_filesystem.get_path()
+            to_path.child(b"extra").setContent(b"lalala")
+
+            # Writing from first volume to second volume should revert
+            # any changes to the second volume:
+            from_path = from_volume.get_filesystem().get_path()
+            from_path.child(b"anotherfile").setContent(b"hello")
+            from_path.child(b"file").remove()
+
+            copying = copy(from_volume, to_volume)
+
+            def copied(ignored):
+                assertVolumesEqual(self, from_volume, to_volume)
+            copying.addCallback(copied)
+            return copying
+        d.addCallback(got_volumes)
+        return d
+
+
+class IncrementalPushTests(TestCase):
+    """
+    Tests for incremental push based on ZFS snapshots.
+    """
+    def test_less_data(self):
+        """
+        Fewer bytes are available from ``Filesystem.reader`` when the reader
+        and writer are found to share a snapshot.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"incremental-push")
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Save it for later use.
+            self.filesystem = filesystem
+
+            # Put some data onto the volume so there is a baseline against
+            # which to compare.
+            path = filesystem.get_path()
+            path.child(b"some-data").setContent(b"hello world" * 1024)
+
+            # TODO: Snapshots are created implicitly by `reader`.  So abuse
+            # that fact to get a snapshot.  An incremental send based on this
+            # snapshot will be able to exclude the data written above.
+            # Ultimately it would be better to have an API the purpose of which
+            # is explicitly to take a snapshot and to use that here instead of
+            # relying on `reader` to do this.
+            with filesystem.reader() as reader:
+                # Capture the size of this stream for later comparison.
+                self.complete_size = len(reader.read())
+
+            # Capture the snapshots that exist now so they can be given as an
+            # argument to the reader method.
+            snapshots = filesystem.snapshots()
+            return snapshots
+
+        loading = creating.addCallback(created)
+
+        def loaded(snapshots):
+            # Perform another send, supplying snapshots available on the writer
+            # so an incremental stream can be constructed.
+
+            with self.filesystem.reader(snapshots) as reader:
+                incremental_size = len(reader.read())
+
+            self.assertTrue(
+                incremental_size < self.complete_size,
+                "Bytes of data for incremental send ({}) was not fewer than "
+                "bytes of data for complete send ({}).".format(
+                    incremental_size, self.complete_size)
+            )
+
+        loading.addCallback(loaded)
+        return loading
+
+
+class FilesystemTests(TestCase):
+    """
+    ZFS-specific tests for ``Filesystem``.
+    """
+    def test_snapshots(self):
+        """
+        The ``Deferred`` returned by ``Filesystem.snapshots`` fires with a
+        ``list`` of ``Snapshot`` instances corresponding to the snapshots that
+        exist for the ZFS filesystem to which the ``Filesystem`` instance
+        corresponds.
+        """
+        expected_names = [b"foo", b"bar"]
+
+        # Create a filesystem and a couple snapshots.
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(u"snapshot-enumeration")
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            # Save it for later.
+            self.filesystem = filesystem
+
+            # Take a couple snapshots now that there is a filesystem.
+            return cooperate(
+                zfs_command(
+                    reactor, [
+                        b"snapshot",
+                        u"{}@{}".format(filesystem.name, name).encode("ascii"),
+                    ]
+                )
+                for name in expected_names
+            ).whenDone()
+
+        snapshotting = creating.addCallback(created)
+
+        def snapshotted(ignored):
+            # Now that some snapshots exist, interrogate the system.
+            return self.filesystem.snapshots()
+
+        loading = snapshotting.addCallback(snapshotted)
+
+        def loaded(snapshots):
+            self.assertEqual(
+                list(Snapshot(name=name) for name in expected_names),
+                snapshots)
+
+        loading.addCallback(loaded)
+        return loading
