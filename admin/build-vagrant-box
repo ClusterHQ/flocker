@@ -48,6 +48,11 @@ def build_box(path, name, version, branch):
     run(['vagrant', 'package', '--output',
          '%s%s%s.box' % (name, '-' if version else '', version)],
         cwd=path.path)
+    run(['vagrant', 'up'], cwd=path.path, env=env)
+
+    # And destroy at the end to save space.  If one of the above commands fail,
+    # this will be skipped, so the image can still be debugged.
+    run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
 
 def main(*args):
