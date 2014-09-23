@@ -90,8 +90,10 @@ setup(
     },
 
     install_requires=[
+        "setuptools >= 1.4",
+
         "eliot == 0.4.0",
-        "zope.interface == 4.0.5",
+        "zope.interface >= 4.0.5",
         "pytz",
         "characteristic == 0.1.0",
         "Twisted == 14.0.0",
@@ -103,7 +105,7 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.4.0"
+        #"docker-py == 0.4.0"
         ],
 
     extras_require={

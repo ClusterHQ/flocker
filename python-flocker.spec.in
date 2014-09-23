@@ -23,14 +23,14 @@ BuildRequires:  PyYAML = 3.10
 BuildRequires:  python-treq = 0.2.1
 BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-ipaddr = 2.1.10
-BuildRequires:  python-docker-py = 0.4.0
+#BuildRequires:  python-docker-py = 0.4.0
 # The test suite runs the ssh command-line client and uses other utilities such
 # as ssh-keygen.
 BuildRequires: openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
-Requires:       python
+Requires:       python-setuptools
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       pytz
 Requires:       python-characteristic = 0.1.0
@@ -47,7 +47,7 @@ Requires:       python-flocker = %{version}-%{release}
 %package -n flocker-node
 Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
-Requires:       python-docker = 0.3.2
+#Requires:       python-docker-py = 0.4.0
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
 Requires:       geard
