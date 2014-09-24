@@ -328,6 +328,13 @@ class HostNetwork(object):
     enumerate_proxies = staticmethod(enumerate_proxies)
 
     def enumerate_used_ports(self):
+        """
+        Find all ports that are in use on this node by normal TCP servers or by
+        proxies managed by this object.
+
+        :see: :meth:`INetwork.enumerate_used_ports` for parameter
+            documentation.
+        """
         listening = set(
             conn.laddr[1]
             for conn
