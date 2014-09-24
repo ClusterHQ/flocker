@@ -14,7 +14,7 @@ from zope.interface import implementer
 from ipaddr import IPAddress
 from characteristic import attributes
 from eliot import Logger
-
+from psutil import net_connections
 from twisted.python.filepath import FilePath
 
 from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
@@ -326,6 +326,19 @@ class HostNetwork(object):
         return delete_proxy(self.logger, proxy)
 
     enumerate_proxies = staticmethod(enumerate_proxies)
+
+    def enumerate_used_ports(self):
+        listening = set(
+            conn.laddr[1]
+            for conn
+            in net_connections(kind='tcp')
+            if conn.status == 'LISTEN'
+        )
+        proxied = set(
+            proxy.port
+            for proxy in self.enumerate_proxies()
+        )
+        return frozenset(listening | proxied)
 
 
 def make_host_network():
