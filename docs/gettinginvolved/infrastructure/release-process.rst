@@ -128,6 +128,7 @@ Preparing for a release
 
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/525
+   XXX This issue is now closed, should another one be opened?
 
      .. code-block:: console
 
