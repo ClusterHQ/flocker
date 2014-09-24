@@ -11,6 +11,7 @@ from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
+from .._deploy import _to_volume_name
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import random_name, DockerImageBuilder, assertContainsAll
@@ -114,7 +115,7 @@ class DeployerTests(TestCase):
                                                     [u'active']))
 
         def started(_):
-            volume = volume_service.get(application_name)
+            volume = volume_service.get(_to_volume_name(application_name))
             path = volume.get_filesystem().get_path()
             contents = path.child(b'env').getContent()
 
@@ -177,7 +178,7 @@ class DeployerTests(TestCase):
                                                     [u'active']))
 
         def started(_):
-            volume = volume_service.get(application_name)
+            volume = volume_service.get(_to_volume_name(application_name))
             path = volume.get_filesystem().get_path()
             contents = path.child(b'env').getContent()
 
