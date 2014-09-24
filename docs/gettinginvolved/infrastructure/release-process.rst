@@ -156,12 +156,12 @@ Release
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
+   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+
    .. code-block:: console
 
       mkvirtualenv flocker-release-${VERSION}
       pip install --editable .[release]
-
-   .. note:: The example above uses `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
 #. Tag the version being released:
 
