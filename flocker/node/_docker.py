@@ -16,10 +16,10 @@ from docker.errors import APIError
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from .gear import IGearClient, AlreadyExists, Unit
+from .gear import IDockerClient, AlreadyExists, Unit
 
 
-@implementer(IGearClient)
+@implementer(IDockerClient)
 class DockerClient(object):
     """
     Talk to the real Docker server directly.
@@ -48,6 +48,8 @@ class DockerClient(object):
     def add(self, unit_name, image_name, ports=None, links=None,
             environment=None):
         container_name = self._to_container_name(unit_name)
+        data_container_name = container_name + u"-data"
+
         if environment is not None:
             environment = dict(environment.variables)
         if ports is None:
@@ -78,7 +80,12 @@ class DockerClient(object):
             while not self._blocking_exists(container_name):
                 sleep(0.001)
                 continue
+            if self._blocking_exists(data_container_name):
+                volumes_from = [data_container_name]
+            else:
+                volumes_from = None
             self._client.start(container_name,
+                               volumes_from=volumes_from,
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)

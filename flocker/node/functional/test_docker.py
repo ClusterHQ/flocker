@@ -6,40 +6,32 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
-from unittest import skipIf
-from subprocess import Popen
-
 from docker.errors import APIError
 from docker import Client
 
 from twisted.trial.unittest import TestCase
-
 from ...testtools import random_name
-from ..test.test_gear import make_igearclient_tests
-from ..functional.test_gear import GearClientTestsMixin
+from ..test.test_gear import make_idockerclient_tests
+from ..functional.test_gear import DockerClientTestsMixin
 from .._docker import DockerClient
+from ..testtools import if_docker_configured
 
 
-# This is terible (https://github.com/ClusterHQ/flocker/issues/85):
-_if_docker = skipIf(Popen([b"docker", b"version"]).wait(),
-                    "Docker must be installed and running.")
-
-
-class IGearClientTests(make_igearclient_tests(
+class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(namespace=random_name()))):
     """
-    ``IGearClient`` tests for ``DockerClient``.
+    ``IDockerClient`` tests for ``DockerClient``.
     """
-    @_if_docker
+    @if_docker_configured
     def setUp(self):
         pass
 
 
-class DockerClientTests(GearClientTestsMixin, TestCase):
+class DockerClientTests(DockerClientTestsMixin, TestCase):
     """
     Functional tests for ``DockerClient``.
     """
-    @_if_docker
+    @if_docker_configured
     def setUp(self):
         pass
 

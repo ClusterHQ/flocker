@@ -346,7 +346,10 @@ class Volume(object):
 
         :return: Container name as ``bytes``.
         """
-        return b"%s-data" % (self.name.encode("ascii"),)
+        # This duplicates logic in DockerClient; we can remove this when
+        # this logic is refactored to be based on DockerClient.
+        # https://github.com/ClusterHQ/flocker/issues/234
+        return b"flocker--%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
         """
