@@ -21,7 +21,8 @@ from .._deploy import (
     _link_environment)
 from .._model import AttachedVolume
 from ..gear import (
-    GearClient, FakeGearClient, AlreadyExists, Unit, PortMap, GearEnvironment)
+    FakeDockerClient, AlreadyExists, Unit, PortMap, GearEnvironment)
+from .._docker import DockerClient
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume
@@ -33,24 +34,24 @@ class DeployerAttributesTests(SynchronousTestCase):
     """
     Tests for attributes and initialiser arguments of `Deployer`.
     """
-    def test_gear_client_default(self):
+    def test_docker_client_default(self):
         """
-        ``Deployer.gear_client`` is a ``GearClient`` by default.
+        ``Deployer.docker_client`` is a ``DockerClient`` by default.
         """
         self.assertIsInstance(
-            Deployer(None).gear_client,
-            GearClient
+            Deployer(None).docker_client,
+            DockerClient
         )
 
-    def test_gear_override(self):
+    def test_docker_override(self):
         """
-        ``Deployer.gear_client`` can be overridden in the constructor.
+        ``Deployer.docker_client`` can be overridden in the constructor.
         """
-        dummy_gear_client = object()
+        dummy_docker_client = object()
         self.assertIs(
-            dummy_gear_client,
+            dummy_docker_client,
             Deployer(create_volume_service(self),
-                     gear_client=dummy_gear_client).gear_client
+                     docker_client=dummy_docker_client).docker_client
         )
 
     def test_network_default(self):
@@ -319,11 +320,11 @@ class StartApplicationTests(SynchronousTestCase):
     def test_start(self):
         """
         ``StartApplication`` accepts an application object and when ``run()``
-        is called returns a ``Deferred`` which fires when the gear unit
+        is called returns a ``Deferred`` which fires when the docker container
         has been added and started.
         """
-        fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        fake_docker = FakeDockerClient()
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         docker_image = DockerImage(repository=u'clusterhq/flocker',
                                    tag=u'release-14.0')
         ports = frozenset([Port(internal_port=80, external_port=8080)])
@@ -335,15 +336,15 @@ class StartApplicationTests(SynchronousTestCase):
         )
         start_result = StartApplication(application=application,
                                         hostname="node1.example.com").run(api)
-        exists_result = fake_gear.exists(unit_name=application.name)
+        exists_result = fake_docker.exists(unit_name=application.name)
 
         port_maps = [PortMap(internal_port=80, external_port=8080)]
         self.assertEqual(
             (None, True, docker_image.full_name, port_maps),
             (self.successResultOf(start_result),
              self.successResultOf(exists_result),
-             fake_gear._units[application.name].container_image,
-             fake_gear._units[application.name].ports)
+             fake_docker._units[application.name].container_image,
+             fake_docker._units[application.name].ports)
         )
 
     def test_already_exists(self):
@@ -353,7 +354,7 @@ class StartApplicationTests(SynchronousTestCase):
         application name.
         """
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient())
+                       docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -375,8 +376,8 @@ class StartApplicationTests(SynchronousTestCase):
         it is started.
         """
         volume_service = create_volume_service(self)
-        fake_gear = FakeGearClient()
-        deployer = Deployer(volume_service, fake_gear)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
         docker_image = DockerImage.from_string(u"busybox")
         application = Application(
             name=u'site-example.com',
@@ -394,7 +395,7 @@ class StartApplicationTests(SynchronousTestCase):
             # We check for existence of unit so we can ensure exposure
             # happens *before* the unit is started:
             exposed.append((volume, mount_path, self.successResultOf(
-                fake_gear.exists(u"site-example.com"))))
+                fake_docker.exists(u"site-example.com"))))
             return succeed(None)
         self.patch(Volume, "expose_to_docker", expose_to_docker)
 
@@ -406,12 +407,12 @@ class StartApplicationTests(SynchronousTestCase):
     def test_environment_supplied_to_gear(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
-        application to ``GearClient.add`` as a ``GearEnvironment`` instance
+        application to ``DockerClient.add`` as a ``GearEnvironment`` instance
         with an ``id`` matching the application name.
         """
         volume_service = create_volume_service(self)
-        fake_gear = FakeGearClient()
-        deployer = Deployer(volume_service, fake_gear)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
 
         application_name = u'site-example.com'
         variables = frozenset({u'foo': u"bar", u"baz": u"qux"}.iteritems())
@@ -431,7 +432,7 @@ class StartApplicationTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_environment,
-            fake_gear._units[application_name].environment
+            fake_docker._units[application_name].environment
         )
 
     def test_environment_not_supplied(self):
@@ -440,8 +441,8 @@ class StartApplicationTests(SynchronousTestCase):
         if the application defines an environment.
         """
         volume_service = create_volume_service(self)
-        fake_gear = FakeGearClient()
-        deployer = Deployer(volume_service, fake_gear)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -457,17 +458,17 @@ class StartApplicationTests(SynchronousTestCase):
 
         self.assertEqual(
             None,
-            fake_gear._units[application_name].environment
+            fake_docker._units[application_name].environment
         )
 
     def test_links(self):
         """
         ``StartApplication.run()`` passes environment variables to connect to
-        the remote application to ``GearClient.add``.
+        the remote application to ``DockerClient.add``.
         """
         volume_service = create_volume_service(self)
-        fake_gear = FakeGearClient()
-        deployer = Deployer(volume_service, fake_gear)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
 
         application_name = u'site-example.com'
         application = Application(
@@ -491,7 +492,7 @@ class StartApplicationTests(SynchronousTestCase):
 
         self.assertEqual(
             expected_environment,
-            fake_gear._units[application_name].environment
+            fake_docker._units[application_name].environment
         )
 
 
@@ -534,8 +535,8 @@ class StopApplicationTests(SynchronousTestCase):
         is called returns a ``Deferred`` which fires when the gear unit
         has been removed.
         """
-        fake_gear = FakeGearClient()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        fake_docker = FakeDockerClient()
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -545,9 +546,9 @@ class StopApplicationTests(SynchronousTestCase):
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(api)
-        existed = fake_gear.exists(application.name)
+        existed = fake_docker.exists(application.name)
         stop_result = StopApplication(application=application).run(api)
-        exists_result = fake_gear.exists(unit_name=application.name)
+        exists_result = fake_docker.exists(unit_name=application.name)
 
         self.assertEqual(
             (None, True, False),
@@ -562,7 +563,7 @@ class StopApplicationTests(SynchronousTestCase):
         not exist.
         """
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient())
+                       docker_client=FakeDockerClient())
         application = Application(
             name=b'site-example.com',
             image=DockerImage(repository=u'clusterhq/flocker',
@@ -580,8 +581,8 @@ class StopApplicationTests(SynchronousTestCase):
         Docker after it is stopped.
         """
         volume_service = create_volume_service(self)
-        fake_gear = FakeGearClient()
-        deployer = Deployer(volume_service, fake_gear)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
         docker_image = DockerImage.from_string(u"busybox")
         application = Application(
             name=u'site-example.com',
@@ -600,7 +601,7 @@ class StopApplicationTests(SynchronousTestCase):
             # We check for existence of unit so we can ensure exposure
             # happens *after* the unit is stopped:
             removed.append((volume, self.successResultOf(
-                fake_gear.exists(u"site-example.com"))))
+                fake_docker.exists(u"site-example.com"))))
             return succeed(None)
         self.patch(Volume, "remove_from_docker", remove_from_docker)
 
@@ -655,8 +656,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         ``Deployer.discover_node_configuration`` returns an empty
         ``NodeState`` if there are no `geard` units on the host.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[], not_running=[]),
@@ -670,9 +671,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
-        fake_gear = FakeGearClient(units={expected_application_name: unit})
+        fake_docker = FakeDockerClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[application], not_running=[]),
@@ -688,9 +689,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -711,12 +712,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
         # is fixed the mountpoint should actually be specified.
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name,
                                     volume=AttachedVolume(name=unit.name,
                                                           mountpoint=None))
                         for unit in units.values()]
-        api = Deployer(volume_service, gear_client=fake_gear)
+        api = Deployer(volume_service, docker_client=fake_docker)
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -735,9 +736,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                         service=volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name)]
-        api = Deployer(volume_service, gear_client=fake_gear)
+        api = Deployer(volume_service, docker_client=fake_docker)
         d = api.discover_node_configuration()
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -750,9 +751,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'activating')
         units = {unit.name: unit}
 
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name)]
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=applications, not_running=[]),
@@ -771,10 +772,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
                  unit4.name: unit4}
 
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
         applications.sort()
-        api = Deployer(create_volume_service(self), gear_client=fake_gear)
+        api = Deployer(create_volume_service(self), docker_client=fake_docker)
         d = api.discover_node_configuration()
         result = self.successResultOf(d)
         result.not_running.sort()
@@ -797,8 +798,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         changes are necessary when there are no applications running or
         desired, and no proxies exist or are desired.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
@@ -814,8 +815,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
@@ -854,7 +855,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         network.create_proxy_to(ip=u'192.0.2.100', port=3306)
 
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient(),
+                       docker_client=FakeDockerClient(),
                        network=network)
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(
@@ -870,8 +871,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'site-example.com', activation_state=u'active')
 
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
@@ -887,8 +888,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         application must be started when it is desired on the given node but
         not running.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -918,8 +919,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         application must be started if the desired changes apply to a different
         node.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -949,8 +950,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
 
         application = Application(
@@ -982,8 +983,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
 
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
         d = api.calculate_necessary_state_changes(desired_state=desired,
@@ -1002,9 +1003,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         hostname = u"node1.example.com"
 
-        # The application is not running here - therefore there is no gear unit
+        # The application is not running here - therefore there is no container
         # for it.
-        gear = FakeGearClient(units={})
+        docker = FakeDockerClient(units={})
 
         # The discovered current configuration of the cluster also reflects
         # this.
@@ -1013,7 +1014,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         }))
 
         api = Deployer(
-            create_volume_service(self), gear_client=gear,
+            create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1052,9 +1053,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         volume for an application which was previously running on another node
         must be waited for, in anticipation of that node handing it off to us.
         """
-        # The application is not running here - therefore there is no gear unit
+        # The application is not running here - therefore there is no container
         # for it.
-        gear = FakeGearClient(units={})
+        docker = FakeDockerClient(units={})
 
         node = Node(
             hostname=u"node1.example.com",
@@ -1070,7 +1071,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
-            create_volume_service(self), gear_client=gear,
+            create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1109,7 +1110,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
         )
-        gear = FakeGearClient(units={unit.name: unit})
+        docker = FakeDockerClient(units={unit.name: unit})
 
         node = Node(
             hostname=u"node1.example.com",
@@ -1125,7 +1126,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
-            create_volume_service(self), gear_client=gear,
+            create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1169,7 +1170,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
         )
-        gear = FakeGearClient(units={unit.name: unit})
+        docker = FakeDockerClient(units={unit.name: unit})
 
         current_node = Node(
             hostname=u"node1.example.com",
@@ -1190,7 +1191,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
         api = Deployer(
-            create_volume_service(self), gear_client=gear,
+            create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1212,8 +1213,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
 
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         application = Application(
             name=b'mysql-hybridcluster',
@@ -1245,8 +1246,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
 
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
 
         desired = Deployment(nodes=frozenset())
@@ -1267,7 +1268,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
         )
-        gear = FakeGearClient(units={unit.name: unit})
+        docker = FakeDockerClient(units={unit.name: unit})
 
         another_application = Application(
             name=u"another",
@@ -1310,7 +1311,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
-            create_volume_service(self), gear_client=gear,
+            create_volume_service(self), docker_client=docker,
             network=make_memory_network()
         )
 
@@ -1363,7 +1364,7 @@ class SetProxiesTests(SynchronousTestCase):
         """
         fake_network = make_memory_network()
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306)
@@ -1381,7 +1382,7 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network = make_memory_network()
         fake_network.create_proxy_to(ip=u'192.0.2.100', port=3306)
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[]).run(api)
@@ -1407,7 +1408,7 @@ class SetProxiesTests(SynchronousTestCase):
                                                        port=8080)
 
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[required_proxy1, required_proxy2]).run(api)
@@ -1428,7 +1429,7 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network.delete_proxy = lambda proxy: 1/0
 
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[]).run(api)
@@ -1448,7 +1449,7 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(ports=[Proxy(ip=u'192.0.2.100', port=3306)]).run(api)
@@ -1467,7 +1468,7 @@ class SetProxiesTests(SynchronousTestCase):
         fake_network.create_proxy_to = lambda ip, port: 1/0
 
         api = Deployer(
-            create_volume_service(self), gear_client=FakeGearClient(),
+            create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         d = SetProxies(
@@ -1497,8 +1498,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         stopped.
         """
         unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
-        fake_gear = FakeGearClient(units={unit.name: unit})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={unit.name: unit})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         desired = Deployment(nodes=frozenset())
 
@@ -1514,8 +1515,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         Applications which are in the desired configuration are started.
         """
-        fake_gear = FakeGearClient(units={})
-        api = Deployer(create_volume_service(self), gear_client=fake_gear,
+        fake_docker = FakeDockerClient(units={})
+        api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
         expected_application_name = u'mysql-hybridcluster'
         application = Application(
@@ -1550,7 +1551,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         deferred = Deferred()
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient(),
+                       docker_client=FakeDockerClient(),
                        network=make_memory_network())
         self.patch(api, "calculate_necessary_state_changes",
                    lambda *args, **kwargs: succeed(FakeChange(deferred)))
@@ -1567,7 +1568,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         change = FakeChange(succeed(None))
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient(),
+                       docker_client=FakeDockerClient(),
                        network=make_memory_network())
         self.patch(api, "calculate_necessary_state_changes",
                    lambda *args, **kwargs: succeed(change))
@@ -1585,7 +1586,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         state = object()
         host = object()
         api = Deployer(create_volume_service(self),
-                       gear_client=FakeGearClient(),
+                       docker_client=FakeDockerClient(),
                        network=make_memory_network())
         arguments = []
 
@@ -1607,7 +1608,7 @@ class CreateVolumeTests(SynchronousTestCase):
         """
         volume_service = create_volume_service(self)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         create = CreateVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1623,7 +1624,7 @@ class CreateVolumeTests(SynchronousTestCase):
         created volume.
         """
         deployer = Deployer(create_volume_service(self),
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         create = CreateVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1647,7 +1648,7 @@ class WaitForVolumeTests(SynchronousTestCase):
             result.append(name)
         self.patch(volume_service, "wait_for_volume", wait)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         wait = WaitForVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1664,7 +1665,7 @@ class WaitForVolumeTests(SynchronousTestCase):
         volume_service = create_volume_service(self)
         self.patch(volume_service, "wait_for_volume", lambda name: result)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         wait = WaitForVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1691,7 +1692,7 @@ class HandoffVolumeTests(SynchronousTestCase):
             result.extend([volume, destination])
         self.patch(volume_service, "handoff", _handoff)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         handoff = HandoffVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1713,7 +1714,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         self.patch(volume_service, "handoff",
                    lambda volume, destination: result)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         handoff = HandoffVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1741,7 +1742,7 @@ class PushVolumeTests(SynchronousTestCase):
             result.extend([volume, destination])
         self.patch(volume_service, "push", _push)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
             volume=AttachedVolume(name=u"myvol",
@@ -1763,7 +1764,7 @@ class PushVolumeTests(SynchronousTestCase):
         self.patch(volume_service, "push",
                    lambda volume, destination: result)
         deployer = Deployer(volume_service,
-                            gear_client=FakeGearClient(),
+                            docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
             volume=AttachedVolume(name=u"myvol",

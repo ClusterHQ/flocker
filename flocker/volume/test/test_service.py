@@ -502,13 +502,15 @@ class VolumeTests(TestCase):
 
     def test_container_name(self):
         """
-        The volume's container name adds ``"-data"`` suffix to the volume name.
+        The volume's container name adds ``"-data"`` suffix to the volume
+        name, and ``"flocker--"`` prefix for namespacing.
 
-        This ensures that geard will automatically mount it into a
-        container whose name matches that of the volume.
+        This ensures that our geard-emulation will automatically mount it
+        into a container whose name matches that of the volume.
+        See https://github.com/ClusterHQ/flocker/issues/234
         """
         volume = Volume(uuid=u"123", name=u"456", service=object())
-        self.assertEqual(volume._container_name, b"456-data")
+        self.assertEqual(volume._container_name, b"flocker--456-data")
 
     def test_is_locally_owned(self):
         """
