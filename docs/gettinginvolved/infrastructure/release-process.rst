@@ -83,7 +83,7 @@ Preparing for a release
 
         export VERSION=0.1.2
 
-#. File a ticket:
+#. Create an issue:
 
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
