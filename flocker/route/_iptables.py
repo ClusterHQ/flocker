@@ -339,12 +339,13 @@ class HostNetwork(object):
             conn.laddr[1]
             for conn
             in net_connections(kind='tcp')
-            if conn.status == 'LISTEN'
         )
         proxied = set(
             proxy.port
             for proxy in self.enumerate_proxies()
         )
+        # net_connections won't tell us about ports bound by sockets that
+        # haven't entered the TCP state graph yet.
         return frozenset(listening | proxied)
 
 

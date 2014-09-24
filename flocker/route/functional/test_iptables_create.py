@@ -396,3 +396,48 @@ class DeleteTests(TestCase):
         self.assertEqual(
             expected,
             actual)
+
+
+class UsedPortsTests(TestCase):
+    """
+    Tests for enumeration of used ports.
+    """
+    def test_listening_ports(self):
+        """
+        If a socket is bound to a port and listening the port number is
+        included in the result of ``HostNetwork.enumerate_used_ports``.
+        """
+        network = make_host_network()
+        listener = socket()
+        self.addCleanup(listener.close)
+
+        listener.bind(('', 0))
+        listener.listen(3)
+
+        self.assertIn(
+            listener.getsockname()[1], network.enumerate_used_ports())
+
+    def test_client_ports(self):
+        """
+        If a socket is bound to a port and connected to a server then the
+        client port is included in ``HostNetwork.enumerate_used_ports``\ s
+        return value.
+        """
+        network = make_host_network()
+        listener = socket()
+        self.addCleanup(listener.close)
+
+        listener.bind(('', 0))
+        listener.listen(3)
+
+        client = socket()
+        self.addCleanup(client.close)
+
+        client.setblocking(False)
+        try:
+            client.connect_ex(listener.getsockname())
+        except error:
+            pass
+
+        self.assertIn(
+            client.getsockname()[1], network.enumerate_used_ports())
