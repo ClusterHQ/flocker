@@ -13,8 +13,9 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, Link, NodeState)
+from .. import (
+    Deployer, Application, DockerImage, Deployment, Node, Port, Link,
+    NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,

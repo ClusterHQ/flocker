@@ -15,25 +15,11 @@ from .gear import PortMap, GearEnvironment
 from ._docker import DockerClient
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
+    NodeState,
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..common import gather_deferreds
-
-
-@attributes(["running", "not_running", "used_ports"],
-            defaults={"used_ports": frozenset()})
-class NodeState(object):
-    """
-    The current state of a node.
-
-    :ivar running: A ``list`` of ``Application`` instances on this node
-        that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
-    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
-        in use (by anything) on this node.
-    """
 
 
 class IStateChange(Interface):
