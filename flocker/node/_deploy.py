@@ -20,7 +20,8 @@ from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..common import gather_deferreds
 
 
-@attributes(["running", "not_running"])
+@attributes(["running", "not_running", "used_ports"],
+            defaults={"used_ports": frozenset()})
 class NodeState(object):
     """
     The current state of a node.
@@ -29,6 +30,8 @@ class NodeState(object):
         that are currently running or starting up.
     :ivar not_running: A ``list`` of ``Application`` instances on this
         node that are currently shutting down or stopped.
+    :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
+        in use (by anything) on this node.
     """
 
 
@@ -329,7 +332,11 @@ class Deployer(object):
                     running.append(application)
                 else:
                     not_running.append(application)
-            return NodeState(running=running, not_running=not_running)
+            return NodeState(
+                running=running,
+                not_running=not_running,
+                used_ports=self.network.enumerate_used_ports()
+            )
         d.addCallback(applications_from_units)
         return d
 
