@@ -98,8 +98,10 @@ Preparing for a release
 
 #. Update the version numbers in:
 
-   - `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
-   - `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_
+   - the ``yum install`` line in
+     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
+   - the ``box_version`` in
+     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output)
    - Commit the changes:
 
@@ -190,6 +192,8 @@ Release
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
+
+#. Build and upload the tutorial :ref:`vagrant box <build-vagrant-box>`.
 
 #. Build tagged docs at Read the Docs:
 

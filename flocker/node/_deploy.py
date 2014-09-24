@@ -11,7 +11,8 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from .gear import GearClient, PortMap, GearEnvironment
+from .gear import PortMap, GearEnvironment
+from ._docker import DockerClient
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
@@ -147,7 +148,7 @@ class StartApplication(object):
         else:
             gear_environment = None
 
-        d.addCallback(lambda _: deployer.gear_client.add(
+        d.addCallback(lambda _: deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
@@ -192,7 +193,7 @@ class StopApplication(object):
     def run(self, deployer):
         application = self.application
         unit_name = application.name
-        result = deployer.gear_client.remove(unit_name)
+        result = deployer.docker_client.remove(unit_name)
 
         def unit_removed(_):
             if application.volume is not None:
@@ -299,15 +300,15 @@ class Deployer(object):
     Start and stop applications.
 
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IGearClient gear_client: The gear client API to use in
-        deployment operations. Default ``GearClient``.
+    :ivar IDockerClient docker_client: The gear client API to use in
+        deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, volume_service, gear_client=None, network=None):
-        if gear_client is None:
-            gear_client = GearClient(hostname=u'127.0.0.1')
-        self.gear_client = gear_client
+    def __init__(self, volume_service, docker_client=None, network=None):
+        if docker_client is None:
+            docker_client = DockerClient()
+        self.docker_client = docker_client
         if network is None:
             network = make_host_network()
         self.network = network
@@ -327,7 +328,7 @@ class Deployer(object):
         volumes.addCallback(lambda volumes: set(
             volume.name.id for volume in volumes
             if volume.uuid == self.volume_service.uuid))
-        d = gatherResults([self.gear_client.list(), volumes])
+        d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result

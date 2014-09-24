@@ -130,18 +130,18 @@ class ChangeStateScript(object):
     and stopping applications, opening up application ports and setting up
     routes to other nodes.
 
-    :ivar GearClient _gear_client: See the ``gear_client`` parameter to
+    :ivar DockerClient _docker_client: See the ``docker_client`` parameter to
         ``__init__``.
     """
-    def __init__(self, gear_client=None):
+    def __init__(self, docker_client=None):
         """
-        :param GearClient gear_client: The object to use to talk to the Gear
-            server.
+        :param DockerClient docker_client: The object to use to talk to the
+            Docker server.
         """
-        self._gear_client = gear_client
+        self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._gear_client)
+        deployer = Deployer(volume_service, self._docker_client)
         return deployer.change_node_state(
             desired_state=options['deployment'],
             current_cluster_state=options['current'],
@@ -175,23 +175,23 @@ class ReportStateScript(object):
     """
     A command to return the state of a node.
 
-    :ivar GearClient _gear_client: See the ``gear_client`` parameter to
+    :ivar DockerClient _docker_client: See the ``docker_client`` parameter to
         ``__init__``.
     """
     _stdout = sys.stdout
 
-    def __init__(self, gear_client=None):
+    def __init__(self, docker_client=None):
         """
-        :param GearClient gear_client: The object to use to talk to the Gear
-            server.
+        :param DockerClient docker_client: The object to use to talk to the
+            Docker server.
         """
-        self._gear_client = gear_client
+        self._docker_client = docker_client
 
     def _print_yaml(self, result):
         self._stdout.write(result)
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._gear_client)
+        deployer = Deployer(volume_service, self._docker_client)
         d = deployer.discover_node_configuration()
         d.addCallback(lambda state: configuration_to_yaml(
             list(state.running + state.not_running)))

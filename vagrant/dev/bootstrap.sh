@@ -5,18 +5,23 @@
 set -e
 
 # Install useful yum repos
-yum localinstall -y http://archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
+yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
 curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo
 
 # Install packages
-yum install -y @buildsys-build git
-yum install -y kernel-headers kernel-devel rpmdevtools
-yum install -y zlib-devel libuuid-devel libselinux-devel
-yum install -y automake autoconf libtool
-yum install -y rpm-devel rpmlint mock createrepo
-yum install -y docker-io geard
-yum install -y python-devel python-tox python-virtualenv python-pip
-yum install -y python-cffi libffi-devel
+yum install -y \
+	@buildsys-build git \
+	kernel-headers kernel-devel rpmdevtools \
+	zlib-devel libuuid-devel libselinux-devel \
+	automake autoconf libtool \
+	rpm-devel rpmlint mock createrepo \
+	docker-io geard \
+	python-devel python-tox python-virtualenv python-pip \
+	python-cffi libffi-devel \
+	yum-utils
+
+# Enable zfs-testing repo
+yum-config-manager --enable zfs-testing
 yum install -y zfs
 
 # Flocker python dependencies
