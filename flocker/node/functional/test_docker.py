@@ -27,7 +27,7 @@ from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
     random_name)
 
-from ..test.test_gear import make_idockerclient_tests
+from ..test.test_docker import make_idockerclient_tests
 from .._docker import DockerClient
 from ..gear import PortMap, GearEnvironment
 from ..testtools import if_docker_configured, wait_for_unit_state
