@@ -49,16 +49,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         A top-level dictionary with any arbitrary key containing another
         dictionary with a "build" key is detected as a valid fig format.
-
-        Note that "valid fig-format" does not necessarily translate to
-        "valid configuration", it just means that the suppled configuration
-        will be treated and parsed as fig-format rather than flocker-format.
-
-        A valid fig-style configuration is defined as:
-        Overall application configuration is of type dictionary, containing
-        one or more keys which each contain a further dictionary, which
-        contain exactly one "image" key or "build" key and does not contain
-        any invalid keys.
         """
         config = {
             'postgres':
