@@ -17,7 +17,7 @@ from ...volume.test.test_script import make_volume_options_tests
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
-from ..gear import FakeGearClient, Unit
+from ..gear import FakeDockerClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 
@@ -28,12 +28,12 @@ class ChangeStateScriptTests(SynchronousTestCase):
     """
     Tests for ``ChangeStateScript``.
     """
-    def test_deployer_gear_client(self):
+    def test_deployer_docker_client(self):
         """
-        ``ChangeState._gear_client`` is configured with the default gear
+        ``ChangeState._docker_client`` is configured with the default docker
         client.
         """
-        self.assertIs(None, ChangeStateScript()._gear_client)
+        self.assertIs(None, ChangeStateScript()._docker_client)
 
 
 class ChangeStateScriptMainTests(SynchronousTestCase):
@@ -357,7 +357,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        fake_gear = FakeGearClient(units=units)
+        fake_docker = FakeDockerClient(units=units)
 
         expected = {
             'applications': {
@@ -367,7 +367,7 @@ class ReportStateScriptMainTests(SynchronousTestCase):
             'version': 1
         }
 
-        script = ReportStateScript(fake_gear)
+        script = ReportStateScript(fake_docker)
         content = StringIO()
         self.patch(script, '_stdout', content)
         script.main(
