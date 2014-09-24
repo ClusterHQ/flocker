@@ -76,6 +76,8 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
 Preparing for a release
 -----------------------
 
+#. Confirm that there are no outstanding Pull Requests in GitHub for a previous release.
+
 #. Choose a version number:
 
    - Release numbers should be of the form x.y.z e.g.:
