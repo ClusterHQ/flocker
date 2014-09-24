@@ -129,7 +129,7 @@ The parameters currently supported to define an application in Fig syntax are:
 
   .. code-block:: yaml
 
-     image: mysql:5.6
+     image: "mysql:5.6"
      
 - ``environment``
 
@@ -139,8 +139,8 @@ The parameters currently supported to define an application in Fig syntax are:
   .. code-block:: yaml
 
      environment:
-       WP_ADMIN_USERNAME: admin
-       WP_ADMIN_PASSWORD: 8x6nqf5arbt
+       "WP_ADMIN_USERNAME": "admin"
+       "WP_ADMIN_PASSWORD": "8x6nqf5arbt"
 
 - ``ports``
 
@@ -164,7 +164,7 @@ The parameters currently supported to define an application in Fig syntax are:
   .. code-block:: yaml
   
      links:
-       - mysql:db     
+       - "mysql:db"     
 
   Where ``mysql`` is another application defined in the configuration, ``db`` will be the alias available to the application linking ``mysql`` and the following environment variables will be populated (assuming port mapping in ``mysql`` of ``3306:3306``::
   
@@ -179,7 +179,7 @@ The parameters currently supported to define an application in Fig syntax are:
   .. code-block:: yaml
   
      links:
-       - mysql
+       - "mysql"
   
   will populate environment variables::
 
@@ -202,20 +202,20 @@ The parameters currently supported to define an application in Fig syntax are:
   .. code-block:: yaml
   
      volumes:
-       - /var/lib/mysql
+       - "/var/lib/mysql"
        
 Here's a complete example of a Fig compatible application configuration for Flocker:
 
 .. code-block:: yaml
   
-   mysql:
-     image: mysql:5.6.17
+   "mysql":
+     image: "mysql:5.6.17"
      environment:
-       MYSQL_ROOT_PASSWORD: clusterhq
+       "MYSQL_ROOT_PASSWORD": "clusterhq"
      ports:
        - "3306:3306"
      volumes:
-       - /var/lib/mysql     
+       - "/var/lib/mysql"
 
 .. note::
 
