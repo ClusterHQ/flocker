@@ -47,8 +47,7 @@ Besides filing a `GitHub issue`_ with feature requests or bug reports you can al
 Development Environment
 =======================
 
-* To run the complete test suite you will need `ZFS`_, `geard`_ and `Docker`_ installed.
-  ``geard`` requires an operating system with ``systemd``.
+* To run the complete test suite you will need `ZFS`_ and `Docker`_ installed.
   The recommended way to get an environment with these installed is to use the included ``Vagrantfile`` which will create a pre-configured Fedora 20 virtual machine.
   Vagrant 1.6.2 or later is required.
   Once you have Vagrant installed (see the `Vagrant documentation <http://docs.vagrantup.com/>`_) you can run the following to get going:
@@ -66,7 +65,6 @@ Development Environment
      $ python setup.py install .[doc,dev]
 
 .. _ZFS: http://zfsonlinux.org
-.. _geard: https://openshift.github.io/geard/
 .. _Docker: https://www.docker.com/
 
 
@@ -79,7 +77,7 @@ You can run all unit tests by doing:
 
    $ tox
 
-Functional tests require ``ZFS``, ``geard`` and ``Docker`` to be installed and in the case of the latter two running as well.
+Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter two running as well.
 In addition, ``tox`` needs to be run as root:
 
 .. code-block:: console
