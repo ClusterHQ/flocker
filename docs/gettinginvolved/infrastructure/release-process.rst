@@ -1,6 +1,11 @@
 Release Process
 ===============
 
+.. note::
+
+   Make sure to follow the latest documentation when doing a release.
+
+
 Outcomes
 --------
 
