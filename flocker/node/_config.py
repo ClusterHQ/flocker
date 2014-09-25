@@ -79,11 +79,6 @@ class FigConfiguration(object):
             name specified in a link may not have been parsed at the point
             the link is encountered.
 
-        self._validated: A ``bool`` indicating whether or not the supplied
-            configuration has been validated as Fig-format. Note this does
-            not indicate the actual configuration is valid, only that it
-            meets the minimum requirements to be interpreted as a Fig config.
-
         self._possible_identifiers: A ``dict`` of keys that may identify a
             dictionary of parsed YAML as being Fig-format.
 
@@ -120,6 +115,9 @@ class FigConfiguration(object):
         Returns the ``Application`` instances parsed from the supplied
         configuration.
 
+        This method should only be called after valdiating the format
+        with a call to ``is_valid_format``.
+
         This method should only be called once, in that calling it
         multiple times will re-parse an already parsed config.
 
@@ -146,20 +144,20 @@ class FigConfiguration(object):
         :returns: A ``bool`` indicating ``True`` for a fig-style configuration
             or ``False`` if fig-style is not detected.
         """
-        self._validated = False
+        valid = False
         for application_name, config in (
                 self._application_configuration.items()):
             if isinstance(config, dict):
                 required_keys = self._count_identifier_keys(config)
                 if required_keys == 1:
-                    self._validated = True
+                    valid = True
                 elif required_keys > 1:
                     raise ConfigurationError(
                         ("Application '{app_name}' has a config error. "
                          "Must specify either 'build' or 'image'; found both.")
                         .format(app_name=application_name)
                     )
-        return self._validated
+        return valid
 
     def _count_identifier_keys(self, config):
         """
@@ -416,11 +414,6 @@ class FigConfiguration(object):
             instances.
 
         """
-        if not self._validated:
-            if not self.is_valid_format():
-                raise ConfigurationError(
-                    "Supplied configuration does not appear to be Fig format."
-                )
         for application_name, config in (
             self._application_configuration.items()
         ):
@@ -469,6 +462,10 @@ class FigConfiguration(object):
                      "{message}".format(application_name=application_name,
                                         message=e.message))
                 )
+        # Here we can now process application links; we cannot perform this
+        # logic at the parsing stage above, because at the point we encounter
+        # a link in application A to application B, there is no guarantee that
+        # application B has been parsed yet.
         self._link_applications()
 
 

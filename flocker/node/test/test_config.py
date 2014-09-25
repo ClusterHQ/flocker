@@ -59,7 +59,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
 
     def test_dict_of_applications_from_fig(self):
         """
-        ``Configuration._applications_from_fig_configuration`` returns a
+        ``Configuration.applications_from_configuration`` returns a
         ``dict`` of ``Application`` instances, one for each application key
         in the supplied configuration.
         """
@@ -107,30 +107,102 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         applications = parser._applications_from_configuration(config)
         self.assertEqual(expected_applications, applications)
 
-    def test_invalid_fig_config_on_parse(self):
+    def test_valid_fig_config_environment(self):
         """
-        ``FigConfiguration._parse`` raises a ``ConfigurationError`` if the
-        supplied configuration has not been pre-validated and subsequently
-        fails to validate as Fig format.
+        ``FigConfiguration._parse_app_environment`` returns a ``frozenset``
+        of environment variable name/value pairs given a valid configuration.
         """
         config = {
-            'version': 1,
-            'applications': {
-                'postgres': {
-                    'image': 'sample/postgres',
-                },
-            },
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                }
+            }
         }
         parser = FigConfiguration(config)
-        exception = self.assertRaises(
-            ConfigurationError,
-            parser._parse
+        expected_result = frozenset(
+            config['postgres']['environment'].items()
         )
-        error_message = (
-            "Supplied configuration does not "
-            "appear to be Fig format."
+        environment = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
         )
-        self.assertEqual(exception.message, error_message)
+        self.assertEqual(expected_result, environment)
+
+    def test_valid_fig_config_volumes(self):
+        """
+        ``FigConfiguration._parse_app_volumes`` returns a ``AttachedVolume``
+        instance containing the volume mountpoint given a valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = AttachedVolume(
+            name='postgres',
+            mountpoint=FilePath(b'/var/db/data')
+        )
+        volume = parser._parse_app_volumes(
+            'postgres',
+            config['postgres']['volumes']
+        )
+        self.assertEqual(expected_result, volume)
+
+    def test_valid_fig_config_ports(self):
+        """
+        ``FigConfiguration._parse_app_ports`` returns a ``list``
+        of ``Port`` objects mapping internal and external ports, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': [b'8080:80']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = [
+            Port(internal_port=80, external_port=8080)
+        ]
+        ports = parser._parse_app_ports(
+            'postgres',
+            config['postgres']['ports']
+        )
+        self.assertEqual(expected_result, ports)
+
+    def test_valid_fig_config_links(self):
+        """
+        ``FigConfiguration._parse_app_links`` creates a ``dict`` mapping
+        linked application names and aliases to each application, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
+                'links': [b'postgres:db']
+            }
+        }
+        parser = FigConfiguration(config)
+        parser._application_links['wordpress'] = []
+        parser._parse_app_links(
+            'wordpress',
+            config['wordpress']['links']
+        )
+        expected_result = {
+            u'wordpress': [
+                {u'alias': u'db', u'target_application': u'postgres'},
+            ]
+        }
+        self.assertEqual(expected_result, parser._application_links)
 
     def test_invalid_fig_config_image_and_build(self):
         """
