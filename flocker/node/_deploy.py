@@ -324,7 +324,7 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                if unit.activation_state in (u"active", u"activating"):
+                if unit.activation_state == u"active":
                     running.append(application)
                 else:
                     not_running.append(application)

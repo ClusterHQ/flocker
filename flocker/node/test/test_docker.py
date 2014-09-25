@@ -110,12 +110,12 @@ def make_idockerclient_tests(fixture):
                 # XXX: DockerClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                activating = Unit(name=name, activation_state=u"activating")
-                active = Unit(name=name, activation_state=u"active")
-                self.assertTrue((activating in units) or
-                                (active in units),
+                added = Unit(name=name, activation_state=u"inactive")
+                running = Unit(name=name, activation_state=u"active")
+                self.assertTrue((added in units) or
+                                (running in units),
                                 "Added unit not in %r: %r, %r" % (
-                                    units, active, activating))
+                                    units, added, running))
             d.addCallback(got_list)
             return d
 

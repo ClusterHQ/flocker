@@ -678,11 +678,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_multiple(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
-        a running ``Application`` for every active or activating container
-        on the host.
+        a running ``Application`` for every active container on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
@@ -739,34 +738,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_activating_units(self):
-        """
-        Units that are currently not active but are starting up are considered
-        to be running by ``discover_node_configuration()``.
-        """
-        unit = Unit(name=u'site-example.com', activation_state=u'activating')
-        units = {unit.name: unit}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name)]
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
-        d = api.discover_node_configuration()
-
-        self.assertEqual(NodeState(running=applications, not_running=[]),
-                         self.successResultOf(d))
-
     def test_not_running_units(self):
         """
-        Units that are neither active nor activating are considered to be not
-        running by ``discover_node_configuration()``.
+        Units that are not active are considered to be not running by
+        ``discover_node_configuration()``.
         """
-        unit1 = Unit(name=u'site-example.com',
-                     activation_state=u'deactivating')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
-        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
-        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
-        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
-                 unit4.name: unit4}
+        unit1 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit2 = Unit(name=u'site-example4.net', activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
