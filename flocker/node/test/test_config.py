@@ -14,8 +14,8 @@ from .._config import (
     )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
+    NodeState,
 )
-
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
@@ -989,18 +989,21 @@ class MarshalConfigurationTests(SynchronousTestCase):
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        applications = set()
-        result = marshal_configuration(applications)
-        expected = {'applications': {}, 'version': 1}
+        result = marshal_configuration(NodeState(running=[], not_running=[]))
+        expected = {
+            'applications': {},
+            'used_ports': [],
+            'version': 1,
+        }
         self.assertEqual(expected, result)
 
     def test_one_application(self):
         """
         A dictionary of application name -> image is produced where there is
-        only one application in the set passed to the ``marshal_configuration``
+        only one application in the state passed to the ``marshal_configuration``
         method.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1008,13 +1011,15 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     image=DockerImage(repository='flocker/mysql',
                                       tag='v1.0.0'))
             )
-        }
-        result = marshal_configuration(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
         self.assertEqual(expected, result)
 
@@ -1022,7 +1027,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         """
         The dictionary includes a representation of each supplied application.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1035,9 +1040,11 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0')
             )
-        }
-        result = marshal_configuration(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1045,7 +1052,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
         self.assertEqual(expected, result)
 
@@ -1055,7 +1062,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         including exposed internal and external ports where the
         ``Application`` specifies these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1063,16 +1070,18 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = marshal_configuration(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
             },
-            'version': 1
+            'version': 1,
         }
         self.assertEqual(expected, result)
 
@@ -1082,7 +1091,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         including links to other application when the ``Application`` specifies
         these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1091,9 +1100,11 @@ class MarshalConfigurationTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')])
             )
-        }
-        result = marshal_configuration(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1111,7 +1122,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         If the supplied applications have a volume, the resulting yaml will
         also include the volume mountpoint.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1127,9 +1138,53 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = marshal_configuration(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [{'internal': 80, 'external': 8080}]
+                },
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': None},
+                    'image': 'unknown',
+                    'ports': []
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_running_and_not_running_applications(self):
+        """
+        Both the ``running`` and ``not_running`` application lists are
+        marshalled into the result.
+        """
+        running = Application(
+            name='mysql-hybridcluster',
+            image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+            ports=frozenset(),
+            volume=AttachedVolume(
+                name='mysql-hybridcluster',
+                mountpoint=FilePath(b'/var/mysql/data')
+            ),
+        )
+
+        not_running = Application(
+            name='site-hybridcluster',
+            image=DockerImage(repository='flocker/wordpress',
+                              tag='v1.0.0'),
+            ports=frozenset([Port(internal_port=80, external_port=8080)])
+        )
+
+        result = marshal_configuration(
+            NodeState(running=[running], not_running=[not_running]))
+
+        expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1150,7 +1205,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         ``Configuration._applications_from_configuration`` can load the output
         of ``marshal_configuration`` into ``Application``\ s.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1173,7 +1228,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')]),
             )
-        }
+        ]
         expected_applications = {
             b'mysql-hybridcluster': Application(
                 name=b'mysql-hybridcluster',
@@ -1195,7 +1250,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                                       alias='mysql')]),
             )
         }
-        result = marshal_configuration(applications)
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         config = Configuration(lenient=True)
         apps = config._applications_from_configuration(result)
         self.assertEqual(expected_applications, apps)

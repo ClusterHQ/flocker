@@ -13,6 +13,7 @@ from twisted.application.service import Service
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
 from ...volume.test.test_script import make_volume_options_tests
+from ...route import make_memory_network
 
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
@@ -359,15 +360,19 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 
         fake_docker = FakeDockerClient(units=units)
 
+        used_ports = frozenset([1, 10, 200, 52000])
+        network = make_memory_network(used_ports=used_ports)
+
         expected = {
+            'used_ports': sorted(used_ports),
             'applications': {
                 'site-example.net': {'image': 'unknown', 'ports': []},
                 'site-example.com': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
 
-        script = ReportStateScript(fake_docker)
+        script = ReportStateScript(fake_docker, network)
         content = StringIO()
         self.patch(script, '_stdout', content)
         script.main(

@@ -180,18 +180,18 @@ class ReportStateScript(object):
     """
     _stdout = sys.stdout
 
-    def __init__(self, docker_client=None):
+    def __init__(self, docker_client=None, network=None):
         """
         :param DockerClient docker_client: The object to use to talk to the
             Docker server.
         """
         self._docker_client = docker_client
+        self._network = network
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
+        deployer = Deployer(volume_service, self._docker_client, self._network)
         d = deployer.discover_node_configuration()
-        d.addCallback(lambda state: marshal_configuration(
-            list(state.running + state.not_running)))
+        d.addCallback(marshal_configuration)
         d.addCallback(safe_dump)
         d.addCallback(self._stdout.write)
         return d
