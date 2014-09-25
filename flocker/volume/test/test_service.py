@@ -574,7 +574,8 @@ class VolumeTests(TestCase):
         See https://github.com/ClusterHQ/flocker/issues/234
         """
         volume = Volume(uuid=u"123", name=MY_VOLUME, service=object())
-        self.assertEqual(volume._container_name, b"flocker--myns.myvolume-data")
+        self.assertEqual(volume._container_name,
+                         b"flocker--myns.myvolume-data")
 
     def test_is_locally_owned(self):
         """
