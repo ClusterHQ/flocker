@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.node.gear`."""
+"""Tests for :module:`flocker.node._docker`."""
 
 from zope.interface.verify import verifyObject
 
@@ -278,7 +278,7 @@ class EnvironmentTests(TestCase):
     """
     def test_to_dict(self):
         """
-        ``GearEnvironment.to_dict`` returns a dictionary containing the
+        ``Environment.to_dict`` returns a dictionary containing the
         the variables as a dictionary.
         """
         variables = {'baz': 'qux', 'foo': 'bar'}
@@ -288,7 +288,7 @@ class EnvironmentTests(TestCase):
 
     def test_repr(self):
         """
-        ``GearEnvironment.__repr__`` shows the id and variables.
+        ``Environment.__repr__`` shows the id and variables.
         """
         self.assertEqual(
             "<Environment("

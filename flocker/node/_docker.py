@@ -48,7 +48,7 @@ class Environment(object):
                           ports=(), environment=None))
 class Unit(object):
     """
-    Information about a unit managed by geard/systemd.
+    Information about a unit managed by Docker.
 
     XXX: The container_image attribute defaults to `None` until we have
     code to call docker for images associated with its containers. See
