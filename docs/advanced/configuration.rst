@@ -117,8 +117,11 @@ Fig-compatible Application Configuration
 ----------------------------------------
 
 As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s configuration syntax to define applications.
-Note that Flocker does not yet support the entire range of configuration directives available in Fig.
-The parameters currently supported to define an application in Fig syntax are:
+
+.. note:: 
+
+   Focker does not yet support the entire range of configuration directives available in Fig.
+   The parameters currently supported to define an application in Fig syntax are:
 
 - ``image``
 
@@ -216,11 +219,7 @@ Here's a complete example of a Fig compatible application configuration for Floc
        - "3306:3306"
      volumes:
        - "/var/lib/mysql"
-
-.. note::
-
-   All other Fig configuration directives are not supported by Flocker at this time.
-   
+  
 
 Deployment Configuration
 ------------------------

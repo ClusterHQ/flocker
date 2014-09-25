@@ -19,7 +19,7 @@ from .._model import (
 )
 
 
-class ApplicationsFromConfigurationTests(SynchronousTestCase):
+class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
@@ -608,6 +608,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
+
+class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
