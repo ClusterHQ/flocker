@@ -2,6 +2,7 @@ app
 apps
 admin
 sysadmin
+behaviour
 Btrfs
 Buildbot
 checksum

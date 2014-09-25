@@ -44,7 +44,7 @@ Access
 Preliminary Step: Pre-populating RPM Repository
 -----------------------------------------------
 
-.. warning:: This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
+.. warning:: This only needs to be done if the dependency packages for Flocker (e.g. 3rd party Python libraries) change; it should *not* be done every release.
              If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
 
 These steps must be performed from a machine with the ClusterHQ Copr repository installed.
@@ -54,7 +54,7 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
 ::
 
    mkdir repo
-   yumdownloader --destdir=repo geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   yumdownloader --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
    createrepo repo
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
 
@@ -62,7 +62,7 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
 ::
 
    mkdir srpm
-   yumdownloader --destdir=srpm --source geard python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+   yumdownloader --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 

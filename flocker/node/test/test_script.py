@@ -18,7 +18,7 @@ from ...route import make_memory_network
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
-from ..gear import FakeDockerClient, Unit
+from .._docker import FakeDockerClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 

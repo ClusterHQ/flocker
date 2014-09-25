@@ -10,17 +10,676 @@ from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
     ConfigurationError, Configuration, marshal_configuration,
-    current_from_configuration,
-    )
+    current_from_configuration, FigConfiguration,
+)
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
     NodeState,
 )
 
-class ApplicationsFromConfigurationTests(SynchronousTestCase):
+class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
+    def test_valid_fig_config_detected_on_image(self):
+        """
+        A top-level dictionary with any arbitrary key containing another
+        dictionary with an "image" key is detected as a valid fig format.
+
+        Note that "valid fig-format" does not necessarily translate to
+        "valid configuration", it just means that the suppled configuration
+        will be treated and parsed as fig-format rather than flocker-format.
+
+        A valid fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain exactly one "image" key or "build" key and does not contain
+        any invalid keys.
+        """
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        parser = FigConfiguration(config)
+        self.assertTrue(parser.is_valid_format())
+
+    def test_valid_fig_config_detected_on_build(self):
+        """
+        A top-level dictionary with any arbitrary key containing another
+        dictionary with a "build" key is detected as a valid fig format.
+        """
+        config = {
+            'postgres':
+                {'build': '.'}
+        }
+        parser = FigConfiguration(config)
+        self.assertTrue(parser.is_valid_format())
+
+    def test_dict_of_applications_from_fig(self):
+        """
+        ``Configuration.applications_from_configuration`` returns a
+        ``dict`` of ``Application`` instances, one for each application key
+        in the supplied configuration.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+        expected_applications = {
+            'wordpress': Application(
+                name='wordpress',
+                image=DockerImage(repository='sample/wordpress', tag='latest'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'db'),
+                                 Link(local_port=3307, remote_port=3307,
+                                      alias=u'db')]),
+                environment=frozenset(
+                    config['wordpress']['environment'].items()
+                ),
+                volume=AttachedVolume(
+                    name='wordpress',
+                    mountpoint=FilePath(b'/var/www/wordpress'))),
+            'mysql': Application(
+                name='mysql',
+                image=DockerImage(repository='sample/mysql', tag='latest'),
+                ports=frozenset([Port(internal_port=3306,
+                                      external_port=3306),
+                                 Port(internal_port=3307,
+                                      external_port=3307)]),
+                environment=None,
+                links=frozenset(),
+                volume=None),
+        }
+        parser = Configuration()
+        applications = parser._applications_from_configuration(config)
+        self.assertEqual(expected_applications, applications)
+
+    def test_valid_fig_config_environment(self):
+        """
+        ``FigConfiguration._parse_app_environment`` returns a ``frozenset``
+        of environment variable name/value pairs given a valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                }
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = frozenset(
+            config['postgres']['environment'].items()
+        )
+        environment = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        self.assertEqual(expected_result, environment)
+
+    def test_valid_fig_config_volumes(self):
+        """
+        ``FigConfiguration._parse_app_volumes`` returns a ``AttachedVolume``
+        instance containing the volume mountpoint given a valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = AttachedVolume(
+            name='postgres',
+            mountpoint=FilePath(b'/var/db/data')
+        )
+        volume = parser._parse_app_volumes(
+            'postgres',
+            config['postgres']['volumes']
+        )
+        self.assertEqual(expected_result, volume)
+
+    def test_valid_fig_config_ports(self):
+        """
+        ``FigConfiguration._parse_app_ports`` returns a ``list``
+        of ``Port`` objects mapping internal and external ports, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': [b'8080:80']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = [
+            Port(internal_port=80, external_port=8080)
+        ]
+        ports = parser._parse_app_ports(
+            'postgres',
+            config['postgres']['ports']
+        )
+        self.assertEqual(expected_result, ports)
+
+    def test_valid_fig_config_links(self):
+        """
+        ``FigConfiguration._parse_app_links`` creates a ``dict`` mapping
+        linked application names and aliases to each application, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
+                'links': [b'postgres:db']
+            }
+        }
+        parser = FigConfiguration(config)
+        parser._application_links['wordpress'] = []
+        parser._parse_app_links(
+            'wordpress',
+            config['wordpress']['links']
+        )
+        expected_result = {
+            u'wordpress': [
+                {u'alias': u'db', u'target_application': u'postgres'},
+            ]
+        }
+        self.assertEqual(expected_result, parser._application_links)
+
+    def test_invalid_fig_config_image_and_build(self):
+        """
+        A fig-compatible application definition may not have both "image" and
+        "build" keys.
+        """
+        config = {
+            'postgres':
+                {'build': '.', 'image': 'sample/postgres'}
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.is_valid_format
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Must specify either 'build' or 'image'; found both."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_uses_build(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration uses the 'build' directive, which is not
+        yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'build': '.',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'build' is not supported yet; please specify 'image'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unsupported_keys(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration contains keys for fig features that are
+        not yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'image': 'sample/postgres',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Unsupported fig keys found: dns, entrypoint, expose"
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_app_not_dict(self):
+        """
+        If the application config is not a dictionary, a
+        ``ConfigurationError`` is raised.
+        """
+        config = ['wordpress', {"image": "sample/wordpress"}]
+        exception = self.assertRaises(
+            ConfigurationError,
+            FigConfiguration,
+            config
+        )
+        error_message = ("Application configuration must be "
+                         "a dictionary, got list.")
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_value_not_dict(self):
+        """
+        If the application config is a fig-compatible dictionary with one or
+        more arbitrary keys (representing app labels) but the value of any key
+        is not itself a dictionary, a ``ConfigurationError`` is raised.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+            },
+            'wordpress': str("a string")
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must be dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_missing_image_or_build(self):
+        """
+        A single fig application configuration is not valid if it does not
+        contain exactly one of an "image" key.
+        If this is detected, ``ConfigurationError``        is raised.
+
+        This condition can occur if ``_is_fig_configuration`` has
+        detected a potentially valid fig-style configuration in that there
+        is at least one application that meets the requirement of having an
+        image or build key, but the overall configuration also contains
+        another application that does not have a required key.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+            },
+            'wordpress': {
+                'ports': ['8080:80'],
+                'volumes': ['/var/www/wordpress']
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must contain either an "
+            "'image' or 'build' key."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unrecognised_key(self):
+        """
+        A single fig application configuration is not valid if it contains
+        any keys besides "image", "environment", "ports", "volumes" or
+        "links". If an invalid key is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'foo': 'bar',
+                'spam': 'eggs',
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Unrecognised keys: foo, spam"
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "ports" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': str('8080:80'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_malformed_ports(self):
+        """
+        A single fig application config is not valid if the "ports" key
+        is present and the value is not a string in "host:container" format.
+        If an invalid ports config is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080,80'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' must be list of string values in the form of "
+            "'host_port:container_port'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_integers(self):
+        """
+        A ``ConfigurationError`` is raised if the parsed "ports" string
+        in a fig application config is not a pair of integer values.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['foo:bar'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' value 'foo:bar' could not be parsed "
+            "in to integer values."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "links" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/pgsql'],
+                'links': str('wordpress'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application
+        config's "links" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress', 100],
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' must be a list of application names with optional :alias."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unknown_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that cannot be mapped to any
+        application present in the entire applications configuration.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' value 'wordpress' could not be mapped to any "
+            "application; application 'wordpress' does not exist."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_not_dict(self):
+        """
+        A ``ConfigurationError`` is raised if the "environments" key of a fig
+        application config is not a dictionary.
+        """
+        config = {
+            'postgres': {
+                'environment': str('PG_ROOT_PASSWORD=clusterhq'),
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' must be a dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_env_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "environment" dictionary
+        in a fig application config contains a key whose value is not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': ['a', 'b', 'c']},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' value for 'PG_ROOT_PASSWORD' must be a string; "
+            "got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_image_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "image" key
+        in a fig application config is a value not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': ['clusterhq', 'postgres'],
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'image' must be a string; got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_multiple_volumes(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        config is a list containing multiple entries. Only a maximum of
+        one volume per container is currently supported.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', '/var/www/data'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Only one volume per application is supported at this time."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': str('/var/lib/postgres'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'volumes' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application's
+        "volumes" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', 1000],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'volumes' values must be string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+
+class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
