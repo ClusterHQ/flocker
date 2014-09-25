@@ -283,7 +283,7 @@ class FigConfiguration(object):
             )
         volume = AttachedVolume(
             name=application,
-            mountpoint=FilePath(volumes.pop())
+            mountpoint=FilePath(volumes[0])
         )
         return volume
 
@@ -390,21 +390,20 @@ class FigConfiguration(object):
         :returns: ``None``
         """
         for application_name, link in self._application_links.items():
-            self._applications[application_name].links = []
+            app_links = []
             for link_definition in link:
                 target_application_ports = self._applications[
                     link_definition['target_application']].ports
-                target_ports_objects = iter(target_application_ports)
-                for target_ports_object in target_ports_objects:
+                for target_ports_object in target_application_ports:
                     local_port = target_ports_object.internal_port
                     remote_port = target_ports_object.external_port
-                    self._applications[application_name].links.append(
+                    app_links.append(
                         Link(local_port=local_port,
                              remote_port=remote_port,
                              alias=link_definition['alias'])
                     )
             self._applications[application_name].links = frozenset(
-                self._applications[application_name].links)
+                app_links)
 
     def _parse(self):
         """
