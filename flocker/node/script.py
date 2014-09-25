@@ -184,6 +184,9 @@ class ReportStateScript(object):
         """
         :param DockerClient docker_client: The object to use to talk to the
             Docker server.
+
+        :param INetwork network: The object to use to interact with the node's
+            network configuration.
         """
         self._docker_client = docker_client
         self._network = network
