@@ -110,8 +110,7 @@ def make_idockerclient_tests(fixture):
                 # XXX: DockerClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                activating = Unit(name=name, activation_state=u"activating",
-                                  sub_state=u"start-pre")
+                activating = Unit(name=name, activation_state=u"activating")
                 active = Unit(name=name, activation_state=u"active")
                 self.assertTrue((activating in units) or
                                 (active in units),
@@ -249,12 +248,12 @@ class UnitTests(TestCase):
         """
         self.assertEqual(
             "<Unit(name=u'site-example.com', "
-            "activation_state=u'active', sub_state=u'running', "
+            "activation_state=u'active', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], "
             "environment=None)>",
 
             repr(Unit(name=u'site-example.com',
-                      activation_state=u'active', sub_state=u'running',
+                      activation_state=u'active',
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], environment=None))
         )

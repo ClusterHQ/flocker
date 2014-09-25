@@ -42,9 +42,9 @@ class Environment(object):
         return dict(self.variables)
 
 
-@attributes(["name", "activation_state", "sub_state", "container_image",
+@attributes(["name", "activation_state", "container_image",
              "ports", "environment"],
-            defaults=dict(sub_state=None, container_image=None,
+            defaults=dict(container_image=None,
                           ports=(), environment=None))
 class Unit(object):
     """
@@ -57,19 +57,11 @@ class Unit(object):
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
 
-    :ivar unicode activation_state: The state of the unit in terms of
-        systemd activation. Values indicate whether the unit is installed
-        but not running (``u"inactive"``), starting (``u"activating"``),
-        running (``u"active"``), failed (``u"failed"``) stopping
-        (``u"deactivating"``) or stopped (either ``u"failed"`` or
-        ``u"inactive"`` apparently). See
-        https://github.com/ClusterHQ/flocker/issues/187 about using constants
-        instead of strings.
-
-    :ivar unicode sub_state: The systemd substate of the unit. Certain Unit
-        types may have a number of additional substates, which are mapped to
-        the five generalized activation states above. See
-        http://www.freedesktop.org/software/systemd/man/systemd.html#Concepts
+    :ivar unicode activation_state: The state of the
+        container. ``u"active"`` indicates it is running, ``u"inactive"``
+        indicates it is not running. See
+        https://github.com/ClusterHQ/flocker/issues/187 about using
+        constants instead of strings and other improvements.
 
     :ivar unicode container_image: The docker image name associated with this
         container.
@@ -351,7 +343,6 @@ class DockerClient(object):
                 # https://github.com/ClusterHQ/flocker/issues/207
                 result.add(Unit(name=name,
                                 activation_state=state,
-                                sub_state=None,
                                 container_image=None))
             return result
         return deferToThread(_list)
