@@ -56,9 +56,8 @@ class DockerClientTests(TestCase):
     clientException = APIError
 
     def make_client(self):
-        # The gear tests which we're (temporarily) reusing assume
-        # container name matches unit name, so we disable namespacing for
-        # these tests.
+        # Some of the tests assume container name matches unit name, so we
+        # disable namespacing for these tests.
         return DockerClient(namespace=u"")
 
     def start_container(self, unit_name,
@@ -116,15 +115,16 @@ class DockerClientTests(TestCase):
         return d
 
     def test_add_error(self):
-        """``DockerClient.add`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
+        """
+        ``DockerClient.add`` returns ``Deferred`` that errbacks with
+        ``APIError`` if response code is not a success response code.
         """
         client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
         client.exists = lambda _: succeed(False)
-        # Illegal container name should make gear complain when we try to
+        # Illegal container name should make Docker complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
         return self.assertFailure(d, self.clientException)
@@ -182,7 +182,7 @@ class DockerClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        DockerClient.add accepts a ports argument which is passed to gear to
+        DockerClient.add accepts a ports argument which is passed to Docker to
         expose those ports on the unit.
 
         Assert that the busybox-http-app returns the expected "Hello world!"
