@@ -295,4 +295,3 @@ class EnvironmentTests(TestCase):
             "variables=frozenset([('foo', 'bar')]))>",
             repr(Environment(variables=frozenset(dict(foo="bar").items())))
         )
-
