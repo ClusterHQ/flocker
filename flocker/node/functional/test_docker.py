@@ -28,7 +28,7 @@ from ...testtools import (
     random_name)
 
 from ..test.test_docker import make_idockerclient_tests
-from .._docker import DockerClient, PortMap, GearEnvironment
+from .._docker import DockerClient, PortMap, Environment
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -245,7 +245,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
         unit_name = random_name()
-        expected_environment_id = random_name()
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
@@ -253,8 +252,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = self.start_container(
             unit_name=unit_name,
             image_name=image_name,
-            environment=GearEnvironment(
-                id=expected_environment_id, variables=expected_variables),
+            environment=Environment(variables=expected_variables),
         )
         d.addCallback(
             lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
