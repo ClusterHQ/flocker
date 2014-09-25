@@ -120,7 +120,7 @@ As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s c
 
 .. note:: 
 
-   Focker does not yet support the entire range of configuration directives available in Fig.
+   Flocker does not yet support the entire range of configuration directives available in Fig.
    The parameters currently supported to define an application in Fig syntax are:
 
 - ``image``
