@@ -8,6 +8,7 @@ from unittest import TestCase
 
 from flocker._release import rpm_version, make_rpm_version
 
+
 class MakeRpmVersionTests(TestCase):
     """
     Tests for ``make_rpm_version``.
@@ -24,7 +25,8 @@ class MakeRpmVersionTests(TestCase):
             '0.1.1': rpm_version('0.1.1', '1'),
             '0.2.0dev1': rpm_version('0.2.0', '0.1.dev'),
             '0.2.0dev2-99-xyz': rpm_version('0.2.0', '0.2.dev.99.xyz'),
-            '0.2.0dev3-100-abc-dirty': rpm_version('0.2.0', '0.3.dev.100.abc.dirty'),
+            '0.2.0dev3-100-abc-dirty': rpm_version(
+                '0.2.0', '0.3.dev.100.abc.dirty'),
         }
         unexpected_results = []
         for supplied_version, expected_rpm_version in expected.items():
