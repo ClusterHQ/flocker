@@ -57,9 +57,42 @@ class FigConfiguration(object):
         """
         Initializes ``FigConfiguration`` attributes and validates config.
 
-        :param dict self.application_configuration: The intermediate
+        :param dict application_configuration: The intermediate
             configuration representation to load into ``Application``
             instances.  See :ref:`Configuration` for details.
+        
+        Attributes initialized in this method are:
+        
+        self._application_configuration: the application_configuration
+            parameter
+        
+        self._application_names: A ``list`` of keys in
+            application_configuration representing all application
+            names.
+        
+        self._applications: The ``dict`` of ``Application`` objects
+            after parsing.
+        
+        self._application_links: ``dict`` acting as an internal map
+            of links to create between applications, this serves as an
+            intermediary when parsing applications, since an application
+            name specified in a link may not have been parsed at the point
+            the link is encountered.
+        
+        self._validated: A ``bool`` indicating whether or not the supplied
+            configuration has been validated as Fig-format. Note this does
+            not indicate the actual configuration is valid, only that it
+            meets the minimum requirements to be interpreted as a Fig config.
+        
+        self._possible_identifiers: A ``dict`` of keys that may identify a
+            dictionary of parsed YAML as being Fig-format.
+            
+        self._unsupported_keys: A ``dict`` of keys representing Fig config
+            directives that are not yet supported by Flocker.
+            
+        self._allowed_keys: A ``dict`` representing all the keys that are
+            supported and therefore allowed to appear in a single Fig service
+            definition.
         """
         if not isinstance(application_configuration, dict):
             raise ConfigurationError(
@@ -147,7 +180,7 @@ class FigConfiguration(object):
         Checks that a single application definition contains no invalid
         or unsupported keys.
 
-        :param str application: The name of the application this config
+        :param bytes application: The name of the application this config
             is mapped to.
 
         :param dict config: A single application definition from
@@ -190,7 +223,7 @@ class FigConfiguration(object):
         Validate and parse the environment portion of an application
         configuration.
 
-        :param str application: The name of the application this config
+        :param bytes application: The name of the application this config
             is mapped to.
 
         :param dict environment: A dictionary of environment variable
@@ -219,7 +252,7 @@ class FigConfiguration(object):
         Validate and parse the volumes portion of an application
         configuration.
 
-        :param str application: The name of the application this config
+        :param bytes application: The name of the application this config
             is mapped to.
 
         :param list volumes: A list of ``str`` values giving absolute
@@ -259,7 +292,7 @@ class FigConfiguration(object):
         Validate and parse the ports portion of an application
         configuration.
 
-        :param str application: The name of the application this config
+        :param bytes application: The name of the application this config
             is mapped to.
 
         :param list ports: A list of ``str`` values mapping ports that
@@ -307,7 +340,7 @@ class FigConfiguration(object):
         Validate and parse the links portion of an application
         configuration and store the links in the internal links map.
 
-        :param str application: The name of the application this config
+        :param bytes application: The name of the application this config
             is mapped to.
 
         :param list links: A list of ``str`` values specifying the names
