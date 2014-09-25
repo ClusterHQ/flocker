@@ -77,7 +77,7 @@ You can run all unit tests by doing:
 
    $ tox
 
-Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter two running as well.
+Functional tests require ``ZFS`` and ``Docker`` to be installed and in the case of the latter running as well.
 In addition, ``tox`` needs to be run as root:
 
 .. code-block:: console
