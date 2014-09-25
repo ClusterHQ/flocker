@@ -62,7 +62,7 @@ class DockerClientTests(TestCase):
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_states=(u'active',),
+                        ports=None, expected_states=(u'active',),
                         environment=None):
         """
         Start a unit and wait until it reaches the `active` state or the
@@ -71,7 +71,6 @@ class DockerClientTests(TestCase):
         :param unicode unit_name: See ``IDockerClient.add``.
         :param unicode image_name: See ``IDockerClient.add``.
         :param list ports: See ``IDockerClient.add``.
-        :param list links: See ``IDockerClient.add``.
         :param Unit expected_states: A list of activation states to wait for.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
@@ -82,7 +81,6 @@ class DockerClientTests(TestCase):
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
-            links=links,
             environment=environment,
         )
         self.addCleanup(client.remove, unit_name)
