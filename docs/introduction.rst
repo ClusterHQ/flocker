@@ -1,10 +1,10 @@
-============
-Introduction
-============
+=======================
+Introduction to Flocker
+=======================
 
 Motivation for Building Flocker
 ===============================
-Flocker lets you move your Docker containers and their data together between hosts.
+Flocker lets you move your Docker containers and their data together between Linux hosts.
 This means that you can run your databases, queues and key-value stores in Docker and move them around as easily as the rest of your app.
 Even stateless apps depend on many stateful services and currently running these services in Docker containers in production is nearly impossible.
 Flocker aims to solve this problem by providing an orchestration framework that allows you to port both your stateful and stateless containers between environments.
@@ -23,9 +23,13 @@ But what happens if you have more than one node?
 The diagram below provides a high level representation of how Flocker addresses these questions.
 
 .. image:: images/flocker-architecture-diagram.jpg
+   :alt: Containers run on physical nodes with Local Storage (ZFS).
+         Flocker's proxying layer allows you to communicate with containers by routing traffic to any node.
+         Filesystem state gets moved around with ZFS.
 
 Architecture
 ============
+
 Below is a high-level overview of Flocker's architecture.  
 For more information, you can follow along with a :doc:`tutorial that walks you through deploying and migrating MongoDB</gettingstarted/tutorial/index>` or read more in our :doc:`advanced documentation</advanced/index>`.
 

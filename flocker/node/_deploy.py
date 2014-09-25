@@ -10,22 +10,14 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
-from twisted.python.filepath import FilePath
 
-from .gear import GearClient, PortMap, GearEnvironment
+from ._docker import DockerClient, PortMap, GearEnvironment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
 from ..route import make_host_network, Proxy
-from ..volume._ipc import RemoteVolumeManager
-from ..common import ProcessNode, gather_deferreds
-
-
-# Path to SSH private key available on nodes and used to communicate
-# across nodes.
-# XXX duplicate of same information in flocker.cli:
-# https://github.com/ClusterHQ/flocker/issues/390
-SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
+from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..common import gather_deferreds
 
 
 @attributes(["running", "not_running"])
@@ -139,7 +131,7 @@ class StartApplication(object):
         else:
             gear_environment = None
 
-        d.addCallback(lambda _: deployer.gear_client.add(
+        d.addCallback(lambda _: deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
@@ -184,7 +176,7 @@ class StopApplication(object):
     def run(self, deployer):
         application = self.application
         unit_name = application.name
-        result = deployer.gear_client.remove(unit_name)
+        result = deployer.docker_client.remove(unit_name)
 
         def unit_removed(_):
             if application.volume is not None:
@@ -233,11 +225,29 @@ class HandoffVolume(object):
     """
     def run(self, deployer):
         service = deployer.volume_service
-        destination = ProcessNode.using_ssh(
-            self.hostname, 22, b"root",
-            SSH_PRIVATE_KEY_PATH)
+        destination = standard_node(self.hostname)
         return service.handoff(service.get(self.volume.name),
                                RemoteVolumeManager(destination))
+
+
+@implementer(IStateChange)
+@attributes(["volume", "hostname"])
+class PushVolume(object):
+    """
+    A volume push that needs to be performed from this node to another
+    node.
+
+    See :cls:`flocker.volume.VolumeService.push` for more details.
+
+    :ivar AttachedVolume volume: The volume to push.
+    :ivar bytes hostname: The hostname of the node to which the volume is
+         meant to be pushed.
+    """
+    def run(self, deployer):
+        service = deployer.volume_service
+        destination = standard_node(self.hostname)
+        return service.push(service.get(self.volume.name),
+                            RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
@@ -270,15 +280,15 @@ class Deployer(object):
     Start and stop applications.
 
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IGearClient gear_client: The gear client API to use in
-        deployment operations. Default ``GearClient``.
+    :ivar IDockerClient docker_client: The gear client API to use in
+        deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
-    def __init__(self, volume_service, gear_client=None, network=None):
-        if gear_client is None:
-            gear_client = GearClient(hostname=u'127.0.0.1')
-        self.gear_client = gear_client
+    def __init__(self, volume_service, docker_client=None, network=None):
+        if docker_client is None:
+            docker_client = DockerClient()
+        self.docker_client = docker_client
         if network is None:
             network = make_host_network()
         self.network = network
@@ -295,7 +305,7 @@ class Deployer(object):
         volumes.addCallback(lambda volumes: set(
             volume.name for volume in volumes
             if volume.uuid == self.volume_service.uuid))
-        d = gatherResults([self.gear_client.list(), volumes])
+        d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result
@@ -411,6 +421,17 @@ class Deployer(object):
             # configuration.
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
+
+            # Do an initial push of all volumes that are going to move, so
+            # that the final push which happens during handoff is a quick
+            # incremental push. This should significantly reduces the
+            # application downtime caused by the time it takes to copy
+            # data.
+            if volumes.going:
+                phases.append(InParallel(changes=[
+                    PushVolume(volume=handoff.volume,
+                               hostname=handoff.hostname)
+                    for handoff in volumes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))

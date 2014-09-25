@@ -1,0 +1,371 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+Docker API client.
+"""
+
+from __future__ import absolute_import
+
+from time import sleep
+
+from zope.interface import Interface, implementer
+
+from docker import Client
+from docker.errors import APIError
+
+from characteristic import attributes
+
+from twisted.internet.defer import succeed, fail
+from twisted.internet.threads import deferToThread
+from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
+
+
+class AlreadyExists(Exception):
+    """A unit with the given name already exists."""
+
+
+@attributes(["id", "variables"])
+class GearEnvironment(object):
+    """
+    A collection of Geard unit environment variables associated with an
+    environment ID.
+
+    :ivar frozenset variables: A ``frozenset`` of tuples containing
+        key and value pairs representing the environment variables.
+    """
+
+    def to_dict(self):
+        """
+        Convert to a dictionary suitable for serialising to JSON and then on to
+        the Gear REST API.
+        """
+        variables = []
+        for k, v in self.variables:
+            variables.append(dict(name=k, value=v))
+        return dict(id=self.id, variables=variables)
+
+
+@attributes(["name", "activation_state", "sub_state", "container_image",
+             "ports", "links", "environment"],
+            defaults=dict(sub_state=None, container_image=None,
+                          ports=(), links=(), environment=None))
+class Unit(object):
+    """
+    Information about a unit managed by geard/systemd.
+
+    XXX: The container_image attribute defaults to `None` until we have a way
+    to interrogate geard for the docker images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
+
+    :ivar unicode name: The name of the unit.
+
+    :ivar unicode activation_state: The state of the unit in terms of
+        systemd activation. Values indicate whether the unit is installed
+        but not running (``u"inactive"``), starting (``u"activating"``),
+        running (``u"active"``), failed (``u"failed"``) stopping
+        (``u"deactivating"``) or stopped (either ``u"failed"`` or
+        ``u"inactive"`` apparently). See
+        https://github.com/ClusterHQ/flocker/issues/187 about using constants
+        instead of strings.
+
+    :ivar unicode sub_state: The systemd substate of the unit. Certain Unit
+        types may have a number of additional substates, which are mapped to
+        the five generalized activation states above. See
+        http://www.freedesktop.org/software/systemd/man/systemd.html#Concepts
+
+    :ivar unicode container_image: The docker image name associated with this
+        gear unit
+
+    :ivar list ports: The ``PortMap`` instances which define how connections to
+        ports on the host are routed to ports exposed in the container.
+
+    :ivar list links: The ``PortMap`` instances which define how connections to
+        ports inside the container are routed to ports on the host.
+
+    :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
+        will be supplied to the gear unit or ``None`` if there are no
+        environment variables for this unit.
+    """
+
+
+class IDockerClient(Interface):
+    """
+    A client for the Docker HTTP API.
+
+    Currently somewhat geard-flavored, this will be fixed in followup
+    issues.
+
+    Note the difference in semantics between the results of ``add()``
+    (firing does not indicate application started successfully)
+    vs. ``remove()`` (firing indicates application has finished shutting
+    down).
+    """
+
+    def add(unit_name, image_name, ports=None, links=None, environment=None):
+        """
+        Install and start a new unit.
+
+        Note that callers should not assume success indicates the unit has
+        finished starting up. In addition to asynchronous nature of gear,
+        even if container is up and running the application within it
+        might still be starting up, e.g. it may not have bound the
+        external ports yet. As a result the final success of application
+        startup is out of scope for this method.
+
+        :param unicode unit_name: The name of the unit to create.
+
+        :param unicode image_name: The Docker image to use for the unit.
+
+        :param list ports: A list of ``PortMap``\ s mapping ports exposed in
+            the container to ports exposed on the host. Default ``None`` means
+            that no port mappings will be configured for this unit.
+
+        :param list links: A list of ``PortMap``\ s mapping ports forwarded
+            from the container to ports on the host.
+
+        :param GearEnvironment environment: A ``GearEnvironment`` associating
+            key value pairs with an environment ID. Default ``None`` means that
+            no environment variables will be supplied to the unit.
+
+        :return: ``Deferred`` that fires on success, or errbacks with
+            :class:`AlreadyExists` if a unit by that name already exists.
+        """
+
+    def exists(unit_name):
+        """
+        Check whether the unit exists.
+
+        :param unicode unit_name: The name of the unit whose existence
+            we're checking.
+
+        :return: ``Deferred`` that fires with ``True`` if unit exists,
+            otherwise ``False``.
+        """
+
+    def remove(unit_name):
+        """
+        Stop and delete the given unit.
+
+        This can be done multiple times in a row for the same unit.
+
+        :param unicode unit_name: The name of the unit to stop.
+
+        :return: ``Deferred`` that fires once the unit has been stopped
+            and removed.
+        """
+
+    def list():
+        """
+        List all known units.
+
+        :return: ``Deferred`` firing with ``set`` of :class:`Unit`.
+        """
+
+
+@implementer(IDockerClient)
+class FakeDockerClient(object):
+    """In-memory fake that simulates talking to a docker daemon.
+
+    The state the the simulated units is stored in memory.
+
+    :ivar dict _units: See ``units`` of ``__init__``\ .
+    """
+
+    def __init__(self, units=None):
+        """
+        :param dict units: A dictionary of canned ``Unit``\ s which will be
+        manipulated and returned by the methods of this
+        ``FakeDockerClient``.
+        :type units: ``dict`` mapping `unit_name` to ``Unit``\ .
+        """
+        if units is None:
+            units = {}
+        self._units = units
+
+    def add(self, unit_name, image_name, ports=(), links=(), environment=None):
+        if unit_name in self._units:
+            return fail(AlreadyExists(unit_name))
+        self._units[unit_name] = Unit(
+            name=unit_name,
+            container_image=image_name,
+            ports=ports,
+            links=links,
+            environment=environment,
+            activation_state=u'active'
+        )
+        return succeed(None)
+
+    def exists(self, unit_name):
+        return succeed(unit_name in self._units)
+
+    def remove(self, unit_name):
+        if unit_name in self._units:
+            del self._units[unit_name]
+        return succeed(None)
+
+    def list(self):
+        # XXX: This is a hack so that functional and unit tests that use
+        # DockerClient.list can pass until the real DockerClient.list can also
+        # return container_image information, ports and links.
+        # See https://github.com/ClusterHQ/flocker/issues/207
+        incomplete_units = set()
+        for unit in self._units.values():
+            incomplete_units.add(
+                Unit(name=unit.name, activation_state=unit.activation_state))
+        return succeed(incomplete_units)
+
+
+@attributes(['internal_port', 'external_port'])
+class PortMap(object):
+    """
+    A record representing the mapping between a port exposed internally by a
+    docker container and the corresponding external port on the host.
+
+    :ivar int internal_port: The port number exposed by the container.
+    :ivar int external_port: The port number exposed by the host.
+    """
+
+
+@implementer(IDockerClient)
+class DockerClient(object):
+    """
+    Talk to the real Docker server directly.
+
+    Some operations can take a while (e.g. stopping a container), so we
+    use a thread pool. See https://github.com/ClusterHQ/flocker/issues/718
+    for using a custom thread pool.
+
+    :ivar unicode namespace: A namespace prefix to add to container names
+        so we don't clobber other applications interacting with Docker.
+    """
+    def __init__(self, namespace=u"flocker--"):
+        self.namespace = namespace
+        self._client = Client(version="1.12")
+
+    def _to_container_name(self, unit_name):
+        """
+        Add the namespace to the container name.
+
+        :param unicode unit_name: The unit's name.
+
+        :return unicode: The container's name.
+        """
+        return self.namespace + unit_name
+
+    def add(self, unit_name, image_name, ports=None, links=None,
+            environment=None):
+        container_name = self._to_container_name(unit_name)
+        data_container_name = container_name + u"-data"
+
+        if environment is not None:
+            environment = dict(environment.variables)
+        if ports is None:
+            ports = []
+
+        def _create():
+            self._client.create_container(
+                image_name,
+                name=container_name,
+                environment=environment,
+                ports=[p.internal_port for p in ports])
+
+        def _add():
+            try:
+                _create()
+            except APIError as e:
+                if e.response.status_code == NOT_FOUND:
+                    # Image was not found, so we need to pull it first:
+                    self._client.pull(image_name)
+                    _create()
+                else:
+                    raise
+            # Just because we got a response doesn't mean Docker has
+            # actually updated any internal state yet! So if e.g. we did a
+            # stop on this container Docker might well complain it knows
+            # not the container of which we speak. To prevent this we poll
+            # until it does exist.
+            while not self._blocking_exists(container_name):
+                sleep(0.001)
+                continue
+            if self._blocking_exists(data_container_name):
+                volumes_from = [data_container_name]
+            else:
+                volumes_from = None
+            self._client.start(container_name,
+                               volumes_from=volumes_from,
+                               port_bindings={p.internal_port: p.external_port
+                                              for p in ports})
+        d = deferToThread(_add)
+
+        def _extract_error(failure):
+            failure.trap(APIError)
+            code = failure.value.response.status_code
+            if code == 409:
+                raise AlreadyExists(unit_name)
+            return failure
+        d.addErrback(_extract_error)
+        return d
+
+    def _blocking_exists(self, container_name):
+        """
+        Blocking API to check if container exists.
+
+        :param unicode container_name: The name of the container whose
+            existence we're checking.
+
+        :return: ``True`` if unit exists, otherwise ``False``.
+        """
+        try:
+            self._client.inspect_container(container_name)
+            return True
+        except APIError:
+            return False
+
+    def exists(self, unit_name):
+        container_name = self._to_container_name(unit_name)
+        return deferToThread(self._blocking_exists, container_name)
+
+    def remove(self, unit_name):
+        container_name = self._to_container_name(unit_name)
+
+        def _remove():
+            try:
+                self._client.stop(container_name)
+                self._client.remove_container(container_name)
+            except APIError as e:
+                # 500 error code is used for "this was already stopped" in
+                # older versions of Docker. Newer versions of Docker API
+                # give NOT_MODIFIED instead, so we can fix this when we
+                # upgrade: https://github.com/ClusterHQ/flocker/issues/721
+                if e.response.status_code in (
+                        NOT_FOUND, INTERNAL_SERVER_ERROR):
+                    return
+                # Can't figure out how to get test coverage for this, but
+                # it's definitely necessary:
+                raise
+        d = deferToThread(_remove)
+        return d
+
+    def list(self):
+        def _list():
+            result = set()
+            ids = [d[u"Id"] for d in
+                   self._client.containers(quiet=True, all=True)]
+            for i in ids:
+                data = self._client.inspect_container(i)
+                state = (u"active" if data[u"State"][u"Running"]
+                         else u"inactive")
+                name = data[u"Name"]
+                if name.startswith(u"/" + self.namespace):
+                    name = name[1 + len(self.namespace):]
+                else:
+                    continue
+                result.add(Unit(name=name,
+                                activation_state=state,
+                                sub_state=None,
+                                # We'll add this and the other available
+                                # info later, for now we're just aiming at
+                                # GearClient compatibility.
+                                container_image=None))
+            return result
+        return deferToThread(_list)

@@ -10,52 +10,9 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
-$bootstrap = <<SCRIPT
-set -e
-
-# Make it possible to install flocker-node
-# XXX https://github.com/ClusterHQ/flocker/issues/306 for better secure downloads:
-yum localinstall -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-
-# For reasons I do not understand this doesn't work (https://github.com/ClusterHQ/flocker/issues/510):
-#yum install -y flocker-node
-# So instead do it the stupid way:
-yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/python-flocker-0.1.2-1.fc20.noarch.rpm https://storage.googleapis.com/archive.clusterhq.com/fedora/20/x86_64/flocker-node-0.1.2-1.fc20.noarch.rpm
-
-# At the end of this bootstrap we'll (indirectly) ask Docker to write a very
-# large file to its temporary directory.  /tmp is a small tmpfs mount which
-# can't hold the file.  Convince Docker to write somewhere else instead.
-echo "# Flocker-defined alternate temporary path to provide more temporary space." >> /etc/sysconfig/docker
-echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
-
-systemctl enable docker
-# Enabling Docker allows it to be started by socket activation, but it may
-# already be running. Restart it to ensure that it picks up the new tmpdir
-# configuration.
-systemctl restart docker
-systemctl enable geard
-systemctl start geard
-
-# Make it easy to authenticate as root
-mkdir -p /root/.ssh
-cp ~vagrant/.ssh/authorized_keys /root/.ssh
-
-# Create a ZFS storage pool backed by a normal filesystem file.  This
-# is a bad way to configure ZFS for production use but it is
-# convenient for a demo in a VM.
-mkdir -p /opt/flocker
-truncate --size 1G /opt/flocker/pool-vdev
-zpool create flocker /opt/flocker/pool-vdev
-
-IMAGE="clusterhq/mongodb"
-# Get the images needed for the tutorial.  This has to happen eventually and
-# doing it now aggregates all of the waiting in one place.
-docker pull "${IMAGE}"
-SCRIPT
-
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.vm.box = "clusterhq/flocker-dev"
-  config.vm.provision :shell, :inline => $bootstrap, :privileged => true
+  config.vm.box = "clusterhq/flocker-tutorial"
+  config.vm.box_version = "= 0.1.2"
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box

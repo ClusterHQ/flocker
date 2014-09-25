@@ -11,9 +11,10 @@ from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
-from ..gear import GearClient
-from ..testtools import wait_for_unit_state, if_gear_configured
-from ...testtools import random_name, DockerImageBuilder, assertContainsAll
+from .._docker import DockerClient
+from ..testtools import wait_for_unit_state, if_docker_configured
+from ...testtools import (
+    random_name, DockerImageBuilder, assertContainsAll, loop_until)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -22,17 +23,17 @@ class DeployerTests(TestCase):
     """
     Functional tests for ``Deployer``.
     """
-    @if_gear_configured
+    @if_docker_configured
     def test_restart(self):
         """
         Stopped applications that are supposed to be running are restarted
         when ``Deployer.change_node_state`` is run.
         """
         name = random_name()
-        gear_client = GearClient("127.0.0.1")
-        deployer = Deployer(create_volume_service(self), gear_client,
+        docker_client = DockerClient()
+        deployer = Deployer(create_volume_service(self), docker_client,
                             make_memory_network())
-        self.addCleanup(gear_client.remove, name)
+        self.addCleanup(docker_client.remove, name)
 
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
@@ -46,13 +47,14 @@ class DeployerTests(TestCase):
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(gear_client, name,
+        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
                                                     [u'active']))
 
         def started(_):
             # Now that it's running, stop it behind our back:
-            check_call([b"gear", b"stop", name])
-            return wait_for_unit_state(gear_client, name,
+            check_call([b"docker", b"stop",
+                        docker_client._to_container_name(name)])
+            return wait_for_unit_state(docker_client, name,
                                        [u'inactive', u'failed'])
         d.addCallback(started)
 
@@ -61,13 +63,13 @@ class DeployerTests(TestCase):
             return deployer.change_node_state(desired_state, desired_state,
                                               u"localhost")
         d.addCallback(stopped)
-        d.addCallback(lambda _: wait_for_unit_state(gear_client, name,
+        d.addCallback(lambda _: wait_for_unit_state(docker_client, name,
                                                     [u'active']))
 
         # Test will timeout if unit was not restarted:
         return d
 
-    @if_gear_configured
+    @if_docker_configured
     def test_environment(self):
         """
         The environment specified in an ``Application`` is passed to the
@@ -79,11 +81,11 @@ class DeployerTests(TestCase):
 
         application_name = random_name()
 
-        gear_client = GearClient("127.0.0.1")
-        self.addCleanup(gear_client.remove, application_name)
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
 
         volume_service = create_volume_service(self)
-        deployer = Deployer(volume_service, gear_client,
+        deployer = Deployer(volume_service, docker_client,
                             make_memory_network())
 
         expected_variables = frozenset({
@@ -105,17 +107,16 @@ class DeployerTests(TestCase):
                      links=frozenset(),
                      )]))]))
 
+        volume = volume_service.get(application_name)
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(gear_client,
-                                                    application_name,
-                                                    [u'active']))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
         def started(_):
-            volume = volume_service.get(application_name)
-            path = volume.get_filesystem().get_path()
-            contents = path.child(b'env').getContent()
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,
@@ -125,7 +126,7 @@ class DeployerTests(TestCase):
         d.addCallback(started)
         return d
 
-    @if_gear_configured
+    @if_docker_configured
     def test_links(self):
         """
         The links specified in an ``Application`` are passed to the
@@ -137,11 +138,11 @@ class DeployerTests(TestCase):
 
         application_name = random_name()
 
-        gear_client = GearClient("127.0.0.1")
-        self.addCleanup(gear_client.remove, application_name)
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
 
         volume_service = create_volume_service(self)
-        deployer = Deployer(volume_service, gear_client,
+        deployer = Deployer(volume_service, docker_client,
                             make_memory_network())
 
         expected_variables = frozenset({
@@ -168,17 +169,16 @@ class DeployerTests(TestCase):
                          ),
                      )]))]))
 
+        volume = volume_service.get(application_name)
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(gear_client,
-                                                    application_name,
-                                                    [u'active']))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
         def started(_):
-            volume = volume_service.get(application_name)
-            path = volume.get_filesystem().get_path()
-            contents = path.child(b'env').getContent()
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,

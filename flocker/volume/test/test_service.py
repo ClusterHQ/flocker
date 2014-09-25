@@ -4,8 +4,11 @@
 
 from __future__ import absolute_import
 
+from io import BytesIO
 import sys
 import json
+from contextlib import contextmanager
+
 from uuid import uuid4
 from StringIO import StringIO
 
@@ -178,8 +181,10 @@ class VolumeServiceAPITests(TestCase):
                           RemoteVolumeManager(FakeNode()))
 
     def test_push_writes_filesystem(self):
-        """Pushing a locally-owned volume writes its filesystem to the remote
-        process."""
+        """
+        Pushing a locally-owned volume writes its filesystem to the remote
+        process.
+        """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
@@ -188,14 +193,58 @@ class VolumeServiceAPITests(TestCase):
         filesystem.get_path().child(b"foo").setContent(b"blah")
         with filesystem.reader() as reader:
             data = reader.read()
-        node = FakeNode()
+        node = FakeNode([
+            # Hard-code the knowledge that first `flocker-volume snapshots` is
+            # run.  It doesn't need to produce any particular output for this
+            # test, it just needs to not fail.
+            b"",
+        ])
 
-        service.push(volume, RemoteVolumeManager(node))
+        self.successResultOf(service.push(volume, RemoteVolumeManager(node)))
+
         self.assertEqual(node.stdin.read(), data)
 
+    def test_push_with_snapshots(self):
+        """
+        Pushing a locally-owned volume to a remote volume manager which has a
+        snapshot in common with the local volume manager results in an
+        incremental data stream.
+        """
+
+        class FakeVolumeManager(object):
+            def __init__(self):
+                self.written = []
+
+            def snapshots(self, volume):
+                return volume.get_filesystem().snapshots()
+
+            @contextmanager
+            def receive(self, volume):
+                writer = BytesIO()
+                yield writer
+                self.written.append(writer)
+
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        volume = self.successResultOf(service.create(u"myvolume"))
+        filesystem = volume.get_filesystem()
+        filesystem.snapshot(b"stuff")
+
+        remote_manager = FakeVolumeManager()
+
+        self.successResultOf(service.push(volume, remote_manager))
+
+        writer = remote_manager.written.pop()
+        self.assertEqual(
+            [b"incremental stream based on", b"stuff"],
+            writer.getvalue().splitlines()[-2:])
+
     def test_receive_local_uuid(self):
-        """If a volume with same uuid as service is received, ``ValueError`` is
-        raised."""
+        """
+        If a volume with same uuid as service is received, ``ValueError`` is
+        raised.
+        """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
@@ -453,13 +502,15 @@ class VolumeTests(TestCase):
 
     def test_container_name(self):
         """
-        The volume's container name adds ``"-data"`` suffix to the volume name.
+        The volume's container name adds ``"-data"`` suffix to the volume
+        name, and ``"flocker--"`` prefix for namespacing.
 
-        This ensures that geard will automatically mount it into a
-        container whose name matches that of the volume.
+        This ensures that our geard-emulation will automatically mount it
+        into a container whose name matches that of the volume.
+        See https://github.com/ClusterHQ/flocker/issues/234
         """
         volume = Volume(uuid=u"123", name=u"456", service=object())
-        self.assertEqual(volume._container_name, b"456-data")
+        self.assertEqual(volume._container_name, b"flocker--456-data")
 
     def test_is_locally_owned(self):
         """

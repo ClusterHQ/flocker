@@ -1,48 +1,65 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Functional tests for :module:`flocker.node.gear`."""
+"""
+Functional tests for :module:`flocker.node._docker`.
+"""
+
+from __future__ import absolute_import
 
 import os
 import json
 import subprocess
 from unittest import skipIf
 
+from docker.errors import APIError
+from docker import Client
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet import reactor
 from twisted.internet.utils import getProcessOutput
+from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
 from ...testtools import (
-    loop_until, find_free_port, make_capture_protocol,
-    ProtocolPoppingFactory, DockerImageBuilder, assertContainsAll)
+    loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
+    random_name)
 
-from ..test.test_gear import make_igearclient_tests, random_name
-from ..gear import GearClient, GearError, PortMap, GearEnvironment
-from ..testtools import if_gear_configured, wait_for_unit_state
+from ..test.test_docker import make_idockerclient_tests
+from .._docker import DockerClient, PortMap, GearEnvironment
+from ..testtools import if_docker_configured, wait_for_unit_state
+
 
 _if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
-class IGearClientTests(make_igearclient_tests(
-        lambda test_case: GearClient("127.0.0.1"))):
-    """``IGearClient`` tests for ``GearClient``."""
-
-    @if_gear_configured
+class IDockerClientTests(make_idockerclient_tests(
+        lambda test_case: DockerClient(namespace=random_name()))):
+    """
+    ``IDockerClient`` tests for ``DockerClient``.
+    """
+    @if_docker_configured
     def setUp(self):
         pass
 
 
-class GearClientTests(TestCase):
-    """Implementation-specific tests for ``GearClient``."""
-
-    @if_gear_configured
+class DockerClientTests(TestCase):
+    """
+    Functional tests for ``DockerClient``.
+    """
+    @if_docker_configured
     def setUp(self):
         pass
+
+    clientException = APIError
+
+    def make_client(self):
+        # The gear tests which we're (temporarily) reusing assume
+        # container name matches unit name, so we disable namespacing for
+        # these tests.
+        return DockerClient(namespace=u"")
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
@@ -52,16 +69,16 @@ class GearClientTests(TestCase):
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
 
-        :param unicode unit_name: See ``IGearClient.add``.
-        :param unicode image_name: See ``IGearClient.add``.
-        :param list ports: See ``IGearClient.add``.
-        :param list links: See ``IGearClient.add``.
+        :param unicode unit_name: See ``IDockerClient.add``.
+        :param unicode image_name: See ``IDockerClient.add``.
+        :param list ports: See ``IDockerClient.add``.
+        :param list links: See ``IDockerClient.add``.
         :param Unit expected_states: A list of activation states to wait for.
 
-        :return: ``Deferred`` that fires with the ``GearClient`` when the unit
-            reaches the expected state.
+        :return: ``Deferred`` that fires with the ``DockerClient`` when
+            the unit reaches the expected state.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         d = client.add(
             unit_name=unit_name,
             image_name=image_name,
@@ -78,13 +95,15 @@ class GearClientTests(TestCase):
         return d
 
     def test_add_starts_container(self):
-        """``GearClient.add`` starts the container."""
+        """``DockerClient.add`` starts the container."""
         name = random_name()
         return self.start_container(name)
 
     @_if_root
     def test_correct_image_used(self):
-        """``GearClient.add`` creates a container with the specified image."""
+        """
+        ``DockerClient.add`` creates a container with the specified image.
+        """
         name = random_name()
         d = self.start_container(name)
 
@@ -97,10 +116,10 @@ class GearClientTests(TestCase):
         return d
 
     def test_add_error(self):
-        """``GearClient.add`` returns ``Deferred`` that errbacks with
+        """``DockerClient.add`` returns ``Deferred`` that errbacks with
         ``GearError`` if response code is not a success response code.
         """
-        client = GearClient("127.0.0.1")
+        client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
@@ -108,50 +127,11 @@ class GearClientTests(TestCase):
         # Illegal container name should make gear complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
-        return self.assertFailure(d, GearError)
-
-    def test_remove_error(self):
-        """``GearClient.remove`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
-        """
-        client = GearClient("127.0.0.1")
-        # Illegal container name should make gear complain when we try to
-        # remove it:
-        d = client.remove(u"!!##!!")
-        return self.assertFailure(d, GearError)
-
-    def test_stopped_is_listed(self):
-        """
-        ``GearClient.list()`` includes stopped units.
-
-        In certain old versions of geard the API was such that you had to
-        explicitly request stopped units to be listed, so we want to make
-        sure this keeps working.
-        """
-        name = random_name()
-        d = self.start_container(name)
-
-        def started(client):
-            self.addCleanup(client.remove, name)
-
-            # Stop the unit, an operation that is not exposed directly by
-            # our current API:
-            stopped = client._container_request(
-                b"PUT", name, operation=b"stopped")
-            stopped.addCallback(client._ensure_ok)
-            stopped.addCallback(lambda _: client)
-            return stopped
-        d.addCallback(started)
-
-        def stopped(client):
-            return wait_for_unit_state(
-                client, name, (u"inactive", u"deactivating", u"failed"))
-        d.addCallback(stopped)
-        return d
+        return self.assertFailure(d, self.clientException)
 
     def test_dead_is_listed(self):
         """
-        ``GearClient.list()`` includes dead units.
+        ``DockerClient.list()`` includes dead units.
 
         We use a `busybox` image here, because it will exit immediately and
         reach an `inactive` substate of `dead`.
@@ -188,12 +168,12 @@ class GearClientTests(TestCase):
 
             def check_error(failure):
                 """
-                Catch ConnectionRefused errors and return False so that
-                loop_until repeats the request.
+                Catch ConnectionRefused errors and response timeouts and return
+                False so that loop_until repeats the request.
 
                 Other error conditions will be passed down the errback chain.
                 """
-                failure.trap(ConnectionRefusedError)
+                failure.trap(ConnectionRefusedError, ResponseNeverReceived)
                 return False
             response.addErrback(check_error)
             return response
@@ -202,7 +182,7 @@ class GearClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        GearClient.add accepts a ports argument which is passed to gear to
+        DockerClient.add accepts a ports argument which is passed to gear to
         expose those ports on the unit.
 
         Assert that the busybox-http-app returns the expected "Hello world!"
@@ -232,58 +212,12 @@ class GearClientTests(TestCase):
         d.addCallback(started)
         return d
 
-    def test_add_with_links(self):
-        """
-        ``GearClient.add`` accepts a links argument which sets up links between
-        container local ports and host local ports.
-        """
-        internal_port = 31337
-        expected_bytes = b'foo bar baz'
-        # Create a Docker image
-        image = DockerImageBuilder(
-            test=self,
-            source_dir=FilePath(__file__).sibling('sendbytes-docker'),
-        )
-        image_name = image.build(
-            dockerfile_variables=dict(
-                host=b'127.0.0.1',
-                port=internal_port,
-                bytes=expected_bytes,
-                timeout=30
-            )
-        )
-
-        # This is the target of the proxy which will be created.
-        server = TCP4ServerEndpoint(reactor, 0)
-        capture_finished, protocol = make_capture_protocol()
-
-        def check_data(data):
-            self.assertEqual(expected_bytes, data)
-        capture_finished.addCallback(check_data)
-
-        factory = ProtocolPoppingFactory(protocols=[protocol])
-        d = server.listen(factory)
-
-        def start_container(port):
-            self.addCleanup(port.stopListening)
-            host_port = port.getHost().port
-            return self.start_container(
-                unit_name=random_name(),
-                image_name=image_name,
-                links=[PortMap(internal_port=internal_port,
-                               external_port=host_port)]
-            )
-        d.addCallback(start_container)
-
-        def started(ignored):
-            return capture_finished
-        d.addCallback(started)
-
-        return d
-
     def build_slow_shutdown_image(self):
         """
         Create a Docker image that takes a while to shut down.
+
+        This should really use Python instead of shell:
+        https://github.com/ClusterHQ/flocker/issues/719
 
         :return: The name of created Docker image.
         """
@@ -296,30 +230,11 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    def test_slow_removed_unit_does_not_exist(self):
-        """
-        ``remove()`` only fires once the Docker container has shut down.
-        """
-        client = GearClient(b"127.0.0.1")
-        name = random_name()
-        image = self.build_slow_shutdown_image()
-        d = self.start_container(name, image)
-        d.addCallback(lambda _: client.remove(name))
-
-        def removed(_):
-            process = subprocess.Popen(
-                [b"docker", b"inspect", name.encode("ascii")])
-            # Inspect gives non-zero exit code for stopped and
-            # non-existent containers:
-            self.assertEqual(process.wait(), 1)
-        d.addCallback(removed)
-        return d
-
     @_if_root
     def test_add_with_environment(self):
         """
-        ``GearClient.add`` accepts an environment object whose ID and variables
-        are used when starting a docker image.
+        ``DockerClient.add`` accepts an environment object whose ID and
+        variables are used when starting a docker image.
         """
         docker_dir = FilePath(self.mktemp())
         docker_dir.makedirs()
@@ -342,10 +257,10 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 id=expected_environment_id, variables=expected_variables),
         )
         d.addCallback(
-            # The ``gear status`` command prints to stderr which ordinarily
-            # would cause getProcessOutput to errback. ``errortoo`` turns off
-            # that behaviour.
-            lambda ignored: getProcessOutput(b'gear', [b'status', unit_name],
+            lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
+                                             env=os.environ,
+                                             # Capturing stderr makes
+                                             # debugging easier:
                                              errortoo=True)
         )
         d.addCallback(
@@ -353,4 +268,51 @@ CMD sh -c "trap \"\" 2; sleep 3"
             test_case=self,
             needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
         )
+        return d
+
+    def test_pull_image_if_necessary(self):
+        """
+        The Docker image is pulled if it is unavailable locally.
+        """
+        image = u"busybox"
+        # Make sure image is gone:
+        docker = Client()
+        try:
+            docker.remove_image(image)
+        except APIError as e:
+            if e.response.status_code != 404:
+                raise
+
+        name = random_name()
+        client = self.make_client()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, image)
+        d.addCallback(lambda _: self.assertTrue(docker.inspect_image(image)))
+        return d
+
+    def test_namespacing(self):
+        """
+        Containers are created with the ``DockerClient`` namespace prefixed to
+        their container name.
+        """
+        docker = Client()
+        name = random_name()
+        client = DockerClient(namespace=u"testing-")
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: self.assertTrue(
+            docker.inspect_container(u"testing-" + name)))
+        return d
+
+    def test_default_namespace(self):
+        """
+        The default namespace is `u"flocker--"`.
+        """
+        docker = Client()
+        name = random_name()
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: self.assertTrue(
+            docker.inspect_container(u"flocker--" + name)))
         return d

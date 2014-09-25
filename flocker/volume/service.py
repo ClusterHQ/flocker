@@ -17,6 +17,7 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
+from twisted.internet.defer import maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
@@ -170,7 +171,7 @@ class VolumeService(Service):
         enumerating.addCallback(enumerated)
         return enumerating
 
-    def push(self, volume, destination, config_path=DEFAULT_CONFIG_PATH):
+    def push(self, volume, destination):
         """
         Push the latest data in the volume to a remote destination.
 
@@ -184,19 +185,22 @@ class VolumeService(Service):
         :param IRemoteVolumeManager destination: The remote volume manager
             to push to.
 
-        :param FilePath config_path: Path to configuration file for the
-            remote ``flocker-volume``.
-
         :raises ValueError: If the uuid of the volume is different than
             our own; only locally-owned volumes can be pushed.
         """
         if volume.uuid != self.uuid:
             raise ValueError()
         fs = volume.get_filesystem()
-        with destination.receive(volume) as receiver:
-            with fs.reader() as contents:
-                for chunk in iter(lambda: contents.read(1024 * 1024), b""):
-                    receiver.write(chunk)
+        getting_snapshots = destination.snapshots(volume)
+
+        def got_snapshots(snapshots):
+            with destination.receive(volume) as receiver:
+                with fs.reader(snapshots) as contents:
+                    for chunk in iter(lambda: contents.read(1024 * 1024), b""):
+                        receiver.write(chunk)
+
+        pushing = getting_snapshots.addCallback(got_snapshots)
+        return pushing
 
     def receive(self, volume_uuid, volume_name, input_file):
         """
@@ -259,12 +263,13 @@ class VolumeService(Service):
             errbacks on error (specifcally with a ``ValueError`` if the
             volume is not locally owned).
         """
-        try:
-            self.push(volume, destination)
-        except ValueError:
-            return fail()
-        remote_uuid = destination.acquire(volume)
-        return volume.change_owner(remote_uuid)
+        pushing = maybeDeferred(self.push, volume, destination)
+
+        def pushed(ignored):
+            remote_uuid = destination.acquire(volume)
+            return volume.change_owner(remote_uuid)
+        changing_owner = pushing.addCallback(pushed)
+        return changing_owner
 
 
 # Communication with Docker should be done via its API, not with this
@@ -341,7 +346,10 @@ class Volume(object):
 
         :return: Container name as ``bytes``.
         """
-        return b"%s-data" % (self.name.encode("ascii"),)
+        # This duplicates logic in DockerClient; we can remove this when
+        # this logic is refactored to be based on DockerClient.
+        # https://github.com/ClusterHQ/flocker/issues/234
+        return b"flocker--%s-data" % (self.name.encode("ascii"),)
 
     def expose_to_docker(self, mount_path):
         """
