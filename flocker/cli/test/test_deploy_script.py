@@ -141,6 +141,35 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         self.assertRaises(
             UsageError, options.parseOptions, [deploy.path, app.path])
 
+    def test_config_fig_detected_as_fig(self):
+        """
+        A Fig-comaptible application configuration is identified as such
+        by ``FigConfiguration.is_valid_format``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_config_flocker_not_detected_as_fig(self):
+        """
+        A Flocker-compatible application configuration is not identified
+        as fig by ``FigConfiguration.is_valid_format``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_config_fig_converted_to_flocker_yaml(self):
+        """
+        A Fig-compatible application configuration is convered to its
+        equivalent Flocker configuration before being passed to
+        ``DeployScript.main``
+        """
+        self.fail("Not implemented yet.")
+
+    def test_config_flocker_config_not_converted(self):
+        """
+        A Flocker-compatible application configuration is not altered by
+        ``DeployOptions``.
+        """
+        self.fail("Not implemented yet.")
+
     def test_deployment_object(self):
         """
         A ``Deployment`` object is assigned to the ``Options`` instance.

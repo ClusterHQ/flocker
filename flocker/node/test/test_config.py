@@ -104,7 +104,8 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                 volume=None),
         }
         parser = Configuration()
-        applications = parser._applications_from_configuration(config)
+        applications = parser._applications_from_configuration(
+            FigConfiguration(config),'fig')
         self.assertEqual(expected_applications, applications)
 
     def test_valid_fig_config_environment(self):

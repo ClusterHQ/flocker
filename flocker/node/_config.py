@@ -731,14 +731,16 @@ class Configuration(object):
                 )
         return applications
 
-    def _applications_from_configuration(self, application_configuration):
+    def _applications_from_configuration(self, application_configuration,
+                                         application_configuration_format='flocker'):
         """
         Validate a given application configuration as either fig or flocker
         format and parse appropriately.
 
-        :param dict application_configuration: The intermediate configuration
+        :param mxied application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
             :ref:`Configuration` for details.
+            This parameter is either a ``dict`` or ``FigConfiguration``
 
         :raises ConfigurationError: if the config does not validate as either
             flocker or fig format.
@@ -746,12 +748,17 @@ class Configuration(object):
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
         """
-        fig = FigConfiguration(application_configuration)
-        if fig.is_valid_format():
-            return fig.applications()
-        else:
+        if application_configuration_format == 'fig':
+            return application_configuration.applications()
+        elif application_configuration_format == 'flocker':
             return self._applications_from_flocker_configuration(
                 application_configuration)
+        else:
+            raise ConfigurationError(
+                "Application configuration format {format} is unknown.".format(
+                    format=application_configuration_format)
+            )        
+        
 
     def _deployment_from_configuration(self, deployment_configuration,
                                        all_applications):
@@ -809,7 +816,8 @@ class Configuration(object):
         return set(nodes)
 
     def model_from_configuration(self, application_configuration,
-                                 deployment_configuration):
+                                 deployment_configuration,
+                                 application_configuration_format='flocker'):
         """
         Validate and coerce the supplied application configuration and
         deployment configuration dictionaries into a ``Deployment`` instance.
@@ -825,7 +833,7 @@ class Configuration(object):
         :returns: A ``Deployment`` object.
         """
         applications = self._applications_from_configuration(
-            application_configuration)
+            application_configuration, application_configuration_format)
         nodes = self._deployment_from_configuration(
             deployment_configuration, applications)
         return Deployment(nodes=frozenset(nodes))
