@@ -6,8 +6,7 @@ BuildArch:      noarch
 
 License:        ASL 2.0
 URL:            https://clusterhq.com
-Source0:        Flocker-%{flocker_version}.tar.gz
-
+Source0:        http://archive.clusterhq.com/downloads/flocker/Flocker-%{flocker_version}.tar.gz
 BuildRequires:  python-devel
 
 BuildRequires:  python
