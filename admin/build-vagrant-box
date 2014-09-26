@@ -65,7 +65,7 @@ def main(*args):
         try:
             box = args.pop(0)
         except IndexError:
-            sys.stderr.write("build-vagrant-box: must specify box")
+            sys.stderr.write("build-vagrant-box: must specify box\n")
             raise SystemExit(1)
         path = TOPLEVEL.descendant(['vagrant', box])
 
@@ -80,7 +80,7 @@ def main(*args):
         sys.stderr.write("build-vagrant-box: too many arguments\n")
         raise SystemExit(1)
 
-    sys.stdout.write("Building %s box from %s." % (box, path.path))
+    sys.stdout.write("Building %s box from %s.\n" % (box, path.path))
     build_box(path, 'flocker-' + box, version, branch)
 
 if __name__ == '__main__':
