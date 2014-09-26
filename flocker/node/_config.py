@@ -731,8 +731,10 @@ class Configuration(object):
                 )
         return applications
 
-    def _applications_from_configuration(self, application_configuration,
-                                         application_configuration_format='flocker'):
+    def _applications_from_configuration(
+        self, application_configuration,
+        application_configuration_format='flocker'
+    ):
         """
         Validate a given application configuration as either fig or flocker
         format and parse appropriately.
@@ -757,8 +759,7 @@ class Configuration(object):
             raise ConfigurationError(
                 "Application configuration format {format} is unknown.".format(
                     format=application_configuration_format)
-            )        
-        
+            )
 
     def _deployment_from_configuration(self, deployment_configuration,
                                        all_applications):

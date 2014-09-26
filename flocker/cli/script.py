@@ -97,11 +97,11 @@ class DeployOptions(Options):
                     application_configuration_format='fig')
                 self['application_config'] = (
                     fig_configuration.to_flocker_yaml()
-                )                    
+                )
             else:
                 self['deployment'] = model_from_configuration(
                     application_configuration=app_config_obj,
-                    deployment_configuration=deploy_config_obj)                
+                    deployment_configuration=deploy_config_obj)
         except ConfigurationError as e:
             raise UsageError(str(e))
 

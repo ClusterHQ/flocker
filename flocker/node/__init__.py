@@ -5,7 +5,7 @@ Local node manager for Flocker.
 """
 
 from ._config import (
-    ConfigurationError, FigConfiguration, 
+    ConfigurationError, FigConfiguration,
     model_from_configuration, current_from_configuration,
     )
 from ._model import (
