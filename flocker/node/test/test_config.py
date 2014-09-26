@@ -17,6 +17,7 @@ from .._model import (
     NodeState,
 )
 
+
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
@@ -1658,9 +1659,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
 
     def test_one_application(self):
         """
-        A dictionary of application name -> image is produced where there is
-        only one application in the state passed to the ``marshal_configuration``
-        method.
+        A dictionary of application name -> image is produced where the
+        ``marshal_configuration`` method is called with state containing only
+        one application.
         """
         applications = [
             Application(
