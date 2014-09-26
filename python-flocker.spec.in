@@ -1,6 +1,6 @@
 Name:           python-flocker
-Version:        %{version}
-Release:        %{release}%{?dist}
+Version:        %{supplied_rpm_version}
+Release:        %{supplied_rpm_release}%{?dist}
 Summary:        Libraries for flocker
 BuildArch:      noarch
 
@@ -117,7 +117,7 @@ trial flocker
 
 %changelog
 
-* Fri Sep 26 2014 Richard Wall - 0.2.0-1
+* Fri Sep 26 2014 Richard Wall - %{version}-%{release}
 - Modified macro names to allow development and pre-release version numbers.
 
 * Tue Jun 10 2014 Tom Prince - 0.0.1-1
