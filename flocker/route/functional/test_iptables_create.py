@@ -17,6 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
 from twisted.trial.unittest import TestCase
+from twisted.python.procutils import which
 
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
@@ -99,6 +100,9 @@ _dependency_skip = skipUnless(
     NOMENCLATURE_INSTALLED,
     "Cannot test port forwarding without nomenclature installed.")
 
+_iptables_skip = skipUnless(
+    which(b"iptables-save"),
+    "Cannot set up isolated environment without iptables-save.")
 
 class GetIPTablesTests(TestCase):
     """
@@ -402,6 +406,10 @@ class UsedPortsTests(TestCase):
     """
     Tests for enumeration of used ports.
     """
+    @_iptables_skip
+    def setUp(self):
+        pass
+
     def test_listening_ports(self):
         """
         If a socket is bound to a port and listening the port number is
