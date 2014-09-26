@@ -8,8 +8,9 @@ from ._config import (
     ConfigurationError, model_from_configuration, current_from_configuration,
     )
 from ._model import (
-    Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume)
-from ._deploy import Deployer, NodeState
+    Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
+    NodeState)
+from ._deploy import Deployer
 
 __all__ = [
     'ConfigurationError',

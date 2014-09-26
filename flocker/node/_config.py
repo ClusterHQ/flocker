@@ -9,7 +9,6 @@ from __future__ import unicode_literals, absolute_import
 
 import os
 import types
-import yaml
 
 from twisted.python.filepath import FilePath
 
@@ -840,7 +839,7 @@ def current_from_configuration(current_configuration):
     ``Deployment`` instance.
 
     The passed in configuration is the aggregated output of
-    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+    ``marshal_configuration`` as combined by ``flocker-deploy``.
 
     :param dict current_configuration: Map of node names to list of
         application maps.
@@ -859,24 +858,25 @@ def current_from_configuration(current_configuration):
     return Deployment(nodes=frozenset(nodes))
 
 
-def configuration_to_yaml(applications):
+def marshal_configuration(state):
     """
-    Generate YAML representation of a node's applications.
+    Generate representation of a node's applications using only simple Python
+    types.
 
     A bunch of information is missing, but this is sufficient for the
     initial requirement of determining what to do about volumes when
     applying configuration changes.
     https://github.com/ClusterHQ/flocker/issues/289
 
-    :param applications: ``list`` of ``Application``\ s, typically the
-        current configuration on a node as determined by
-        ``Deployer.discover_node_configuration()``.
+    :param NodeState state: The configuration state to marshal.
 
-    :return: YAML serialized configuration in the application
-        configuration format.
+    :return: An object representing the node configuration in a structure
+        roughly compatible with the configuration file format.  Only "simple"
+        (easily serialized) Python types will be used: ``dict``, ``list``,
+        ``int``, ``unicode``, etc.
     """
     result = {}
-    for application in applications:
+    for application in state.running + state.not_running:
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
@@ -906,4 +906,8 @@ def configuration_to_yaml(applications):
             result[application.name]["volume"] = {
                 "mountpoint": None,
             }
-    return yaml.safe_dump({"version": 1, "applications": result})
+    return {
+        "version": 1,
+        "applications": result,
+        "used_ports": sorted(state.used_ports),
+    }
