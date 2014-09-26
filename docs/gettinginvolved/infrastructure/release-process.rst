@@ -50,7 +50,7 @@ Preliminary Step: Pre-populating RPM Repository
 -----------------------------------------------
 
 .. warning:: This only needs to be done if the dependency packages for Flocker (i.e. ``geard`` and Python libraries) change; it should *not* be done every release.
-             If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
+             If you do run this you need to do it *before* running the release process below as it removes the ``flocker-cli`` etc. packages from the repository!
              XXX How does one know?
 
 These steps must be performed from a machine with the ClusterHQ Copr repository installed.
