@@ -42,8 +42,21 @@ class Environment(object):
         return dict(self.variables)
 
 
+@attributes(["node_path", "container_path"])
+class Volume(object):
+      """
+      A Docker volume.
+
+      :ivar FilePath node_path: The volume's path on the node's
+          filesystem.
+
+      :ivar FilePath container_path: The volume's path within the
+          container.
+      """
+
+
 @attributes(["name", "activation_state", "container_image",
-             "ports", "environment"],
+             "ports", "environment", "volumes"],
             defaults=dict(container_image=None,
                           ports=(), environment=None))
 class Unit(object):
@@ -72,6 +85,9 @@ class Unit(object):
     :ivar Environment environment: An ``Environment`` whose variables
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
+
+    :ivar volumes: A ``list`` of ``Volume`` instances, the container's
+        volumes.
     """
 
 
@@ -85,7 +101,7 @@ class IDockerClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, environment=None):
+    def add(unit_name, image_name, ports=None, environment=None, volumes=()):
         """
         Install and start a new unit.
 
@@ -107,6 +123,8 @@ class IDockerClient(Interface):
         :param Environment environment: Environment variables for the
             container. Default ``None`` means that no environment
             variables will be supplied to the unit.
+
+        :param volumes: A sequence of ``Volume`` instances to mount.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -233,8 +251,8 @@ class DockerClient(object):
         return self.namespace + unit_name
 
     def add(self, unit_name, image_name, ports=None, environment=None):
+        # XXX add logic to create volumes as argument to create/start
         container_name = self._to_container_name(unit_name)
-        data_container_name = container_name + u"-data"
 
         if environment is not None:
             environment = environment.to_dict()
@@ -246,6 +264,7 @@ class DockerClient(object):
                 image_name,
                 name=container_name,
                 environment=environment,
+                # volumes=....
                 ports=[p.internal_port for p in ports])
 
         def _add():
@@ -266,12 +285,8 @@ class DockerClient(object):
             while not self._blocking_exists(container_name):
                 sleep(0.001)
                 continue
-            if self._blocking_exists(data_container_name):
-                volumes_from = [data_container_name]
-            else:
-                volumes_from = None
             self._client.start(container_name,
-                               volumes_from=volumes_from,
+                               # volumes=...
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
@@ -341,6 +356,7 @@ class DockerClient(object):
                     continue
                 # We'll add missing info in
                 # https://github.com/ClusterHQ/flocker/issues/207
+                # XXX extract volume info from the inspect results, add to Unit
                 result.add(Unit(name=name,
                                 activation_state=state,
                                 container_image=None))
