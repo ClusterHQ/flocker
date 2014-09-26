@@ -1860,6 +1860,23 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         self.assertEqual(expected, result)
 
+    def test_used_ports(self):
+        """
+        The ports in ``NodeState.used_ports`` are included in the result of
+        ``marshal_configuration``.
+        """
+        used_ports = frozenset({1, 20, 250, 15020, 65000})
+        state = NodeState(running=[], not_running=[], used_ports=used_ports)
+        expected = {
+            'used_ports': sorted(used_ports),
+            'applications': {},
+            'version': 1,
+        }
+        self.assertEqual(
+            expected,
+            marshal_configuration(state)
+        )
+
     def test_able_to_unmarshal_configuration(self):
         """
         ``Configuration._applications_from_configuration`` can load the output
