@@ -411,20 +411,40 @@ class UsedPortsTests(TestCase):
     def setUp(self):
         pass
 
-    def test_listening_ports(self):
+    def _listening_test(self, interface):
         """
-        If a socket is bound to a port and listening the port number is
-        included in the result of ``HostNetwork.enumerate_used_ports``.
+        Verify that a socket listening on the given interface has its port
+        number included in the result of ``HostNetwork.enumerate_used_ports``.
+
+        :param str interface: A native string giving the address of the
+            interface to which the listening socket will be bound.
+
+        :raise: If the port number is not indicated as used, a failure
+            exception is raised.
         """
         network = make_host_network()
         listener = socket()
         self.addCleanup(listener.close)
 
-        listener.bind(('', 0))
+        listener.bind((interface, 0))
         listener.listen(3)
 
         self.assertIn(
             listener.getsockname()[1], network.enumerate_used_ports())
+
+    def test_listening_ports(self):
+        """
+        If a socket is bound to a port and listening the port number is
+        included in the result of ``HostNetwork.enumerate_used_ports``.
+        """
+        self._listening_test('')
+
+    def test_localhost_listening_ports(self):
+        """
+        If a socket is bound to a port on localhost only the port number is
+        included in the result of ``HostNetwork.enumerate_used_ports``.
+        """
+        self._listening_test('127.0.0.1')
 
     def test_client_ports(self):
         """
