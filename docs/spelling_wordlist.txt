@@ -1,7 +1,6 @@
+admin
 app
 apps
-admin
-sysadmin
 behaviour
 Btrfs
 Buildbot
@@ -35,6 +34,7 @@ proxied
 proxying
 snapshotting
 stateful
+sysadmin
 timestamp
 virtualization
 VMware
