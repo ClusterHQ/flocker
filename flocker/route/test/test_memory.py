@@ -10,6 +10,7 @@ from twisted.trial.unittest import SynchronousTestCase
 
 from .. import make_memory_network
 
+
 class MemoryProxyTests(SynchronousTestCase):
     """
     Tests for distinctive behaviors of the ``INetwork`` provider created by
