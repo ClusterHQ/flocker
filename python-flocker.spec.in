@@ -102,7 +102,7 @@ trial flocker
 %doc README.rst
 
 %{python2_sitelib}/flocker
-%{python2_sitelib}/Flocker-%{flocker_version}-py?.?.egg-info
+%{python2_sitelib}/Flocker-%{flocker_version_underscore}-py?.?.egg-info
 
 %files -n flocker-cli
 %doc README.rst

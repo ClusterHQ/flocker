@@ -36,6 +36,9 @@ class cmd_generate_spec(Command):
             destination.write(
                 "%%global flocker_version %s\n" % (flocker_version,))
             destination.write(
+                "%%global flocker_version_underscore %s\n" % (
+                    flocker_version.replace('-', '_'),))
+            destination.write(
                 "%%global version %s\n" % (version,))
             destination.write(
                 "%%global release %s\n" % (release,))
