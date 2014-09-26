@@ -2,7 +2,8 @@
 
 # This script builds the base flocker-dev box.
 
-import sys, os
+import sys
+import os
 from subprocess import check_call, check_output
 from textwrap import dedent
 
@@ -17,8 +18,17 @@ if len(sys.argv) > 2:
 
 # Make it possible to install flocker-node
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
-check_call(['yum', 'install', '-y', 'https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release%s.noarch.rpm' % (rpm_dist,)])
-check_call(['yum', 'install', '-y', 'https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release%s.noarch.rpm' % (rpm_dist,)])
+zfs_repo_url = (
+    'https://s3.amazonaws.com/'
+    'archive.zfsonlinux.org/'
+    'fedora/zfs-release%s.noarch.rpm') % (rpm_dist,)
+check_call(['yum', 'install', '-y',  zfs_repo_url])
+
+clusterhq_repo_url = (
+    'https://storage.googleapis.com/'
+    'archive.clusterhq.com/'
+    'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
+check_call(['yum', 'install', '-y', clusterhq_repo_url])
 
 if branch:
     with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
@@ -42,7 +52,8 @@ check_call(['systemctl', 'enable', 'docker'])
 
 # Make it easy to authenticate as root
 check_call(['mkdir', '-p', '/root/.ssh'])
-check_call(['cp', os.path.expanduser('~vagrant/.ssh/authorized_keys'), '/root/.ssh'])
+check_call(
+    ['cp', os.path.expanduser('~vagrant/.ssh/authorized_keys'), '/root/.ssh'])
 
 # Configure GRUB2 to boot kernel with elevator=noop to workaround
 # https://github.com/ClusterHQ/flocker/issues/235
