@@ -46,9 +46,11 @@ check_call(['mkdir', '-p', '/root/.ssh'])
 check_call(['cp', os.path.expanduser('~vagrant/.ssh/authorized_keys'), '/root/.ssh'])
 
 # Configure GRUB2 to boot kernel with elevator=noop to workaround clusterhq/flocker#235
-check_call(['sed', '-i', '-e', 's/\(.*\)vmlinuz\(.*\)/\1vmlinuz\2 elevator=noop/', '/boot/grub2/grub.cfg'])
-check_call(['sed', '-i', '-e', 's/\(.*\)\(GRUB_CMDLINE_LINUX="\)/\2elevator=noop /', '/etc/default/grub'])
+grub_default = '/etc/default/grub'
+with open(grub_default, 'a') as f:
+    f.write('GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} elevator=noop"\n')
 
+check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 # Create a ZFS storage pool backed by a normal filesystem file.  This
 # is a bad way to configure ZFS for production use but it is
 # convenient for a demo in a VM.
