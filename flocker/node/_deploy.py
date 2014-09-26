@@ -11,7 +11,7 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from ._docker import DockerClient, PortMap, Environment
+from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )
@@ -97,11 +97,13 @@ class StartApplication(object):
     """
     def run(self, deployer):
         application = self.application
+
+        volumes = []
         if application.volume is not None:
             volume = deployer.volume_service.get(application.volume.name)
-            d = volume.expose_to_docker(application.volume.mountpoint)
-        else:
-            d = succeed(None)
+            volumes.append(DockerVolume(
+                container_path=application.volume.mountpoint,
+                node_path = volume.get_filesystem().get_path()))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,
@@ -130,13 +132,13 @@ class StartApplication(object):
         else:
             docker_environment = None
 
-        d.addCallback(lambda _: deployer.docker_client.add(
+        return deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=docker_environment
-        ))
-        return d
+            environment=docker_environment,
+            volumes=volumes,
+        )
 
 
 def _link_environment(protocol, alias, local_port, hostname, remote_port):
@@ -175,14 +177,7 @@ class StopApplication(object):
     def run(self, deployer):
         application = self.application
         unit_name = application.name
-        result = deployer.docker_client.remove(unit_name)
-
-        def unit_removed(_):
-            if application.volume is not None:
-                volume = deployer.volume_service.get(application.volume.name)
-                return volume.remove_from_docker()
-        result.addCallback(unit_removed)
-        return result
+        return deployer.docker_client.remove(unit_name)
 
 
 @implementer(IStateChange)
