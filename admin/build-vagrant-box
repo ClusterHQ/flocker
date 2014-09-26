@@ -35,6 +35,8 @@ def build_box(path, name, version, branch):
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
     """
+    box_path = path.child('%s%s%s.box' % (name, '-' if version else '', version))
+
     # Destroy the box to begin, so that we are guaranteed
     # a clean build.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
@@ -45,9 +47,7 @@ def build_box(path, name, version, branch):
         'FLOCKER_BRANCH': branch,
         })
     run(['vagrant', 'up'], cwd=path.path, env=env)
-    run(['vagrant', 'package', '--output',
-         '%s%s%s.box' % (name, '-' if version else '', version)],
-        cwd=path.path)
+    run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
 
     # And destroy at the end to save space.  If one of the above commands fail,
     # this will be skipped, so the image can still be debugged.
