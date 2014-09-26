@@ -157,7 +157,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
     def test_config_fig_converted_to_flocker_yaml(self):
         """
-        A Fig-compatible application configuration is convered to its
+        A Fig-compatible application configuration is converted to its
         equivalent Flocker configuration before being passed to
         ``DeployScript.main``
         """

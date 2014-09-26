@@ -739,10 +739,14 @@ class Configuration(object):
         Validate a given application configuration as either fig or flocker
         format and parse appropriately.
 
-        :param mxied application_configuration: The intermediate configuration
+        :param mixed application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
             :ref:`Configuration` for details.
             This parameter is either a ``dict`` or ``FigConfiguration``
+
+        :param bytes application_configuration_format: String representing the
+            format of the supplied configuration, which should be either 'fig'
+            or 'flocker', any other value will raise a ``ConfigurationError``.
 
         :raises ConfigurationError: if the config does not validate as either
             flocker or fig format.
