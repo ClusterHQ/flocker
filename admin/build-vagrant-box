@@ -5,7 +5,8 @@ Build a base vagrant image.
 
 from _preamble import TOPLEVEL, BASEPATH
 
-import os, sys
+import sys
+import os
 from pipes import quote
 from subprocess import check_call, CalledProcessError
 from flocker import __version__
@@ -22,7 +23,8 @@ def run(command, **kwargs):
     try:
         check_call(command, **kwargs)
     except CalledProcessError as e:
-        sys.stderr.write('Failed %d: %s\n' % (e.returncode, ' '.join(map(quote, command))))
+        sys.stderr.write('Failed %d: %s\n'
+                         % (e.returncode, ' '.join(map(quote, command))))
         raise SystemExit(e.returncode)
 
 
@@ -35,7 +37,8 @@ def build_box(path, name, version, branch):
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
     """
-    box_path = path.child('%s%s%s.box' % (name, '-' if version else '', version))
+    box_path = path.child('%s%s%s.box'
+                          % (name, '-' if version else '', version))
 
     # Destroy the box to begin, so that we are guaranteed
     # a clean build.
