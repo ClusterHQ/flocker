@@ -436,7 +436,6 @@ class UsedPortsTests(TestCase):
         listener = socket()
         self.addCleanup(listener.close)
 
-        listener.bind(('', 0))
         listener.listen(3)
 
         client = socket()
