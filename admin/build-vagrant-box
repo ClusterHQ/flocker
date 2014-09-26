@@ -32,11 +32,24 @@ def run(command, **kwargs):
 
 
 def box_metadata(name, version, path):
+    """
+    Generate metadata for a vagrant box.
+
+    This metadate can be used to locally(!) add the box to vagrant,
+    with the correct version, for testing.
+
+    :param FilePath path: Directory containting ``Vagrantfile``.
+    :param bytes name: Base name of vagrant box. Used to build filename.
+    :param bytes version: Version of vagrant box. Used to build filename.
+    """
+    # Vagrant doesn't like - in version numbers.
+    # It also doesn't like _ but we don't generate that.
+    dotted_version = version.replace('-', '.')
     return {
         "name": "clusterhq/%s" % (name,),
         "description": "Test clusterhq/%s box." % (name,),
         "versions": [{
-            "version": version,
+            "version": dotted_version,
             "providers": [{
                 "name": "virtualbox",
                 "url": path.path
