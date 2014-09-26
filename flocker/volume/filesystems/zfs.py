@@ -501,6 +501,11 @@ class StoragePool(Service):
         d.addCallback(lambda _: filesystem)
         return d
 
+    def clone(self, volume, parent):
+        # create snapshot, zfs clone, maybe with some logic shared with
+        # create() to avoid duplication.
+        pass
+
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)

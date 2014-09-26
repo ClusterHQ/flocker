@@ -107,16 +107,25 @@ class IStoragePool(Interface):
     """Pool of on-disk storage where filesystems are stored."""
 
     def create(volume):
-        """Create a new filesystem for the given volume.
-
-        By default new filesystems will be automounted. In future
-        iterations when remotely owned filesystems are added
-        (https://github.com/ClusterHQ/flocker/issues/93) this interface
-        will be expanded to allow specifying that the filesystem should
-        not be mounted.
+        """
+        Create a new filesystem for the given volume.
 
         :param volume: The volume whose filesystem should be created.
         :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem creation with a
+            :class:`IFilesystem` provider, or errbacks if creation failed.
+        """
+
+    def clone(volume, parent):
+        """
+        Clone an existing volume to create a new one.
+
+        :param volume: The volume whose filesystem should be created.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :param parent: A :class:`flocker.volume.service.Volume` whose
+           filesystem will cloned to create the new filesystem.
 
         :return: Deferred that fires on filesystem creation with a
             :class:`IFilesystem` provider, or errbacks if creation failed.
