@@ -15,7 +15,7 @@ yum install -y \
 	zlib-devel libuuid-devel libselinux-devel \
 	automake autoconf libtool \
 	rpm-devel rpmlint mock createrepo \
-	docker-io geard \
+	docker-io \
 	python-devel python-tox python-virtualenv python-pip \
 	python-cffi libffi-devel \
 	yum-utils
@@ -46,4 +46,4 @@ yum install -y python-flake8 python-coverage
 yum install -y wget
 
 systemctl enable docker
-systemctl enable geard
+

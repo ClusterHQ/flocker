@@ -7,7 +7,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import (
+from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
     GearEnvironment)
 

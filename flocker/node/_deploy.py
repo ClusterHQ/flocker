@@ -11,8 +11,7 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from .gear import PortMap, GearEnvironment
-from ._docker import DockerClient
+from ._docker import DockerClient, PortMap, GearEnvironment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     )

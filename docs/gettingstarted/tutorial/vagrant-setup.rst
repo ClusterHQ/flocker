@@ -121,7 +121,6 @@ Note that you will need to make the same substitution in commands used throughou
       ==> node1: Importing base box 'clusterhq/flocker-dev'...
       ... lots of output ...
       ==> node2: ln -s '/usr/lib/systemd/system/docker.service' '/etc/systemd/system/multi-user.target.wants/docker.service'
-      ==> node2: ln -s '/usr/lib/systemd/system/geard.service' '/etc/systemd/system/multi-user.target.wants/geard.service'
       alice@mercury:~/flocker-tutorial$
 
    This step may take several minutes or more as it downloads the Vagrant image, boots up two nodes and downloads the Docker image necessary to run the tutorial.

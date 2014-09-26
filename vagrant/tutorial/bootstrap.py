@@ -39,7 +39,6 @@ else:
 check_call(['yum', 'install', '-y'] + branch_opt + [package])
 
 check_call(['systemctl', 'enable', 'docker'])
-check_call(['systemctl', 'enable', 'geard'])
 
 # Make it easy to authenticate as root
 check_call(['mkdir', '-p', '/root/.ssh'])

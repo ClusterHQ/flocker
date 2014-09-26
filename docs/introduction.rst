@@ -106,27 +106,14 @@ Initial Implementation Strategy
   * Push volume data to other nodes.
   * Add or remove routing configuration.
 
-
-Managing Containers
--------------------
-
-* `geard`_ is used to start, stop, and enumerate containers.
-* ``geard`` works by creating ``systemd`` units.
-* ``systemd`` units are a good way to provide admin tools for:
-
-  * Logging and state inspection.
-  * Starting/stopping (including at boot).
-  * Inter-unit dependency management.
-
-
 Managing Volumes
 ----------------
 
 * Volumes are ZFS filesystems.
 * Volumes are attached to a Docker "data" container.
-* ``geard`` automatically associates the "data" container's volumes with the actual container.
+* Flocker automatically associates the "data" container's volumes with the actual container.
 
-  * Association is done based on container names by ``geard``.
+  * Association is done based on container names.
 
 * Data model
   * Volumes are owned by a specific node.
@@ -162,6 +149,3 @@ User Experience
   * Deployment
 
 * Your sysadmin runs a command like ``flocker-deploy deployment-config.yml application-config.yml`` on their laptop.
-
-.. _geard: https://github.com/openshift/geard
-
