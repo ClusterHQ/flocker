@@ -18,14 +18,14 @@ from .. import (Deployer, Application, DockerImage, Deployment, Node,
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
-    _link_environment)
+    _link_environment, _to_volume_name)
 from .._model import AttachedVolume
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, GearEnvironment,
     DockerClient)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...volume.service import Volume
+from ...volume.service import Volume, VolumeName
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
@@ -401,8 +401,10 @@ class StartApplicationTests(SynchronousTestCase):
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
-        self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
-                                    FilePath(b"/var"), False)])
+        self.assertEqual(
+            exposed,
+            [(volume_service.get(_to_volume_name(u"site-example.com")),
+              FilePath(b"/var"), False)])
 
     def test_environment_supplied_to_gear(self):
         """
@@ -610,8 +612,10 @@ class StopApplicationTests(SynchronousTestCase):
                                               ).run(deployer))
         self.successResultOf(StopApplication(application=application).run(
             deployer))
-        self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
-                                    False)])
+        self.assertEqual(
+            removed,
+            [(volume_service.get(_to_volume_name(u"site-example.com")),
+              False)])
 
 
 # This models an application that has a volume.
@@ -707,8 +711,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1, unit2.name: unit2}
 
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(u"site-example.com"))
-        self.successResultOf(volume_service.create(u"site-example.net"))
+        self.successResultOf(volume_service.create(
+            _to_volume_name(u"site-example.com")))
+        self.successResultOf(volume_service.create(
+            _to_volume_name(u"site-example.net")))
 
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
         # is fixed the mountpoint should actually be specified.
@@ -732,7 +738,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit.name: unit}
 
         volume_service = create_volume_service(self)
-        volume = Volume(uuid=unicode(uuid4()), name=u"site-example.com",
+        volume = Volume(uuid=unicode(uuid4()),
+                        name=_to_volume_name(u"site-example.com"),
                         service=volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
@@ -1615,7 +1622,7 @@ class CreateVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         create.run(deployer)
         self.assertIn(
-            volume_service.get(u"myvol"),
+            volume_service.get(_to_volume_name(u"myvol")),
             list(self.successResultOf(volume_service.enumerate())))
 
     def test_return(self):
@@ -1630,7 +1637,8 @@ class CreateVolumeTests(SynchronousTestCase):
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var")))
         result = self.successResultOf(create.run(deployer))
-        self.assertEqual(result, deployer.volume_service.get(u"myvol"))
+        self.assertEqual(result, deployer.volume_service.get(
+            _to_volume_name(u"myvol")))
 
 
 class WaitForVolumeTests(SynchronousTestCase):
@@ -1654,7 +1662,8 @@ class WaitForVolumeTests(SynchronousTestCase):
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
-        self.assertEqual(result, [u"myvol"])
+        self.assertEqual(result,
+                         [VolumeName(namespace=u"default", id=u"myvol")])
 
     def test_return(self):
         """
@@ -1701,7 +1710,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         handoff.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(u"myvol"),
+            [volume_service.get(_to_volume_name(u"myvol")),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -1751,7 +1760,7 @@ class PushVolumeTests(SynchronousTestCase):
         push.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(u"myvol"),
+            [volume_service.get(_to_volume_name(u"myvol")),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
