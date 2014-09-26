@@ -9,6 +9,9 @@ import sys
 import os
 from pipes import quote
 from subprocess import check_call, CalledProcessError
+
+import json
+
 from flocker import __version__
 
 
@@ -28,6 +31,20 @@ def run(command, **kwargs):
         raise SystemExit(e.returncode)
 
 
+def box_metadata(name, version, path):
+    return {
+        "name": "clusterhq/%s" % (name,),
+        "description": "Test clusterhq/%s box." % (name,),
+        "versions": [{
+            "version": version,
+            "providers": [{
+                "name": "virtualbox",
+                "url": path.path
+                }]
+            }]
+        }
+
+
 def build_box(path, name, version, branch):
     """
     Build a vagrant box.
@@ -39,6 +56,7 @@ def build_box(path, name, version, branch):
     """
     box_path = path.child('%s%s%s.box'
                           % (name, '-' if version else '', version))
+    json_path = path.child('%s.json' % (name,))
 
     # Destroy the box to begin, so that we are guaranteed
     # a clean build.
@@ -55,6 +73,9 @@ def build_box(path, name, version, branch):
     # And destroy at the end to save space.  If one of the above commands fail,
     # this will be skipped, so the image can still be debugged.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
+
+    metadata = box_metadata(name, version, box_path)
+    json_path.setContent(json.dumps(metadata))
 
 
 def main(*args):
