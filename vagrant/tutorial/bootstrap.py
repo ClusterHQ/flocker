@@ -46,8 +46,7 @@ check_call(['cp', os.path.expanduser('~vagrant/.ssh/authorized_keys'), '/root/.s
 
 # Configure GRUB2 to boot kernel with elevator=noop to workaround
 # clusterhq/flocker#235
-grub_default = '/etc/default/grub'
-with open(grub_default, 'a') as f:
+with open('/etc/default/grub', 'a') as f:
     f.write('GRUB_CMDLINE_LINUX="${GRUB_CMDLINE_LINUX} elevator=noop"\n')
 
 check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
