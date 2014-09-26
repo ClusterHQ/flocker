@@ -72,9 +72,9 @@ class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX: The image attribute defaults to ``None`` until we have a way to
-    interrogate geard for the docker images associated with its
-    containers. See https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The image attribute defaults to ``None`` until we have code to
+    interrogate Docker for the images associated with its containers. See
+    https://github.com/ClusterHQ/flocker/issues/207
 
     XXX The links attribute defaults to ``None`` until we have a way to
     interrogate configured links.

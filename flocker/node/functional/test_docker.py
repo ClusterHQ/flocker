@@ -28,7 +28,7 @@ from ...testtools import (
     random_name)
 
 from ..test.test_docker import make_idockerclient_tests
-from .._docker import DockerClient, PortMap, GearEnvironment
+from .._docker import DockerClient, PortMap, Environment
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -56,14 +56,13 @@ class DockerClientTests(TestCase):
     clientException = APIError
 
     def make_client(self):
-        # The gear tests which we're (temporarily) reusing assume
-        # container name matches unit name, so we disable namespacing for
-        # these tests.
+        # Some of the tests assume container name matches unit name, so we
+        # disable namespacing for these tests.
         return DockerClient(namespace=u"")
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_states=(u'active',),
+                        ports=None, expected_states=(u'active',),
                         environment=None):
         """
         Start a unit and wait until it reaches the `active` state or the
@@ -72,7 +71,6 @@ class DockerClientTests(TestCase):
         :param unicode unit_name: See ``IDockerClient.add``.
         :param unicode image_name: See ``IDockerClient.add``.
         :param list ports: See ``IDockerClient.add``.
-        :param list links: See ``IDockerClient.add``.
         :param Unit expected_states: A list of activation states to wait for.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
@@ -83,7 +81,6 @@ class DockerClientTests(TestCase):
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
-            links=links,
             environment=environment,
         )
         self.addCleanup(client.remove, unit_name)
@@ -116,15 +113,16 @@ class DockerClientTests(TestCase):
         return d
 
     def test_add_error(self):
-        """``DockerClient.add`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
+        """
+        ``DockerClient.add`` returns a ``Deferred`` that errbacks with
+        ``APIError`` if response code is not a success response code.
         """
         client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
         client.exists = lambda _: succeed(False)
-        # Illegal container name should make gear complain when we try to
+        # Illegal container name should make Docker complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
         return self.assertFailure(d, self.clientException)
@@ -182,8 +180,8 @@ class DockerClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        DockerClient.add accepts a ports argument which is passed to gear to
-        expose those ports on the unit.
+        ``DockerClient.add`` accepts a ports argument which is passed to
+        Docker to expose those ports on the unit.
 
         Assert that the busybox-http-app returns the expected "Hello world!"
         response.
@@ -245,7 +243,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
         unit_name = random_name()
-        expected_environment_id = random_name()
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
@@ -253,8 +250,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = self.start_container(
             unit_name=unit_name,
             image_name=image_name,
-            environment=GearEnvironment(
-                id=expected_environment_id, variables=expected_variables),
+            environment=Environment(variables=expected_variables),
         )
         d.addCallback(
             lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
