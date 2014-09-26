@@ -407,7 +407,7 @@ class StartApplicationTests(SynchronousTestCase):
     def test_environment_supplied_to_docker(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
-        application to ``DockerClient.add`` as a ``Environment`` instance.
+        application to ``DockerClient.add`` as an ``Environment`` instance.
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
@@ -435,7 +435,7 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_environment_not_supplied(self):
         """
-        ``StartApplication.run()`` only passes a ``Environment`` instance
+        ``StartApplication.run()`` only passes an ``Environment`` instance
         if the application defines an environment.
         """
         volume_service = create_volume_service(self)

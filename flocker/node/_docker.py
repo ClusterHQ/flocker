@@ -37,7 +37,7 @@ class Environment(object):
         Convert to a dictionary suitable for serialising to JSON and then on to
         the Docker API.
 
-        :return: ``dict`` mappings keys to values.
+        :return: ``dict`` mapping keys to values.
         """
         return dict(self.variables)
 
@@ -50,9 +50,9 @@ class Unit(object):
     """
     Information about a unit managed by Docker.
 
-    XXX: The container_image attribute defaults to `None` until we have
-    code to call docker for images associated with its containers. See
-    https://github.com/ClusterHQ/flocker/issues/207
+    XXX: The ``container_image`` attribute defaults to ``None`` until we
+    have code to call docker for images associated with its
+    containers. See https://github.com/ClusterHQ/flocker/issues/207
 
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
@@ -69,7 +69,7 @@ class Unit(object):
     :ivar list ports: The ``PortMap`` instances which define how connections to
         ports on the host are routed to ports exposed in the container.
 
-    :ivar Environment environment: A ``Environment`` whose variables
+    :ivar Environment environment: An ``Environment`` whose variables
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
     """

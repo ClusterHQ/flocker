@@ -114,7 +114,7 @@ class DockerClientTests(TestCase):
 
     def test_add_error(self):
         """
-        ``DockerClient.add`` returns ``Deferred`` that errbacks with
+        ``DockerClient.add`` returns a ``Deferred`` that errbacks with
         ``APIError`` if response code is not a success response code.
         """
         client = self.make_client()
@@ -180,8 +180,8 @@ class DockerClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        DockerClient.add accepts a ports argument which is passed to Docker to
-        expose those ports on the unit.
+        ``DockerClient.add`` accepts a ports argument which is passed to
+        Docker to expose those ports on the unit.
 
         Assert that the busybox-http-app returns the expected "Hello world!"
         response.

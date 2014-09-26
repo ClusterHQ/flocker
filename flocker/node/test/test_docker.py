@@ -279,7 +279,7 @@ class EnvironmentTests(TestCase):
     def test_to_dict(self):
         """
         ``Environment.to_dict`` returns a dictionary containing the
-        the variables as a dictionary.
+        the environment variables as key/value entries.
         """
         variables = {'baz': 'qux', 'foo': 'bar'}
         environment = Environment(variables=frozenset(variables.items()))
