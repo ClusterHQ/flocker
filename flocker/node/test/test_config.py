@@ -20,8 +20,79 @@ from .._model import (
 
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration._applications_from_configuration``.
+    Tests for ``FigConfiguration``.
     """
+    def test_to_flocker_yaml_returns_valid_yaml(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml" can be
+        successfully parsed as YAML.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_not_fig_yaml(self):
+        """
+        Parsed YAML returned by ``FigConfiguration.to_flocker_yaml`` is
+        identified as non-fig by ``FigConfiguration.is_valid_format``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_valid_flocker(self):
+        """
+        Parsed YAML returned by ``FigConfiguration.to_flocker_yaml`` is
+        translated to a ``dict`` of ``Application`` instances by
+        ``Configuration._applications_from_flocker_configuration``.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_version(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
+        a version entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_applications(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
+        an applications entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_image(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains an image entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_links(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a links entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_ports(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a ports entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_environment(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains an environment entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_to_flocker_yaml_has_volume(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a volume entry.
+        """
+        self.fail("Not implemented yet.")
+
     def test_valid_fig_config_detected_on_image(self):
         """
         A top-level dictionary with any arbitrary key containing another
@@ -103,7 +174,8 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                 volume=None),
         }
         parser = Configuration()
-        applications = parser._applications_from_configuration(config)
+        applications = parser._applications_from_configuration(
+            FigConfiguration(config), 'fig')
         self.assertEqual(expected_applications, applications)
 
     def test_valid_fig_config_environment(self):
