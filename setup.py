@@ -86,7 +86,7 @@ setup(
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
     # the Flocker package.
-    packages=find_packages(),
+    packages=find_packages(exclude=('admin', 'admin.*')),
 
     package_data={
         'flocker.node.functional': ['sendbytes-docker/*', 'env-docker/*'],
