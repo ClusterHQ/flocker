@@ -333,6 +333,10 @@ class DockerClientTests(TestCase):
     """
     Tests for ``DockerClient`` specifically.
     """
+    @if_docker_configured
+    def setUp(self):
+        pass
+
     def test_default_namespace(self):
         """
         The default namespace is `u"flocker--"`.
