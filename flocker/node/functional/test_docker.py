@@ -28,7 +28,8 @@ from ...testtools import (
     random_name)
 
 from ..test.test_docker import make_idockerclient_tests
-from .._docker import DockerClient, PortMap, Environment
+from .._docker import (
+    DockerClient, PortMap, Environment, NamespacedDockerClient)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -39,6 +40,16 @@ class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(namespace=random_name()))):
     """
     ``IDockerClient`` tests for ``DockerClient``.
+    """
+    @if_docker_configured
+    def setUp(self):
+        pass
+
+
+class IDockerClientNamespacedTests(make_idockerclient_tests(
+        lambda test_case: NamespacedDockerClient(random_name()))):
+    """
+    ``IDockerClient`` tests for ``NamespacedDockerClient``.
     """
     @if_docker_configured
     def setUp(self):
@@ -312,3 +323,11 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
         return d
+
+
+class NamespacedDockerClientTests(DockerClientTests):
+    """
+    Functional tests for ``NamespacedDockerClient``.
+    """
+    def make_client(self):
+        return NamespacedDockerClient(random_name())

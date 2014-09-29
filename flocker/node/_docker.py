@@ -372,5 +372,5 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
         """
         :param unicode namespace: Namespace to restrict containers to.
         """
-        self._client = DockerClient(
-            namespace=BASE_NAMESPACE + namespace + u"--")
+        self._client = DockerClient()
+            #namespace=BASE_NAMESPACE + namespace + u"--")
