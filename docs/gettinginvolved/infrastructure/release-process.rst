@@ -124,15 +124,15 @@ Preparing for a release
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/523
 
-     .. code-block:: console
+   .. code-block:: console
 
-        git commit -am "Updated NEWS"
+      git commit -am "Updated NEWS"
 
 #. Push the changes:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        git push
+      git push
 
 #. Ensure all the tests pass on BuildBot:
 
