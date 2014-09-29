@@ -202,17 +202,33 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         app = FilePath(self.mktemp())
 
         deploy.setContent(b"nodes:\n  node1.test: [postgres]\nversion: 1\n")
+
+        # This is a Fig-style YAML config
         app.setContent(
             (b"postgres:\n  image: sample/postgres\n  environment:\n    "
              "PGSQL_PASSWORD: clusterhq\n  ports:\n    - \"5432:5432\"\n  "
              "volumes:\n    - /var/lib/pgsql\n")
         )
 
-        expected_yaml = 'TODO'
+        expected_dict = {
+            'version': 1,
+            'applications': {
+                'postgres': {
+                    'image': 'sample/postgres:latest',
+                    'environment': {'PGSQL_PASSWORD': 'clusterhq'},
+                    'ports': [{'internal_port': 5432, 'external_port': 5432}],
+                    'links': [],
+                    'volume': {'mountpoint': '/var/lib/pgsql'}
+                }
+            }
+        }
 
         options.parseOptions([deploy.path, app.path])
 
-        self.assertEqual(options['application_config'], expected_yaml)
+        self.assertEqual(
+            safe_load(options['application_config']),
+            expected_dict
+        )
 
 
 class FlockerDeployMainTests(TestCase):

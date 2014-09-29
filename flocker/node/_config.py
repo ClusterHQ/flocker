@@ -111,6 +111,55 @@ class FigConfiguration(object):
             "links", "volumes"
         }
 
+    def _flocker_yaml_ports(self, application_name, application):
+        """
+        Parse an ``Application`` instance for its ports and return
+        a ``list`` representing the Flocker-format YAML configuration
+        for those ports.
+        """
+        ports = []
+        for port in application.ports:
+            ports.append(dict(
+                internal_port=port.internal_port,
+                external_port=port.external_port
+            ))
+        return ports
+
+    def _flocker_yaml_volumes(self, application_name, application):
+        """
+        Parse an ``Application`` instance for its volume and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for the volume.
+
+        NOTE: We only support one volume per conainer for now, this
+        logic will need refactoring in future if this changes.
+        """
+        volume = {'mountpoint': application.volume.mountpoint.path}
+        return volume
+
+    def _flocker_yaml_links(self, application_name, application):
+        """
+        Parse an ``Application`` instance for its links and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for those links.
+        """
+        links = []
+        for link in application.links:
+            links.append(dict(
+                local_port=link.local_port,
+                remote_port=link.remote_port,
+                alias=link.alias
+            ))
+        return links
+
+    def _flocker_yaml_environment(self, application_name, application):
+        """
+        Parse an ``Application`` instance for its environment variables and
+        return a ``dict`` representing the Flocker-format YAML configuration
+        for those variables.
+        """
+        return dict(application.environment)
+
     def to_flocker_yaml(self):
         """
         Converts a parsed Fig configuration in to a YAML representation
@@ -125,7 +174,23 @@ class FigConfiguration(object):
         :returns: ``bytes`` representing this configuration in Flocker
             formatted YAML.
         """
-        config = {'test': 'value'}
+        config = {'version': 1, 'applications': dict()}
+        if not self._applications:
+            self._parse()
+        for application_name, application in self._applications.items():
+            config['applications'][application_name] = dict()
+            app = config['applications'][application_name]
+            app['image'] = ':'.join(
+                [application.image.repository, application.image.tag]
+            )
+            app['ports'] = self._flocker_yaml_ports(
+                application_name, application)
+            app['volume'] = self._flocker_yaml_volumes(
+                application_name, application)
+            app['links'] = self._flocker_yaml_links(
+                application_name, application)
+            app['environment'] = self._flocker_yaml_environment(
+                application_name, application)
         return safe_dump(config)
 
     def applications(self):
