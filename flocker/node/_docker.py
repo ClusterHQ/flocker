@@ -67,6 +67,9 @@ class Unit(object):
     have code to call docker for images associated with its
     containers. See https://github.com/ClusterHQ/flocker/issues/207
 
+    XXX "Unit" is geard terminology, and should be renamed. See
+    https://github.com/ClusterHQ/flocker/issues/819
+
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
 

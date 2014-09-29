@@ -6,16 +6,15 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-from yaml import safe_load
-
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
-    ConfigurationError, Configuration, configuration_to_yaml,
+    ConfigurationError, Configuration, marshal_configuration,
     current_from_configuration, FigConfiguration,
-    )
+)
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
+    NodeState,
 )
 
 
@@ -1641,27 +1640,30 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected_result, result)
 
 
-class ConfigurationToYamlTests(SynchronousTestCase):
+class MarshalConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration.configuration_to_yaml``.
+    Tests for ``Configuration.marshal_configuration``.
     """
     def test_no_applications(self):
         """
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        applications = set()
-        result = configuration_to_yaml(applications)
-        expected = {'applications': {}, 'version': 1}
-        self.assertEqual(safe_load(result), expected)
+        result = marshal_configuration(NodeState(running=[], not_running=[]))
+        expected = {
+            'applications': {},
+            'used_ports': [],
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
 
     def test_one_application(self):
         """
-        A dictionary of application name -> image is produced where there
-        is only one application in the set passed to the
-        ``configuration_to_yaml`` method.
+        A dictionary of application name -> image is produced where the
+        ``marshal_configuration`` method is called with state containing only
+        one application.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1669,21 +1671,23 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     image=DockerImage(repository='flocker/mysql',
                                       tag='v1.0.0'))
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_multiple_applications(self):
         """
         The dictionary includes a representation of each supplied application.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1696,9 +1700,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0')
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1706,9 +1712,9 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_ports(self):
         """
@@ -1716,7 +1722,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         including exposed internal and external ports where the
         ``Application`` specifies these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1724,18 +1730,20 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_links(self):
         """
@@ -1743,7 +1751,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         including links to other application when the ``Application`` specifies
         these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1752,9 +1760,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1765,14 +1775,14 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
         also include the volume mountpoint.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1788,9 +1798,53 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [{'internal': 80, 'external': 8080}]
+                },
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': None},
+                    'image': 'unknown',
+                    'ports': []
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_running_and_not_running_applications(self):
+        """
+        Both the ``running`` and ``not_running`` application lists are
+        marshalled into the result.
+        """
+        running = Application(
+            name='mysql-hybridcluster',
+            image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+            ports=frozenset(),
+            volume=AttachedVolume(
+                name='mysql-hybridcluster',
+                mountpoint=FilePath(b'/var/mysql/data')
+            ),
+        )
+
+        not_running = Application(
+            name='site-hybridcluster',
+            image=DockerImage(repository='flocker/wordpress',
+                              tag='v1.0.0'),
+            ports=frozenset([Port(internal_port=80, external_port=8080)])
+        )
+
+        result = marshal_configuration(
+            NodeState(running=[running], not_running=[not_running]))
+
+        expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1804,15 +1858,31 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
-    def test_yaml_parsable_configuration(self):
+    def test_used_ports(self):
         """
-        The YAML output of ``configuration_to_yaml`` can be successfully
-        parsed and then loaded in to ``Application``\ s by
-        ``Configuration._applications_from_configuration``
+        The ports in ``NodeState.used_ports`` are included in the result of
+        ``marshal_configuration``.
         """
-        applications = {
+        used_ports = frozenset({1, 20, 250, 15020, 65000})
+        state = NodeState(running=[], not_running=[], used_ports=used_ports)
+        expected = {
+            'used_ports': sorted(used_ports),
+            'applications': {},
+            'version': 1,
+        }
+        self.assertEqual(
+            expected,
+            marshal_configuration(state)
+        )
+
+    def test_able_to_unmarshal_configuration(self):
+        """
+        ``Configuration._applications_from_configuration`` can load the output
+        of ``marshal_configuration`` into ``Application``\ s.
+        """
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1835,7 +1905,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')]),
             )
-        }
+        ]
         expected_applications = {
             b'mysql-hybridcluster': Application(
                 name=b'mysql-hybridcluster',
@@ -1857,10 +1927,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       alias='mysql')]),
             )
         }
-        result = configuration_to_yaml(applications)
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         config = Configuration(lenient=True)
-        apps = config._applications_from_configuration(safe_load(result))
-        self.assertEqual(apps, expected_applications)
+        apps = config._applications_from_configuration(result)
+        self.assertEqual(expected_applications, apps)
 
 
 class CurrentFromConfigurationTests(SynchronousTestCase):

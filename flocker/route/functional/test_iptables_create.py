@@ -17,6 +17,7 @@ from ipaddr import IPAddress, IPNetwork
 from eliot.testing import LoggedAction, validateLogging, assertHasAction
 
 from twisted.trial.unittest import TestCase
+from twisted.python.procutils import which
 
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
@@ -98,6 +99,10 @@ _environment_skip = skipUnless(
 _dependency_skip = skipUnless(
     NOMENCLATURE_INSTALLED,
     "Cannot test port forwarding without nomenclature installed.")
+
+_iptables_skip = skipUnless(
+    which(b"iptables-save"),
+    "Cannot set up isolated environment without iptables-save.")
 
 
 class GetIPTablesTests(TestCase):
@@ -396,3 +401,71 @@ class DeleteTests(TestCase):
         self.assertEqual(
             expected,
             actual)
+
+
+class UsedPortsTests(TestCase):
+    """
+    Tests for enumeration of used ports.
+    """
+    @_iptables_skip
+    def setUp(self):
+        pass
+
+    def _listening_test(self, interface):
+        """
+        Verify that a socket listening on the given interface has its port
+        number included in the result of ``HostNetwork.enumerate_used_ports``.
+
+        :param str interface: A native string giving the address of the
+            interface to which the listening socket will be bound.
+
+        :raise: If the port number is not indicated as used, a failure
+            exception is raised.
+        """
+        network = make_host_network()
+        listener = socket()
+        self.addCleanup(listener.close)
+
+        listener.bind((interface, 0))
+        listener.listen(3)
+
+        self.assertIn(
+            listener.getsockname()[1], network.enumerate_used_ports())
+
+    def test_listening_ports(self):
+        """
+        If a socket is bound to a port and listening the port number is
+        included in the result of ``HostNetwork.enumerate_used_ports``.
+        """
+        self._listening_test('')
+
+    def test_localhost_listening_ports(self):
+        """
+        If a socket is bound to a port on localhost only the port number is
+        included in the result of ``HostNetwork.enumerate_used_ports``.
+        """
+        self._listening_test('127.0.0.1')
+
+    def test_client_ports(self):
+        """
+        If a socket is bound to a port and connected to a server then the
+        client port is included in ``HostNetwork.enumerate_used_ports``\ s
+        return value.
+        """
+        network = make_host_network()
+        listener = socket()
+        self.addCleanup(listener.close)
+
+        listener.listen(3)
+
+        client = socket()
+        self.addCleanup(client.close)
+
+        client.setblocking(False)
+        try:
+            client.connect_ex(listener.getsockname())
+        except error:
+            pass
+
+        self.assertIn(
+            client.getsockname()[1], network.enumerate_used_ports())

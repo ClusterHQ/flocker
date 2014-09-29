@@ -10,12 +10,12 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 
-from yaml import safe_load
+from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
 
 from zope.interface import implementer
 
-from ._config import configuration_to_yaml
+from ._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
@@ -180,22 +180,23 @@ class ReportStateScript(object):
     """
     _stdout = sys.stdout
 
-    def __init__(self, docker_client=None):
+    def __init__(self, docker_client=None, network=None):
         """
         :param DockerClient docker_client: The object to use to talk to the
             Docker server.
+
+        :param INetwork network: The object to use to interact with the node's
+            network configuration.
         """
         self._docker_client = docker_client
-
-    def _print_yaml(self, result):
-        self._stdout.write(result)
+        self._network = network
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
+        deployer = Deployer(volume_service, self._docker_client, self._network)
         d = deployer.discover_node_configuration()
-        d.addCallback(lambda state: configuration_to_yaml(
-            list(state.running + state.not_running)))
-        d.addCallback(self._print_yaml)
+        d.addCallback(marshal_configuration)
+        d.addCallback(safe_dump)
+        d.addCallback(self._stdout.write)
         return d
 
 

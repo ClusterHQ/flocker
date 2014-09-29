@@ -14,22 +14,11 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
+    NodeState,
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
 from ..common import gather_deferreds
-
-
-@attributes(["running", "not_running"])
-class NodeState(object):
-    """
-    The current state of a node.
-
-    :ivar running: A ``list`` of ``Application`` instances on this node
-        that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
-    """
 
 
 class IStateChange(Interface):
@@ -323,7 +312,11 @@ class Deployer(object):
                     running.append(application)
                 else:
                     not_running.append(application)
-            return NodeState(running=running, not_running=not_running)
+            return NodeState(
+                running=running,
+                not_running=not_running,
+                used_ports=self.network.enumerate_used_ports()
+            )
         d.addCallback(applications_from_units)
         return d
 
