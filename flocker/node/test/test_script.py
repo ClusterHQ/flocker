@@ -354,8 +354,12 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         or not) and used TCP port numbers from
         ``Deployer.discover_node_configuration``, have been written to stdout.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
