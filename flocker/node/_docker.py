@@ -15,6 +15,7 @@ from docker.errors import APIError
 
 from characteristic import attributes
 
+from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
@@ -209,6 +210,10 @@ class PortMap(object):
     """
 
 
+# Basic namespace for Flocker containers:
+BASE_NAMESPACE = u"flocker--"
+
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """
@@ -221,7 +226,7 @@ class DockerClient(object):
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self, namespace=u"flocker--"):
+    def __init__(self, namespace=BASE_NAMESPACE):
         self.namespace = namespace
         self._client = Client(version="1.12")
 
@@ -349,3 +354,23 @@ class DockerClient(object):
                                 container_image=None))
             return result
         return deferToThread(_list)
+
+
+class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
+    """
+    A Docker client that only shows and creates containers in a given
+    namespace.
+
+    Unlike ``DockerClient``, whose namespace is there to prevent conflicts
+    with other Docker users, this class deals with Flocker's internal
+    concept of namespaces. I.e. if hypothetically Docker container names
+    supported path-based namespaces then ``DockerClient`` would look at
+    containers in ``/flocker/`` and this class would look at containers in
+    in ``/flocker/<namespace>/``.
+    """
+    def __init__(self, namespace):
+        """
+        :param unicode namespace: Namespace to restrict containers to.
+        """
+        self._client = DockerClient(
+            namespace=BASE_NAMESPACE + namespace + u"--")
