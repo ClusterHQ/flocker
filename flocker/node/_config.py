@@ -472,14 +472,124 @@ class Configuration(object):
     """
     Validate and parse configurations.
     """
-    def __init__(self, lenient=False):
+    def __init__(self, application_configuration, lenient=False):
         """
         :param bool lenient: If ``True`` don't complain about certain
             deficiencies in the output of ``flocker-reportstate``, In
             particular https://github.com/ClusterHQ/flocker/issues/289 means
             the mountpoint is unknown.
+
+        :param dict application_configuration: The intermediate
+            configuration representation to load into ``Application``
+            instances.  See :ref:`Configuration` for details.
         """
+        if not isinstance(application_configuration, dict):
+            raise ConfigurationError(
+                "Application configuration must be a dictionary, got {type}.".
+                format(type=type(application_configuration).__name__)
+            )
+        self._application_configuration = application_configuration
         self._lenient = lenient
+        self._allowed_keys = {
+            "image", "environment", "ports",
+            "links", "volume"
+        }
+        self._applications = {}
+
+    def applications(self):
+        """
+        Returns the ``Application`` instances parsed from the supplied
+        configuration.
+
+        This method should only be called after valdiating the format
+        with a call to ``is_valid_format``.
+
+        This method should only be called once, in that calling it
+        multiple times will re-parse an already parsed config.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
+        self._parse()
+        return self._applications
+
+    def is_valid_format(self):
+        """
+        Detect if the supplied application configuration is a Flocker
+        compatible format.
+
+        A Flocker configuration is a dictionary containing, at a minimu,
+        a version key containing an integer version number  and an applications
+        key containing a mapping of application names to definitions.
+
+        :raises ConfigurationError: if the config is valid fig-format but
+            not a valid config.
+
+        :returns: A ``bool`` indicating ``True`` for a Flocker configuration
+            or ``False`` if a valid config is not detected.
+        """
+        valid = False
+        flocker_keys = set(['version', 'applications'])
+        present_keys = set(self._application_configuration)
+        if flocker_keys.issubset(present_keys):
+            valid = True
+        return valid
+
+    def _validate_configuration_keys(self):
+        """
+        Validates a Flocker configuration contains all required keys and
+        no unrecognised keys.
+
+        :raises ConfigurationError: if any invalid or unsupported keys found.
+
+        :returns: ``None``
+        """
+        if u'applications' not in self._application_configuration:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'applications' key.")
+        if u'version' not in self._application_configuration:
+            raise ConfigurationError("Application configuration has an error. "
+                                     "Missing 'version' key.")
+        if self._application_configuration[u'version'] != 1:
+            raise ConfigurationError(
+                "Application configuration has an error. "
+                "Incorrect version specified."
+            )
+
+    def _validate_application_keys(self, application, config):
+        """
+        Checks that a single application definition contains no invalid
+        or unsupported keys.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param dict config: A single application definition from
+            the application_configuration dictionary.
+
+        :raises ValueError: if any invalid or unsupported keys found.
+
+        :returns: ``None``
+        """
+        _check_type(config, dict,
+                    "Application configuration must be dictionary",
+                    application)
+        present_keys = set(config)
+        invalid_keys = present_keys - self._allowed_keys
+        if invalid_keys:
+            raise ConfigurationError(
+                ("Application '{application_name}' has a config error. "
+                 "Unrecognised keys: {keys}.").format(
+                    application_name=application,
+                    keys=', '.join(sorted(invalid_keys))
+                )
+            )
+        if 'image' not in config:
+            raise ConfigurationError(
+                ("Application '{application_name}' has a config error. "
+                 "Missing 'image' key.").format(
+                    application_name=application)
+            )
 
     def _parse_environment_config(self, application_name, config):
         """
@@ -583,45 +693,18 @@ class Configuration(object):
 
         return frozenset(links)
 
-    def _applications_from_flocker_configuration(
-            self, application_configuration):
+    def _parse(self):
         """
         Validate and parse a given application configuration from flocker's
         configuration format.
 
-        :param dict application_configuration: The intermediate configuration
-            representation to load into ``Application`` instances.  See
-            :ref:`Configuration` for details.
-
         :raises ConfigurationError: if there are validation errors.
-
-        :returns: A ``dict`` mapping application names to ``Application``
-            instances.
         """
-        if u'applications' not in application_configuration:
-            raise ConfigurationError("Application configuration has an error. "
-                                     "Missing 'applications' key.")
-
-        if u'version' not in application_configuration:
-            raise ConfigurationError("Application configuration has an error. "
-                                     "Missing 'version' key.")
-
-        if application_configuration[u'version'] != 1:
-            raise ConfigurationError("Application configuration has an error. "
-                                     "Incorrect version specified.")
-
-        applications = {}
+        self._validate_configuration_keys()
         for application_name, config in (
-                application_configuration['applications'].items()):
-            try:
-                image_name = config.pop('image')
-            except KeyError as e:
-                raise ConfigurationError(
-                    ("Application '{application_name}' has a config error. "
-                     "Missing value for '{message}'.").format(
-                        application_name=application_name, message=e.message)
-                )
-
+                self._application_configuration['applications'].items()):
+            self._validate_application_keys(application_name, config)
+            image_name = config['image']
             try:
                 image = DockerImage.from_string(image_name)
             except ValueError as e:
@@ -713,7 +796,7 @@ class Configuration(object):
             environment = self._parse_environment_config(
                 application_name, config)
 
-            applications[application_name] = Application(
+            self._applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
@@ -721,116 +804,80 @@ class Configuration(object):
                 links=links,
                 environment=environment)
 
-            if config:
+
+def deployment_from_configuration(deployment_configuration, all_applications):
+    """
+    Validate and parse a given deployment configuration.
+
+    :param dict deployment_configuration: The intermediate configuration
+        representation to load into ``Node`` instances.  See
+        :ref:`Configuration` for details.
+
+    :param set all_applications: All applications which should be running
+        on all nodes.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``set`` of ``Node`` instances.
+    """
+    if 'nodes' not in deployment_configuration:
+        raise ConfigurationError("Deployment configuration has an error. "
+                                 "Missing 'nodes' key.")
+
+    if u'version' not in deployment_configuration:
+        raise ConfigurationError("Deployment configuration has an error. "
+                                 "Missing 'version' key.")
+
+    if deployment_configuration[u'version'] != 1:
+        raise ConfigurationError("Deployment configuration has an error. "
+                                 "Incorrect version specified.")
+
+    nodes = []
+    for hostname, application_names in (
+            deployment_configuration['nodes'].items()):
+        if not isinstance(application_names, list):
+            raise ConfigurationError(
+                "Node {node_name} has a config error. "
+                "Wrong value type: {value_type}. "
+                "Should be list.".format(
+                    node_name=hostname,
+                    value_type=application_names.__class__.__name__)
+            )
+        node_applications = []
+        for name in application_names:
+            application = all_applications.get(name)
+            if application is None:
                 raise ConfigurationError(
-                    ("Application '{application_name}' has a config error. "
-                     "Unrecognised keys: {keys}.").format(
-                        application_name=application_name,
-                        keys=', '.join(sorted(config.keys())))
+                    "Node {hostname} has a config error. "
+                    "Unrecognised application name: "
+                    "{application_name}.".format(
+                        hostname=hostname, application_name=name)
                 )
-        return applications
-
-    def _applications_from_configuration(self, application_configuration):
-        """
-        Validate a given application configuration as either fig or flocker
-        format and parse appropriately.
-
-        :param dict application_configuration: The intermediate configuration
-            representation to load into ``Application`` instances.  See
-            :ref:`Configuration` for details.
-
-        :raises ConfigurationError: if the config does not validate as either
-            flocker or fig format.
-
-        :returns: A ``dict`` mapping application names to ``Application``
-            instances.
-        """
-        fig = FigConfiguration(application_configuration)
-        if fig.is_valid_format():
-            return fig.applications()
-        else:
-            return self._applications_from_flocker_configuration(
-                application_configuration)
-
-    def _deployment_from_configuration(self, deployment_configuration,
-                                       all_applications):
-        """
-        Validate and parse a given deployment configuration.
-
-        :param dict deployment_configuration: The intermediate configuration
-            representation to load into ``Node`` instances.  See
-            :ref:`Configuration` for details.
-
-        :param set all_applications: All applications which should be running
-            on all nodes.
-
-        :raises ConfigurationError: if there are validation errors.
-
-        :returns: A ``set`` of ``Node`` instances.
-        """
-        if 'nodes' not in deployment_configuration:
-            raise ConfigurationError("Deployment configuration has an error. "
-                                     "Missing 'nodes' key.")
-
-        if u'version' not in deployment_configuration:
-            raise ConfigurationError("Deployment configuration has an error. "
-                                     "Missing 'version' key.")
-
-        if deployment_configuration[u'version'] != 1:
-            raise ConfigurationError("Deployment configuration has an error. "
-                                     "Incorrect version specified.")
-
-        nodes = []
-        for hostname, application_names in (
-                deployment_configuration['nodes'].items()):
-            if not isinstance(application_names, list):
-                raise ConfigurationError(
-                    "Node {node_name} has a config error. "
-                    "Wrong value type: {value_type}. "
-                    "Should be list.".format(
-                        node_name=hostname,
-                        value_type=application_names.__class__.__name__)
-                )
-            node_applications = []
-            for name in application_names:
-                application = all_applications.get(name)
-                if application is None:
-                    raise ConfigurationError(
-                        "Node {hostname} has a config error. "
-                        "Unrecognised application name: "
-                        "{application_name}.".format(
-                            hostname=hostname, application_name=name)
-                    )
-                node_applications.append(application)
-            node = Node(hostname=hostname,
-                        applications=frozenset(node_applications))
-            nodes.append(node)
-        return set(nodes)
-
-    def model_from_configuration(self, application_configuration,
-                                 deployment_configuration):
-        """
-        Validate and coerce the supplied application configuration and
-        deployment configuration dictionaries into a ``Deployment`` instance.
-
-        :param dict application_configuration: Map of applications to Docker
-            images.
-
-        :param dict deployment_configuration: Map of node names to application
-            names.
-
-        :raises ConfigurationError: if there are validation errors.
-
-        :returns: A ``Deployment`` object.
-        """
-        applications = self._applications_from_configuration(
-            application_configuration)
-        nodes = self._deployment_from_configuration(
-            deployment_configuration, applications)
-        return Deployment(nodes=frozenset(nodes))
+            node_applications.append(application)
+        node = Node(hostname=hostname,
+                    applications=frozenset(node_applications))
+        nodes.append(node)
+    return set(nodes)
 
 
-model_from_configuration = Configuration().model_from_configuration
+def model_from_configuration(applications, deployment_configuration):
+    """
+    Validate and coerce the supplied application configuration and
+    deployment configuration dictionaries into a ``Deployment`` instance.
+
+    :param dict applications: Map of application names to ``Application``
+        instances.
+
+    :param dict deployment_configuration: Map of node names to application
+        names.
+
+    :raises ConfigurationError: if there are validation errors.
+
+    :returns: A ``Deployment`` object.
+    """
+    nodes = deployment_from_configuration(
+        deployment_configuration, applications)
+    return Deployment(nodes=frozenset(nodes))
 
 
 def current_from_configuration(current_configuration):
@@ -848,11 +895,10 @@ def current_from_configuration(current_configuration):
 
     :returns: A ``Deployment`` object.
     """
-    configuration = Configuration(lenient=True)
     nodes = []
     for hostname, applications in current_configuration.items():
-        node_applications = configuration._applications_from_configuration(
-            applications)
+        configuration = Configuration(applications, lenient=True)
+        node_applications = configuration.applications()
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications.values())))
     return Deployment(nodes=frozenset(nodes))

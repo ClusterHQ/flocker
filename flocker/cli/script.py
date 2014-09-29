@@ -20,7 +20,8 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..node import ConfigurationError, model_from_configuration
+from ..node import (Configuration, ConfigurationError,
+                    FigConfiguration, model_from_configuration)
 
 from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
@@ -88,8 +89,19 @@ class DeployOptions(Options):
             )
 
         try:
+            fig_configuration = FigConfiguration(app_config_obj)
+            if fig_configuration.is_valid_format():
+                applications = fig_configuration.applications()
+            else:
+                configuration = Configuration(app_config_obj)
+                if configuration.is_valid_format():
+                    applications = Configuration.applications()
+                else:
+                    raise ConfigurationError(
+                        "Configuration is not a valid Fig or Flocker format."
+                    )
             self['deployment'] = model_from_configuration(
-                application_configuration=app_config_obj,
+                applications=applications,
                 deployment_configuration=deploy_config_obj)
         except ConfigurationError as e:
             raise UsageError(str(e))
