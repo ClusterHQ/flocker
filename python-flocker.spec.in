@@ -17,6 +17,7 @@ BuildRequires:  python-setuptools
 # For tests
 BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
 BuildRequires:  pytz
+BuildRequires:  python-psutil = 2.1.2
 BuildRequires:  python-characteristic = 0.1.0
 BuildRequires:  python-twisted = 14.0.0
 BuildRequires:  PyYAML = 3.10
@@ -48,9 +49,9 @@ Requires:       python-flocker = %{version}-%{release}
 Summary:        Node software for flocker
 Requires:       python-flocker = %{version}-%{release}
 Requires:       python-docker-py = 0.4.0
+Requires:       python-psutil = 2.1.2
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
-Requires:       geard
 Requires:       zfs
 
 %description

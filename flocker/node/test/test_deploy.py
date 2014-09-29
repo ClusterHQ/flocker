@@ -13,8 +13,9 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, Link, NodeState)
+from .. import (
+    Deployer, Application, DockerImage, Deployment, Node, Port, Link,
+    NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
@@ -648,13 +649,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Deployer.discover_node_configuration``.
     """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.network = make_memory_network()
+
     def test_discover_none(self):
         """
         ``Deployer.discover_node_configuration`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[], not_running=[]),
@@ -669,7 +678,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=expected_application_name, activation_state=u'active')
         fake_docker = FakeDockerClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[application], not_running=[]),
@@ -686,7 +699,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -701,9 +718,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit2 = Unit(name=u'site-example.net', activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(u"site-example.com"))
-        self.successResultOf(volume_service.create(u"site-example.net"))
+        self.successResultOf(self.volume_service.create(u"site-example.com"))
+        self.successResultOf(self.volume_service.create(u"site-example.net"))
 
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
         # is fixed the mountpoint should actually be specified.
@@ -712,7 +728,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                                     volume=AttachedVolume(name=unit.name,
                                                           mountpoint=None))
                         for unit in units.values()]
-        api = Deployer(volume_service, docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -726,14 +746,17 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'active')
         units = {unit.name: unit}
 
-        volume_service = create_volume_service(self)
         volume = Volume(uuid=unicode(uuid4()), name=u"site-example.com",
-                        service=volume_service)
+                        service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name)]
-        api = Deployer(volume_service, docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
@@ -750,13 +773,39 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
         applications.sort()
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
         result = self.successResultOf(d)
         result.not_running.sort()
 
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
+
+    def test_discover_used_ports(self):
+        """
+        Any ports in use, as reported by the deployer's ``INetwork`` provider,
+        are reported in the ``used_ports`` attribute of the ``NodeState``
+        returned by ``discover_node_configuration``.
+        """
+        used_ports = frozenset([1, 3, 5, 1000])
+        api = Deployer(
+            create_volume_service(self),
+            docker_client=FakeDockerClient(),
+            network=make_memory_network(used_ports=used_ports)
+        )
+
+        discovering = api.discover_node_configuration()
+        state = self.successResultOf(discovering)
+
+        self.assertEqual(
+            NodeState(running=[], not_running=[], used_ports=used_ports),
+            state
+        )
+
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())

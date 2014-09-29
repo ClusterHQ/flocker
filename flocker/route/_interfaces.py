@@ -46,3 +46,13 @@ class INetwork(Interface):
         :return: A :py:class:`list` of objects describing all configured
             proxies.
         """
+
+    def enumerate_used_ports():
+        """
+        Retrieve information about port numbers which are in use.
+
+        :return: A :py:class:`frozenset` of ``int`` giving the numbers of all
+            of the TCP ports which are in use on this node.  This includes TCP
+            ports with server listening on them as well as TCP ports owned by
+            proxies created by this ``INetwork`` provider.
+        """
