@@ -62,6 +62,7 @@ def make_rpm_version(flocker_version):
         # untagged RPM versions, and this branch should probably
         # trigger and error or a warning. But for now we'll add
         # that extra information to the end of release number.
+        # See https://github.com/ClusterHQ/flocker/issues/833
         release.extend(remainder)
 
     return rpm_version(version, '.'.join(release))
