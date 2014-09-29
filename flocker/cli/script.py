@@ -95,7 +95,7 @@ class DeployOptions(Options):
             else:
                 configuration = Configuration(app_config_obj)
                 if configuration.is_valid_format():
-                    applications = Configuration.applications()
+                    applications = configuration.applications()
                 else:
                     raise ConfigurationError(
                         "Configuration is not a valid Fig or Flocker format."

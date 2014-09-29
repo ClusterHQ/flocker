@@ -23,7 +23,7 @@ from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner)
 from . import (ConfigurationError, model_from_configuration, Deployer,
-               current_from_configuration)
+               Configuration, current_from_configuration)
 
 __all__ = [
     "ChangeStateOptions",
@@ -110,8 +110,10 @@ class ChangeStateOptions(Options):
             )
 
         try:
+            configuration = Configuration(application_config)
+            parsed_applications = configuration.applications()
             self['deployment'] = model_from_configuration(
-                application_configuration=application_config,
+                applications=parsed_applications,
                 deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(
