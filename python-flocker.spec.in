@@ -118,8 +118,5 @@ trial flocker
 
 %changelog
 
-* Fri Sep 26 2014 Richard Wall - %{version}-%{release}
-- Modified macro names to allow development and pre-release version numbers.
-
-* Tue Jun 10 2014 Tom Prince - 0.0.1-1
+* Tue Jun 10 2014 Tom Prince - %{version}-%{release}
 - Development version
