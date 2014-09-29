@@ -43,7 +43,7 @@ class Environment(object):
         return dict(self.variables)
 
 
-@attributes(["name", "activation_state", "container_image",
+@attributes(["name", "container_name", "activation_state", "container_image",
              "ports", "environment"],
             defaults=dict(container_image=None,
                           ports=(), environment=None))
@@ -60,6 +60,9 @@ class Unit(object):
 
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
+
+    :ivar unicode container_name: The name of the container where the
+        application is running.
 
     :ivar unicode activation_state: The state of the
         container. ``u"active"`` indicates it is running, ``u"inactive"``
@@ -172,6 +175,7 @@ class FakeDockerClient(object):
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
             name=unit_name,
+            container_name=unit_name,
             container_image=image_name,
             ports=ports,
             environment=environment,
@@ -195,7 +199,8 @@ class FakeDockerClient(object):
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
-                Unit(name=unit.name, activation_state=unit.activation_state))
+                Unit(name=unit.name, container_name=unit.name,
+                     activation_state=unit.activation_state))
         return succeed(incomplete_units)
 
 
@@ -350,6 +355,7 @@ class DockerClient(object):
                 # We'll add missing info in
                 # https://github.com/ClusterHQ/flocker/issues/207
                 result.add(Unit(name=name,
+                                container_name=self._to_container_name(name),
                                 activation_state=state,
                                 container_image=None))
             return result
