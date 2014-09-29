@@ -26,7 +26,8 @@ from ...testtools import (
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
-    DockerClient, PortMap, Environment, NamespacedDockerClient)
+    DockerClient, PortMap, Environment, NamespacedDockerClient,
+    BASE_NAMESPACE)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -350,8 +351,22 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     Functional tests for ``NamespacedDockerClient``.
     """
-    #namespace = random_name() + u"--"
-    #namespacing_prefix = BASE_NAMESPACE + namespace
+    namespace = random_name()
+    namespacing_prefix = BASE_NAMESPACE + namespace + u"--"
 
     def make_client(self):
-        return NamespacedDockerClient("xx")#self.namespace)
+        return NamespacedDockerClient(self.namespace)
+
+    def test_isolated_namespaces(self):
+        """
+        Containers in one namespace are not visible in another namespace.
+        """
+        client = NamespacedDockerClient(random_name())
+        client2 = NamespacedDockerClient(random_name())
+        name = random_name()
+
+        d = client.add(name, u"busybox")
+        self.addCleanup(client.remove, name)
+        d.addCallback(lambda _: client2.list())
+        d.addCallback(self.assertEqual, set())
+        return d
