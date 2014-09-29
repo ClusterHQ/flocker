@@ -14,6 +14,7 @@ Next Release
 * Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
 * Added support for `Fig`_ compatible application configuration files.
 
+.. note:: If you already have ``flocker-cli`` installed from v0.1, delete the install script and directory before installing v0.2.
 
 v0.1
 ====
