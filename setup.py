@@ -115,6 +115,7 @@ setup(
 
         "treq == 0.2.1",
 
+        "psutil == 2.1.2",
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 

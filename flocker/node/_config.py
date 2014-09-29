@@ -9,7 +9,6 @@ from __future__ import unicode_literals, absolute_import
 
 import os
 import types
-import yaml
 
 from twisted.python.filepath import FilePath
 
@@ -47,6 +46,426 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+class FigConfiguration(object):
+    """
+    Validate and parse a fig-style application configuration.
+    """
+    def __init__(self, application_configuration):
+        """
+        Initializes ``FigConfiguration`` attributes and validates config.
+
+        :param dict application_configuration: The intermediate
+            configuration representation to load into ``Application``
+            instances.  See :ref:`Configuration` for details.
+
+        Attributes initialized in this method are:
+
+        self._application_configuration: the application_configuration
+            parameter
+
+        self._application_names: A ``list`` of keys in
+            application_configuration representing all application
+            names.
+
+        self._applications: The ``dict`` of ``Application`` objects
+            after parsing.
+
+        self._application_links: ``dict`` acting as an internal map
+            of links to create between applications, this serves as an
+            intermediary when parsing applications, since an application
+            name specified in a link may not have been parsed at the point
+            the link is encountered.
+
+        self._possible_identifiers: A ``dict`` of keys that may identify a
+            dictionary of parsed YAML as being Fig-format.
+
+        self._unsupported_keys: A ``dict`` of keys representing Fig config
+            directives that are not yet supported by Flocker.
+
+        self._allowed_keys: A ``dict`` representing all the keys that are
+            supported and therefore allowed to appear in a single Fig service
+            definition.
+        """
+        if not isinstance(application_configuration, dict):
+            raise ConfigurationError(
+                "Application configuration must be a dictionary, got {type}.".
+                format(type=type(application_configuration).__name__)
+            )
+        self._application_configuration = application_configuration
+        self._application_names = self._application_configuration.keys()
+        self._applications = {}
+        self._application_links = {}
+        self._validated = False
+        self._possible_identifiers = {'image', 'build'}
+        self._unsupported_keys = {
+            "working_dir", "entrypoint", "user", "hostname",
+            "domainname", "mem_limit", "privileged", "dns", "net",
+            "volumes_from", "expose", "command"
+        }
+        self._allowed_keys = {
+            "image", "environment", "ports",
+            "links", "volumes"
+        }
+
+    def applications(self):
+        """
+        Returns the ``Application`` instances parsed from the supplied
+        configuration.
+
+        This method should only be called after valdiating the format
+        with a call to ``is_valid_format``.
+
+        This method should only be called once, in that calling it
+        multiple times will re-parse an already parsed config.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
+        self._parse()
+        return self._applications
+
+    def is_valid_format(self):
+        """
+        Detect if the supplied application configuration is in fig-compatible
+        format.
+
+        A fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain exactly one "image" key or "build" key.
+        http://www.fig.sh/yml.html
+
+        :raises ConfigurationError: if the config is valid fig-format but
+            not a valid config.
+
+        :returns: A ``bool`` indicating ``True`` for a fig-style configuration
+            or ``False`` if fig-style is not detected.
+        """
+        valid = False
+        for application_name, config in (
+                self._application_configuration.items()):
+            if isinstance(config, dict):
+                required_keys = self._count_identifier_keys(config)
+                if required_keys == 1:
+                    valid = True
+                elif required_keys > 1:
+                    raise ConfigurationError(
+                        ("Application '{app_name}' has a config error. "
+                         "Must specify either 'build' or 'image'; found both.")
+                        .format(app_name=application_name)
+                    )
+        return valid
+
+    def _count_identifier_keys(self, config):
+        """
+        Counts how many of the keys that identify a single application
+        as having a fig-format are found in the supplied application
+        definition.
+
+        :param dict config: A single application definition from
+            the application_configuration dictionary.
+
+        :returns: ``int`` representing the number of identifying keys found.
+        """
+        config_keys = set(config)
+        return len(self._possible_identifiers & config_keys)
+
+    def _validate_application_keys(self, application, config):
+        """
+        Checks that a single application definition contains no invalid
+        or unsupported keys.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param dict config: A single application definition from
+            the application_configuration dictionary.
+
+        :raises ValueError: if any invalid or unsupported keys found.
+
+        :returns: ``None``
+        """
+        _check_type(config, dict,
+                    "Application configuration must be dictionary",
+                    application)
+        if self._count_identifier_keys(config) == 0:
+            raise ValueError(
+                ("Application configuration must contain either an "
+                 "'image' or 'build' key.")
+            )
+        if 'build' in config:
+            raise ValueError(
+                "'build' is not supported yet; please specify 'image'."
+            )
+        present_keys = set(config)
+        invalid_keys = present_keys - self._allowed_keys
+        present_unsupported_keys = self._unsupported_keys & present_keys
+        if present_unsupported_keys:
+            raise ValueError(
+                "Unsupported fig keys found: {keys}".format(
+                    keys=', '.join(sorted(present_unsupported_keys))
+                )
+            )
+        if invalid_keys:
+            raise ValueError(
+                "Unrecognised keys: {keys}".format(
+                    keys=', '.join(invalid_keys)
+                )
+            )
+
+    def _parse_app_environment(self, application, environment):
+        """
+        Validate and parse the environment portion of an application
+        configuration.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param dict environment: A dictionary of environment variable
+            names and values.
+
+        :raises ConfigurationError: if the environment config does
+            not validate.
+
+        :returns: A ``frozenset`` of environment variable name/value
+            pairs.
+        """
+        _check_type(environment, dict,
+                    "'environment' must be a dictionary",
+                    application)
+        for var, val in environment.items():
+            _check_type(
+                val, (str, unicode,),
+                ("'environment' value for '{var}' must be a string"
+                 .format(var=var)),
+                application
+            )
+        return frozenset(environment.items())
+
+    def _parse_app_volumes(self, application, volumes):
+        """
+        Validate and parse the volumes portion of an application
+        configuration.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param list volumes: A list of ``str`` values giving absolute
+            paths where a volume should be mounted inside the application.
+
+        :raises ConfigurationError: if the volumes config does not validate.
+
+        :returns: A ``AttachedVolume`` instance.
+        """
+        _check_type(volumes, list,
+                    "'volumes' must be a list",
+                    application)
+        for volume in volumes:
+            if not isinstance(volume, (str, unicode,)):
+                raise ConfigurationError(
+                    ("Application '{application}' has a config "
+                     "error. 'volumes' values must be string; got "
+                     "type '{type}'.").format(
+                         application=application,
+                         type=type(volume).__name__)
+                )
+        if len(volumes) > 1:
+            raise ConfigurationError(
+                ("Application '{application}' has a config "
+                 "error. Only one volume per application is "
+                 "supported at this time.").format(
+                     application=application)
+            )
+        volume = AttachedVolume(
+            name=application,
+            mountpoint=FilePath(volumes[0])
+        )
+        return volume
+
+    def _parse_app_ports(self, application, ports):
+        """
+        Validate and parse the ports portion of an application
+        configuration.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param list ports: A list of ``str`` values mapping ports that
+            should be exposed by the application container to the host.
+
+        :raises ConfigurationError: if the ports config does not validate.
+
+        :returns: A ``list`` of ``Port`` instances.
+        """
+        return_ports = list()
+        _check_type(ports, list,
+                    "'ports' must be a list",
+                    application)
+        for port in ports:
+            parsed_ports = port.split(':')
+            if len(parsed_ports) != 2:
+                raise ConfigurationError(
+                    ("Application '{application}' has a config "
+                     "error. 'ports' must be list of string "
+                     "values in the form of "
+                     "'host_port:container_port'.").format(
+                         application=application)
+                )
+            try:
+                parsed_ports = [int(p) for p in parsed_ports]
+            except ValueError:
+                raise ConfigurationError(
+                    ("Application '{application}' has a config "
+                     "error. 'ports' value '{ports}' could not "
+                     "be parsed in to integer values.")
+                    .format(
+                        application=application,
+                        ports=port)
+                )
+            return_ports.append(
+                Port(
+                    internal_port=parsed_ports[1],
+                    external_port=parsed_ports[0]
+                )
+            )
+        return return_ports
+
+    def _parse_app_links(self, application, links):
+        """
+        Validate and parse the links portion of an application
+        configuration and store the links in the internal links map.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param list links: A list of ``str`` values specifying the names
+            of applications that this application should link to.
+
+        :raises ConfigurationError: if the links config does not validate.
+
+        :returns: ``None``
+        """
+        _check_type(links, list,
+                    "'links' must be a list",
+                    application)
+        for link in links:
+            if not isinstance(link, (str, unicode,)):
+                raise ConfigurationError(
+                    ("Application '{application}' has a config "
+                     "error. 'links' must be a list of "
+                     "application names with optional :alias.")
+                    .format(application=application)
+                )
+            parsed_link = link.split(':')
+            local_link = parsed_link[0]
+            aliased_link = local_link
+            if len(parsed_link) == 2:
+                aliased_link = parsed_link[1]
+            if local_link not in self._application_names:
+                raise ConfigurationError(
+                    ("Application '{application}' has a config "
+                     "error. 'links' value '{link}' could not be "
+                     "mapped to any application; application "
+                     "'{link}' does not exist.").format(
+                         application=application,
+                         link=link)
+                )
+            self._application_links[application].append({
+                'target_application': local_link,
+                'alias': aliased_link,
+            })
+
+    def _link_applications(self):
+        """
+        Iterate through the internal links map and create a
+        frozenset of ``Link`` instances in each application, mapping
+        the link name and alias to the ports of the target linked
+        application.
+
+        :returns: ``None``
+        """
+        for application_name, link in self._application_links.items():
+            app_links = []
+            for link_definition in link:
+                target_application_ports = self._applications[
+                    link_definition['target_application']].ports
+                for target_ports_object in target_application_ports:
+                    local_port = target_ports_object.internal_port
+                    remote_port = target_ports_object.external_port
+                    app_links.append(
+                        Link(local_port=local_port,
+                             remote_port=remote_port,
+                             alias=link_definition['alias'])
+                    )
+            self._applications[application_name].links = frozenset(
+                app_links)
+
+    def _parse(self):
+        """
+        Validate and parse a given application configuration from fig's
+        configuration format.
+
+        :raises ConfigurationError: if there are validation errors.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+
+        """
+        for application_name, config in (
+            self._application_configuration.items()
+        ):
+            try:
+                self._validate_application_keys(application_name, config)
+                _check_type(config['image'], (str, unicode,),
+                            "'image' must be a string",
+                            application_name)
+                image_name = config['image']
+                image = DockerImage.from_string(image_name)
+                environment = None
+                ports = []
+                volume = None
+                self._application_links[application_name] = []
+                if 'environment' in config:
+                    environment = self._parse_app_environment(
+                        application_name,
+                        config['environment']
+                    )
+                if 'volumes' in config:
+                    volume = self._parse_app_volumes(
+                        application_name,
+                        config['volumes']
+                    )
+                if 'ports' in config:
+                    ports = self._parse_app_ports(
+                        application_name,
+                        config['ports']
+                    )
+                if 'links' in config:
+                    self._parse_app_links(
+                        application_name,
+                        config['links']
+                    )
+                self._applications[application_name] = Application(
+                    name=application_name,
+                    image=image,
+                    volume=volume,
+                    ports=frozenset(ports),
+                    links=frozenset(),
+                    environment=environment
+                )
+            except ValueError as e:
+                raise ConfigurationError(
+                    ("Application '{application_name}' has a config error. "
+                     "{message}".format(application_name=application_name,
+                                        message=e.message))
+                )
+        # Here we can now process application links; we cannot perform this
+        # logic at the parsing stage above, because at the point we encounter
+        # a link in application A to application B, there is no guarantee that
+        # application B has been parsed yet.
+        self._link_applications()
 
 
 class Configuration(object):
@@ -164,9 +583,11 @@ class Configuration(object):
 
         return frozenset(links)
 
-    def _applications_from_configuration(self, application_configuration):
+    def _applications_from_flocker_configuration(
+            self, application_configuration):
         """
-        Validate and parse a given application configuration.
+        Validate and parse a given application configuration from flocker's
+        configuration format.
 
         :param dict application_configuration: The intermediate configuration
             representation to load into ``Application`` instances.  See
@@ -309,6 +730,28 @@ class Configuration(object):
                 )
         return applications
 
+    def _applications_from_configuration(self, application_configuration):
+        """
+        Validate a given application configuration as either fig or flocker
+        format and parse appropriately.
+
+        :param dict application_configuration: The intermediate configuration
+            representation to load into ``Application`` instances.  See
+            :ref:`Configuration` for details.
+
+        :raises ConfigurationError: if the config does not validate as either
+            flocker or fig format.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
+        fig = FigConfiguration(application_configuration)
+        if fig.is_valid_format():
+            return fig.applications()
+        else:
+            return self._applications_from_flocker_configuration(
+                application_configuration)
+
     def _deployment_from_configuration(self, deployment_configuration,
                                        all_applications):
         """
@@ -396,7 +839,7 @@ def current_from_configuration(current_configuration):
     ``Deployment`` instance.
 
     The passed in configuration is the aggregated output of
-    ``configuration_to_yaml`` as combined by ``flocker-deploy``.
+    ``marshal_configuration`` as combined by ``flocker-deploy``.
 
     :param dict current_configuration: Map of node names to list of
         application maps.
@@ -415,24 +858,25 @@ def current_from_configuration(current_configuration):
     return Deployment(nodes=frozenset(nodes))
 
 
-def configuration_to_yaml(applications):
+def marshal_configuration(state):
     """
-    Generate YAML representation of a node's applications.
+    Generate representation of a node's applications using only simple Python
+    types.
 
     A bunch of information is missing, but this is sufficient for the
     initial requirement of determining what to do about volumes when
     applying configuration changes.
     https://github.com/ClusterHQ/flocker/issues/289
 
-    :param applications: ``list`` of ``Application``\ s, typically the
-        current configuration on a node as determined by
-        ``Deployer.discover_node_configuration()``.
+    :param NodeState state: The configuration state to marshal.
 
-    :return: YAML serialized configuration in the application
-        configuration format.
+    :return: An object representing the node configuration in a structure
+        roughly compatible with the configuration file format.  Only "simple"
+        (easily serialized) Python types will be used: ``dict``, ``list``,
+        ``int``, ``unicode``, etc.
     """
     result = {}
-    for application in applications:
+    for application in state.running + state.not_running:
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
@@ -462,4 +906,8 @@ def configuration_to_yaml(applications):
             result[application.name]["volume"] = {
                 "mountpoint": None,
             }
-    return yaml.safe_dump({"version": 1, "applications": result})
+    return {
+        "version": 1,
+        "applications": result,
+        "used_ports": sorted(state.used_ports),
+    }
