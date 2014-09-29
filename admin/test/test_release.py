@@ -20,7 +20,7 @@ class MakeRpmVersionTests(TestCase):
         """
         expected = {
             '0.1.0': rpm_version('0.1.0', '1'),
-            '0.1.0-99-abc': rpm_version('0.1.0', '1.99.abc'),
+            '0.1.0-99-g3d644b1': rpm_version('0.1.0', '1.99.g3d644b1'),
             '0.1.1pre1': rpm_version('0.1.1', '0.1.pre'),
             '0.1.1': rpm_version('0.1.1', '1'),
             '0.2.0dev1': rpm_version('0.2.0', '0.1.dev'),
