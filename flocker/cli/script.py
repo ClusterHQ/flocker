@@ -92,6 +92,9 @@ class DeployOptions(Options):
             fig_configuration = FigConfiguration(app_config_obj)
             if fig_configuration.is_valid_format():
                 applications = fig_configuration.applications()
+                self['application_config'] = (
+                    fig_configuration.to_flocker_yaml()
+                )
             else:
                 configuration = Configuration(app_config_obj)
                 if configuration.is_valid_format():

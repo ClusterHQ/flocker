@@ -12,6 +12,8 @@ import types
 
 from twisted.python.filepath import FilePath
 
+from yaml import safe_dump
+
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
     DockerImage, Node, Port
@@ -108,6 +110,23 @@ class FigConfiguration(object):
             "image", "environment", "ports",
             "links", "volumes"
         }
+
+    def to_flocker_yaml(self):
+        """
+        Converts a parsed Fig configuration in to a YAML representation
+        that can be successfully parsed as a Flocker-format application
+        configuration.
+
+        This method is used to allow ``flocker-deploy`` to pass only
+        Flocker's application configuration language to
+        ``flocker-changestate``, even if ``flocker-deploy`` received a
+        Fig compatible configuration.
+
+        :returns: ``bytes`` representing this configuration in Flocker
+            formatted YAML.
+        """
+        config = {'test': 'value'}
+        return safe_dump(config)
 
     def applications(self):
         """

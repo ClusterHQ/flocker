@@ -8,6 +8,7 @@ from __future__ import unicode_literals, absolute_import
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
+from yaml import safe_dump, safe_load
 from .._config import (
     ConfigurationError, Configuration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
@@ -17,6 +18,163 @@ from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
     NodeState,
 )
+
+
+class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
+    """
+    Tests for ``FigConfiguration.to_flocker_yaml``.
+    """
+    def test_returns_valid_yaml(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml" can be
+        successfully parsed as YAML.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+        flocker_config = {
+            'version': 1,
+            'applications': {
+                'wordpress': {
+                    'image': 'sample/wordpress',
+                    'volume': {'mountpoint': b'/var/www/wordpress'},
+                    'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'links': [
+                        {'local_port': 3306,
+                         'remote_port': 3306,
+                         'alias': 'db'}
+                    ]
+                },
+                'mysql': {
+                    'image': 'sample/mysql',
+                    'ports': [
+                        {'internal': 3306, 'external': 3306},
+                        {'internal': 3307, 'external': 3307}
+                    ]
+                }
+            }
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        expected = safe_dump(flocker_config)
+        self.assertEqual(yaml, expected)
+
+    def test_not_fig_yaml(self):
+        """
+        Parsed YAML returned by ``FigConfiguration.to_flocker_yaml`` is
+        identified as non-fig by ``FigConfiguration.is_valid_format``.
+        """
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        parser = FigConfiguration(parsed)
+        self.assertFalse(parser.is_valid_format())
+
+    def test_valid_flocker_yaml(self):
+        """
+        Parsed YAML returned by `FigConfiguration.to_flocker_yaml`` is
+        validated by ``Configuration.is_valid_format``.
+        """
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        parser = Configuration(parsed)
+        self.assertTrue(parser.is_valid_format())
+
+    def test_applications_from_converted_flocker(self):
+        """
+        Parsed YAML returned by ``FigConfiguration.to_flocker_yaml`` is
+        translated to a ``dict`` of ``Application`` instances by
+        ``Configuration.applications``.
+        """
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        parser = Configuration(parsed)
+        expected = {
+            'postgres': Application(
+                name='postgres',
+                image=DockerImage(repository='sample/postgres', tag='latest'),
+                ports=frozenset(),
+                links=frozenset(),
+                environment=frozenset(),
+                volume=None
+            )
+        }
+        applications = parser.applications()
+        self.assertEqual(applications, expected)
+
+    def test_has_version(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
+        a version entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_applications(self):
+        """
+        The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
+        an applications entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_image(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains an image entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_links(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a links entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_ports(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a ports entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_environment(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains an environment entry.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_has_volume(self):
+        """
+        The YAML for a single application entry returned by
+        ``FigConfiguration.to_flocker_yaml`` contains a volume entry.
+        """
+        self.fail("Not implemented yet.")
 
 
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):

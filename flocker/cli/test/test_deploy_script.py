@@ -190,6 +190,30 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
         self.assertEqual(expected, options['deployment'])
 
+    def test_config_fig_converted_to_flocker_yaml(self):
+        """
+        A Fig-compatible application configuration is converted to its
+        equivalent Flocker configuration before being passed to
+        ``DeployScript.main``
+        """
+        options = self.options()
+
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"nodes:\n  node1.test: [postgres]\nversion: 1\n")
+        app.setContent(
+            (b"postgres:\n  image: sample/postgres\n  environment:\n    "
+             "PGSQL_PASSWORD: clusterhq\n  ports:\n    - \"5432:5432\"\n  "
+             "volumes:\n    - /var/lib/pgsql\n")
+        )
+
+        expected_yaml = 'TODO'
+
+        options.parseOptions([deploy.path, app.path])
+
+        self.assertEqual(options['application_config'], expected_yaml)
+
 
 class FlockerDeployMainTests(TestCase):
     """
