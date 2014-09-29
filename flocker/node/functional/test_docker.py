@@ -7,8 +7,6 @@ Functional tests for :module:`flocker.node._docker`.
 from __future__ import absolute_import
 
 import os
-import json
-import subprocess
 from unittest import skipIf
 
 from docker.errors import APIError
@@ -18,7 +16,6 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.utils import getProcessOutput
 from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
@@ -29,8 +26,7 @@ from ...testtools import (
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
-    DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE)
+    DockerClient, PortMap, Environment, NamespacedDockerClient)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
