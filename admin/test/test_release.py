@@ -6,7 +6,7 @@ Tests for ``flocker.common._release``.
 
 from unittest import TestCase
 
-from flocker._release import rpm_version, make_rpm_version
+from .. import rpm_version, make_rpm_version
 
 
 class MakeRpmVersionTests(TestCase):

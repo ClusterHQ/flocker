@@ -2,6 +2,9 @@
 
 """
 Helper utilities for the Flocker release process.
+
+Since this is imported from setup.py, we need to ensure that it only imports
+things from the stdlib.
 """
 
 from collections import namedtuple
