@@ -216,8 +216,7 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                 'postgres': {
                     'image': 'sample/postgres:latest',
                     'environment': {'PGSQL_PASSWORD': 'clusterhq'},
-                    'ports': [{'internal_port': 5432, 'external_port': 5432}],
-                    'links': [],
+                    'ports': [{'internal': 5432, 'external': 5432}],
                     'volume': {'mountpoint': '/var/lib/pgsql'}
                 }
             }

@@ -42,32 +42,35 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 'ports': ['3306:3306', '3307:3307'],
             }
         }
-        flocker_config = {
+        expected = {
             'version': 1,
             'applications': {
                 'wordpress': {
-                    'image': 'sample/wordpress',
+                    'image': 'sample/wordpress:latest',
                     'volume': {'mountpoint': b'/var/www/wordpress'},
                     'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
                     'ports': [{'internal': 80, 'external': 8080}],
                     'links': [
                         {'local_port': 3306,
                          'remote_port': 3306,
+                         'alias': 'db'},
+                        {'local_port': 3307,
+                         'remote_port': 3307,
                          'alias': 'db'}
                     ]
                 },
                 'mysql': {
-                    'image': 'sample/mysql',
+                    'image': 'sample/mysql:latest',
                     'ports': [
                         {'internal': 3306, 'external': 3306},
                         {'internal': 3307, 'external': 3307}
-                    ]
+                    ],
                 }
             }
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
-        expected = safe_dump(flocker_config)
+        yaml = safe_load(fig.to_flocker_yaml())
+        expected = safe_load(safe_dump(expected))
         self.assertEqual(yaml, expected)
 
     def test_not_fig_yaml(self):
@@ -120,7 +123,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 image=DockerImage(repository='sample/postgres', tag='latest'),
                 ports=frozenset(),
                 links=frozenset(),
-                environment=frozenset(),
+                environment=None,
                 volume=None
             )
         }
@@ -132,49 +135,137 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
         The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
         a version entry.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertTrue('version' in parsed)
 
     def test_has_applications(self):
         """
         The YAML returned by ``FigConfiguration.to_flocker_yaml`` contains
         an applications entry.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertTrue('applications' in parsed)
 
     def test_has_image(self):
         """
         The YAML for a single application entry returned by
-        ``FigConfiguration.to_flocker_yaml`` contains an image entry.
+        ``FigConfiguration.to_flocker_yaml`` contains an image entry
+        that holds the image name in image:tag format.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['image'],
+            'sample/postgres:latest'
+        )
 
     def test_has_links(self):
         """
         The YAML for a single application entry returned by
         ``FigConfiguration.to_flocker_yaml`` contains a links entry.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+        expected_links = [
+            {'alias': 'db', 'local_port': 3306, 'remote_port': 3306},
+            {'alias': 'db', 'local_port': 3307, 'remote_port': 3307}
+        ]
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['wordpress']['links'],
+            expected_links
+        )
 
     def test_has_ports(self):
         """
         The YAML for a single application entry returned by
-        ``FigConfiguration.to_flocker_yaml`` contains a ports entry.
+        ``FigConfiguration.to_flocker_yaml`` contains a ports entry,
+        mapping ports to the format used by Flocker.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': ['5432:5432'],
+            }
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['ports'],
+            [{'external': 5432, 'internal': 5432}]
+        )
 
     def test_has_environment(self):
         """
         The YAML for a single application entry returned by
         ``FigConfiguration.to_flocker_yaml`` contains an environment entry.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': ['5432:5432'],
+                'environment': {'PGSQL_USER_PASSWORD': 'clusterhq'},
+            }
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['environment'],
+            {'PGSQL_USER_PASSWORD': 'clusterhq'}
+        )
 
     def test_has_volume(self):
         """
         The YAML for a single application entry returned by
-        ``FigConfiguration.to_flocker_yaml`` contains a volume entry.
+        ``FigConfiguration.to_flocker_yaml`` contains a volume entry
+        that matches the Flocker-format.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': ['5432:5432'],
+                'volumes': ['/var/lib/data'],
+            }
+        }
+        fig = FigConfiguration(config)
+        yaml = fig.to_flocker_yaml()
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['volume'],
+            {'mountpoint': '/var/lib/data'}
+        )
 
 
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):

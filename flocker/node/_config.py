@@ -120,10 +120,10 @@ class FigConfiguration(object):
         ports = []
         for port in application.ports:
             ports.append(dict(
-                internal_port=port.internal_port,
-                external_port=port.external_port
+                internal=port.internal_port,
+                external=port.external_port
             ))
-        return ports
+        return sorted(ports)
 
     def _flocker_yaml_volumes(self, application_name, application):
         """
@@ -134,8 +134,9 @@ class FigConfiguration(object):
         NOTE: We only support one volume per conainer for now, this
         logic will need refactoring in future if this changes.
         """
-        volume = {'mountpoint': application.volume.mountpoint.path}
-        return volume
+        if application.volume:
+            return {u'mountpoint': application.volume.mountpoint.path}
+        return None
 
     def _flocker_yaml_links(self, application_name, application):
         """
@@ -150,7 +151,7 @@ class FigConfiguration(object):
                 remote_port=link.remote_port,
                 alias=link.alias
             ))
-        return links
+        return sorted(links)
 
     def _flocker_yaml_environment(self, application_name, application):
         """
@@ -158,7 +159,9 @@ class FigConfiguration(object):
         return a ``dict`` representing the Flocker-format YAML configuration
         for those variables.
         """
-        return dict(application.environment)
+        if application.environment:
+            return dict(application.environment)
+        return dict()
 
     def to_flocker_yaml(self):
         """
@@ -183,14 +186,22 @@ class FigConfiguration(object):
             app['image'] = ':'.join(
                 [application.image.repository, application.image.tag]
             )
-            app['ports'] = self._flocker_yaml_ports(
+            ports = self._flocker_yaml_ports(
                 application_name, application)
-            app['volume'] = self._flocker_yaml_volumes(
+            if ports:
+                app['ports'] = ports
+            volume = self._flocker_yaml_volumes(
                 application_name, application)
-            app['links'] = self._flocker_yaml_links(
+            if volume:
+                app['volume'] = volume
+            links = self._flocker_yaml_links(
                 application_name, application)
-            app['environment'] = self._flocker_yaml_environment(
+            if links:
+                app['links'] = links
+            environment = self._flocker_yaml_environment(
                 application_name, application)
+            if environment:
+                app['environment'] = environment
         return safe_dump(config)
 
     def applications(self):
