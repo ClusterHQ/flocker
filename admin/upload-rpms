@@ -20,7 +20,6 @@ from __future__ import print_function
 import os
 
 from subprocess import check_call
-from pipes import quote
 from textwrap import dedent
 import tempfile
 
@@ -44,14 +43,6 @@ class UploadOptions(Options):
 
 FLOCKER_PACKAGES = [b'python-flocker', b'flocker-cli', b'flocker-node']
 SOURCE_PACKAGES = [b'python-flocker']
-
-
-def run_command(args):
-    """
-    Run a command, while reporting the command being run.
-    """
-    print('Running: %s' % (' '.join(map(quote, args))))
-    check_call(args)
 
 
 def update_repo(rpm_directory, target_repo, source_repo, packages):
