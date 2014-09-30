@@ -5,8 +5,8 @@ What's New
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 
-Next Release
-============
+v0.2
+====
 
 * Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :doc:`application configuration<./configuration>`.
