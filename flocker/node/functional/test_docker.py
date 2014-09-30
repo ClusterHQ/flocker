@@ -61,11 +61,11 @@ class GenericDockerClientTests(TestCase):
     """
     @if_docker_configured
     def setUp(self):
-        pass
+        self.namespacing_prefix = u"%s-%s-%s--" % (self.__class__.__name__,
+                                                   self.id(), random_name())
+        self.namespacing_prefix = self.namespacing_prefix.replace(u".", u"-")
 
     clientException = APIError
-
-    namespacing_prefix = random_name() + u"--"
 
     def make_client(self):
         # Some of the tests assume container name matches unit name, so we
@@ -355,8 +355,12 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     Functional tests for ``NamespacedDockerClient``.
     """
-    namespace = random_name()
-    namespacing_prefix = BASE_NAMESPACE + namespace + u"--"
+    @if_docker_configured
+    def setUp(self):
+        self.namespace = u"%s-%s-%s" % (
+            self.__class__.__name__, self.id(), random_name())
+        self.namespace = self.namespace.replace(u".", u"-")
+        self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
 
     def make_client(self):
         return NamespacedDockerClient(self.namespace)
