@@ -9,7 +9,7 @@ from __future__ import unicode_literals, absolute_import
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
-    ConfigurationError, Configuration, marshal_configuration,
+    ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
 )
@@ -702,7 +702,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Environment variable 'MYSQL_PORT_3306_TCP' must be a string; "
             "got type 'int'.")
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -731,7 +731,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Environment variable name must be a string; "
             "got type 'int'.")
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -753,7 +753,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'environment': 'foobar'
             }
         }
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -772,7 +772,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         contain an ``u"application"`` key.
         """
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -788,7 +788,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         contain an ``u"version"`` key.
         """
         config = dict(applications={})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -803,7 +803,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the version specified is not 1.
         """
         config = dict(applications={}, version=2)
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -819,7 +819,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         contain all the attributes of an ``Application`` record.
         """
         config = dict(applications={'mysql-hybridcluster': {}}, version=1)
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -839,7 +839,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
                                             baz='quux')})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -859,7 +859,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -881,7 +881,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'image': 'flocker/mysql'
             }
         }
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         self.assertIsNone(parser._parse_environment_config(
             'mysql-hybridcluster',
             config
@@ -903,7 +903,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 },
             }
         }
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         environment_vars = parser._parse_environment_config(
             'site-hybridcluster', config['site-hybridcluster'])
         expected_result = frozenset({
@@ -935,7 +935,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 }
             }
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
@@ -987,7 +987,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 }
             }
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
@@ -1029,7 +1029,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 ports=[{'external': 90}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1050,7 +1050,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 ports=[{'internal': 90}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1072,7 +1072,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=[{'internal': 90, 'external': 40,
                         'foo': 5, 'bar': 'six'}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1094,7 +1094,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'remote_port': 90,
                         'alias': 'mysql'}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1116,7 +1116,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'local_port': 90,
                         'alias': 'mysql'}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1137,7 +1137,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 links=[{'local_port': 90, 'remote_port': 100}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1159,7 +1159,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'remote_port': 90, 'local_port': 40, 'alias': 'other',
                         'foo': 5, 'bar': 'six'}],
                 )})
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1182,7 +1182,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             }
         ]
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -1207,7 +1207,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             }
         ]
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -1232,7 +1232,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             }
         ]
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -1250,7 +1250,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``u"links"`` key is not a dictionary.
         """
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -1268,7 +1268,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if a link is not a dictionary.
         """
         config = dict()
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -1295,7 +1295,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                         'foo': 215},
             )}
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1317,7 +1317,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={},
             )}
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1339,7 +1339,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={'mountpoint': b'./.././var//'},
             )}
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1363,7 +1363,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={'mountpoint': mountpoint_unicode},
             )}
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1385,7 +1385,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume='a random string',
             )}
         )
-        parser = Configuration(config)
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
@@ -1408,7 +1408,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ),
             }
         )
-        parser = Configuration(config, lenient=True)
+        parser = FlockerConfiguration(config, lenient=True)
         applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
@@ -1584,7 +1584,7 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 'node2.example.com': ['site-hybridcluster'],
             }
         }
-        config = Configuration(application_configuration)
+        config = FlockerConfiguration(application_configuration)
         applications = config.applications()
         result = model_from_configuration(
             applications, deployment_configuration)
@@ -1912,7 +1912,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         result = marshal_configuration(
             NodeState(running=applications, not_running=[]))
-        config = Configuration(result, lenient=True)
+        config = FlockerConfiguration(result, lenient=True)
         apps = config.applications()
         self.assertEqual(expected_applications, apps)
 
