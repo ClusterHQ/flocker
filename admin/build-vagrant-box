@@ -107,7 +107,7 @@ def main(*args):
 
     if args:
         branch = args.pop(0)
-        version = ''
+        version = __version__
     else:
         branch = ''
         version = __version__
