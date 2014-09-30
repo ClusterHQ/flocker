@@ -54,19 +54,9 @@ The ZFS dataset name is a combination of the UUID and the logical name, e.g. ``1
 Docker Integration
 ******************
 
-Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-For example, if you create a volume called ``"myapp-mongodb"`` with mount point ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
-
-You can then use this volume manually using ``--volumes-from``:
-
-.. code-block:: console
-
-    $ docker run --volumes-from myapp-mongodb-data --name myapp-mongodb openshift/centos-mongodb
-
-The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
-
-The Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
-
+When starting a container with a volume configured, Flocker checks for the existence of the volume.
+If it does not exist a new ZFS dataset is created.
+Flocker mounts the volume into the container as a normal Docker volume.
 
 Push and Handoff
 ****************
