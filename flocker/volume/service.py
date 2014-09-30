@@ -352,10 +352,6 @@ class Volume(object):
         those that Docker allows for container names.
     :ivar VolumeService service: The service that stores this volume.
     """
-    def __init__(self):
-        # XXX Temporary measure to make sure we capture all cases in the
-        # refactoring.
-        assert isinstance(self.name, VolumeName)
 
     def locally_owned(self):
         """
