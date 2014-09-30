@@ -274,8 +274,9 @@ CMD sh -c "trap \"\" 2; sleep 3"
                     break
             assertContainsAll(
                 output, test_case=self,
-                needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
-        )
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables],
+            )
         d.addCallback(started)
         return d
 
