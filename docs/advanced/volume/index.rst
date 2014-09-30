@@ -44,7 +44,10 @@ Volumes are created with three parameters:
 * The UUID of the volume manager that owns the volume.
   The creating volume manager's UUID (see above) is used to supply a value for this parameter.
 * The logical name, composed of a namespace and an identifier; this must be the same as the name of the container it will be mounted in.
+  The logical name must also be unique within the Flocker cluster.
   For example, for a container in namespace ``"default"`` named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created in the same namespace.
+  When a Flocker environment is cloned each clone resides in its own namespace.
+  ``"myapp-mongodb"`` can therefore be the identifier of both the original and cloned volumes; differing namespace differentiates their logical name.
 * A mount path, indicating where within a container the volume will be mounted.
   For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
