@@ -58,7 +58,7 @@ class VolumeNameTests(TestCase):
 
     def test_inequality(self):
         """
-        ``VolumeName`` with differnt arguments are unequal.
+        ``VolumeName`` with different arguments are unequal.
         """
         name1 = VolumeName(namespace=u"blah", id="bloo")
         name2 = VolumeName(namespace=u"blah", id="bloo2")
