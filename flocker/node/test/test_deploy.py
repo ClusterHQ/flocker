@@ -675,7 +675,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         a list of running ``Application``\ s; one for each active container.
         """
         expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name, activation_state=u'active')
+        unit = Unit(name=expected_application_name,
+                    container_name=expected_application_name,
+                    activation_state=u'active')
         fake_docker = FakeDockerClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
         api = Deployer(
@@ -693,8 +695,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
         a running ``Application`` for every active container on the host.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
@@ -714,8 +720,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Locally owned volumes are added to ``Application`` with same name as
         an ``AttachedVolume``.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         self.successResultOf(self.volume_service.create(u"site-example.com"))
@@ -743,7 +753,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Remotely owned volumes are not added to the discovered ``Application``
         instances even if they have the same name.
         """
-        unit = Unit(name=u'site-example.com', activation_state=u'active')
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    activation_state=u'active')
         units = {unit.name: unit}
 
         volume = Volume(uuid=unicode(uuid4()), name=u"site-example.com",
@@ -766,8 +778,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Units that are not active are considered to be not running by
         ``discover_node_configuration()``.
         """
-        unit1 = Unit(name=u'site-example3.net', activation_state=u'inactive')
-        unit2 = Unit(name=u'site-example4.net', activation_state=u'madeup')
+        unit1 = Unit(name=u'site-example3.net',
+                     container_name=u'site-example3.net',
+                     activation_state=u'inactive')
+        unit2 = Unit(name=u'site-example4.net',
+                     container_name=u'site-example4.net',
+                     activation_state=u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
@@ -893,7 +909,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ``Deployer.calculate_necessary_state_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
-        unit = Unit(name=u'site-example.com', activation_state=u'active')
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -972,7 +990,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         application must be started or stopped if the desired configuration
         is the same as the current configuration.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1005,7 +1025,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         applications on a node must be stopped if the desired configuration
         does not include that node.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name='mysql-hybridcluster',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1132,7 +1154,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1192,7 +1216,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1235,7 +1261,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         Applications that are not running but are supposed to be on the local
         node are added to the list of applications to restart.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1268,7 +1296,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         Applications that are not running and are supposed to be on the local
         node are added to the list of applications to stop.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1290,7 +1320,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1521,7 +1553,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         Existing applications which are not in the desired configuration are
         stopped.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'active')
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())

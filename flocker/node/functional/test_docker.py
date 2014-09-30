@@ -7,8 +7,6 @@ Functional tests for :module:`flocker.node._docker`.
 from __future__ import absolute_import
 
 import os
-import json
-import subprocess
 from unittest import skipIf
 
 from docker.errors import APIError
@@ -18,7 +16,6 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.utils import getProcessOutput
 from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
@@ -28,7 +25,9 @@ from ...testtools import (
     random_name)
 
 from ..test.test_docker import make_idockerclient_tests
-from .._docker import DockerClient, PortMap, Environment
+from .._docker import (
+    DockerClient, PortMap, Environment, NamespacedDockerClient,
+    BASE_NAMESPACE)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -45,20 +44,33 @@ class IDockerClientTests(make_idockerclient_tests(
         pass
 
 
-class DockerClientTests(TestCase):
+class IDockerClientNamespacedTests(make_idockerclient_tests(
+        lambda test_case: NamespacedDockerClient(random_name()))):
     """
-    Functional tests for ``DockerClient``.
+    ``IDockerClient`` tests for ``NamespacedDockerClient``.
     """
     @if_docker_configured
     def setUp(self):
         pass
+
+
+class GenericDockerClientTests(TestCase):
+    """
+    Functional tests for ``DockerClient`` and other clients that talk to
+    real Docker.
+    """
+    @if_docker_configured
+    def setUp(self):
+        self.namespacing_prefix = u"%s-%s-%s--" % (self.__class__.__name__,
+                                                   self.id(), random_name())
+        self.namespacing_prefix = self.namespacing_prefix.replace(u".", u"-")
 
     clientException = APIError
 
     def make_client(self):
         # Some of the tests assume container name matches unit name, so we
         # disable namespacing for these tests.
-        return DockerClient(namespace=u"")
+        return DockerClient(namespace=self.namespacing_prefix)
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
@@ -105,9 +117,9 @@ class DockerClientTests(TestCase):
         d = self.start_container(name)
 
         def started(_):
-            data = subprocess.check_output(
-                [b"docker", b"inspect", name.encode("ascii")])
-            self.assertEqual(json.loads(data)[0][u"Config"][u"Image"],
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"Image"],
                              u"openshift/busybox-http-app")
         d.addCallback(started)
         return d
@@ -252,13 +264,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
             image_name=image_name,
             environment=Environment(variables=expected_variables),
         )
-        d.addCallback(
-            lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
-                                             env=os.environ,
-                                             # Capturing stderr makes
-                                             # debugging easier:
-                                             errortoo=True)
-        )
+        d.addCallback(lambda _: Client().logs(
+            self.namespacing_prefix + unit_name))
         d.addCallback(
             assertContainsAll,
             test_case=self,
@@ -288,17 +295,47 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_namespacing(self):
         """
-        Containers are created with the ``DockerClient`` namespace prefixed to
-        their container name.
+        Containers are created with a namespace prefixed to their container
+        name.
         """
         docker = Client()
         name = random_name()
-        client = DockerClient(namespace=u"testing-")
+        client = self.make_client()
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox")
-        d.addCallback(lambda _: self.assertTrue(
-            docker.inspect_container(u"testing-" + name)))
+
+        def added(_):
+            self.assertTrue(
+                docker.inspect_container(self.namespacing_prefix + name))
+        d.addCallback(added)
         return d
+
+    def test_container_name(self):
+        """
+        The container name stored on returned ``Unit`` instances matches the
+        expected container name.
+        """
+        client = self.make_client()
+        name = random_name()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: client.list())
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertEqual(unit.container_name,
+                             self.namespacing_prefix + name)
+        d.addCallback(got_list)
+        return d
+
+
+class DockerClientTests(TestCase):
+    """
+    Tests for ``DockerClient`` specifically.
+    """
+    @if_docker_configured
+    def setUp(self):
+        pass
 
     def test_default_namespace(self):
         """
@@ -311,4 +348,33 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = client.add(name, u"busybox")
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
+        return d
+
+
+class NamespacedDockerClientTests(GenericDockerClientTests):
+    """
+    Functional tests for ``NamespacedDockerClient``.
+    """
+    @if_docker_configured
+    def setUp(self):
+        self.namespace = u"%s-%s-%s" % (
+            self.__class__.__name__, self.id(), random_name())
+        self.namespace = self.namespace.replace(u".", u"-")
+        self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
+
+    def make_client(self):
+        return NamespacedDockerClient(self.namespace)
+
+    def test_isolated_namespaces(self):
+        """
+        Containers in one namespace are not visible in another namespace.
+        """
+        client = NamespacedDockerClient(random_name())
+        client2 = NamespacedDockerClient(random_name())
+        name = random_name()
+
+        d = client.add(name, u"busybox")
+        self.addCleanup(client.remove, name)
+        d.addCallback(lambda _: client2.list())
+        d.addCallback(self.assertEqual, set())
         return d
