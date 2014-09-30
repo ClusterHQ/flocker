@@ -10,7 +10,7 @@ There is also a ``flocker-node`` package which is installed on each node in the 
 It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
 These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
-.. note:: For now the ``flocker-node`` package is pre-installed by the `Vagrant configuration in the tutorial <tutorial>`_.
+.. note:: For now the ``flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 

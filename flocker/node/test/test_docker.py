@@ -1,15 +1,15 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Tests for :module:`flocker.node.gear`."""
+"""Tests for :module:`flocker.node._docker`."""
 
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 
 from ...testtools import random_name, make_with_init_tests
-from ..gear import (
+from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
-    GearEnvironment)
+    Environment)
 
 
 def make_idockerclient_tests(fixture):
@@ -23,7 +23,7 @@ def make_idockerclient_tests(fixture):
         """
         Tests for :class:`IDockerClientTests`.
 
-        These are functional tests if run against a real geard.
+        These are functional tests if run against a real Docker daemon.
         """
         def test_interface(self):
             """The tested object provides :class:`IDockerClient`."""
@@ -110,13 +110,12 @@ def make_idockerclient_tests(fixture):
                 # XXX: DockerClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                activating = Unit(name=name, activation_state=u"activating",
-                                  sub_state=u"start-pre")
-                active = Unit(name=name, activation_state=u"active")
-                self.assertTrue((activating in units) or
-                                (active in units),
+                added = Unit(name=name, activation_state=u"inactive")
+                running = Unit(name=name, activation_state=u"active")
+                self.assertTrue((added in units) or
+                                (running in units),
                                 "Added unit not in %r: %r, %r" % (
-                                    units, active, activating))
+                                    units, added, running))
             d.addCallback(got_list)
             return d
 
@@ -223,12 +222,10 @@ class UnitInitTests(
                 activation_state=u'active',
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
-                links=(PortMap(internal_port=3306, external_port=103306),),
-                environment=GearEnvironment(
-                    id=u'site-example.com', variables={u'foo': u'bar'})
+                environment=Environment(variables={u'foo': u'bar'})
             ),
             expected_defaults=dict(
-                ports=(), links=(), container_image=None, environment=None)
+                ports=(), container_image=None, environment=None)
         )
 ):
     """
@@ -247,74 +244,54 @@ class UnitTests(TestCase):
     def test_repr(self):
         """
         ``Unit.__repr__`` shows the name, activation_state, container_image,
-        ports and links.
+        and ports.
         """
         self.assertEqual(
             "<Unit(name=u'site-example.com', "
-            "activation_state=u'active', sub_state=u'running', "
-            "container_image=u'flocker/flocker:v1.0.0', ports=[], links=[], "
+            "activation_state=u'active', "
+            "container_image=u'flocker/flocker:v1.0.0', ports=[], "
             "environment=None)>",
 
             repr(Unit(name=u'site-example.com',
-                      activation_state=u'active', sub_state=u'running',
+                      activation_state=u'active',
                       container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], links=[], environment=None))
+                      ports=[], environment=None))
         )
 
 
-class GearEnvironmentInitTests(
+class EnvironmentInitTests(
         make_with_init_tests(
-            record_type=GearEnvironment,
+            record_type=Environment,
             kwargs=dict(
-                id=u'site-example.com',
                 variables=dict(foo="bar"),
             ),
         )
 ):
     """
-    Tests for ``GearEnvironment.__init__``.
+    Tests for ``Environment.__init__``.
     """
 
 
-class GearEnvironmentTests(TestCase):
+class EnvironmentTests(TestCase):
     """
-    Tests for ``GearEnvironment``.
+    Tests for ``Environment``.
     """
     def test_to_dict(self):
         """
-        ``GearEnvironment.to_dict`` returns a dictionary containing the
-        environment ID and the variables in name, value pairs.
+        ``Environment.to_dict`` returns a dictionary containing the
+        the environment variables as key/value entries.
         """
-        expected_id = u'site-example.com'
-        expected_dict = {
-            'id': expected_id,
-            'variables': [
-                {'name': 'baz', 'value': 'qux'},
-                {'name': 'foo', 'value': 'bar'},
-            ]
-        }
-        gear_dict = GearEnvironment(
-            id=expected_id, variables=frozenset(dict(
-                foo='bar', baz='qux'
-            ).items())).to_dict()
+        variables = {'baz': 'qux', 'foo': 'bar'}
+        environment = Environment(variables=frozenset(variables.items()))
 
-        gear_dict['variables'] = sorted(gear_dict['variables'])
-        expected_dict['variables'] = sorted(expected_dict['variables'])
-
-        self.assertEqual(expected_dict, gear_dict)
+        self.assertEqual(environment.to_dict(), variables)
 
     def test_repr(self):
         """
-        ``GearEnvironment.__repr__`` shows the id and variables.
+        ``Environment.__repr__`` shows the id and variables.
         """
         self.assertEqual(
-            "<GearEnvironment("
-            "id=u'site-example.com', "
-            "variables={'foo': 'bar'})>",
-
-            repr(
-                GearEnvironment(
-                    id=u'site-example.com', variables=dict(foo="bar")
-                )
-            )
+            "<Environment("
+            "variables=frozenset([('foo', 'bar')]))>",
+            repr(Environment(variables=frozenset(dict(foo="bar").items())))
         )
