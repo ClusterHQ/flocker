@@ -54,7 +54,7 @@ class VolumeName(object):
     :ivar unicode id: The id of the volume,
         e.g. ``u"postgres-data"``. Since volume ids must match Docker
         container names, the characters used should be limited to those
-        that Docker allows for container names.
+        that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
     def __init__(self):
         """
