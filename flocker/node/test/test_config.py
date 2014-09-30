@@ -712,6 +712,37 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             error_message
         )
 
+    def test_error_on_config_not_dict(self):
+        """
+        ``FlockerConfiguration.__init__`` raises a ``ConfigurationError``
+        if the supplied configuration is not a ``dict``.
+        """
+        config = b'a string'
+        e = self.assertRaises(ConfigurationError, FlockerConfiguration, config)
+        self.assertEqual(
+            e.message,
+            "Application configuration must be a dictionary, got str."
+        )
+
+    def test_not_valid_on_application_not_dict(self):
+        """
+        ``FlockerConfiguration.is_valid_format`` returns ``False`` if the
+        supplied configuration for a single application is not a ``dict``.
+        """
+        config = {'version': 1, 'applications': {'postgres': 'a string'}}
+        parser = FlockerConfiguration(config)
+        self.assertFalse(parser.is_valid_format())
+
+    def test_not_valid_on_application_missing_image(self):
+        """
+        ``FlockerConfiguration.is_valid_format`` returns ``False`` if the
+        supplied configuration for a single application does not contain the
+        required "image" key.
+        """
+        config = {'version': 1, 'applications': {'postgres': {'build': '.'}}}
+        parser = FlockerConfiguration(config)
+        self.assertFalse(parser.is_valid_format())
+
     def test_error_on_environment_var_name_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
