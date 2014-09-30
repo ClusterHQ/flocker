@@ -6,9 +6,6 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
-import os
-from unittest import skipIf
-
 from docker.errors import APIError
 from docker import Client
 
@@ -29,7 +26,6 @@ from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE)
 from ..testtools import if_docker_configured, wait_for_unit_state
-
 
 
 class IDockerClientTests(make_idockerclient_tests(
