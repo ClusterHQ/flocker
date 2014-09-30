@@ -19,6 +19,7 @@ from eliot.testing import LoggedAction, validateLogging, assertHasAction
 from twisted.trial.unittest import TestCase
 from twisted.python.procutils import which
 
+from ...testtools import if_root
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from .networktests import make_proxying_tests
@@ -407,6 +408,7 @@ class UsedPortsTests(TestCase):
     """
     Tests for enumeration of used ports.
     """
+    @if_root
     @_iptables_skip
     def setUp(self):
         pass
