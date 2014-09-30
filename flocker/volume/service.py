@@ -48,7 +48,8 @@ class VolumeName(object):
     The volume and its copies' name within the cluster.
 
     :ivar unicode namespace: The namespace of the volume,
-        e.g. ``u"default"`` is the default namespace.
+        e.g. ``u"default"`` is the default namespace. Must not include
+        periods.
 
     :ivar unicode id: The id of the volume,
         e.g. ``u"postgres-data"``. Since volume ids must match Docker
@@ -56,9 +57,12 @@ class VolumeName(object):
         that Docker allows for container names.
     """
     def __init__(self):
+        """
+        :raises ValueError: If a period is included in the namespace.
+        """
         if u"." in self.namespace:
             raise ValueError(
-                "Periods not allowed in namespace or identifiers: %s"
+                "Periods not allowed in namespace: %s"
                 % (self.namespace,))
 
     @classmethod
@@ -68,6 +72,8 @@ class VolumeName(object):
 
         :param bytes name: The name, output of ``VolumeName.to_bytes``
             call in past.
+
+        :raises ValueError: If parsing the bytes failed.
 
         :return: Corresponding ``VolumeName``.
         """
