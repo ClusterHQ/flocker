@@ -42,7 +42,10 @@ if branch:
     branch_opt = ['--enablerepo=clusterhq-build']
 else:
     branch_opt = []
+
 if version:
+    if version.endswith('-dirty'):
+        version = version[:-len('-dirty')]
     package = 'flocker-node-%s' % (version,)
 else:
     package = 'flocker-node'

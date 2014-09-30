@@ -107,10 +107,10 @@ def main(*args):
 
     if args:
         branch = args.pop(0)
-        version = __version__
     else:
         branch = ''
-        version = __version__
+
+    version = __version__
 
     if args:
         sys.stderr.write("build-vagrant-box: too many arguments\n")
