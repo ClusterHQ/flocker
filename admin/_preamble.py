@@ -11,8 +11,10 @@ import sys
 path = BASEPATH = FilePath(sys.argv[0])
 for parent in path.parents():
     if parent.descendant(['flocker', '__init__.py']).exists():
-        TOPLEVEL = path
+        TOPLEVEL = parent
         sys.path.insert(0, parent.path)
         break
 else:
     raise ImportError("Could not find top-level.")
+
+__all__ = ['TOPLEVEL', 'BASEPATH']

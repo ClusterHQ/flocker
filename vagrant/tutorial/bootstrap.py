@@ -6,6 +6,7 @@ import sys
 import os
 from subprocess import check_call, check_output
 from textwrap import dedent
+from urlparse import urljoin
 
 if len(sys.argv) > 3:
     print "Wrong number of arguments."
@@ -15,6 +16,10 @@ if len(sys.argv) > 1:
     version = sys.argv[1]
 if len(sys.argv) > 2:
     branch = sys.argv[2]
+if len(sys.argv) > 3:
+    build_server = sys.argv[3]
+else:
+    build_server = 'http://build.clusterhq.com/'
 
 # Make it possible to install flocker-node
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
@@ -32,13 +37,15 @@ check_call(['yum', 'install', '-y', clusterhq_repo_url])
 
 if branch:
     with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
+        result_path = os.path.join('/results/fedora/20/x86_64', branch)
+        base_url = urljoin(build_server, result_path)
         repo.write(dedent(b"""
             [clusterhq-build]
             name=clusterhq-build
-            baseurl=http://build.clusterhq.com/results/fedora/20/x86_64/%s
+            baseurl=%s
             gpgcheck=0
             enabled=0
-            """) % (branch,))
+            """) % (base_url,))
     branch_opt = ['--enablerepo=clusterhq-build']
 else:
     branch_opt = []
