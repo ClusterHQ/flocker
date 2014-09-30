@@ -722,10 +722,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit2 = Unit(name=u'site-example.net', activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
+        self.successResultOf(self.volume_service.create(
             _to_volume_name(u"site-example.com")))
-        self.successResultOf(volume_service.create(
+        self.successResultOf(self.volume_service.create(
             _to_volume_name(u"site-example.net")))
 
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
@@ -753,10 +752,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit = Unit(name=u'site-example.com', activation_state=u'active')
         units = {unit.name: unit}
 
-        volume_service = create_volume_service(self)
         volume = Volume(uuid=unicode(uuid4()),
                         name=_to_volume_name(u"site-example.com"),
-                        service=volume_service)
+                        service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
         fake_docker = FakeDockerClient(units=units)
