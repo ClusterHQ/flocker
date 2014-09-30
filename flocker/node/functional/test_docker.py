@@ -22,7 +22,7 @@ from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name)
+    random_name, if_root)
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
@@ -30,8 +30,6 @@ from .._docker import (
     BASE_NAMESPACE)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
-
-_if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
 class IDockerClientTests(make_idockerclient_tests(
@@ -108,7 +106,7 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         return self.start_container(name)
 
-    @_if_root
+    @if_root
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
@@ -240,7 +238,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @_if_root
+    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
