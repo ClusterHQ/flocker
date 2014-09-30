@@ -991,7 +991,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         is the same as the current configuration.
         """
         unit = Unit(name=u'mysql-hybridcluster',
-                     container_name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
