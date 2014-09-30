@@ -15,6 +15,7 @@ from docker.errors import APIError
 
 from characteristic import attributes
 
+from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
@@ -55,7 +56,7 @@ class Volume(object):
       """
 
 
-@attributes(["name", "activation_state", "container_image",
+@attributes(["name", "container_name", "activation_state", "container_image",
              "ports", "environment", "volumes"],
             defaults=dict(container_image=None,
                           ports=(), environment=None))
@@ -72,6 +73,9 @@ class Unit(object):
 
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
+
+    :ivar unicode container_name: The name of the container where the
+        application is running.
 
     :ivar unicode activation_state: The state of the
         container. ``u"active"`` indicates it is running, ``u"inactive"``
@@ -189,6 +193,7 @@ class FakeDockerClient(object):
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
             name=unit_name,
+            container_name=unit_name,
             container_image=image_name,
             ports=ports,
             environment=environment,
@@ -212,7 +217,8 @@ class FakeDockerClient(object):
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
-                Unit(name=unit.name, activation_state=unit.activation_state))
+                Unit(name=unit.name, container_name=unit.name,
+                     activation_state=unit.activation_state))
         return succeed(incomplete_units)
 
 
@@ -227,6 +233,10 @@ class PortMap(object):
     """
 
 
+# Basic namespace for Flocker containers:
+BASE_NAMESPACE = u"flocker--"
+
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """
@@ -239,7 +249,7 @@ class DockerClient(object):
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self, namespace=u"flocker--"):
+    def __init__(self, namespace=BASE_NAMESPACE):
         self.namespace = namespace
         self._client = Client(version="1.12")
 
@@ -361,7 +371,28 @@ class DockerClient(object):
                 # https://github.com/ClusterHQ/flocker/issues/207
                 # XXX extract volume info from the inspect results, add to Unit
                 result.add(Unit(name=name,
+                                container_name=self._to_container_name(name),
                                 activation_state=state,
                                 container_image=None))
             return result
         return deferToThread(_list)
+
+
+class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
+    """
+    A Docker client that only shows and creates containers in a given
+    namespace.
+
+    Unlike ``DockerClient``, whose namespace is there to prevent conflicts
+    with other Docker users, this class deals with Flocker's internal
+    concept of namespaces. I.e. if hypothetically Docker container names
+    supported path-based namespaces then ``DockerClient`` would look at
+    containers in ``/flocker/`` and this class would look at containers in
+    in ``/flocker/<namespace>/``.
+    """
+    def __init__(self, namespace):
+        """
+        :param unicode namespace: Namespace to restrict containers to.
+        """
+        self._client = DockerClient(
+            namespace=BASE_NAMESPACE + namespace + u"--")
