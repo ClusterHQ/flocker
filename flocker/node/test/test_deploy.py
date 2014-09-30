@@ -22,7 +22,7 @@ from .._deploy import (
     _link_environment)
 from .._model import AttachedVolume
 from .._docker import (
-    FakeDockerClient, AlreadyExists, Unit, PortMap, GearEnvironment,
+    FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
@@ -405,11 +405,10 @@ class StartApplicationTests(SynchronousTestCase):
         self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
                                     FilePath(b"/var"), False)])
 
-    def test_environment_supplied_to_gear(self):
+    def test_environment_supplied_to_docker(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
-        application to ``DockerClient.add`` as a ``GearEnvironment`` instance
-        with an ``id`` matching the application name.
+        application to ``DockerClient.add`` as an ``Environment`` instance.
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
@@ -428,8 +427,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
 
-        expected_environment = GearEnvironment(
-            id=application_name, variables=variables.copy())
+        expected_environment = Environment(variables=variables.copy())
 
         self.assertEqual(
             expected_environment,
@@ -438,7 +436,7 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_environment_not_supplied(self):
         """
-        ``StartApplication.run()`` only passes a a ``GearEnvironment`` instance
+        ``StartApplication.run()`` only passes an ``Environment`` instance
         if the application defines an environment.
         """
         volume_service = create_volume_service(self)
@@ -488,8 +486,7 @@ class StartApplicationTests(SynchronousTestCase):
             'ALIAS_PORT_80_TCP_PORT': '8080',
             'ALIAS_PORT_80_TCP_PROTO': 'tcp',
         }.iteritems())
-        expected_environment = GearEnvironment(
-            id=application_name, variables=variables.copy())
+        expected_environment = Environment(variables=variables.copy())
 
         self.assertEqual(
             expected_environment,
@@ -499,7 +496,7 @@ class StartApplicationTests(SynchronousTestCase):
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
-    Tets for ``_link_environment``.
+    Tests for ``_link_environment``.
     """
 
     def test_link_environment(self):
@@ -533,7 +530,7 @@ class StopApplicationTests(SynchronousTestCase):
     def test_stop(self):
         """
         ``StopApplication`` accepts an application object and when ``run()``
-        is called returns a ``Deferred`` which fires when the gear unit
+        is called returns a ``Deferred`` which fires when the container
         has been removed.
         """
         fake_docker = FakeDockerClient()
@@ -659,7 +656,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_none(self):
         """
         ``Deployer.discover_node_configuration`` returns an empty
-        ``NodeState`` if there are no `geard` units on the host.
+        ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
         api = Deployer(
@@ -675,8 +672,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_one(self):
         """
         ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
-        a list of running ``Application``\ s; one for each active `gear`
-        unit.
+        a list of running ``Application``\ s; one for each active container.
         """
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name, activation_state=u'active')
@@ -695,11 +691,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_multiple(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
-        a running ``Application`` for every active or activating gear
-        ``Unit`` on the host.
+        a running ``Application`` for every active container on the host.
         """
         unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
+        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
@@ -766,38 +761,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_activating_units(self):
-        """
-        Units that are currently not active but are starting up are considered
-        to be running by ``discover_node_configuration()``.
-        """
-        unit = Unit(name=u'site-example.com', activation_state=u'activating')
-        units = {unit.name: unit}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name)]
-        api = Deployer(
-            self.volume_service,
-            docker_client=fake_docker,
-            network=self.network
-        )
-        d = api.discover_node_configuration()
-
-        self.assertEqual(NodeState(running=applications, not_running=[]),
-                         self.successResultOf(d))
-
     def test_not_running_units(self):
         """
-        Units that are neither active nor activating are considered to be not
-        running by ``discover_node_configuration()``.
+        Units that are not active are considered to be not running by
+        ``discover_node_configuration()``.
         """
-        unit1 = Unit(name=u'site-example.com',
-                     activation_state=u'deactivating')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
-        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
-        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
-        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
-                 unit4.name: unit4}
+        unit1 = Unit(name=u'site-example3.net', activation_state=u'inactive')
+        unit2 = Unit(name=u'site-example4.net', activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]

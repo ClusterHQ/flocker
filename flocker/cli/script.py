@@ -20,7 +20,7 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..node import (Configuration, ConfigurationError,
+from ..node import (FlockerConfiguration, ConfigurationError,
                     FigConfiguration, model_from_configuration)
 
 from ..common import ProcessNode, gather_deferreds
@@ -96,7 +96,7 @@ class DeployOptions(Options):
                     fig_configuration.to_flocker_yaml()
                 )
             else:
-                configuration = Configuration(app_config_obj)
+                configuration = FlockerConfiguration(app_config_obj)
                 if configuration.is_valid_format():
                     applications = configuration.applications()
                 else:

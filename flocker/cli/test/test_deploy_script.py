@@ -127,6 +127,38 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
         ).format(path=app.path)
         self.assertTrue(str(e).startswith(expected))
 
+    def test_config_fig_format(self):
+        """
+        A Fig compatible configuration passed via the command line is
+        parsed by the ``FigConfiguration`` parser.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"nodes:\n  node1.test: [postgres]\nversion: 1\n")
+        app.setContent(b"{'postgres': {'image': 'sample/postgres'}}")
+        options.parseOptions([deploy.path, app.path])
+
+    def test_config_must_be_valid_format(self):
+        """
+        A ``UsageError`` is raised if the application configuration cannot
+        be detected as any supported valid format.
+        """
+        options = self.options()
+        deploy = FilePath(self.mktemp())
+        app = FilePath(self.mktemp())
+
+        deploy.setContent(b"{}")
+        app.setContent(b"{'randomkey':'somevalue', 'x':'y', 'z':3}")
+
+        e = self.assertRaises(
+            UsageError, options.parseOptions, [deploy.path, app.path])
+        self.assertEqual(
+            e.message,
+            "Configuration is not a valid Fig or Flocker format."
+        )
+
     def test_config_must_be_valid(self):
         """
         A ``UsageError`` is raised if any of the configuration is invalid.

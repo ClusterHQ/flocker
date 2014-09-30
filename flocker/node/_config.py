@@ -13,11 +13,49 @@ import types
 from twisted.python.filepath import FilePath
 
 from yaml import safe_dump
+from zope.interface import Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
     DockerImage, Node, Port
 )
+
+
+class IApplicationConfiguration(Interface):
+    """
+    A class to detect and parse an application configuration  in a given
+    format, mapping configuration to a ``dict`` of keys specifying application
+    names mapped to values of ``Application`` instances.
+    """
+    def is_valid_format():
+        """
+        Detect if the supplied application configuration is in a format
+        compatible with this configuration parser.
+
+        Note that "valid format" does not necessarily translate to
+        "valid configuration"; this method should only indicate whether the
+        supplied configuration's outermost structure is such that it should
+        be treated and parsed as a configuration of this parser's format.
+        Further validation should be done during the parsing stage.
+
+        :returns: A ``bool`` indicating ``True`` for a fig-style configuration
+            or ``False`` if fig-style is not detected.
+        """
+
+    def applications():
+        """
+        Returns the ``Application`` instances parsed from the supplied
+        configuration.
+
+        This method should only be called after valdiating the format
+        with a call to ``is_valid_format``.
+
+        This method should only be called once, in that calling it
+        multiple times will re-parse an already parsed config.
+
+        :returns: A ``dict`` mapping application names to ``Application``
+            instances.
+        """
 
 
 class ConfigurationError(Exception):
@@ -50,6 +88,7 @@ def _check_type(value, types, description, application_name):
             ))
 
 
+@implementer(IApplicationConfiguration)
 class FigConfiguration(object):
     """
     Validate and parse a fig-style application configuration.
@@ -205,19 +244,6 @@ class FigConfiguration(object):
         return safe_dump(config)
 
     def applications(self):
-        """
-        Returns the ``Application`` instances parsed from the supplied
-        configuration.
-
-        This method should only be called after valdiating the format
-        with a call to ``is_valid_format``.
-
-        This method should only be called once, in that calling it
-        multiple times will re-parse an already parsed config.
-
-        :returns: A ``dict`` mapping application names to ``Application``
-            instances.
-        """
         self._parse()
         return self._applications
 
@@ -231,12 +257,6 @@ class FigConfiguration(object):
         one or more keys which each contain a further dictionary, which
         contain exactly one "image" key or "build" key.
         http://www.fig.sh/yml.html
-
-        :raises ConfigurationError: if the config is valid fig-format but
-            not a valid config.
-
-        :returns: A ``bool`` indicating ``True`` for a fig-style configuration
-            or ``False`` if fig-style is not detected.
         """
         valid = False
         for application_name, config in (
@@ -563,9 +583,10 @@ class FigConfiguration(object):
         self._link_applications()
 
 
-class Configuration(object):
+@implementer(IApplicationConfiguration)
+class FlockerConfiguration(object):
     """
-    Validate and parse configurations.
+    Validate and parse native Flocker-formatted configurations.
     """
     def __init__(self, application_configuration, lenient=False):
         """
@@ -574,9 +595,9 @@ class Configuration(object):
             particular https://github.com/ClusterHQ/flocker/issues/289 means
             the mountpoint is unknown.
 
-        :param dict application_configuration: The intermediate
-            configuration representation to load into ``Application``
-            instances.  See :ref:`Configuration` for details.
+        :param dict application_configuration: The native parsed YAML
+            configuration to load into ``Application`` instances.
+            See :ref:`Configuration` for details.
         """
         if not isinstance(application_configuration, dict):
             raise ConfigurationError(
@@ -592,19 +613,6 @@ class Configuration(object):
         self._applications = {}
 
     def applications(self):
-        """
-        Returns the ``Application`` instances parsed from the supplied
-        configuration.
-
-        This method should only be called after valdiating the format
-        with a call to ``is_valid_format``.
-
-        This method should only be called once, in that calling it
-        multiple times will re-parse an already parsed config.
-
-        :returns: A ``dict`` mapping application names to ``Application``
-            instances.
-        """
         self._parse()
         return self._applications
 
@@ -613,21 +621,23 @@ class Configuration(object):
         Detect if the supplied application configuration is a Flocker
         compatible format.
 
-        A Flocker configuration is a dictionary containing, at a minimu,
+        A Flocker configuration is a dictionary containing, at a minimum,
         a version key containing an integer version number  and an applications
         key containing a mapping of application names to definitions.
-
-        :raises ConfigurationError: if the config is valid fig-format but
-            not a valid config.
-
-        :returns: A ``bool`` indicating ``True`` for a Flocker configuration
-            or ``False`` if a valid config is not detected.
         """
         valid = False
         flocker_keys = set(['version', 'applications'])
         present_keys = set(self._application_configuration)
         if flocker_keys.issubset(present_keys):
             valid = True
+            for application_name, application in (
+                self._application_configuration['applications'].items()
+            ):
+                if not isinstance(application, dict):
+                    valid = False
+                else:
+                    if 'image' not in application:
+                        valid = False
         return valid
 
     def _validate_configuration_keys(self):
@@ -992,7 +1002,7 @@ def current_from_configuration(current_configuration):
     """
     nodes = []
     for hostname, applications in current_configuration.items():
-        configuration = Configuration(applications, lenient=True)
+        configuration = FlockerConfiguration(applications, lenient=True)
         node_applications = configuration.applications()
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications.values())))

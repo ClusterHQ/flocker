@@ -11,7 +11,7 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from ._docker import DockerClient, PortMap, GearEnvironment
+from ._docker import DockerClient, PortMap, Environment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     NodeState,
@@ -77,7 +77,7 @@ class InParallel(object):
 @attributes(["application", "hostname"])
 class StartApplication(object):
     """
-    Launch the supplied application as a gear unit.
+    Launch the supplied application as a container.
 
     :ivar Application application: The ``Application`` to create and
         start.
@@ -114,17 +114,16 @@ class StartApplication(object):
             environment.update(application.environment)
 
         if environment:
-            gear_environment = GearEnvironment(
-                id=application.name,
+            docker_environment = Environment(
                 variables=frozenset(environment.iteritems()))
         else:
-            gear_environment = None
+            docker_environment = None
 
         d.addCallback(lambda _: deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=gear_environment
+            environment=docker_environment
         ))
         return d
 
@@ -269,7 +268,7 @@ class Deployer(object):
     Start and stop applications.
 
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The gear client API to use in
+    :ivar IDockerClient docker_client: The Docker client API to use in
         deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
@@ -314,7 +313,7 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                if unit.activation_state in (u"active", u"activating"):
+                if unit.activation_state == u"active":
                     running.append(application)
                 else:
                     not_running.append(application)
