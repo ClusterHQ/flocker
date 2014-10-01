@@ -5,11 +5,12 @@
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
+from twisted.python.filepath import FilePath
 
 from ...testtools import random_name, make_with_init_tests
 from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
-    Environment)
+    Environment, Volume)
 
 
 def make_idockerclient_tests(fixture):
@@ -265,13 +266,16 @@ class UnitTests(TestCase):
             "container_name=u'flocker--site-example.com', "
             "activation_state=u'active', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], "
-            "environment=None)>",
+            "environment=None, "
+            "volumes=[<Volume(node_path='/tmp', container_path='/blah')>])>",
 
             repr(Unit(name=u'site-example.com',
                       container_name=u'flocker--site-example.com',
                       activation_state=u'active',
                       container_image=u'flocker/flocker:v1.0.0',
-                      ports=[], environment=None))
+                      ports=[], environment=None,
+                      volumes=[Volume(node_path='/tmp',
+                                      container_path='/blah')]))
         )
 
 
@@ -311,3 +315,17 @@ class EnvironmentTests(TestCase):
             "variables=frozenset([('foo', 'bar')]))>",
             repr(Environment(variables=frozenset(dict(foo="bar").items())))
         )
+
+
+class VolumeInitTests(
+        make_with_init_tests(
+            record_type=Volume,
+            kwargs=dict(
+                node_path=FilePath(b"/tmp"),
+                container_path=FilePath(b"/blah"),
+            ),
+        )
+):
+    """
+    Tests for ``Volume.__init__``.
+    """

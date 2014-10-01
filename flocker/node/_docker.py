@@ -58,8 +58,8 @@ class Volume(object):
 
 @attributes(["name", "container_name", "activation_state", "container_image",
              "ports", "environment", "volumes"],
-            defaults=dict(container_image=None,
-                          ports=(), environment=None))
+            defaults=dict(container_image=None, ports=(), environment=None,
+                          volumes=()))
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -188,7 +188,8 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), environment=None):
+    def add(self, unit_name, image_name, ports=(), environment=None,
+            volumes=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
