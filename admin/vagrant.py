@@ -1,3 +1,4 @@
+# -*- test-case-name: admin.tests.test_vagrant -*-
 """
 Tools for interacting with vagrant.
 """
@@ -7,9 +8,35 @@ import os
 
 import json
 
+from twisted.python import usage
+
 from flocker import __version__
 
 from admin.runner import run
+
+
+class Options(usage.Options):
+
+    optParameters = [
+        ['branch', None, None, 'branch'],
+        ['box', None, None, 'box']
+    ]
+
+    def __init__(self, base_path, top_level):
+        usage.Options.__init__(self)
+        self.base_path = base_path
+        self.top_level = top_level
+
+    def postOptions(self):
+        if self.base_path.basename() == 'build':
+            if self['box'] is not None:
+                raise usage.UsageError("Can't specify box when invoked from box directory.")
+            self['path'] = self.base_path.parent()
+            self['box'] = self['path'].basename()
+        else:
+            if self['box'] is None:
+                raise usage.UsageError("Must specify box when invoked directly.")
+            self['path'] = self.top_level.descendant(['vagrant', self['box']])
 
 
 def box_metadata(name, version, path):
@@ -61,6 +88,7 @@ def build_box(path, name, version, branch):
         'FLOCKER_VERSION': version.replace('-', '_'),
         'FLOCKER_BRANCH': branch,
         })
+    run(['vagrant', 'box', 'update'])
     run(['vagrant', 'up'], cwd=path.path, env=env)
     run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
 
@@ -73,27 +101,8 @@ def build_box(path, name, version, branch):
 
 
 def main(args, base_path, top_level):
-    if base_path.basename() == 'build':
-        path = base_path.parent()
-        box = path.basename()
-    else:
-        try:
-            box = args.pop(0)
-        except IndexError:
-            sys.stderr.write("build-vagrant-box: must specify box\n")
-            raise SystemExit(1)
-        path = top_level.descendant(['vagrant', box])
-
-    if args:
-        branch = args.pop(0)
-    else:
-        branch = ''
-
+    options = Options(base_path=base_path, top_level=top_level)
     version = __version__
 
-    if args:
-        sys.stderr.write("build-vagrant-box: too many arguments\n")
-        raise SystemExit(1)
-
-    sys.stdout.write("Building %s box from %s.\n" % (box, path.path))
-    build_box(path, 'flocker-' + box, version, branch)
+    sys.stdout.write("Building %s box from %s.\n" % (options.box, options.path.path))
+    build_box(options.path, 'flocker-' + options.box, version, options.branch)
