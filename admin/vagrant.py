@@ -21,6 +21,7 @@ class BuildOptions(usage.Options):
         ['branch', None, None, 'Branch to grab RPMS from'],
         ['box', None, None, 'Name of box to build'],
         ['version', None, flocker.__version__, 'Version of flocker'],
+        ['build-server', None, 'build.clusterhq.com/', 'Server to download RPMs from'],
     ]
 
     def __init__(self, base_path, top_level):
@@ -73,7 +74,7 @@ def box_metadata(name, version, path):
 
 
 
-def build_box(path, name, version, branch):
+def build_box(path, name, version, branch, build_server):
     """
     Build a vagrant box.
 
@@ -81,6 +82,7 @@ def build_box(path, name, version, branch):
     :param bytes name: Base name of vagrant box. Used to build filename.
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
+    :param build_server: Server to download RPMs from.
     """
     box_path = path.child('%s%s%s.box'
                           % (name, '-' if version else '', version))
@@ -94,6 +96,7 @@ def build_box(path, name, version, branch):
     env.update({
         'FLOCKER_VERSION': version.replace('-', '_'),
         'FLOCKER_BRANCH': branch,
+        'FLOCKER_BUILD_SERVER': 'http://%s/' % (build_server,),
         })
     run(['vagrant', 'box', 'update'])
     run(['vagrant', 'up'], cwd=path.path, env=env)
@@ -123,4 +126,5 @@ def main(args, base_path, top_level):
         name='flocker-' + options['box'],
         version=options['version'],
         branch=options['branch'],
+        build_server=options['build-server'],
         )
