@@ -8,7 +8,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/fedora20-updated"
   # Configure base system
   config.vm.provision :shell, :path => "bootstrap.py", :privileged => true,
-      :args => [ENV.fetch('FLOCKER_VERSION', ''), ENV.fetch('FLOCKER_BRANCH', ''),]
+      :args => [
+          ENV.fetch('FLOCKER_VERSION', ''),
+          ENV.fetch('FLOCKER_BRANCH', ''),
+          ENV.fetch('FLOCKER_BUILD_SERVER', '')
+      ]
   # Prepare caches
   config.vm.provision :shell, :path => "cache.sh", :privileged => true
   # Cleanup
