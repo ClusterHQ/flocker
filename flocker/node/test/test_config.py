@@ -13,7 +13,7 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml
+    applications_to_flocker_yaml, FlockerDictConverter
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -267,6 +267,16 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             parsed['applications']['postgres']['volume'],
             {'mountpoint': '/var/lib/data'}
         )
+
+    def test_flocker_converter_get_application(self):
+        """
+        ``FlockerDictConverter.get_application`` returns the ``Application``
+        instance associated with the converter.
+        """
+        set_application = Application(name='postgres')
+        converter = FlockerDictConverter(set_application)
+        retrieved_application = converter.get_application()
+        self.assertEqual(set_application, retrieved_application)
 
 
 class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
