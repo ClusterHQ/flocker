@@ -13,7 +13,7 @@ import types
 from twisted.python.filepath import FilePath
 
 from yaml import safe_dump
-from zope.interface import Interface, implementer
+from zope.interface import Attribute, Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
@@ -88,6 +88,197 @@ def _check_type(value, types, description, application_name):
             ))
 
 
+class IApplicationConverter(Interface):
+    """
+    A class which can take an ``Application`` instance and through its exposed
+    interface can process either the entire application or representations of
+    individual properties in a particular format.
+    """
+    _application = Attribute(
+        "Internal representation of the application to convert."
+    )
+
+    def set_application(application):
+        """
+        Set the ``Application`` an ``ApplicationConverter`` will act on.
+
+        :param application: The ``Application`` instance to be converted.
+        """
+
+    def get_application():
+        """
+        Retrieve the ``Application`` instance associated with the converter.
+
+        :returns: The ``Application`` instance.
+        """
+
+    def convert():
+        """
+        Return the entire ``Application`` converted to the desired format.
+        """
+
+    def convert_image():
+        """
+        Convert the ``image`` property of an ``Application`` to the desired
+        format.
+        """
+
+    def convert_ports():
+        """
+        Convert the ``ports`` property of an ``Application`` to the desired
+        format.
+        """
+
+    def convert_environment():
+        """
+        Convert the ``environment`` property of an ``Application`` to the
+        desired format.
+        """
+
+    def convert_links():
+        """
+        Convert the ``links`` property of an ``Application`` to the desired
+        format.
+        """
+
+    def convert_volume():
+        """
+        Convert the ``volume`` property of an ``Application`` to the desired
+        format.
+        """
+
+
+@implementer(IApplicationConverter)
+class FlockerDictConverter(object):
+    """
+    Convert ``Application`` instances or their properties to a ``dict``
+    representation that matches the format of Flocker's YAML application
+    configuration language.
+    """
+    _application = None
+
+    def __init__(self, application=None):
+        self._application = application
+
+    def set_application(self, application):
+        self._application = application
+
+    def get_application(self):
+        return self._application
+
+    def convert(self):
+        """
+        Convert all the properties of an ``Application`` instance to a
+        ``dict`` representing a single application entry in Flocker's
+        application configuration YAML format.
+
+        :returns: A ``tuple`` containing the application name and the
+            ``dict`` of converted properties.
+        """
+        config = dict()
+        image = self.convert_image()
+        if image:
+            config['image'] = image
+        ports = self.convert_ports()
+        if ports:
+            config['ports'] = ports
+        links = self.convert_links()
+        if links:
+            config['links'] = links
+        environment = self.convert_environment()
+        if environment:
+            config['environment'] = environment
+        volume = self.convert_volume()
+        if volume:
+            config['volume'] = volume
+        return (self._application.name, config)
+
+    def convert_image(self):
+        """
+        Return the ``Application`` image name and tag.
+        :returns: ``bytes`` representing the image name and tag or ``None``
+            if the image is unknown (``None`` or not a ``DockerImage``).
+        """
+        if isinstance(self._application.image, DockerImage):
+            return ':'.join(
+                [self._application.image.repository,
+                 self._application.image.tag]
+            )
+        return None
+
+    def convert_ports(self):
+        """
+        Parse an ``Application`` instance for its ports and return
+        a ``list`` representing the Flocker-format YAML configuration
+        for those ports.
+        """
+        ports = []
+        for port in self._application.ports:
+            ports.append(dict(
+                internal=port.internal_port,
+                external=port.external_port
+            ))
+        return sorted(ports)
+
+    def convert_environment(self):
+        """
+        Parse an ``Application`` instance for its environment variables and
+        return a ``dict`` representing the Flocker-format YAML configuration
+        for those variables.
+        """
+        if self._application.environment:
+            return dict(self._application.environment)
+        return dict()
+
+    def convert_links(self):
+        """
+        Parse an ``Application`` instance for its links and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for those links.
+        """
+        links = []
+        for link in self._application.links:
+            links.append(dict(
+                local_port=link.local_port,
+                remote_port=link.remote_port,
+                alias=link.alias
+            ))
+        return sorted(links)
+
+    def convert_volume(self):
+        """
+        Parse an ``Application`` instance for its volume and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for the volume.
+
+        NOTE: We only support one volume per conainer for now, this
+        logic will need refactoring in future if this changes.
+        """
+        if self._application.volume:
+            return {u'mountpoint': self._application.volume.mountpoint.path}
+        return None
+
+
+def applications_to_flocker_yaml(applications):
+    """
+    Converts a ``dict`` of ``Application`` instances to Flocker's
+    application configuration YAML.
+
+    :param applications: A ``dict`` mapping application names to
+        ``Application`` instances.
+
+    :returns: ``unicode`` representation of a complete Flocker
+        application configuration YAML.
+    """
+    config = {'version': 1, 'applications': dict()}
+    converter = FlockerDictConverter()
+    for application_name, application in applications.items():
+        converter.set_application(application)
+        key, value = converter.convert()
+        config['applications'][key] = value
+    return safe_dump(config)
+
+
 @implementer(IApplicationConfiguration)
 class FigConfiguration(object):
     """
@@ -149,99 +340,6 @@ class FigConfiguration(object):
             "image", "environment", "ports",
             "links", "volumes"
         }
-
-    def _flocker_yaml_ports(self, application_name, application):
-        """
-        Parse an ``Application`` instance for its ports and return
-        a ``list`` representing the Flocker-format YAML configuration
-        for those ports.
-        """
-        ports = []
-        for port in application.ports:
-            ports.append(dict(
-                internal=port.internal_port,
-                external=port.external_port
-            ))
-        return sorted(ports)
-
-    def _flocker_yaml_volumes(self, application_name, application):
-        """
-        Parse an ``Application`` instance for its volume and return
-        a ``dict`` representing the Flocker-format YAML configuration
-        for the volume.
-
-        NOTE: We only support one volume per conainer for now, this
-        logic will need refactoring in future if this changes.
-        """
-        if application.volume:
-            return {u'mountpoint': application.volume.mountpoint.path}
-        return None
-
-    def _flocker_yaml_links(self, application_name, application):
-        """
-        Parse an ``Application`` instance for its links and return
-        a ``dict`` representing the Flocker-format YAML configuration
-        for those links.
-        """
-        links = []
-        for link in application.links:
-            links.append(dict(
-                local_port=link.local_port,
-                remote_port=link.remote_port,
-                alias=link.alias
-            ))
-        return sorted(links)
-
-    def _flocker_yaml_environment(self, application_name, application):
-        """
-        Parse an ``Application`` instance for its environment variables and
-        return a ``dict`` representing the Flocker-format YAML configuration
-        for those variables.
-        """
-        if application.environment:
-            return dict(application.environment)
-        return dict()
-
-    def to_flocker_yaml(self):
-        """
-        Converts a parsed Fig configuration in to a YAML representation
-        that can be successfully parsed as a Flocker-format application
-        configuration.
-
-        This method is used to allow ``flocker-deploy`` to pass only
-        Flocker's application configuration language to
-        ``flocker-changestate``, even if ``flocker-deploy`` received a
-        Fig compatible configuration.
-
-        :returns: ``bytes`` representing this configuration in Flocker
-            formatted YAML.
-        """
-        config = {'version': 1, 'applications': dict()}
-        if not self._applications:
-            self._parse()
-        for application_name, application in self._applications.items():
-            config['applications'][application_name] = dict()
-            app = config['applications'][application_name]
-            app['image'] = ':'.join(
-                [application.image.repository, application.image.tag]
-            )
-            ports = self._flocker_yaml_ports(
-                application_name, application)
-            if ports:
-                app['ports'] = ports
-            volume = self._flocker_yaml_volumes(
-                application_name, application)
-            if volume:
-                app['volume'] = volume
-            links = self._flocker_yaml_links(
-                application_name, application)
-            if links:
-                app['links'] = links
-            environment = self._flocker_yaml_environment(
-                application_name, application)
-            if environment:
-                app['environment'] = environment
-        return safe_dump(config)
 
     def applications(self):
         self._parse()
@@ -1027,28 +1125,18 @@ def marshal_configuration(state):
         ``int``, ``unicode``, etc.
     """
     result = {}
+    converter = FlockerDictConverter()
     for application in state.running + state.not_running:
+        converter.set_application(application)
+
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
         result[application.name] = {"image": "unknown"}
 
-        ports = []
-        for port in application.ports:
-            ports.append(
-                {'internal': port.internal_port,
-                 'external': port.external_port}
-            )
-        result[application.name]["ports"] = ports
+        result[application.name]["ports"] = converter.convert_ports()
 
         if application.links:
-            links = []
-            for link in application.links:
-                links.append({
-                    'local_port': link.local_port,
-                    'remote_port': link.remote_port,
-                    'alias': link.alias,
-                    })
-            result[application.name]["links"] = links
+            result[application.name]["links"] = converter.convert_links()
 
         if application.volume:
             # Until multiple volumes are supported, assume volume name

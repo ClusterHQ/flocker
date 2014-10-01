@@ -13,6 +13,7 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
+    applications_to_flocker_yaml
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -69,7 +70,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             }
         }
         fig = FigConfiguration(config)
-        yaml = safe_load(fig.to_flocker_yaml())
+        yaml = safe_load(applications_to_flocker_yaml(fig.applications()))
         expected = safe_load(safe_dump(expected))
         self.assertEqual(yaml, expected)
 
@@ -83,7 +84,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         parser = FigConfiguration(parsed)
         self.assertFalse(parser.is_valid_format())
@@ -98,7 +99,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         parser = FlockerConfiguration(parsed)
         self.assertTrue(parser.is_valid_format())
@@ -114,7 +115,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         parser = FlockerConfiguration(parsed)
         expected = {
@@ -140,7 +141,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertTrue('version' in parsed)
 
@@ -154,7 +155,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertTrue('applications' in parsed)
 
@@ -169,7 +170,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
                 {'image': 'sample/postgres'}
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['image'],
@@ -199,7 +200,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             {'alias': 'db', 'local_port': 3307, 'remote_port': 3307}
         ]
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['wordpress']['links'],
@@ -219,7 +220,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             }
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['ports'],
@@ -239,7 +240,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             }
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['environment'],
@@ -260,7 +261,7 @@ class FigConfigurationToFlockerYAMLTests(SynchronousTestCase):
             }
         }
         fig = FigConfiguration(config)
-        yaml = fig.to_flocker_yaml()
+        yaml = applications_to_flocker_yaml(fig.applications())
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['volume'],
