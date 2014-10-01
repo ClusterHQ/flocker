@@ -353,9 +353,7 @@ class Volume(object):
 
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
-    :ivar VolumeName name: The name of the volume. Since volume names must
-        match Docker container names, the characters used should be limited to
-        those that Docker allows for container names.
+    :ivar VolumeName name: The name of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
 
