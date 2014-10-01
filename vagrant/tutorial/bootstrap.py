@@ -8,7 +8,7 @@ from subprocess import check_call, check_output
 from textwrap import dedent
 from urlparse import urljoin
 
-if len(sys.argv) > 3:
+if len(sys.argv) > 4:
     print "Wrong number of arguments."
     raise SystemExit(1)
 
