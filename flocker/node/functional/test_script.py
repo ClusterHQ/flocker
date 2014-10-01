@@ -4,7 +4,6 @@
 Functional tests for the ``flocker-changestate`` command line tool.
 """
 
-from os import getuid
 from subprocess import check_output
 from unittest import skipUnless
 
@@ -16,8 +15,6 @@ from ... import __version__
 
 _require_installed = skipUnless(which("flocker-changestate"),
                                 "flocker-changestate not installed")
-_require_root = skipUnless(getuid() == 0,
-                           "Root required to run these tests.")
 
 
 class FlockerChangeStateTests(TestCase):
