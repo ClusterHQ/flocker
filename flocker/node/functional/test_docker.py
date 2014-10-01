@@ -244,7 +244,8 @@ CMD sh -c "trap \"\" 2; sleep 3"
         docker_dir.makedirs()
         docker_dir.child(b"Dockerfile").setContent(
             b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
+            b'CMD ["/bin/sh",  "-c", '
+            b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
@@ -258,13 +259,19 @@ CMD sh -c "trap \"\" 2; sleep 3"
             image_name=image_name,
             environment=Environment(variables=expected_variables),
         )
-        d.addCallback(lambda _: Client().logs(
-            self.namespacing_prefix + unit_name))
-        d.addCallback(
-            assertContainsAll,
-            test_case=self,
-            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
-        )
+
+        def started(_):
+            output = ""
+            while True:
+                output += Client().logs(self.namespacing_prefix + unit_name)
+                if "WOOT" in output:
+                    break
+            assertContainsAll(
+                output, test_case=self,
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables],
+            )
+        d.addCallback(started)
         return d
 
     def test_pull_image_if_necessary(self):
