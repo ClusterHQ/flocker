@@ -51,7 +51,9 @@ Volumes are created with three parameters:
 * A mount path, indicating where within a container the volume will be mounted.
   For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
-The ZFS dataset name is a combination of the UUID and the logical name (namespace + identifier), e.g. ``1234.default.myapp-mongodb``.
+The ZFS dataset name is a combination of the UUID and the logical name (namespace + identifier); it will be a child of the Flocker ZFS pool.
+The pool is usually called ``flocker``.
+For example if the volume manager's UUID is ``1234``, the namespace is ``default`` and the volume identifier is ``myapp.mongodb``, a ZFS dataset called ``flocker/1234.default.myapp-mongodb`` will be mounted at ``/flocker/1234.default.myapp-mongodb`` on the node's filesystem.
 
 
 Docker Integration
