@@ -48,8 +48,7 @@ class VolumeName(object):
     The volume and its copies' name within the cluster.
 
     :ivar unicode namespace: The namespace of the volume,
-        e.g. ``u"default"`` is the default namespace. Must not include
-        periods.
+        e.g. ``u"default"``. Must not include periods.
 
     :ivar unicode id: The id of the volume,
         e.g. ``u"postgres-data"``. Since volume ids must match Docker
@@ -207,11 +206,13 @@ class VolumeService(Service):
                     name = VolumeName.from_bytes(name)
                     uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on `.` and get three parts then
-                    # it's not a filesystem Flocker is managing.  Likewise
-                    # if we can't interpret the bit before the `.` as a
-                    # UUID.  Perhaps a user created it, who knows.  Just
-                    # ignore it.
+                    # ValueError may happen because:
+                    # 1. We can't split on `.`.
+                    # 2. We couldn't parse the UUID.
+                    # 3. We couldn't parse the volume name.
+                    # In any of those case it's presumably because that's
+                    # not a filesystem Flocker is managing.Perhaps a user
+                    # created it, so we just ignore it.
                     continue
 
                 # Probably shouldn't yield this volume if the uuid doesn't
