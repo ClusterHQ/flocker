@@ -110,12 +110,8 @@ def make_idockerclient_tests(fixture):
                 # XXX: DockerClient.list should also return container_image
                 # information
                 # See https://github.com/ClusterHQ/flocker/issues/207
-                added = Unit(name=name, activation_state=u"inactive")
-                running = Unit(name=name, activation_state=u"active")
-                self.assertTrue((added in units) or
-                                (running in units),
-                                "Added unit not in %r: %r, %r" % (
-                                    units, added, running))
+                self.assertEqual([name], [unit.name for unit in units
+                                          if unit.name == name])
             d.addCallback(got_list)
             return d
 
@@ -130,6 +126,22 @@ def make_idockerclient_tests(fixture):
 
             def got_list(units):
                 self.assertNotIn(name, [unit.name for unit in units])
+            d.addCallback(got_list)
+            return d
+
+        def test_container_name(self):
+            """
+            Each unit also records the name of the container it is running in.
+            """
+            client = fixture(self)
+            name = random_name()
+            self.addCleanup(client.remove, name)
+            d = client.add(name, u"busybox")
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertIsInstance(unit.container_name, unicode)
             d.addCallback(got_list)
             return d
 
@@ -157,7 +169,8 @@ class FakeDockerClientImplementationTests(TestCase):
         """
         ``FakeDockerClient._units`` can be supplied in the constructor.
         """
-        units = {u'foo': Unit(name=u'foo', activation_state=u'active',
+        units = {u'foo': Unit(name=u'foo', container_name=u'foo',
+                              activation_state=u'active',
                               container_image=u'flocker/flocker:v1.0.0')}
         self.assertEqual(units, FakeDockerClient(units=units)._units)
 
@@ -219,6 +232,7 @@ class UnitInitTests(
             record_type=Unit,
             kwargs=dict(
                 name=u'site-example.com',
+                container_name=u'flocker--site-example.com',
                 activation_state=u'active',
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
@@ -248,11 +262,13 @@ class UnitTests(TestCase):
         """
         self.assertEqual(
             "<Unit(name=u'site-example.com', "
+            "container_name=u'flocker--site-example.com', "
             "activation_state=u'active', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], "
             "environment=None)>",
 
             repr(Unit(name=u'site-example.com',
+                      container_name=u'flocker--site-example.com',
                       activation_state=u'active',
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], environment=None))
