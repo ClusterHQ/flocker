@@ -371,42 +371,6 @@ class StartApplicationTests(SynchronousTestCase):
                                    hostname="node1.example.com").run(api)
         self.failureResultOf(result2, AlreadyExists)
 
-    def test_volume_exposed_on_start(self):
-        """
-        ``StartApplication.run()`` exposes an application's volume before
-        it is started.
-        """
-        volume_service = create_volume_service(self)
-        fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
-        docker_image = DockerImage.from_string(u"busybox")
-        application = Application(
-            name=u'site-example.com',
-            image=docker_image,
-            volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var")),
-            links=frozenset(),
-        )
-
-        # This would be better to test with a verified fake:
-        # https://github.com/ClusterHQ/flocker/issues/234
-        exposed = []
-
-        def expose_to_docker(volume, mount_path):
-            # We check for existence of unit so we can ensure exposure
-            # happens *before* the unit is started:
-            exposed.append((volume, mount_path, self.successResultOf(
-                fake_docker.exists(u"site-example.com"))))
-            return succeed(None)
-        self.patch(Volume, "expose_to_docker", expose_to_docker)
-
-        StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
-        self.assertEqual(
-            exposed,
-            [(volume_service.get(_to_volume_name(u"site-example.com")),
-              FilePath(b"/var"), False)])
-
     def test_environment_supplied_to_docker(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
