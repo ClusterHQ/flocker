@@ -247,7 +247,11 @@ class DockerClient(object):
 
     def add(self, unit_name, image_name, ports=None, environment=None):
         container_name = self._to_container_name(unit_name)
-        data_container_name = container_name + u"-data"
+        # To be replaced in
+        # https://github.com/ClusterHQ/flocker/issues/737 (or 772) with real
+        # namespace support.
+        data_container_name = self._to_container_name(
+            u"default." + unit_name) + u"-data"
 
         if environment is not None:
             environment = environment.to_dict()
