@@ -44,7 +44,7 @@ It is possible to test this image locally before uploading.
 The :file:`build` script generates metadata pointing a the locally built file,
 which can be used to add the box with the correct version::
 
-   vagrant box add --name vagrant/dev/flocker-dev.json
+   vagrant box add vagrant/dev/flocker-dev.json
 
 Then destroy and re-up that vagrant image.
 

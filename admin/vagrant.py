@@ -10,16 +10,17 @@ import json
 
 from twisted.python import usage
 
-from flocker import __version__
+import flocker
 
 from admin.runner import run
 
 
-class Options(usage.Options):
+class BuildOptions(usage.Options):
 
     optParameters = [
-        ['branch', None, None, 'branch'],
-        ['box', None, None, 'box']
+        ['branch', None, None, 'Branch to grab RPMS from'],
+        ['box', None, None, 'Name of box to build'],
+        ['version', None, flocker.__version__, 'Version of flocker'],
     ]
 
     def __init__(self, base_path, top_level):
@@ -50,20 +51,26 @@ def box_metadata(name, version, path):
     :param bytes name: Base name of vagrant box. Used to build filename.
     :param bytes version: Version of vagrant box. Used to build filename.
     """
-    # Vagrant doesn't like - in version numbers.
-    # It also doesn't like _ but we don't generate that.
-    dotted_version = version.replace('-', '.')
-    return {
+    if version:
+        # Vagrant doesn't like - in version numbers.
+        # It also doesn't like _ but we don't generate that.
+        dotted_version = version.replace('-', '.')
+    else:
+        dotted_version = '0'
+
+    metadata = {
         "name": "clusterhq/%s" % (name,),
         "description": "Test clusterhq/%s box." % (name,),
-        "versions": [{
+        'versions': [{
             "version": dotted_version,
             "providers": [{
                 "name": "virtualbox",
                 "url": path.path
-                }]
             }]
-        }
+        }]
+    }
+    return metadata
+
 
 
 def build_box(path, name, version, branch):
@@ -101,8 +108,19 @@ def build_box(path, name, version, branch):
 
 
 def main(args, base_path, top_level):
-    options = Options(base_path=base_path, top_level=top_level)
-    version = __version__
+    options = BuildOptions(base_path=base_path, top_level=top_level)
 
-    sys.stdout.write("Building %s box from %s.\n" % (options.box, options.path.path))
-    build_box(options.path, 'flocker-' + options.box, version, options.branch)
+    try:
+        options.parseOptions(args)
+    except usage.UsageError as e:
+        sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        sys.stderr.write(options.getUsage())
+        raise SystemExit(1)
+
+    sys.stdout.write("Building %s box from %s.\n" % (options['box'], options['path']))
+    build_box(
+        path=options['path'],
+        name='flocker-' + options['box'],
+        version=options['version'],
+        branch=options['branch'],
+        )
