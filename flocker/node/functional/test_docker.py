@@ -6,6 +6,8 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
+import time
+
 from docker.errors import APIError
 from docker import Client
 
@@ -24,7 +26,7 @@ from ...testtools import (
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
-    BASE_NAMESPACE)
+    BASE_NAMESPACE, Volume)
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -69,7 +71,7 @@ class GenericDockerClientTests(TestCase):
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
-                        environment=None):
+                        environment=None, volumes=()):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -78,6 +80,8 @@ class GenericDockerClientTests(TestCase):
         :param unicode image_name: See ``IDockerClient.add``.
         :param list ports: See ``IDockerClient.add``.
         :param Unit expected_states: A list of activation states to wait for.
+        :param environment: See ``IDockerClient.add``.
+        :param volumes: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -88,6 +92,7 @@ class GenericDockerClientTests(TestCase):
             image_name=image_name,
             ports=ports,
             environment=environment,
+            volumes=volumes,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -327,6 +332,48 @@ CMD sh -c "trap \"\" 2; sleep 3"
             self.assertEqual(unit.container_name,
                              self.namespacing_prefix + name)
         d.addCallback(got_list)
+        return d
+
+    def test_add_with_volumes(self):
+        """
+        ``DockerClient.add`` accepts a list of ``Volume`` instances which are
+        mounted within the container.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", '
+            b'"touch /mnt1/a; touch /mnt2/b"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        unit_name = random_name()
+
+        path1 = FilePath(self.mktemp())
+        path1.makedirs()
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
+
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            volumes=[
+                Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
+                Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
+            expected_states=(u'inactive',),
+        )
+
+        def started(_):
+            expected1 = path1.child(b"a")
+            expected2 = path2.child(b"b")
+            for i in range(100):
+                if expected1.exists() and expected2.exists():
+                    return
+                else:
+                    time.sleep(0.1)
+            self.fail("Files never created.")
+        d.addCallback(started)
         return d
 
 

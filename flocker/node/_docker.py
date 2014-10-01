@@ -215,6 +215,8 @@ class FakeDockerClient(object):
         # DockerClient.list can pass until the real DockerClient.list can also
         # return container_image information and ports.
         # See https://github.com/ClusterHQ/flocker/issues/207
+        # Volumes should also be included.
+        # See https://github.com/ClusterHQ/flocker/issues/289
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
@@ -264,8 +266,8 @@ class DockerClient(object):
         """
         return self.namespace + unit_name
 
-    def add(self, unit_name, image_name, ports=None, environment=None):
-        # XXX add logic to create volumes as argument to create/start
+    def add(self, unit_name, image_name, ports=None, environment=None,
+            volumes=()):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -278,7 +280,7 @@ class DockerClient(object):
                 image_name,
                 name=container_name,
                 environment=environment,
-                # volumes=....
+                volumes=[volume.container_path.path for volume in volumes],
                 ports=[p.internal_port for p in ports])
 
         def _add():
@@ -300,7 +302,10 @@ class DockerClient(object):
                 sleep(0.001)
                 continue
             self._client.start(container_name,
-                               # volumes=...
+                               binds={volume.node_path.path:
+                                      {u"bind": volume.container_path.path,
+                                       u"ro": False}
+                                      for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
