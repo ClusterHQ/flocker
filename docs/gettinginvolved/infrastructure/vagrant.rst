@@ -49,4 +49,4 @@ which can be used to add the box with the correct version::
 Then destroy and re-up that vagrant image.
 
 It is also possible to build a vagrant image based on RPMs from a branch.
-If you pass a branch name to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
+If you pass a ``--branch`` argument to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
