@@ -41,14 +41,12 @@ The version on Vagrant Cloud should be the version with ``-`` replaced with ``.`
 Testing
 ^^^^^^^
 It is possible to test this image locally before uploading.
-First add the box locally::
+The :file:`build` script generates metadata pointing a the locally built file,
+which can be used to add the box with the correct version::
 
-   vagrant box add --name clusterhq/flocker-dev flocker-dev-$(python ../../setup.py --version).box
+   vagrant box add --name vagrant/dev/flocker-dev.json
 
-This adds the box with version 0.
-Then change ``config.vm.box_version`` to ``= 0`` in the appropriate :file:`Vagrantfile`,
-and then destroy and re-upload that vagrant image.
+Then destroy and re-up that vagrant image.
 
 It is also possible to build a vagrant image based on RPMs from a branch.
 If you pass a branch name to :file:`build`, then it will use the RPMs from the latest build of that branch on Buildbot.
-In this case, the box name will not include a version number.

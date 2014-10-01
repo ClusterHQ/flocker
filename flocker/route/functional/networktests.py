@@ -94,4 +94,18 @@ def make_proxying_tests(make_network):
             self.network.delete_proxy(proxy_one)
             self.assertEqual([proxy_two], self.network.enumerate_proxies())
 
+        def test_proxied_ports_used(self):
+            """
+            The port number used to create a proxy is marked as used in the
+            return value of :py:meth:`INetwork.enumerate_used_ports`.
+            """
+            # Some random, not-very-likely-to-be-bound port number.  It's not a
+            # disaster if this does accidentally collide with a port in use on
+            # the host when the test suite runs but the test only demonstrates
+            # what it's meant to demonstrate when it doesn't collide.
+            port_number = 18173
+            self.network.create_proxy_to(
+                IPAddress("10.0.0.3"), port_number)
+            self.assertIn(port_number, self.network.enumerate_used_ports())
+
     return ProxyingTests

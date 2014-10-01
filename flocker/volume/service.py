@@ -48,17 +48,20 @@ class VolumeName(object):
     The volume and its copies' name within the cluster.
 
     :ivar unicode namespace: The namespace of the volume,
-        e.g. ``u"default"`` is the default namespace.
+        e.g. ``u"default"``. Must not include periods.
 
     :ivar unicode id: The id of the volume,
         e.g. ``u"postgres-data"``. Since volume ids must match Docker
         container names, the characters used should be limited to those
-        that Docker allows for container names.
+        that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
     def __init__(self):
+        """
+        :raises ValueError: If a period is included in the namespace.
+        """
         if u"." in self.namespace:
             raise ValueError(
-                "Periods not allowed in namespace or identifiers: %s"
+                "Periods not allowed in namespace: %s"
                 % (self.namespace,))
 
     @classmethod
@@ -68,6 +71,8 @@ class VolumeName(object):
 
         :param bytes name: The name, output of ``VolumeName.to_bytes``
             call in past.
+
+        :raises ValueError: If parsing the bytes failed.
 
         :return: Corresponding ``VolumeName``.
         """
@@ -227,11 +232,13 @@ class VolumeService(Service):
                     name = VolumeName.from_bytes(name)
                     uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on `.` and get three parts then
-                    # it's not a filesystem Flocker is managing.  Likewise
-                    # if we can't interpret the bit before the `.` as a
-                    # UUID.  Perhaps a user created it, who knows.  Just
-                    # ignore it.
+                    # ValueError may happen because:
+                    # 1. We can't split on `.`.
+                    # 2. We couldn't parse the UUID.
+                    # 3. We couldn't parse the volume name.
+                    # In any of those case it's presumably because that's
+                    # not a filesystem Flocker is managing.Perhaps a user
+                    # created it, so we just ignore it.
                     continue
 
                 # Probably shouldn't yield this volume if the uuid doesn't
@@ -373,15 +380,9 @@ class Volume(object):
 
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
-    :ivar VolumeName name: The name of the volume. Since volume names must
-        match Docker container names, the characters used should be limited to
-        those that Docker allows for container names.
+    :ivar VolumeName name: The name of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
-    def __init__(self):
-        # XXX Temporary measure to make sure we capture all cases in the
-        # refactoring.
-        assert isinstance(self.name, VolumeName)
 
     def locally_owned(self):
         """

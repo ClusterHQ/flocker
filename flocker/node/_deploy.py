@@ -11,9 +11,10 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from ._docker import DockerClient, PortMap, GearEnvironment
+from ._docker import DockerClient, PortMap, Environment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
+    NodeState,
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -33,18 +34,6 @@ def _to_volume_name(name):
     :return: ``VolumeName`` with default namespace.
     """
     return VolumeName(namespace=u"default", id=name)
-
-
-@attributes(["running", "not_running"])
-class NodeState(object):
-    """
-    The current state of a node.
-
-    :ivar running: A ``list`` of ``Application`` instances on this node
-        that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
-    """
 
 
 class IStateChange(Interface):
@@ -103,7 +92,7 @@ class InParallel(object):
 @attributes(["application", "hostname"])
 class StartApplication(object):
     """
-    Launch the supplied application as a gear unit.
+    Launch the supplied application as a container.
 
     :ivar Application application: The ``Application`` to create and
         start.
@@ -141,17 +130,16 @@ class StartApplication(object):
             environment.update(application.environment)
 
         if environment:
-            gear_environment = GearEnvironment(
-                id=application.name,
+            docker_environment = Environment(
                 variables=frozenset(environment.iteritems()))
         else:
-            gear_environment = None
+            docker_environment = None
 
         d.addCallback(lambda _: deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=gear_environment
+            environment=docker_environment
         ))
         return d
 
@@ -299,7 +287,7 @@ class Deployer(object):
     Start and stop applications.
 
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The gear client API to use in
+    :ivar IDockerClient docker_client: The Docker client API to use in
         deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
@@ -347,11 +335,15 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                if unit.activation_state in (u"active", u"activating"):
+                if unit.activation_state == u"active":
                     running.append(application)
                 else:
                     not_running.append(application)
-            return NodeState(running=running, not_running=not_running)
+            return NodeState(
+                running=running,
+                not_running=not_running,
+                used_ports=self.network.enumerate_used_ports()
+            )
         d.addCallback(applications_from_units)
         return d
 

@@ -1,7 +1,6 @@
+admin
 app
 apps
-admin
-sysadmin
 behaviour
 Btrfs
 Buildbot
@@ -24,6 +23,7 @@ internet
 Kubernetes
 libswarm
 Mesos
+metadata
 multi
 NAT'd
 namespace
@@ -35,6 +35,7 @@ proxied
 proxying
 snapshotting
 stateful
+sysadmin
 timestamp
 virtualization
 VMware
