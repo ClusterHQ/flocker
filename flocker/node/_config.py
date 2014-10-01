@@ -232,7 +232,7 @@ class FigConfiguration(object):
         if invalid_keys:
             raise ValueError(
                 "Unrecognised keys: {keys}".format(
-                    keys=', '.join(invalid_keys)
+                    keys=', '.join(sorted(invalid_keys))
                 )
             )
 

@@ -92,7 +92,7 @@ class FlockerVolumeSnapshotsTests(TestCase):
         that exists for the identified filesystem, one per line.
         """
         pool_name = create_zfs_pool(self)
-        dataset = pool_name + b"/myuuid.myfilesystem"
+        dataset = pool_name + b"/myuuid.myns.myfilesystem"
         check_output([b"zfs", b"create", b"-p", dataset])
         check_output([b"zfs", b"snapshot", dataset + b"@somesnapshot"])
         check_output([b"zfs", b"snapshot", dataset + b"@lastsnapshot"])
@@ -100,5 +100,5 @@ class FlockerVolumeSnapshotsTests(TestCase):
         snapshots = run(
             b"--config", config_path.path,
             b"--pool", pool_name,
-            b"snapshots", b"myuuid", b"myfilesystem")
+            b"snapshots", b"myuuid", b"myns.myfilesystem")
         self.assertEqual(snapshots, b"somesnapshot\nlastsnapshot\n")

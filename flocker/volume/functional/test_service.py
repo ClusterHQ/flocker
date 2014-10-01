@@ -6,20 +6,18 @@ from __future__ import absolute_import
 
 from unittest import skipIf
 import subprocess
-import os
 import json
 
 from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ...testtools import random_name
-from ..service import VolumeService
+from ...testtools import random_name, if_root
+from ..service import VolumeService, VolumeName
 from ..filesystems.memory import FilesystemStoragePool
 from ..testtools import create_realistic_servicepair, service_for_pool
 
 
-_if_root = skipIf(os.getuid() != 0, "Must run as root.")
 # This is terible (https://github.com/ClusterHQ/flocker/issues/85):
 _if_docker = skipIf(subprocess.Popen([b"docker", b"version"]).wait(),
                     "Docker must be installed and running.")
@@ -28,7 +26,7 @@ _if_docker = skipIf(subprocess.Popen([b"docker", b"version"]).wait(),
 class VolumeTests(TestCase):
     """Tests for ``Volume``."""
 
-    @_if_root
+    @if_root
     @_if_docker
     def setUp(self):
         pass
@@ -44,7 +42,8 @@ class VolumeTests(TestCase):
         """``Volume.expose_to_docker`` creates a Docker container."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = service_for_pool(self, pool)
-        volume = service.get(random_name())
+        volume = service.get(
+            VolumeName(namespace=random_name(), id=random_name()))
 
         d = volume.expose_to_docker(FilePath(b"/my/path"))
 
@@ -78,7 +77,8 @@ class VolumeTests(TestCase):
 
         # We use VolumeService.create() so that the underlying filesystem
         # is created:
-        d = service.create(random_name())
+        d = service.create(VolumeName(namespace=random_name(),
+                                      id=random_name()))
 
         def got_volume(volume):
             a_file = volume.get_filesystem().get_path().child(b"somefile.txt")
@@ -104,7 +104,8 @@ class VolumeTests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        d = service.create(random_name())
+        d = service.create(VolumeName(namespace=random_name(),
+                                      id=random_name()))
 
         def got_volume(volume):
             a_file = volume.get_filesystem().get_path().child(b"somefile.txt")
@@ -134,7 +135,8 @@ class VolumeTests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        d = service.create(random_name())
+        d = service.create(VolumeName(namespace=random_name(),
+                                      id=random_name()))
 
         def got_volume(volume):
             exposed = volume.expose_to_docker(FilePath(b"/my/path"))
@@ -161,7 +163,8 @@ class VolumeTests(TestCase):
         service.startService()
         self.addCleanup(service.stopService)
 
-        d = service.create(random_name())
+        d = service.create(VolumeName(namespace=random_name(),
+                                      id=random_name()))
 
         d.addCallback(lambda volume: volume.remove_from_docker())
         d.addCallback(self.assertEqual, None)
@@ -179,7 +182,8 @@ class RealisticTests(TestCase):
         """
         service_pair = create_realistic_servicepair(self)
 
-        d = service_pair.from_service.create(u"myvolume")
+        d = service_pair.from_service.create(
+            VolumeName(namespace=u"myns", id=u"myvolume"))
 
         def created(volume):
             return service_pair.from_service.handoff(
@@ -195,7 +199,8 @@ class RealisticTests(TestCase):
         """
         service_pair = create_realistic_servicepair(self)
 
-        d = service_pair.from_service.create(u"myvolume")
+        d = service_pair.from_service.create(
+            VolumeName(namespace=u"myns", id=u"myvolume"))
 
         def created(volume):
             return service_pair.from_service.handoff(
@@ -204,7 +209,8 @@ class RealisticTests(TestCase):
 
         def handed_off(volume):
             return service_pair.to_service.handoff(
-                service_pair.to_service.get(u"myvolume"),
+                service_pair.to_service.get(
+                    VolumeName(namespace=u"myns", id=u"myvolume")),
                 service_pair.origin_remote)
         # If the Deferred errbacks the test will fail:
         return d

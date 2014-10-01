@@ -18,7 +18,22 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..volume.service import VolumeName
 from ..common import gather_deferreds
+
+
+def _to_volume_name(name):
+    """
+    Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
+
+    To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
+    real namespace support.
+
+    :param unicode name: Volume name.
+
+    :return: ``VolumeName`` with default namespace.
+    """
+    return VolumeName(namespace=u"default", id=name)
 
 
 class IStateChange(Interface):
@@ -89,7 +104,8 @@ class StartApplication(object):
 
         volumes = []
         if application.volume is not None:
-            volume = deployer.volume_service.get(application.volume.name)
+            volume = deployer.volume_service.get(
+                _to_volume_name(application.volume.name))
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
                 node_path = volume.get_filesystem().get_path()))
@@ -178,7 +194,8 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        return deployer.volume_service.create(self.volume.name)
+        return deployer.volume_service.create(
+            _to_volume_name(self.volume.name))
 
 
 @implementer(IStateChange)
@@ -190,7 +207,8 @@ class WaitForVolume(object):
     :ivar AttachedVolume volume: Volume to wait for.
     """
     def run(self, deployer):
-        return deployer.volume_service.wait_for_volume(self.volume.name)
+        return deployer.volume_service.wait_for_volume(
+            _to_volume_name(self.volume.name))
 
 
 @implementer(IStateChange)
@@ -209,7 +227,7 @@ class HandoffVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.handoff(service.get(self.volume.name),
+        return service.handoff(service.get(_to_volume_name(self.volume.name)),
                                RemoteVolumeManager(destination))
 
 
@@ -229,7 +247,7 @@ class PushVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.push(service.get(self.volume.name),
+        return service.push(service.get(_to_volume_name(self.volume.name)),
                             RemoteVolumeManager(destination))
 
 
@@ -284,9 +302,12 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
+        # Add real namespace support in
+        # https://github.com/ClusterHQ/flocker/issues/737; for now we just
+        # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
-            volume.name for volume in volumes
+            volume.name.id for volume in volumes
             if volume.uuid == self.volume_service.uuid))
         d = gatherResults([self.docker_client.list(), volumes])
 
