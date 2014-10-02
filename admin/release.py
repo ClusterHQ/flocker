@@ -40,8 +40,8 @@ def make_rpm_version(flocker_version):
                 # Given pre or dev number X create a 0 prefixed, `.` separated
                 # string of version labels. E.g.
                 # 0.1.2pre2  becomes
-                # 0.1.2-0.2.pre
-                release = ['0', suffix_number, suffix]
+                # 0.1.2-0.pre.2
+                release = ['0', suffix, suffix_number]
             else:
                 # Non-integer pre or dev number found.
                 raise Exception(
