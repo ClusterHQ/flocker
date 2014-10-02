@@ -12,7 +12,7 @@ from twisted.internet.task import Clock
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH
+from ..service import VolumeService, Volume, DEFAULT_CONFIG_PATH, VolumeName
 from ..filesystems.zfs import Snapshot
 from ..filesystems.memory import FilesystemStoragePool
 from .._ipc import (
@@ -21,6 +21,9 @@ from .._ipc import (
 from ..testtools import ServicePair
 from ...common import FakeNode
 from ...common._ipc import ProcessNode
+
+
+MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvol")
 
 
 def make_iremote_volume_manager(fixture):
@@ -47,7 +50,7 @@ def make_iremote_volume_manager(fixture):
             list of snapshots is returned.
             """
             service_pair = fixture(self)
-            creating = service_pair.from_service.create(u"newvolume")
+            creating = service_pair.from_service.create(MY_VOLUME)
 
             def created(volume):
                 return service_pair.remote.snapshots(volume)
@@ -64,7 +67,7 @@ def make_iremote_volume_manager(fixture):
             swallowed.
             """
             service_pair = fixture(self)
-            created = service_pair.from_service.create(u"newvolume")
+            created = service_pair.from_service.create(MY_VOLUME)
 
             def got_volume(volume):
                 with service_pair.remote.receive(volume):
@@ -77,7 +80,7 @@ def make_iremote_volume_manager(fixture):
             ``receive`` creates a volume.
             """
             service_pair = fixture(self)
-            created = service_pair.from_service.create(u"thevolume")
+            created = service_pair.from_service.create(MY_VOLUME)
 
             def do_push(volume):
                 with volume.get_filesystem().reader() as reader:
@@ -87,7 +90,7 @@ def make_iremote_volume_manager(fixture):
 
             def pushed(_):
                 to_volume = Volume(uuid=service_pair.from_service.uuid,
-                                   name=u"thevolume",
+                                   name=MY_VOLUME,
                                    service=service_pair.to_service)
                 d = service_pair.to_service.enumerate()
 
@@ -102,7 +105,7 @@ def make_iremote_volume_manager(fixture):
         def test_creates_files(self):
             """``receive`` recreates files pushed from origin."""
             service_pair = fixture(self)
-            created = service_pair.from_service.create(u"thevolume")
+            created = service_pair.from_service.create(MY_VOLUME)
 
             def do_push(volume):
                 root = volume.get_filesystem().get_path()
@@ -115,7 +118,7 @@ def make_iremote_volume_manager(fixture):
 
             def pushed(_):
                 to_volume = Volume(uuid=service_pair.from_service.uuid,
-                                   name=u"thevolume",
+                                   name=MY_VOLUME,
                                    service=service_pair.to_service)
                 root = to_volume.get_filesystem().get_path()
                 self.assertEqual(root.child(b"afile.txt").getContent(),
@@ -126,14 +129,14 @@ def make_iremote_volume_manager(fixture):
 
         def remotely_owned_volume(self, service_pair):
             """
-            Create a volume ``u"myvolume"`` on the origin service and a copy
+            Create a volume ``MY_VOLUME`` on the origin service and a copy
             that is pushed to the destination service.
 
             :param ServicePair service_pair: The service pair.
 
             :return: The ``Volume`` instance on the origin service.
             """
-            created = service_pair.from_service.create(u"myvolume")
+            created = service_pair.from_service.create(MY_VOLUME)
 
             def got_volume(volume):
                 pushing = service_pair.from_service.push(
@@ -243,7 +246,7 @@ class LocalVolumeManagerInterfaceTests(
         ``[]`` because ``DirectoryFilesystem`` does not support snapshots.
         """
         pair = create_local_servicepair(self)
-        volume = self.successResultOf(pair.from_service.create(u"myvolume"))
+        volume = self.successResultOf(pair.from_service.create(MY_VOLUME))
         self.assertEqual(
             [], self.successResultOf(pair.remote.snapshots(volume)))
 
@@ -257,7 +260,7 @@ class RemoteVolumeManagerTests(TestCase):
         self.service = VolumeService(
             FilePath(self.mktemp()), self.pool, reactor=Clock())
         self.service.startService()
-        self.volume = self.successResultOf(self.service.create(u"myvolume"))
+        self.volume = self.successResultOf(self.service.create(MY_VOLUME))
 
     def test_snapshots_destination_run(self):
         """
@@ -271,7 +274,7 @@ class RemoteVolumeManagerTests(TestCase):
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
                           b"snapshots", self.volume.uuid.encode("ascii"),
-                          b"myvolume"])
+                          b"myns.myvol"])
         self.assertEqual(
             [Snapshot(name="abc"), Snapshot(name="def")], snapshots)
 
@@ -287,7 +290,7 @@ class RemoteVolumeManagerTests(TestCase):
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
                           b"receive", self.volume.uuid.encode("ascii"),
-                          b"myvolume"])
+                          b"myns.myvol"])
 
     def test_receive_default_config(self):
         """
@@ -303,7 +306,7 @@ class RemoteVolumeManagerTests(TestCase):
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
                           b"receive", self.volume.uuid.encode("ascii"),
-                          b"myvolume"])
+                          b"myns.myvol"])
 
     def test_acquire_destination_run(self):
         """
@@ -318,7 +321,7 @@ class RemoteVolumeManagerTests(TestCase):
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
                           b"acquire", self.volume.uuid.encode("ascii"),
-                          b"myvolume"])
+                          b"myns.myvol"])
 
 
 class StandardNodeTests(TestCase):
