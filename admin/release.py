@@ -82,8 +82,8 @@ def build_package():
       * And rather than being responsible only for the security of Flocker, we become responsible for the security of all other packages that depend on that package.
     * Packages will be larger
 
-    Issue: Automatic RPM build (1d):
-    Build a sumo RPM
+    Issue: Build a sumo RPM package (1d):
+
     * create a temporary working dir
     * create virtualenv
     * install flocker from wheel file (which will include all the dependencies)
