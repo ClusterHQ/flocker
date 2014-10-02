@@ -84,11 +84,11 @@ def build_package():
 
     Issue: Build a sumo RPM package (1d):
 
-    * create a temporary working dir
-    * create virtualenv
-    * install flocker from wheel file (which will include all the dependencies)
-    * generate a version number
-    * run fpm supplying the virtualenv path and version number
+    * Create a temporary working dir
+    * Create virtualenv
+    * Install flocker from wheel file (which will include all the dependencies)
+    * Generate a version number
+    * Run `fpm` supplying the virtualenv path and version number
 
     Issue: Faster RPM repo update (1d):
     Avoid having to download all the existing RPMs when regnerating repo metadata.
