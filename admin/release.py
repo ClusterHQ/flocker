@@ -73,14 +73,14 @@ def make_rpm_version(flocker_version):
 def build_package():
     """
     Motivation:
-    * We depend on libraries which are not packaged for the target OS
-    * We depend on newer versions of libraries which have not yet been included in the target OS
+    * We depend on libraries which are not packaged for the target OS.
+    * We depend on newer versions of libraries which have not yet been included in the target OS.
 
     Disadvantages:
-    * We won't be able to take advantage of library security updates shipped by the target OS
-      * But by shipping our own separate dependency packages we will need to be responsible for shipping security patches in those packages
+    * We won't be able to take advantage of library security updates shipped by the target OS.
+      * But by shipping our own separate dependency packages we will need to be responsible for shipping security patches in those packages.
       * And rather than being responsible only for the security of Flocker, we become responsible for the security of all other packages that depend on that package.
-    * Packages will be larger
+    * Packages will be larger.
 
     Issue: Build a sumo RPM package (1d):
     * Update all pinned dependencies to instead be minimum dependencies.
@@ -90,9 +90,9 @@ def build_package():
     * Create a temporary working dir
     * Create virtualenv with `--system-site-packages`
       * Allows certain python libraries to be supplied by the operating system.
-    * Install flocker from wheel file (which will include all the dependencies)
-    * Generate a version number
-    * Run `fpm` supplying the virtualenv path and version number
+    * Install flocker from wheel file (which will include all the dependencies).
+    * Generate a version number.
+    * Run `fpm` supplying the virtualenv path and version number.
 
     Issue: Faster RPM repo update (1d):
     Avoid having to download all the existing RPMs when regnerating repo metadata.
