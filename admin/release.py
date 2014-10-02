@@ -82,12 +82,8 @@ def build_package():
       * And rather than being responsible only for the security of Flocker, we become responsible for the security of all other packages that depend on that package.
     * Packages will be larger.
 
-    Issue: Build a sumo RPM package (1d):
-    * Update all pinned dependencies to instead be minimum dependencies.
-      * This means that as and when sufficiently new versions of our dependencies are introduced upstream, we can remove them from our sumo build.
-      * Those dependencies which are either too old or which are not packaged will be imported from the sumo virtualenv in preference.
-      * Eventually we hope that all our dependencies will filter upstream and we will no longer have to bundle them; at which point the `flocker` package itself may be ready to be packaged by upstream distributions.
-    * Create a temporary working dir
+    Plan:
+    * Create a temporary working dir.
     * Create virtualenv with `--system-site-packages`
       * Allows certain python libraries to be supplied by the operating system.
     * Install flocker from wheel file (which will include all the dependencies).
@@ -95,14 +91,15 @@ def build_package():
     * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
-    Ticket refs:
-     * https://github.com/ClusterHQ/flocker/issues/88
 
-    Issue: Gentoo ebuild:
-    * Build gentoo packages
-    * create a Gentoo repo
-    * Ask ryao how this can be extended to gentoo / coreos package management. http://wiki.gentoo.org/wiki/Why_not_bundle_dependencies
-    * Write a plan
+    Followup Issues:
+    * Update all pinned dependencies to instead be minimum dependencies.
+      * This means that as and when sufficiently new versions of our dependencies are introduced upstream, we can remove them from our sumo build.
+      * Those dependencies which are either too old or which are not packaged will be imported from the sumo virtualenv in preference.
+      * Eventually we hope that all our dependencies will filter upstream and we will no longer have to bundle them; at which point the `flocker` package itself may be ready to be packaged by upstream distributions.
+
+    Ticket refs:
+         * https://github.com/ClusterHQ/flocker/issues/88
 
     Issue: CI integration (??):
     Update buildbot to build RPMs using new build scripts
