@@ -98,8 +98,9 @@ def build_package():
     Ticket refs:
      * https://github.com/ClusterHQ/flocker/issues/88
 
-    Issue: Gentoo / CoreOS build (??):
-    Build gentoo packages and create a Gentoo repo
+    Issue: Gentoo ebuild:
+    * Build gentoo packages
+    * create a Gentoo repo
     * Ask ryao how this can be extended to gentoo / coreos package management. http://wiki.gentoo.org/wiki/Why_not_bundle_dependencies
     * Write a plan
 
