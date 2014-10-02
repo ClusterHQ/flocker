@@ -6,7 +6,7 @@ Tests for ``flocker.common._release``.
 
 from unittest import TestCase
 
-from .. import rpm_version, make_rpm_version
+from ..release import rpm_version, make_rpm_version
 
 
 class MakeRpmVersionTests(TestCase):
@@ -21,12 +21,12 @@ class MakeRpmVersionTests(TestCase):
         expected = {
             '0.1.0': rpm_version('0.1.0', '1'),
             '0.1.0-99-g3d644b1': rpm_version('0.1.0', '1.99.g3d644b1'),
-            '0.1.1pre1': rpm_version('0.1.1', '0.1.pre'),
+            '0.1.1pre1': rpm_version('0.1.1', '0.pre.1'),
             '0.1.1': rpm_version('0.1.1', '1'),
-            '0.2.0dev1': rpm_version('0.2.0', '0.1.dev'),
-            '0.2.0dev2-99-g3d644b1': rpm_version('0.2.0', '0.2.dev.99.g3d644b1'),
+            '0.2.0dev1': rpm_version('0.2.0', '0.dev.1'),
+            '0.2.0dev2-99-g3d644b1': rpm_version('0.2.0', '0.dev.2.99.g3d644b1'),
             '0.2.0dev3-100-g3d644b2-dirty': rpm_version(
-                '0.2.0', '0.3.dev.100.g3d644b2.dirty'),
+                '0.2.0', '0.dev.3.100.g3d644b2.dirty'),
         }
         unexpected_results = []
         for supplied_version, expected_rpm_version in expected.items():
