@@ -66,3 +66,56 @@ def make_rpm_version(flocker_version):
         release.extend(remainder)
 
     return rpm_version(version, '.'.join(release))
+
+
+def build_rpm():
+    """
+    Why:
+    * We depend on libraries which are not packaged for the target OS
+    * We depend on newer versions of libraries which have not yet been included in the target OS
+
+    Disadvantages:
+    * We won't be able to take advantage of library security updates shipped by the target OS
+    * Packages will be larger
+
+    Automatic RPM build:
+    * create a temporary working dir
+    * create virtualenv
+    * install flocker from wheel file (which will include all the dependencies)
+    * generate a version number
+    * run fpm supplying the virtualenv path and version number
+
+    Faster RPM repo update (change
+    * investigate `prm` for repo management
+    * upload the RPM to our repo
+    * regenerate the RPM repo
+
+    Automatic DEB build:
+    * write a function for debian compatible version numbers
+    * run fpm to build a deb package
+
+    DEB repo:
+    * upload the deb to our repo
+    * regenerate the deb repo
+
+    Gentoo / CoreOS build:
+    * Ask ryao how this can be extended to gentoo / coreos package management. http://wiki.gentoo.org/wiki/Why_not_bundle_dependencies
+
+    CI integration:
+    * automate via buildbot
+    * create deb build slave
+    * install from resulting package from repo and run test suite
+
+    Client package build:
+    * Discuss sumo packaging of flocker-deploy
+    * For deb, RPM, and mac (via homebrew or ...)
+    * Proper mac packages. See http://stackoverflow.com/questions/11487596/making-os-x-installer-packages-like-a-pro-xcode4-developer-id-mountain-lion-re
+
+    Misc:
+    * separate stable and testing repos for deb and rpm
+    * update python-flocker.spec.in requirements (remove most of them)
+    * maybe even remove the spec file template and generate_spec function entirely (do we need it?)
+    * do we still need to build an SRPM?
+    * automatically build a wheel
+    * automatically build an sdist
+    """
