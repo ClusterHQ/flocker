@@ -83,9 +83,12 @@ def build_package():
     * Packages will be larger
 
     Issue: Build a sumo RPM package (1d):
-
+    * Update all pinned dependencies to instead be minimum dependencies.
+      * This means that as and when sufficiently new versions of our dependencies are introduced upstream, we can remove them from our sumo build.
+      * Those dependencies which are either too old or which are not packaged will be imported from the sumo virtualenv in preference.
     * Create a temporary working dir
-    * Create virtualenv
+    * Create virtualenv with `--system-site-packages`
+      * Allows certain python libraries to be supplied by the operating system.
     * Install flocker from wheel file (which will include all the dependencies)
     * Generate a version number
     * Run `fpm` supplying the virtualenv path and version number
