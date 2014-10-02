@@ -16,7 +16,7 @@ versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
 
-from admin import make_rpm_version
+from admin.release import make_rpm_version
 
 class cmd_generate_spec(Command):
     description = "Generate python-flocker.spec with current version."
@@ -119,7 +119,7 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.4.0"
+        "docker-py == 0.5.0"
         ],
 
     extras_require={

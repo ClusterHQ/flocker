@@ -12,6 +12,7 @@ import types
 
 from twisted.python.filepath import FilePath
 
+from yaml import safe_dump
 from zope.interface import Interface, implementer
 
 from ._model import (
@@ -85,6 +86,133 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+class ApplicationMarshaller(object):
+    """
+    Convert ``Application`` instances or their properties to a ``dict``
+    representation that matches the format of Flocker's YAML application
+    configuration language.
+    """
+    _application = None
+
+    def __init__(self, application):
+        """
+        Initialise the marshaller for a single application.
+
+        :param application: An ``Application`` instance.
+        """
+        self._application = application
+
+    def convert(self):
+        """
+        Convert all the properties of an ``Application`` instance to a
+        ``dict`` representing a single application entry in Flocker's
+        application configuration YAML format.
+
+        :returns: A ``dict`` containing the application's converted properties.
+        """
+        config = dict()
+        image = self.convert_image()
+        if image:
+            config['image'] = image
+        ports = self.convert_ports()
+        if ports:
+            config['ports'] = ports
+        links = self.convert_links()
+        if links:
+            config['links'] = links
+        environment = self.convert_environment()
+        if environment:
+            config['environment'] = environment
+        volume = self.convert_volume()
+        if volume:
+            config['volume'] = volume
+        return config
+
+    def convert_image(self):
+        """
+        Return the ``Application`` image name and tag.
+        :returns: ``unicode`` representing the image name and tag or ``None``
+            if the image is unknown (``None`` or not a ``DockerImage``).
+        """
+        if isinstance(self._application.image, DockerImage):
+            return ':'.join(
+                [self._application.image.repository,
+                 self._application.image.tag]
+            )
+        return None
+
+    def convert_ports(self):
+        """
+        Parse an ``Application`` instance for its ports and return
+        a ``list`` representing the Flocker-format YAML configuration
+        for those ports.
+        """
+        ports = []
+        for port in self._application.ports:
+            ports.append(dict(
+                internal=port.internal_port,
+                external=port.external_port
+            ))
+        return sorted(ports)
+
+    def convert_environment(self):
+        """
+        Parse an ``Application`` instance for its environment variables and
+        return a ``dict`` representing the Flocker-format YAML configuration
+        for those variables.
+        """
+        if self._application.environment:
+            return dict(self._application.environment)
+        return dict()
+
+    def convert_links(self):
+        """
+        Parse an ``Application`` instance for its links and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for those links.
+        """
+        links = []
+        for link in self._application.links:
+            links.append(dict(
+                local_port=link.local_port,
+                remote_port=link.remote_port,
+                alias=link.alias
+            ))
+        return sorted(links)
+
+    def convert_volume(self):
+        """
+        Parse an ``Application`` instance for its volume and return
+        a ``dict`` representing the Flocker-format YAML configuration
+        for the volume, or ``None`` if no volume is set for the application.
+
+        NOTE: We only support one volume per conainer for now, this
+        logic will need refactoring in future if this changes.
+        """
+        if self._application.volume:
+            return {u'mountpoint': self._application.volume.mountpoint.path}
+        return None
+
+
+def applications_to_flocker_yaml(applications):
+    """
+    Converts a ``dict`` of ``Application`` instances to Flocker's
+    application configuration YAML.
+
+    :param applications: A ``dict`` mapping application names to
+        ``Application`` instances.
+
+    :returns: ``unicode`` representation of a complete Flocker
+        application configuration YAML.
+    """
+    config = {'version': 1, 'applications': dict()}
+    for application_name, application in applications.items():
+        converter = ApplicationMarshaller(application)
+        value = converter.convert()
+        config['applications'][application_name] = value
+    return safe_dump(config)
 
 
 @implementer(IApplicationConfiguration)
@@ -934,32 +1062,23 @@ def marshal_configuration(state):
     """
     result = {}
     for application in state.running + state.not_running:
+        converter = ApplicationMarshaller(application)
+
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
+        # When 207 is complete, use ``converter.convert_image``
         result[application.name] = {"image": "unknown"}
 
-        ports = []
-        for port in application.ports:
-            ports.append(
-                {'internal': port.internal_port,
-                 'external': port.external_port}
-            )
-        result[application.name]["ports"] = ports
+        result[application.name]["ports"] = converter.convert_ports()
 
         if application.links:
-            links = []
-            for link in application.links:
-                links.append({
-                    'local_port': link.local_port,
-                    'remote_port': link.remote_port,
-                    'alias': link.alias,
-                    })
-            result[application.name]["links"] = links
+            result[application.name]["links"] = converter.convert_links()
 
         if application.volume:
             # Until multiple volumes are supported, assume volume name
             # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
+            # When 49 is complete, use ``converter.convert_volume``
             result[application.name]["volume"] = {
                 "mountpoint": None,
             }

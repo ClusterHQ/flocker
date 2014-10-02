@@ -2,8 +2,9 @@
 
 """
 Admin scripts and modules which should not be shipped with Flocker.
+
+Since :module:`admin.release` is imported from setup.py, we need to ensure that
+this only imports things from the stdlib.
 """
 
-from ._release import make_rpm_version, rpm_version
 
-__all__ = ['make_rpm_version', 'rpm_version']
