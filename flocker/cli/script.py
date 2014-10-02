@@ -21,7 +21,8 @@ from characteristic import attributes
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
 from ..node import (FlockerConfiguration, ConfigurationError,
-                    FigConfiguration, model_from_configuration)
+                    FigConfiguration, applications_to_flocker_yaml,
+                    model_from_configuration)
 
 from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration
@@ -92,6 +93,9 @@ class DeployOptions(Options):
             fig_configuration = FigConfiguration(app_config_obj)
             if fig_configuration.is_valid_format():
                 applications = fig_configuration.applications()
+                self['application_config'] = (
+                    applications_to_flocker_yaml(applications)
+                )
             else:
                 configuration = FlockerConfiguration(app_config_obj)
                 if configuration.is_valid_format():
