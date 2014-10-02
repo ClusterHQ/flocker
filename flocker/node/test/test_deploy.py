@@ -13,19 +13,20 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
-from .. import (Deployer, Application, DockerImage, Deployment, Node,
-                Port, Link, NodeState)
+from .. import (
+    Deployer, Application, DockerImage, Deployment, Node, Port, Link,
+    NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
-    _link_environment)
+    _link_environment, _to_volume_name)
 from .._model import AttachedVolume
-from ..gear import (
-    FakeDockerClient, AlreadyExists, Unit, PortMap, GearEnvironment)
-from .._docker import DockerClient
+from .._docker import (
+    FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
+    DockerClient)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
-from ...volume.service import Volume
+from ...volume.service import Volume, VolumeName
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
@@ -401,14 +402,15 @@ class StartApplicationTests(SynchronousTestCase):
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
-        self.assertEqual(exposed, [(volume_service.get(u"site-example.com"),
-                                    FilePath(b"/var"), False)])
+        self.assertEqual(
+            exposed,
+            [(volume_service.get(_to_volume_name(u"site-example.com")),
+              FilePath(b"/var"), False)])
 
-    def test_environment_supplied_to_gear(self):
+    def test_environment_supplied_to_docker(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
-        application to ``DockerClient.add`` as a ``GearEnvironment`` instance
-        with an ``id`` matching the application name.
+        application to ``DockerClient.add`` as an ``Environment`` instance.
         """
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
@@ -427,8 +429,7 @@ class StartApplicationTests(SynchronousTestCase):
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
 
-        expected_environment = GearEnvironment(
-            id=application_name, variables=variables.copy())
+        expected_environment = Environment(variables=variables.copy())
 
         self.assertEqual(
             expected_environment,
@@ -437,7 +438,7 @@ class StartApplicationTests(SynchronousTestCase):
 
     def test_environment_not_supplied(self):
         """
-        ``StartApplication.run()`` only passes a a ``GearEnvironment`` instance
+        ``StartApplication.run()`` only passes an ``Environment`` instance
         if the application defines an environment.
         """
         volume_service = create_volume_service(self)
@@ -487,8 +488,7 @@ class StartApplicationTests(SynchronousTestCase):
             'ALIAS_PORT_80_TCP_PORT': '8080',
             'ALIAS_PORT_80_TCP_PROTO': 'tcp',
         }.iteritems())
-        expected_environment = GearEnvironment(
-            id=application_name, variables=variables.copy())
+        expected_environment = Environment(variables=variables.copy())
 
         self.assertEqual(
             expected_environment,
@@ -498,7 +498,7 @@ class StartApplicationTests(SynchronousTestCase):
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
-    Tets for ``_link_environment``.
+    Tests for ``_link_environment``.
     """
 
     def test_link_environment(self):
@@ -532,7 +532,7 @@ class StopApplicationTests(SynchronousTestCase):
     def test_stop(self):
         """
         ``StopApplication`` accepts an application object and when ``run()``
-        is called returns a ``Deferred`` which fires when the gear unit
+        is called returns a ``Deferred`` which fires when the container
         has been removed.
         """
         fake_docker = FakeDockerClient()
@@ -610,8 +610,10 @@ class StopApplicationTests(SynchronousTestCase):
                                               ).run(deployer))
         self.successResultOf(StopApplication(application=application).run(
             deployer))
-        self.assertEqual(removed, [(volume_service.get(u"site-example.com"),
-                                    False)])
+        self.assertEqual(
+            removed,
+            [(volume_service.get(_to_volume_name(u"site-example.com")),
+              False)])
 
 
 # This models an application that has a volume.
@@ -651,13 +653,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Deployer.discover_node_configuration``.
     """
+    def setUp(self):
+        self.volume_service = create_volume_service(self)
+        self.network = make_memory_network()
+
     def test_discover_none(self):
         """
         ``Deployer.discover_node_configuration`` returns an empty
-        ``NodeState`` if there are no `geard` units on the host.
+        ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[], not_running=[]),
@@ -666,14 +676,19 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_one(self):
         """
         ``Deployer.discover_node_configuration`` returns ``NodeState`` with a
-        a list of running ``Application``\ s; one for each active `gear`
-        unit.
+        a list of running ``Application``\ s; one for each active container.
         """
         expected_application_name = u'site-example.com'
-        unit = Unit(name=expected_application_name, activation_state=u'active')
+        unit = Unit(name=expected_application_name,
+                    container_name=expected_application_name,
+                    activation_state=u'active')
         fake_docker = FakeDockerClient(units={expected_application_name: unit})
         application = Application(name=unit.name)
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(NodeState(running=[application], not_running=[]),
@@ -682,16 +697,23 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_multiple(self):
         """
         ``Deployer.discover_node_configuration`` returns a ``NodeState`` with
-        a running ``Application`` for every active or activating gear
-        ``Unit`` on the host.
+        a running ``Application`` for every active container on the host.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'activating')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -702,13 +724,18 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Locally owned volumes are added to ``Application`` with same name as
         an ``AttachedVolume``.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'active')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
-        volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(u"site-example.com"))
-        self.successResultOf(volume_service.create(u"site-example.net"))
+        self.successResultOf(self.volume_service.create(
+            _to_volume_name(u"site-example.com")))
+        self.successResultOf(self.volume_service.create(
+            _to_volume_name(u"site-example.net")))
 
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
         # is fixed the mountpoint should actually be specified.
@@ -717,7 +744,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                                     volume=AttachedVolume(name=unit.name,
                                                           mountpoint=None))
                         for unit in units.values()]
-        api = Deployer(volume_service, docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -728,60 +759,76 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Remotely owned volumes are not added to the discovered ``Application``
         instances even if they have the same name.
         """
-        unit = Unit(name=u'site-example.com', activation_state=u'active')
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    activation_state=u'active')
         units = {unit.name: unit}
 
-        volume_service = create_volume_service(self)
-        volume = Volume(uuid=unicode(uuid4()), name=u"site-example.com",
-                        service=volume_service)
+        volume = Volume(uuid=unicode(uuid4()),
+                        name=_to_volume_name(u"site-example.com"),
+                        service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name)]
-        api = Deployer(volume_service, docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
-    def test_discover_activating_units(self):
-        """
-        Units that are currently not active but are starting up are considered
-        to be running by ``discover_node_configuration()``.
-        """
-        unit = Unit(name=u'site-example.com', activation_state=u'activating')
-        units = {unit.name: unit}
-
-        fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name)]
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
-        d = api.discover_node_configuration()
-
-        self.assertEqual(NodeState(running=applications, not_running=[]),
-                         self.successResultOf(d))
-
     def test_not_running_units(self):
         """
-        Units that are neither active nor activating are considered to be not
-        running by ``discover_node_configuration()``.
+        Units that are not active are considered to be not running by
+        ``discover_node_configuration()``.
         """
-        unit1 = Unit(name=u'site-example.com',
-                     activation_state=u'deactivating')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'failed')
-        unit3 = Unit(name=u'site-example3.net', activation_state=u'inactive')
-        unit4 = Unit(name=u'site-example4.net', activation_state=u'madeup')
-        units = {unit1.name: unit1, unit2.name: unit2, unit3.name: unit3,
-                 unit4.name: unit4}
+        unit1 = Unit(name=u'site-example3.net',
+                     container_name=u'site-example3.net',
+                     activation_state=u'inactive')
+        unit2 = Unit(name=u'site-example4.net',
+                     container_name=u'site-example4.net',
+                     activation_state=u'madeup')
+        units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name) for unit in units.values()]
         applications.sort()
-        api = Deployer(create_volume_service(self), docker_client=fake_docker)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
         d = api.discover_node_configuration()
         result = self.successResultOf(d)
         result.not_running.sort()
 
         self.assertEqual(NodeState(running=[], not_running=applications),
                          result)
+
+    def test_discover_used_ports(self):
+        """
+        Any ports in use, as reported by the deployer's ``INetwork`` provider,
+        are reported in the ``used_ports`` attribute of the ``NodeState``
+        returned by ``discover_node_configuration``.
+        """
+        used_ports = frozenset([1, 3, 5, 1000])
+        api = Deployer(
+            create_volume_service(self),
+            docker_client=FakeDockerClient(),
+            network=make_memory_network(used_ports=used_ports)
+        )
+
+        discovering = api.discover_node_configuration()
+        state = self.successResultOf(discovering)
+
+        self.assertEqual(
+            NodeState(running=[], not_running=[], used_ports=used_ports),
+            state
+        )
+
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
@@ -869,7 +916,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ``Deployer.calculate_necessary_state_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
-        unit = Unit(name=u'site-example.com', activation_state=u'active')
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -948,7 +997,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         application must be started or stopped if the desired configuration
         is the same as the current configuration.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -981,7 +1032,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         applications on a node must be stopped if the desired configuration
         does not include that node.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name='mysql-hybridcluster',
+                    activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1108,7 +1161,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1168,7 +1223,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1211,7 +1268,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         Applications that are not running but are supposed to be on the local
         node are added to the list of applications to restart.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1244,7 +1303,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         Applications that are not running and are supposed to be on the local
         node are added to the list of applications to stop.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'inactive')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
@@ -1266,7 +1327,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         # The application is running here.
         unit = Unit(
-            name=APPLICATION_WITH_VOLUME_NAME, activation_state=u'active'
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1497,7 +1560,9 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         Existing applications which are not in the desired configuration are
         stopped.
         """
-        unit = Unit(name=u'mysql-hybridcluster', activation_state=u'active')
+        unit = Unit(name=u'mysql-hybridcluster',
+                    container_name=u'mysql-hybridcluster',
+                    activation_state=u'active')
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
                        network=make_memory_network())
@@ -1615,7 +1680,7 @@ class CreateVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         create.run(deployer)
         self.assertIn(
-            volume_service.get(u"myvol"),
+            volume_service.get(_to_volume_name(u"myvol")),
             list(self.successResultOf(volume_service.enumerate())))
 
     def test_return(self):
@@ -1630,7 +1695,8 @@ class CreateVolumeTests(SynchronousTestCase):
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var")))
         result = self.successResultOf(create.run(deployer))
-        self.assertEqual(result, deployer.volume_service.get(u"myvol"))
+        self.assertEqual(result, deployer.volume_service.get(
+            _to_volume_name(u"myvol")))
 
 
 class WaitForVolumeTests(SynchronousTestCase):
@@ -1654,7 +1720,8 @@ class WaitForVolumeTests(SynchronousTestCase):
             volume=AttachedVolume(name=u"myvol",
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
-        self.assertEqual(result, [u"myvol"])
+        self.assertEqual(result,
+                         [VolumeName(namespace=u"default", id=u"myvol")])
 
     def test_return(self):
         """
@@ -1701,7 +1768,7 @@ class HandoffVolumeTests(SynchronousTestCase):
         handoff.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(u"myvol"),
+            [volume_service.get(_to_volume_name(u"myvol")),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -1751,7 +1818,7 @@ class PushVolumeTests(SynchronousTestCase):
         push.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(u"myvol"),
+            [volume_service.get(_to_volume_name(u"myvol")),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):

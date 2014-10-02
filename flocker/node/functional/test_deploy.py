@@ -11,9 +11,11 @@ from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
+from .._deploy import _to_volume_name
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
-from ...testtools import random_name, DockerImageBuilder, assertContainsAll
+from ...testtools import (
+    random_name, DockerImageBuilder, assertContainsAll, loop_until)
 from ...volume.testtools import create_volume_service
 from ...route import make_memory_network
 
@@ -106,17 +108,16 @@ class DeployerTests(TestCase):
                      links=frozenset(),
                      )]))]))
 
+        volume = volume_service.get(_to_volume_name(application_name))
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(docker_client,
-                                                    application_name,
-                                                    [u'active']))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
         def started(_):
-            volume = volume_service.get(application_name)
-            path = volume.get_filesystem().get_path()
-            contents = path.child(b'env').getContent()
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,
@@ -169,17 +170,16 @@ class DeployerTests(TestCase):
                          ),
                      )]))]))
 
+        volume = volume_service.get(_to_volume_name(application_name))
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: wait_for_unit_state(docker_client,
-                                                    application_name,
-                                                    [u'active']))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
         def started(_):
-            volume = volume_service.get(application_name)
-            path = volume.get_filesystem().get_path()
-            contents = path.child(b'env').getContent()
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,

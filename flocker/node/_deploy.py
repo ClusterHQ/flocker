@@ -11,26 +11,29 @@ from characteristic import attributes
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
-from .gear import PortMap, GearEnvironment
-from ._docker import DockerClient
+from ._docker import DockerClient, PortMap, Environment
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
+    NodeState,
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
 
-@attributes(["running", "not_running"])
-class NodeState(object):
+def _to_volume_name(name):
     """
-    The current state of a node.
+    Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
-    :ivar running: A ``list`` of ``Application`` instances on this node
-        that are currently running or starting up.
-    :ivar not_running: A ``list`` of ``Application`` instances on this
-        node that are currently shutting down or stopped.
+    To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
+    real namespace support.
+
+    :param unicode name: Volume name.
+
+    :return: ``VolumeName`` with default namespace.
     """
+    return VolumeName(namespace=u"default", id=name)
 
 
 class IStateChange(Interface):
@@ -89,7 +92,7 @@ class InParallel(object):
 @attributes(["application", "hostname"])
 class StartApplication(object):
     """
-    Launch the supplied application as a gear unit.
+    Launch the supplied application as a container.
 
     :ivar Application application: The ``Application`` to create and
         start.
@@ -99,7 +102,8 @@ class StartApplication(object):
     def run(self, deployer):
         application = self.application
         if application.volume is not None:
-            volume = deployer.volume_service.get(application.volume.name)
+            volume = deployer.volume_service.get(
+                _to_volume_name(application.volume.name))
             d = volume.expose_to_docker(application.volume.mountpoint)
         else:
             d = succeed(None)
@@ -126,17 +130,16 @@ class StartApplication(object):
             environment.update(application.environment)
 
         if environment:
-            gear_environment = GearEnvironment(
-                id=application.name,
+            docker_environment = Environment(
                 variables=frozenset(environment.iteritems()))
         else:
-            gear_environment = None
+            docker_environment = None
 
         d.addCallback(lambda _: deployer.docker_client.add(
             application.name,
             application.image.full_name,
             ports=port_maps,
-            environment=gear_environment
+            environment=docker_environment
         ))
         return d
 
@@ -181,7 +184,8 @@ class StopApplication(object):
 
         def unit_removed(_):
             if application.volume is not None:
-                volume = deployer.volume_service.get(application.volume.name)
+                volume = deployer.volume_service.get(
+                    _to_volume_name(application.volume.name))
                 return volume.remove_from_docker()
         result.addCallback(unit_removed)
         return result
@@ -196,7 +200,8 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        return deployer.volume_service.create(self.volume.name)
+        return deployer.volume_service.create(
+            _to_volume_name(self.volume.name))
 
 
 @implementer(IStateChange)
@@ -208,7 +213,8 @@ class WaitForVolume(object):
     :ivar AttachedVolume volume: Volume to wait for.
     """
     def run(self, deployer):
-        return deployer.volume_service.wait_for_volume(self.volume.name)
+        return deployer.volume_service.wait_for_volume(
+            _to_volume_name(self.volume.name))
 
 
 @implementer(IStateChange)
@@ -227,7 +233,7 @@ class HandoffVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.handoff(service.get(self.volume.name),
+        return service.handoff(service.get(_to_volume_name(self.volume.name)),
                                RemoteVolumeManager(destination))
 
 
@@ -247,7 +253,7 @@ class PushVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.push(service.get(self.volume.name),
+        return service.push(service.get(_to_volume_name(self.volume.name)),
                             RemoteVolumeManager(destination))
 
 
@@ -281,7 +287,7 @@ class Deployer(object):
     Start and stop applications.
 
     :ivar VolumeService volume_service: The volume manager for this node.
-    :ivar IDockerClient docker_client: The gear client API to use in
+    :ivar IDockerClient docker_client: The Docker client API to use in
         deployment operations. Default ``DockerClient``.
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
@@ -302,9 +308,12 @@ class Deployer(object):
         :returns: A ``Deferred`` which fires with a ``NodeState``
             instance.
         """
+        # Add real namespace support in
+        # https://github.com/ClusterHQ/flocker/issues/737; for now we just
+        # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
         volumes.addCallback(lambda volumes: set(
-            volume.name for volume in volumes
+            volume.name.id for volume in volumes
             if volume.uuid == self.volume_service.uuid))
         d = gatherResults([self.docker_client.list(), volumes])
 
@@ -326,11 +335,15 @@ class Deployer(object):
                     volume = None
                 application = Application(name=unit.name,
                                           volume=volume)
-                if unit.activation_state in (u"active", u"activating"):
+                if unit.activation_state == u"active":
                     running.append(application)
                 else:
                     not_running.append(application)
-            return NodeState(running=running, not_running=not_running)
+            return NodeState(
+                running=running,
+                not_running=not_running,
+                used_ports=self.network.enumerate_used_ports()
+            )
         d.addCallback(applications_from_units)
         return d
 

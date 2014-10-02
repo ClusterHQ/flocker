@@ -6,23 +6,682 @@ Tests for ``flocker.node._config``.
 
 from __future__ import unicode_literals, absolute_import
 
-from yaml import safe_load
-
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
 from .._config import (
-    ConfigurationError, Configuration, configuration_to_yaml,
-    current_from_configuration,
-    )
+    ConfigurationError, FlockerConfiguration, marshal_configuration,
+    current_from_configuration, deployment_from_configuration,
+    model_from_configuration, FigConfiguration,
+)
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
+    NodeState,
 )
 
 
-class ApplicationsFromConfigurationTests(SynchronousTestCase):
+class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._applications_from_configuration``.
     """
+    def test_valid_fig_config_detected_on_image(self):
+        """
+        A top-level dictionary with any arbitrary key containing another
+        dictionary with an "image" key is detected as a valid fig format.
+
+        Note that "valid fig-format" does not necessarily translate to
+        "valid configuration", it just means that the suppled configuration
+        will be treated and parsed as fig-format rather than flocker-format.
+
+        A valid fig-style configuration is defined as:
+        Overall application configuration is of type dictionary, containing
+        one or more keys which each contain a further dictionary, which
+        contain exactly one "image" key or "build" key and does not contain
+        any invalid keys.
+        """
+        config = {
+            'postgres':
+                {'image': 'sample/postgres'}
+        }
+        parser = FigConfiguration(config)
+        self.assertTrue(parser.is_valid_format())
+
+    def test_valid_fig_config_detected_on_build(self):
+        """
+        A top-level dictionary with any arbitrary key containing another
+        dictionary with a "build" key is detected as a valid fig format.
+        """
+        config = {
+            'postgres':
+                {'build': '.'}
+        }
+        parser = FigConfiguration(config)
+        self.assertTrue(parser.is_valid_format())
+
+    def test_dict_of_applications_from_fig(self):
+        """
+        ``Configuration.applications_from_configuration`` returns a
+        ``dict`` of ``Application`` instances, one for each application key
+        in the supplied configuration.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'links': ['mysql:db'],
+            },
+            'mysql': {
+                'image': 'sample/mysql',
+                'ports': ['3306:3306', '3307:3307'],
+            }
+        }
+        expected_applications = {
+            'wordpress': Application(
+                name='wordpress',
+                image=DockerImage(repository='sample/wordpress', tag='latest'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)]),
+                links=frozenset([Link(local_port=3306, remote_port=3306,
+                                      alias=u'db'),
+                                 Link(local_port=3307, remote_port=3307,
+                                      alias=u'db')]),
+                environment=frozenset(
+                    config['wordpress']['environment'].items()
+                ),
+                volume=AttachedVolume(
+                    name='wordpress',
+                    mountpoint=FilePath(b'/var/www/wordpress'))),
+            'mysql': Application(
+                name='mysql',
+                image=DockerImage(repository='sample/mysql', tag='latest'),
+                ports=frozenset([Port(internal_port=3306,
+                                      external_port=3306),
+                                 Port(internal_port=3307,
+                                      external_port=3307)]),
+                environment=None,
+                links=frozenset(),
+                volume=None),
+        }
+        parser = FigConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(expected_applications, applications)
+
+    def test_valid_fig_config_environment(self):
+        """
+        ``FigConfiguration._parse_app_environment`` returns a ``frozenset``
+        of environment variable name/value pairs given a valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                }
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = frozenset(
+            config['postgres']['environment'].items()
+        )
+        environment = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        self.assertEqual(expected_result, environment)
+
+    def test_valid_fig_config_volumes(self):
+        """
+        ``FigConfiguration._parse_app_volumes`` returns a ``AttachedVolume``
+        instance containing the volume mountpoint given a valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = AttachedVolume(
+            name='postgres',
+            mountpoint=FilePath(b'/var/db/data')
+        )
+        volume = parser._parse_app_volumes(
+            'postgres',
+            config['postgres']['volumes']
+        )
+        self.assertEqual(expected_result, volume)
+
+    def test_valid_fig_config_ports(self):
+        """
+        ``FigConfiguration._parse_app_ports`` returns a ``list``
+        of ``Port`` objects mapping internal and external ports, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'ports': [b'8080:80']
+            }
+        }
+        parser = FigConfiguration(config)
+        expected_result = [
+            Port(internal_port=80, external_port=8080)
+        ]
+        ports = parser._parse_app_ports(
+            'postgres',
+            config['postgres']['ports']
+        )
+        self.assertEqual(expected_result, ports)
+
+    def test_valid_fig_config_links(self):
+        """
+        ``FigConfiguration._parse_app_links`` creates a ``dict`` mapping
+        linked application names and aliases to each application, given a
+        valid configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'volumes': [b'/var/db/data']
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
+                'links': [b'postgres:db']
+            }
+        }
+        parser = FigConfiguration(config)
+        parser._application_links['wordpress'] = []
+        parser._parse_app_links(
+            'wordpress',
+            config['wordpress']['links']
+        )
+        expected_result = {
+            u'wordpress': [
+                {u'alias': u'db', u'target_application': u'postgres'},
+            ]
+        }
+        self.assertEqual(expected_result, parser._application_links)
+
+    def test_invalid_fig_config_image_and_build(self):
+        """
+        A fig-compatible application definition may not have both "image" and
+        "build" keys.
+        """
+        config = {
+            'postgres':
+                {'build': '.', 'image': 'sample/postgres'}
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.is_valid_format
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Must specify either 'build' or 'image'; found both."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_uses_build(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration uses the 'build' directive, which is not
+        yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'build': '.',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'build' is not supported yet; please specify 'image'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unsupported_keys(self):
+        """
+        An ``ConfigurationError`` exception is raised if a fig-compatible
+        application configuration contains keys for fig features that are
+        not yet supported by Flocker.
+        """
+        config = {
+            'postgres':
+                {
+                    'image': 'sample/postgres',
+                    'dns': '8.8.8.8',
+                    'expose': ['5432'],
+                    'entrypoint': '/entry.sh',
+                }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Unsupported fig keys found: dns, entrypoint, expose"
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_app_not_dict(self):
+        """
+        If the application config is not a dictionary, a
+        ``ConfigurationError`` is raised.
+        """
+        config = ['wordpress', {"image": "sample/wordpress"}]
+        exception = self.assertRaises(
+            ConfigurationError,
+            FigConfiguration,
+            config
+        )
+        error_message = ("Application configuration must be "
+                         "a dictionary, got list.")
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_value_not_dict(self):
+        """
+        If the application config is a fig-compatible dictionary with one or
+        more arbitrary keys (representing app labels) but the value of any key
+        is not itself a dictionary, a ``ConfigurationError`` is raised.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+            },
+            'wordpress': str("a string")
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must be dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_missing_image_or_build(self):
+        """
+        A single fig application configuration is not valid if it does not
+        contain exactly one of an "image" key.
+        If this is detected, ``ConfigurationError``        is raised.
+
+        This condition can occur if ``_is_fig_configuration`` has
+        detected a potentially valid fig-style configuration in that there
+        is at least one application that meets the requirement of having an
+        image or build key, but the overall configuration also contains
+        another application that does not have a required key.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+            },
+            'wordpress': {
+                'ports': ['8080:80'],
+                'volumes': ['/var/www/wordpress']
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Application configuration must contain either an "
+            "'image' or 'build' key."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unrecognised_key(self):
+        """
+        A single fig application configuration is not valid if it contains
+        any keys besides "image", "environment", "ports", "volumes" or
+        "links". If an invalid key is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080:80'],
+                'foo': 'bar',
+                'spam': 'eggs',
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "Unrecognised keys: foo, spam"
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "ports" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': str('8080:80'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_malformed_ports(self):
+        """
+        A single fig application config is not valid if the "ports" key
+        is present and the value is not a string in "host:container" format.
+        If an invalid ports config is detected, ``ConfigurationError``
+        is raised.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['8080,80'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' must be list of string values in the form of "
+            "'host_port:container_port'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_ports_not_integers(self):
+        """
+        A ``ConfigurationError`` is raised if the parsed "ports" string
+        in a fig application config is not a pair of integer values.
+        """
+        config = {
+            'wordpress': {
+                'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+                'volumes': ['/var/www/wordpress'],
+                'image': 'sample/wordpress',
+                'ports': ['foo:bar'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'wordpress' has a config error. "
+            "'ports' value 'foo:bar' could not be parsed "
+            "in to integer values."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "links" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/pgsql'],
+                'links': str('wordpress'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_links_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application
+        config's "links" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress', 100],
+            },
+            'wordpress': {
+                'image': 'sample/wordpress',
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' must be a list of application names with optional :alias."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_unknown_link(self):
+        """
+        A ``ConfigurationError`` is raised if in a fig application config, the
+        "links" key contains an application name that cannot be mapped to any
+        application present in the entire applications configuration.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'links' value 'wordpress' could not be mapped to any "
+            "application; application 'wordpress' does not exist."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_not_dict(self):
+        """
+        A ``ConfigurationError`` is raised if the "environments" key of a fig
+        application config is not a dictionary.
+        """
+        config = {
+            'postgres': {
+                'environment': str('PG_ROOT_PASSWORD=clusterhq'),
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' must be a dictionary; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_env_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "environment" dictionary
+        in a fig application config contains a key whose value is not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': ['a', 'b', 'c']},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' value for 'PG_ROOT_PASSWORD' must be a string; "
+            "got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_image_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if the "image" key
+        in a fig application config is a value not of
+        ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': ['clusterhq', 'postgres'],
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'image' must be a string; got type 'list'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_multiple_volumes(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        config is a list containing multiple entries. Only a maximum of
+        one volume per container is currently supported.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', '/var/www/data'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "Only one volume per application is supported at this time."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_list(self):
+        """
+        A ``ConfigurationError`` is raised if the "volumes" key of a fig
+        compatible application config is not a list.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': str('/var/lib/postgres'),
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'volumes' must be a list; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_volumes_not_stringtypes(self):
+        """
+        A ``ConfigurationError`` is raised if any value in a fig application's
+        "volumes" list is not of ``types.StringTypes``.
+        """
+        config = {
+            'postgres': {
+                'environment': {'PG_ROOT_PASSWORD': 'clusterhq'},
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres', 1000],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'volumes' values must be string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+
+class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
@@ -43,7 +702,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Environment variable 'MYSQL_PORT_3306_TCP' must be a string; "
             "got type 'int'.")
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -52,6 +711,37 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message,
             error_message
         )
+
+    def test_error_on_config_not_dict(self):
+        """
+        ``FlockerConfiguration.__init__`` raises a ``ConfigurationError``
+        if the supplied configuration is not a ``dict``.
+        """
+        config = b'a string'
+        e = self.assertRaises(ConfigurationError, FlockerConfiguration, config)
+        self.assertEqual(
+            e.message,
+            "Application configuration must be a dictionary, got str."
+        )
+
+    def test_not_valid_on_application_not_dict(self):
+        """
+        ``FlockerConfiguration.is_valid_format`` returns ``False`` if the
+        supplied configuration for a single application is not a ``dict``.
+        """
+        config = {'version': 1, 'applications': {'postgres': 'a string'}}
+        parser = FlockerConfiguration(config)
+        self.assertFalse(parser.is_valid_format())
+
+    def test_not_valid_on_application_missing_image(self):
+        """
+        ``FlockerConfiguration.is_valid_format`` returns ``False`` if the
+        supplied configuration for a single application does not contain the
+        required "image" key.
+        """
+        config = {'version': 1, 'applications': {'postgres': {'build': '.'}}}
+        parser = FlockerConfiguration(config)
+        self.assertFalse(parser.is_valid_format())
 
     def test_error_on_environment_var_name_not_stringtypes(self):
         """
@@ -72,7 +762,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Application 'mysql-hybridcluster' has a config error. "
             "Environment variable name must be a string; "
             "got type 'int'.")
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -94,7 +784,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'environment': 'foobar'
             }
         }
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_environment_config,
                                       'mysql-hybridcluster',
@@ -108,14 +798,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_application_key(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration does not
         contain an ``u"application"`` key.
         """
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      {})
+                                      parser.applications)
         self.assertEqual(
             "Application configuration has an error. "
             "Missing 'applications' key.",
@@ -124,15 +814,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_version_key(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration does not
         contain an ``u"version"`` key.
         """
         config = dict(applications={})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application configuration has an error. "
             "Missing 'version' key.",
@@ -141,14 +830,13 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_incorrect_version(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the version specified is not 1.
         """
         config = dict(applications={}, version=2)
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application configuration has an error. "
             "Incorrect version specified.",
@@ -157,24 +845,23 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_missing_application_attributes(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration does not
         contain all the attributes of an ``Application`` record.
         """
         config = dict(applications={'mysql-hybridcluster': {}}, version=1)
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Missing value for 'image'.",
+            "Missing 'image' key.",
             exception.message
         )
 
     def test_error_on_extra_application_attributes(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration contains
         unrecognised Application attribute names.
         """
@@ -183,10 +870,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(image='foo/bar:baz', foo='bar',
                                             baz='quux')})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Unrecognised keys: baz, foo.",
@@ -195,7 +881,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_invalid_dockerimage_name(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration uses invalid
         Docker image names.
         """
@@ -204,10 +890,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image=invalid_docker_image_name)})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid Docker image name. "
@@ -227,7 +912,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'image': 'flocker/mysql'
             }
         }
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         self.assertIsNone(parser._parse_environment_config(
             'mysql-hybridcluster',
             config
@@ -249,7 +934,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 },
             }
         }
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         environment_vars = parser._parse_environment_config(
             'site-hybridcluster', config['site-hybridcluster'])
         expected_result = frozenset({
@@ -260,7 +945,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_dict_of_applications(self):
         """
-        ``Configuration._applications_from_configuration`` returns a ``dict``
+        ``Configuration.applications`` returns a ``dict``
         of ``Application`` instances, one for each application key in the
         supplied configuration.
         """
@@ -281,8 +966,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 }
             }
         )
-        parser = Configuration()
-        applications = parser._applications_from_configuration(config)
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
@@ -310,10 +995,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_applications_hashable(self):
         """
         `Application` instances returned by
-        ``Configuration._applications_from_configuration`` are hashable
+        ``Configuration.applications`` are hashable
         and a `frozenset` of `Application` instances can be created.
         """
-        parser = Configuration()
         config = dict(
             version=1,
             applications={
@@ -334,7 +1018,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 }
             }
         )
-        applications = parser._applications_from_configuration(config)
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
@@ -365,7 +1050,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_ports_missing_internal(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a port
         entry that is missing the internal port.
         """
@@ -375,10 +1060,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 ports=[{'external': 90}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Missing internal port.",
@@ -387,7 +1071,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_ports_missing_external(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a port
         entry that is missing the internal port.
         """
@@ -397,10 +1081,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 ports=[{'internal': 90}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Missing external port.",
@@ -409,7 +1092,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_ports_extra_keys(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a port
         entry that has extra keys.
         """
@@ -420,10 +1103,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=[{'internal': 90, 'external': 40,
                         'foo': 5, 'bar': 'six'}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid ports specification. Unrecognised keys: bar, foo.",
@@ -432,7 +1114,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_links_missing_local_port(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a link
         entry that is missing the remote port.
         """
@@ -443,10 +1125,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'remote_port': 90,
                         'alias': 'mysql'}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid links specification. Missing local port.",
@@ -455,7 +1136,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_links_missing_remote_port(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a link
         entry that is missing the local port.
         """
@@ -466,10 +1147,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'local_port': 90,
                         'alias': 'mysql'}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid links specification. Missing remote port.",
@@ -478,7 +1158,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_links_missing_alias(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a link
         entry that is missing the alias.
         """
@@ -488,10 +1168,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 image='busybox',
                 links=[{'local_port': 90, 'remote_port': 100}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid links specification. Missing alias.",
@@ -500,7 +1179,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_links_extra_keys(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the application_configuration has a link
         entry that has extra keys.
         """
@@ -511,10 +1190,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 links=[{'remote_port': 90, 'local_port': 40, 'alias': 'other',
                         'foo': 5, 'bar': 'six'}],
                 )})
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid links specification. Unrecognised keys: bar, foo.",
@@ -534,7 +1212,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'remote_port': 5678,
             }
         ]
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -558,7 +1237,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'remote_port': 5678,
             }
         ]
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -582,7 +1262,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'remote_port': 56.78,
             }
         ]
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -599,7 +1280,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the application_configuration's
         ``u"links"`` key is not a dictionary.
         """
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -616,7 +1298,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         ``Configuration._parse_link_configuration`` raises a
         ``ConfigurationError`` if a link is not a dictionary.
         """
-        parser = Configuration()
+        config = dict()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
                                       parser._parse_link_configuration,
                                       'mysql-hybridcluster',
@@ -630,7 +1313,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_volume_extra_keys(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` error if the volume dictionary contains
         extra keys.
         """
@@ -643,10 +1326,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                         'foo': 215},
             )}
         )
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Unrecognised keys: bar, foo.",
@@ -655,7 +1337,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_volume_missing_mountpoint(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` error if the volume key does not
         contain a mountpoint.
         """
@@ -666,10 +1348,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={},
             )}
         )
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Missing mountpoint.",
@@ -678,7 +1359,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_volume_invalid_mountpoint(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` error if the specified volume mountpoint is
         not a valid absolute path.
         """
@@ -689,10 +1370,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={'mountpoint': b'./.././var//'},
             )}
         )
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Mountpoint ./.././var// is not an "
@@ -702,7 +1382,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_volume_mountpoint_not_ascii(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` error if the specified volume mountpoint is
         not a byte string.
         """
@@ -714,10 +1394,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume={'mountpoint': mountpoint_unicode},
             )}
         )
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Mountpoint {mount} contains "
@@ -727,7 +1406,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_invalid_volume_yaml(self):
         """
-        ``Configuration._applications_from_configuration`` raises a
+        ``Configuration.applications`` raises a
         ``ConfigurationError`` if the volume key is not a dictionary.
         """
         config = dict(
@@ -737,10 +1416,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 volume='a random string',
             )}
         )
-        parser = Configuration()
+        parser = FlockerConfiguration(config)
         exception = self.assertRaises(ConfigurationError,
-                                      parser._applications_from_configuration,
-                                      config)
+                                      parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Unexpected value: a random string",
@@ -749,7 +1427,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_lenient_mode(self):
         """
-        ``Configuration._applications_from_configuration`` in lenient mode
+        ``Configuration.applications`` in lenient mode
         accepts a volume with a null mountpoint.
         """
         config = dict(
@@ -761,8 +1439,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ),
             }
         )
-        parser = Configuration(lenient=True)
-        applications = parser._applications_from_configuration(config)
+        parser = FlockerConfiguration(config, lenient=True)
+        applications = parser.applications()
         expected_applications = {
             'mysql-hybridcluster': Application(
                 name='mysql-hybridcluster',
@@ -786,9 +1464,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the deployment_configuration does not
         contain an ``u"nodes"`` key.
         """
-        parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
-                                      parser._deployment_from_configuration,
+                                      deployment_from_configuration,
                                       {}, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'nodes' key.",
@@ -802,9 +1479,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         contain an ``u"version"`` key.
         """
         config = dict(nodes={})
-        parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
-                                      parser._deployment_from_configuration,
+                                      deployment_from_configuration,
                                       config, set())
         self.assertEqual(
             "Deployment configuration has an error. Missing 'version' key.",
@@ -817,9 +1493,8 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         ``ConfigurationError`` if the version specified is not 1.
         """
         config = dict(nodes={}, version=2)
-        parser = Configuration()
         exception = self.assertRaises(ConfigurationError,
-                                      parser._deployment_from_configuration,
+                                      deployment_from_configuration,
                                       config, set())
         self.assertEqual(
             "Deployment configuration has an error. "
@@ -833,10 +1508,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
         deployment_configuration contains application values not in the form of
         a list.
         """
-        config = Configuration()
         exception = self.assertRaises(
             ConfigurationError,
-            config._deployment_from_configuration,
+            deployment_from_configuration,
             dict(version=1, nodes={'node1.example.com': None}),
             set()
         )
@@ -861,10 +1535,9 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                                       tag='v1.0.0'))
             )
         }
-        config = Configuration()
         exception = self.assertRaises(
             ConfigurationError,
-            config._deployment_from_configuration,
+            deployment_from_configuration,
             dict(
                 version=1,
                 nodes={'node1.example.com': ['site-hybridcluster']}),
@@ -890,8 +1563,7 @@ class DeploymentFromConfigurationTests(SynchronousTestCase):
                                       tag='v1.0.0'))
             )
         }
-        config = Configuration()
-        result = config._deployment_from_configuration(
+        result = deployment_from_configuration(
             dict(
                 version=1,
                 nodes={'node1.example.com': ['mysql-hybridcluster']}),
@@ -917,10 +1589,9 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``Configuration.model_from_configuration`` returns an empty
         ``Deployment`` object if supplied with empty configurations.
         """
-        config = Configuration()
-        application_configuration = {'applications': {}, 'version': 1}
+        application_configuration = {}
         deployment_configuration = {'nodes': {}, 'version': 1}
-        result = config.model_from_configuration(
+        result = model_from_configuration(
             application_configuration, deployment_configuration)
         expected_result = Deployment(nodes=frozenset())
         self.assertEqual(expected_result, result)
@@ -930,7 +1601,6 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         ``Configuration.model_from_configuration`` returns a
         ``Deployment`` object with ``Nodes`` for each supplied node key.
         """
-        config = Configuration()
         application_configuration = {
             'version': 1,
             'applications': {
@@ -945,8 +1615,10 @@ class ModelFromConfigurationTests(SynchronousTestCase):
                 'node2.example.com': ['site-hybridcluster'],
             }
         }
-        result = config.model_from_configuration(
-            application_configuration, deployment_configuration)
+        config = FlockerConfiguration(application_configuration)
+        applications = config.applications()
+        result = model_from_configuration(
+            applications, deployment_configuration)
         expected_result = Deployment(
             nodes=frozenset([
                 Node(
@@ -982,27 +1654,30 @@ class ModelFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected_result, result)
 
 
-class ConfigurationToYamlTests(SynchronousTestCase):
+class MarshalConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Configuration.configuration_to_yaml``.
+    Tests for ``Configuration.marshal_configuration``.
     """
     def test_no_applications(self):
         """
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        applications = set()
-        result = configuration_to_yaml(applications)
-        expected = {'applications': {}, 'version': 1}
-        self.assertEqual(safe_load(result), expected)
+        result = marshal_configuration(NodeState(running=[], not_running=[]))
+        expected = {
+            'applications': {},
+            'used_ports': [],
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
 
     def test_one_application(self):
         """
-        A dictionary of application name -> image is produced where there
-        is only one application in the set passed to the
-        ``configuration_to_yaml`` method.
+        A dictionary of application name -> image is produced where the
+        ``marshal_configuration`` method is called with state containing only
+        one application.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1010,21 +1685,23 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                     image=DockerImage(repository='flocker/mysql',
                                       tag='v1.0.0'))
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_multiple_applications(self):
         """
         The dictionary includes a representation of each supplied application.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=Application(
@@ -1037,9 +1714,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/wordpress',
                                   tag='v1.0.0')
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1047,9 +1726,9 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_ports(self):
         """
@@ -1057,7 +1736,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         including exposed internal and external ports where the
         ``Application`` specifies these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1065,18 +1744,20 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
             },
-            'version': 1
+            'version': 1,
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_links(self):
         """
@@ -1084,7 +1765,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
         including links to other application when the ``Application`` specifies
         these.
         """
-        applications = {
+        applications = [
             Application(
                 name='site-hybridcluster',
                 image=DockerImage(repository='flocker/wordpress',
@@ -1093,9 +1774,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1106,14 +1789,14 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
     def test_application_with_volume_includes_mountpoint(self):
         """
         If the supplied applications have a volume, the resulting yaml will
         also include the volume mountpoint.
         """
-        applications = {
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1129,9 +1812,53 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)])
             )
-        }
-        result = configuration_to_yaml(applications)
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
         expected = {
+            'used_ports': [],
+            'applications': {
+                'site-hybridcluster': {
+                    'image': 'unknown',
+                    'ports': [{'internal': 80, 'external': 8080}]
+                },
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': None},
+                    'image': 'unknown',
+                    'ports': []
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_running_and_not_running_applications(self):
+        """
+        Both the ``running`` and ``not_running`` application lists are
+        marshalled into the result.
+        """
+        running = Application(
+            name='mysql-hybridcluster',
+            image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+            ports=frozenset(),
+            volume=AttachedVolume(
+                name='mysql-hybridcluster',
+                mountpoint=FilePath(b'/var/mysql/data')
+            ),
+        )
+
+        not_running = Application(
+            name='site-hybridcluster',
+            image=DockerImage(repository='flocker/wordpress',
+                              tag='v1.0.0'),
+            ports=frozenset([Port(internal_port=80, external_port=8080)])
+        )
+
+        result = marshal_configuration(
+            NodeState(running=[running], not_running=[not_running]))
+
+        expected = {
+            'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
                     'image': 'unknown',
@@ -1145,15 +1872,31 @@ class ConfigurationToYamlTests(SynchronousTestCase):
             },
             'version': 1
         }
-        self.assertEqual(safe_load(result), expected)
+        self.assertEqual(expected, result)
 
-    def test_yaml_parsable_configuration(self):
+    def test_used_ports(self):
         """
-        The YAML output of ``configuration_to_yaml`` can be successfully
-        parsed and then loaded in to ``Application``\ s by
-        ``Configuration._applications_from_configuration``
+        The ports in ``NodeState.used_ports`` are included in the result of
+        ``marshal_configuration``.
         """
-        applications = {
+        used_ports = frozenset({1, 20, 250, 15020, 65000})
+        state = NodeState(running=[], not_running=[], used_ports=used_ports)
+        expected = {
+            'used_ports': sorted(used_ports),
+            'applications': {},
+            'version': 1,
+        }
+        self.assertEqual(
+            expected,
+            marshal_configuration(state)
+        )
+
+    def test_able_to_unmarshal_configuration(self):
+        """
+        ``Configuration._applications_from_configuration`` can load the output
+        of ``marshal_configuration`` into ``Application``\ s.
+        """
+        applications = [
             Application(
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
@@ -1176,7 +1919,7 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       remote_port=63306,
                                       alias='mysql')]),
             )
-        }
+        ]
         expected_applications = {
             b'mysql-hybridcluster': Application(
                 name=b'mysql-hybridcluster',
@@ -1198,10 +1941,11 @@ class ConfigurationToYamlTests(SynchronousTestCase):
                                       alias='mysql')]),
             )
         }
-        result = configuration_to_yaml(applications)
-        config = Configuration(lenient=True)
-        apps = config._applications_from_configuration(safe_load(result))
-        self.assertEqual(apps, expected_applications)
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        config = FlockerConfiguration(result, lenient=True)
+        apps = config.applications()
+        self.assertEqual(expected_applications, apps)
 
 
 class CurrentFromConfigurationTests(SynchronousTestCase):

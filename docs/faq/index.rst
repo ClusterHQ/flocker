@@ -11,7 +11,7 @@ Flocker is under active deployment and we receive a lot of questions about how t
 You can find these questions in the Future Functionality section below.  
 You can also view :doc:`ideas for future versions of Flocker</roadmap/index>`.
 
-If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel ``#clusterhq`` or `the flocker Google group`_.
+If you want to get involved in a discussion about a future release or have a question about Flocker today, get in touch on our Freenode IRC channel ``#clusterhq`` or `the Flocker Google group`_.
 
 ZFS
 ~~~
@@ -31,6 +31,18 @@ ZFS on Linux is already in use in companies and institutions all over the world 
 We are also rigorously testing ZFS on Linux to make sure it is stable. 
 ZFS is production quality code.
 
+
+Current Functionality
+~~~~~~~~~~~~~~~~~~~~~
+
+Which operating systems are supported?
+**************************************
+
+Flocker manages Docker applications and Docker runs on Linux, so Flocker runs on Linux.
+However, you do not need to be running Linux on your development machine in order to manage Docker containers with the ``flocker-cli``.
+See :ref:`installing-flocker-cli` for installation instructions for various operating systems.
+
+
 Future Functionality
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -44,11 +56,11 @@ How does Flocker integrate with Kubernetes / Mesos / Deis / CoreOS / my favorite
 
 Over time, we hope that Flocker becomes the de facto way for managing storage volumes with your favorite orchestration framework.  
 We are interested in expanding libswarm to include support for filesystems and are talking with the various open source projects about the best way to collaborate on storage and networking for volumes. 
-If you'd like work with us on integration, get in touch on our Freenode IRC ``#clusterhq`` or `the flocker Google group`_.
+If you'd like work with us on integration, get in touch on our Freenode IRC ``#clusterhq`` or `the Flocker Google group`_.
 You can also submit an issue or a pull request if you have a specific integration that you'd like to propose.
 
-If I clone a 2GB database five times, won't I need a really large server with 10 GB of disk?
-********************************************************************************************
+If I clone a 2 GB database five times, won't I need a really large server with 10 GB of disk?
+*********************************************************************************************
 
 Thankfully no.  
 This is where ZFS makes things really cool. 
@@ -69,4 +81,4 @@ The upshot if which is that you shouldn't need to change the apps at all, except
 
 
 .. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
-.. _the flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
+.. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users

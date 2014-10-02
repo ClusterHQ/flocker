@@ -10,7 +10,7 @@ There is also a ``flocker-node`` package which is installed on each node in the 
 It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
 These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
-.. note:: For now the ``flocker-node`` package is pre-installed by the `Vagrant configuration in the tutorial <tutorial>`_.
+.. note:: For now the ``flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
@@ -56,7 +56,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.1.2
+   0.2.1
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -66,7 +66,7 @@ You'll need to do this every time you start a new shell.
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   0.1.2
+   0.2.1
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -90,9 +90,9 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-0.1.2
+   alice@mercury:~$ brew install flocker-0.2.1
    ...
-   alice@mercury:~$ brew test flocker-0.1.2
+   alice@mercury:~$ brew test flocker-0.2.1
    ...
    alice@mercury:~$
 
@@ -103,7 +103,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   0.1.2
+   0.2.1
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh

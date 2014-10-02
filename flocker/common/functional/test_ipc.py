@@ -1,9 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Functional tests for IPC."""
-
-import os
-from unittest import skipIf
+"""
+Functional tests for IPC.
+"""
 
 from twisted.internet.threads import deferToThread
 from twisted.python.filepath import FilePath
@@ -12,8 +11,6 @@ from twisted.trial.unittest import TestCase
 from .. import ProcessNode
 from ..test.test_ipc import make_inode_tests
 from ...testtools import create_ssh_server
-
-_if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
 def make_prefixless_processnode(test_case):

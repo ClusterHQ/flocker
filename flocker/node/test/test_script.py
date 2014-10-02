@@ -13,11 +13,12 @@ from twisted.application.service import Service
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
 from ...volume.test.test_script import make_volume_options_tests
+from ...route import make_memory_network
 
 from ..script import (
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
-from ..gear import FakeDockerClient, Unit
+from .._docker import FakeDockerClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 
@@ -346,27 +347,36 @@ class ReportStateScriptMainTests(SynchronousTestCase):
     """
     Tests for ``ReportStateScript.main``.
     """
-    def test_yaml_callback(self):
+    def test_yaml_output(self):
         """
-        ``ReportStateScript.main`` returns a deferred which writes out the
-        YAML representation of all the applications (running or not) from
-        ``Deployer.discover_node_configuration``
+        ``ReportStateScript.main`` returns a deferred which fires after the
+        YAML representation of the node state, including applications (running
+        or not) and used TCP port numbers from
+        ``Deployer.discover_node_configuration``, have been written to stdout.
         """
-        unit1 = Unit(name=u'site-example.com', activation_state=u'active')
-        unit2 = Unit(name=u'site-example.net', activation_state=u'inactive')
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
 
+        used_ports = frozenset([1, 10, 200, 52000])
+        network = make_memory_network(used_ports=used_ports)
+
         expected = {
+            'used_ports': sorted(used_ports),
             'applications': {
                 'site-example.net': {'image': 'unknown', 'ports': []},
                 'site-example.com': {'image': 'unknown', 'ports': []}
             },
-            'version': 1
+            'version': 1,
         }
 
-        script = ReportStateScript(fake_docker)
+        script = ReportStateScript(fake_docker, network)
         content = StringIO()
         self.patch(script, '_stdout', content)
         script.main(
