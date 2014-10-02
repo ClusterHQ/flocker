@@ -236,7 +236,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
             'applications': {
                 'postgres':
                     {'image': 'sample/postgres',
-                     'ports': [{'internal': 5432, 'external': 5432}]}
+                     'ports': [{'internal': 5432, 'external': 5433}]}
             }
         }
         applications = FlockerConfiguration(config).applications()
@@ -244,7 +244,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['ports'],
-            [{'external': 5432, 'internal': 5432}]
+            [{'external': 5433, 'internal': 5432}]
         )
 
     def test_has_environment(self):
