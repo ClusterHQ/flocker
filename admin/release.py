@@ -86,6 +86,7 @@ def build_package():
     * Update all pinned dependencies to instead be minimum dependencies.
       * This means that as and when sufficiently new versions of our dependencies are introduced upstream, we can remove them from our sumo build.
       * Those dependencies which are either too old or which are not packaged will be imported from the sumo virtualenv in preference.
+      * Eventually we hope that all our dependencies will filter upstream and we will no longer have to bundle them; at which point the `flocker` package itself may be ready to be packaged by upstream distributions.
     * Create a temporary working dir
     * Create virtualenv with `--system-site-packages`
       * Allows certain python libraries to be supplied by the operating system.
