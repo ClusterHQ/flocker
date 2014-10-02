@@ -15,6 +15,7 @@ from docker.errors import APIError
 
 from characteristic import attributes
 
+from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
@@ -24,67 +25,60 @@ class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
 
-@attributes(["id", "variables"])
-class GearEnvironment(object):
+@attributes(["variables"])
+class Environment(object):
     """
-    A collection of Geard unit environment variables associated with an
-    environment ID.
+    A collection of environment variables.
 
     :ivar frozenset variables: A ``frozenset`` of tuples containing
         key and value pairs representing the environment variables.
     """
-
     def to_dict(self):
         """
         Convert to a dictionary suitable for serialising to JSON and then on to
-        the Gear REST API.
+        the Docker API.
+
+        :return: ``dict`` mapping keys to values.
         """
-        variables = []
-        for k, v in self.variables:
-            variables.append(dict(name=k, value=v))
-        return dict(id=self.id, variables=variables)
+        return dict(self.variables)
 
 
-@attributes(["name", "activation_state", "sub_state", "container_image",
-             "ports", "links", "environment"],
-            defaults=dict(sub_state=None, container_image=None,
-                          ports=(), links=(), environment=None))
+@attributes(["name", "container_name", "activation_state", "container_image",
+             "ports", "environment"],
+            defaults=dict(container_image=None,
+                          ports=(), environment=None))
 class Unit(object):
     """
-    Information about a unit managed by geard/systemd.
+    Information about a unit managed by Docker.
 
-    XXX: The container_image attribute defaults to `None` until we have a way
-    to interrogate geard for the docker images associated with its
+    XXX: The ``container_image`` attribute defaults to ``None`` until we
+    have code to call docker for images associated with its
     containers. See https://github.com/ClusterHQ/flocker/issues/207
 
-    :ivar unicode name: The name of the unit.
+    XXX "Unit" is geard terminology, and should be renamed. See
+    https://github.com/ClusterHQ/flocker/issues/819
 
-    :ivar unicode activation_state: The state of the unit in terms of
-        systemd activation. Values indicate whether the unit is installed
-        but not running (``u"inactive"``), starting (``u"activating"``),
-        running (``u"active"``), failed (``u"failed"``) stopping
-        (``u"deactivating"``) or stopped (either ``u"failed"`` or
-        ``u"inactive"`` apparently). See
-        https://github.com/ClusterHQ/flocker/issues/187 about using constants
-        instead of strings.
+    :ivar unicode name: The name of the unit, which may not be the same as
+        the container name.
 
-    :ivar unicode sub_state: The systemd substate of the unit. Certain Unit
-        types may have a number of additional substates, which are mapped to
-        the five generalized activation states above. See
-        http://www.freedesktop.org/software/systemd/man/systemd.html#Concepts
+    :ivar unicode container_name: The name of the container where the
+        application is running.
+
+    :ivar unicode activation_state: The state of the
+        container. ``u"active"`` indicates it is running, ``u"inactive"``
+        indicates it is not running. See
+        https://github.com/ClusterHQ/flocker/issues/187 about using
+        constants instead of strings and other improvements.
 
     :ivar unicode container_image: The docker image name associated with this
-        gear unit
+        container.
 
     :ivar list ports: The ``PortMap`` instances which define how connections to
         ports on the host are routed to ports exposed in the container.
 
-    :ivar list links: The ``PortMap`` instances which define how connections to
-        ports inside the container are routed to ports on the host.
-
-    :ivar GearEnvironment environment: A ``GearEnvironment`` whose variables
-        will be supplied to the gear unit or ``None`` if there are no
-        environment variables for this unit.
+    :ivar Environment environment: An ``Environment`` whose variables
+        will be supplied to the Docker container or ``None`` if there are no
+        environment variables for this container.
     """
 
 
@@ -92,21 +86,18 @@ class IDockerClient(Interface):
     """
     A client for the Docker HTTP API.
 
-    Currently somewhat geard-flavored, this will be fixed in followup
-    issues.
-
     Note the difference in semantics between the results of ``add()``
     (firing does not indicate application started successfully)
     vs. ``remove()`` (firing indicates application has finished shutting
     down).
     """
 
-    def add(unit_name, image_name, ports=None, links=None, environment=None):
+    def add(unit_name, image_name, ports=None, environment=None):
         """
         Install and start a new unit.
 
         Note that callers should not assume success indicates the unit has
-        finished starting up. In addition to asynchronous nature of gear,
+        finished starting up. In addition to asynchronous nature of Docker,
         even if container is up and running the application within it
         might still be starting up, e.g. it may not have bound the
         external ports yet. As a result the final success of application
@@ -120,12 +111,9 @@ class IDockerClient(Interface):
             the container to ports exposed on the host. Default ``None`` means
             that no port mappings will be configured for this unit.
 
-        :param list links: A list of ``PortMap``\ s mapping ports forwarded
-            from the container to ports on the host.
-
-        :param GearEnvironment environment: A ``GearEnvironment`` associating
-            key value pairs with an environment ID. Default ``None`` means that
-            no environment variables will be supplied to the unit.
+        :param Environment environment: Environment variables for the
+            container. Default ``None`` means that no environment
+            variables will be supplied to the unit.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -182,14 +170,14 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), links=(), environment=None):
+    def add(self, unit_name, image_name, ports=(), environment=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
             name=unit_name,
+            container_name=unit_name,
             container_image=image_name,
             ports=ports,
-            links=links,
             environment=environment,
             activation_state=u'active'
         )
@@ -206,12 +194,13 @@ class FakeDockerClient(object):
     def list(self):
         # XXX: This is a hack so that functional and unit tests that use
         # DockerClient.list can pass until the real DockerClient.list can also
-        # return container_image information, ports and links.
+        # return container_image information and ports.
         # See https://github.com/ClusterHQ/flocker/issues/207
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
-                Unit(name=unit.name, activation_state=unit.activation_state))
+                Unit(name=unit.name, container_name=unit.name,
+                     activation_state=unit.activation_state))
         return succeed(incomplete_units)
 
 
@@ -226,6 +215,10 @@ class PortMap(object):
     """
 
 
+# Basic namespace for Flocker containers:
+BASE_NAMESPACE = u"flocker--"
+
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """
@@ -238,7 +231,7 @@ class DockerClient(object):
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self, namespace=u"flocker--"):
+    def __init__(self, namespace=BASE_NAMESPACE):
         self.namespace = namespace
         self._client = Client(version="1.12")
 
@@ -252,13 +245,16 @@ class DockerClient(object):
         """
         return self.namespace + unit_name
 
-    def add(self, unit_name, image_name, ports=None, links=None,
-            environment=None):
+    def add(self, unit_name, image_name, ports=None, environment=None):
         container_name = self._to_container_name(unit_name)
-        data_container_name = container_name + u"-data"
+        # To be replaced in
+        # https://github.com/ClusterHQ/flocker/issues/737 (or 772) with real
+        # namespace support.
+        data_container_name = self._to_container_name(
+            u"default." + unit_name) + u"-data"
 
         if environment is not None:
-            environment = dict(environment.variables)
+            environment = environment.to_dict()
         if ports is None:
             ports = []
 
@@ -360,12 +356,31 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
+                # We'll add missing info in
+                # https://github.com/ClusterHQ/flocker/issues/207
                 result.add(Unit(name=name,
+                                container_name=self._to_container_name(name),
                                 activation_state=state,
-                                sub_state=None,
-                                # We'll add this and the other available
-                                # info later, for now we're just aiming at
-                                # GearClient compatibility.
                                 container_image=None))
             return result
         return deferToThread(_list)
+
+
+class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
+    """
+    A Docker client that only shows and creates containers in a given
+    namespace.
+
+    Unlike ``DockerClient``, whose namespace is there to prevent conflicts
+    with other Docker users, this class deals with Flocker's internal
+    concept of namespaces. I.e. if hypothetically Docker container names
+    supported path-based namespaces then ``DockerClient`` would look at
+    containers in ``/flocker/`` and this class would look at containers in
+    in ``/flocker/<namespace>/``.
+    """
+    def __init__(self, namespace):
+        """
+        :param unicode namespace: Namespace to restrict containers to.
+        """
+        self._client = DockerClient(
+            namespace=BASE_NAMESPACE + namespace + u"--")

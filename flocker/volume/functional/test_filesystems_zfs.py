@@ -19,13 +19,13 @@ from twisted.python.filepath import FilePath
 
 from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
-    copy, assertVolumesEqual
+    copy, assertVolumesEqual,
 )
 from ..filesystems.zfs import (
     Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
     zfs_command,
 )
-from ..service import Volume
+from ..service import Volume, VolumeName
 from ..testtools import create_zfs_pool, service_for_pool
 
 
@@ -53,15 +53,19 @@ class IStoragePoolTests(make_istoragepool_tests(build_pool)):
     """
 
 
+MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+
+
 class VolumeToDatasetTests(TestCase):
     """Tests for ``volume_to_dataset``."""
     def test_volume_to_dataset(self):
         """``volume_to_dataset`` includes the UUID, dataset
         name and (for future functionality) a default branch name.
         """
-        volume = Volume(uuid=u"my-uuid", name=u"myvolumename", service=None)
+        volume = Volume(uuid=u"my-uuid", name=MY_VOLUME, service=None)
         self.assertEqual(volume_to_dataset(volume),
-                         b"my-uuid.myvolumename")
+                         b"my-uuid.myns.myvolume")
 
 
 class StoragePoolTests(TestCase):
@@ -73,7 +77,7 @@ class StoragePoolTests(TestCase):
         mount_root.makedirs()
         pool = StoragePool(reactor, create_zfs_pool(self), mount_root)
         service = service_for_pool(self, pool)
-        volume = service.get(u"myvolumename")
+        volume = service.get(MY_VOLUME)
 
         d = pool.create(volume)
 
@@ -89,7 +93,7 @@ class StoragePoolTests(TestCase):
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
         service = service_for_pool(self, pool)
-        volume = service.get(u"myvolumename")
+        volume = service.get(MY_VOLUME)
 
         d = pool.create(volume)
 
@@ -106,7 +110,7 @@ class StoragePoolTests(TestCase):
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
         service = service_for_pool(self, pool)
-        volume = service.get(u"myvolumename")
+        volume = service.get(MY_VOLUME)
 
         d = pool.create(volume)
 
@@ -131,8 +135,8 @@ class StoragePoolTests(TestCase):
         pool = StoragePool(reactor, create_zfs_pool(self),
                            FilePath(self.mktemp()))
         service = service_for_pool(self, pool)
-        volume = service.get(u"myvolumename")
-        new_volume = Volume(uuid=u"other-uuid", name=u"volume",
+        volume = service.get(MY_VOLUME)
+        new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
                             service=service)
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
@@ -164,7 +168,7 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = service.get(u"myvolumename")
+        volume = service.get(MY_VOLUME)
 
         d = pool.create(volume)
 
@@ -191,7 +195,7 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = Volume(uuid=u"remoteone", name=u"vol", service=service)
+        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
 
         d = pool.create(volume)
 
@@ -219,8 +223,8 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        local_volume = service.get(u"myvolumename")
-        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+        local_volume = service.get(MY_VOLUME)
+        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(remote_volume)
@@ -242,8 +246,8 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        local_volume = service.get(u"myvolumename")
-        remote_volume = Volume(uuid=u"other-uuid", name=u"volume",
+        local_volume = service.get(MY_VOLUME)
+        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(local_volume)
@@ -304,7 +308,7 @@ class IncrementalPushTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = service.get(u"incremental-push")
+        volume = service.get(MY_VOLUME)
         creating = pool.create(volume)
 
         def created(filesystem):
@@ -367,7 +371,7 @@ class FilesystemTests(TestCase):
         # Create a filesystem and a couple snapshots.
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = service.get(u"snapshot-enumeration")
+        volume = service.get(MY_VOLUME)
         creating = pool.create(volume)
 
         def created(filesystem):

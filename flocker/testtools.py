@@ -18,6 +18,7 @@ import shutil
 from signal import SIGKILL
 from subprocess import check_call, check_output
 from functools import wraps
+from unittest import skipIf
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -848,3 +849,7 @@ def assertContainsAll(haystack, needles, test_case):
                 haystack=haystack, needles=needles
             )
         )
+
+
+# Skip decorator for tests:
+if_root = skipIf(os.getuid() != 0, "Must run as root.")

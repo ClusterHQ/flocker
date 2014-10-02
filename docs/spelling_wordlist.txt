@@ -26,6 +26,7 @@ Mesos
 metadata
 multi
 NAT'd
+namespace
 petabyte
 petabytes
 pre
