@@ -16,7 +16,7 @@ versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
 
-from admin import make_rpm_version
+from admin.release import make_rpm_version
 
 class cmd_generate_spec(Command):
     description = "Generate python-flocker.spec with current version."

@@ -9,6 +9,8 @@ things from the stdlib.
 
 from collections import namedtuple
 
+__all__ = ['rpm_version', 'make_rpm_version']
+
 rpm_version = namedtuple('rpm_version', 'version release')
 
 
