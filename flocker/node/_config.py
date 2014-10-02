@@ -13,7 +13,7 @@ import types
 from twisted.python.filepath import FilePath
 
 from yaml import safe_dump
-from zope.interface import Attribute, Interface, implementer
+from zope.interface import Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
@@ -88,68 +88,7 @@ def _check_type(value, types, description, application_name):
             ))
 
 
-class IApplicationConverter(Interface):
-    """
-    A class which can take an ``Application`` instance and through its exposed
-    interface can process either the entire application or representations of
-    individual properties in a particular format.
-    """
-    _application = Attribute(
-        "Internal representation of the application to convert."
-    )
-
-    def set_application(application):
-        """
-        Set the ``Application`` an ``ApplicationConverter`` will act on.
-
-        :param application: The ``Application`` instance to be converted.
-        """
-
-    def get_application():
-        """
-        Retrieve the ``Application`` instance associated with the converter.
-
-        :returns: The ``Application`` instance.
-        """
-
-    def convert():
-        """
-        Return the entire ``Application`` converted to the desired format.
-        """
-
-    def convert_image():
-        """
-        Convert the ``image`` property of an ``Application`` to the desired
-        format.
-        """
-
-    def convert_ports():
-        """
-        Convert the ``ports`` property of an ``Application`` to the desired
-        format.
-        """
-
-    def convert_environment():
-        """
-        Convert the ``environment`` property of an ``Application`` to the
-        desired format.
-        """
-
-    def convert_links():
-        """
-        Convert the ``links`` property of an ``Application`` to the desired
-        format.
-        """
-
-    def convert_volume():
-        """
-        Convert the ``volume`` property of an ``Application`` to the desired
-        format.
-        """
-
-
-@implementer(IApplicationConverter)
-class FlockerDictConverter(object):
+class ApplicationMarshaller(object):
     """
     Convert ``Application`` instances or their properties to a ``dict``
     representation that matches the format of Flocker's YAML application
@@ -157,14 +96,13 @@ class FlockerDictConverter(object):
     """
     _application = None
 
-    def __init__(self, application=None):
-        self._application = application
+    def __init__(self, application):
+        """
+        Initialise the marshaller for a single application.
 
-    def set_application(self, application):
+        :param application: An ``Application`` instance.
+        """
         self._application = application
-
-    def get_application(self):
-        return self._application
 
     def convert(self):
         """
@@ -172,8 +110,7 @@ class FlockerDictConverter(object):
         ``dict`` representing a single application entry in Flocker's
         application configuration YAML format.
 
-        :returns: A ``tuple`` containing the application name and the
-            ``dict`` of converted properties.
+        :returns: A ``dict`` containing the application's converted properties.
         """
         config = dict()
         image = self.convert_image()
@@ -191,12 +128,12 @@ class FlockerDictConverter(object):
         volume = self.convert_volume()
         if volume:
             config['volume'] = volume
-        return (self._application.name, config)
+        return config
 
     def convert_image(self):
         """
         Return the ``Application`` image name and tag.
-        :returns: ``bytes`` representing the image name and tag or ``None``
+        :returns: ``unicode`` representing the image name and tag or ``None``
             if the image is unknown (``None`` or not a ``DockerImage``).
         """
         if isinstance(self._application.image, DockerImage):
@@ -249,7 +186,7 @@ class FlockerDictConverter(object):
         """
         Parse an ``Application`` instance for its volume and return
         a ``dict`` representing the Flocker-format YAML configuration
-        for the volume.
+        for the volume, or ``None`` if no volume is set for the application.
 
         NOTE: We only support one volume per conainer for now, this
         logic will need refactoring in future if this changes.
@@ -271,11 +208,10 @@ def applications_to_flocker_yaml(applications):
         application configuration YAML.
     """
     config = {'version': 1, 'applications': dict()}
-    converter = FlockerDictConverter()
     for application_name, application in applications.items():
-        converter.set_application(application)
-        key, value = converter.convert()
-        config['applications'][key] = value
+        converter = ApplicationMarshaller(application)
+        value = converter.convert()
+        config['applications'][application_name] = value
     return safe_dump(config)
 
 
@@ -1125,12 +1061,12 @@ def marshal_configuration(state):
         ``int``, ``unicode``, etc.
     """
     result = {}
-    converter = FlockerDictConverter()
     for application in state.running + state.not_running:
-        converter.set_application(application)
+        converter = ApplicationMarshaller(application)
 
         # XXX image unknown, see
         # https://github.com/ClusterHQ/flocker/issues/207
+        # When 207 is complete, use ``converter.convert_image``
         result[application.name] = {"image": "unknown"}
 
         result[application.name]["ports"] = converter.convert_ports()
@@ -1142,6 +1078,7 @@ def marshal_configuration(state):
             # Until multiple volumes are supported, assume volume name
             # matches application name, see:
             # https://github.com/ClusterHQ/flocker/issues/49
+            # When 49 is complete, use ``converter.convert_volume``
             result[application.name]["volume"] = {
                 "mountpoint": None,
             }

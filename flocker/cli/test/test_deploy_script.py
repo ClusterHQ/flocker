@@ -235,12 +235,17 @@ class DeployOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
 
         deploy.setContent(b"nodes:\n  node1.test: [postgres]\nversion: 1\n")
 
-        # This is a Fig-style YAML config
-        app.setContent(
-            (b"postgres:\n  image: sample/postgres\n  environment:\n    "
-             "PGSQL_PASSWORD: clusterhq\n  ports:\n    - \"5432:5432\"\n  "
-             "volumes:\n    - /var/lib/pgsql\n")
+        fig_config = (
+            b"postgres:\n"
+            "  image: sample/postgres\n"
+            "  environment:\n"
+            "    PGSQL_PASSWORD: clusterhq\n"
+            "  ports:\n"
+            "    - \"5432:5432\"\n"
+            "  volumes:\n"
+            "    - /var/lib/pgsql\n"
         )
+        app.setContent(fig_config)
 
         expected_dict = {
             'version': 1,
