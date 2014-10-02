@@ -91,7 +91,8 @@ def build_package():
     * Create virtualenv with `--system-site-packages`
       * Allows certain python libraries to be supplied by the operating system.
     * Install flocker from wheel file (which will include all the dependencies).
-    * Generate a version number.
+      * We'll need to keep track of which of our dependencies are provided on each platform and somehow omit those for from the build for that platform. 
+    * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
     Issue: Faster RPM repo update (1d):
