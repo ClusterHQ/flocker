@@ -78,6 +78,8 @@ def build_package():
 
     Disadvantages:
     * We won't be able to take advantage of library security updates shipped by the target OS
+      * But by shipping our own separate dependency packages we will need to be responsible for shipping security patches in those packages
+      * And rather than being responsible only for the security of Flocker, we become responsible for the security of all other packages that depend on that package.
     * Packages will be larger
 
     Issue: Automatic RPM build (1d):
