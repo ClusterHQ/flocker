@@ -108,7 +108,7 @@ class StartApplication(object):
                 _to_volume_name(application.volume.name))
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
-                node_path = volume.get_filesystem().get_path()))
+                node_path=volume.get_filesystem().get_path()))
 
         if application.ports is not None:
             port_maps = map(lambda p: PortMap(internal_port=p.internal_port,

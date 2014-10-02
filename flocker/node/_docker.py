@@ -198,6 +198,7 @@ class FakeDockerClient(object):
             container_image=image_name,
             ports=ports,
             environment=environment,
+            volumes=volumes,
             activation_state=u'active'
         )
         return succeed(None)

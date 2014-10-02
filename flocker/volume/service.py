@@ -48,7 +48,7 @@ class VolumeName(object):
         e.g. ``u"default"``. Must not include periods.
 
     :ivar unicode id: The id of the volume,
-        e.g. ``u"postgres-data"``. Since volume ids must match Docker
+        e.g. ``u"mypostgresdata"``. Since volume ids must match Docker
         container names, the characters used should be limited to those
         that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
