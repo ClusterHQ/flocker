@@ -95,12 +95,6 @@ def build_package():
     * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
-    Issue: Faster RPM repo update (1d):
-    Avoid having to download all the existing RPMs when regnerating repo metadata.
-    * investigate `prm` for repo management
-    * upload the RPM to our repo
-    * regenerate the RPM repo
-
     Issue: Automatic DEB build (0.5d):
     Build a sumo Deb
     * write a function for debian compatible version numbers
