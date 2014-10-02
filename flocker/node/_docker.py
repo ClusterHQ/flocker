@@ -45,15 +45,15 @@ class Environment(object):
 
 @attributes(["node_path", "container_path"])
 class Volume(object):
-      """
-      A Docker volume.
+    """
+    A Docker volume.
 
-      :ivar FilePath node_path: The volume's path on the node's
-          filesystem.
+    :ivar FilePath node_path: The volume's path on the node's
+    filesystem.
 
-      :ivar FilePath container_path: The volume's path within the
-          container.
-      """
+    :ivar FilePath container_path: The volume's path within the
+    container.
+    """
 
 
 @attributes(["name", "container_name", "activation_state", "container_image",
