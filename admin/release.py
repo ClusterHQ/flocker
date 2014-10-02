@@ -95,6 +95,9 @@ def build_package():
     * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
+    Ticket refs:
+     * https://github.com/ClusterHQ/flocker/issues/88
+
     Issue: Automatic DEB build (0.5d):
     Build a sumo Deb
     * write a function for debian compatible version numbers
