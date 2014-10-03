@@ -164,7 +164,7 @@ class InstallApplicationTests(TestCase):
             virtualenv_path=fake_env.path,
             package_path=expected_package_path
         ).run()
-        expected_pip_args = ['install', expected_package_path.path]
+        expected_pip_args = ['--quiet', 'install', expected_package_path.path]
         fake_env.assert_pip_args(expected_pip_args)
 
 

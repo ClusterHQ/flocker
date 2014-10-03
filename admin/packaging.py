@@ -53,7 +53,7 @@ class InstallApplication(object):
         """
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
-            [pip_path, 'install', self.package_path.path]
+            [pip_path, '--quiet', 'install', self.package_path.path]
         )
 
 
