@@ -10,6 +10,7 @@ from tempfile import mkdtemp
 from twisted.python.filepath import FilePath
 from characteristic import attributes
 
+from .release import make_rpm_version
 
 @attributes(['steps'])
 class BuildSequence(object):
@@ -56,7 +57,7 @@ class InstallApplication(object):
         )
 
 
-@attributes(['source_path', 'rpm_version'])
+@attributes(['source_path', 'rpm_version', 'license'])
 class BuildRpm(object):
     def run(self):
         """
@@ -68,11 +69,12 @@ class BuildRpm(object):
             '--name', 'Flocker',
             '--version', self.rpm_version.version,
             '--iteration', self.rpm_version.release,
+            '--license', self.license,
             self.source_path.path]
         )
 
 
-def sumo_rpm_builder(package_path, target_dir=None):
+def sumo_rpm_builder(package_path, version, target_dir=None):
     """
     Motivation:
     * We depend on libraries which are not packaged for the target OS.
@@ -129,6 +131,10 @@ def sumo_rpm_builder(package_path, target_dir=None):
         steps=(
             InstallVirtualEnv(target_path=target_dir),
             InstallApplication(virtualenv_path=target_dir, package_path=package_path),
-            BuildRpm(source_path=target_dir)
+            BuildRpm(
+                source_path=target_dir,
+                rpm_version=make_rpm_version(version),
+                license='Apache Version 2.0',
+            )
         )
     )

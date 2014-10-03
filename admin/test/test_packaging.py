@@ -178,14 +178,19 @@ class BuildRpmTests(TestCase):
         source_path = FilePath(self.mktemp())
         source_path.makedirs()
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
-        BuildRpm(source_path=source_path, rpm_version=expected_rpm_version).run()
+        expected_license = 'My Test License'
+        BuildRpm(
+            source_path=source_path, 
+            rpm_version=expected_rpm_version,
+            license=expected_license
+        ).run()
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
             Name='Flocker',
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
-            # License='Apache',
+            License=expected_license,
             # URL='http://clusterhq.com',
             # Vendor='ClusterHQ',
         )
@@ -202,19 +207,22 @@ class SumoRpmBuilderTests(TestCase):
         """
         expected_target_path = self.mktemp()
         expected_package_path = '/foo/bar'
-        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        expected_version = '0.3dev1'
+        expected_license = 'Apache Version 2.0'
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
                 InstallApplication(virtualenv_path=expected_target_path,
                                    package_path=expected_package_path),
                 BuildRpm(source_path=expected_target_path,
-                         rpm_version=expected_rpm_version)
+                         rpm_version=make_rpm_version(expected_version),
+                         license=expected_license)
             )
         )
         self.assertEqual(
             expected,
             sumo_rpm_builder(expected_package_path,
+                             expected_version,
                              target_dir=expected_target_path))
 
     def test_functional(self):
