@@ -267,15 +267,16 @@ class UnitTests(TestCase):
             "activation_state=u'active', "
             "container_image=u'flocker/flocker:v1.0.0', ports=[], "
             "environment=None, "
-            "volumes=[<Volume(node_path='/tmp', container_path='/blah')>])>",
+            "volumes=[<Volume(node_path=FilePath('/tmp'), "
+            "container_path=FilePath('/blah'))>])>",
 
             repr(Unit(name=u'site-example.com',
                       container_name=u'flocker--site-example.com',
                       activation_state=u'active',
                       container_image=u'flocker/flocker:v1.0.0',
                       ports=[], environment=None,
-                      volumes=[Volume(node_path='/tmp',
-                                      container_path='/blah')]))
+                      volumes=[Volume(node_path=FilePath(b'/tmp'),
+                                      container_path=FilePath(b'/blah'))])),
         )
 
 
