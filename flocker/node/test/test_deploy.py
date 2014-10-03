@@ -23,7 +23,7 @@ from .._deploy import (
 from .._model import AttachedVolume
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
-    DockerClient)
+    DockerClient, Volume as DockerVolume)
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume, VolumeName
@@ -371,42 +371,6 @@ class StartApplicationTests(SynchronousTestCase):
                                    hostname="node1.example.com").run(api)
         self.failureResultOf(result2, AlreadyExists)
 
-    def test_volume_exposed_on_start(self):
-        """
-        ``StartApplication.run()`` exposes an application's volume before
-        it is started.
-        """
-        volume_service = create_volume_service(self)
-        fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
-        docker_image = DockerImage.from_string(u"busybox")
-        application = Application(
-            name=u'site-example.com',
-            image=docker_image,
-            volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var")),
-            links=frozenset(),
-        )
-
-        # This would be better to test with a verified fake:
-        # https://github.com/ClusterHQ/flocker/issues/234
-        exposed = []
-
-        def expose_to_docker(volume, mount_path):
-            # We check for existence of unit so we can ensure exposure
-            # happens *before* the unit is started:
-            exposed.append((volume, mount_path, self.successResultOf(
-                fake_docker.exists(u"site-example.com"))))
-            return succeed(None)
-        self.patch(Volume, "expose_to_docker", expose_to_docker)
-
-        StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
-        self.assertEqual(
-            exposed,
-            [(volume_service.get(_to_volume_name(u"site-example.com")),
-              FilePath(b"/var"), False)])
-
     def test_environment_supplied_to_docker(self):
         """
         ``StartApplication.run()`` passes the environment dictionary of the
@@ -495,6 +459,36 @@ class StartApplicationTests(SynchronousTestCase):
             fake_docker._units[application_name].environment
         )
 
+    def test_volumes(self):
+        """
+        ``StartApplication.run()`` passes the appropriate volume arguments to
+        ``DockerClient.add`` based on the application's volume.
+        """
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        mountpoint = FilePath(b"/mymount")
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            links=frozenset(),
+            volume=AttachedVolume(name=application_name,
+                                  mountpoint=mountpoint))
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+        filesystem = volume_service.get(
+            _to_volume_name(application_name)).get_filesystem()
+
+        self.assertEqual(
+            [DockerVolume(node_path=filesystem.get_path(),
+                          container_path=mountpoint)],
+            fake_docker._units[application_name].volumes
+        )
+
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
@@ -574,46 +568,6 @@ class StopApplicationTests(SynchronousTestCase):
         result = self.successResultOf(result)
 
         self.assertIs(None, result)
-
-    def test_volume_unexposed(self):
-        """
-        ``StopApplication.run()`` removes an application's volume from
-        Docker after it is stopped.
-        """
-        volume_service = create_volume_service(self)
-        fake_docker = FakeDockerClient()
-        deployer = Deployer(volume_service, fake_docker)
-        docker_image = DockerImage.from_string(u"busybox")
-        application = Application(
-            name=u'site-example.com',
-            image=docker_image,
-            volume=AttachedVolume(name=u'site-example.com',
-                                  mountpoint=FilePath(b"/var")),
-            links=frozenset(),
-        )
-
-        # This would be better to test with a verified fake:
-        # https://github.com/ClusterHQ/flocker/issues/234
-        self.patch(Volume, "expose_to_docker", lambda *args: succeed(None))
-        removed = []
-
-        def remove_from_docker(volume):
-            # We check for existence of unit so we can ensure exposure
-            # happens *after* the unit is stopped:
-            removed.append((volume, self.successResultOf(
-                fake_docker.exists(u"site-example.com"))))
-            return succeed(None)
-        self.patch(Volume, "remove_from_docker", remove_from_docker)
-
-        self.successResultOf(StartApplication(application=application,
-                                              hostname="node1.example.com",
-                                              ).run(deployer))
-        self.successResultOf(StopApplication(application=application).run(
-            deployer))
-        self.assertEqual(
-            removed,
-            [(volume_service.get(_to_volume_name(u"site-example.com")),
-              False)])
 
 
 # This models an application that has a volume.

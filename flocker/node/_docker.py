@@ -13,7 +13,7 @@ from zope.interface import Interface, implementer
 from docker import Client
 from docker.errors import APIError
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed, fail
@@ -43,10 +43,24 @@ class Environment(object):
         return dict(self.variables)
 
 
-@attributes(["name", "container_name", "activation_state", "container_image",
-             "ports", "environment"],
-            defaults=dict(container_image=None,
-                          ports=(), environment=None))
+@attributes(["node_path", "container_path"])
+class Volume(object):
+    """
+    A Docker volume.
+
+    :ivar FilePath node_path: The volume's path on the node's
+    filesystem.
+
+    :ivar FilePath container_path: The volume's path within the
+    container.
+    """
+
+
+@attributes(["name", "container_name", "activation_state",
+             Attribute("container_image", default_value=None),
+             Attribute("ports", default_value=()),
+             Attribute("environment", default_value=None),
+             Attribute("volumes", default_value=())])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -73,12 +87,16 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar list ports: The ``PortMap`` instances which define how connections to
-        ports on the host are routed to ports exposed in the container.
+    :ivar tuple ports: The ``PortMap`` instances which define how
+        connections to ports on the host are routed to ports exposed in
+        the container.
 
     :ivar Environment environment: An ``Environment`` whose variables
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
+
+    :ivar volumes: A ``tuple`` of ``Volume`` instances, the container's
+        volumes.
     """
 
 
@@ -92,7 +110,7 @@ class IDockerClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, environment=None):
+    def add(unit_name, image_name, ports=None, environment=None, volumes=()):
         """
         Install and start a new unit.
 
@@ -114,6 +132,8 @@ class IDockerClient(Interface):
         :param Environment environment: Environment variables for the
             container. Default ``None`` means that no environment
             variables will be supplied to the unit.
+
+        :param volumes: A sequence of ``Volume`` instances to mount.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -170,7 +190,8 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), environment=None):
+    def add(self, unit_name, image_name, ports=(), environment=None,
+            volumes=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -179,6 +200,7 @@ class FakeDockerClient(object):
             container_image=image_name,
             ports=ports,
             environment=environment,
+            volumes=volumes,
             activation_state=u'active'
         )
         return succeed(None)
@@ -196,6 +218,8 @@ class FakeDockerClient(object):
         # DockerClient.list can pass until the real DockerClient.list can also
         # return container_image information and ports.
         # See https://github.com/ClusterHQ/flocker/issues/207
+        # Volumes should also be included.
+        # See https://github.com/ClusterHQ/flocker/issues/289
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
@@ -245,13 +269,9 @@ class DockerClient(object):
         """
         return self.namespace + unit_name
 
-    def add(self, unit_name, image_name, ports=None, environment=None):
+    def add(self, unit_name, image_name, ports=None, environment=None,
+            volumes=()):
         container_name = self._to_container_name(unit_name)
-        # To be replaced in
-        # https://github.com/ClusterHQ/flocker/issues/737 (or 772) with real
-        # namespace support.
-        data_container_name = self._to_container_name(
-            u"default." + unit_name) + u"-data"
 
         if environment is not None:
             environment = environment.to_dict()
@@ -263,6 +283,7 @@ class DockerClient(object):
                 image_name,
                 name=container_name,
                 environment=environment,
+                volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports])
 
         def _add():
@@ -283,12 +304,11 @@ class DockerClient(object):
             while not self._blocking_exists(container_name):
                 sleep(0.001)
                 continue
-            if self._blocking_exists(data_container_name):
-                volumes_from = [data_container_name]
-            else:
-                volumes_from = None
             self._client.start(container_name,
-                               volumes_from=volumes_from,
+                               binds={volume.node_path.path:
+                                      {u"bind": volume.container_path.path,
+                                       u"ro": False}
+                                      for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
@@ -358,6 +378,8 @@ class DockerClient(object):
                     continue
                 # We'll add missing info in
                 # https://github.com/ClusterHQ/flocker/issues/207
+                # and to extract volume info from the inspect results:
+                # https://github.com/ClusterHQ/flocker/issues/289
                 result.add(Unit(name=name,
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
