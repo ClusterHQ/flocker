@@ -247,7 +247,7 @@ class Filesystem(object):
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
         local_snapshots = list(
-            Snapshot(name=name)for name in
+            Snapshot(name=name) for name in
             _parse_snapshots(
                 check_output([b"zfs"] + _list_snapshots_command(self)),
                 self
