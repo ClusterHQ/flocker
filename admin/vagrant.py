@@ -98,7 +98,7 @@ def build_box(path, name, version, branch, build_server):
         'FLOCKER_BRANCH': branch,
         'FLOCKER_BUILD_SERVER': build_server,
         })
-    run(['vagrant', 'box', 'update'])
+    run(['vagrant', 'box', 'update'], cwd=path.path)
     run(['vagrant', 'up'], cwd=path.path, env=env)
     run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
 
