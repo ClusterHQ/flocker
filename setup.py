@@ -1,7 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-#
-# Generate a Flocker package that can be deployed onto cluster nodes.
-#
+
+"""
+Generate a Flocker package that can be deployed onto cluster nodes.
+"""
 
 import os
 from setuptools import setup, find_packages
@@ -14,6 +15,9 @@ versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
+
+from admin.release import make_rpm_version
+
 class cmd_generate_spec(Command):
     description = "Generate python-flocker.spec with current version."
     user_options = []
@@ -25,11 +29,20 @@ class cmd_generate_spec(Command):
     def run(self):
         with open('python-flocker.spec.in', 'r') as source:
             spec = source.read()
-        version = "%%global flocker_version %s\n" % (versioneer.get_version(),)
-        with open('python-flocker.spec', 'w') as destination:
-            destination.write(version)
-            destination.write(spec)
 
+        flocker_version = versioneer.get_version()
+        version, release = make_rpm_version(flocker_version)
+        with open('python-flocker.spec', 'w') as destination:
+            destination.write(
+                "%%global flocker_version %s\n" % (flocker_version,))
+            destination.write(
+                "%%global flocker_version_underscore %s\n" % (
+                    flocker_version.replace('-', '_'),))
+            destination.write(
+                "%%global supplied_rpm_version %s\n" % (version,))
+            destination.write(
+                "%%global supplied_rpm_release %s\n" % (release,))
+            destination.write(spec)
 
 cmdclass = {'generate_spec': cmd_generate_spec}
 # Let versioneer hook into the various distutils commands so it can rewrite
@@ -73,7 +86,7 @@ setup(
     # This setuptools helper will find everything that looks like a *Python*
     # package (in other words, things that can be imported) which are part of
     # the Flocker package.
-    packages=find_packages(),
+    packages=find_packages(exclude=('admin', 'admin.*')),
 
     package_data={
         'flocker.node.functional': ['sendbytes-docker/*', 'env-docker/*'],
@@ -95,7 +108,7 @@ setup(
         "eliot == 0.4.0",
         "zope.interface >= 4.0.5",
         "pytz",
-        "characteristic == 0.1.0",
+        "characteristic >= 14.1.0",
         "Twisted == 14.0.0",
 
         "PyYAML == 3.10",
@@ -106,7 +119,7 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.4.0"
+        "docker-py == 0.5.0"
         ],
 
     extras_require={

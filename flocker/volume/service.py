@@ -7,7 +7,6 @@ Volume manager service, the main entry point that manages volumes.
 
 from __future__ import absolute_import
 
-import os
 import sys
 import json
 import stat
@@ -20,15 +19,13 @@ from characteristic import attributes
 from twisted.internet.defer import maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
-from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
-from twisted.internet import reactor
 from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
-from .filesystems.zfs import _AccumulatingProtocol, CommandFailed, StoragePool
+from .filesystems.zfs import StoragePool
 from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
@@ -51,7 +48,7 @@ class VolumeName(object):
         e.g. ``u"default"``. Must not include periods.
 
     :ivar unicode id: The id of the volume,
-        e.g. ``u"postgres-data"``. Since volume ids must match Docker
+        e.g. ``u"mypostgresdata"``. Since volume ids must match Docker
         container names, the characters used should be limited to those
         that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
@@ -351,28 +348,6 @@ class VolumeService(Service):
         return changing_owner
 
 
-# Communication with Docker should be done via its API, not with this
-# approach, but that depends on unreleased Twisted 14.1:
-# https://github.com/ClusterHQ/flocker/issues/64
-def _docker_command(reactor, arguments):
-    """Run the ``docker`` command-line tool with the given arguments.
-
-    :param reactor: A ``IReactorProcess`` provider.
-
-    :param arguments: A ``list`` of ``bytes``, command-line arguments to
-    ``docker``.
-
-    :return: A :class:`Deferred` firing with the bytes of the result (on
-        exit code 0), or errbacking with :class:`CommandFailed` or
-        :class:`BadArguments` depending on the exit code (1 or 2).
-    """
-    endpoint = ProcessEndpoint(reactor, b"docker", [b"docker"] + arguments,
-                               os.environ)
-    d = connectProtocol(endpoint, _AccumulatingProtocol())
-    d.addCallback(lambda protocol: protocol._result)
-    return d
-
-
 @attributes(["uuid", "name", "service"])
 class Volume(object):
     """
@@ -383,7 +358,6 @@ class Volume(object):
     :ivar VolumeName name: The name of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
-
     def locally_owned(self):
         """
         Return whether this volume is locally owned.
@@ -417,56 +391,6 @@ class Volume(object):
         :return: The ``IFilesystem`` provider for the volume.
         """
         return self.service.pool.get(self)
-
-    @property
-    def _container_name(self):
-        """Return the corresponding Docker container name.
-
-        :return: Container name as ``bytes``.
-        """
-        # This duplicates logic in DockerClient; we can remove this when
-        # this logic is refactored to be based on DockerClient.
-        # https://github.com/ClusterHQ/flocker/issues/234
-        return b"flocker--%s-data" % (self.name.to_bytes(),)
-
-    def expose_to_docker(self, mount_path):
-        """
-        Create a container that will expose the volume to Docker at the given
-        mount path.
-
-        Can be called multiple times. Mount paths from previous calls will
-        be overridden.
-
-        :param FilePath mount_path: The path at which to mount the volume
-            within the container.
-
-        :return: ``Deferred`` firing when the operation is done.
-        """
-        local_path = self.get_filesystem().get_path().path
-        mount_path = mount_path.path
-        d = self.remove_from_docker()
-        d.addCallback(
-            lambda _:
-                _docker_command(reactor,
-                                [b"run", b"--name", self._container_name,
-                                 b"--volume=%s:%s:rw" % (local_path,
-                                                         mount_path),
-                                 b"busybox", b"/bin/true"]))
-        return d
-
-    def remove_from_docker(self):
-        """
-        Remove the Docker container created for the volume.
-
-        If no container exists this will silently do nothing.
-
-        :return: ``Deferred`` firing with ``None`` when the operation is
-           done.
-        """
-        d = _docker_command(reactor, [b"rm", self._container_name])
-        d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(lambda _: None)
-        return d
 
 
 @implementer(ICommandLineScript)
