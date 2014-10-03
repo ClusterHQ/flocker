@@ -3,6 +3,7 @@
 """
 Tests for ``flocker.common._release``.
 """
+
 from unittest import TestCase
 
 from ..release import rpm_version, make_rpm_version
@@ -45,10 +46,10 @@ class MakeRpmVersionTests(TestCase):
         ``make_rpm_version`` raises ``Exception`` when supplied with a version
         with a non-integer pre or dev suffix number.
         """
-        exception = self.assertRaises(Exception, make_rpm_version, '0.1.2preX')
+        with self.assertRaises(Exception) as exception:
+            make_rpm_version('0.1.2preX')
 
         self.assertEqual(
             u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception)
+            unicode(exception.exception)
         )
-
