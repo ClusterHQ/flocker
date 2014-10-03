@@ -156,7 +156,7 @@ class FilesystemStoragePool(Service):
         filesystem.get_path().makedirs()
         return succeed(filesystem)
 
-    def clone(self, volume, parent):
+    def clone_to(self, parent, volume):
         #self.create(volume)
         #parent = self.get(parent)
         #child = self.get(volume)

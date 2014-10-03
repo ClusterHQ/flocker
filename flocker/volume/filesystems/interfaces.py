@@ -117,18 +117,18 @@ class IStoragePool(Interface):
             :class:`IFilesystem` provider, or errbacks if creation failed.
         """
 
-    def clone(volume, parent):
+    def clone_to(parent, volume):
         """
         Clone an existing volume to create a new one.
-
-        :param volume: The volume whose filesystem should be created.
-        :type volume: :class:`flocker.volume.service.Volume`
 
         :param parent: A :class:`flocker.volume.service.Volume` whose
            filesystem will cloned to create the new filesystem.
 
-        :return: Deferred that fires on filesystem creation with a
-            :class:`IFilesystem` provider, or errbacks if creation failed.
+        :param volume: The volume whose filesystem should be created.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem cloning with a
+            :class:`IFilesystem` provider, or errbacks if cloning failed.
         """
 
     def get(volume):

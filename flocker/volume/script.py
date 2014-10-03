@@ -198,7 +198,7 @@ class _AcquireSubcommandOptions(Options):
 #         parent = Volume(uuid=self["uuid"],
 #                         name=VolumeName.from_bytes(self["parent_name"]),
 #                         service=service)
-#        return service.clone(VolumeName.from_bytes(self["new_name"]), parent)
+#        return service.clone_to(parent, VolumeName.from_bytes(self["new_name"]))
 
 
 @flocker_standard_options

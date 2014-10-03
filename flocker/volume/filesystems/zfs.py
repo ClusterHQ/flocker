@@ -501,7 +501,7 @@ class StoragePool(Service):
         d.addCallback(lambda _: filesystem)
         return d
 
-    def clone(self, volume, parent):
+    def clone_to(self, parent, volume):
         # create snapshot, zfs clone, maybe with some logic shared with
         # create() to avoid duplication.
         pass
