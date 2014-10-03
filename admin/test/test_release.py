@@ -57,7 +57,7 @@ class MakeRpmVersionTests(TestCase):
 
 from subprocess import check_output
 from twisted.python.filepath import FilePath
-from ..release import SumoBuilder
+from ..release import sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm, BuildSequence
 
 def assertDictContains(test_case, expected_dict, actual_dict, message=''):
     """
@@ -90,15 +90,38 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
         test_case, expected_headers, actual_headers, 'Missing RPM Headers: ')
 
 
+def canned_virtual_env(virtualenv_archive, target_dir):
+    # unzip a prepared virtual env from a tgz
+    # OR 
+    # maybe build a virtual env if a cached archive isn't found and zip it up for future use before returning yielding the path
+    # check_call('tar --directory {} xf {}'.format(target_dir, virtual_env_archive).split())
+    # return target_dir
+    pass
+
+
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
-class RPMSumoTests(TestCase):
+class SumoRpmBuilderTests(TestCase):
     """
+    Tests for `sumo_rpm_builder`.
     """
-    def test_build(self):
+    def test_steps(self):
         """
-        `build` returns the path to the sumo rpm.
+        A sequence of build steps is returned.
         """
-        SumoBuilder().build(FLOCKER_PATH)
+        expected_package_path = '/foo/bar'
+        expected = BuildSequence(
+            steps=(
+                InstallVirtualEnv(target_directory=''),
+                InstallApplication(virtualenv_directory='', package_path=''),
+                BuildRpm(source_directory='')
+            )
+        )
+        self.assertEqual(expected, sumo_rpm_builder(expected_package_path))
+
+    def test_functional(self):
+        # extract a canned virtual env
+        # virtual_env = canned_virtual_env()
+        sumo_rpm_builder(FLOCKER_PATH).run()
         from glob import glob
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))

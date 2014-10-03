@@ -69,9 +69,61 @@ def make_rpm_version(flocker_version):
 
     return rpm_version(version, '.'.join(release))
 
+import os
+from subprocess import check_call
 from tempfile import mkdtemp
+from characteristic import attributes
 
-class SumoBuilder(object):
+@attributes('steps')
+class BuildSequence(object):
+    """
+    """
+    def run(self):
+        """
+        """
+
+@attributes('target_directory')
+class InstallVirtualEnv(object):
+    def run(self):
+        """
+        """
+        import virtualenv
+
+        virtualenv.create_environment(
+            self.target_directory,
+            site_packages=False,
+            clear=False,
+            unzip_setuptools=False,
+            prompt=None,
+            search_dirs=None,
+            never_download=False,
+            no_setuptools=False,
+            no_pip=False,
+            symlink=True
+        )
+
+
+@attributes('virtual_env', 'package_path')
+class InstallApplication(object):
+    def run(self):
+        """
+        """
+        check_call(
+            [os.path.join(self.virtual_env, 'bin', 'pip'), 'install', self.package_path]
+        )
+
+
+@attributes('source_directory')
+class BuildRpm(object):
+    def run(self):
+        """
+        """
+        check_call(
+            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', self.source_directory]
+        )
+
+
+def sumo_rpm_builder(package_path):
     """
     Motivation:
     * We depend on libraries which are not packaged for the target OS.
@@ -122,37 +174,12 @@ class SumoBuilder(object):
     * automatically build a wheel
     * automatically build an sdist
     """
-    def build_virtualenv(self):
-        """
-        """
-        import virtualenv
+    target_dir = mkdtemp()
+    return BuildSequence(
+        steps=(
+            InstallVirtualEnv(target_directory=target_dir),
+            InstallApplication(virtual_env=target_dir, package_path=package_path),
+            BuildRpm(source_directory=target_dir)
+        )
+    )
 
-        home_dir = mkdtemp()
-
-        virtualenv.create_environment(
-            home_dir,
-            site_packages=False,
-            clear=False,
-            unzip_setuptools=False,
-            prompt=None,
-            search_dirs=None,
-            never_download=False,
-            no_setuptools=False,
-            no_pip=False,
-            symlink=True
-        )
-        return home_dir
-        
-    def build(self, package_path):
-        """
-        """
-        import os
-        from subprocess import check_call
-        virtual_env = self.build_virtualenv()
-        check_call(
-            [os.path.join(virtual_env, 'bin', 'pip'), 'install', package_path]
-        )
-        check_call(
-            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', virtual_env]
-        )
-        return virtual_env
