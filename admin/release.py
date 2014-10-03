@@ -70,7 +70,7 @@ def make_rpm_version(flocker_version):
     return rpm_version(version, '.'.join(release))
 
 
-def build_package():
+class SumoBuilder(object):
     """
     Motivation:
     * We depend on libraries which are not packaged for the target OS.
@@ -121,3 +121,7 @@ def build_package():
     * automatically build a wheel
     * automatically build an sdist
     """
+    def build_rpm(self):
+        """
+        """
+        return 'an rpm'

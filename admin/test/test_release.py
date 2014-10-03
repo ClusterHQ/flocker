@@ -53,3 +53,26 @@ class MakeRpmVersionTests(TestCase):
             u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
             unicode(exception.exception)
         )
+
+
+from ..release import SumoBuilder
+
+
+def assertRpmHeaders(test_case, expected_headers, rpm_path):
+    """
+    The `RPM` file at `rpm_path` contains all the `expected_headers`.
+    """
+    # TODO inspect RPM using `rpm --query --info --package`
+    test_case.fail('NOT_IMPLEMENTED')
+
+
+class RPMSumoTests(TestCase):
+    """
+    """
+    def test_build(self):
+        """
+        `build` returns the path to the sumo rpm.
+        """
+        rpm_path = SumoBuilder().build_rpm()
+        expected_headers = dict(version='foo', release='bar')
+        assertRpmHeaders(self, expected_headers, rpm_path)
