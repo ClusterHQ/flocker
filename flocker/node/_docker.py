@@ -376,7 +376,8 @@ class DockerClient(object):
                     continue
                 # We'll add missing info in
                 # https://github.com/ClusterHQ/flocker/issues/207
-                # XXX extract volume info from the inspect results, add to Unit
+                # and to extract volume info from the inspect results:
+                # https://github.com/ClusterHQ/flocker/issues/289
                 result.add(Unit(name=name,
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
