@@ -180,8 +180,6 @@ class VolumeOptions(Options):
          "Receive a remotely pushed volume."],
         ["acquire", None, _AcquireSubcommandOptions,
          "Acquire a remotely owned volume."],
-        #["clone", None, _CloneSubcommandOptions,
-        # "Clone an existing volume."],
     ]
 
 
