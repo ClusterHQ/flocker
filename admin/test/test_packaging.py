@@ -18,7 +18,7 @@ from ..release import make_rpm_version
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 
-def assertDictContains(test_case, expected_dict, actual_dict, message=''):
+def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
     """
     `actual_dict` contains all the items in `expected_dict`
     """
@@ -43,7 +43,7 @@ def assertDictContains(test_case, expected_dict, actual_dict, message=''):
         )
 
 
-def assertRpmHeaders(test_case, expected_headers, rpm_path):
+def assert_rpm_headers(test_case, expected_headers, rpm_path):
     """
     The `RPM` file at `rpm_path` contains all the `expected_headers`.
     """
@@ -57,8 +57,9 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
         else:
             actual_headers[key] += parts[0]
 
-    assertDictContains(
-        test_case, expected_headers, actual_headers, 'Missing RPM Headers: ')
+    assert_dict_contains(
+        test_case, expected_headers, actual_headers, 'Missing RPM Headers: '
+    )
 
 
 def fake_virtual_env(test_case):
@@ -207,4 +208,4 @@ class SumoRpmBuilderTests(TestCase):
             URL='http://clusterhq.com',
             Vendor='ClusterHQ',
         )
-        assertRpmHeaders(self, expected_headers, rpms[0])
+        assert_rpm_headers(self, expected_headers, rpms[0])
