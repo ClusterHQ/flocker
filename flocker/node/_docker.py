@@ -281,7 +281,7 @@ class DockerClient(object):
                 image_name,
                 name=container_name,
                 environment=environment,
-                volumes=[volume.container_path.path for volume in volumes],
+                volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports])
 
         def _add():
