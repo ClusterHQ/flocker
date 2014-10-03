@@ -57,7 +57,7 @@ class InstallApplication(object):
         )
 
 
-@attributes(['source_path', 'rpm_version', 'license'])
+@attributes(['source_path', 'rpm_version', 'license', 'url'])
 class BuildRpm(object):
     def run(self):
         """
@@ -70,6 +70,7 @@ class BuildRpm(object):
             '--version', self.rpm_version.version,
             '--iteration', self.rpm_version.release,
             '--license', self.license,
+            '--url', self.url,
             self.source_path.path]
         )
 
@@ -135,6 +136,7 @@ def sumo_rpm_builder(package_path, version, target_dir=None):
                 source_path=target_dir,
                 rpm_version=make_rpm_version(version),
                 license='Apache Version 2.0',
+                url='https://clusterhq.com'
             )
         )
     )

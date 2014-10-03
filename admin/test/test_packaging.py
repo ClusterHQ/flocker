@@ -179,10 +179,12 @@ class BuildRpmTests(TestCase):
         source_path.makedirs()
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
+        expected_url = 'https://www.example.com/foo/bar'
         BuildRpm(
             source_path=source_path, 
             rpm_version=expected_rpm_version,
-            license=expected_license
+            license=expected_license,
+            url=expected_url,
         ).run()
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))
@@ -191,7 +193,7 @@ class BuildRpmTests(TestCase):
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
             License=expected_license,
-            # URL='http://clusterhq.com',
+            URL=expected_url,
             # Vendor='ClusterHQ',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
@@ -209,6 +211,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_package_path = '/foo/bar'
         expected_version = '0.3dev1'
         expected_license = 'Apache Version 2.0'
+        expected_url = 'https://clusterhq.com'
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
@@ -216,7 +219,8 @@ class SumoRpmBuilderTests(TestCase):
                                    package_path=expected_package_path),
                 BuildRpm(source_path=expected_target_path,
                          rpm_version=make_rpm_version(expected_version),
-                         license=expected_license)
+                         license=expected_license,
+                         url=expected_url,)
             )
         )
         self.assertEqual(
