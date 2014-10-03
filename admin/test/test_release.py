@@ -4,7 +4,7 @@
 Tests for ``flocker.common._release``.
 """
 
-from unittest import TestCase
+from twisted.trial.unittest import TestCase
 
 from ..release import rpm_version, make_rpm_version
 
@@ -46,12 +46,11 @@ class MakeRpmVersionTests(TestCase):
         ``make_rpm_version`` raises ``Exception`` when supplied with a version
         with a non-integer pre or dev suffix number.
         """
-        with self.assertRaises(Exception) as exception:
-            make_rpm_version('0.1.2preX')
+        exception = self.assertRaises(Exception, make_rpm_version, '0.1.2preX')
 
         self.assertEqual(
             u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
-            unicode(exception.exception)
+            unicode(exception)
         )
 
 
@@ -92,7 +91,7 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
 
 def canned_virtual_env(virtualenv_archive, target_dir):
     # unzip a prepared virtual env from a tgz
-    # OR 
+    # OR
     # maybe build a virtual env if a cached archive isn't found and zip it up for future use before returning yielding the path
     # check_call('tar --directory {} xf {}'.format(target_dir, virtual_env_archive).split())
     # return target_dir
@@ -108,15 +107,20 @@ class SumoRpmBuilderTests(TestCase):
         """
         A sequence of build steps is returned.
         """
+        expected_target_path = self.mktemp()
         expected_package_path = '/foo/bar'
         expected = BuildSequence(
             steps=(
-                InstallVirtualEnv(target_directory=''),
-                InstallApplication(virtualenv_directory='', package_path=''),
-                BuildRpm(source_directory='')
+                InstallVirtualEnv(target_path=expected_target_path),
+                InstallApplication(virtualenv_path=expected_target_path,
+                                   package_path=expected_package_path),
+                BuildRpm(source_path=expected_target_path)
             )
         )
-        self.assertEqual(expected, sumo_rpm_builder(expected_package_path))
+        self.assertEqual(
+            expected,
+            sumo_rpm_builder(expected_package_path,
+                             target_dir=expected_target_path))
 
     def test_functional(self):
         # extract a canned virtual env

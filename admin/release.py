@@ -72,17 +72,23 @@ def make_rpm_version(flocker_version):
 import os
 from subprocess import check_call
 from tempfile import mkdtemp
-from characteristic import attributes
+try:
+    from characteristic import attributes
+except ImportError:
+    def attributes(attribute_names):
+        return lambda cls: cls
 
-@attributes('steps')
+@attributes(['steps'])
 class BuildSequence(object):
     """
     """
     def run(self):
         """
         """
+        for step in self.steps:
+            step.run()
 
-@attributes('target_directory')
+@attributes(['target_path'])
 class InstallVirtualEnv(object):
     def run(self):
         """
@@ -90,7 +96,7 @@ class InstallVirtualEnv(object):
         import virtualenv
 
         virtualenv.create_environment(
-            self.target_directory,
+            self.target_path,
             site_packages=False,
             clear=False,
             unzip_setuptools=False,
@@ -103,27 +109,27 @@ class InstallVirtualEnv(object):
         )
 
 
-@attributes('virtual_env', 'package_path')
+@attributes(['virtualenv_path', 'package_path'])
 class InstallApplication(object):
     def run(self):
         """
         """
         check_call(
-            [os.path.join(self.virtual_env, 'bin', 'pip'), 'install', self.package_path]
+            [os.path.join(self.virtualenv_path, 'bin', 'pip'), 'install', self.package_path]
         )
 
 
-@attributes('source_directory')
+@attributes(['source_path'])
 class BuildRpm(object):
     def run(self):
         """
         """
         check_call(
-            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', self.source_directory]
+            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', self.source_path]
         )
 
 
-def sumo_rpm_builder(package_path):
+def sumo_rpm_builder(package_path, target_dir=None):
     """
     Motivation:
     * We depend on libraries which are not packaged for the target OS.
@@ -174,12 +180,12 @@ def sumo_rpm_builder(package_path):
     * automatically build a wheel
     * automatically build an sdist
     """
-    target_dir = mkdtemp()
+    if target_dir is None:
+        target_dir = mkdtemp()
     return BuildSequence(
         steps=(
-            InstallVirtualEnv(target_directory=target_dir),
-            InstallApplication(virtual_env=target_dir, package_path=package_path),
-            BuildRpm(source_directory=target_dir)
+            InstallVirtualEnv(target_path=target_dir),
+            InstallApplication(virtualenv_path=target_dir, package_path=package_path),
+            BuildRpm(source_path=target_dir)
         )
     )
-
