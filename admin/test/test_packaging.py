@@ -185,9 +185,9 @@ class BuildRpmTests(TestCase):
             Name='Flocker',
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
-            License='Apache',
-            URL='http://clusterhq.com',
-            Vendor='ClusterHQ',
+            # License='Apache',
+            # URL='http://clusterhq.com',
+            # Vendor='ClusterHQ',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 
@@ -202,12 +202,14 @@ class SumoRpmBuilderTests(TestCase):
         """
         expected_target_path = self.mktemp()
         expected_package_path = '/foo/bar'
+        expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
                 InstallApplication(virtualenv_path=expected_target_path,
                                    package_path=expected_package_path),
-                BuildRpm(source_path=expected_target_path)
+                BuildRpm(source_path=expected_target_path,
+                         rpm_version=expected_rpm_version)
             )
         )
         self.assertEqual(
@@ -229,8 +231,8 @@ class SumoRpmBuilderTests(TestCase):
             Name='Flocker',
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
-            License='Apache',
-            URL='http://clusterhq.com',
-            Vendor='ClusterHQ',
+            # License='Apache',
+            # URL='http://clusterhq.com',
+            # Vendor='ClusterHQ',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
