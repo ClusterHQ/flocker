@@ -79,7 +79,7 @@ class GenericDockerClientTests(TestCase):
         :param unicode unit_name: See ``IDockerClient.add``.
         :param unicode image_name: See ``IDockerClient.add``.
         :param list ports: See ``IDockerClient.add``.
-        :param Unit expected_states: A list of activation states to wait for.
+        :param expected_states: A sequence of activation states to wait for.
         :param environment: See ``IDockerClient.add``.
         :param volumes: See ``IDockerClient.add``.
 
