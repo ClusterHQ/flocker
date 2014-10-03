@@ -38,7 +38,7 @@ class InstallVirtualEnv(object):
             search_dirs=None,
             never_download=False,
             no_setuptools=False,
-            no_pip=True,
+            no_pip=False,
             symlink=True
         )
 
