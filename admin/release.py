@@ -70,9 +70,6 @@ def make_rpm_version(flocker_version):
     return rpm_version(version, '.'.join(release))
 
 
-from tempfile import mkdtemp
-import virtualenv
-
 class SumoBuilder(object):
     """
     Motivation:
@@ -127,6 +124,9 @@ class SumoBuilder(object):
     def build_virtualenv(self):
         """
         """
+        from tempfile import mkdtemp
+        import virtualenv
+
         home_dir = mkdtemp()
 
         virtualenv.create_environment(
@@ -146,13 +146,10 @@ class SumoBuilder(object):
     def build(self, package_path):
         """
         """
+        import os
+        from subprocess import check_call
         virtual_env = self.build_virtualenv()
-        from pip.commands.install import InstallCommand
-        command = InstallCommand()
-        class Options(object):
-            no_install = False
-            no_download = False
-            build_dir = ''
-            download_dir = ''
-        command.main([package_path])
+        check_call(
+            [os.path.join(virtual_env, 'bin', 'pip'), 'install', package_path]
+        )
         return virtual_env
