@@ -62,6 +62,8 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
 
 
 def canned_virtual_env(virtualenv_archive, target_dir):
+    """
+    """
     # unzip a prepared virtual env from a tgz
     # OR
     # maybe build a virtual env if a cached archive isn't found and zip it up
@@ -73,6 +75,32 @@ def canned_virtual_env(virtualenv_archive, target_dir):
     #     '--file', virtualenv_archive
     # ])
     pass
+
+
+class SpyStep(object):
+    """
+    """
+    ran = False
+    def run(self):
+        """
+        """
+        self.ran = True
+
+
+class BuildSequenceTests(TestCase):
+    """
+    Tests for `BuildSequence`.
+    """
+    def test_run(self):
+        """
+        `BuildSequence` calls the `run` method of each of its `steps`.
+        """
+        step1 = SpyStep()
+        step2 = SpyStep()
+
+        BuildSequence(steps=(step1, step2)).run()
+
+        self.assertEqual((True, True), (step1.ran, step2.ran))
 
 
 class SumoRpmBuilderTests(TestCase):
@@ -100,6 +128,7 @@ class SumoRpmBuilderTests(TestCase):
 
     def test_functional(self):
         """
+        An RPM file with the expected headers is built.
         """
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH).strip()
