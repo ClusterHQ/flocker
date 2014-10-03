@@ -582,7 +582,7 @@ def make_istoragepool_tests(fixture):
 
         def test_change_owner_creates_new(self):
             """
-            ``IFilesystem.change_owner()`` exposes a filesystem for the new
+            ``IFilesystem.change_owner()`` creates a filesystem for the new
             volume definition.
             """
             pool = fixture(self)
@@ -695,5 +695,104 @@ def make_istoragepool_tests(fixture):
 
             creating.addCallback(created)
             return creating
+
+        def test_clone_to_creates_new(self):
+            """
+            ``IFilesystem.clone_to()`` creates a filesystem for the new
+            volume definition.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+                                service=service)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                old_path = filesystem.get_path()
+                d = pool.clone_to(volume, new_volume)
+                d.addCallback(lambda new_fs: (old_path, new_fs))
+                return d
+            d.addCallback(created_filesystem)
+
+            def cloned((old_path, new_filesystem)):
+                new_path = new_filesystem.get_path()
+                self.assertNotEqual(old_path, new_path)
+            d.addCallback(cloned)
+            return d
+
+        def test_clone_to_copies_data(self):
+            """
+            ``IStoragePool.clone_to()`` copies the data from the filesystem for
+            the old volume definition to that for the new volume
+            definition.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+                                service=service)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                path = filesystem.get_path()
+                path.child('file').setContent(b'content')
+
+                return pool.clone_to(volume, new_volume)
+            d.addCallback(created_filesystem)
+
+            def cloned(filesystem):
+                path = filesystem.get_path()
+                self.assertEqual(path.child('file').getContent(),
+                                 b'content')
+            d.addCallback(cloned)
+
+            return d
+
+        def test_clone_to_old_distinct_filesystems(self):
+            """
+            ``IStoragePool.clone_to()`` ensures the original filesystem and new
+            filesystem are unmodified by changes to the other.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+                                service=service)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                return pool.clone_to(volume, new_volume)
+            d.addCallback(created_filesystem)
+
+            def cloned(old_path):
+                old_path = volume.get_filesystem().get_path()
+                old_path.child('old').setContent(b'old')
+                new_path = new_volume.get_filesystem().get_path()
+                new_path.child(b'new').setContent(b'new')
+                self.assertEqual([False, False],
+                                 [old_path.child(b'new').exists(),
+                                  new_path.child(b'old').exists()])
+            d.addCallback(cloned)
+            return d
+
+        def test_clone_to_existing_target(self):
+            """
+            ``IStoragePool.clone_to()`` returns a :class:`Deferred` that
+            fails with :exception:`FilesystemAlreadyExists`, if the target
+            filesystem already exists.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+                                service=service)
+            d = gatherResults([pool.create(volume), pool.create(new_volume)])
+
+            def created_filesystems(igonred):
+                return pool.clone_to(volume, new_volume)
+            d.addCallback(created_filesystems)
+
+            return self.assertFailure(d, FilesystemAlreadyExists)
 
     return IStoragePoolTests
