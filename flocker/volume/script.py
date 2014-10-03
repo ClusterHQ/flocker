@@ -162,45 +162,6 @@ class _AcquireSubcommandOptions(Options):
         return d
 
 
-# class _CloneSubcommandOptions(Options):
-#     """
-#     Command line options for ``flocker-volume clone``.
-#     """
-
-#     longdesc = """\
-#     Clone a previously existing volume, creating a new one.
-
-#     Reads the volume in from standard in. This is typically called
-#     automatically over SSH.
-
-#     Parameters:
-
-#     * owner-uuid: The UUID of the volume manager that owns the parent volume.
-
-#     * parent-name: The name of the parent volume.
-
-#     * new-name: The name of the new volume to create.
-#     """
-
-#     synopsis = "<owner-uuid> <parent-name> <new-name>"
-
-#     def parseArgs(self, uuid, parent_name, new_name):
-#         self["uuid"] = uuid.decode("ascii")
-#         self["parent_name"] = parent_name
-#         self["new_name"] = new_name
-
-#     def run(self, service):
-#         """
-#         Run the action for this sub-command.
-
-#         :param VolumeService service: The volume manager service to utilize.
-#         """
-#         parent = Volume(uuid=self["uuid"],
-#                         name=VolumeName.from_bytes(self["parent_name"]),
-#                         service=service)
-#        return service.clone_to(parent, VolumeName.from_bytes(self["new_name"]))
-
-
 @flocker_standard_options
 @flocker_volume_options
 class VolumeOptions(Options):

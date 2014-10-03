@@ -142,32 +142,6 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def clone_to(self, parent, name):
-        """
-        Clone an existing volume.
-
-        The resulting volume is locally owned, even if the parent isn't.
-
-        :param Volume parent: The volume to clone.
-
-        :param VolumeName name: The name of the volume to create.
-
-        :return: A ``Deferred`` that fires with a :class:`Volume`.
-        """
-        # volume = self.get(name)
-
-        # d = self.pool.clone_to(parent, volume)
-
-        # # XXX refactor so this logic is shared? perhaps by moving into
-        # # filesystem implementations.
-        # def created(filesystem):
-        #     filesystem.get_path().chmod(
-        #         # 0o777 the long way:
-        #         stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-        #     return volume
-        # d.addCallback(created)
-        # return d
-
     def get(self, name):
         """
         Return a locally-owned ``Volume`` with the given name.
