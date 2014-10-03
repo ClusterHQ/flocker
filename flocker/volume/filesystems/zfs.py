@@ -136,7 +136,7 @@ class Snapshot(object):
     """
     A snapshot of a ZFS filesystem.
 
-    :ivar unicode name: The name of the snapshot.
+    :ivar bytes name: The name of the snapshot.
     """
     # TODO: The name should probably be a SnapshotName instead of unicode.
     # However, SnapshotName enforces a convention that we might not want to
