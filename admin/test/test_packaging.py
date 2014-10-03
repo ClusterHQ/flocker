@@ -123,12 +123,44 @@ class InstallVirtualEnvTests(TestCase):
     def test_run(self):
         """
         `InstallVirtualEnv.run` installs a virtual python environment in its
-        `target_path`
+        `target_path`.
         """
         target_path = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=target_path).run()
         expected_paths = ['bin/pip', 'bin/python']
         assert_has_paths(self, expected_paths, target_path)
+
+
+class InstallApplicationTests(TestCase):
+    """
+    Tests for `InstallApplication`.
+    """
+    def test_run(self):
+        """
+        `InstallApplication.run` installs the supplied application in the
+        `target_path`.
+        """
+        expected_package_path = FilePath('/foo/bar')
+        virtualenv_path = FilePath(self.mktemp())
+        pip_log_path = virtualenv_path.child('pip.log')
+        from textwrap import dedent
+        bin_path = virtualenv_path.child('bin')
+        bin_path.makedirs()
+        pip_path = bin_path.child('pip')
+        pip_path.setContent(
+            dedent("""
+            #!/usr/bin/env python
+            import sys
+            open({pip_log_path}, 'w').write(' '.join(sys.argv[1:]))
+            """).lstrip().format(pip_log_path=repr(pip_log_path.path))
+        )
+        pip_path.chmod(0700)
+        InstallApplication(
+            virtualenv_path=virtualenv_path,
+            package_path=expected_package_path
+        ).run()
+        expected_pip_args = 'install {}'.format(expected_package_path.path)
+        self.assertEqual(expected_pip_args, pip_log_path.getContent().strip())
 
 
 class SumoRpmBuilderTests(TestCase):

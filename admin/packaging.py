@@ -48,8 +48,9 @@ class InstallApplication(object):
     def run(self):
         """
         """
+        pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
-            [os.path.join(self.virtualenv_path, 'bin', 'pip'), 'install', self.package_path]
+            [pip_path, 'install', self.package_path.path]
         )
 
 
