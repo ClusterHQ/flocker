@@ -13,7 +13,7 @@ from zope.interface import Interface, implementer
 from docker import Client
 from docker.errors import APIError
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
 from twisted.internet.defer import succeed, fail
@@ -56,10 +56,11 @@ class Volume(object):
     """
 
 
-@attributes(["name", "container_name", "activation_state", "container_image",
-             "ports", "environment", "volumes"],
-            defaults=dict(container_image=None, ports=(), environment=None,
-                          volumes=()))
+@attributes(["name", "container_name", "activation_state",
+             Attribute("container_image", default_value=None),
+             Attribute("ports", default_value=()),
+             Attribute("environment", default_value=None),
+             Attribute("volumes", default_value=())])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -86,14 +87,14 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar list ports: The ``PortMap`` instances which define how connections to
+    :ivar tuple ports: The ``PortMap`` instances which define how connections to
         ports on the host are routed to ports exposed in the container.
 
     :ivar Environment environment: An ``Environment`` whose variables
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
 
-    :ivar volumes: A ``list`` of ``Volume`` instances, the container's
+    :ivar volumes: A ``tuple`` of ``Volume`` instances, the container's
         volumes.
     """
 
