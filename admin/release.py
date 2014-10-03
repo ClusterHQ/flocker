@@ -124,7 +124,7 @@ class SumoBuilder(object):
     * automatically build a wheel
     * automatically build an sdist
     """
-    def build(self):
+    def build_virtualenv(self):
         """
         """
         home_dir = mkdtemp()
@@ -141,5 +141,18 @@ class SumoBuilder(object):
             no_pip=False,
             symlink=True
         )
-        import pdb; pdb.set_trace()
         return home_dir
+        
+    def build(self, package_path):
+        """
+        """
+        virtual_env = self.build_virtualenv()
+        from pip.commands.install import InstallCommand
+        command = InstallCommand()
+        class Options(object):
+            no_install = False
+            no_download = False
+            build_dir = ''
+            download_dir = ''
+        command.main([package_path])
+        return virtual_env

@@ -65,7 +65,8 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
     output = check_output(['rpm', '--query', '--info', '--package', rpm_path])
     test_case.assertEqual(expected_headers, output)
 
-
+from twisted.python.filepath import FilePath
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
 class RPMSumoTests(TestCase):
     """
     """
@@ -73,6 +74,6 @@ class RPMSumoTests(TestCase):
         """
         `build` returns the path to the sumo rpm.
         """
-        rpm_path = SumoBuilder().build()
+        rpm_path = SumoBuilder().build(FLOCKER_PATH)
         expected_headers = dict(version='foo', release='bar')
         assertRpmHeaders(self, expected_headers, rpm_path)
