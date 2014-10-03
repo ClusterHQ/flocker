@@ -491,25 +491,57 @@ class StoragePool(Service):
         return d
 
     def clone_to(self, parent, volume):
-        # create snapshot, zfs clone, maybe with some logic shared with
-        # create() to avoid duplication.
-        pass
+        parent_filesystem = self.get(parent)
+        new_filesystem = self.get(volume)
+        zfs_snapshots = ZFSSnapshots(self._reactor, parent_filesystem)
+        snapshot_name = bytes(uuid4())
+        d = zfs_snapshots.create(snapshot_name)
+        clone_command = [b"clone",
+                         # Snapshot we're cloning from:
+                         b"%s@%s" % (parent_filesystem.name, snapshot_name),
+                         # New filesystem we're cloning to:
+                         new_filesystem.name,
+                         ]
+        d.addCallback(lambda _: zfs_command(self._reactor, clone_command))
+        self._created(d, volume)
+        d.addCallback(lambda _: new_filesystem)
+        return d
 
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)
-        new_mount_path = new_filesystem.get_path().path
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
+        self._created(d, new_volume)
+        def remounted(ignored):
+            # Use os.rmdir instead of FilePath.remove since we don't want
+            # recursive behavior. If the directory is non-empty, something
+            # went wrong (or there is a race) and we don't want to lose data.
+            os.rmdir(old_filesystem.get_path().path)
+        d.addCallback(remounted)
+        d.addCallback(lambda _: new_filesystem)
+        return d
 
-        def rename_failed(f):
+    def _created(self, result, new_volume):
+        """
+        Common post-processing for attempts at creating new volumes from other
+        volumes.
+
+        :param Deferred result: The result of the creation attempt.
+
+        :param Volume new_volume: Volume we're trying to create.
+        """
+        new_filesystem = self.get(new_volume)
+        new_mount_path = new_filesystem.get_path().path
+
+        def creation_failed(f):
             if f.check(CommandFailed):
-                # This isn't the only reason the rename could fail. We should
+                # This isn't the only reason the operation could fail. We should
                 # figure out why and report it appropriately.
                 # https://github.com/ClusterHQ/flocker/issues/199
                 raise FilesystemAlreadyExists()
             return f
-        d.addErrback(rename_failed)
+        result.addErrback(creation_failed)
 
         def renamed(ignored):
             if new_volume.locally_owned():
@@ -524,17 +556,7 @@ class StoragePool(Service):
                                [b"set", b"mountpoint=" + new_mount_path,
                                 new_filesystem.name]))
             return result
-        d.addCallback(renamed)
-
-        def remounted(ignored):
-            # Use os.rmdir instead of FilePath.remove since we don't want
-            # recursive behavior. If the directory is non-empty, something
-            # went wrong (or there is a race) and we don't want to lose data.
-            os.rmdir(old_filesystem.get_path().path)
-        d.addCallback(remounted)
-
-        d.addCallback(lambda _: new_filesystem)
-        return d
+        result.addCallback(renamed)
 
     def get(self, volume):
         dataset = volume_to_dataset(volume)

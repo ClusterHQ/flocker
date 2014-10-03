@@ -754,8 +754,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
-                                service=service)
+            new_volume = service.get(MY_VOLUME2)
             d = pool.create(volume)
 
             def created_filesystem(filesystem):
