@@ -87,8 +87,9 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar tuple ports: The ``PortMap`` instances which define how connections to
-        ports on the host are routed to ports exposed in the container.
+    :ivar tuple ports: The ``PortMap`` instances which define how
+        connections to ports on the host are routed to ports exposed in
+        the container.
 
     :ivar Environment environment: An ``Environment`` whose variables
         will be supplied to the Docker container or ``None`` if there are no
