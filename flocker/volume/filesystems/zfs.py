@@ -246,10 +246,12 @@ class Filesystem(object):
 
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
-        local_snapshots = list(Snapshot(name=name) for name in _parse_snapshots(
-            check_output([b"zfs"] + _list_snapshots_command(self)),
-            self
-        ))
+        local_snapshots = list(
+            Snapshot(name=name)for name in
+            _parse_snapshots(
+                check_output([b"zfs"] + _list_snapshots_command(self)),
+                self
+            ))
 
         if remote_snapshots is None:
             remote_snapshots = []
@@ -513,6 +515,7 @@ class StoragePool(Service):
         d = zfs_command(self._reactor,
                         [b"rename", old_filesystem.name, new_filesystem.name])
         self._created(d, new_volume)
+
         def remounted(ignored):
             # Use os.rmdir instead of FilePath.remove since we don't want
             # recursive behavior. If the directory is non-empty, something
@@ -536,8 +539,8 @@ class StoragePool(Service):
 
         def creation_failed(f):
             if f.check(CommandFailed):
-                # This isn't the only reason the operation could fail. We should
-                # figure out why and report it appropriately.
+                # This isn't the only reason the operation could fail. We
+                # should figure out why and report it appropriately.
                 # https://github.com/ClusterHQ/flocker/issues/199
                 raise FilesystemAlreadyExists()
             return f

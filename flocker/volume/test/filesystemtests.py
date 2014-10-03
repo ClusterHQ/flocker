@@ -9,16 +9,12 @@ instance as its first argument and returns some object to be used in a test.
 
 from __future__ import absolute_import
 
-from datetime import datetime
-
 from characteristic import attributes
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 from twisted.application.service import IService
-
-from pytz import UTC
 
 from ...testtools import assertNoFDsLeaked
 from ..testtools import service_for_pool
