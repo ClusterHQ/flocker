@@ -14,7 +14,7 @@ if len(sys.argv) != 4:
 
 version = sys.argv[1]
 branch = sys.argv[2]
-build_server = sys.argv[3]
+build_server = sys.argv[3] or 'http://build.clusterhq.com/'
 
 # Make it possible to install flocker-node
 rpm_dist = check_output(['rpm', '-E', '%dist']).strip()
