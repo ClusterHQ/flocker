@@ -103,6 +103,19 @@ class BuildSequenceTests(TestCase):
         self.assertEqual((True, True), (step1.ran, step2.ran))
 
 
+def assert_has_paths(test_case, expected_paths, parent_path):
+    """
+    Fail if any of the `expected_paths` are not existing relative paths of
+    `parent_path`.
+    """
+    missing_paths = []
+    for path in expected_paths:
+        if not parent_path.preauthChild(path).exists():
+            missing_paths.append(path)
+        if missing_paths:
+            test_case.fail('Missing paths: {}'.format(missing_paths))
+
+
 class InstallVirtualEnvTests(TestCase):
     """
     Tests for `InstallVirtualEnv`.
@@ -115,12 +128,8 @@ class InstallVirtualEnvTests(TestCase):
         target_path = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=target_path).run()
         expected_paths = ['bin/pip', 'bin/python']
-        missing_paths = []
-        for path in expected_paths:
-            if not target_path.preauthChild(path).exists():
-                missing_paths.append(path)
-        if missing_paths:
-            self.fail('Missing paths: {}'.format(missing_paths))
+        assert_has_paths(self, expected_paths, target_path)
+
 
 class SumoRpmBuilderTests(TestCase):
     """
