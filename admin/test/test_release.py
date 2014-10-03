@@ -56,14 +56,14 @@ class MakeRpmVersionTests(TestCase):
 
 
 from ..release import SumoBuilder
-
+from subprocess import check_output
 
 def assertRpmHeaders(test_case, expected_headers, rpm_path):
     """
     The `RPM` file at `rpm_path` contains all the `expected_headers`.
     """
-    # TODO inspect RPM using `rpm --query --info --package`
-    test_case.fail('NOT_IMPLEMENTED')
+    output = check_output(['rpm', '--query', '--info', '--package', rpm_path])
+    test_case.assertEqual(expected_headers, output)
 
 
 class RPMSumoTests(TestCase):
