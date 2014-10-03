@@ -68,4 +68,3 @@ def make_rpm_version(flocker_version):
         release.extend(remainder)
 
     return rpm_version(version, '.'.join(release))
-
