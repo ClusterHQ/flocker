@@ -20,7 +20,7 @@ class BuildOptions(usage.Options):
     optParameters = [
         ['branch', None, None, 'Branch to grab RPMS from'],
         ['box', None, None, 'Name of box to build'],
-        ['version', None, flocker.__version__, 'Version of flocker'],
+        ['flocker-version', None, flocker.__version__, 'Version of flocker to install'],
         ['build-server', None, 'http://build.clusterhq.com/', 'Base URL of build server to download RPMs from'],
     ]
 
