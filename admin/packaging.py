@@ -4,10 +4,10 @@
 Helper utilities for the Flocker packaging
 """
 
-import os
 from subprocess import check_call
 from tempfile import mkdtemp
 
+from twisted.python.filepath import FilePath
 from characteristic import attributes
 
 
@@ -47,6 +47,8 @@ class InstallVirtualEnv(object):
 class InstallApplication(object):
     def run(self):
         """
+        Install the supplied `package_path` using `pip` from the supplied
+        `virtualenv_path`.
         """
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
@@ -116,7 +118,7 @@ def sumo_rpm_builder(package_path, target_dir=None):
     * automatically build an sdist
     """
     if target_dir is None:
-        target_dir = mkdtemp()
+        target_dir = FilePath(mkdtemp())
     return BuildSequence(
         steps=(
             InstallVirtualEnv(target_path=target_dir),

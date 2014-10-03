@@ -4,7 +4,7 @@
 Tests for ``admin.packaging``.
 """
 from glob import glob
-from subprocess import check_output, check_call
+from subprocess import check_output
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -15,7 +15,7 @@ from ..packaging import (
 )
 from ..release import make_rpm_version
 
-FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 
 def assertDictContains(test_case, expected_dict, actual_dict, message=''):
@@ -191,7 +191,7 @@ class SumoRpmBuilderTests(TestCase):
         An RPM file with the expected headers is built.
         """
         expected_python_version = check_output(
-            ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH).strip()
+            ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
         sumo_rpm_builder(FLOCKER_PATH).run()
         rpms = glob('*.rpm')
