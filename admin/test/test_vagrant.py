@@ -7,15 +7,12 @@ from twisted.python.filepath import FilePath
 from twisted.python.usage import UsageError
 
 from admin.vagrant import (
-    box_metadata, build_box, BuildOptions)
+    box_metadata, BuildOptions)
 
 from flocker import __version__ as flocker_version
 
 
 class BuildOptionsTest(SynchronousTestCase):
-
-    def flakey():
-        build_box
 
     def test_relative_args(self):
         """
