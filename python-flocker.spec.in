@@ -1,15 +1,12 @@
-%global underscore_version %{lua:version = rpm.expand("%{flocker_version}"):gsub("-","_"); print(version)}
-
 Name:           python-flocker
-Version:        %{underscore_version}
-Release:        1%{?dist}
+Version:        %{supplied_rpm_version}
+Release:        %{supplied_rpm_release}%{?dist}
 Summary:        Libraries for flocker
 BuildArch:      noarch
 
 License:        ASL 2.0
 URL:            https://clusterhq.com
-Source0:        Flocker-%{flocker_version}.tar.gz
-
+Source0:        http://archive.clusterhq.com/downloads/flocker/Flocker-%{flocker_version}.tar.gz
 BuildRequires:  python-devel
 
 BuildRequires:  python
@@ -18,7 +15,7 @@ BuildRequires:  python-setuptools
 BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
 BuildRequires:  pytz
 BuildRequires:  python-psutil = 2.1.2
-BuildRequires:  python-characteristic = 0.1.0
+BuildRequires:  python-characteristic >= 14.1.0
 BuildRequires:  python-twisted = 14.0.0
 BuildRequires:  PyYAML = 3.10
 BuildRequires:  python-treq = 0.2.1
@@ -34,7 +31,7 @@ BuildRequires:  docker-io
 Requires:       python-setuptools
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       pytz
-Requires:       python-characteristic = 0.1.0
+Requires:       python-characteristic >= 14.1.0
 Requires:       python-twisted = 14.0.0
 Requires:       PyYAML = 3.10
 Requires:       python-treq = 0.2.1
@@ -105,7 +102,7 @@ trial flocker
 %doc README.rst
 
 %{python2_sitelib}/flocker
-%{python2_sitelib}/Flocker-%{underscore_version}-py?.?.egg-info
+%{python2_sitelib}/Flocker-%{flocker_version_underscore}-py?.?.egg-info
 
 %files -n flocker-cli
 %doc README.rst
@@ -120,5 +117,6 @@ trial flocker
 %{_bindir}/flocker-reportstate
 
 %changelog
-* Tue Jun 10 2014 Tom Prince - %{underscore_version}-1%{?dist}
+
+* Tue Jun 10 2014 Tom Prince - %{version}-%{release}
 - Development version
