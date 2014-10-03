@@ -4,7 +4,6 @@
 Tests for ``admin.packaging``.
 """
 from glob import glob
-import os
 from subprocess import check_output
 
 from twisted.python.filepath import FilePath
@@ -21,7 +20,7 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
     """
-    `actual_dict` contains all the items in `expected_dict`
+    `actual_dict` contains all the items in `expected_dict`.
     """
     missing_items = []
     mismatch_items = []
@@ -65,6 +64,11 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
 
 def fake_virtual_env(test_case):
     """
+    Create a directory containing a fake pip executable which records its
+    arguments when executed.
+
+    Return an object containing methods with which to make assertions about the
+    fake virtualenv.
     """
     virtualenv_path = FilePath(test_case.mktemp())
     pip_log_path = virtualenv_path.child('pip.log')
@@ -97,11 +101,10 @@ def fake_virtual_env(test_case):
 
 class SpyStep(object):
     """
+    A `BuildStep` which records the fact that it has been run.
     """
     ran = False
     def run(self):
-        """
-        """
         self.ran = True
 
 

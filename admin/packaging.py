@@ -9,27 +9,26 @@ from tempfile import mkdtemp
 
 from twisted.python.filepath import FilePath
 from characteristic import attributes
+import virtualenv
 
 from .release import make_rpm_version
 
 @attributes(['steps'])
 class BuildSequence(object):
     """
+    Run the supplied `steps` in consecutively.
     """
     def run(self):
-        """
-        """
         for step in self.steps:
             step.run()
 
 
 @attributes(['target_path'])
 class InstallVirtualEnv(object):
+    """
+    Install a virtualenv in the supplied `target_path`.
+    """
     def run(self):
-        """
-        """
-        import virtualenv
-
         virtualenv.create_environment(
             self.target_path.path,
             site_packages=False,
@@ -46,11 +45,11 @@ class InstallVirtualEnv(object):
 
 @attributes(['virtualenv_path', 'package_path'])
 class InstallApplication(object):
+    """
+    Install the supplied `package_path` using `pip` from the supplied
+    `virtualenv_path`.
+    """
     def run(self):
-        """
-        Install the supplied `package_path` using `pip` from the supplied
-        `virtualenv_path`.
-        """
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
             [pip_path, '--quiet', 'install', self.package_path.path]
@@ -59,6 +58,9 @@ class InstallApplication(object):
 
 @attributes(['source_path', 'name', 'rpm_version', 'license', 'url'])
 class BuildRpm(object):
+    """
+    Use `fpm` to build an RPM file from the supplied `source_path`.
+    """
     def run(self):
         """
         """
@@ -77,6 +79,9 @@ class BuildRpm(object):
 
 def sumo_rpm_builder(package_path, version, target_dir=None):
     """
+    Build an RPM file containing the supplied `package` and all its
+    dependencies.
+
     Motivation:
     * We depend on libraries which are not packaged for the target OS.
     * We depend on newer versions of libraries which have not yet been included in the target OS.
@@ -131,7 +136,8 @@ def sumo_rpm_builder(package_path, version, target_dir=None):
     return BuildSequence(
         steps=(
             InstallVirtualEnv(target_path=target_dir),
-            InstallApplication(virtualenv_path=target_dir, package_path=package_path),
+            InstallApplication(virtualenv_path=target_dir, 
+                               package_path=package_path),
             BuildRpm(
                 source_path=target_dir,
                 name='Flocker',
