@@ -4,16 +4,19 @@
 Tests for ``admin.packaging``.
 """
 from glob import glob
-from subprocess import check_output
+from subprocess import check_output, check_call
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from ..packaging import (
-    sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm, 
+    sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
     BuildSequence
 )
 from ..release import make_rpm_version
+
+FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
+
 
 def assertDictContains(test_case, expected_dict, actual_dict, message=''):
     """
@@ -61,13 +64,17 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
 def canned_virtual_env(virtualenv_archive, target_dir):
     # unzip a prepared virtual env from a tgz
     # OR
-    # maybe build a virtual env if a cached archive isn't found and zip it up for future use before returning yielding the path
-    # check_call('tar --directory {} xf {}'.format(target_dir, virtual_env_archive).split())
-    # return target_dir
+    # maybe build a virtual env if a cached archive isn't found and zip it up
+    # for future use before returning yielding the path
+    # check_call([
+    #     'tar',
+    #     '--directory', target_dir,
+    #     '--extract',
+    #     '--file', virtualenv_archive
+    # ])
     pass
 
 
-FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
 class SumoRpmBuilderTests(TestCase):
     """
     Tests for `sumo_rpm_builder`.
