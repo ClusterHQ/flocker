@@ -59,6 +59,19 @@ from subprocess import check_output
 from twisted.python.filepath import FilePath
 from ..release import SumoBuilder
 
+def assertDictContains(test_case, expected_dict, actual_dict, message=''):
+    """
+    `actual_dict` contains all the items in `expected_dict`
+    """
+    actual_items = actual_dict.items()
+    missing_items = []
+    for item in expected_dict.items():
+        if item not in actual_items:
+            missing_items.append(item)
+    if missing_items:
+        test_case.fail('{}Missing items: {}'.format(message, missing_items))
+
+
 def assertRpmHeaders(test_case, expected_headers, rpm_path):
     """
     The `RPM` file at `rpm_path` contains all the `expected_headers`.
@@ -73,7 +86,8 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
         else:
             actual_headers[key] += parts[0]
 
-    test_case.assertEqual(expected_headers, actual_headers)
+    assertDictContains(
+        test_case, expected_headers, actual_headers, 'Missing RPM Headers: ')
 
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
@@ -85,8 +99,11 @@ class RPMSumoTests(TestCase):
         `build` returns the path to the sumo rpm.
         """
         SumoBuilder().build(FLOCKER_PATH)
-        expected_headers = dict(version='foo', release='bar')
         from glob import glob
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))
+        expected_headers = dict(
+            version='foo',
+            release='bar'
+        )
         assertRpmHeaders(self, expected_headers, rpms[0])
