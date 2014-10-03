@@ -70,6 +70,9 @@ def make_rpm_version(flocker_version):
     return rpm_version(version, '.'.join(release))
 
 
+from tempfile import mkdtemp
+import virtualenv
+
 class SumoBuilder(object):
     """
     Motivation:
@@ -87,7 +90,7 @@ class SumoBuilder(object):
     * Create virtualenv with `--system-site-packages`
       * Allows certain python libraries to be supplied by the operating system.
     * Install flocker from wheel file (which will include all the dependencies).
-      * We'll need to keep track of which of our dependencies are provided on each platform and somehow omit those for from the build for that platform. 
+      * We'll need to keep track of which of our dependencies are provided on each platform and somehow omit those for from the build for that platform.
     * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
@@ -121,7 +124,22 @@ class SumoBuilder(object):
     * automatically build a wheel
     * automatically build an sdist
     """
-    def build_rpm(self):
+    def build(self):
         """
         """
-        return 'an rpm'
+        home_dir = mkdtemp()
+
+        virtualenv.create_environment(
+            home_dir,
+            site_packages=False,
+            clear=False,
+            unzip_setuptools=False,
+            prompt=None,
+            search_dirs=None,
+            never_download=False,
+            no_setuptools=False,
+            no_pip=False,
+            symlink=True
+        )
+        import pdb; pdb.set_trace()
+        return home_dir

@@ -73,6 +73,6 @@ class RPMSumoTests(TestCase):
         """
         `build` returns the path to the sumo rpm.
         """
-        rpm_path = SumoBuilder().build_rpm()
+        rpm_path = SumoBuilder().build()
         expected_headers = dict(version='foo', release='bar')
         assertRpmHeaders(self, expected_headers, rpm_path)
