@@ -61,20 +61,36 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
         test_case, expected_headers, actual_headers, 'Missing RPM Headers: ')
 
 
-def canned_virtual_env(virtualenv_archive, target_dir):
+def fake_virtual_env(test_case):
     """
     """
-    # unzip a prepared virtual env from a tgz
-    # OR
-    # maybe build a virtual env if a cached archive isn't found and zip it up
-    # for future use before returning yielding the path
-    # check_call([
-    #     'tar',
-    #     '--directory', target_dir,
-    #     '--extract',
-    #     '--file', virtualenv_archive
-    # ])
-    pass
+    virtualenv_path = FilePath(test_case.mktemp())
+    pip_log_path = virtualenv_path.child('pip.log')
+    from textwrap import dedent
+    bin_path = virtualenv_path.child('bin')
+    bin_path.makedirs()
+    pip_path = bin_path.child('pip')
+    pip_path.setContent(
+        dedent("""
+        #!/usr/bin/env python
+        import sys
+        open({pip_log_path}, 'w').write('\\0'.join(sys.argv[1:]))
+        """).lstrip().format(pip_log_path=repr(pip_log_path.path))
+    )
+    pip_path.chmod(0700)
+
+    class Tester(object):
+        path = virtualenv_path
+        def assert_pip_args(self, expected_args):
+            """
+            `pip` was called with the `expected_args`.
+            """
+            test_case.assertEqual(
+                expected_args,
+                pip_log_path.getContent().strip().split('\0')
+            )
+
+    return Tester()
 
 
 class SpyStep(object):
@@ -141,26 +157,13 @@ class InstallApplicationTests(TestCase):
         `target_path`.
         """
         expected_package_path = FilePath('/foo/bar')
-        virtualenv_path = FilePath(self.mktemp())
-        pip_log_path = virtualenv_path.child('pip.log')
-        from textwrap import dedent
-        bin_path = virtualenv_path.child('bin')
-        bin_path.makedirs()
-        pip_path = bin_path.child('pip')
-        pip_path.setContent(
-            dedent("""
-            #!/usr/bin/env python
-            import sys
-            open({pip_log_path}, 'w').write(' '.join(sys.argv[1:]))
-            """).lstrip().format(pip_log_path=repr(pip_log_path.path))
-        )
-        pip_path.chmod(0700)
+        fake_env = fake_virtual_env(self)
         InstallApplication(
-            virtualenv_path=virtualenv_path,
+            virtualenv_path=fake_env.path,
             package_path=expected_package_path
         ).run()
-        expected_pip_args = 'install {}'.format(expected_package_path.path)
-        self.assertEqual(expected_pip_args, pip_log_path.getContent().strip())
+        expected_pip_args = ['install', expected_package_path.path]
+        fake_env.assert_pip_args(expected_pip_args)
 
 
 class SumoRpmBuilderTests(TestCase):
