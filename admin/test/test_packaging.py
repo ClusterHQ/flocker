@@ -13,7 +13,7 @@ from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
     BuildSequence
 )
-from ..release import make_rpm_version
+from ..release import make_rpm_version, rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -165,6 +165,31 @@ class InstallApplicationTests(TestCase):
         ).run()
         expected_pip_args = ['install', expected_package_path.path]
         fake_env.assert_pip_args(expected_pip_args)
+
+
+class BuildRpmTests(TestCase):
+    """
+    Tests for `BuildRpm`.
+    """
+    def test_run(self):
+        """
+        `BuildRpm.run` creates an RPM from the supplied `source_path`.
+        """
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        BuildRpm(source_path=source_path, rpm_version=expected_rpm_version).run()
+        rpms = glob('*.rpm')
+        self.assertEqual(1, len(rpms))
+        expected_headers = dict(
+            Name='Flocker',
+            Version=expected_rpm_version.version,
+            Release=expected_rpm_version.release,
+            License='Apache',
+            URL='http://clusterhq.com',
+            Vendor='ClusterHQ',
+        )
+        assert_rpm_headers(self, expected_headers, rpms[0])
 
 
 class SumoRpmBuilderTests(TestCase):

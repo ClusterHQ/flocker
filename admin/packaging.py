@@ -56,13 +56,19 @@ class InstallApplication(object):
         )
 
 
-@attributes(['source_path'])
+@attributes(['source_path', 'rpm_version'])
 class BuildRpm(object):
     def run(self):
         """
         """
-        check_call(
-            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', self.source_path]
+        check_call([
+            'fpm',
+            '-s', 'dir',
+            '-t', 'rpm',
+            '--name', 'Flocker',
+            '--version', self.rpm_version.version,
+            '--iteration', self.rpm_version.release,
+            self.source_path.path]
         )
 
 
