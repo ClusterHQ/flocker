@@ -30,7 +30,7 @@ class InstallVirtualEnv(object):
         import virtualenv
 
         virtualenv.create_environment(
-            self.target_path,
+            self.target_path.path,
             site_packages=False,
             clear=False,
             unzip_setuptools=False,
@@ -38,7 +38,7 @@ class InstallVirtualEnv(object):
             search_dirs=None,
             never_download=False,
             no_setuptools=False,
-            no_pip=False,
+            no_pip=True,
             symlink=True
         )
 

@@ -103,6 +103,25 @@ class BuildSequenceTests(TestCase):
         self.assertEqual((True, True), (step1.ran, step2.ran))
 
 
+class InstallVirtualEnvTests(TestCase):
+    """
+    Tests for `InstallVirtualEnv`.
+    """
+    def test_run(self):
+        """
+        `InstallVirtualEnv.run` installs a virtual python environment in its
+        `target_path`
+        """
+        target_path = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=target_path).run()
+        expected_paths = ['bin/pip', 'bin/python']
+        missing_paths = []
+        for path in expected_paths:
+            if not target_path.preauthChild(path).exists():
+                missing_paths.append(path)
+        if missing_paths:
+            self.fail('Missing paths: {}'.format(missing_paths))
+
 class SumoRpmBuilderTests(TestCase):
     """
     Tests for `sumo_rpm_builder`.
