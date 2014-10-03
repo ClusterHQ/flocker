@@ -124,7 +124,7 @@ def main(args, base_path, top_level):
     build_box(
         path=options['path'],
         name='flocker-' + options['box'],
-        version=options['version'],
+        version=options['flocker-version'],
         branch=options['branch'],
         build_server=options['build-server'],
         )

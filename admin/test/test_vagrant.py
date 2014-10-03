@@ -33,8 +33,9 @@ class BuildOptionsTest(SynchronousTestCase):
         self.assertEqual(options, {
             'box': 'box-name',
             'path': path.descendant(['somewhere', 'box-name']),
+            'build-server': 'http://build.clusterhq.com/',
             'branch': None,
-            'version': flocker_version,
+            'flocker-version': flocker_version,
         })
 
     def test_relative_args_with_box(self):
@@ -65,8 +66,9 @@ class BuildOptionsTest(SynchronousTestCase):
         self.assertEqual(options, {
             'box': 'box-name',
             'path': path.descendant(['vagrant', 'box-name']),
+            'build-server': 'http://build.clusterhq.com/',
             'branch': None,
-            'version': flocker_version,
+            'flocker-version': flocker_version,
         })
 
     def test_absolute_args_no_box(self):
