@@ -12,7 +12,7 @@ if len(sys.argv) != 4:
     print "Wrong number of arguments."
     raise SystemExit(1)
 
-version = sys.argv[1]
+rpm_version = sys.argv[1]
 branch = sys.argv[2]
 build_server = sys.argv[3] or 'http://build.clusterhq.com/'
 
@@ -50,12 +50,12 @@ else:
 
 # If a version is specifed, install that version.
 # Otherwise install whatever yum decides.
-if version:
+if rpm_version:
     # The buildserver doesn't build dirty versions,
     # so strip that.
-    if version.endswith('-dirty'):
-        version = version[:-len('-dirty')]
-    package = 'flocker-node-%s' % (version,)
+    if rpm_version.endswith('.dirty'):
+        rpm_version = rpm_version[:-len('.dirty')]
+    package = 'flocker-node-%s' % (rpm_version,)
 else:
     package = 'flocker-node'
 

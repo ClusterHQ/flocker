@@ -13,6 +13,7 @@ from twisted.python import usage
 import flocker
 
 from admin.runner import run
+from admin.release import make_rpm_version
 
 
 class BuildOptions(usage.Options):
@@ -93,8 +94,9 @@ def build_box(path, name, version, branch, build_server):
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
     env = os.environ.copy()
+    rpm_version, rpm_release = make_rpm_version(version)
     env.update({
-        'FLOCKER_VERSION': version.replace('-', '_'),
+        'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
         'FLOCKER_BRANCH': branch,
         'FLOCKER_BUILD_SERVER': build_server,
         })

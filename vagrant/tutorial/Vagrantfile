@@ -9,7 +9,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Configure base system
   config.vm.provision :shell, :path => "bootstrap.py", :privileged => true,
       :args => [
-          ENV.fetch('FLOCKER_VERSION', ''),
+          ENV.fetch('FLOCKER_RPM_VERSION', ''),
           ENV.fetch('FLOCKER_BRANCH', ''),
           ENV.fetch('FLOCKER_BUILD_SERVER', '')
       ]
