@@ -62,13 +62,22 @@ def assertDictContains(test_case, expected_dict, actual_dict, message=''):
     """
     `actual_dict` contains all the items in `expected_dict`
     """
-    actual_items = actual_dict.items()
     missing_items = []
-    for item in expected_dict.items():
-        if item not in actual_items:
-            missing_items.append(item)
-    if missing_items:
-        test_case.fail('{}Missing items: {}'.format(message, missing_items))
+    mismatch_items = []
+    no_value = object()
+    for key, expected_value in expected_dict.items():
+        actual_value = actual_dict.get(key, no_value)
+        if actual_value is no_value:
+            missing_items.append(key)
+        elif actual_value != expected_value:
+            mismatch_items.append(
+                '{}: {} != {}'.format(key, expected_value, actual_value)
+            )
+    if missing_items or mismatch_items:
+        test_case.fail(
+            '{}Missing items: {}, Mismatch items:  {}'.format(
+                message, missing_items, mismatch_items)
+        )
 
 
 def assertRpmHeaders(test_case, expected_headers, rpm_path):
