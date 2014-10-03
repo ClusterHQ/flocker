@@ -108,7 +108,7 @@ setup(
         "eliot == 0.4.0",
         "zope.interface >= 4.0.5",
         "pytz",
-        "characteristic == 0.1.0",
+        "characteristic >= 14.1.0",
         "Twisted == 14.0.0",
 
         "PyYAML == 3.10",
