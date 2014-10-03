@@ -55,7 +55,7 @@ if rpm_version:
     # so strip that.
     if rpm_version.endswith('.dirty'):
         rpm_version = rpm_version[:-len('.dirty')]
-    package = 'flocker-node-%s' % (rpm_version,)
+    package = 'flocker-node-%s%s' % (rpm_version, rpm_dist)
 else:
     package = 'flocker-node'
 
