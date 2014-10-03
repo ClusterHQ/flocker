@@ -3,7 +3,9 @@
 """
 Tests for ``flocker.common._release``.
 """
-
+from glob import glob
+import os
+from subprocess import check_output
 from twisted.trial.unittest import TestCase
 
 from ..release import rpm_version, make_rpm_version
@@ -75,8 +77,11 @@ def assertDictContains(test_case, expected_dict, actual_dict, message=''):
             )
     if missing_items or mismatch_items:
         test_case.fail(
-            '{}Missing items: {}, Mismatch items:  {}'.format(
-                message, missing_items, mismatch_items)
+            '{}\n'
+            'Missing items: {}\n'
+            'Mismatch items:  {}\n'
+            'Actual items: {}'.format(
+                message, missing_items, mismatch_items, actual_dict)
         )
 
 
@@ -132,14 +137,21 @@ class SumoRpmBuilderTests(TestCase):
                              target_dir=expected_target_path))
 
     def test_functional(self):
-        # extract a canned virtual env
-        # virtual_env = canned_virtual_env()
+        """
+        """
+        expected_python_version = check_output(
+            ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH).strip()
+        expected_rpm_version = make_rpm_version(expected_python_version)
+        import pdb; pdb.set_trace()
         sumo_rpm_builder(FLOCKER_PATH).run()
-        from glob import glob
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
-            version='foo',
-            release='bar'
+            Name='Flocker',
+            Version=expected_rpm_version.version,
+            Release=expected_rpm_version.release,
+            License='Apache',
+            URL='http://clusterhq.com',
+            Vendor='ClusterHQ',
         )
         assertRpmHeaders(self, expected_headers, rpms[0])
