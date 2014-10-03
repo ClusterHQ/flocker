@@ -57,7 +57,7 @@ class InstallApplication(object):
         )
 
 
-@attributes(['source_path', 'rpm_version', 'license', 'url'])
+@attributes(['source_path', 'name', 'rpm_version', 'license', 'url'])
 class BuildRpm(object):
     def run(self):
         """
@@ -66,7 +66,7 @@ class BuildRpm(object):
             'fpm',
             '-s', 'dir',
             '-t', 'rpm',
-            '--name', 'Flocker',
+            '--name', self.name,
             '--version', self.rpm_version.version,
             '--iteration', self.rpm_version.release,
             '--license', self.license,
@@ -134,9 +134,10 @@ def sumo_rpm_builder(package_path, version, target_dir=None):
             InstallApplication(virtualenv_path=target_dir, package_path=package_path),
             BuildRpm(
                 source_path=target_dir,
+                name='Flocker',
                 rpm_version=make_rpm_version(version),
-                license='Apache Version 2.0',
-                url='https://clusterhq.com'
+                license='ASL 2.0',
+                url='https://clusterhq.com',
             )
         )
     )

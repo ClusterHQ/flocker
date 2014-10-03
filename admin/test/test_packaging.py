@@ -4,6 +4,7 @@
 Tests for ``admin.packaging``.
 """
 from glob import glob
+import os
 from subprocess import check_output
 
 from twisted.python.filepath import FilePath
@@ -177,24 +178,25 @@ class BuildRpmTests(TestCase):
         """
         source_path = FilePath(self.mktemp())
         source_path.makedirs()
+        expected_name = 'FooBar'
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
         BuildRpm(
             source_path=source_path, 
+            name=expected_name,
             rpm_version=expected_rpm_version,
             license=expected_license,
             url=expected_url,
         ).run()
-        rpms = glob('*.rpm')
+        rpms = glob('{}*.rpm'.format(expected_name))
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
-            Name='Flocker',
+            Name=expected_name,
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
             License=expected_license,
             URL=expected_url,
-            # Vendor='ClusterHQ',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 
@@ -208,9 +210,10 @@ class SumoRpmBuilderTests(TestCase):
         A sequence of build steps is returned.
         """
         expected_target_path = self.mktemp()
+        expected_name = 'Flocker'
         expected_package_path = '/foo/bar'
         expected_version = '0.3dev1'
-        expected_license = 'Apache Version 2.0'
+        expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
         expected = BuildSequence(
             steps=(
@@ -218,6 +221,7 @@ class SumoRpmBuilderTests(TestCase):
                 InstallApplication(virtualenv_path=expected_target_path,
                                    package_path=expected_package_path),
                 BuildRpm(source_path=expected_target_path,
+                         name=expected_name,
                          rpm_version=make_rpm_version(expected_version),
                          license=expected_license,
                          url=expected_url,)
@@ -233,18 +237,18 @@ class SumoRpmBuilderTests(TestCase):
         """
         An RPM file with the expected headers is built.
         """
+        expected_name = 'Flocker'
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
-        sumo_rpm_builder(FLOCKER_PATH).run()
-        rpms = glob('*.rpm')
+        sumo_rpm_builder(FLOCKER_PATH, expected_python_version).run()
+        rpms = glob('{}*.rpm'.format(expected_name))
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
-            Name='Flocker',
+            Name=expected_name,
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
-            # License='Apache',
-            # URL='http://clusterhq.com',
-            # Vendor='ClusterHQ',
+            License='ASL 2.0',
+            URL='https://clusterhq.com',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
