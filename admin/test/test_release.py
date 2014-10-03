@@ -64,7 +64,16 @@ def assertRpmHeaders(test_case, expected_headers, rpm_path):
     The `RPM` file at `rpm_path` contains all the `expected_headers`.
     """
     output = check_output(['rpm', '--query', '--info', '--package', rpm_path])
-    test_case.assertEqual(expected_headers, output)
+    actual_headers = {}
+    for line in output.splitlines():
+        parts = [value.strip() for value in line.split(':', 1)]
+        if len(parts) == 2:
+            key, val = parts
+            actual_headers[key] = val
+        else:
+            actual_headers[key] += parts[0]
+
+    test_case.assertEqual(expected_headers, actual_headers)
 
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent().path
@@ -75,6 +84,9 @@ class RPMSumoTests(TestCase):
         """
         `build` returns the path to the sumo rpm.
         """
-        rpm_path = SumoBuilder().build(FLOCKER_PATH)
+        SumoBuilder().build(FLOCKER_PATH)
         expected_headers = dict(version='foo', release='bar')
-        assertRpmHeaders(self, expected_headers, rpm_path)
+        from glob import glob
+        rpms = glob('*.rpm')
+        self.assertEqual(1, len(rpms))
+        assertRpmHeaders(self, expected_headers, rpms[0])

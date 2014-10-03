@@ -69,6 +69,7 @@ def make_rpm_version(flocker_version):
 
     return rpm_version(version, '.'.join(release))
 
+from tempfile import mkdtemp
 
 class SumoBuilder(object):
     """
@@ -124,7 +125,6 @@ class SumoBuilder(object):
     def build_virtualenv(self):
         """
         """
-        from tempfile import mkdtemp
         import virtualenv
 
         home_dir = mkdtemp()
@@ -151,5 +151,8 @@ class SumoBuilder(object):
         virtual_env = self.build_virtualenv()
         check_call(
             [os.path.join(virtual_env, 'bin', 'pip'), 'install', package_path]
+        )
+        check_call(
+            ['fpm', '-s', 'dir', '-t', 'rpm', '-n', 'Flocker', virtual_env]
         )
         return virtual_env
