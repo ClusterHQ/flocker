@@ -1,4 +1,4 @@
-# -*- test-case-name: admin.tests.test_vagrant -*-
+# -*- test-case-name: admin.test.test_vagrant -*-
 """
 Tools for interacting with vagrant.
 """
