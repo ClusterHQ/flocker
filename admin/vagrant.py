@@ -21,8 +21,10 @@ class BuildOptions(usage.Options):
     optParameters = [
         ['branch', None, None, 'Branch to grab RPMS from'],
         ['box', None, None, 'Name of box to build'],
-        ['flocker-version', None, flocker.__version__, 'Version of flocker to install'],
-        ['build-server', None, 'http://build.clusterhq.com/', 'Base URL of build server to download RPMs from'],
+        ['flocker-version', None, flocker.__version__,
+         'Version of flocker to install'],
+        ['build-server', None, 'http://build.clusterhq.com/',
+         'Base URL of build server to download RPMs from'],
     ]
 
     def __init__(self, base_path, top_level):
@@ -33,12 +35,14 @@ class BuildOptions(usage.Options):
     def postOptions(self):
         if self.base_path.basename() == 'build':
             if self['box'] is not None:
-                raise usage.UsageError("Can't specify box when invoked from box directory.")
+                raise usage.UsageError(
+                    "Can't specify box when invoked from box directory.")
             self['path'] = self.base_path.parent()
             self['box'] = self['path'].basename()
         else:
             if self['box'] is None:
-                raise usage.UsageError("Must specify box when invoked directly.")
+                raise usage.UsageError(
+                    "Must specify box when invoked directly.")
             self['path'] = self.top_level.descendant(['vagrant', self['box']])
 
 
@@ -72,7 +76,6 @@ def box_metadata(name, version, path):
         }]
     }
     return metadata
-
 
 
 def build_box(path, name, version, branch, build_server):
@@ -122,7 +125,8 @@ def main(args, base_path, top_level):
         sys.stderr.write(options.getUsage())
         raise SystemExit(1)
 
-    sys.stdout.write("Building %s box from %s.\n" % (options['box'], options['path']))
+    sys.stdout.write("Building %s box from %s.\n"
+                     % (options['box'], options['path']))
     build_box(
         path=options['path'],
         name='flocker-' + options['box'],
