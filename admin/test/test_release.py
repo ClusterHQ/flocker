@@ -142,7 +142,6 @@ class SumoRpmBuilderTests(TestCase):
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
-        import pdb; pdb.set_trace()
         sumo_rpm_builder(FLOCKER_PATH).run()
         rpms = glob('*.rpm')
         self.assertEqual(1, len(rpms))
