@@ -29,7 +29,6 @@ from twisted.application.service import Service
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
-from ..snapshots import SnapshotName
 
 
 def random_name():
@@ -208,7 +207,12 @@ class Filesystem(object):
 
     def snapshots(self):
         if self._exists():
-            return _list_snapshots(self._reactor, self)
+            zfs_snapshots = ZFSSnapshots(self._reactor, self)
+            d = zfs_snapshots.list()
+            d.addCallback(lambda snapshots:
+                          [Snapshot(name=name)
+                           for name in snapshots])
+            return d
         return succeed([])
 
     @property
@@ -242,10 +246,10 @@ class Filesystem(object):
 
         # Determine whether there is a shared snapshot which can be used as the
         # basis for an incremental send.
-        local_snapshots = _parse_snapshots(
+        local_snapshots = list(Snapshot(name=name) for name in _parse_snapshots(
             check_output([b"zfs"] + _list_snapshots_command(self)),
             self
-        )
+        ))
 
         if remote_snapshots is None:
             remote_snapshots = []
@@ -322,7 +326,7 @@ class ZFSSnapshots(object):
         self._filesystem = filesystem
 
     def create(self, name):
-        encoded_name = b"%s@%s" % (self._filesystem.name, name.to_bytes())
+        encoded_name = b"%s@%s" % (self._filesystem.name, name)
         d = zfs_command(self._reactor, [b"snapshot", encoded_name])
         d.addCallback(lambda _: None)
         return d
@@ -330,24 +334,8 @@ class ZFSSnapshots(object):
     def list(self):
         """
         List ZFS snapshots known to the volume manager.
-
-        Snapshots whose names cannot be decoded are presumed not to be
-        related to Flocker, and therefore will not be included in the
-        result.
         """
-        d = _list_snapshots(self._reactor, self._filesystem)
-
-        def convert(snapshots):
-            results = []
-            for snapshot in snapshots:
-                try:
-                    results.append(SnapshotName.from_bytes(snapshot.name))
-                except ValueError:
-                    pass
-            return results
-
-        d.addCallback(convert)
-        return d
+        return _list_snapshots(self._reactor, self._filesystem)
 
 
 def _list_snapshots_command(filesystem):
@@ -384,7 +372,8 @@ def _list_snapshots_command(filesystem):
 def _parse_snapshots(data, filesystem):
     """
     Parse the output of a ``zfs list`` command (like the one defined by
-    ``_list_snapshots_command`` into a ``list`` of ``Snapshot`` instances.
+    ``_list_snapshots_command`` into a ``list`` of ``bytes`` (the snapshot
+    names only).
 
     :param bytes data: The output to parse.
 
@@ -392,7 +381,7 @@ def _parse_snapshots(data, filesystem):
         snapshots.  If the output includes snapshots for other filesystems (eg
         siblings or children) they are excluded from the result.
 
-    :return list: A ``list`` of ``Snapshot`` instances corresponding to the
+    :return list: A ``list`` of ``bytes`` corresponding to the
         names of the snapshots in the output.  The order of the list is the
         same as the order of the snapshots in the data being parsed.
     """
@@ -400,7 +389,7 @@ def _parse_snapshots(data, filesystem):
     for line in data.splitlines():
         dataset, snapshot = line.split(b'@', 1)
         if dataset == filesystem.name:
-            result.append(Snapshot(name=snapshot))
+            result.append(snapshot)
     return result
 
 

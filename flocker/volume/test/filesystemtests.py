@@ -27,7 +27,6 @@ from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists,
     )
-from ..snapshots import SnapshotName
 from ..service import Volume, VolumeName
 
 
@@ -57,12 +56,10 @@ def make_ifilesystemsnapshots_tests(fixture):
             ``list()``.
             """
             fsSnapshots = fixture(self)
-            first = SnapshotName(datetime.now(UTC), b"first")
-            second = SnapshotName(datetime.now(UTC), b"second")
-            d = fsSnapshots.create(first)
-            d.addCallback(lambda _: fsSnapshots.create(second))
+            d = fsSnapshots.create(b"first")
+            d.addCallback(lambda _: fsSnapshots.create(b"another"))
             d.addCallback(lambda _: fsSnapshots.list())
-            d.addCallback(self.assertEqual, [first, second])
+            d.addCallback(self.assertEqual, [b"first", b"another"])
             return d
     return IFilesystemSnapshotsTests
 
