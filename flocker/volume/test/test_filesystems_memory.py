@@ -6,10 +6,6 @@ Tests for :module:`flocker.filesystems.memory`.
 
 from __future__ import absolute_import
 
-from datetime import datetime
-
-from pytz import UTC
-
 from twisted.internet.defer import succeed, fail
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
