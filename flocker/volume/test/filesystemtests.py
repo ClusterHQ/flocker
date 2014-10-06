@@ -752,7 +752,7 @@ def make_istoragepool_tests(fixture):
                 return pool.clone_to(volume, new_volume)
             d.addCallback(created_filesystem)
 
-            def cloned(old_path):
+            def cloned(_):
                 old_path = volume.get_filesystem().get_path()
                 old_path.child('old').setContent(b'old')
                 new_path = new_volume.get_filesystem().get_path()
