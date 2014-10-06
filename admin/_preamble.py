@@ -1,5 +1,9 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Inserts flocker on to sys.path.
+
+This module should only be imported by scripts living in :file:`admin`, as the
+first thing they do.
 
 :var FilePath TOPLEVEL: The top-level of the flocker repository.
 :var FilePath BASEPATH: The executable being run.

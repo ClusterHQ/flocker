@@ -1,3 +1,4 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Tests for :module:`admin.vagrant`.
 """
@@ -13,11 +14,16 @@ from flocker import __version__ as flocker_version
 
 
 class BuildOptionsTest(SynchronousTestCase):
+    """
+    Tests for :class:`admin.vagrant.BuildOptions`.
+    """
 
     def test_relative_args(self):
         """
-        When invoked as `build`, no box can be specified.
-        binary, and the box name from the parent directory.
+        When invoked as `build`, no box can be specified. BuildOption takes the
+        path from the parent of :file:`build`, and the box name from the name
+        of
+        that directory.
         """
         path = FilePath(self.mktemp())
         path.createDirectory()
@@ -26,7 +32,7 @@ class BuildOptionsTest(SynchronousTestCase):
         options = BuildOptions(base_path=base_path, top_level=path)
 
         options.parseOptions([])
-    
+
         self.assertEqual(options, {
             'box': 'box-name',
             'path': path.descendant(['somewhere', 'box-name']),
@@ -49,8 +55,9 @@ class BuildOptionsTest(SynchronousTestCase):
 
     def test_absolute_args(self):
         """
-        When invoked as `build-vagrant-box`, Option takes the path
-        relative to the top-level, and the box name from the passed argument.
+        When invoked as `build-vagrant-box`, :class:`BuildOption` takes the
+        path relative to the top-level, and the box name from the passed
+        argument.
         """
         path = FilePath(self.mktemp())
         path.createDirectory()
@@ -59,7 +66,7 @@ class BuildOptionsTest(SynchronousTestCase):
         options = BuildOptions(base_path=base_path, top_level=path)
 
         options.parseOptions(['--box', 'box-name'])
-    
+
         self.assertEqual(options, {
             'box': 'box-name',
             'path': path.descendant(['vagrant', 'box-name']),
@@ -90,7 +97,8 @@ class MetadataTests(SynchronousTestCase):
         """
         `box_metadata` returns the metadata required to add a box locally.
         """
-        metadata = box_metadata("box-name", "0.1.2.3-gxx-dirty", FilePath('/some/path'))
+        metadata = box_metadata("box-name", "0.1.2.3-gxx-dirty",
+                                FilePath('/some/path'))
         self.assertEqual(metadata, {
             "name": "clusterhq/box-name",
             "description": "Test clusterhq/box-name box.",

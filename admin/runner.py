@@ -1,3 +1,4 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Tools for running commands.
 """
@@ -9,7 +10,7 @@ def run(command, **kwargs):
     """
     Echo and run a command..
 
-    :param list command: Comandd to run.
+    :param list command: Command to run.
     :param kwargs: Extra args to pass to ``subprocess.call``.
     """
     sys.stdout.write("Running %s\n" % (b' '.join(map(quote, command))))

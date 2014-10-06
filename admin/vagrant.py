@@ -1,4 +1,5 @@
 # -*- test-case-name: admin.test.test_vagrant -*-
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Tools for interacting with vagrant.
 """
@@ -28,6 +29,10 @@ class BuildOptions(usage.Options):
     ]
 
     def __init__(self, base_path, top_level):
+        """
+        :param FilePath base_path: The executable being run.
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
         usage.Options.__init__(self)
         self.base_path = base_path
         self.top_level = top_level
@@ -50,12 +55,12 @@ def box_metadata(name, version, path):
     """
     Generate metadata for a vagrant box.
 
-    This metadate can be used to locally(!) add the box to vagrant,
+    This metadata can be used to locally(!) add the box to vagrant,
     with the correct version, for testing.
 
-    :param FilePath path: Directory containting ``Vagrantfile``.
     :param bytes name: Base name of vagrant box. Used to build filename.
     :param bytes version: Version of vagrant box. Used to build filename.
+    :param FilePath path: Directory containing ``Vagrantfile``.
     """
     if version:
         # Vagrant doesn't like - in version numbers.
@@ -82,7 +87,7 @@ def build_box(path, name, version, branch, build_server):
     """
     Build a vagrant box.
 
-    :param FilePath path: Directory containting ``Vagrantfile``.
+    :param FilePath path: Directory containing ``Vagrantfile``.
     :param bytes name: Base name of vagrant box. Used to build filename.
     :param bytes version: Version of vagrant box. Used to build filename.
     :param bytes branch: Branch to get flocker RPMs from.
@@ -116,6 +121,11 @@ def build_box(path, name, version, branch, build_server):
 
 
 def main(args, base_path, top_level):
+    """
+    :param list args: The arguments passed to the script.
+    :param FilePath base_path: The executable being run.
+    :param FilePath top_level: The top-level of the flocker repository.
+    """
     options = BuildOptions(base_path=base_path, top_level=top_level)
 
     try:
