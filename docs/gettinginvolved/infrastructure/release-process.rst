@@ -295,6 +295,7 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
+.. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
