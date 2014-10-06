@@ -143,6 +143,15 @@ class RemoteVolumeManager(object):
              volume.uuid.encode(b"ascii"),
              volume.name.to_bytes()]).decode("ascii")
 
+    def clone_to(self, parent, name):
+        return self._destination.get_output(
+            [b"flocker-volume",
+             b"--config", self._config_path.path,
+             b"clone_to",
+             parent.uuid.encode(b"ascii"),
+             parent.name.to_bytes(),
+             name.to_bytes()]).decode("ascii")
+
 
 @implementer(IRemoteVolumeManager)
 class LocalVolumeManager(object):
