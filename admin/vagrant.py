@@ -142,7 +142,6 @@ def main(args, base_path, top_level):
         options.parseOptions(args)
     except usage.UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
-        sys.stderr.write(options.getUsage())
         raise SystemExit(1)
 
     sys.stdout.write("Building %s box from %s.\n"
