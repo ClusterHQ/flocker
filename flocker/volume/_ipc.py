@@ -82,6 +82,17 @@ class IRemoteVolumeManager(Interface):
         :return: The UUID of the remote volume manager (as ``unicode``).
         """
 
+    def clone_to(parent, name):
+        """
+        Clone a parent volume to a new one with the given name.
+
+        :param Volume parent: The volume to clone.
+
+        :param VolumeName name: The name of the volume to clone to.
+
+        :return: A ``Deferred`` that fires when cloning finished.
+        """
+
 
 @implementer(IRemoteVolumeManager)
 @with_cmp(["_destination", "_config_path"])
@@ -161,3 +172,6 @@ class LocalVolumeManager(object):
     def acquire(self, volume):
         self._service.acquire(volume.uuid, volume.name)
         return self._service.uuid
+
+    def clone_to(self, parent, name):
+        return self._service.clone_to(parent, name)

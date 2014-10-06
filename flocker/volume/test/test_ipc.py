@@ -24,6 +24,7 @@ from ...common._ipc import ProcessNode
 
 
 MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvol")
+MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvol2")
 
 
 def make_iremote_volume_manager(fixture):
@@ -210,6 +211,36 @@ def make_iremote_volume_manager(fixture):
                 self.assertEqual(result, to_service.uuid)
             created.addCallback(got_volume)
             return created
+
+        def test_clone_to(self):
+            """
+            ``clone_to()`` clones a volume.
+            """
+            service_pair = fixture(self)
+            service = service_pair.to_service
+
+            d = service.create(MY_VOLUME)
+
+            def created(parent):
+                parent.get_filesystem().get_path().child(b"f").setContent(
+                    b"ORIG")
+                return service_pair.remote.clone_to(parent, MY_VOLUME2)
+            d.addCallback(created)
+
+            def cloned(_):
+                child = service.get(MY_VOLUME2)
+                parent = service.get(MY_VOLUME)
+                child_test_file = child.get_filesystem().get_path().child(b"f")
+                parent_test_file = parent.get_filesystem().get_path().child(
+                    b"f")
+                values =[parent_test_file.getContent(),
+                         child_test_file.getContent()]
+                child_test_file.setContent(b"CHANGED")
+                values.extend([parent_test_file.getContent(),
+                               child_test_file.getContent()])
+                self.assertEqual(values, [b"ORIG", b"ORIG", b"ORIG", b"CHANGED"])
+            d.addCallback(cloned)
+            return d
 
     return IRemoteVolumeManagerTests
 
