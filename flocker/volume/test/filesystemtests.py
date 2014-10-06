@@ -700,15 +700,10 @@ def make_istoragepool_tests(fixture):
             new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
+            d.addCallback(lambda _: pool.clone_to(volume, new_volume))
 
-            def created_filesystem(filesystem):
-                old_path = filesystem.get_path()
-                d = pool.clone_to(volume, new_volume)
-                d.addCallback(lambda new_fs: (old_path, new_fs))
-                return d
-            d.addCallback(created_filesystem)
-
-            def cloned((old_path, new_filesystem)):
+            def cloned(new_filesystem):
+                old_path = volume.get_filesystem().get_path()
                 new_path = new_filesystem.get_path()
                 self.assertNotEqual(old_path, new_path)
             d.addCallback(cloned)
