@@ -127,7 +127,7 @@ class IStoragePool(Interface):
         Clone an existing volume to create a new one.
 
         :param parent: A :class:`flocker.volume.service.Volume` whose
-           filesystem will cloned to create the new filesystem.
+           filesystem will be cloned to create the new filesystem.
 
         :param volume: The volume whose filesystem should be created.
         :type volume: :class:`flocker.volume.service.Volume`
