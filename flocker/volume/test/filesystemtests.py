@@ -740,8 +740,8 @@ def make_istoragepool_tests(fixture):
         def test_clone_to_old_distinct_filesystems(self):
             """
             The filesystem created by ``IStoragePool.clone_to()`` and the
-            original filesystem are independent; writes to one do not affect the
-            other.
+            original filesystem are independent; writes to one do not affect
+            the other.
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
