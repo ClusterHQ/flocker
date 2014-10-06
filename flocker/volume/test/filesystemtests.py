@@ -43,18 +43,18 @@ def make_ifilesystemsnapshots_tests(fixture):
             """
             The tested object provides :class:`IFilesystemSnapshots`.
             """
-            fsSnapshots = fixture(self)
-            self.assertTrue(verifyObject(IFilesystemSnapshots, fsSnapshots))
+            fs_snapshots = fixture(self)
+            self.assertTrue(verifyObject(IFilesystemSnapshots, fs_snapshots))
 
         def test_created(self):
             """
             Snapshots created with ``create()`` are listed in that order in
             ``list()``.
             """
-            fsSnapshots = fixture(self)
-            d = fsSnapshots.create(b"first")
-            d.addCallback(lambda _: fsSnapshots.create(b"another"))
-            d.addCallback(lambda _: fsSnapshots.list())
+            fs_snapshots = fixture(self)
+            d = fs_snapshots.create(b"first")
+            d.addCallback(lambda _: fs_snapshots.create(b"another"))
+            d.addCallback(lambda _: fs_snapshots.list())
             d.addCallback(self.assertEqual, [b"first", b"another"])
             return d
     return IFilesystemSnapshotsTests
