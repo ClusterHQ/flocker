@@ -146,6 +146,41 @@ def make_idockerclient_tests(fixture):
             d.addCallback(got_list)
             return d
 
+        def test_list_container_image(self):
+            """
+            ``list()`` includes the image name associated with each container.
+            """
+            client = fixture(self)
+            name = random_name()
+            image = u"busybox"
+            self.addCleanup(client.remove, name)
+            d = client.add(name, image)
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertEqual(unit.container_image, image)
+            d.addCallback(got_list)
+            return d
+
+        def test_list_container_ports(self):
+            """
+            ``list()`` includes a tuple of ``PortMap`` instances associated
+            with each container.
+            """
+            client = fixture(self)
+            name = random_name()
+            portmap = (PortMap(internal_port=80, external_port=8080),)
+            self.addCleanup(client.remove, name)
+            d = client.add(name, u"busybox", list(portmap))
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertEqual(unit.ports, portmap)
+            d.addCallback(got_list)
+            return d
+
     return IDockerClientTests
 
 
