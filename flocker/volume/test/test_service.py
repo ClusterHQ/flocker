@@ -204,6 +204,52 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(MY_VOLUME))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
+    def test_clone_to_result(self):
+        """
+        ``clone_to()`` returns a ``Deferred`` that fires with a ``Volume``.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        parent = self.successResultOf(service.create(MY_VOLUME))
+        d = service.clone_to(parent, MY_VOLUME2)
+
+        self.assertEqual(
+            self.successResultOf(d),
+            Volume(uuid=service.uuid, name=MY_VOLUME2, service=service))
+
+    def test_clone_to_creates_copied_filesystem(self):
+        """
+        ``clone_to()`` creates the volume's filesystem from the parent's
+        filesystem.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        parent = self.successResultOf(service.create(MY_VOLUME))
+        parent_file = parent.get_filesystem().get_path().child(b"file")
+        parent_file.setContent(b"blah")
+
+        volume = self.successResultOf(service.clone_to(parent, MY_VOLUME2))
+        self.assertEqual(
+            pool.get(volume).get_path().child(b"file").getContent(),
+            b"blah")
+
+    def test_clone_to_new_filesystem(self):
+        """
+        ``clone_to()`` creates a new filesystem.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        parent = self.successResultOf(service.create(MY_VOLUME))
+        parent_file = parent.get_filesystem().get_path().child(b"file")
+        parent_file.setContent(b"blah")
+
+        volume = self.successResultOf(service.clone_to(parent, MY_VOLUME2))
+        pool.get(volume).get_path().child(b"file").setContent(b"changed")
+        self.assertEqual(parent_file.getContent(), b"blah")
+
     @skip_on_broken_permissions
     def test_create_mode(self):
         """The created filesystem is readable/writable/executable by anyone.

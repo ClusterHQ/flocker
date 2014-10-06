@@ -142,6 +142,24 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def clone_to(self, parent, name):
+        """
+        Clone a parent ``Volume`` to create a new one.
+
+        :param Volume parent: The volume to clone.
+
+        :param VolumeName name: The name of the volume to clone to.
+
+        :return: A ``Deferred`` that fires with a :class:`Volume`.
+        """
+        volume = self.get(name)
+        d = self.pool.clone_to(parent, volume)
+
+        def created(filesystem):
+            return volume
+        d.addCallback(created)
+        return d
+
     def get(self, name):
         """
         Return a locally-owned ``Volume`` with the given name.
