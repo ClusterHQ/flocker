@@ -204,6 +204,42 @@ class StoragePoolTests(TestCase):
         d.addCallback(created_filesystems)
         return d
 
+    def test_locally_owned_cloned_writeable(self):
+        """
+        A filesystem which is cloned into a locally owned volume is writeable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        parent = service.get(MY_VOLUME2)
+        volume = service.get(MY_VOLUME)
+
+        d = pool.create(parent)
+        d.addCallback(lambda _: pool.clone_to(parent, volume))
+
+        def created_filesystems(filesystem):
+            # This would error if writing was not possible:
+            filesystem.get_path().child(b"text").setContent(b"hello")
+        d.addCallback(created_filesystems)
+        return d
+
+    def test_remotely_owned_cloned_readonly(self):
+        """
+        A filesystem which is cloned into a remotely owned volume is not
+        writeable.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        parent = service.get(MY_VOLUME2)
+        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
+
+        d = pool.create(parent)
+        d.addCallback(lambda _: pool.clone_to(parent, volume))
+
+        def created_filesystems(filesystem):
+            self.assertReadOnly(filesystem.get_path())
+        d.addCallback(created_filesystems)
+        return d
+
     def test_written_created_readonly(self):
         """
         A filesystem which is received from a remote filesystem (which is

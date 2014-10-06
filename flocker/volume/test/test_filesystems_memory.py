@@ -6,10 +6,6 @@ Tests for :module:`flocker.filesystems.memory`.
 
 from __future__ import absolute_import
 
-from datetime import datetime
-
-from pytz import UTC
-
 from twisted.internet.defer import succeed, fail
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
@@ -17,7 +13,6 @@ from twisted.python.filepath import FilePath
 from .filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests,
     )
-from ..snapshots import SnapshotName
 from ..filesystems.memory import (
     CannedFilesystemSnapshots, FilesystemStoragePool,
     )
@@ -38,8 +33,7 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
         Failed snapshots are not added to the list of snapshots.
         """
         snapshotter = CannedFilesystemSnapshots([fail(RuntimeError())])
-        name = SnapshotName(datetime.now(UTC), b"first")
-        self.failureResultOf(snapshotter.create(name))
+        self.failureResultOf(snapshotter.create(b"name"))
         self.assertEqual(self.successResultOf(snapshotter.list()), [])
 
     def test_too_many(self):
@@ -49,8 +43,7 @@ class CannedFilesystemSnapshotsTests(SynchronousTestCase):
         This is useful for unit testing.
         """
         snapshotter = CannedFilesystemSnapshots([])
-        name = SnapshotName(datetime.now(UTC), b"first")
-        self.assertRaises(IndexError, snapshotter.create, name)
+        self.assertRaises(IndexError, snapshotter.create, b"first")
 
 
 class IStoragePoolTests(make_istoragepool_tests(
