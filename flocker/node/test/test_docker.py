@@ -104,14 +104,22 @@ def make_idockerclient_tests(fixture):
             client = fixture(self)
             name = random_name()
             image = u"openshift/busybox-http-app"
+            portmaps = (
+                PortMap(internal_port=80, external_port=8080),
+                PortMap(internal_port=5432, external_port=5432)
+            )
             self.addCleanup(client.remove, name)
-            d = client.add(name, image)
+            d = client.add(name, image, ports=portmaps)
             d.addCallback(lambda _: client.list())
 
+            expected = Unit(
+                name=name, container_name=name, activation_state=u"active",
+                container_image=image, ports=portmaps, environment=None,
+                volumes=()
+            )
+
             def got_list(units):
-                unit_data = [[unit.name, unit.container_image]
-                             for unit in units if unit.name == name]
-                self.assertEqual([name, image], unit_data[0])
+                self.assertEqual(units.pop(), expected)
             d.addCallback(got_list)
             return d
 
@@ -142,41 +150,6 @@ def make_idockerclient_tests(fixture):
             def got_list(units):
                 unit = [unit for unit in units if unit.name == name][0]
                 self.assertIsInstance(unit.container_name, unicode)
-            d.addCallback(got_list)
-            return d
-
-        def test_list_container_image(self):
-            """
-            ``list()`` includes the image name associated with each container.
-            """
-            client = fixture(self)
-            name = random_name()
-            image = u"busybox"
-            self.addCleanup(client.remove, name)
-            d = client.add(name, image)
-            d.addCallback(lambda _: client.list())
-
-            def got_list(units):
-                unit = [unit for unit in units if unit.name == name][0]
-                self.assertEqual(unit.container_image, image)
-            d.addCallback(got_list)
-            return d
-
-        def test_list_container_ports(self):
-            """
-            ``list()`` includes a tuple of ``PortMap`` instances associated
-            with each container.
-            """
-            client = fixture(self)
-            name = random_name()
-            portmap = (PortMap(internal_port=80, external_port=8080),)
-            self.addCleanup(client.remove, name)
-            d = client.add(name, u"busybox", list(portmap))
-            d.addCallback(lambda _: client.list())
-
-            def got_list(units):
-                unit = [unit for unit in units if unit.name == name][0]
-                self.assertEqual(unit.ports, portmap)
             d.addCallback(got_list)
             return d
 
