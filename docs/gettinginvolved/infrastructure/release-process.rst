@@ -64,6 +64,16 @@ Preparing for a release
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
 
+#. Check that all required versions of the dependency packages are built
+
+   #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
+   #. Check that matching RPM packages are available on the ``clusterhq`` repo.
+      You can list the current contents of the ``clusterhq`` repo using the following command on Fedora.
+
+      .. code-block:: console
+
+         repoquery --repoid clusterhq --repofrompath clusterhq,http://archive.clusterhq.com/fedora/20/x86_64/ "*"
+
 #. Create a clean, local working copy of Flocker with no modifications:
 
    .. code-block:: console
