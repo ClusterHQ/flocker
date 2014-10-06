@@ -65,10 +65,6 @@ class Unit(object):
     """
     Information about a unit managed by Docker.
 
-    XXX: The ``container_image`` attribute defaults to ``None`` until we
-    have code to call docker for images associated with its
-    containers. See https://github.com/ClusterHQ/flocker/issues/207
-
     XXX "Unit" is geard terminology, and should be renamed. See
     https://github.com/ClusterHQ/flocker/issues/819
 
@@ -216,15 +212,15 @@ class FakeDockerClient(object):
     def list(self):
         # XXX: This is a hack so that functional and unit tests that use
         # DockerClient.list can pass until the real DockerClient.list can also
-        # return container_image information and ports.
-        # See https://github.com/ClusterHQ/flocker/issues/207
-        # Volumes should also be included.
+        # return volumes information.
         # See https://github.com/ClusterHQ/flocker/issues/289
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
                 Unit(name=unit.name, container_name=unit.name,
-                     activation_state=unit.activation_state))
+                     activation_state=unit.activation_state,
+                     container_image=unit.container_image,
+                     ports=tuple(unit.ports)))
         return succeed(incomplete_units)
 
 
@@ -372,18 +368,32 @@ class DockerClient(object):
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
+                image = data[u"Config"][u"Image"]
+                ports = []
+                container_ports = data[u"NetworkSettings"][u"Ports"]
+                if container_ports:
+                    for internal, hostmap in container_ports.items():
+                        internal_map = internal.split(u'/')
+                        internal_port = internal_map[0]
+                        internal_port = int(internal_port)
+                        if hostmap:
+                            for host in hostmap:
+                                external_port = host[u"HostPort"]
+                                external_port = int(external_port)
+                                portmap = PortMap(internal_port=internal_port,
+                                                  external_port=external_port)
+                                ports.append(portmap)
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                # We'll add missing info in
-                # https://github.com/ClusterHQ/flocker/issues/207
-                # and to extract volume info from the inspect results:
+                # XXX to extract volume info from the inspect results:
                 # https://github.com/ClusterHQ/flocker/issues/289
                 result.add(Unit(name=name,
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
-                                container_image=None))
+                                container_image=image,
+                                ports=tuple(ports)))
             return result
         return deferToThread(_list)
 
