@@ -776,7 +776,7 @@ def make_istoragepool_tests(fixture):
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
-            def created_filesystems(igonred):
+            def created_filesystems(ignored):
                 return pool.clone_to(volume, new_volume)
             d.addCallback(created_filesystems)
 
