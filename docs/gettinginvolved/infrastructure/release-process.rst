@@ -5,6 +5,8 @@ Release Process
 
    Make sure to follow the `latest documentation`_ when doing a release.
 
+.. _latest documentation: https://docs.clusterhq.com/en/latest/gettinginvolved/infrastructure/release-process.html
+
 
 Outcomes
 --------
@@ -292,4 +294,3 @@ See:
 .. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
-.. _latest documentation: https://docs.clusterhq.com/en/latest/gettinginvolved/infrastructure/release-process.html
