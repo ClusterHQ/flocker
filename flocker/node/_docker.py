@@ -65,10 +65,6 @@ class Unit(object):
     """
     Information about a unit managed by Docker.
 
-    XXX: The ``container_image`` attribute defaults to ``None`` until we
-    have code to call docker for images associated with its
-    containers. See https://github.com/ClusterHQ/flocker/issues/207
-
     XXX "Unit" is geard terminology, and should be renamed. See
     https://github.com/ClusterHQ/flocker/issues/819
 
@@ -375,16 +371,18 @@ class DockerClient(object):
                 image = data[u"Config"][u"Image"]
                 ports = []
                 container_ports = data[u"NetworkSettings"][u"Ports"]
-                for internal, hostmap in container_ports.items():
-                    internal_map = internal.split(u'/')
-                    internal_port = internal_map[0]
-                    internal_port = int(internal_port)
-                    for host in hostmap:
-                        external_port = host[u"HostPort"]
-                        external_port = int(external_port)
-                        portmap = PortMap(internal_port=internal_port,
-                                          external_port=external_port)
-                        ports.append(portmap)
+                if container_ports:
+                    for internal, hostmap in container_ports.items():
+                        internal_map = internal.split(u'/')
+                        internal_port = internal_map[0]
+                        internal_port = int(internal_port)
+                        if hostmap:
+                            for host in hostmap:
+                                external_port = host[u"HostPort"]
+                                external_port = int(external_port)
+                                portmap = PortMap(internal_port=internal_port,
+                                                  external_port=external_port)
+                                ports.append(portmap)
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:

@@ -103,16 +103,15 @@ def make_idockerclient_tests(fixture):
             """An added unit is included in the output of ``list()``."""
             client = fixture(self)
             name = random_name()
+            image = u"openshift/busybox-http-app"
             self.addCleanup(client.remove, name)
-            d = client.add(name, u"openshift/busybox-http-app")
+            d = client.add(name, image)
             d.addCallback(lambda _: client.list())
 
             def got_list(units):
-                # XXX: DockerClient.list should also return container_image
-                # information
-                # See https://github.com/ClusterHQ/flocker/issues/207
-                self.assertEqual([name], [unit.name for unit in units
-                                          if unit.name == name])
+                unit_data = [[unit.name, unit.container_image]
+                             for unit in units if unit.name == name]
+                self.assertEqual([name, image], unit_data[0])
             d.addCallback(got_list)
             return d
 
