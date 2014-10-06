@@ -110,8 +110,10 @@ def build_box(path, name, version, branch, build_server):
     rpm_version, rpm_release = make_rpm_version(version)
     env.update({
         'FLOCKER_RPM_VERSION': '%s-%s' % (rpm_version, rpm_release),
-        'FLOCKER_BRANCH': branch,
         'FLOCKER_BUILD_SERVER': build_server,
+        # branch is None if it isn't passed, but that isn't a legal
+        # environment value.
+        'FLOCKER_BRANCH': branch or ''
         })
     # Boot the VM and run the provisioning scripts.
     run(['vagrant', 'up'], cwd=path.path, env=env)
