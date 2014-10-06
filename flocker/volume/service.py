@@ -135,9 +135,7 @@ class VolumeService(Service):
         d = self.pool.create(volume)
 
         def created(filesystem):
-            filesystem.get_path().chmod(
-                # 0o777 the long way:
-                stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+            self._make_public(filesystem)
             return volume
         d.addCallback(created)
         return d
@@ -156,9 +154,23 @@ class VolumeService(Service):
         d = self.pool.clone_to(parent, volume)
 
         def created(filesystem):
+            self._make_public(filesystem)
             return volume
         d.addCallback(created)
         return d
+
+    def _make_public(self, filesystem):
+        """
+        Make a filesystem publically readable/writeable/executable.
+
+        A better alternative will be implemented in
+        https://github.com/ClusterHQ/flocker/issues/34
+
+        :param filesystem: A ``IFilesystem`` provider.
+        """
+        filesystem.get_path().chmod(
+                # 0o777 the long way:
+                stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
     def get(self, name):
         """

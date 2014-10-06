@@ -204,6 +204,20 @@ class VolumeServiceAPITests(TestCase):
         volume = self.successResultOf(service.create(MY_VOLUME))
         self.assertTrue(pool.get(volume).get_path().isdir())
 
+    @skip_on_broken_permissions
+    def test_create_mode(self):
+        """The created filesystem is readable/writable/executable by anyone.
+
+        A better alternative will be implemented in
+        https://github.com/ClusterHQ/flocker/issues/34
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        volume = self.successResultOf(service.create(MY_VOLUME))
+        self.assertEqual(pool.get(volume).get_path().getPermissions(),
+                         Permissions(0777))
+
     def test_clone_to_result(self):
         """
         ``clone_to()`` returns a ``Deferred`` that fires with a ``Volume``.
@@ -251,8 +265,8 @@ class VolumeServiceAPITests(TestCase):
         self.assertEqual(parent_file.getContent(), b"blah")
 
     @skip_on_broken_permissions
-    def test_create_mode(self):
-        """The created filesystem is readable/writable/executable by anyone.
+    def test_clone_to_mode(self):
+        """The cloned-to filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
         https://github.com/ClusterHQ/flocker/issues/34
@@ -260,7 +274,9 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        volume = self.successResultOf(service.create(MY_VOLUME))
+        parent = self.successResultOf(service.create(MY_VOLUME))
+
+        volume = self.successResultOf(service.clone_to(parent, MY_VOLUME2))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
                          Permissions(0777))
 
