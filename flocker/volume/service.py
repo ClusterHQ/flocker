@@ -169,8 +169,8 @@ class VolumeService(Service):
         :param filesystem: A ``IFilesystem`` provider.
         """
         filesystem.get_path().chmod(
-                # 0o777 the long way:
-                stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+            # 0o777 the long way:
+            stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
     def get(self, name):
         """

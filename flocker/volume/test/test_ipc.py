@@ -233,12 +233,13 @@ def make_iremote_volume_manager(fixture):
                 child_test_file = child.get_filesystem().get_path().child(b"f")
                 parent_test_file = parent.get_filesystem().get_path().child(
                     b"f")
-                values =[parent_test_file.getContent(),
-                         child_test_file.getContent()]
+                values = [parent_test_file.getContent(),
+                          child_test_file.getContent()]
                 child_test_file.setContent(b"CHANGED")
                 values.extend([parent_test_file.getContent(),
                                child_test_file.getContent()])
-                self.assertEqual(values, [b"ORIG", b"ORIG", b"ORIG", b"CHANGED"])
+                self.assertEqual(values,
+                                 [b"ORIG", b"ORIG", b"ORIG", b"CHANGED"])
             d.addCallback(cloned)
             return d
 
