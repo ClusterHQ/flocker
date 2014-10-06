@@ -6,10 +6,7 @@ Functional tests for :module:`flocker.node._docker`.
 
 from __future__ import absolute_import
 
-import os
-import json
-import subprocess
-from unittest import skipIf
+import time
 
 from docker.errors import APIError
 from docker import Client
@@ -18,21 +15,19 @@ from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed
 from twisted.internet.error import ConnectionRefusedError
-from twisted.internet.utils import getProcessOutput
 from twisted.web.client import ResponseNeverReceived
 
 from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name)
+    random_name, if_root)
 
 from ..test.test_docker import make_idockerclient_tests
-from .._docker import DockerClient, PortMap, GearEnvironment
+from .._docker import (
+    DockerClient, PortMap, Environment, NamespacedDockerClient,
+    BASE_NAMESPACE, Volume)
 from ..testtools import if_docker_configured, wait_for_unit_state
-
-
-_if_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
 class IDockerClientTests(make_idockerclient_tests(
@@ -45,26 +40,38 @@ class IDockerClientTests(make_idockerclient_tests(
         pass
 
 
-class DockerClientTests(TestCase):
+class IDockerClientNamespacedTests(make_idockerclient_tests(
+        lambda test_case: NamespacedDockerClient(random_name()))):
     """
-    Functional tests for ``DockerClient``.
+    ``IDockerClient`` tests for ``NamespacedDockerClient``.
     """
     @if_docker_configured
     def setUp(self):
         pass
 
+
+class GenericDockerClientTests(TestCase):
+    """
+    Functional tests for ``DockerClient`` and other clients that talk to
+    real Docker.
+    """
+    @if_docker_configured
+    def setUp(self):
+        self.namespacing_prefix = u"%s-%s-%s--" % (self.__class__.__name__,
+                                                   self.id(), random_name())
+        self.namespacing_prefix = self.namespacing_prefix.replace(u".", u"-")
+
     clientException = APIError
 
     def make_client(self):
-        # The gear tests which we're (temporarily) reusing assume
-        # container name matches unit name, so we disable namespacing for
-        # these tests.
-        return DockerClient(namespace=u"")
+        # Some of the tests assume container name matches unit name, so we
+        # disable namespacing for these tests.
+        return DockerClient(namespace=self.namespacing_prefix)
 
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
-                        ports=None, links=None, expected_states=(u'active',),
-                        environment=None):
+                        ports=None, expected_states=(u'active',),
+                        environment=None, volumes=()):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -72,8 +79,9 @@ class DockerClientTests(TestCase):
         :param unicode unit_name: See ``IDockerClient.add``.
         :param unicode image_name: See ``IDockerClient.add``.
         :param list ports: See ``IDockerClient.add``.
-        :param list links: See ``IDockerClient.add``.
-        :param Unit expected_states: A list of activation states to wait for.
+        :param expected_states: A sequence of activation states to wait for.
+        :param environment: See ``IDockerClient.add``.
+        :param volumes: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -83,8 +91,8 @@ class DockerClientTests(TestCase):
             unit_name=unit_name,
             image_name=image_name,
             ports=ports,
-            links=links,
             environment=environment,
+            volumes=volumes,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -99,7 +107,7 @@ class DockerClientTests(TestCase):
         name = random_name()
         return self.start_container(name)
 
-    @_if_root
+    @if_root
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
@@ -108,23 +116,24 @@ class DockerClientTests(TestCase):
         d = self.start_container(name)
 
         def started(_):
-            data = subprocess.check_output(
-                [b"docker", b"inspect", name.encode("ascii")])
-            self.assertEqual(json.loads(data)[0][u"Config"][u"Image"],
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"Image"],
                              u"openshift/busybox-http-app")
         d.addCallback(started)
         return d
 
     def test_add_error(self):
-        """``DockerClient.add`` returns ``Deferred`` that errbacks with
-        ``GearError`` if response code is not a success response code.
+        """
+        ``DockerClient.add`` returns a ``Deferred`` that errbacks with
+        ``APIError`` if response code is not a success response code.
         """
         client = self.make_client()
         # add() calls exists(), and we don't want exists() to be the one
         # failing since that's not the code path we're testing, so bypass
         # it:
         client.exists = lambda _: succeed(False)
-        # Illegal container name should make gear complain when we try to
+        # Illegal container name should make Docker complain when we try to
         # install the container:
         d = client.add(u"!!!###!!!", u"busybox")
         return self.assertFailure(d, self.clientException)
@@ -182,8 +191,8 @@ class DockerClientTests(TestCase):
 
     def test_add_with_port(self):
         """
-        DockerClient.add accepts a ports argument which is passed to gear to
-        expose those ports on the unit.
+        ``DockerClient.add`` accepts a ports argument which is passed to
+        Docker to expose those ports on the unit.
 
         Assert that the busybox-http-app returns the expected "Hello world!"
         response.
@@ -230,7 +239,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @_if_root
+    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -240,12 +249,12 @@ CMD sh -c "trap \"\" 2; sleep 3"
         docker_dir.makedirs()
         docker_dir.child(b"Dockerfile").setContent(
             b'FROM busybox\n'
-            b'CMD ["/bin/sh",  "-c", "while true; do env && sleep 1; done"]'
+            b'CMD ["/bin/sh",  "-c", '
+            b'"while true; do env && echo WOOT && sleep 1; done"]'
         )
         image = DockerImageBuilder(test=self, source_dir=docker_dir)
         image_name = image.build()
         unit_name = random_name()
-        expected_environment_id = random_name()
         expected_variables = frozenset({
             'key1': 'value1',
             'key2': 'value2',
@@ -253,21 +262,21 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = self.start_container(
             unit_name=unit_name,
             image_name=image_name,
-            environment=GearEnvironment(
-                id=expected_environment_id, variables=expected_variables),
+            environment=Environment(variables=expected_variables),
         )
-        d.addCallback(
-            lambda ignored: getProcessOutput(b'docker', [b'logs', unit_name],
-                                             env=os.environ,
-                                             # Capturing stderr makes
-                                             # debugging easier:
-                                             errortoo=True)
-        )
-        d.addCallback(
-            assertContainsAll,
-            test_case=self,
-            needles=['{}={}\n'.format(k, v) for k, v in expected_variables],
-        )
+
+        def started(_):
+            output = ""
+            while True:
+                output += Client().logs(self.namespacing_prefix + unit_name)
+                if "WOOT" in output:
+                    break
+            assertContainsAll(
+                output, test_case=self,
+                needles=['{}={}\n'.format(k, v)
+                         for k, v in expected_variables],
+            )
+        d.addCallback(started)
         return d
 
     def test_pull_image_if_necessary(self):
@@ -292,17 +301,89 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_namespacing(self):
         """
-        Containers are created with the ``DockerClient`` namespace prefixed to
-        their container name.
+        Containers are created with a namespace prefixed to their container
+        name.
         """
         docker = Client()
         name = random_name()
-        client = DockerClient(namespace=u"testing-")
+        client = self.make_client()
         self.addCleanup(client.remove, name)
         d = client.add(name, u"busybox")
-        d.addCallback(lambda _: self.assertTrue(
-            docker.inspect_container(u"testing-" + name)))
+
+        def added(_):
+            self.assertTrue(
+                docker.inspect_container(self.namespacing_prefix + name))
+        d.addCallback(added)
         return d
+
+    def test_container_name(self):
+        """
+        The container name stored on returned ``Unit`` instances matches the
+        expected container name.
+        """
+        client = self.make_client()
+        name = random_name()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: client.list())
+
+        def got_list(units):
+            unit = [unit for unit in units if unit.name == name][0]
+            self.assertEqual(unit.container_name,
+                             self.namespacing_prefix + name)
+        d.addCallback(got_list)
+        return d
+
+    def test_add_with_volumes(self):
+        """
+        ``DockerClient.add`` accepts a list of ``Volume`` instances which are
+        mounted within the container.
+        """
+        docker_dir = FilePath(self.mktemp())
+        docker_dir.makedirs()
+        docker_dir.child(b"Dockerfile").setContent(
+            b'FROM busybox\n'
+            b'CMD ["/bin/sh",  "-c", '
+            b'"touch /mnt1/a; touch /mnt2/b"]'
+        )
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+        unit_name = random_name()
+
+        path1 = FilePath(self.mktemp())
+        path1.makedirs()
+        path2 = FilePath(self.mktemp())
+        path2.makedirs()
+
+        d = self.start_container(
+            unit_name=unit_name,
+            image_name=image_name,
+            volumes=[
+                Volume(node_path=path1, container_path=FilePath(b"/mnt1")),
+                Volume(node_path=path2, container_path=FilePath(b"/mnt2"))],
+            expected_states=(u'inactive',),
+        )
+
+        def started(_):
+            expected1 = path1.child(b"a")
+            expected2 = path2.child(b"b")
+            for i in range(100):
+                if expected1.exists() and expected2.exists():
+                    return
+                else:
+                    time.sleep(0.1)
+            self.fail("Files never created.")
+        d.addCallback(started)
+        return d
+
+
+class DockerClientTests(TestCase):
+    """
+    Tests for ``DockerClient`` specifically.
+    """
+    @if_docker_configured
+    def setUp(self):
+        pass
 
     def test_default_namespace(self):
         """
@@ -315,4 +396,33 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d = client.add(name, u"busybox")
         d.addCallback(lambda _: self.assertTrue(
             docker.inspect_container(u"flocker--" + name)))
+        return d
+
+
+class NamespacedDockerClientTests(GenericDockerClientTests):
+    """
+    Functional tests for ``NamespacedDockerClient``.
+    """
+    @if_docker_configured
+    def setUp(self):
+        self.namespace = u"%s-%s-%s" % (
+            self.__class__.__name__, self.id(), random_name())
+        self.namespace = self.namespace.replace(u".", u"-")
+        self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
+
+    def make_client(self):
+        return NamespacedDockerClient(self.namespace)
+
+    def test_isolated_namespaces(self):
+        """
+        Containers in one namespace are not visible in another namespace.
+        """
+        client = NamespacedDockerClient(random_name())
+        client2 = NamespacedDockerClient(random_name())
+        name = random_name()
+
+        d = client.add(name, u"busybox")
+        self.addCleanup(client.remove, name)
+        d.addCallback(lambda _: client2.list())
+        d.addCallback(self.assertEqual, set())
         return d

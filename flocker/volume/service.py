@@ -7,7 +7,6 @@ Volume manager service, the main entry point that manages volumes.
 
 from __future__ import absolute_import
 
-import os
 import sys
 import json
 import stat
@@ -20,15 +19,13 @@ from characteristic import attributes
 from twisted.internet.defer import maybeDeferred
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
-from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
-from twisted.internet import reactor
 from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
-from .filesystems.zfs import _AccumulatingProtocol, CommandFailed, StoragePool
+from .filesystems.zfs import StoragePool
 from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
@@ -40,6 +37,55 @@ WAIT_FOR_VOLUME_INTERVAL = 0.1
 
 class CreateConfigurationError(Exception):
     """Create the configuration file failed."""
+
+
+@attributes(["namespace", "id"])
+class VolumeName(object):
+    """
+    The volume and its copies' name within the cluster.
+
+    :ivar unicode namespace: The namespace of the volume,
+        e.g. ``u"default"``. Must not include periods.
+
+    :ivar unicode id: The id of the volume,
+        e.g. ``u"mypostgresdata"``. Since volume ids must match Docker
+        container names, the characters used should be limited to those
+        that Docker allows for container names (``[a-zA-Z0-9_.-]``).
+    """
+    def __init__(self):
+        """
+        :raises ValueError: If a period is included in the namespace.
+        """
+        if u"." in self.namespace:
+            raise ValueError(
+                "Periods not allowed in namespace: %s"
+                % (self.namespace,))
+
+    @classmethod
+    def from_bytes(cls, name):
+        """
+        Create ``VolumeName`` from its byte representation.
+
+        :param bytes name: The name, output of ``VolumeName.to_bytes``
+            call in past.
+
+        :raises ValueError: If parsing the bytes failed.
+
+        :return: Corresponding ``VolumeName``.
+        """
+        namespace, identifier = name.split(b'.', 1)
+        return VolumeName(namespace=namespace.decode("ascii"),
+                          id=identifier.decode("ascii"))
+
+    def to_bytes(self):
+        """
+        Convert the name to ``bytes``.
+
+        :return: ``VolumeName`` encoded as bytes that can be read by
+            ``VolumeName.from_bytes``.
+        """
+        return b"%s.%s" % (self.namespace.encode("ascii"),
+                           self.id.encode("ascii"))
 
 
 class VolumeService(Service):
@@ -81,7 +127,7 @@ class VolumeService(Service):
     def create(self, name):
         """Create a new volume.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
@@ -103,7 +149,7 @@ class VolumeService(Service):
         Whether or not this volume actually exists is not checked in any
         way.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :param uuid: Either ``None``, in which case the local UUID will be
             used, or a UUID to use for the volume.
@@ -118,7 +164,7 @@ class VolumeService(Service):
 
         Polls the storage pool for the specified volume to appear.
 
-        :param unicode name: The name of the volume.
+        :param VolumeName name: The name of the volume.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
@@ -154,19 +200,23 @@ class VolumeService(Service):
                 basename = filesystem.get_path().basename()
                 try:
                     uuid, name = basename.split(b".", 1)
+                    name = VolumeName.from_bytes(name)
                     uuid = UUID(uuid)
                 except ValueError:
-                    # If we can't split on `.` and get two parts then it's not
-                    # a filesystem Flocker is managing.  Likewise if we can't
-                    # interpret the bit before the `.` as a UUID.  Perhaps a
-                    # user created it, who knows.  Just ignore it.
+                    # ValueError may happen because:
+                    # 1. We can't split on `.`.
+                    # 2. We couldn't parse the UUID.
+                    # 3. We couldn't parse the volume name.
+                    # In any of those case it's presumably because that's
+                    # not a filesystem Flocker is managing.Perhaps a user
+                    # created it, so we just ignore it.
                     continue
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
                 yield Volume(
                     uuid=unicode(uuid),
-                    name=name.decode('utf8'),
+                    name=name,
                     service=self)
         enumerating.addCallback(enumerated)
         return enumerating
@@ -212,7 +262,7 @@ class VolumeService(Service):
         this service's) can be received.
 
         :param unicode volume_uuid: The volume's UUID.
-        :param unicode volume_name: The volume's name.
+        :param VolumeName volume_name: The volume's name.
         :param input_file: A file-like object, typically ``sys.stdin``, from
             which to read the data.
 
@@ -236,7 +286,7 @@ class VolumeService(Service):
         this service's) can be acquired.
 
         :param unicode volume_uuid: The volume owner's UUID.
-        :param unicode volume_name: The volume's name.
+        :param VolumeName volume_name: The volume's name.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             ``ValueError`` If the uuid of the volume matches our own.
@@ -272,28 +322,6 @@ class VolumeService(Service):
         return changing_owner
 
 
-# Communication with Docker should be done via its API, not with this
-# approach, but that depends on unreleased Twisted 14.1:
-# https://github.com/ClusterHQ/flocker/issues/64
-def _docker_command(reactor, arguments):
-    """Run the ``docker`` command-line tool with the given arguments.
-
-    :param reactor: A ``IReactorProcess`` provider.
-
-    :param arguments: A ``list`` of ``bytes``, command-line arguments to
-    ``docker``.
-
-    :return: A :class:`Deferred` firing with the bytes of the result (on
-        exit code 0), or errbacking with :class:`CommandFailed` or
-        :class:`BadArguments` depending on the exit code (1 or 2).
-    """
-    endpoint = ProcessEndpoint(reactor, b"docker", [b"docker"] + arguments,
-                               os.environ)
-    d = connectProtocol(endpoint, _AccumulatingProtocol())
-    d.addCallback(lambda protocol: protocol._result)
-    return d
-
-
 @attributes(["uuid", "name", "service"])
 class Volume(object):
     """
@@ -301,9 +329,7 @@ class Volume(object):
 
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
-    :ivar unicode name: The name of the volume. Since volume names must
-        match Docker container names, the characters used should be limited to
-        those that Docker allows for container names.
+    :ivar VolumeName name: The name of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
     def locally_owned(self):
@@ -339,56 +365,6 @@ class Volume(object):
         :return: The ``IFilesystem`` provider for the volume.
         """
         return self.service.pool.get(self)
-
-    @property
-    def _container_name(self):
-        """Return the corresponding Docker container name.
-
-        :return: Container name as ``bytes``.
-        """
-        # This duplicates logic in DockerClient; we can remove this when
-        # this logic is refactored to be based on DockerClient.
-        # https://github.com/ClusterHQ/flocker/issues/234
-        return b"flocker--%s-data" % (self.name.encode("ascii"),)
-
-    def expose_to_docker(self, mount_path):
-        """
-        Create a container that will expose the volume to Docker at the given
-        mount path.
-
-        Can be called multiple times. Mount paths from previous calls will
-        be overridden.
-
-        :param FilePath mount_path: The path at which to mount the volume
-            within the container.
-
-        :return: ``Deferred`` firing when the operation is done.
-        """
-        local_path = self.get_filesystem().get_path().path
-        mount_path = mount_path.path
-        d = self.remove_from_docker()
-        d.addCallback(
-            lambda _:
-                _docker_command(reactor,
-                                [b"run", b"--name", self._container_name,
-                                 b"--volume=%s:%s:rw" % (local_path,
-                                                         mount_path),
-                                 b"busybox", b"/bin/true"]))
-        return d
-
-    def remove_from_docker(self):
-        """
-        Remove the Docker container created for the volume.
-
-        If no container exists this will silently do nothing.
-
-        :return: ``Deferred`` firing with ``None`` when the operation is
-           done.
-        """
-        d = _docker_command(reactor, [b"rm", self._container_name])
-        d.addErrback(lambda failure: failure.trap(CommandFailed))
-        d.addCallback(lambda _: None)
-        return d
 
 
 @implementer(ICommandLineScript)

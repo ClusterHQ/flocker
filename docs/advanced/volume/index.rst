@@ -43,30 +43,25 @@ Volumes are created with three parameters:
 
 * The UUID of the volume manager that owns the volume.
   The creating volume manager's UUID (see above) is used to supply a value for this parameter.
-* The logical name; this must be the same as the name of the container it will be mounted in.
-  For example, for a container named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created.
+* The logical name, composed of a namespace and an identifier; this must be the same as the name of the container it will be mounted in.
+  The logical name must also be unique within the Flocker cluster.
+  For example, for a container in namespace ``"default"`` named ``"myapp-mongodb"`` a volume called ``"myapp-mongodb"`` will be created in the same namespace.
+  When a Flocker environment is cloned each clone resides in its own namespace.
+  ``"myapp-mongodb"`` can therefore be the identifier of both the original and cloned volumes; differing namespace differentiates their logical name.
 * A mount path, indicating where within a container the volume will be mounted.
   For example, for a MongoDB server this would be ``"/var/lib/mongodb"`` since that is where MongoDB stores its data.
 
-The ZFS dataset name is a combination of the UUID and the logical name, e.g. ``1234.myapp-mongodb``.
+The ZFS dataset name is a combination of the UUID and the logical name (namespace + identifier); it will be a child of the Flocker ZFS pool.
+The pool is usually called ``flocker``.
+For example if the volume manager's UUID is ``1234``, the namespace is ``default`` and the volume identifier is ``myapp.mongodb``, a ZFS dataset called ``flocker/1234.default.myapp-mongodb`` will be mounted at ``/flocker/1234.default.myapp-mongodb`` on the node's filesystem.
 
 
 Docker Integration
 ******************
 
-Volumes are exposed to Docker by creating a container with a ``"-data"`` suffix that mounts the volume in the appropriate location.
-For example, if you create a volume called ``"myapp-mongodb"`` with mount point ``"/var/lib/mongodb"`` then a container called ``"myapp-mongodb-data"`` will be created that has the volume mounted at that path.
-
-You can then use this volume manually using ``--volumes-from``:
-
-.. code-block:: console
-
-    $ docker run --volumes-from myapp-mongodb-data --name myapp-mongodb openshift/centos-mongodb
-
-The ``myapp-mongodb`` container will now have a volume mounted at ``/var/lib/mongodb`` pointing at the ZFS dataset managed by Flocker.
-
-The Flocker orchestration system will automatically mount volumes from ``"myapp-mongodb-data"`` if you create a unit called ``"myapp-mongodb"``.
-
+When starting a container with a volume configured, Flocker checks for the existence of the volume.
+If it does not exist a new ZFS dataset is created.
+Flocker mounts the volume into the container as a normal Docker volume.
 
 Push and Handoff
 ****************
