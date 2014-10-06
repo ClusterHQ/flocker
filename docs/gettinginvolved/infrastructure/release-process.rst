@@ -134,7 +134,11 @@ Preparing for a release
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
-#. Make a pull request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+#. Make a pull request on GitHub
+
+   The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+
+   Wait for an accepted code review before continuing.
 
 
 Release
