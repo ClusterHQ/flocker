@@ -530,6 +530,9 @@ class StoragePool(Service):
         Common post-processing for attempts at creating new volumes from other
         volumes.
 
+        In particular this includes error handling and ensuring read-only
+        and mountpoint properties are set correctly.
+
         :param Deferred result: The result of the creation attempt.
 
         :param Volume new_volume: Volume we're trying to create.
@@ -546,7 +549,7 @@ class StoragePool(Service):
             return f
         result.addErrback(creation_failed)
 
-        def renamed(ignored):
+        def exists(ignored):
             if new_volume.locally_owned():
                 result = zfs_command(self._reactor,
                                      [b"set", b"readonly=off",
@@ -559,7 +562,7 @@ class StoragePool(Service):
                                [b"set", b"mountpoint=" + new_mount_path,
                                 new_filesystem.name]))
             return result
-        result.addCallback(renamed)
+        result.addCallback(exists)
 
     def get(self, volume):
         dataset = volume_to_dataset(volume)
