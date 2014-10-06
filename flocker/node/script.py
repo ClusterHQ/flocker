@@ -62,6 +62,7 @@ class ChangeStateOptions(Options):
                 "<deployment configuration> <application configuration> "
                 "<cluster configuration> <hostname>")
 
+    # TODO Add namespace parameter here.  This defines the volume, docker, and network namespace the state changes will be enacted upon.
     def parseArgs(self, deployment_config, application_config, current_config,
                   hostname):
         """
@@ -135,6 +136,7 @@ class ChangeStateScript(object):
     :ivar DockerClient _docker_client: See the ``docker_client`` parameter to
         ``__init__``.
     """
+    # TODO We cannot accept docker_client as an argument here.  We need to create one ourselves.  Replace this with a docker_client_factory, perhaps?  This only exists to facilitate testing.
     def __init__(self, docker_client=None):
         """
         :param DockerClient docker_client: The object to use to talk to the
@@ -143,7 +145,14 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
+        # TODO Create a docker client here.  Use the correct namespace from the given options.
+        #
+        # TODO Create an INetwork provider here.  Use the correct namespace from the given options.
+        #
+        # TODO Pass the namespace in to the Deployer as a volume namespace.
+        #      Deployer needs to create VolumeNames with the right namespace.
         deployer = Deployer(volume_service, self._docker_client)
+
         return deployer.change_node_state(
             desired_state=options['deployment'],
             current_cluster_state=options['current'],

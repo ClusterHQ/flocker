@@ -49,6 +49,7 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
+# TODO: Change the type of name to VolumeName so we know the namespace
 @attributes(["name", "mountpoint"])
 class AttachedVolume(object):
     """

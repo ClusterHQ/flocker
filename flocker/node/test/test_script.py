@@ -34,6 +34,8 @@ class ChangeStateScriptTests(SynchronousTestCase):
         ``ChangeState._docker_client`` is configured with the default docker
         client.
         """
+        # TODO Not anymore.  We won't create the docker client until
+        # we get the options so we know what namespace to use.
         self.assertIs(None, ChangeStateScript()._docker_client)
 
 
@@ -61,6 +63,14 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
 
         self.patch(
             Deployer, 'change_node_state', spy_change_node_state)
+
+        # TODO This test will fail because we'll want different stuff to be passed in to change_node_state than gets passed to the script's main function.
+        #      Do something like this instead:
+        #
+        # actual_current = {
+        #     "namespace": {"applications": {....}}}
+        # expected_current = {
+        #     {"application": ...}}
 
         expected_deployment = object()
         expected_current = object()
