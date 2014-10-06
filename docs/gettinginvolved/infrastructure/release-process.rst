@@ -134,6 +134,8 @@ Preparing for a release
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
+#. Make a pull request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+
 
 Release
 -------
@@ -260,8 +262,6 @@ Release
    - Make a pull request
 
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
-
-#. Make a pull request on GitHub for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
 
 Update Download Links
