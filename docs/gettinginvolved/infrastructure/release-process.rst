@@ -64,7 +64,7 @@ Preparing for a release
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
 
-#. Check that all required versions of the dependency packages are built
+#. Check that all required versions of the dependency packages are built:
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
    #. Check that matching RPM packages are available on the ``clusterhq`` repository.
