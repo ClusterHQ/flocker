@@ -259,7 +259,7 @@ See:
 - https://www.pivotaltracker.com/n/projects/946740/stories/75538272
 
 
-Preliminary Step: Pre-populating RPM Repository
+Appendix: Pre-populating RPM Repository
 -----------------------------------------------
 
 .. warning:: This only needs to be done if the dependency packages for Flocker (e.g. 3rd party Python libraries) change; it should *not* be done every release.
