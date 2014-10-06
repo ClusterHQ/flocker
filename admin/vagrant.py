@@ -101,6 +101,11 @@ def build_box(path, name, version, branch, build_server):
     # a clean build.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
+    # Update the base box to the latest version on vagrant cloud.
+    run(['vagrant', 'box', 'update'], cwd=path.path)
+
+    # Generate the enviroment variables used to pass options down to the
+    # provisioning scripts via the Vagrantfile
     env = os.environ.copy()
     rpm_version, rpm_release = make_rpm_version(version)
     env.update({
@@ -108,20 +113,25 @@ def build_box(path, name, version, branch, build_server):
         'FLOCKER_BRANCH': branch,
         'FLOCKER_BUILD_SERVER': build_server,
         })
-    run(['vagrant', 'box', 'update'], cwd=path.path)
+    # Boot the VM and run the provisioning scripts.
     run(['vagrant', 'up'], cwd=path.path, env=env)
+
+    # Package up running VM.
     run(['vagrant', 'package', '--output', box_path.path], cwd=path.path)
 
     # And destroy at the end to save space.  If one of the above commands fail,
     # this will be skipped, so the image can still be debugged.
     run(['vagrant', 'destroy', '-f'], cwd=path.path)
 
+    # Generate metadata needed to add box locally.
     metadata = box_metadata(name, version, box_path)
     json_path.setContent(json.dumps(metadata))
 
 
 def main(args, base_path, top_level):
     """
+    Build a base vagrant image.
+
     :param list args: The arguments passed to the script.
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
