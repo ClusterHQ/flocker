@@ -7,9 +7,6 @@ Further coverage is provided in
 """
 
 import os
-from datetime import datetime
-
-from pytz import UTC
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
@@ -20,7 +17,6 @@ from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
 
 from ...testtools import FakeProcessReactor
 
-from ..snapshots import SnapshotName
 from ..filesystems.zfs import (
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
@@ -180,15 +176,14 @@ class ZFSSnapshotsTests(SynchronousTestCase):
     def test_create(self):
         """
         ``ZFSSnapshots.create()`` calls the ``zfs snapshot`` command with the
-        filesystem and snapshot name.
+        given ``bytes`` as the snapshot name.
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"pool", "fs"))
-        name = SnapshotName(datetime.now(UTC), b"node")
-        snapshots.create(name)
+        snapshots.create(b"myname")
         arguments = reactor.processes[0]
         self.assertEqual(arguments.args, [b"zfs", b"snapshot",
-                                          b"pool/fs@%s" % (name.to_bytes(),)])
+                                          b"pool/fs@myname"])
 
     def test_create_no_result_yet(self):
         """
@@ -197,7 +192,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
+        d = snapshots.create(b"name")
         self.assertNoResult(d)
 
     def test_create_result(self):
@@ -207,7 +202,7 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        d = snapshots.create(SnapshotName(datetime.now(UTC), b"node"))
+        d = snapshots.create(b"name")
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
         self.assertEqual(self.successResultOf(d), None)
@@ -231,18 +226,14 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        name = SnapshotName(datetime.now(UTC), b"node")
-        name2 = SnapshotName(datetime.now(UTC), b"node2")
 
         d = snapshots.list()
         process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name.to_bytes(),))
-        process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name2.to_bytes(),))
+        process_protocol.childDataReceived(1, b"mypool@name\n")
+        process_protocol.childDataReceived(1, b"mypool@name2\n")
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [name, name2])
+        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
 
     def test_list_result_child_dataset(self):
         """
@@ -251,18 +242,14 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", b"myfs"))
-        name = SnapshotName(datetime.now(UTC), b"node")
-        name2 = SnapshotName(datetime.now(UTC), b"node2")
 
         d = snapshots.list()
         process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(
-            1, b"mypool/myfs@%s\n" % (name.to_bytes(),))
-        process_protocol.childDataReceived(
-            1, b"mypool/myfs@%s\n" % (name2.to_bytes(),))
+        process_protocol.childDataReceived(1, b"mypool/myfs@name\n")
+        process_protocol.childDataReceived(1, b"mypool/myfs@name2\n")
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [name, name2])
+        self.assertEqual(self.successResultOf(d), [b"name", b"name2"])
 
     def test_list_result_ignores_other_pools(self):
         """
@@ -273,37 +260,14 @@ class ZFSSnapshotsTests(SynchronousTestCase):
         """
         reactor = FakeProcessReactor()
         snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        name = SnapshotName(datetime.now(UTC), b"node")
-        name2 = SnapshotName(datetime.now(UTC), b"node2")
 
         d = snapshots.list()
         process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(
-            1, b"mypool/child@%s\n" % (name.to_bytes(),))
-        process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name2.to_bytes(),))
+        process_protocol.childDataReceived(1, b"mypool/child@name\n")
+        process_protocol.childDataReceived(1, b"mypool@name2\n")
         reactor.processes[0].processProtocol.processEnded(
             Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [name2])
-
-    def test_list_ignores_undecodable_snapshots(self):
-        """
-        ``ZFSSnapshots.list`` skips snapshots whose names cannot be decoded.
-
-        These are presumably snapshots not being managed by Flocker.
-        """
-        reactor = FakeProcessReactor()
-        snapshots = ZFSSnapshots(reactor, Filesystem(b"mypool", None))
-        name = SnapshotName(datetime.now(UTC), b"node")
-
-        d = snapshots.list()
-        process_protocol = reactor.processes[0].processProtocol
-        process_protocol.childDataReceived(1, b"mypool@alalalalal\n")
-        process_protocol.childDataReceived(
-            1, b"mypool@%s\n" % (name.to_bytes(),))
-        reactor.processes[0].processProtocol.processEnded(
-            Failure(ProcessDone(0)))
-        self.assertEqual(self.successResultOf(d), [name])
+        self.assertEqual(self.successResultOf(d), [b"name2"])
 
 
 class LatestCommonSnapshotTests(SynchronousTestCase):

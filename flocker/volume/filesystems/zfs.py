@@ -138,9 +138,8 @@ class Snapshot(object):
 
     :ivar bytes name: The name of the snapshot.
     """
-    # TODO: The name should probably be a SnapshotName instead of unicode.
-    # However, SnapshotName enforces a convention that we might not want to
-    # use.  Fix the convention before trying to adopt it here.
+    # TODO: The name should probably be a structured object of some sort,
+    # not just a wrapper for bytes.
     # https://github.com/ClusterHQ/flocker/issues/668
 
 
