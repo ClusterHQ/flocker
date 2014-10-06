@@ -67,8 +67,8 @@ Preparing for a release
 #. Check that all required versions of the dependency packages are built
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
-   #. Check that matching RPM packages are available on the ``clusterhq`` repo.
-      You can list the current contents of the ``clusterhq`` repo using the following command on Fedora.
+   #. Check that matching RPM packages are available on the ``clusterhq`` repository.
+      You can list the current contents of the ``clusterhq`` repository using the following command on Fedora.
 
       .. code-block:: console
 
