@@ -253,7 +253,7 @@ Release
         git checkout -b release/flocker-${VERSION%pre*} origin/master
         git push origin --set-upstream release/flocker-${VERSION%pre*}
 
-   - Create a ``flocker-{VERSION}.rb`` file
+   - Create a ``flocker-${VERSION}.rb`` file
 
      Copy the last recipe file and rename it for this release.
 
