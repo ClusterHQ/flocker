@@ -52,6 +52,13 @@ Access
 Preparing for a release
 -----------------------
 
+.. warning:: The following steps should be carried our in a Vagrant dev virtual machine.
+             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+
+             .. code-block:: console
+
+                vagrant ssh -- -A
+
 #. Choose a version number:
 
    - Release numbers should be of the form x.y.z e.g.:
