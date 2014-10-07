@@ -160,6 +160,7 @@ setup(
         "release": [
             "gsutil",
             "wheel",
+            "virtualenv",
             ],
         },
 
