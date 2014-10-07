@@ -70,6 +70,12 @@ Preparing for a release
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
 
+#. Create a clean, local working copy of Flocker with no modifications:
+
+   .. code-block:: console
+
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+
 #. Check that all required versions of the dependency packages are built:
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
@@ -79,12 +85,6 @@ Preparing for a release
       .. code-block:: console
 
          repoquery --repoid clusterhq --repofrompath clusterhq,http://archive.clusterhq.com/fedora/20/x86_64/ "*"
-
-#. Create a clean, local working copy of Flocker with no modifications:
-
-   .. code-block:: console
-
-      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
 
 #. Create a branch for the release and push it to GitHub:
 
