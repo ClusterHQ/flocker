@@ -156,6 +156,18 @@ class FilesystemStoragePool(Service):
         filesystem.get_path().makedirs()
         return succeed(filesystem)
 
+    def clone_to(self, parent, volume):
+        parent = self.get(parent)
+        child = self.get(volume)
+        if child.get_path().exists():
+            return fail(FilesystemAlreadyExists())
+
+        d = self.create(volume)
+        with parent.reader() as reader:
+            with child.writer() as writer:
+                writer.write(reader.read())
+        return d
+
     def change_owner(self, volume, new_volume):
         old_filesystem = self.get(volume)
         new_filesystem = self.get(new_volume)

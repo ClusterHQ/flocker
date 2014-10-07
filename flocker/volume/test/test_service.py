@@ -564,19 +564,6 @@ class VolumeTests(TestCase):
         volume = Volume(uuid=u"123", name=MY_VOLUME, service=service)
         self.assertEqual(volume.get_filesystem(), pool.get(volume))
 
-    def test_container_name(self):
-        """
-        The volume's container name adds ``"-data"`` suffix to the volume
-        name, and ``"flocker--"`` prefix for namespacing.
-
-        This ensures that our geard-emulation will automatically mount it
-        into a container whose name matches that of the volume.
-        See https://github.com/ClusterHQ/flocker/issues/234
-        """
-        volume = Volume(uuid=u"123", name=MY_VOLUME, service=object())
-        self.assertEqual(volume._container_name,
-                         b"flocker--myns.myvolume-data")
-
     def test_is_locally_owned(self):
         """
         ``Volume.locally_owned()`` indicates whether the volume's owner UUID

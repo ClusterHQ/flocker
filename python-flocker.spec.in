@@ -15,7 +15,7 @@ BuildRequires:  python-setuptools
 BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
 BuildRequires:  pytz
 BuildRequires:  python-psutil = 2.1.2
-BuildRequires:  python-characteristic = 0.1.0
+BuildRequires:  python-characteristic >= 14.1.0
 BuildRequires:  python-twisted = 14.0.0
 BuildRequires:  PyYAML = 3.10
 BuildRequires:  python-treq = 0.2.1
@@ -31,7 +31,7 @@ BuildRequires:  docker-io
 Requires:       python-setuptools
 Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
 Requires:       pytz
-Requires:       python-characteristic = 0.1.0
+Requires:       python-characteristic >= 14.1.0
 Requires:       python-twisted = 14.0.0
 Requires:       PyYAML = 3.10
 Requires:       python-treq = 0.2.1

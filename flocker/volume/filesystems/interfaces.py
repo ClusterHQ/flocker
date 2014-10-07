@@ -15,13 +15,18 @@ class FilesystemAlreadyExists(Exception):
 
 
 class IFilesystemSnapshots(Interface):
-    """Support creating and listing snapshots of a specific filesystem."""
+    """
+    Support creating and listing snapshots of a specific filesystem.
+
+    Sort of silly, at the moment, since we don't yet have structured
+    representation (https://github.com/ClusterHQ/flocker/issues/668).
+    """
 
     def create(name):
-        """Create a snapshot of the filesystem.
+        """
+        Create a snapshot of the filesystem.
 
-        :param name: The name of the snapshot.
-        :type name: :py:class:`flocker.volume.snapshots.SnapshotName`
+        :param bytes name: The name of the snapshot.
 
         :return: Deferred that fires on snapshot creation, or errbacks if
             snapshotting failed. The Deferred should support cancellation
@@ -29,10 +34,10 @@ class IFilesystemSnapshots(Interface):
         """
 
     def list():
-        """Return all the filesystem's snapshots.
+        """
+        Return all the filesystem's snapshots.
 
-        :return: Deferred that fires with a ``list`` of
-            :py:class:`flocker.snapshots.SnapshotName`.
+        :return: Deferred that fires with a ``list`` of ``bytes``.
         """
 
 
@@ -107,19 +112,28 @@ class IStoragePool(Interface):
     """Pool of on-disk storage where filesystems are stored."""
 
     def create(volume):
-        """Create a new filesystem for the given volume.
-
-        By default new filesystems will be automounted. In future
-        iterations when remotely owned filesystems are added
-        (https://github.com/ClusterHQ/flocker/issues/93) this interface
-        will be expanded to allow specifying that the filesystem should
-        not be mounted.
+        """
+        Create a new filesystem for the given volume.
 
         :param volume: The volume whose filesystem should be created.
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: Deferred that fires on filesystem creation with a
             :class:`IFilesystem` provider, or errbacks if creation failed.
+        """
+
+    def clone_to(parent, volume):
+        """
+        Clone an existing volume to create a new one.
+
+        :param parent: A :class:`flocker.volume.service.Volume` whose
+           filesystem will be cloned to create the new filesystem.
+
+        :param volume: The volume whose filesystem should be created.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem cloning with a
+            :class:`IFilesystem` provider, or errbacks if cloning failed.
         """
 
     def get(volume):
