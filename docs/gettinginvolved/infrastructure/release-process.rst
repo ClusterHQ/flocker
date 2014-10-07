@@ -30,9 +30,11 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- Fedora 20 (``rpmbuild``, ``createrepo``, ``yumdownloader``) - it may be possible to install these on Ubuntu though.
+- A Fedora 20 Vagrant dev virtual machine which has the following commands:
 
-  You are advised to perform the release from a :doc:`Flocker development machine <vagrant>` , which will have all the requisite software pre-installed.
+  - ``rpmbuild``
+  - ``createrepo``
+  - ``yumdownloader``
 
 - a web browser
 
