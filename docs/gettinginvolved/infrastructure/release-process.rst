@@ -184,12 +184,6 @@ Release
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
 
-#. Set up ``gsutil`` authentication by following the instructions from the following command:
-
-   .. code-block:: console
-
-      $ gsutil config
-
 #. Build python packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
@@ -200,6 +194,12 @@ Release
           "dist/Flocker-${VERSION}-py2-none-any.whl" \
           gs://archive.clusterhq.com/downloads/flocker/
 
+
+    .. note:: Set up ``gsutil`` authentication by following the instructions from the following command:
+
+              .. code-block:: console
+
+                 $ gsutil config
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
