@@ -103,16 +103,32 @@ def make_idockerclient_tests(fixture):
             """An added unit is included in the output of ``list()``."""
             client = fixture(self)
             name = random_name()
+            image = u"openshift/busybox-http-app"
+            portmaps = (
+                PortMap(internal_port=80, external_port=8080),
+                PortMap(internal_port=5432, external_port=5432)
+            )
             self.addCleanup(client.remove, name)
-            d = client.add(name, u"openshift/busybox-http-app")
+            d = client.add(name, image, ports=portmaps)
             d.addCallback(lambda _: client.list())
 
+            expected = Unit(
+                name=name, container_name=name, activation_state=u"active",
+                container_image=image, ports=frozenset(portmaps),
+                environment=None, volumes=()
+            )
+
             def got_list(units):
-                # XXX: DockerClient.list should also return container_image
-                # information
-                # See https://github.com/ClusterHQ/flocker/issues/207
-                self.assertEqual([name], [unit.name for unit in units
-                                          if unit.name == name])
+                result = units.pop()
+                # This test is not concerned with a returned ``Unit``'s
+                # ``container_name`` and unlike other properties of the
+                # result, does not expect ``container_name`` to be any
+                # particular value. Manually setting it below to a fixed
+                # known value simply allows us to compare an entire Unit
+                # object instead of individual properties and is therefore
+                # a convenience measure.
+                result.container_name = name
+                self.assertEqual(result, expected)
             d.addCallback(got_list)
             return d
 

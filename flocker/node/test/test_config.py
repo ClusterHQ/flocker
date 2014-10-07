@@ -1956,10 +1956,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         applications = [
             Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0')
             )
         ]
         result = marshal_configuration(
@@ -1967,7 +1965,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
+                                        'ports': []}
             },
             'version': 1,
         }
@@ -1980,10 +1979,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         applications = [
             Application(
                 name='mysql-hybridcluster',
-                image=Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage(repository='flocker/mysql',
-                                      tag='v1.0.0'))
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0')
             ),
             Application(
                 name='site-hybridcluster',
@@ -1997,10 +1994,11 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': 'unknown',
+                    'image': u'flocker/wordpress:v1.0.0',
                     'ports': []
                 },
-                'mysql-hybridcluster': {'image': 'unknown', 'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
+                                        'ports': []}
             },
             'version': 1,
         }
@@ -2027,7 +2025,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': 'unknown',
+                    'image': u'flocker/wordpress:v1.0.0',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
             },
@@ -2057,7 +2055,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': 'unknown',
+                    'image': u'flocker/wordpress:v1.0.0',
                     'ports': [],
                     'links': [{'local_port': 3306, 'remote_port': 63306,
                                'alias': 'mysql'}]
@@ -2095,12 +2093,12 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': 'unknown',
+                    'image': u'flocker/wordpress:v1.0.0',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': None},
-                    'image': 'unknown',
+                    'image': u'flocker/mysql:v1.0.0',
                     'ports': []
                 }
             },
@@ -2137,12 +2135,12 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': 'unknown',
+                    'image': u'flocker/wordpress:v1.0.0',
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': None},
-                    'image': 'unknown',
+                    'image': u'flocker/mysql:v1.0.0',
                     'ports': []
                 }
             },
@@ -2199,7 +2197,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected_applications = {
             b'mysql-hybridcluster': Application(
                 name=b'mysql-hybridcluster',
-                image=DockerImage(repository='unknown'),
+                image=DockerImage(repository='flocker/mysql',
+                                  tag='v1.0.0'),
                 ports=frozenset(),
                 links=frozenset(),
                 volume=AttachedVolume(
@@ -2209,7 +2208,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             ),
             b'site-hybridcluster': Application(
                 name=b'site-hybridcluster',
-                image=DockerImage(repository='unknown'),
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
                 ports=frozenset([Port(internal_port=80,
                                       external_port=8080)]),
                 links=frozenset([Link(local_port=3306,

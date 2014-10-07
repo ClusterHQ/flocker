@@ -65,10 +65,6 @@ class Unit(object):
     """
     Information about a unit managed by Docker.
 
-    XXX: The ``container_image`` attribute defaults to ``None`` until we
-    have code to call docker for images associated with its
-    containers. See https://github.com/ClusterHQ/flocker/issues/207
-
     XXX "Unit" is geard terminology, and should be renamed. See
     https://github.com/ClusterHQ/flocker/issues/819
 
@@ -87,7 +83,7 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar tuple ports: The ``PortMap`` instances which define how
+    :ivar frozenset ports: The ``PortMap`` instances which define how
         connections to ports on the host are routed to ports exposed in
         the container.
 
@@ -190,7 +186,7 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), environment=None,
+    def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
@@ -216,15 +212,15 @@ class FakeDockerClient(object):
     def list(self):
         # XXX: This is a hack so that functional and unit tests that use
         # DockerClient.list can pass until the real DockerClient.list can also
-        # return container_image information and ports.
-        # See https://github.com/ClusterHQ/flocker/issues/207
-        # Volumes should also be included.
+        # return volumes information.
         # See https://github.com/ClusterHQ/flocker/issues/289
         incomplete_units = set()
         for unit in self._units.values():
             incomplete_units.add(
                 Unit(name=unit.name, container_name=unit.name,
-                     activation_state=unit.activation_state))
+                     activation_state=unit.activation_state,
+                     container_image=unit.container_image,
+                     ports=frozenset(unit.ports)))
         return succeed(incomplete_units)
 
 
@@ -268,6 +264,39 @@ class DockerClient(object):
         :return unicode: The container's name.
         """
         return self.namespace + unit_name
+
+    def _parse_container_ports(self, data):
+        """
+        Parse the ports from a data structure representing the Ports
+        configuration of a Docker container in the format returned by
+        ``self._client.inspect_container`` and return a list containing
+        ``PortMap`` instances mapped to the container and host exposed ports.
+
+        :param dict data: The data structure for the representation of
+            container and host port mappings in a single container.
+            This takes the form of the ``NetworkSettings.Ports`` portion
+            of a container's state and configuration as returned by inspecting
+            the container. This is a dictionary mapping container ports to a
+            list of host bindings, e.g.
+            "3306/tcp": [{"HostIp": "0.0.0.0","HostPort": "53306"},
+                         {"HostIp": "0.0.0.0","HostPort": "53307"}]
+
+        :return list: A list that is either empty or contains ``PortMap``
+            instances.
+        """
+        ports = []
+        for internal, hostmap in data.items():
+            internal_map = internal.split(u'/')
+            internal_port = internal_map[0]
+            internal_port = int(internal_port)
+            if hostmap:
+                for host in hostmap:
+                    external_port = host[u"HostPort"]
+                    external_port = int(external_port)
+                    portmap = PortMap(internal_port=internal_port,
+                                      external_port=external_port)
+                    ports.append(portmap)
+        return ports
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=()):
@@ -372,18 +401,23 @@ class DockerClient(object):
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
+                image = data[u"Config"][u"Image"]
+                port_mappings = data[u"NetworkSettings"][u"Ports"]
+                if port_mappings is not None:
+                    ports = self._parse_container_ports(port_mappings)
+                else:
+                    ports = list()
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                # We'll add missing info in
-                # https://github.com/ClusterHQ/flocker/issues/207
-                # and to extract volume info from the inspect results:
+                # XXX to extract volume info from the inspect results:
                 # https://github.com/ClusterHQ/flocker/issues/289
                 result.add(Unit(name=name,
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
-                                container_image=None))
+                                container_image=image,
+                                ports=frozenset(ports)))
             return result
         return deferToThread(_list)
 
