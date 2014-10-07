@@ -211,6 +211,15 @@ Release
 
 #. Build tagged docs at Read the Docs:
 
+   #. Force Read the Docs to reload the repository
+
+      There is a GitHub webhook which should notify Read The Docs about changes in the Flocker repository, but it sometimes fails.
+      Force an update by running:
+
+      .. code-block:: console
+
+         curl -X POST http://readthedocs.org/build/flocker
+
    #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Wait for the documentation to build.
@@ -221,12 +230,6 @@ Release
                    The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
                    We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
                    Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
-
-   #. Force Read the Docs to reload the repository, in case the GitHub webhook fails, by running:
-
-      .. code-block:: console
-
-         curl -X POST http://readthedocs.org/build/flocker
 
 #. Update the Homebrew recipe
 
