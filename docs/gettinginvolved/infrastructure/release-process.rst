@@ -19,10 +19,6 @@ By the end of the release process we will have:
 - a Vagrant base tutorial image
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 
-If this is a major or minor release (i.e. not a weekly development release), we will also have:
-
-- download links on https://clusterhq.com
-
 
 Prerequisites
 -------------
