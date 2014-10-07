@@ -220,7 +220,7 @@ Release
 
          curl -X POST http://readthedocs.org/build/flocker
 
-   #. Go to the Read the Docs `dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+   #. Go to the `Read the Docs dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
    #. Enable the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
