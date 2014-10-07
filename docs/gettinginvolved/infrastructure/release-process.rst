@@ -26,7 +26,7 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A Fedora 20 Vagrant dev virtual machine which has the following commands:
+- A :doc:`Flocker development machine <vagrant>` which has the following commands:
 
   - ``rpmbuild``
   - ``createrepo``
