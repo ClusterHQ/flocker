@@ -48,20 +48,20 @@ def iptables(logger, argv):
         check_call([b"iptables"] + argv)
 
 
-# TODO "tag" vs "namespace" might be confusing. I left it in because it went
-# through a design review. Reviewer?
-def create_proxy_to(logger, ip, port, tag):
+def create_proxy_to(logger, ip, port, namespace):
     """
     :see: ``HostNetwork.create_proxy_to``
 
-    :param unicode tag: See ``HostNetwork`` documentation for ``namespace``.
+    :param unicode namespace: See ``HostNetwork`` documentation for
+        ``namespace``.
     """
     action = CREATE_PROXY_TO(
-        logger=logger, target_ip=ip, target_port=port, namespace=tag)
+        logger=logger, target_ip=ip, target_port=port, namespace=namespace)
 
     with action:
         encoded_ip = unicode(ip).encode("ascii")
         encoded_port = unicode(port).encode("ascii")
+        comment = FLOCKER_COMMENT_MARKER + namespace
 
         # The first goal is to configure "Destination NAT" (DNAT).  We're just
         # going to rewrite the destination address of traffic arriving on the
@@ -90,7 +90,7 @@ def create_proxy_to(logger, ip, port, tag):
             b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
             # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER + tag,
+            b"--match", b"comment", b"--comment", comment,
 
             # If the filter matched, jump to the DNAT chain to handle doing the
             # actual packet mangling.  DNAT is a built-in chain that already
