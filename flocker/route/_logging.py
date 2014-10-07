@@ -34,6 +34,10 @@ TARGET_PORT = Field.forTypes(
     u"The port number which is the target of a proxy.")
 
 
+NAMESPACE = Field.forTypes(
+    u"namespace", [unicode],
+    u"The namespace of the proxy.")
+
 ARGV = Field.forTypes(
     u"argv", [list],
     u"The argument list of a child process being executed.")
@@ -48,13 +52,13 @@ IPTABLES = ActionType(
 
 CREATE_PROXY_TO = ActionType(
     _system(u"create_proxy_to"),
-    [TARGET_IP, TARGET_PORT],
+    [TARGET_IP, TARGET_PORT, NAMESPACE],
     [],
     U"Flocker is creating a new proxy.")
 
 
 DELETE_PROXY = ActionType(
     _system(u"delete_proxy"),
-    [TARGET_IP, TARGET_PORT],
+    [TARGET_IP, TARGET_PORT, NAMESPACE],
     [],
     u"Flocker is deleting an existing proxy.")

@@ -379,8 +379,12 @@ class Deployer(object):
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
                         # https://github.com/ClusterHQ/flocker/issues/322
-                        desired_proxies.add(Proxy(ip=node.hostname,
-                                                  port=port.external_port))
+                        # XXX Use ``_Deployer``\'s namespace attribute
+                        # in https://github.com/ClusterHQ/flocker/issues/737
+                        proxy = Proxy(ip=node.hostname,
+                                      port=port.external_port,
+                                      namespace=u'a_namespace')
+                        desired_proxies.add(proxy)
         if desired_proxies != set(self.network.enumerate_proxies()):
             phases.append(SetProxies(ports=desired_proxies))
 

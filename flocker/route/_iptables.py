@@ -21,7 +21,7 @@ from ._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
 from ._interfaces import INetwork
 from ._model import Proxy
 
-FLOCKER_COMMENT_MARKER = b"flocker create_proxy_to"
+FLOCKER_COMMENT_MARKER = b"flocker "
 
 
 @attributes(["comment", "destination_port", "to_destination"])
@@ -48,16 +48,20 @@ def iptables(logger, argv):
         check_call([b"iptables"] + argv)
 
 
-def create_proxy_to(logger, ip, port):
+def create_proxy_to(logger, ip, port, namespace):
     """
     :see: ``HostNetwork.create_proxy_to``
+
+    :param unicode namespace: See ``HostNetwork`` documentation for
+        ``namespace``.
     """
     action = CREATE_PROXY_TO(
-        logger=logger, target_ip=ip, target_port=port)
+        logger=logger, target_ip=ip, target_port=port, namespace=namespace)
 
     with action:
         encoded_ip = unicode(ip).encode("ascii")
         encoded_port = unicode(port).encode("ascii")
+        comment = FLOCKER_COMMENT_MARKER + namespace
 
         # The first goal is to configure "Destination NAT" (DNAT).  We're just
         # going to rewrite the destination address of traffic arriving on the
@@ -86,7 +90,7 @@ def create_proxy_to(logger, ip, port):
             b"--match", b"addrtype", b"--dst-type", b"LOCAL",
 
             # Tag it as a flocker-created rule so we can recognize it later.
-            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+            b"--match", b"comment", b"--comment", comment,
 
             # If the filter matched, jump to the DNAT chain to handle doing the
             # actual packet mangling.  DNAT is a built-in chain that already
@@ -173,7 +177,7 @@ def create_proxy_to(logger, ip, port):
             with path.child(b"route_localnet").open("wb") as route_localnet:
                 route_localnet.write(b"1")
 
-        return Proxy(ip=ip, port=port)
+        return Proxy(ip=ip, port=port, namespace=namespace)
 
 
 def delete_proxy(logger, proxy):
@@ -182,13 +186,15 @@ def delete_proxy(logger, proxy):
     """
     ip = unicode(proxy.ip).encode("ascii")
     port = unicode(proxy.port).encode("ascii")
+    namespace = proxy.namespace.encode("utf-8")
+    comment = FLOCKER_COMMENT_MARKER + namespace
 
     commands = [
         [b"--table", b"nat",
          b"--delete", b"PREROUTING",
          b"--protocol", b"tcp", b"--destination-port", port,
          b"--match", b"addrtype", b"--dst-type", b"LOCAL",
-         b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+         b"--match", b"comment", b"--comment", comment,
          b"--jump", b"DNAT", b"--to-destination", ip],
         [b"--table", b"nat",
          b"--delete", b"POSTROUTING",
@@ -201,7 +207,8 @@ def delete_proxy(logger, proxy):
          b"--jump", b"DNAT", b"--to-destination", ip],
     ]
 
-    with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
+    with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port,
+                      namespace=proxy.namespace):
         for argv in commands:
             iptables(logger, argv)
 
@@ -215,8 +222,11 @@ def enumerate_proxies():
     """
     proxies = []
     for rule in get_flocker_rules():
+        comment = rule.comment
+        namespace = comment[len(FLOCKER_COMMENT_MARKER):]
         proxies.append(
-            Proxy(ip=rule.to_destination, port=rule.destination_port))
+            Proxy(ip=rule.to_destination, port=rule.destination_port,
+                  namespace=namespace.decode('utf-8')))
 
     return proxies
 
@@ -251,7 +261,8 @@ def get_flocker_rules():
 
         options = parse_iptables_options(shlex.split(line))
 
-        if options.comment == FLOCKER_COMMENT_MARKER:
+        if (options.comment is not None and
+                options.comment.startswith(FLOCKER_COMMENT_MARKER)):
             yield options
 
 
@@ -302,10 +313,14 @@ def parse_iptables_options(argv):
         to_destination=to_destination)
 
 
+@attributes(["namespace"])
 @implementer(INetwork)
 class HostNetwork(object):
     """
     An ``INetwork`` implementation based on ``iptables``.
+
+    :ivar unicode namespace: A namespace for proxies configured
+        on this network.
     """
     logger = Logger()
 
@@ -315,7 +330,7 @@ class HostNetwork(object):
 
         :see: :meth:`INetwork.create_proxy_to` for parameter documentation.
         """
-        return create_proxy_to(self.logger, ip, port)
+        return create_proxy_to(self.logger, ip, port, self.namespace)
 
     def delete_proxy(self, proxy):
         """
@@ -325,7 +340,15 @@ class HostNetwork(object):
         """
         return delete_proxy(self.logger, proxy)
 
-    enumerate_proxies = staticmethod(enumerate_proxies)
+    def enumerate_proxies(self):
+        """
+        Find all the proxies which exist on this network in the current
+        namespace.
+        """
+        all_proxies = enumerate_proxies()
+        proxies_in_this_namespace = list(proxy for proxy in all_proxies if
+                                         self.namespace == proxy.namespace)
+        return proxies_in_this_namespace
 
     def enumerate_used_ports(self):
         """
@@ -342,16 +365,21 @@ class HostNetwork(object):
         )
         proxied = set(
             proxy.port
-            for proxy in self.enumerate_proxies()
+            for proxy in enumerate_proxies()
         )
         # net_connections won't tell us about ports bound by sockets that
         # haven't entered the TCP state graph yet.
         return frozenset(listening | proxied)
 
 
-def make_host_network():
+def make_host_network(namespace=u"default_host_namespace"):
     """
     Create a new ``INetwork`` provider which will interact with the underlying
     system's network configuration.
+
+    :see: ``HostNetwork`` for parameter documentation.
+
+    # TODO Don't have a default namespace? This would mean changing many tests
+          (for memory equivalent too)
     """
-    return HostNetwork()
+    return HostNetwork(namespace=namespace)

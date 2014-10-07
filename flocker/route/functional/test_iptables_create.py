@@ -2,6 +2,8 @@
 
 """
 Tests for :py:mod:`flocker.route._iptables`.
+# TODO rename this module to "test_iptables" - after the contents changes
+# have been approved in review
 """
 
 from __future__ import print_function
@@ -22,6 +24,7 @@ from twisted.python.procutils import which
 from ...testtools import if_root
 from .. import make_host_network
 from .._logging import CREATE_PROXY_TO, DELETE_PROXY, IPTABLES
+from .._model import Proxy
 from .networktests import make_proxying_tests
 
 try:
@@ -337,6 +340,48 @@ class EnumerateTests(TestCase):
         self.addCleanup(create_network_namespace().restore)
         self.network = make_host_network()
 
+    def test_different_namespaces_not_enumerated(self):
+        """
+        If there are rules in NAT table which aren't related to the given
+        namespace then :py:func:`enumerate_proxies` does not return information
+        about them.
+        """
+        another_network = make_host_network(u"another_namespace")
+        self.network.create_proxy_to(IPAddress("10.1.2.3"), 1234)
+        self.assertEqual([], another_network.enumerate_proxies())
+
+    def test_default_namespace(self):
+        """
+        If no namespace is passed to ``make_host_network``,
+        ``enumerate_proxies`` returns proxies with a default namespace.
+        """
+        ip = IPAddress("10.2.3.4")
+        port = 4321
+        namespace = u"default_host_namespace"
+        self.network.create_proxy_to(ip, 4321)
+        expected = Proxy(ip=ip, port=port, namespace=namespace)
+        self.assertEqual([expected], self.network.enumerate_proxies())
+
+    def test_proxies_enumerated(self):
+        """
+        :py:func:`enumerate_proxies` includes information about rules in the
+        NAT table which are related to the given namespace.
+        """
+        another_network = make_host_network(u"\N{HEAVY BLACK HEART}")
+        proxy = another_network.create_proxy_to(IPAddress("10.1.2.3"), 1234)
+        self.assertEqual([proxy], another_network.enumerate_proxies())
+
+    def test_proxy_has_namespace(self):
+        """
+        Proxies which :py:func:`enumerate_proxies` returns have the namespace
+        passed to ``make_host_network``.
+        """
+        namespace = u"my_namespace"
+        another_network = make_host_network(namespace)
+        another_network.create_proxy_to(IPAddress("10.1.2.3"), 1234)
+        proxy = another_network.enumerate_proxies()[0]
+        self.assertEqual(proxy.namespace, namespace)
+
     def test_unrelated_iptables_rules(self):
         """
         If there are rules in NAT table which aren't related to flocker then
@@ -392,6 +437,29 @@ class DeleteTests(TestCase):
         expected = get_iptables_rules()
 
         delete = self.network.create_proxy_to(IPAddress("10.1.2.4"), 23456)
+        self.network.delete_proxy(delete)
+
+        # Capture the new rules
+        actual = get_iptables_rules()
+
+        # They should match because only the second proxy should have been torn
+        # down.
+        self.assertEqual(
+            expected,
+            actual)
+
+    def test_only_proxy_in_namespace_deleted(self):
+        """
+        Rules which are identical to the proxy specified by the object passed
+        to :py:func:`delete_proxy` apart from their namespace are not deleted.
+        """
+        another_network = make_host_network(namespace=u'another_namespace')
+        another_network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
+
+        # Capture the rules that exist now for comparison later.
+        expected = get_iptables_rules()
+
+        delete = self.network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
         self.network.delete_proxy(delete)
 
         # Capture the new rules
@@ -471,3 +539,19 @@ class UsedPortsTests(TestCase):
 
         self.assertIn(
             client.getsockname()[1], network.enumerate_used_ports())
+
+    def test_proxied_ports_used_different_namespace(self):
+        """
+        :py:meth:`INetwork.enumerate_used_ports` does not limit used ports
+        to those in the network's namespace, because used ports are global.
+        """
+        # Some random, not-very-likely-to-be-bound port number.  It's not a
+        # disaster if this does accidentally collide with a port in use on
+        # the host when the test suite runs but the test only demonstrates
+        # what it's meant to demonstrate when it doesn't collide.
+
+        port_number = 18173
+        network = make_host_network()
+        network.create_proxy_to(IPAddress("10.0.0.3"), port_number)
+        another_network = make_host_network(namespace="another_namespace")
+        self.assertIn(port_number, another_network.enumerate_used_ports())

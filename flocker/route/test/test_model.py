@@ -13,7 +13,8 @@ from ...testtools import make_with_init_tests
 
 class ProxyInitTests(make_with_init_tests(
         record_type=Proxy,
-        kwargs=dict(ip=IPAddress("10.0.1.2"), port=12345))):
+        kwargs=dict(ip=IPAddress("10.0.1.2"), port=12345,
+                    namespace="my_namespace"))):
     """
     Tests for ``Proxy.__init__``.
     """

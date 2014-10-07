@@ -26,7 +26,7 @@ class MemoryNetwork(object):
         self._used_ports = used_ports
 
     def create_proxy_to(self, ip, port):
-        proxy = Proxy(ip=ip, port=port)
+        proxy = Proxy(ip=ip, port=port, namespace=u"default_memory_namespace")
         self._proxies.add(proxy)
         return proxy
 
