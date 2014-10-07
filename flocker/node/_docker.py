@@ -83,7 +83,7 @@ class Unit(object):
     :ivar unicode container_image: The docker image name associated with this
         container.
 
-    :ivar tuple ports: The ``PortMap`` instances which define how
+    :ivar frozenset ports: The ``PortMap`` instances which define how
         connections to ports on the host are routed to ports exposed in
         the container.
 
@@ -186,7 +186,7 @@ class FakeDockerClient(object):
             units = {}
         self._units = units
 
-    def add(self, unit_name, image_name, ports=(), environment=None,
+    def add(self, unit_name, image_name, ports=frozenset(), environment=None,
             volumes=()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
@@ -220,7 +220,7 @@ class FakeDockerClient(object):
                 Unit(name=unit.name, container_name=unit.name,
                      activation_state=unit.activation_state,
                      container_image=unit.container_image,
-                     ports=tuple(unit.ports)))
+                     ports=frozenset(unit.ports)))
         return succeed(incomplete_units)
 
 
@@ -417,7 +417,7 @@ class DockerClient(object):
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
                                 container_image=image,
-                                ports=tuple(ports)))
+                                ports=frozenset(ports)))
             return result
         return deferToThread(_list)
 

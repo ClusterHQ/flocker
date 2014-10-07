@@ -114,12 +114,21 @@ def make_idockerclient_tests(fixture):
 
             expected = Unit(
                 name=name, container_name=name, activation_state=u"active",
-                container_image=image, ports=portmaps, environment=None,
-                volumes=()
+                container_image=image, ports=frozenset(portmaps),
+                environment=None, volumes=()
             )
-
+            
             def got_list(units):
-                self.assertEqual(units.pop(), expected)
+                result = units.pop()
+                # This test is not concerned with a returned ``Unit``'s
+                # ``container_name`` and unlike other properties of the
+                # result, does not expect ``container_name`` to be any
+                # particular value. Manually setting it below to a fixed
+                # known value simply allows us to compare an entire Unit
+                # object instead of individual properties and is therefore
+                # a convenience measure.
+                result.container_name = name
+                self.assertEqual(result, expected)
             d.addCallback(got_list)
             return d
 
