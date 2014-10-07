@@ -12,7 +12,6 @@ from ._interfaces import INetwork
 from ._model import Proxy
 
 
-@attributes(["namespace"])
 @implementer(INetwork)
 class MemoryNetwork(object):
     """
@@ -31,7 +30,7 @@ class MemoryNetwork(object):
         self._used_ports = used_ports
 
     def create_proxy_to(self, ip, port):
-        proxy = Proxy(ip=ip, port=port, namespace=self.namespace)
+        proxy = Proxy(ip=ip, port=port, namespace=u"default_memory_namespace")
         self._proxies.add(proxy)
         return proxy
 
@@ -46,8 +45,7 @@ class MemoryNetwork(object):
         return proxy_ports | self._used_ports
 
 
-def make_memory_network(used_ports=frozenset(),
-                        namespace=u"default_memory_namespace"):
+def make_memory_network(used_ports=frozenset()):
     """
     Create a new, isolated, in-memory-only provider of ``INetwork``.
 
@@ -57,4 +55,4 @@ def make_memory_network(used_ports=frozenset(),
 
     :param unicode namespace: See ``MemoryNetwork`` documentation.
     """
-    return MemoryNetwork(used_ports=used_ports, namespace=namespace)
+    return MemoryNetwork(used_ports=used_ports)

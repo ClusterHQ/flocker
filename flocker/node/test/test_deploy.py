@@ -890,7 +890,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             hostname=u'node2.example.com')
         proxy = Proxy(ip=expected_destination_host,
                       port=expected_destination_port,
-                      namespace=network.namespace)
+                      namespace=u"a_namespace")
         expected = Sequentially(changes=[SetProxies(ports=frozenset([proxy]))])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -1427,19 +1427,19 @@ class SetProxiesTests(SynchronousTestCase):
         """
         Proxies which are required are added.
         """
-        namespace = "my_namespace"
-        fake_network = make_memory_network(namespace=namespace)
+        fake_network = make_memory_network()
         api = Deployer(
             create_volume_service(self), docker_client=FakeDockerClient(),
             network=fake_network)
 
         expected_proxy = Proxy(ip=u'192.0.2.100', port=3306,
-                               namespace=namespace)
+                               namespace=u'some_namespace')
         d = SetProxies(ports=[expected_proxy]).run(api)
         self.successResultOf(d)
+        proxy = fake_network.enumerate_proxies()[0]
         self.assertEqual(
-            [expected_proxy],
-            fake_network.enumerate_proxies()
+            (expected_proxy.ip, expected_proxy.port),
+            (proxy.ip, proxy.port)
         )
 
     def test_proxies_removed(self):
