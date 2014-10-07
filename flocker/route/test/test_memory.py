@@ -34,8 +34,8 @@ class MemoryProxyTests(SynchronousTestCase):
         """
         ip = IPAddress("10.2.3.4")
         port = 4321
-        namespace = u"default_memory_namespace"
+        expected_namespace = u"default_memory_namespace"
         network = make_memory_network()
         network.create_proxy_to(ip, 4321)
-        expected = Proxy(ip=ip, port=port, namespace=namespace)
+        expected = Proxy(ip=ip, port=port, namespace=expected_namespace)
         self.assertEqual([expected], network.enumerate_proxies())
