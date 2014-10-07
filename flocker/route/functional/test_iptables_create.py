@@ -448,6 +448,29 @@ class DeleteTests(TestCase):
             expected,
             actual)
 
+    def test_only_proxy_in_namespace_deleted(self):
+        """
+        Rules which are identical to the proxy specified by the object passed
+        to :py:func:`delete_proxy` apart from their namespace are not deleted.
+        """
+        another_network = make_host_network(namespace=u'another_namespace')
+        another_network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
+
+        # Capture the rules that exist now for comparison later.
+        expected = get_iptables_rules()
+
+        delete = self.network.create_proxy_to(IPAddress("10.1.2.3"), 12345)
+        self.network.delete_proxy(delete)
+
+        # Capture the new rules
+        actual = get_iptables_rules()
+
+        # They should match because only the second proxy should have been torn
+        # down.
+        self.assertEqual(
+            expected,
+            actual)
+
 
 class UsedPortsTests(TestCase):
     """
