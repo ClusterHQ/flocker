@@ -14,10 +14,10 @@ Outcomes
 By the end of the release process we will have:
 
 - a tag in version control
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
+- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_
 - Fedora 20 RPMs for software on the node and client
 - a Vagrant base tutorial image
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_
 
 
 Prerequisites
@@ -41,8 +41,8 @@ Software
 Access
 ~~~~~~
 
-- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`__),
-  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`__ to the Flocker project.
+- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
+  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 
