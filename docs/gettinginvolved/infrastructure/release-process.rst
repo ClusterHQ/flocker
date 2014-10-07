@@ -167,10 +167,10 @@ Release
 
 #. Go to the `BuildBot web status`_ and force a build on the tag.
 
+   Force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
+
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
-
-   You force a build on a tag by putting the tag name (e.g. ``0.2.0``) into the branch box (without any prefix).
 
 #. Set up ``gsutil`` authentication by following the instructions from the following command:
 
