@@ -195,11 +195,11 @@ Release
           gs://archive.clusterhq.com/downloads/flocker/
 
 
-    .. note:: Set up ``gsutil`` authentication by following the instructions from the following command:
+   .. note:: Set up ``gsutil`` authentication by following the instructions from the following command:
 
-              .. code-block:: console
+             .. code-block:: console
 
-                 $ gsutil config
+                $ gsutil config
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
