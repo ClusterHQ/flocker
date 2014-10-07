@@ -117,7 +117,7 @@ def make_idockerclient_tests(fixture):
                 container_image=image, ports=frozenset(portmaps),
                 environment=None, volumes=()
             )
-            
+
             def got_list(units):
                 result = units.pop()
                 # This test is not concerned with a returned ``Unit``'s
