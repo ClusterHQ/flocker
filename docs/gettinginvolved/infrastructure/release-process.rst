@@ -86,6 +86,9 @@ Preparing for a release
 
          repoquery --repoid clusterhq --repofrompath clusterhq,http://archive.clusterhq.com/fedora/20/x86_64/ "*"
 
+   .. note:: XXX: Automate the checking of package versions.
+             See https://github.com/ClusterHQ/flocker/issues/881.
+
 #. Create a branch for the release and push it to GitHub:
 
    .. code-block:: console
