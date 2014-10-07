@@ -141,6 +141,8 @@ Preparing for a release
 
    Wait for an accepted code review before continuing.
 
+   .. warning:: Do not merge the branch yet.
+                It should only be merged once it has been tagged, in the next series of steps.
 
 Release
 -------
