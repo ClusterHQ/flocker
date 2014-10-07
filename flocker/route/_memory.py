@@ -6,7 +6,6 @@ Objects related to an in-memory implementation of ``INetwork``.
 
 from zope.interface import implementer
 from eliot import Logger
-from characteristic import attributes
 
 from ._interfaces import INetwork
 from ._model import Proxy
@@ -19,9 +18,6 @@ class MemoryNetwork(object):
 
     :ivar set _proxies: A ``set`` of ``Proxy`` instances representing all of
         the proxies supposedly configured on this network.
-
-    :ivar unicode namespace: A namespace for proxies configured
-        on this network.
     """
     logger = Logger()
 
@@ -52,7 +48,5 @@ def make_memory_network(used_ports=frozenset()):
     :param frozenset used_ports: Some port numbers which are to be considered
         already used and included in the result of ``enumerate_used_ports``
         when called on the returned object.
-
-    :param unicode namespace: See ``MemoryNetwork`` documentation.
     """
     return MemoryNetwork(used_ports=used_ports)
