@@ -16,6 +16,7 @@ By the end of the release process we will have:
 - a tag in version control
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`__
 - Fedora 20 RPMs for software on the node and client
+- a Vagrant base tutorial image
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`__
 
 If this is a major or minor release (i.e. not a weekly development release), we will also have:
