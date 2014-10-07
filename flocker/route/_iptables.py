@@ -177,7 +177,7 @@ def create_proxy_to(logger, ip, port, namespace):
             with path.child(b"route_localnet").open("wb") as route_localnet:
                 route_localnet.write(b"1")
 
-        return Proxy(ip=ip, port=port, namespace=tag)
+        return Proxy(ip=ip, port=port, namespace=namespace)
 
 
 def delete_proxy(logger, proxy):
