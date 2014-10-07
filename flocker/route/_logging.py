@@ -50,8 +50,6 @@ IPTABLES = ActionType(
     u"An iptables command which Flocker is executing against the system.")
 
 
-# TODO (also for DELETE_PROXY) should the whole comment, including the marker,
-# be logged?
 CREATE_PROXY_TO = ActionType(
     _system(u"create_proxy_to"),
     [TARGET_IP, TARGET_PORT, NAMESPACE],
