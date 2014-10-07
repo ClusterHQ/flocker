@@ -147,6 +147,13 @@ Preparing for a release
 Release
 -------
 
+.. warning:: The following steps should be carried our in a Vagrant dev virtual machine.
+             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+
+             .. code-block:: console
+
+                vagrant ssh -- -A
+
 #. Change your working directory to be the Flocker release branch working directory.
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
