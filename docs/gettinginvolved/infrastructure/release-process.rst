@@ -282,6 +282,10 @@ Release
 
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
 
+#. Merge the release branch
+
+   Merge release branch and close the release pull request.
+
 
 Appendix: Pre-populating RPM Repository
 -----------------------------------------------
