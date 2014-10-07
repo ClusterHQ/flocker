@@ -323,7 +323,7 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
 ::
 
    mkdir repo
-   yumdownloader --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker
+   yumdownloader --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py
    createrepo repo
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
 
@@ -331,7 +331,7 @@ or install the Copr repository locally by running ``curl https://copr.fedoraproj
 ::
 
    mkdir srpm
-   yumdownloader --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker
+   yumdownloader --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
