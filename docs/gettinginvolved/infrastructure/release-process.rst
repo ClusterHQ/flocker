@@ -264,6 +264,10 @@ Release
        The version number is included in the class name with all dots and dashes removed.
        e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
 
+     - Update the URL
+
+       The version number is also included in the ``url`` part of the recipe.
+
      - Update the ``sha1`` checksum.
 
        .. code-block:: console
