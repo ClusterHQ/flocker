@@ -50,7 +50,7 @@ Access
 Preparing for a release
 -----------------------
 
-.. warning:: The following steps should be carried our in a Vagrant dev virtual machine.
+.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
              Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
              .. code-block:: console
@@ -152,7 +152,7 @@ Preparing for a release
 Release
 -------
 
-.. warning:: The following steps should be carried our in a Vagrant dev virtual machine.
+.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
              Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
              .. code-block:: console
