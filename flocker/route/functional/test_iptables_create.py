@@ -343,8 +343,8 @@ class EnumerateTests(TestCase):
     def test_different_namespaces_not_enumerated(self):
         """
         If there are rules in NAT table which aren't related to the given
-        namespace then
-        :py:func:`enumerate_proxies` does not return information about them.
+        namespace then :py:func:`enumerate_proxies` does not return information
+        about them.
         """
         another_network = make_host_network(u"another_namespace")
         self.network.create_proxy_to(IPAddress("10.1.2.3"), 1234)
