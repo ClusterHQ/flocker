@@ -357,7 +357,7 @@ class EnumerateTests(TestCase):
         """
         ip = IPAddress("10.2.3.4")
         port = 4321
-        namespace = "default"
+        namespace = u"default_host_namespace"
         self.network.create_proxy_to(ip, 4321)
         expected = Proxy(ip=ip, port=port, namespace=namespace)
         self.assertEqual([expected], self.network.enumerate_proxies())
