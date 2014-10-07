@@ -283,20 +283,6 @@ Release
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
 
 
-Update Download Links
-~~~~~~~~~~~~~~~~~~~~~
-
-.. warning:: Skip this entire step for weekly releases.
-
-XXX Update download links on https://clusterhq.com:
-
-XXX Arrange to have download links on a page on https://clusterhq.com.
-See:
-
-- https://github.com/ClusterHQ/flocker/issues/359 and
-- https://www.pivotaltracker.com/n/projects/946740/stories/75538272
-
-
 Appendix: Pre-populating RPM Repository
 -----------------------------------------------
 
