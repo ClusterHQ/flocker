@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState,
+    NodeState, DockerImage
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -317,10 +317,12 @@ class Deployer(object):
             running = []
             not_running = []
             for unit in units:
-                # XXX: The container_image will be available on the
-                # Unit when
-                # https://github.com/ClusterHQ/flocker/issues/207 is
-                # resolved.
+                if unit.container_image is not None:
+                    image = DockerImage.from_string(
+                        unit.container_image
+                    )
+                else:
+                    image = None
                 if unit.name in available_volumes:
                     # XXX Mountpoint is not available, see
                     # https://github.com/ClusterHQ/flocker/issues/289
@@ -328,6 +330,7 @@ class Deployer(object):
                 else:
                     volume = None
                 application = Application(name=unit.name,
+                                          image=image,
                                           volume=volume)
                 if unit.activation_state == u"active":
                     running.append(application)

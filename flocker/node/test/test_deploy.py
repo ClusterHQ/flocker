@@ -588,11 +588,10 @@ APPLICATION_WITH_VOLUME = Application(
 
 # XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
 # current state passed to calculate_necessary_state_changes won't know
-# mountpoint. Until https://github.com/ClusterHQ/flocker/issues/207 is
-# fixed the image will be unknown.
+# mountpoint.
 DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string('unknown'),
+    image=DockerImage.from_string(b"psql-clusterhq"),
     volume=AttachedVolume(
         # XXX For now we require volume names match application names,
         # see https://github.com/ClusterHQ/flocker/issues/49
@@ -637,7 +636,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     container_name=expected_application_name,
                     activation_state=u'active')
         fake_docker = FakeDockerClient(units={expected_application_name: unit})
-        application = Application(name=unit.name)
+        application = Application(name=unit.name, image=None)
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -662,7 +661,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name) for unit in units.values()]
+        applications = [
+            Application(name=unit.name, image=None) for unit in units.values()
+        ]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -695,6 +696,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         # is fixed the mountpoint should actually be specified.
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name,
+                                    image=None,
                                     volume=AttachedVolume(name=unit.name,
                                                           mountpoint=None))
                         for unit in units.values()]
@@ -724,7 +726,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.successResultOf(volume.service.pool.create(volume))
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name)]
+        applications = [Application(name=unit.name, image=None)]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -748,7 +750,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name) for unit in units.values()]
+        applications = [
+            Application(name=unit.name, image=None) for unit in units.values()
+        ]
         applications.sort()
         api = Deployer(
             self.volume_service,
@@ -881,7 +885,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = StopApplication(application=Application(name=unit.name))
+        to_stop = StopApplication(application=Application(
+            name=unit.name, image=None))
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -997,7 +1002,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = StopApplication(application=Application(name=unit.name))
+        to_stop = StopApplication(application=Application(name=unit.name,
+                                                          image=None))
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -1163,7 +1169,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[PushVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
-                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME,
+                                        image=None),)]),
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
         ])
@@ -1269,7 +1276,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = Application(name=unit.name)
+        to_stop = Application(name=unit.name, image=None)
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
@@ -1299,12 +1306,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ),
             links=frozenset(),
         )
-        # XXX don't know image or volume because of
+        # XXX don't know volume because of
         # https://github.com/ClusterHQ/flocker/issues/289
-        # https://github.com/ClusterHQ/flocker/issues/207
         discovered_another_application = Application(
             name=u"another",
-            image=DockerImage.from_string(u'unknown'),
+            image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
                 # see https://github.com/ClusterHQ/flocker/issues/49
@@ -1360,7 +1366,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[PushVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
-                application=Application(name=APPLICATION_WITH_VOLUME_NAME),)]),
+                application=Application(name=APPLICATION_WITH_VOLUME_NAME,
+                                        image=None),)]),
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
@@ -1558,7 +1565,10 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                                   hostname=u'node.example.com')
         d.addCallback(lambda _: api.discover_node_configuration())
 
-        expected_application = Application(name=expected_application_name)
+        expected_application = Application(name=expected_application_name,
+                                           image=DockerImage(
+                                               repository=u'clusterhq/flocker',
+                                               tag=u'release-14.0'),)
         self.assertEqual(
             NodeState(running=[expected_application], not_running=[]),
             self.successResultOf(d))
