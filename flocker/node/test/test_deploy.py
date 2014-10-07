@@ -863,9 +863,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         hosted on a remote nodes.
         """
         fake_docker = FakeDockerClient(units={})
-        network = make_memory_network()
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
-                       network=network)
+                       network=make_memory_network())
         expected_destination_port = 1001
         expected_destination_host = u'node1.example.com'
         port = Port(internal_port=3306,
