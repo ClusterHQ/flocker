@@ -93,6 +93,11 @@ Preparing for a release
       git checkout -b release/flocker-${VERSION} origin/master
       git push origin --set-upstream release/flocker-${VERSION}
 
+#. Back port features from master (optional)
+
+   The release may require certain changes to be back ported from the master branch.
+   See :ref:`back-porting-changes`\ .
+
 #. Update the version numbers in:
 
    - the ``yum install`` line in
@@ -289,6 +294,16 @@ Release
 
    Merge release branch and close the release pull request.
 
+
+.. _back-porting-changes:
+
+Appendix: Back Porting Changes From Master
+------------------------------------------
+
+XXX: This process needs documenting. See https://github.com/ClusterHQ/flocker/issues/877
+
+
+.. _pre-populating-rpm-repository:
 
 Appendix: Pre-populating RPM Repository
 -----------------------------------------------
