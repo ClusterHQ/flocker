@@ -5,7 +5,7 @@ Release Process
 
    Make sure to follow the `latest documentation`_ when doing a release.
 
-.. _latest documentation: https://docs.clusterhq.com/en/latest/gettinginvolved/infrastructure/release-process.html
+.. _latest documentation: http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html
 
 
 Outcomes
