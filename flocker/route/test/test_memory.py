@@ -30,7 +30,6 @@ class MemoryProxyTests(SynchronousTestCase):
 
     def test_default_namespace(self):
         """
-        If no namespace is passed to ``make_memory_network``,
         ``enumerate_proxies`` returns proxies with a default namespace.
         """
         ip = IPAddress("10.2.3.4")
