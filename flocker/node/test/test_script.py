@@ -356,9 +356,11 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         """
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'active')
         unit2 = Unit(name=u'site-example.net',
                      container_name=u'site-example.net',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'inactive')
         units = {unit1.name: unit1, unit2.name: unit2}
 
@@ -370,8 +372,10 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {
-                'site-example.net': {'image': None, 'ports': []},
-                'site-example.com': {'image': None, 'ports': []}
+                'site-example.net': {'image': unit2.container_image,
+                                     'ports': []},
+                'site-example.com': {'image': unit1.container_image,
+                                     'ports': []}
             },
             'version': 1,
         }

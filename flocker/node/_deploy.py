@@ -317,12 +317,7 @@ class Deployer(object):
             running = []
             not_running = []
             for unit in units:
-                if unit.container_image is not None:
-                    image = DockerImage.from_string(
-                        unit.container_image
-                    )
-                else:
-                    image = None
+                image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
                     # XXX Mountpoint is not available, see
                     # https://github.com/ClusterHQ/flocker/issues/289

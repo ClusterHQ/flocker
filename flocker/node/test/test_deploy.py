@@ -573,10 +573,10 @@ class StopApplicationTests(SynchronousTestCase):
 # This models an application that has a volume.
 APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
 APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
+APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage(repository=u'clusterhq/postgresql',
-                      tag=u'9.1'),
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
         # XXX For now we require volume names match application names,
         # see https://github.com/ClusterHQ/flocker/issues/49
@@ -634,9 +634,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         expected_application_name = u'site-example.com'
         unit = Unit(name=expected_application_name,
                     container_name=expected_application_name,
+                    container_image=u"flocker/wordpress:latest",
                     activation_state=u'active')
         fake_docker = FakeDockerClient(units={expected_application_name: unit})
-        application = Application(name=unit.name, image=None)
+        application = Application(
+            name=unit.name,
+            image=DockerImage.from_string(unit.container_image)
+        )
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -654,15 +658,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'active')
         unit2 = Unit(name=u'site-example.net',
                      container_name=u'site-example.net',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
-            Application(name=unit.name, image=None) for unit in units.values()
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image)
+            ) for unit in units.values()
         ]
         api = Deployer(
             self.volume_service,
@@ -681,9 +690,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
                      activation_state=u'active')
         unit2 = Unit(name=u'site-example.net',
                      container_name=u'site-example.net',
+                     container_image=u"clusterhq/wordpress:latest",
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
@@ -696,7 +707,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         # is fixed the mountpoint should actually be specified.
         fake_docker = FakeDockerClient(units=units)
         applications = [Application(name=unit.name,
-                                    image=None,
+                                    image=DockerImage.from_string(
+                                        unit.container_image),
                                     volume=AttachedVolume(name=unit.name,
                                                           mountpoint=None))
                         for unit in units.values()]
@@ -717,6 +729,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         unit = Unit(name=u'site-example.com',
                     container_name=u'site-example.com',
+                    container_image=u"clusterhq/wordpress:latest",
                     activation_state=u'active')
         units = {unit.name: unit}
 
@@ -726,7 +739,9 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.successResultOf(volume.service.pool.create(volume))
 
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name, image=None)]
+        applications = [Application(name=unit.name,
+                                    image=DockerImage.from_string(
+                                        unit.container_image))]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -743,15 +758,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         """
         unit1 = Unit(name=u'site-example3.net',
                      container_name=u'site-example3.net',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'inactive')
         unit2 = Unit(name=u'site-example4.net',
                      container_name=u'site-example4.net',
+                     container_image=u'clusterhq/wordpress:latest',
                      activation_state=u'madeup')
         units = {unit1.name: unit1, unit2.name: unit2}
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
-            Application(name=unit.name, image=None) for unit in units.values()
+            Application(name=unit.name,
+                        image=DockerImage.from_string(
+                            unit.container_image
+                        )) for unit in units.values()
         ]
         applications.sort()
         api = Deployer(
@@ -876,6 +896,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'site-example.com',
                     container_name=u'site-example.com',
+                    container_image=u'flocker/wordpress:v1.0.0',
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
@@ -886,7 +907,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
         to_stop = StopApplication(application=Application(
-            name=unit.name, image=None))
+            name=unit.name, image=DockerImage.from_string(
+                unit.container_image)))
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -958,6 +980,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:latest',
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
@@ -993,6 +1016,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name='mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:latest',
                     activation_state=u'active')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
@@ -1002,8 +1026,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = StopApplication(application=Application(name=unit.name,
-                                                          image=None))
+        to_stop = StopApplication(
+            application=Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image)
+            )
+        )
         expected = Sequentially(changes=[InParallel(changes=[to_stop])])
         self.assertEqual(expected, self.successResultOf(d))
 
@@ -1123,6 +1151,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
@@ -1170,7 +1199,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
-                                        image=None),)]),
+                                        image=DockerImage.from_string(
+                                            unit.container_image
+                                        )),)]),
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
         ])
@@ -1186,6 +1217,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
@@ -1231,6 +1263,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:latest',
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
@@ -1266,6 +1299,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
+                    container_image=u'flocker/mysql:latest',
                     activation_state=u'inactive')
 
         fake_docker = FakeDockerClient(units={unit.name: unit})
@@ -1276,7 +1310,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired_state=desired,
                                                   current_cluster_state=EMPTY,
                                                   hostname=u'node.example.com')
-        to_stop = Application(name=unit.name, image=None)
+        to_stop = Application(
+            name=unit.name,
+            image=DockerImage.from_string(unit.container_image)
+        )
         expected = Sequentially(changes=[InParallel(changes=[
             StopApplication(application=to_stop)])])
         self.assertEqual(expected, self.successResultOf(d))
@@ -1290,7 +1327,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
-            activation_state=u'active'
+            activation_state=u'active',
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1367,7 +1405,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
-                                        image=None),)]),
+                                        image=DockerImage.from_string(
+                                            u'clusterhq/postgresql:9.1'),),)]),
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
@@ -1523,6 +1562,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
+                    container_image=u'clusterhq/mysql:5.6.17',
                     activation_state=u'active')
         fake_docker = FakeDockerClient(units={unit.name: unit})
         api = Deployer(create_volume_service(self), docker_client=fake_docker,
