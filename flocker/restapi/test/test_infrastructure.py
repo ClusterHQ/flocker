@@ -2,10 +2,6 @@
 Tests for L{hybridcluster.publicapi._infrastructure}.
 """
 
-from urllib import urlencode
-from collections import namedtuple
-from operator import itemgetter
-
 from jsonschema.exceptions import ValidationError
 from klein import Klein
 
@@ -31,7 +27,7 @@ from eliot.testing import validateLogging, LoggedAction
 
 from .utils import (
     EventChannel,
-    dumps, loads, # from json
+    dumps, loads,
     goodResult, badResult,
     CloseEnoughJSONResponse,
     _assertRequestLogged, _assertTracebackLogged,
@@ -43,7 +39,6 @@ class ArbitraryException(Exception):
     An exception with distinct identity and no semantic value, useful at least
     to unit tests which verify proper error logging.
     """
-
 
 
 class StructuredResultHandlingMixin(object):
@@ -61,7 +56,6 @@ class StructuredResultHandlingMixin(object):
         """
         raise NotImplementedError("Subclass must provide an application")
 
-
     def render(self, resource, request):
         """
         Subclasses should override this to perform the Twisted Web resource
@@ -73,7 +67,6 @@ class StructuredResultHandlingMixin(object):
 
         @return: C{None}
         """
-
 
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_encode(self, logger):
@@ -88,10 +81,9 @@ class StructuredResultHandlingMixin(object):
 
         self.assertEqual(goodResult(objects), loads(request._responseBody))
 
-
     @validateLogging(_assertTracebackLogged(TypeError))
-    # This should be logged but stacking validateLogging decorators seems to cause problems.
-    # See https://www.pivotaltracker.com/story/show/63982690
+    # This should be logged but stacking validateLogging decorators seems
+    # to cause problems.
     # @validateLogging(_assertRequestLogged(b"/foo/exception"))
     def test_illegalResult(self, logger):
         """
@@ -104,7 +96,6 @@ class StructuredResultHandlingMixin(object):
         self.render(self.application(logger, objects).app.resource(), request)
 
         self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
-
 
     @validateLogging(_assertRequestLogged(b"/foo/explicitresponse"))
     def test_explicitResponseObject(self, logger):
@@ -128,11 +119,11 @@ class StructuredResultHandlingMixin(object):
             goodResult(application.EXPLICIT_RESPONSE_RESULT))
         return expected.verify(asResponse(request))
 
-
     @validateLogging(_assertRequestLogged(b"/foo/badrequest"))
     def test_badRequestRaised(self, logger):
         """
-        If the decorated function raises L{BadRequest} then the generated response:
+        If the decorated function raises L{BadRequest} then the generated
+        response:
 
             - has the code taken from the exception.
             - has a I{Content-Type} header set to I{application/json}.
@@ -149,7 +140,6 @@ class StructuredResultHandlingMixin(object):
             badResult(application.BAD_REQUEST_RESULT))
         return expected.verify(asResponse(request))
 
-
     @validateLogging(_assertTracebackLogged(ArbitraryException))
     # See above
     # @validateLogging(_assertRequestLogged(b"/foo/exception"))
@@ -162,7 +152,6 @@ class StructuredResultHandlingMixin(object):
         app = self.application(logger, None)
         self.render(app.app.resource(), request)
         self.assertEqual(INTERNAL_SERVER_ERROR, request._code)
-
 
     @validateLogging(_assertTracebackLogged(ArbitraryException))
     # See above
@@ -177,7 +166,6 @@ class StructuredResultHandlingMixin(object):
         self.render(app.app.resource(), request)
         response = loads(request._responseBody)
         self.assertEqual(True, response[u"error"])
-
 
     @validateLogging(None)
     def test_responseResultContainsIncident(self, logger):
@@ -195,10 +183,9 @@ class StructuredResultHandlingMixin(object):
         action = LoggedAction.ofType(logger.messages, REQUEST)[0]
         self.assertEqual(
             u",".join((
-                    action.startMessage[u"task_uuid"],
-                    action.startMessage[u"task_level"])),
+                action.startMessage[u"task_uuid"],
+                action.startMessage[u"task_level"])),
             incident)
-
 
 
 class Execution(Names):
@@ -217,7 +204,6 @@ class Execution(Names):
     SYNCHRONOUS = NamedConstant()
     SYNCHRONOUS_DEFERRED = NamedConstant()
     ASYNCHRONOUS = NamedConstant()
-
 
 
 class ResultHandlingApplication(object):
@@ -244,7 +230,6 @@ class ResultHandlingApplication(object):
         self.kwargs = None
         self.ready = EventChannel()
 
-
     def _constructSuccess(self, result):
         """
         Turn C{result} into the kind of result appropriate to C{self.mode}.
@@ -257,7 +242,6 @@ class ResultHandlingApplication(object):
             d = self.ready.subscribe()
             d.addCallback(lambda ignored: result)
             return d
-
 
     def _constructFailure(self, exception):
         """
@@ -273,19 +257,16 @@ class ResultHandlingApplication(object):
             d.addCallback(lambda ignored: Failure(exception))
             return d
 
-
     @app.route(b"/foo/bar")
     @structured({}, {})
     def foo(self, **kwargs):
         self.kwargs = kwargs
         return self._constructSuccess(self.result)
 
-
     @app.route(b"/foo/exception")
     @structured({}, {})
     def bar(self):
         return self._constructFailure(ArbitraryException("Broken"))
-
 
     @app.route(b"/foo/validation")
     @structured({
@@ -296,27 +277,23 @@ class ResultHandlingApplication(object):
         self.kwargs = kwargs
         return self._constructSuccess(self.result)
 
-
     @app.route(b"/foo/badrequest")
     @structured({}, {})
     def badrequest(self):
         return self._constructFailure(
             BadRequest(self.BAD_REQUEST_CODE, self.BAD_REQUEST_RESULT))
 
-
     @app.route(b"/foo/explicitresponse")
     @structured({}, {})
     def explicitresponse(self):
         return self._constructSuccess(EndpointResponse(
-                self.EXPLICIT_RESPONSE_CODE, self.EXPLICIT_RESPONSE_RESULT))
-
+            self.EXPLICIT_RESPONSE_CODE, self.EXPLICIT_RESPONSE_RESULT))
 
     @app.route(b"/baz/<routingValue>")
     @structured({}, {})
     def baz(self, **kwargs):
         self.kwargs = kwargs
         return self._constructSuccess(self.result)
-
 
     @app.route(b"/foo/badresponse")
     @structured({}, {'type': 'string'})
@@ -325,8 +302,8 @@ class ResultHandlingApplication(object):
         return self._constructSuccess({})
 
 
-
-class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin, SynchronousTestCase):
+class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
+                                               SynchronousTestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results synchronously without involving
@@ -335,13 +312,12 @@ class SynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin, Sy
     def render(self, resource, request):
         render(resource, request)
 
-
     def application(self, logger, result):
         return ResultHandlingApplication(Execution.SYNCHRONOUS, logger, result)
 
 
-
-class SynchronousDeferredStructuredResultHandlingTests(StructuredResultHandlingMixin, SynchronousTestCase):
+class SynchronousDeferredStructuredResultHandlingTests(
+        StructuredResultHandlingMixin, SynchronousTestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results synchronously as the result of an
@@ -350,14 +326,13 @@ class SynchronousDeferredStructuredResultHandlingTests(StructuredResultHandlingM
     def render(self, resource, request):
         render(resource, request)
 
-
     def application(self, logger, result):
         return ResultHandlingApplication(
             Execution.SYNCHRONOUS_DEFERRED, logger, result)
 
 
-
-class AsynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin, SynchronousTestCase):
+class AsynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin,
+                                                SynchronousTestCase):
     """
     Apply the tests defined by L{StructuredResultHandlingMixin} to an
     application which returns results asynchronously as the future result of a
@@ -371,13 +346,11 @@ class AsynchronousStructuredResultHandlingTests(StructuredResultHandlingMixin, S
         render(resource, request)
         self.ready.callback(None)
 
-
     def application(self, logger, result):
         app = ResultHandlingApplication(
             Execution.ASYNCHRONOUS, logger, result)
         self.ready = app.ready
         return app
-
 
 
 class StructuredJSONTests(SynchronousTestCase):
@@ -388,7 +361,6 @@ class StructuredJSONTests(SynchronousTestCase):
     def Application(self, logger, result):
         return ResultHandlingApplication(Execution.SYNCHRONOUS, logger, result)
 
-
     def test_name(self):
         """
         The name of the wrapper function function returned by the decorator has
@@ -396,7 +368,6 @@ class StructuredJSONTests(SynchronousTestCase):
         """
         application = self.Application(None, None)
         self.assertEqual("foo", application.foo.__name__)
-
 
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_decode(self, logger):
@@ -412,7 +383,6 @@ class StructuredJSONTests(SynchronousTestCase):
         app = self.Application(logger, None)
         render(app.app.resource(), request)
         self.assertEqual(objects, app.kwargs)
-
 
     def assertNoDecodeLogged(self, logger, method):
         """
@@ -431,7 +401,6 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual({}, app.kwargs)
 
-
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_noDecodeGET(self, logger):
         """
@@ -440,15 +409,13 @@ class StructuredJSONTests(SynchronousTestCase):
         """
         self.assertNoDecodeLogged(logger, b"GET")
 
-
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_noDecodeDELETE(self, logger):
         """
-        The I{JSON}-encoded request body is ignored when the I{DELETE} method is
-        used.
+        The I{JSON}-encoded request body is ignored when the I{DELETE} method
+        is used.
         """
         self.assertNoDecodeLogged(logger, b"DELETE")
-
 
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_malformedRequest(self, logger):
@@ -470,7 +437,6 @@ class StructuredJSONTests(SynchronousTestCase):
             Headers({b"content-type": [b"application/json"]}),
             badResult({u"description": DECODING_ERROR_DESCRIPTION}))
         return expected.verify(asResponse(request))
-
 
     @validateLogging(_assertRequestLogged(b"/foo/validation"))
     def test_validationError(self, logger):
@@ -496,7 +462,6 @@ class StructuredJSONTests(SynchronousTestCase):
              FAILED_INPUT_VALIDATION,
              2))
 
-
     @validateLogging(_assertTracebackLogged(ValidationError))
     # See above
     # @validateLogging(_assertRequestLogged(b"/foo/badresponse"))
@@ -516,8 +481,6 @@ class StructuredJSONTests(SynchronousTestCase):
 
         self.assertEqual((request._code, response[u'error']),
                          (INTERNAL_SERVER_ERROR, True))
-
-
 
     @validateLogging(_assertRequestLogged(b"/foo/bar"))
     def test_wrongContentTypeRequest(self, logger):
@@ -539,7 +502,6 @@ class StructuredJSONTests(SynchronousTestCase):
             badResult({u"description": ILLEGAL_CONTENT_TYPE_DESCRIPTION}))
         return expected.verify(asResponse(request))
 
-
     @validateLogging(_assertRequestLogged(b"/baz/quux"))
     def test_onlyArgumentsFromRoute(self, logger):
         """
@@ -553,7 +515,6 @@ class StructuredJSONTests(SynchronousTestCase):
         app = self.Application(logger, {})
         render(app.app.resource(), request)
         self.assertEqual({"routingValue": "quux"}, app.kwargs)
-
 
     @validateLogging(_assertRequestLogged(b"/baz/quux"))
     def test_mixedArgumentsFromRoute(self, logger):
@@ -570,7 +531,6 @@ class StructuredJSONTests(SynchronousTestCase):
         render(app.app.resource(), request)
         self.assertEqual(
             {"jsonValue": True, "routingValue": "quux"}, app.kwargs)
-
 
 
 class UserDocumentationTests(SynchronousTestCase):
@@ -603,7 +563,6 @@ class NotAllowedTests(SynchronousTestCase):
         def gettable(self):
             return b"OK"
 
-
     def test_notAllowed(self):
         """
         If an endpoint is restricted to being used with certain HTTP methods
@@ -614,7 +573,6 @@ class NotAllowedTests(SynchronousTestCase):
         request = dummyRequest(b"POST", b"/foo/bar", Headers(), dumps({}))
         render(app.app.resource(), request)
         self.assertEqual(NOT_ALLOWED, request._code)
-
 
 
 class NotFoundTests(SynchronousTestCase):
@@ -629,7 +587,6 @@ class NotFoundTests(SynchronousTestCase):
         @structured({}, {})
         def exists(self):
             return b"OK"
-
 
     def test_notFound(self):
         """

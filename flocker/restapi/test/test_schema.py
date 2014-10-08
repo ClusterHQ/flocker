@@ -12,7 +12,6 @@ from .._schema import (
     LocalRefResolver, SchemaNotProvided, getValidator, resolveSchema)
 
 
-
 class LocalResolverTests(SynchronousTestCase):
     """
     Tests for L{LocalRefResolver}.
@@ -24,8 +23,8 @@ class LocalResolverTests(SynchronousTestCase):
         """
         resolver = LocalRefResolver(base_uri=b'', referrer={})
         self.assertRaises(SchemaNotProvided,
-            resolver.resolve_remote, b'bad://nothing.invalid/schema')
-
+                          resolver.resolve_remote,
+                          b'bad://nothing.invalid/schema')
 
     def test_resolvingRaisesError(self):
         """
@@ -37,7 +36,6 @@ class LocalResolverTests(SynchronousTestCase):
         e = self.assertRaises(RefResolutionError, context.__enter__)
 
         self.assertIsInstance(e.args[0], SchemaNotProvided)
-
 
 
 class GetValidatorTests(SynchronousTestCase):
@@ -56,7 +54,6 @@ class GetValidatorTests(SynchronousTestCase):
         self.assertEqual(len(list(validator.iter_errors({}))), 1)
         self.assertRaises(ValidationError, validator.validate, {})
 
-
     def test_resolver(self):
         """
         L{getValidator} returns an L{jsonschema} validator that uses
@@ -65,7 +62,6 @@ class GetValidatorTests(SynchronousTestCase):
         validator = getValidator({u'$ref': u'schema.json'},
                                  {'schema.json': {'type': 'string'}})
         self.assertRaises(ValidationError, validator.validate, {})
-
 
 
 class ResolveSchemaTests(SynchronousTestCase):
@@ -80,21 +76,21 @@ class ResolveSchemaTests(SynchronousTestCase):
               "nested": {"key": {"$ref": "#/actual"}, "key2": 3},
               "nested_additional": {"key": {"$ref": "#/actual",
                                             "another": 3,
-                                            "additional": {"$ref": "#/actual"}}},
+                                            "additional":
+                                            {"$ref": "#/actual"}}},
               "extra_nested": {"key": {"key2": {"$ref": "#/actual"}}},
               "actual": {"hello": "there"}},
              b"/path/endpoints.json":
              {"type": {"$ref": "types.json#/local"}}}
-
 
     def test_resolvedHasDraftVersion(self):
         """
         The returned schema has the I{$schema} key with draft 4 indicated.
         """
         result = resolveSchema({}, {})
-        self.assertEqual(result,
-                         {"$schema": "http://json-schema.org/draft-04/schema#"})
-
+        self.assertEqual(
+            result,
+            {"$schema": "http://json-schema.org/draft-04/schema#"})
 
     def test_nestedDictionaries(self):
         """
@@ -106,7 +102,6 @@ class ResolveSchemaTests(SynchronousTestCase):
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "key": {"hello": "there"}, "key2": 3})
 
-
     def test_extraNestedDictionaries(self):
         """
         References within extra nested dictionaries are resolved.
@@ -116,7 +111,6 @@ class ResolveSchemaTests(SynchronousTestCase):
         self.assertEqual(result,
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "key": {"key2": {"hello": "there"}}})
-
 
     def test_keysNotPreserved(self):
         """
@@ -129,7 +123,6 @@ class ResolveSchemaTests(SynchronousTestCase):
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "key": {"hello": "there"}})
 
-
     def test_lists(self):
         """
         References within lists are resolved.
@@ -139,7 +132,6 @@ class ResolveSchemaTests(SynchronousTestCase):
         self.assertEqual(result,
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "list": [1, 2, {"hello": "there"}]})
-
 
     def test_recursive(self):
         """
@@ -152,7 +144,6 @@ class ResolveSchemaTests(SynchronousTestCase):
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "hello": "there"})
 
-
     def test_absoluteInReference(self):
         """
         Absolute references within a separate document referenced in the input
@@ -164,7 +155,6 @@ class ResolveSchemaTests(SynchronousTestCase):
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "hello": "there"})
 
-
     def test_relativeInReference(self):
         """
         Relative references within a separate document referenced in the input
@@ -175,7 +165,6 @@ class ResolveSchemaTests(SynchronousTestCase):
         self.assertEqual(result,
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "hello": "there"})
-
 
     def test_localInReference(self):
         """
@@ -190,7 +179,6 @@ class ResolveSchemaTests(SynchronousTestCase):
                          {"$schema": "http://json-schema.org/draft-04/schema#",
                           "hello": "there"})
 
-
     def test_inputUnmodified(self):
         """
         The input object is not modified by resolution.
@@ -199,7 +187,6 @@ class ResolveSchemaTests(SynchronousTestCase):
         original = copy.deepcopy(schema)
         resolveSchema(schema, self.STORE)
         self.assertEqual(schema, original)
-
 
     def test_storeUnmodified(self):
         """

@@ -31,6 +31,7 @@ _DESCENDING = b"descending"
 
 _logger = Logger()
 
+
 class EndpointResponse(object):
     """
     An endpoint can return an L{EndpointResponse} instance to return a custom
@@ -46,7 +47,6 @@ class EndpointResponse(object):
         """
         self.code = code
         self.result = result
-
 
 
 def _logging(original):
@@ -99,7 +99,6 @@ def _logging(original):
     return logger
 
 
-
 def _serialize(outputValidator):
     """
     Decorate a function so that its return value is automatically JSON encoded
@@ -129,7 +128,6 @@ def _serialize(outputValidator):
 
         return doit
     return deco
-
 
 
 def _getArg(args, which, parse, default):
@@ -173,12 +171,12 @@ def structured(inputSchema, outputSchema, schema_store={}):
 
     @param inputSchema: JSON Schema describing the request body.
     @param outputSchema: JSON Schema describing the response body.
-    @see U{Using JSON Schema<http://doc-dev.hybridcluster.com/public-api.html#using-json-schema>}
     """
     if schema_store is None:
         schema_store = {}
     inputValidator = getValidator(inputSchema, schema_store)
     outputValidator = getValidator(outputSchema, schema_store)
+
     def deco(original):
         @wraps(original)
         @_logging
@@ -204,11 +202,11 @@ def structured(inputSchema, outputSchema, schema_store={}):
                 if errors:
                     raise InvalidRequestJSON(errors=errors, schema=inputSchema)
 
-            # Just assume there are no conflicts between these collections of
-            # arguments right now.  When there is a schema for the JSON hopefully
-            # we can do some static verification that no routing arguments conflict
-            # with any top-level keys in the request body and then we can be sure
-            # there are no conflicts here.
+            # Just assume there are no conflicts between these collections
+            # of arguments right now.  When there is a schema for the JSON
+            # hopefully we can do some static verification that no routing
+            # arguments conflict with any top-level keys in the request
+            # body and then we can be sure there are no conflicts here.
             objects.update(routeArguments)
 
             return maybeDeferred(original, self, **objects)
@@ -217,7 +215,6 @@ def structured(inputSchema, outputSchema, schema_store={}):
         loadAndDispatch.outputSchema = outputSchema
         return loadAndDispatch
     return deco
-
 
 
 def userDocumentation(doc, examples=None):

@@ -1,19 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: hybridcluster.tests.publicapi.test_schema -*-
 
 """
 Helpers for validating API input and output against JSON Schema.
 
-@note: This should be in a publicapi package but isn't to
-  avoid merge conflicts.
-
-@var SCHEMA_BASE: Directory where schemas are located.
-@type SCHEMA_BASE: L{FilePath<twisted.python.filepath.FilePath>}
-
-@var SCHEMAS: Mapping for references to schemas
-@type SCHEMAS: L{dict} mapping URLs to L{dict}s containting JSON Schemas.
-
-@see U{jsonschema documentation<https://python-jsonschema.readthedocs.org/en/v2.3.0/>}
+See https://python-jsonschema.readthedocs.org/en/v2.3.0/.
 """
 
 __all__ = [
@@ -29,11 +19,11 @@ from jsonschema.validators import RefResolver, validator_for
 from jsonschema import draft4_format_checker
 
 
-
 class SchemaNotProvided(Exception):
     """
     Tried to reference a schema that wasn't predefined.
     """
+
 
 class LocalRefResolver(RefResolver):
     """
@@ -56,12 +46,11 @@ def getValidator(schema, schema_store):
     # The base_uri here isn't correct for the schema,
     # but does give proper relative paths.
     resolver = LocalRefResolver(
-            base_uri=b'',
-            referrer=schema, store=schema_store)
+        base_uri=b'',
+        referrer=schema, store=schema_store)
     resolver.resolution_scope = b''
     return validator_for(schema)(
         schema, resolver=resolver, format_checker=draft4_format_checker)
-
 
 
 def resolveSchema(schema, schemaStore):
@@ -79,6 +68,7 @@ def resolveSchema(schema, schemaStore):
     result = copy.deepcopy(schema)
     resolver = LocalRefResolver(base_uri=b'', referrer=schema,
                                 store=schemaStore)
+
     def resolve(obj):
         if isinstance(obj, list):
             for item in obj:

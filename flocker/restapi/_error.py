@@ -34,7 +34,6 @@ from twisted.web.http import BAD_REQUEST, FORBIDDEN, NOT_FOUND
 UNPROCESSABLE_REQUEST = 422
 
 
-
 class BadRequest(Exception):
     """
     An endpoint can raise a L{BadRequest} (or subclass) instance to return an
@@ -54,13 +53,11 @@ class BadRequest(Exception):
         self.result = result
 
 
-
 def makeBadRequest(code=BAD_REQUEST, **result):
     """
     Create a new L{BadRequest} instance with the given result.
     """
     return BadRequest(code, result)
-
 
 
 DECODING_ERROR_DESCRIPTION = cleandoc(u"""
@@ -86,6 +83,7 @@ ENTITY_NOT_FOUND = makeBadRequest(
 UNAUTHORIZED = makeBadRequest(
     FORBIDDEN, description=UNAUTHORIZED_DESCRIPTION)
 
+
 class InvalidRequestJSON(BadRequest):
     description = cleandoc(u"""
     The provided JSON doesn't match the required schema.
@@ -100,7 +98,6 @@ class InvalidRequestJSON(BadRequest):
             self,
             BAD_REQUEST,
             {u"description": self.description, u"errors": errors})
-
 
 
 class NameCollision(Exception):

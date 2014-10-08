@@ -10,8 +10,6 @@ from itertools import count
 from klein import Klein
 from klein.resource import KleinResource
 
-from netifaces import interfaces as networkInterfaces, ifaddresses, AF_INET
-
 from zope.interface import implementer
 
 from twisted.python.log import err
@@ -22,7 +20,7 @@ from twisted.web.client import ProxyAgent, FileBodyProducer, readBody
 from twisted.web.server import NOT_DONE_YET, Site
 from twisted.web.resource import getChildForRequest
 from twisted.internet import defer
-from twisted.trial.unittest import TestCase, SkipTest
+from twisted.trial.unittest import TestCase
 from twisted.web.http import urlparse, unquote
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import StringTransport
@@ -44,13 +42,18 @@ def __eq__(self, other):
     if not isinstance(other, Klein):
         return NotImplemented
     return vars(self) == vars(other)
+
+
 Klein.__eq__ = __eq__
 del __eq__
+
 
 def __eq__(self, other):
     if not isinstance(other, KleinResource):
         return NotImplemented
     return vars(self) == vars(other)
+
+
 KleinResource.__eq__ = __eq__
 del __eq__
 
@@ -65,10 +68,8 @@ def loads(s):
             "Failed to decode response %r: %s" % (s, e))
 
 
-
-FAILED_INPUT_VALIDATION = u"The provided JSON doesn't match the required schema."
-
-
+FAILED_INPUT_VALIDATION = (
+    u"The provided JSON doesn't match the required schema.")
 
 
 def goodResult(result):
@@ -79,14 +80,12 @@ def goodResult(result):
     return {u"error": False, u"result": result}
 
 
-
 def badResult(result):
     """
     Construct the boilerplate structure around an application-specified result
     object for an error API response.
     """
     return {u"error": True, u"result": result}
-
 
 
 class CloseEnoughResponse(object):
@@ -116,7 +115,6 @@ class CloseEnoughResponse(object):
         self.headers = headers
         self.body = body
 
-
     def verify(self, response):
         """
         Check the given response against the requirements defined by this
@@ -133,7 +131,6 @@ class CloseEnoughResponse(object):
         reading.addCallback(self.decode)
         reading.addCallback(self._verifyWithBody, response)
         return reading
-
 
     def _verifyWithBody(self, body, response):
         """
@@ -168,7 +165,6 @@ class CloseEnoughResponse(object):
             raise Exception("\n    ".join([""] + problems))
 
 
-
 class CloseEnoughJSONResponse(CloseEnoughResponse):
     """
     A helper for verifying HTTP responses containing JSON-encoded bodies.
@@ -176,7 +172,6 @@ class CloseEnoughJSONResponse(CloseEnoughResponse):
     @see: L{CloseEnoughResponse}
     """
     decode = staticmethod(loads)
-
 
 
 def extractSuccessfulJSONResult(response):
@@ -192,6 +187,7 @@ def extractSuccessfulJSONResult(response):
     """
     result = readBody(response)
     result.addCallback(loads)
+
     def getResult(dictionary):
         if dictionary[u"error"]:
             raise AssertionError(dictionary)
@@ -200,15 +196,13 @@ def extractSuccessfulJSONResult(response):
     return result
 
 
-
 def _assertRequestLogged(path):
     def actuallyAssert(self, logger):
         request = LoggedAction.ofType(logger.messages, REQUEST)[0]
         assertContainsFields(self, request.startMessage, {
-                u"request_path": repr(path).decode("ascii"),
-                })
+            u"request_path": repr(path).decode("ascii"),
+        })
     return actuallyAssert
-
 
 
 def _assertTracebackLogged(exceptionType):
@@ -225,11 +219,11 @@ def _assertTracebackLogged(exceptionType):
 
         # Verify it contains what it's supposed to contain.
         assertContainsFields(self, traceback, {
-                u"exception": exceptionType,
-                u"message_type": u"eliot:traceback",
-                # Just assume the traceback it contains is correct.  The code
-                # that generates that string isn't part of this unit, anyway.
-                })
+            u"exception": exceptionType,
+            u"message_type": u"eliot:traceback",
+            # Just assume the traceback it contains is correct.  The code
+            # that generates that string isn't part of this unit, anyway.
+        })
 
         # Verify that it is a child of one of the request actions.
         for request in LoggedAction.ofType(logger.messages, REQUEST):
@@ -241,7 +235,6 @@ def _assertTracebackLogged(exceptionType):
                 "action.")
 
     return _assertTracebackLogged
-
 
 
 def authenticatedRequest(agent, user, method, uri, parameters):
@@ -263,12 +256,11 @@ def authenticatedRequest(agent, user, method, uri, parameters):
     body = FileBodyProducer(BytesIO(dumps(parameters)))
     authorization = b64encode(b"%s:%s" % (user.username, user.password))
     headers = Headers({
-            b"authorization": [b"Basic " + authorization],
-            b"content-type": [b"application/json"],
-            })
+        b"authorization": [b"Basic " + authorization],
+        b"content-type": [b"application/json"],
+    })
 
     return agent.request(method, uri, headers, body)
-
 
 
 def responseCredentials(requestCredentials):
@@ -288,7 +280,6 @@ def responseCredentials(requestCredentials):
         if "ssh_public_key" in cred]
 
 
-
 class _anything(object):
     """
     An instance of this class compares equal to any other object.
@@ -300,7 +291,6 @@ class _anything(object):
         return False
 
 anything = _anything()
-
 
 
 class _incident(object):
@@ -319,13 +309,10 @@ class _incident(object):
             isinstance(other[u"result"], unicode)
             )
 
-
     def __ne__(self, other):
         return not self.__eq__(other)
 
 incident = _incident()
-
-
 
 
 def buildIntegrationTests(mixinClass, name, fixture):
@@ -345,8 +332,8 @@ def buildIntegrationTests(mixinClass, name, fixture):
     """
     class RealTests(mixinClass, TestCase):
         """
-        Tests that endpoints are available over the network interfaces that real
-        API users will be connecting from.
+        Tests that endpoints are available over the network interfaces that
+        real API users will be connecting from.
         """
         def setUp(self):
             self.app = fixture(self)
@@ -359,7 +346,6 @@ def buildIntegrationTests(mixinClass, name, fixture):
                 reactor)
             super(RealTests, self).setUp()
 
-
     class MemoryTests(mixinClass, TestCase):
         """
         Tests that endpoints are available in the appropriate place, without
@@ -370,13 +356,11 @@ def buildIntegrationTests(mixinClass, name, fixture):
             self.agent = MemoryAgent(self.app.resource())
             super(MemoryTests, self).setUp()
 
-
     RealTests.__name__ += name
     MemoryTests.__name__ += name
     RealTests.__module__ = mixinClass.__module__
     MemoryTests.__module__ = mixinClass.__module__
     return RealTests, MemoryTests
-
 
 # Fakes for testing Twisted Web servers.  Unverified.  Belongs in Twisted.
 # https://twistedmatrix.com/trac/ticket/3274
@@ -402,7 +386,6 @@ class EventChannel(object):
     def __init__(self):
         self._subscriptions = []
 
-
     def _itersubscriptions(self):
         """
         Return an iterator over all current subscriptions after
@@ -413,7 +396,6 @@ class EventChannel(object):
         del self._subscriptions[:]
         return iter(subscriptions)
 
-
     def callback(self, value):
         """
         Supply a success value for the next event which will be published now.
@@ -421,14 +403,12 @@ class EventChannel(object):
         for subscr in self._itersubscriptions():
             subscr.callback(value)
 
-
     def errback(self, reason=None):
         """
         Supply a failure value for the next event which will be published now.
         """
         for subscr in self._itersubscriptions():
             subscr.errback(reason)
-
 
     def subscribe(self):
         """
@@ -453,11 +433,9 @@ class _DummyRequest(Request):
     def _code(self):
         return self.code
 
-
     @property
     def _message(self):
         return self.code_message
-
 
     def __init__(self, counter, method, path, headers, content):
 
@@ -483,7 +461,6 @@ class _DummyRequest(Request):
         # postpath).
         self.postpath = list(map(unquote, self.path[1:].split(b'/')))
 
-
         # Our own notifyFinish / finish state because the inherited
         # implementation wants to write confusing stuff to the transport when
         # the request gets finished.
@@ -494,37 +471,30 @@ class _DummyRequest(Request):
         # the transport.
         self._responseBody = b""
 
-
     def process(self):
         """
         Don't do any processing.  Override the inherited implementation so it
         doesn't do any, either.
         """
 
-
     def finish(self):
         self._finished = True
         self._finishedChannel.callback(None)
 
-
     def notifyFinish(self):
         return self._finishedChannel.subscribe()
-
 
     # Not part of the interface but called by DeferredResource, used by
     # twisted.web.guard (therefore important to us)
     def processingFailed(self, reason):
         err(reason, "Processing _DummyRequest %d failed" % (self._counter,))
 
-
     def write(self, data):
         self._responseBody += data
-
 
     def render(self, resource):
         # TODO: Required by twisted.web.guard but not part of IRequest ???
         render(resource, self)
-
 
 
 def asResponse(request):
@@ -543,14 +513,14 @@ def asResponse(request):
         request._responseBody)
 
 
-
 @implementer(IResponse)
 class _MemoryResponse(object):
     """
     An entirely in-memory response to an HTTP request. This is not tested
     because it should be moved to Twisted.
     """
-    def __init__(self, version, code, phrase, headers, request, previousResponse, responseBody):
+    def __init__(self, version, code, phrase, headers, request,
+                 previousResponse, responseBody):
         """
         @see: L{IResponse}
 
@@ -566,7 +536,6 @@ class _MemoryResponse(object):
         self._responseBody = responseBody
         self.setPreviousResponse(previousResponse)
 
-
     def deliverBody(self, protocol):
         """
         Immediately deliver the entire response body to C{protocol}.
@@ -575,10 +544,8 @@ class _MemoryResponse(object):
         protocol.dataReceived(self._responseBody)
         protocol.connectionLost(Failure(ResponseDone()))
 
-
     def setPreviousResponse(self, response):
         self.previousResponse = response
-
 
 
 @implementer(IPushProducer)
@@ -590,10 +557,8 @@ class _StubProducer(object):
     def pauseProducing(self):
         pass
 
-
     def resumeProducing(self):
         pass
-
 
     def stopProducing(self):
         pass
@@ -612,7 +577,6 @@ class MemoryAgent(object):
     def __init__(self, resource):
         self.resource = resource
 
-
     def request(self, method, url, headers=None, body=None):
         """
         Find the child of C{self.resource} for the given request and
@@ -628,6 +592,7 @@ class MemoryAgent(object):
             reading = defer.succeed(None)
         else:
             reading = body.startProducing(content)
+
         def finishedReading(ignored):
             request = dummyRequest(method, url, headers, content.getvalue())
             resource = getChildForRequest(self.resource, request)
@@ -649,8 +614,9 @@ class MemoryAgent(object):
         return reading
 
 
-
 _dummyRequestCounter = iter(count())
+
+
 def dummyRequest(method, path, headers, body=b""):
     """
     Construct a new dummy L{IRequest} provider.
@@ -680,7 +646,6 @@ def dummyRequest(method, path, headers, body=b""):
         method, path, headers, body)
 
 
-
 def render(resource, request):
     """
     Render an L{IResource} using a particular L{IRequest}.
@@ -702,7 +667,6 @@ def render(resource, request):
             return request.notifyFinish()
     else:
         raise ValueError("Unexpected return value: %r" % (result,))
-
 
 # Unfortunately Klein imposes this strange requirement that the request object
 # be adaptable to KleinRequest.  Klein only registers an adapter from

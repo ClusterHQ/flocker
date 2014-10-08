@@ -4,9 +4,8 @@
 This module defines the Eliot log events emitted by the API implementation.
 """
 
-__all__  = [
+__all__ = [
     "REQUEST_PATH",
-
     "REQUEST",
     ]
 
