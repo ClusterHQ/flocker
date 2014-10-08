@@ -103,7 +103,7 @@ Preparing for a release
 
 #. Update the version numbers in:
 
-   - the ``yum install`` line in
+   - the ``pip install`` line in
      `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
    - the ``box_version`` in
      `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_
