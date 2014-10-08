@@ -51,9 +51,6 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     ``source_repo`` repository.
     """
     rpm_directory.createDirectory()
-    # Download existing repository
-    check_call([
-        b'gsutil', b'cp', b'-R', target_repo + b'/*', rpm_directory.path])
 
     # Download requested packages from source repository
     yum_repo_config = rpm_directory.child(b'build.repo')
@@ -70,8 +67,16 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
         b'--destdir', rpm_directory.path] + packages)
     yum_repo_config.remove()
 
-    # Update repository metatdata
+    # Crate repository metadata for new packages.
     check_call([b'createrepo', b'--update', rpm_directory.path])
+
+    check_call([
+        'mergerepo',
+        b'--repo', target_repo.replace('gs://',
+                                       'https://storage.googleapis.com/'),
+        b'--repo', rpm_directory.path,
+        # FIXME?: Should this be a seperate directory?
+        b'--output', rpm_directory.path])
 
     # Upload updated repository
     check_call(
