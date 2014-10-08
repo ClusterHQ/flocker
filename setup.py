@@ -119,7 +119,9 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.5.0"
+        "docker-py == 0.5.0",
+        "jsonschema == 2.3.0",
+        "klein == 0.2.2",
         ],
 
     extras_require={
