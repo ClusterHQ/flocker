@@ -19,3 +19,5 @@ def setup_docker_containers():
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
     """
+    # Check if acceptance testing containers are already running.
+    # If they are then they output that they are running and stop
