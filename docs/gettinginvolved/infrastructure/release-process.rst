@@ -329,7 +329,7 @@ The steps are:
 ::
 
    mkdir repo
-   yumdownloader --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py
+   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
    createrepo repo
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
 
@@ -337,7 +337,7 @@ The steps are:
 ::
 
    mkdir srpm
-   yumdownloader --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py
+   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
    createrepo srpm
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
