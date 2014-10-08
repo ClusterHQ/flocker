@@ -143,7 +143,9 @@ Preparing for a release
 
 #. Do the acceptance tests:
 
-   XXX: See https://github.com/ClusterHQ/flocker/issues/315
+   .. code-block:: console
+
+      trial acceptance
 
 #. Make a pull request on GitHub
 
