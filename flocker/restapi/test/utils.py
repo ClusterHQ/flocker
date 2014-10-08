@@ -2,14 +2,8 @@
 Utilities for testing REST APIs.
 """
 
-from io import BytesIO
-from base64 import b64encode
-
 from klein import Klein
 from klein.resource import KleinResource
-
-from twisted.web.http_headers import Headers
-from twisted.web.client import FileBodyProducer
 
 from eliot.testing import LoggedMessage, LoggedAction, assertContainsFields
 
@@ -85,49 +79,6 @@ def _assertTracebackLogged(exceptionType):
     return _assertTracebackLogged
 
 
-def authenticatedRequest(agent, user, method, uri, parameters):
-    """
-    Issue a request with I{Basic} authentication headers.
-
-    @param agent: An L{IAgent} to use to issue the request.
-
-    @param user: The L{UsernamePassword} instance representing the credentials
-        to include.
-
-    @param method: See L{IAgent.request}
-    @param uri: See L{IAgent.request}
-
-    @param parameters: An object to JSON encode and send in the request body.
-
-    @return: A L{Deferred} that fires with an L{IResponse} provider.
-    """
-    body = FileBodyProducer(BytesIO(dumps(parameters)))
-    authorization = b64encode(b"%s:%s" % (user.username, user.password))
-    headers = Headers({
-        b"authorization": [b"Basic " + authorization],
-        b"content-type": [b"application/json"],
-    })
-
-    return agent.request(method, uri, headers, body)
-
-
-def responseCredentials(requestCredentials):
-    """
-    Get a list of credentials which can be expected in an API response.
-
-    @param requestCredentials: The complete credentials which were previously
-        submitted and from which the response credentials can be expected to be
-        derived.
-    @type param: L{list} of L{dict}
-
-    @return: The filtered credentials.
-    @rtype: L{list} of L{dict}
-    """
-    return [
-        cred for cred in requestCredentials
-        if "ssh_public_key" in cred]
-
-
 class _anything(object):
     """
     An instance of this class compares equal to any other object.
@@ -161,7 +112,3 @@ class _incident(object):
         return not self.__eq__(other)
 
 incident = _incident()
-
-
-
-

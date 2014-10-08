@@ -2,8 +2,9 @@
 Public utilities for testing code that uses the REST API.
 """
 
-__all__ = ["buildIntegrationTests", "goodResult", "badResult", "dumps", "loads",
-           "dummyRequest", "CloseEnoughJSONResponse", "CloseEnoughResponse",
+__all__ = ["buildIntegrationTests", "goodResult", "badResult", "dumps",
+           "loads", "dummyRequest", "CloseEnoughJSONResponse",
+           "CloseEnoughResponse",
            "extractSuccessfulJSONResult", "render", "asResponse"]
 
 

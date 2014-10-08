@@ -130,28 +130,7 @@ def _serialize(outputValidator):
     return deco
 
 
-def _getArg(args, which, parse, default):
-    """
-    Get a particular argument from a L{twisted.web.iweb.IRequest.args}-style
-    L{dict}.
-
-    @param args: A L{dict} mapping argument names to lists of argument values.
-
-    @param which: A L{_QueryArgument} instance identifying an argument for
-        which to get a value.
-
-    @param default: The value to return if C{which} does not appear in C{args}.
-
-    @return: C{default} if the argument has no value in C{args}, otherwise the
-        result of coercing the first value from C{args} using C{which}.
-    """
-    argument = args.get(which, [None])[0]
-    if argument is None:
-        return default
-    return parse(argument)
-
-
-def structured(inputSchema, outputSchema, schema_store={}):
+def structured(inputSchema, outputSchema, schema_store=None):
     """
     Decorate a Klein-style endpoint method so that the request body is
     automatically decoded and the response body is automatically encoded.
