@@ -9,7 +9,7 @@ v0.3 in-development
 ===================
 
 * ``geard`` is no longer used to manage Docker containers.
-* Added support for `Fig`_ compatible application configuration files.
+* Added support for `Fig`_ compatible :ref:`application configuration <fig-compatible-config>` files.
 
 
 v0.2

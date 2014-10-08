@@ -113,6 +113,8 @@ Here's an example of a simple but complete configuration defining one applicatio
         "mountpoint": "/var/mysql/data"
 
 
+.. _fig-compatible-config:
+
 Fig-compatible Application Configuration
 ----------------------------------------
 
