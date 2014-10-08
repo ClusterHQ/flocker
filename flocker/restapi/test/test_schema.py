@@ -57,7 +57,7 @@ class GetValidatorTests(SynchronousTestCase):
     def test_resolver(self):
         """
         L{getValidator} returns an L{jsonschema} validator that uses
-        L{hybridcluster.publicapi_schema.SCHEMAS} to lookup references.
+        the given schema store to lookup references.
         """
         validator = getValidator({u'$ref': u'schema.json'},
                                  {'schema.json': {'type': 'string'}})

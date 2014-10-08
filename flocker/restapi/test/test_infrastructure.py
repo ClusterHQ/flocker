@@ -1,5 +1,5 @@
 """
-Tests for L{hybridcluster.publicapi._infrastructure}.
+Tests for ``flocker.restapi._infrastructure``.
 """
 
 from jsonschema.exceptions import ValidationError
@@ -57,10 +57,11 @@ class StructuredResultHandlingMixin(object):
     def render(self, resource, request):
         """
         Subclasses should override this to perform the Twisted Web resource
-        rendering dance (mostly, call L{hybridcluster.testutils.render}).
+        rendering dance (mostly, call
+        ``flocker.restapi.testtools.render()``).
 
         This hook is primarily to support the asynchronous cases where extra
-        steps need to be taken after L{hybridcluster.testutils.render} returns
+        steps need to be taken after ``render()`` returns
         but before rendering is actually complete.
 
         @return: C{None}

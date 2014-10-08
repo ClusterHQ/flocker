@@ -1,6 +1,4 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: hybridcluster.tests.publicapi.test_infrastructure -*-
-
 """
 This module implements tools for exposing Python methods as API endpoints.
 """
@@ -199,9 +197,6 @@ def structured(inputSchema, outputSchema, schema_store=None):
 def userDocumentation(doc, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
-
-    This is used by the L{hybridcluster.docs.publicapi} extension to
-    automatically generate API documentation.
 
     @param doc: The documentation to be included in the generated API
         documentation along with the decorated endpoint.
