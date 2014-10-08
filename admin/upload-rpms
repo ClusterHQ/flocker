@@ -19,12 +19,15 @@ from __future__ import print_function
 
 import os
 
-from subprocess import check_call
-from textwrap import dedent
 import tempfile
 
 from twisted.python.filepath import FilePath
 from twisted.python.usage import Options, UsageError
+
+from admin.upload import (
+    add_rpms_to_repository,
+    download_packages_from_repository,
+    )
 
 
 class UploadOptions(Options):
@@ -52,36 +55,8 @@ def update_repo(rpm_directory, target_repo, source_repo, packages):
     """
     rpm_directory.createDirectory()
 
-    # Download requested packages from source repository
-    yum_repo_config = rpm_directory.child(b'build.repo')
-    yum_repo_config.setContent(dedent(b"""
-         [flocker]
-         name=flocker
-         baseurl=%s
-         """) % (source_repo,))
-    check_call([
-        b'yumdownloader',
-        b'-c', yum_repo_config.path,
-        b'--disablerepo=*',
-        b'--enablerepo=flocker',
-        b'--destdir', rpm_directory.path] + packages)
-    yum_repo_config.remove()
-
-    # Crate repository metadata for new packages.
-    check_call([b'createrepo', b'--update', rpm_directory.path])
-
-    check_call([
-        'mergerepo',
-        b'--repo', target_repo.replace('gs://',
-                                       'https://storage.googleapis.com/'),
-        b'--repo', rpm_directory.path,
-        # FIXME?: Should this be a seperate directory?
-        b'--output', rpm_directory.path])
-
-    # Upload updated repository
-    check_call(
-        [b'gsutil', b'cp', b'-R', b'-a', b'public-read',
-         rpm_directory.path + b'/*', target_repo])
+    download_packages_from_repository(rpm_directory, source_repo, packages)
+    add_rpms_to_repository(rpm_directory, target_repo)
 
 
 def upload_rpms(scratch_directory, version, target_server, build_server):

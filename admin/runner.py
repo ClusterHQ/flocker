@@ -6,6 +6,7 @@ import sys
 from pipes import quote
 from subprocess import check_call, CalledProcessError
 
+
 def run(command, **kwargs):
     """
     Echo and run a command..
