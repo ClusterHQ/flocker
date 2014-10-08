@@ -15,4 +15,7 @@ def setup_docker_containers():
 
     These are identifiable as the acceptance testing containers so that they
     can later be removed without affecting other Docker containers.
+
+    This is an alternative to
+    http://doc-dev.clusterhq.com/gettingstarted/tutorial/vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
     """
