@@ -148,6 +148,20 @@ Preparing for a release
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
+   .. note:: You'll need to build a tutorial vagrant image using the buildbot RPM packages from the release branch.
+
+             The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+
+             To find the version, visit the buildbot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+
+             At the top, you should find a line beginning ``got version`` which contains the version string.
+
+             Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
+
+   .. code-block:: console
+
+      vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
