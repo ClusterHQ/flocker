@@ -1,11 +1,9 @@
 Flocker 0.3.0dev1 (2014-10-08)
 ==============================
 
-- `geard` has been removed in favour of direct interaction with the Docker API (#774, #712)
-- Fig compatible application configuration support (#649)
-- Namespacing support for Flocker-managed containers (#772)
-- Namespacing support for Flocker-managed volumes (#771)
-- Improvements to infrastructure scripts (#867)
+- ``geard`` has been removed in favour of direct interaction with the Docker API. (#774, #712)
+- Fig compatible application configuration support. (#649)
+- Improvements to infrastructure scripts. (#867)
 
 Flocker 0.2.0 (2014-09-30)
 ==========================
