@@ -21,3 +21,4 @@ def setup_docker_containers():
     """
     # Check if acceptance testing containers are already running.
     # If they are then they output that they are running and stop
+    # Look at (uses of) NamespacedDockerClient
