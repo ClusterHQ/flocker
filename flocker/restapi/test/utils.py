@@ -19,7 +19,7 @@ from twisted.web.iweb import IAgent, IResponse
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from twisted.web.http_headers import Headers
 from twisted.web.client import ProxyAgent, FileBodyProducer, readBody
-from twisted.web.server import NOT_DONE_YET
+from twisted.web.server import NOT_DONE_YET, Site
 from twisted.web.resource import getChildForRequest
 from twisted.internet import defer
 from twisted.trial.unittest import TestCase, SkipTest
@@ -29,6 +29,7 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.web.client import ResponseDone
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
+from twisted.internet import reactor
 
 from eliot.testing import LoggedMessage, LoggedAction, assertContainsFields
 
@@ -337,8 +338,8 @@ def buildIntegrationTests(mixinClass, name, fixture):
 
     @param name: A C{str}, the name of the test category.
 
-    :param fixture: A callable that takes a ``TestCase`` and returns an
-        API resource.
+    :param fixture: A callable that takes a ``TestCase`` and returns a
+        ``klein.Klein`` object.
 
     @return: A pair of L{TestCase} classes.
     """
@@ -348,34 +349,13 @@ def buildIntegrationTests(mixinClass, name, fixture):
         API users will be connecting from.
         """
         def setUp(self):
-            from twisted.internet import reactor
-            self.scenario = self.publicAPISetup.createService(
-                Cluster(reactor=reactor))
-            self.cluster = self.scenario.cluster
-            self.cluster.startService()
-            self.addCleanup(self.cluster.stopService)
-
-            addresses = [
-                address["addr"]
-                for interface
-                in networkInterfaces()
-                for address
-                in ifaddresses(interface).get(AF_INET, [])]
-
-            if not addresses:
-                raise SkipTest("Cannot determine local(/server) address")
-
-            # Here, just duplicate the address information from the
-            # _PublicAPIService implementation.  This is a bit unfortunate
-            # and hopefully it can change to something less fragile.
-            # Perhaps only worth doing after the implementation changes so
-            # that the server is listening where we actually want it to be
-            # listening, though:
-            # https://www.pivotaltracker.com/story/show/62337636
-            # https://www.pivotaltracker.com/story/show/62321136
-            # addresses[0] is used because "listen" listens on all addresses
+            self.app = fixture(self)
+            self.port = reactor.listenTCP(0, Site(self.app.resource()),
+                                          interface="127.0.0.1")
+            self.addCleanup(self.port.stopListening)
+            portno = self.port.getHost().port
             self.agent = ProxyAgent(
-                TCP4ClientEndpoint(reactor, addresses[0], self.scenario.port),
+                TCP4ClientEndpoint(reactor, "127.0.0.1", portno),
                 reactor)
             super(RealTests, self).setUp()
 
@@ -386,12 +366,8 @@ def buildIntegrationTests(mixinClass, name, fixture):
         testing that the correct network interfaces are listened on.
         """
         def setUp(self):
-            self.scenario = self.publicAPISetup.createService(Cluster())
-            self.cluster = self.scenario.cluster
-            self.cluster.startService()
-            self.addCleanup(self.cluster.stopService)
-
-            self.agent = MemoryAgent(self.scenario.api.root)
+            self.app = fixture(self)
+            self.agent = MemoryAgent(self.app.resource())
             super(MemoryTests, self).setUp()
 
 
