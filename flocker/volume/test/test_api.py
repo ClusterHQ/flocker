@@ -2,8 +2,9 @@
 Tests for ``flocker.volume.api``.
 """
 
-from ...restapi.test.utils import (
-    buildIntegrationTests, readBody, loads, goodResult)
+from twisted.web.client import readBody
+from ...restapi.testtools import (
+    buildIntegrationTests, loads, goodResult)
 
 from ..api import VolumeAPIUser
 

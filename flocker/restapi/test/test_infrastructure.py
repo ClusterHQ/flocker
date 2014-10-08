@@ -25,13 +25,11 @@ from .._error import (
 
 from eliot.testing import validateLogging, LoggedAction
 
+from ..testtools import (EventChannel, dumps, loads, goodResult, badResult,
+                         CloseEnoughJSONResponse, dummyRequest, render,
+                         asResponse)
 from .utils import (
-    EventChannel,
-    dumps, loads,
-    goodResult, badResult,
-    CloseEnoughJSONResponse,
-    _assertRequestLogged, _assertTracebackLogged,
-    FAILED_INPUT_VALIDATION, dummyRequest, render, asResponse)
+    _assertRequestLogged, _assertTracebackLogged, FAILED_INPUT_VALIDATION)
 
 
 class ArbitraryException(Exception):
