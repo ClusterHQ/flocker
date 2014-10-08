@@ -5,14 +5,19 @@ What's New
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 
+v0.3 in-development
+===================
+
+* ``geard`` is no longer used to manage Docker containers.
+* Added support for `Fig`_ compatible application configuration files.
+
+
 v0.2
 ====
 
-* ``geard`` is no longer used to manage Docker containers.
-* Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
+ Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :doc:`application configuration<./configuration>`.
 * Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
-* Added support for `Fig`_ compatible application configuration files.
 
 
 v0.1
