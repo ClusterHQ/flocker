@@ -148,11 +148,11 @@ Preparing for a release
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
-   .. note:: You'll need to build a tutorial vagrant image using the buildbot RPM packages from the release branch.
+   .. note:: You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
 
              The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
 
-             To find the version, visit the buildbot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+             To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
 
              At the top, you should find a line beginning ``got version`` which contains the version string.
 
@@ -177,7 +177,7 @@ Preparing for a release
       clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
       clusterhq/flocker-tutorial (virtualbox, 0)
 
-   Finally follow the buildbot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+   Finally follow the BuildBot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
 
    .. code-block:: console
 
