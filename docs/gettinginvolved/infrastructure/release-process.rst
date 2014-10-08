@@ -145,7 +145,7 @@ Preparing for a release
 
    .. code-block:: console
 
-      trial acceptance
+      trial flocker.acceptance
 
 #. Make a pull request on GitHub
 
