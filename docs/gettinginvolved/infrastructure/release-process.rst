@@ -168,7 +168,25 @@ Preparing for a release
 
       vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
 
+   You should now see that box listed:
+
+   .. code-block:: console
+
+      $ vagrant box list
+      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+      clusterhq/flocker-tutorial (virtualbox, 0)
+
    Finally follow the buildbot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+
+   .. code-block:: console
+
+      $ cat flocker-tutorial/Vagrantfile
+      ...
+      Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+          config.vm.box = "clusterhq/flocker-tutorial"
+          config.vm.box_version = "= 0"
+      ...
 
 #. Make a pull request on GitHub
 
