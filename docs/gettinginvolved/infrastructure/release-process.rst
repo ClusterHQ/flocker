@@ -162,6 +162,14 @@ Preparing for a release
 
       vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
 
+   Then add the resulting box to ``vagrant`` using the following command:
+
+   .. code-block:: console
+
+      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
+
+   Finally follow the buildbot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
