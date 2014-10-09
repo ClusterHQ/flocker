@@ -23,6 +23,7 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
+
 def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
     """
     `actual_dict` contains all the items in `expected_dict`.
@@ -92,6 +93,7 @@ def fake_virtual_env(test_case):
 
     class Tester(object):
         path = virtualenv_path
+
         def assert_pip_args(self, expected_args):
             """
             `pip` was called with the `expected_args`.
@@ -109,6 +111,7 @@ class SpyStep(object):
     A `BuildStep` which records the fact that it has been run.
     """
     ran = False
+
     def run(self):
         self.ran = True
 
@@ -210,7 +213,8 @@ class BuildRpmTests(TestCase):
             license=expected_license,
             url=expected_url,
         ).run()
-        rpms = glob('{}*.rpm'.format(destination_path.child(expected_name).path))
+        rpms = glob('{}*.rpm'.format(
+            destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
 
         expected_headers = dict(
@@ -279,7 +283,8 @@ class SumoRpmBuilderTests(TestCase):
         expected_rpm_version = make_rpm_version(expected_python_version)
         sumo_rpm_builder(
             destination_path, FLOCKER_PATH, expected_python_version).run()
-        rpms = glob('{}*.rpm'.format(destination_path.child(expected_name).path))
+        rpms = glob('{}*.rpm'.format(
+            destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
             Name=expected_name,
