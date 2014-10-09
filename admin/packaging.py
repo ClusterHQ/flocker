@@ -82,7 +82,7 @@ class BuildRpm(object):
         )
 
 
-def sumo_rpm_builder(package_path, version, target_dir=None):
+def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
     """
     Build an RPM file containing the supplied `package` and all its
     dependencies.
@@ -144,8 +144,11 @@ def sumo_rpm_builder(package_path, version, target_dir=None):
             InstallApplication(virtualenv_path=target_dir,
                                package_path=package_path),
             BuildRpm(
+                destination_path=destination_path,
                 source_path=target_dir,
                 name='Flocker',
+                prefix='/opt/flocker',
+                epoch=b'0',
                 rpm_version=make_rpm_version(version),
                 license='ASL 2.0',
                 url='https://clusterhq.com',

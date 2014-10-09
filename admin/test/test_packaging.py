@@ -224,8 +224,11 @@ class SumoRpmBuilderTests(TestCase):
         """
         A sequence of build steps is returned.
         """
+        expected_destination_path = self.mktemp()
         expected_target_path = self.mktemp()
         expected_name = 'Flocker'
+        expected_prefix = '/opt/flocker'
+        expected_epoch = b'0'
         expected_package_path = '/foo/bar'
         expected_version = '0.3dev1'
         expected_license = 'ASL 2.0'
@@ -235,16 +238,22 @@ class SumoRpmBuilderTests(TestCase):
                 InstallVirtualEnv(target_path=expected_target_path),
                 InstallApplication(virtualenv_path=expected_target_path,
                                    package_path=expected_package_path),
-                BuildRpm(source_path=expected_target_path,
-                         name=expected_name,
-                         rpm_version=make_rpm_version(expected_version),
-                         license=expected_license,
-                         url=expected_url,)
+                BuildRpm(
+                    destination_path=expected_destination_path,
+                    source_path=expected_target_path,
+                    name=expected_name,
+                    prefix=expected_prefix,
+                    epoch=expected_epoch,
+                    rpm_version=make_rpm_version(expected_version),
+                    license=expected_license,
+                    url=expected_url,
+                )
             )
         )
         self.assertEqual(
             expected,
-            sumo_rpm_builder(expected_package_path,
+            sumo_rpm_builder(expected_destination_path,
+                             expected_package_path,
                              expected_version,
                              target_dir=expected_target_path))
 
