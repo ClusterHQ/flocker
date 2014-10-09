@@ -257,6 +257,9 @@ Release
 
 #. Build and upload the tutorial :ref:`vagrant box <build-vagrant-box>`.
 
+   .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
+                **not** on a :doc:`Flocker development machine <vagrant>`.
+
 #. Build tagged docs at Read the Docs:
 
    #. Force Read the Docs to reload the repository
