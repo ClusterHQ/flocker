@@ -186,7 +186,7 @@ class BuildRpmTests(TestCase):
         source_path.child('Foo').touch()
         source_path.child('Bar').touch()
         expected_name = 'FooBar'
-        expected_prefix = b'/foo/bar'
+        expected_prefix = FilePath('/foo/bar')
         expected_epoch = b'3'
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
@@ -211,7 +211,7 @@ class BuildRpmTests(TestCase):
             Release=expected_rpm_version.release,
             License=expected_license,
             URL=expected_url,
-            Relocations=expected_prefix,
+            Relocations=expected_prefix.path,
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 
@@ -224,12 +224,12 @@ class SumoRpmBuilderTests(TestCase):
         """
         A sequence of build steps is returned.
         """
-        expected_destination_path = self.mktemp()
-        expected_target_path = self.mktemp()
+        expected_destination_path = FilePath(self.mktemp())
+        expected_target_path = FilePath(self.mktemp())
         expected_name = 'Flocker'
-        expected_prefix = '/opt/flocker'
+        expected_prefix = FilePath('/opt/flocker')
         expected_epoch = b'0'
-        expected_package_path = '/foo/bar'
+        expected_package_path = FilePath('/foo/bar')
         expected_version = '0.3dev1'
         expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
@@ -261,12 +261,15 @@ class SumoRpmBuilderTests(TestCase):
         """
         An RPM file with the expected headers is built.
         """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
         expected_name = 'Flocker'
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
-        sumo_rpm_builder(FLOCKER_PATH, expected_python_version).run()
-        rpms = glob('{}*.rpm'.format(expected_name))
+        sumo_rpm_builder(
+            destination_path, FLOCKER_PATH, expected_python_version).run()
+        rpms = glob('{}*.rpm'.format(destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
             Name=expected_name,
