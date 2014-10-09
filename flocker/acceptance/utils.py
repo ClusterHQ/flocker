@@ -5,8 +5,4 @@ def deploy(application_config, deployment_config):
     Run flocker-deploy with the given configurations.
     """
 
-def list_docker_containers(ip):
-    """
-    Parse the output of ssh root@ip docker ps, likely can use runSSH from
-    HybridCluster.
-    """
+# TODO likely use runSSH from HybridCluster

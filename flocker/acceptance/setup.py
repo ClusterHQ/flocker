@@ -2,20 +2,12 @@
 
 """
 Setup for acceptance testing.
-
-Invoke as "sudo -E $(type -p python) -m flocker.acceptance.setup"
 """
-from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 from flocker.node._docker import NamespacedDockerClient
 from flocker.node.testtools import wait_for_unit_state
 from flocker.testtools import random_name
 
-if __name__ == "__main__":
-    from flocker.acceptance.setup import setup_docker_containers
-    setup_docker_containers()
-    # reactor.callInThread(setup_docker_containers())
-#     reactor.run()
 
 class ExampleTests(TestCase):
     """
@@ -37,11 +29,13 @@ class ExampleTests(TestCase):
         """
         namespace = u"acceptance-tests"
         client = NamespacedDockerClient(namespace)
-        name = random_name()
+        node_1_name = random_name()
+        node_2_name = random_name()
 
-        d = client.add(name, u"busybox")
-        d.addCallback(lambda _: client.list())
-        d.addCallback(self.assertEqual, set())
+        d = client.add(node_1_name, u"openshift/busybox-http-app")
+        d = client.add(node_2_name, u"openshift/busybox-http-app")
+        # wait_for_unit_state?
+        # add cleanup
         return d
         # Check if acceptance testing containers are already running.
         # If they are then they output that they are running and stop
