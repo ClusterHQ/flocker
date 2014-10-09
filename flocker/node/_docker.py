@@ -180,7 +180,7 @@ class FakeDockerClient(object):
         :param dict units: A dictionary of canned ``Unit``\ s which will be
         manipulated and returned by the methods of this
         ``FakeDockerClient``.
-        :type units: ``dict`` mapping `unit_name` to ``Unit``\ .
+        :type units: ``dict`` mapping `unit_name` to ``Unit``.
         """
         if units is None:
             units = {}
