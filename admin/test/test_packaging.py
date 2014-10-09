@@ -5,8 +5,10 @@ Tests for ``admin.packaging``.
 """
 from glob import glob
 from subprocess import check_output
+from unittest import skipIf
 
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
 from ..packaging import (
@@ -17,6 +19,9 @@ from ..release import make_rpm_version, rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
+# XXX: Get fpm installed on the build slaves.
+# See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
+require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
 def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
     """
@@ -175,6 +180,10 @@ class BuildRpmTests(TestCase):
     """
     Tests for `BuildRpm`.
     """
+    @require_fpm
+    def setUp(self):
+        pass
+
     def test_run(self):
         """
         `BuildRpm.run` creates an RPM from the supplied `source_path`.
@@ -257,6 +266,7 @@ class SumoRpmBuilderTests(TestCase):
                              expected_version,
                              target_dir=expected_target_path))
 
+    @require_fpm
     def test_functional(self):
         """
         An RPM file with the expected headers is built.
