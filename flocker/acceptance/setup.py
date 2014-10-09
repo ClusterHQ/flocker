@@ -5,12 +5,14 @@ Setup for acceptance testing.
 
 Invoke as "sudo -E $(type -p python) -m flocker.acceptance.setup"
 """
+from twisted.internet import reactor
 from flocker.node._docker import NamespacedDockerClient
 from flocker.node.testtools import wait_for_unit_state
 
 if __name__ == "__main__":
     from flocker.acceptance.setup import setup_docker_containers
-    setup_docker_containers()
+    reactor.callInThread(setup_docker_containers())
+    reactor.run()
 
 def setup_docker_containers():
     """
@@ -33,6 +35,7 @@ def setup_docker_containers():
     expected_states = (u'active',)
     environment = None
     volumes = ()
+    df=client.add(unit_name,image_name)
     # Check if acceptance testing containers are already running.
     # If they are then they output that they are running and stop
     # Look at (uses of) NamespacedDockerClient
