@@ -273,9 +273,11 @@ class SumoRpmBuilderTests(TestCase):
         self.assertEqual(1, len(rpms))
         expected_headers = dict(
             Name=expected_name,
+            Epoch=b'0',
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
             License='ASL 2.0',
             URL='https://clusterhq.com',
+            Relocations=b'/opt/flocker',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
