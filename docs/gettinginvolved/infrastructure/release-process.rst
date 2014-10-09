@@ -296,8 +296,8 @@ Release
 
      .. code-block:: console
 
-        git checkout -b release/flocker-${VERSION%pre*} origin/master
-        git push origin --set-upstream release/flocker-${VERSION%pre*}
+        git checkout -b release/flocker-${VERSION} origin/master
+        git push origin --set-upstream release/flocker-${VERSION}
 
    - Create a ``flocker-${VERSION}.rb`` file
 
