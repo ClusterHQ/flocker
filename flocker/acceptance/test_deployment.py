@@ -40,11 +40,19 @@ class DeploymentTests(TestCase):
         self.client = NamespacedDockerClient(namespace)
         self.node_1_name = random_name()
         self.node_2_name = random_name()
-
-        d = self.client.add(self.node_1_name, u"openshift/busybox-http-app")
-        d = self.client.add(self.node_2_name, u"openshift/busybox-http-app")
+        image = u"openshift/busybox-http-app"
+        d = self.client.add(self.node_1_name, image)
+        d.addCallback(lambda _: self.client.add(self.node_2_name, image))
+        d.addCallback(lambda _: self.client.list())
         # wait_for_unit_state?
         # add cleanup
+        from docker import Client
+        def get_ips(containers):
+            docker = Client()
+            docker.inspect_container(u'flocker--acceptance-tests--104591187757')['NetworkSettings']['IPAddress']
+            import pdb; pdb.set_trace()
+
+        d.addCallback(get_ips)
         return d
 
     def test_deploy(self):
