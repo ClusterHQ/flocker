@@ -192,7 +192,7 @@ class BuildRpmTests(TestCase):
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
         BuildRpm(
-            destination_path = destination_path,
+            destination_path=destination_path,
             source_path=source_path,
             name=expected_name,
             prefix=expected_prefix,
