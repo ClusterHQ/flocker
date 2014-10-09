@@ -16,6 +16,7 @@ from docker.errors import APIError
 from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
@@ -91,7 +92,7 @@ class Unit(object):
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
 
-    :ivar volumes: A ``tuple`` of ``Volume`` instances, the container's
+    :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
         volumes.
     """
 
@@ -187,16 +188,16 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=()):
+            volumes=frozenset()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
             name=unit_name,
             container_name=unit_name,
             container_image=image_name,
-            ports=ports,
+            ports=frozenset(ports),
             environment=environment,
-            volumes=volumes,
+            volumes=frozenset(volumes),
             activation_state=u'active'
         )
         return succeed(None)
@@ -210,18 +211,8 @@ class FakeDockerClient(object):
         return succeed(None)
 
     def list(self):
-        # XXX: This is a hack so that functional and unit tests that use
-        # DockerClient.list can pass until the real DockerClient.list can also
-        # return volumes information.
-        # See https://github.com/ClusterHQ/flocker/issues/289
-        incomplete_units = set()
-        for unit in self._units.values():
-            incomplete_units.add(
-                Unit(name=unit.name, container_name=unit.name,
-                     activation_state=unit.activation_state,
-                     container_image=unit.container_image,
-                     ports=frozenset(unit.ports)))
-        return succeed(incomplete_units)
+        units = set(self._units.values())
+        return succeed(units)
 
 
 @attributes(['internal_port', 'external_port'])
@@ -407,17 +398,22 @@ class DockerClient(object):
                     ports = self._parse_container_ports(port_mappings)
                 else:
                     ports = list()
+                volumes = []
+                for container_path, node_path in data[u"Volumes"].items():
+                    volumes.append(
+                        Volume(container_path=FilePath(container_path),
+                               node_path=FilePath(node_path))
+                    )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                # XXX to extract volume info from the inspect results:
-                # https://github.com/ClusterHQ/flocker/issues/289
                 result.add(Unit(name=name,
                                 container_name=self._to_container_name(name),
                                 activation_state=state,
                                 container_image=image,
-                                ports=frozenset(ports)))
+                                ports=frozenset(ports),
+                                volumes=frozenset(volumes)))
             return result
         return deferToThread(_list)
 
