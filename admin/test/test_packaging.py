@@ -179,27 +179,39 @@ class BuildRpmTests(TestCase):
         """
         `BuildRpm.run` creates an RPM from the supplied `source_path`.
         """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
         source_path = FilePath(self.mktemp())
         source_path.makedirs()
+        source_path.child('Foo').touch()
+        source_path.child('Bar').touch()
         expected_name = 'FooBar'
+        expected_prefix = b'/foo/bar'
+        expected_epoch = b'3'
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
         BuildRpm(
-            source_path=source_path, 
+            destination_path = destination_path,
+            source_path=source_path,
             name=expected_name,
+            prefix=expected_prefix,
+            epoch=expected_epoch,
             rpm_version=expected_rpm_version,
             license=expected_license,
             url=expected_url,
         ).run()
-        rpms = glob('{}*.rpm'.format(expected_name))
+        rpms = glob('{}*.rpm'.format(destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
+
         expected_headers = dict(
             Name=expected_name,
+            Epoch=expected_epoch,
             Version=expected_rpm_version.version,
             Release=expected_rpm_version.release,
             License=expected_license,
             URL=expected_url,
+            Relocations=expected_prefix,
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 

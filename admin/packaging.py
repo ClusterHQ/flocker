@@ -56,7 +56,9 @@ class InstallApplication(object):
         )
 
 
-@attributes(['source_path', 'name', 'rpm_version', 'license', 'url'])
+@attributes(
+    ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
+     'rpm_version', 'license', 'url'])
 class BuildRpm(object):
     """
     Use `fpm` to build an RPM file from the supplied `source_path`.
@@ -68,12 +70,15 @@ class BuildRpm(object):
             'fpm',
             '-s', 'dir',
             '-t', 'rpm',
+            '--package', self.destination_path.path,
             '--name', self.name,
+            '--prefix', self.prefix,
             '--version', self.rpm_version.version,
+            '--epoch', self.epoch,
             '--iteration', self.rpm_version.release,
             '--license', self.license,
             '--url', self.url,
-            self.source_path.path]
+            '.'], cwd=self.source_path.path
         )
 
 
@@ -136,7 +141,7 @@ def sumo_rpm_builder(package_path, version, target_dir=None):
     return BuildSequence(
         steps=(
             InstallVirtualEnv(target_path=target_dir),
-            InstallApplication(virtualenv_path=target_dir, 
+            InstallApplication(virtualenv_path=target_dir,
                                package_path=package_path),
             BuildRpm(
                 source_path=target_dir,
