@@ -44,5 +44,5 @@ class DeploymentTests(TestCase):
         config and watch docker ps output.
         """
         from subprocess import check_output
-        result = check_output([b"flocker-deploy"] + [b"--version"])
+        result = check_output([b"flocker-deploy"] + [b"utils.py"] + [b"utils2.py"])
         self.assertEqual(result, b"%s\n" % (5,))
