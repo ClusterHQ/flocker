@@ -422,6 +422,9 @@ class Deployer(object):
                 if app.name in not_running
             ]
 
+            for application in desired_node_applications:
+                pass
+
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.

@@ -1472,6 +1472,164 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_app_with_changed_ports_restarted(self):
+        """
+        An ``Application`` running on a given node that has different port
+        exposures specified in the desired state to the ports exposed by the
+        application's current state is added to the list of applications to
+        restart.
+        """
+        unit = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            ports=frozenset([PortMap(
+                internal_port=5432,
+                external_port=50432
+            )]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=u'clusterhq/postgres:latest',
+            volume=None,
+            ports=frozenset([Port(
+                internal_port=5432,
+                external_port=50432
+            )])
+        )
+
+        new_postgres_app = Application(
+            name=u'postgres-example',
+            image=u'clusterhq/postgres:latest',
+            volume=None,
+            ports=frozenset([Port(
+                internal_port=5433,
+                external_port=50433
+            )])
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_postgres_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_postgres_app})),
+        }))
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=EMPTY,
+            hostname=u'node1.example.com'
+        )
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[
+                StopApplication(application=old_postgres_app),
+                StartApplication(application=new_postgres_app,
+                                 hostname="node1.example.com")
+                ]),
+        ])])
+
+        self.assertEqual(expected, self.successResultOf(d))
+
+    def test_app_with_changed_links_restarted(self):
+        """
+        An ``Application`` running on a given node that has different links
+        specified in the desired state to the links specified by the
+        application's current state is added to the list of applications to
+        restart.
+        """
+        unit1 = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            activation_state=u'active'
+        )
+        unit2 = Unit(
+            name=u'wordpress-example',
+            container_name=u'wordpress-example',
+            container_image=u'clusterhq/wordpress:latest',
+            environment=Environment(variables=frozenset([
+                ('POSTGRES_PORT_5432_TCP', 'tcp://node1.example.com:50432'),
+                ('POSTGRES_PORT_5432_TCP_PROTO', 'tcp'),
+                ('POSTGRES_PORT_5432_TCP_ADDR', 'node1.example.com'),
+                ('POSTGRES_PORT_5432_TCP_PORT', '50432'),
+            ])),
+            activation_state=u'active'
+        )
+        unit3 = Unit(
+            name=u'mysql-example',
+            container_name=u'mysql-example',
+            container_image=u'clusterhq/mysql:latest',
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={
+            unit1.name: unit1,
+            unit2.name: unit2,
+            unit3.name: unit3,
+        })
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=u'clusterhq/wordpress:latest',
+            volume=None,
+            links=frozenset([
+                Link(
+                    local_port=5432, remote_port=50432, alias='postgres'
+                )
+            ])
+        )
+
+        new_wordpress_app = Application(
+            name=u'wordpress-example',
+            image=u'docker/wordpress:latest',
+            volume=None,
+            links=frozenset([
+                Link(
+                    local_port=3306, remote_port=53306, alias='mysql'
+                )
+            ])
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_wordpress_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_wordpress_app})),
+        }))
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=EMPTY,
+            hostname=u'node1.example.com'
+        )
+
+        expected = Sequentially(changes=[InParallel(changes=[
+            Sequentially(changes=[
+                StopApplication(application=old_wordpress_app),
+                StartApplication(application=new_wordpress_app,
+                                 hostname="node1.example.com")
+                ]),
+        ])])
+
+        self.assertEqual(expected, self.successResultOf(d))
+
 
 class SetProxiesTests(SynchronousTestCase):
     """
