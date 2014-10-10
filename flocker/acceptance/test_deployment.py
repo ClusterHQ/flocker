@@ -27,6 +27,7 @@ from flocker.testtools import random_name
 # TODO Look at
 # https://github.com/ClusterHQ/flocker/compare/acceptance-tests-577
 # for a start on installing flocker-deploy latest
+# The version of flocker-deploy should probably also be checked
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
@@ -34,7 +35,7 @@ def containers_running(ip):
     """
     Containers which are running on a node.
     
-    This is a bit of a hack and could hopefully use docker py.
+    This is a hack and could hopefully use docker py.
     This would be *much* better with namespacing,
     which is hopefully doable with NamespacedDockerClient if that can be used
     over SSH.
@@ -53,11 +54,14 @@ def containers_running(ip):
             else:
                 state = u'inactive'
 
+            # TODO use frozenset of PortMap instances
+            ports = ()
+
             unit = Unit(name=names, # Is this right?
                         container_name=names,
                         activation_state=state,
                         container_image=image,
-                        # ports=ports, - # TODO use frozenset of PortMap instances
+                        ports=ports,
             )
             containers.append(unit)
 
@@ -82,8 +86,30 @@ class DeploymentTests(TestCase):
         vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
         This will probably be a utility function
+
+        Unlike the tutorial which uses Vagrant nodes, we want to have docker
+        containers, and run docker-in-docker:
+          https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
+
+        Until that is viable, we can write the tests to use the Vagrant VMs
+        The start of the docker-in-docker plan is below the return
+        Start the VMs manually by following the tutorial
+        The VMs may not be "clean" so assert that there are no
+        containers running.
+
+        The following is a messy way to remove all containers on node_1:
+        ssh root@172.16.255.250 docker stop $(ssh root@172.16.255.250 docker ps -a -q)
+        ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
+
+        Use runSSH from HybridCluster to do this automatically?
         """
-        return
+
+        vagrant = True
+        if vagrant:
+            self.node_1_ip = "172.16.255.250"
+            self.node_2_ip = "172.16.255.251"
+            return
+
         namespace = u"acceptance-tests"
         self.client = NamespacedDockerClient(namespace)
         node_1_name = random_name()
@@ -100,10 +126,10 @@ class DeploymentTests(TestCase):
         d.addCallback(lambda _: self.client.add(node_2_name, image))
         d.addCallback(lambda _: self.client.list())
         # TODO wait_for_unit_state? Why (not)?
-        # from flocker.node.testtools import wait_for_unit_state
+        #   from flocker.node.testtools import wait_for_unit_state
 
         # TODO add cleanup
-        #     self.addCleanup(self.client.remove, node_1_name)
+        #   self.addCleanup(self.client.remove, node_1_name)
 
         def get_ips(units):
             docker = Client()
@@ -123,11 +149,6 @@ class DeploymentTests(TestCase):
         Call a 'deploy' utility function with an application and deployment
         config and watch docker ps output.
         """
-        # Is it possible to set the docker container's IP addresses? Instead
-        # of just finding them
-        # How do we specify that the containers should be priviledged (so as
-        # to be able to be run inside another docker container)
-
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
@@ -141,15 +162,6 @@ class DeploymentTests(TestCase):
             },
         }))
 
-        #node_1_ip = self.node_1_ip
-        #node_2_ip = self.node_2_ip
-        # Use VMs for testing, until the docker container situation is
-        # viable
-        # The VMs may not be "clean" so assert that there are no
-        # containers running.
-        # The following is a messy way to remove all containers on node_1:
-        # ssh root@172.16.255.250 docker stop $(ssh root@172.16.255.250 docker ps -a -q)
-        # ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
         node_1_ip = "172.16.255.250"
         node_2_ip = "172.16.255.251"
         containers_running_before = containers_running(node_1_ip)
@@ -157,21 +169,24 @@ class DeploymentTests(TestCase):
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                node_1_ip: [u"mongodb-example"],
-                node_2_ip: [],
+                self.node_1_ip: [u"mongodb-example"],
+                self.node_2_ip: [],
             },
         }))
 
+        # How do we specify that the containers should be priviledged (so as
+        # to be able to be run inside another docker container)
         check_output([b"flocker-deploy"] +
             [deployment_config_path.path] + [application_config_path.path])
 
         containers_running_after = containers_running(node_1_ip)
 
         new_containers = set(containers_running_after) - set(containers_running_before)
-        import pdb; pdb.set_trace()
+
         expected = set([Unit(name=u'mongodb-example-data',
                              container_name=u'mongodb-example-data',
                              activation_state=u'active',
                              container_image=u'clusterhq/mongodb:latest',
                              ports=(), environment=None, volumes=())])
+
         self.assertEqual(new_containers, expected)
