@@ -30,21 +30,40 @@ class InstallVirtualEnv(object):
     Install a virtualenv in the supplied `target_path`.
     """
     def run(self):
-        virtualenv.create_environment(
-            self.target_path.path,
-            site_packages=False,
-            clear=False,
-            unzip_setuptools=False,
-            prompt=None,
-            search_dirs=None,
-            never_download=False,
-            no_setuptools=False,
-            no_pip=False,
-            symlink=True
+        check_call(
+            ['virtualenv', '--quiet', '--system-site-packages', self.target_path.path],
+            env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
+        # virtualenv.create_environment(
+        #     self.target_path.path,
+        #     site_packages=True,
+        #     clear=False,
+        #     unzip_setuptools=False,
+        #     prompt=None,
+        #     search_dirs=None,
+        #     never_download=False,
+        #     no_setuptools=False,
+        #     no_pip=False,
+        #     symlink=True
+        # )
+        # deletables = []
         # for path in self.target_path.walk():
         #     if path.splitext()[1] == '.pyc':
-        #         os.unlink(path.path)
+        #         # The pyc file may be in a directory which has been symlinked.
+        #         # Find the top directory symlink and delete that instead.
+        #         segments_to_virtualenv_root = path.segmentsFrom(self.target_path)
+        #         segments_so_far = []
+        #         via_directory_link = False
+        #         while segments_to_virtualenv_root:
+        #             segments_so_far.append(segments_to_virtualenv_root.pop(0))
+        #             ancestor = self.target_path.descendant(segments_so_far)
+        #             if ancestor.islink():
+        #                 via_directory_link = True
+        #         if not via_directory_link:
+        #             deletables.append(path)
+
+        # for deletable in set(deletables):
+        #     os.unlink(deletable.path)
 
 
 @attributes(['virtualenv_path', 'package_path'])

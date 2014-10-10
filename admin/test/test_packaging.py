@@ -168,13 +168,21 @@ class InstallVirtualEnvTests(TestCase):
         allowed_targets = (target_path, FilePath('/usr'),)
         bad_links = []
         for path in target_path.walk():
+            # if path.path.endswith('lib64/python2.7/ntpath.py'):
+            #     import pdb; pdb.set_trace()
             if path.islink():
                 realpath = path.realpath()
                 for allowed_target in allowed_targets:
                     try:
                         realpath.segmentsFrom(allowed_target)
                     except ValueError:
-                        bad_links.append(path)
+                        pass
+                    else:
+                        # The target is a descendent of an allowed_target stop
+                        # looking and don't attempt to remove it.
+                        break
+                else:
+                    bad_links.append(path)
         if bad_links:
             self.fail(
                 '\n'.join(
