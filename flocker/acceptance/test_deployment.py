@@ -47,7 +47,12 @@ class DeploymentTests(TestCase):
         node_1_name = random_name()
         node_2_name = random_name()
         image = u"openshift/busybox-http-app"
-        # TODO Enable ssh on the nodes
+        # TODO Enable ssh on the nodes by changing the image
+        # also expose the port
+        # Also these need dependencies installed, so they will probably be
+        # a fedora image with zfs and others
+        # Look at using http://www.packer.io to build Vagrant image and Docker
+        # image
         d = self.client.add(node_1_name, image)
 
         d.addCallback(lambda _: self.client.add(node_2_name, image))
@@ -94,12 +99,17 @@ class DeploymentTests(TestCase):
             },
         }))
 
+        #node_1_ip = self.node_1_ip
+        #node_2_ip = self.node_2_ip
+        # Use VMs for testing
+        node_1_ip = "172.16.255.250"
+        node_2_ip = "172.16.255.251"
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                self.node_1_ip: [u"mongodb-example"],
-                self.node_2_ip: [],
+                node_1_ip: [u"mongodb-example"],
+                node_2_ip: [],
             },
         }))
         result = check_output([b"flocker-deploy"] +
