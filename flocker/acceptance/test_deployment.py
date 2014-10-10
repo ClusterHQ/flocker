@@ -7,6 +7,8 @@ You need flocker-deploy installed
 Run with:
 
   $ sudo -E PATH=$PATH $(type -p trial) --temp=/tmp/trial flocker.acceptance
+
+for the docker-in-docker stuff, else trial flocker.acceptance is fine
 """
 from subprocess import check_output
 from unittest import skipUnless
@@ -22,9 +24,27 @@ from flocker.node._docker import NamespacedDockerClient
 
 from flocker.testtools import random_name
 
+# TODO Look at
+# https://github.com/ClusterHQ/flocker/compare/acceptance-tests-577
+# for a start on installing flocker-deploy latest
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
+
+def num_containers_running(ip):
+    """
+    Find the number of containers which are running. This is a bit of a hack
+    and could hopefully use docker py.
+    """
+    docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
+        [b"ps"])
+    if docker_ps.startswith('CONTAINER ID'):
+        return len(docker_ps.splitlines()) - 1
+    else:
+        import pdb; pdb.set_trace()
+        # The header is not correct, so it isn't the expected docker_ps
+        # outcome
+        raise Exception
 
 class DeploymentTests(TestCase):
     """
@@ -104,8 +124,14 @@ class DeploymentTests(TestCase):
         #node_2_ip = self.node_2_ip
         # Use VMs for testing, until the docker container situation is
         # viable
+        # The VMs may not be "clean" so assert that there are no
+        # containers running.
+        # The following is a messy way to remove all containers on node_1:
+        # ssh root@172.16.255.250 docker stop $(ssh root@172.16.255.250 docker ps -a -q)
+        # ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
         node_1_ip = "172.16.255.250"
         node_2_ip = "172.16.255.251"
+        containers_running_before = num_containers_running(node_1_ip)
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
@@ -114,9 +140,12 @@ class DeploymentTests(TestCase):
                 node_2_ip: [],
             },
         }))
-        result = check_output([b"flocker-deploy"] +
+
+        check_output([b"flocker-deploy"] +
             [deployment_config_path.path] + [application_config_path.path])
 
+        self.assertEqual(num_containers_running(node_1_ip),
+            containers_running_before + 1)
         # We now want to check that the application is deployed. We could
         # do this with runSSH and then checking the output with regex OR
         # I'd hope that it isn't too hard to use docker-py over SSH.
