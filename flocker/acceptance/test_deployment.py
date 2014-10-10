@@ -78,8 +78,31 @@ class DeploymentTests(TestCase):
         # How do we specify that the containers should be priviledged (so as
         # to be able to be run inside)
         # TODO no need to check output, just run the command
+        from twisted.python.filepath import FilePath
+        from yaml import safe_dump
+        temp = FilePath(self.mktemp())
+        temp.makedirs()
+
+        application_config_path = temp.child(b"application.yml")
+        application_config_path.setContent(safe_dump({
+            u"version": 1,
+            u"applications": {
+                u"mongodb-example": {
+                    u"image": u"clusterhq/mongodb",
+                },
+            },
+        }))
+
+        deployment_config_path = temp.child(b"deployment.yml")
+        deployment_config_path.setContent(safe_dump({
+            u"version": 1,
+            u"nodes": {
+                self.node_1_ip: [u"mongodb-example"],
+                self.node_2_ip: [],
+            },
+        }))
+        result = check_output([b"flocker-deploy"] + [deployment_config_path.path] +
+                     [application_config_path.path])
         import pdb; pdb.set_trace()
-        check_output([b"flocker-deploy"] + [b"application.yml"] +
-                     [b"deployment.yml"])
         # TODO use self.client.list() to check that the application is
         # deployed onto the right node
