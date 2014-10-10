@@ -319,9 +319,7 @@ class Deployer(object):
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
-                    # XXX Mountpoint is not available, see
-                    # https://github.com/ClusterHQ/flocker/issues/289
-                    volume = AttachedVolume(name=unit.name, mountpoint=None)
+                    volume = AttachedVolume.from_unit(unit)
                 else:
                     volume = None
                 application = Application(name=unit.name,

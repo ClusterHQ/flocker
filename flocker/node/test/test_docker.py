@@ -108,14 +108,18 @@ def make_idockerclient_tests(fixture):
                 PortMap(internal_port=80, external_port=8080),
                 PortMap(internal_port=5432, external_port=5432)
             )
+            volumes = (
+                Volume(node_path=FilePath(b'/tmp'),
+                       container_path=FilePath(b'/var/lib/data')),
+            )
             self.addCleanup(client.remove, name)
-            d = client.add(name, image, ports=portmaps)
+            d = client.add(name, image, ports=portmaps, volumes=volumes)
             d.addCallback(lambda _: client.list())
 
             expected = Unit(
                 name=name, container_name=name, activation_state=u"active",
                 container_image=image, ports=frozenset(portmaps),
-                environment=None, volumes=()
+                environment=None, volumes=frozenset(volumes)
             )
 
             def got_list(units):
