@@ -23,7 +23,7 @@ class BuildSequence(object):
         for step in self.steps:
             step.run()
 
-
+import os
 @attributes(['target_path'])
 class InstallVirtualEnv(object):
     """
@@ -42,6 +42,9 @@ class InstallVirtualEnv(object):
             no_pip=False,
             symlink=True
         )
+        # for path in self.target_path.walk():
+        #     if path.splitext()[1] == '.pyc':
+        #         os.unlink(path.path)
 
 
 @attributes(['virtualenv_path', 'package_path'])

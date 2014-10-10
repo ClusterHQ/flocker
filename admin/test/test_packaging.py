@@ -159,6 +159,29 @@ class InstallVirtualEnvTests(TestCase):
         expected_paths = ['bin/pip', 'bin/python']
         assert_has_paths(self, expected_paths, target_path)
 
+    def test_internal_symlinks_only(self):
+        """
+        The resulting `virtualenv` only contains symlinks to files in /lib.
+        """
+        target_path = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=target_path).run()
+        allowed_targets = (target_path, FilePath('/usr'),)
+        bad_links = []
+        for path in target_path.walk():
+            if path.islink():
+                realpath = path.realpath()
+                for allowed_target in allowed_targets:
+                    try:
+                        realpath.segmentsFrom(allowed_target)
+                    except ValueError:
+                        bad_links.append(path)
+        if bad_links:
+            self.fail(
+                '\n'.join(
+                    '/'.join(path.segmentsFrom(target_path)) + ' -> ' + path.realpath().path
+                    for path in bad_links
+                )
+            )
 
 class InstallApplicationTests(TestCase):
     """
