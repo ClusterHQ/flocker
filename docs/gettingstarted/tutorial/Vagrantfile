@@ -12,7 +12,7 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
-  config.vm.box_version = "= 0.2.1"
+  config.vm.box_version = "= 0.3.0dev1"
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
