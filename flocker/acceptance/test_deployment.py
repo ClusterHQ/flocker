@@ -10,7 +10,8 @@ Run with:
 
 for the docker-in-docker stuff, else trial flocker.acceptance is fine
 """
-from subprocess import check_output
+from pipes import quote as shellQuote
+from subprocess import check_output, Popen, PIPE
 from unittest import skipUnless
 from yaml import safe_dump
 
@@ -31,17 +32,18 @@ from flocker.testtools import random_name
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
+
 def containers_running(ip):
     """
     Containers which are running on a node.
-    
+
     This is a hack and could hopefully use docker py.
     This would be *much* better with namespacing,
     which is hopefully doable with NamespacedDockerClient if that can be used
     over SSH.
     """
     docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
-        [b"ps"])
+                             [b"ps"])
     if docker_ps.startswith('CONTAINER ID'):
         containers = []
         for container in docker_ps.splitlines()[1:]:
@@ -57,12 +59,13 @@ def containers_running(ip):
             # TODO use frozenset of PortMap instances
             ports = ()
 
-            unit = Unit(name=names, # Is this right?
+            # TODO is the name right?
+            unit = Unit(name=names,
                         container_name=names,
                         activation_state=state,
                         container_image=image,
                         ports=ports,
-            )
+                        )
             containers.append(unit)
 
         return containers
@@ -70,6 +73,56 @@ def containers_running(ip):
         # The header is not correct, so it isn't the expected docker_ps
         # outcome
         raise Exception
+
+
+def runSSH(port, user, node, command, input, key=None):
+    """
+    Run a command via SSH.
+
+    @param port: Port to connect to.
+    @type port: L{int}
+    @param node: Node to run command on
+    @param node: L{bytes}
+    @param command: command to run
+    @type command: L{list} of L{bytes}
+    @param input: Input to send to command.
+    @type input: L{bytes}
+
+    @param key: If not L{None}, the path to a private key to use.
+    @type key: L{FilePath}
+
+    @return: stdout
+    @rtype: L{bytes}
+    """
+    quotedCommand = ' '.join(map(shellQuote, command))
+    command = [
+        b'ssh',
+        b'-p', b'%d' % (port,),
+        ]
+    if key is not None:
+        command.extend([
+            b"-i",
+            key.path])
+    command.extend([
+        b'@'.join([user, node]),
+        quotedCommand
+    ])
+    process = Popen(command, stdout=PIPE, stdin=PIPE)
+
+    result = process.communicate(input)
+    if process.returncode != 0:
+        raise Exception('Command Failed', command, process.returncode)
+
+    return result[0]
+
+
+def remove_all_containers(ip):
+    """
+    """
+    all_containers = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"], None)
+    for container in all_containers.splitlines():
+        runSSH(22, 'root', ip, [b"docker"] + [b"stop"] + [container], None)
+        runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [container], None)
 
 class DeploymentTests(TestCase):
     """
@@ -108,6 +161,8 @@ class DeploymentTests(TestCase):
         if vagrant:
             self.node_1_ip = "172.16.255.250"
             self.node_2_ip = "172.16.255.251"
+            remove_all_containers(self.node_1_ip)
+            remove_all_containers(self.node_2_ip)
             return
 
         namespace = u"acceptance-tests"
@@ -162,9 +217,7 @@ class DeploymentTests(TestCase):
             },
         }))
 
-        node_1_ip = "172.16.255.250"
-        node_2_ip = "172.16.255.251"
-        containers_running_before = containers_running(node_1_ip)
+        containers_running_before = containers_running(self.node_1_ip)
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
@@ -177,11 +230,13 @@ class DeploymentTests(TestCase):
         # How do we specify that the containers should be priviledged (so as
         # to be able to be run inside another docker container)
         check_output([b"flocker-deploy"] +
-            [deployment_config_path.path] + [application_config_path.path])
+                     [deployment_config_path.path] +
+                     [application_config_path.path])
 
-        containers_running_after = containers_running(node_1_ip)
+        containers_running_after = containers_running(self.node_1_ip)
 
-        new_containers = set(containers_running_after) - set(containers_running_before)
+        new_containers = (set(containers_running_after) -
+                          set(containers_running_before))
 
         expected = set([Unit(name=u'mongodb-example-data',
                              container_name=u'mongodb-example-data',
