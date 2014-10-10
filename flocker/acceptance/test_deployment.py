@@ -77,6 +77,8 @@ def containers_running(ip):
 
 def runSSH(port, user, node, command, input, key=None):
     """
+    # TODO This should be in utils and be formatted with a PEP8 style
+
     Run a command via SSH.
 
     @param port: Port to connect to.
@@ -118,11 +120,15 @@ def runSSH(port, user, node, command, input, key=None):
 
 def remove_all_containers(ip):
     """
+    Remove all containers on a node
     """
     all_containers = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"], None)
     for container in all_containers.splitlines():
-        runSSH(22, 'root', ip, [b"docker"] + [b"stop"] + [container], None)
-        runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [container], None)
+        try:
+            runSSH(22, 'root', ip, [b"docker"] + [b"stop"] + [container], None)
+            runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [container], None)
+        except:
+            pass
 
 class DeploymentTests(TestCase):
     """
@@ -161,6 +167,9 @@ class DeploymentTests(TestCase):
         if vagrant:
             self.node_1_ip = "172.16.255.250"
             self.node_2_ip = "172.16.255.251"
+            # TODO As a horrid workaround for not having namespacing support
+            # in this rudementary client for docker, just remove all the
+            # running containers on a node
             remove_all_containers(self.node_1_ip)
             remove_all_containers(self.node_2_ip)
             return
