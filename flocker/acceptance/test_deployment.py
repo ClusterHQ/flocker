@@ -42,6 +42,7 @@ def containers_running(ip):
     which is hopefully doable with NamespacedDockerClient if that can be used
     over SSH.
     """
+    # Use runSSH
     docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
                              [b"ps"])
     if docker_ps.startswith('CONTAINER ID'):
