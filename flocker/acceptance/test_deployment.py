@@ -31,7 +31,7 @@ _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
 
-def num_containers_running(ip):
+def containers_running(ip):
     """
     Find the number of containers which are running. This is a bit of a hack
     and could hopefully use docker py.
@@ -39,9 +39,17 @@ def num_containers_running(ip):
     docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
         [b"ps"])
     if docker_ps.startswith('CONTAINER ID'):
-        return len(docker_ps.splitlines()) - 1
+        containers = []
+        for container in docker_ps.splitlines()[1:]:
+            container_id, image, command, created, status, ports, names = (
+                [section.strip() for section in container.split('  ') if
+                 section.strip() != ''])
+            containers.append({'container_id': container_id, 'image': image,
+                'command': command, 'created': created, 'status': status,
+                'ports': ports, 'names': names})
+
+        return containers
     else:
-        import pdb; pdb.set_trace()
         # The header is not correct, so it isn't the expected docker_ps
         # outcome
         raise Exception
@@ -131,7 +139,7 @@ class DeploymentTests(TestCase):
         # ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
         node_1_ip = "172.16.255.250"
         node_2_ip = "172.16.255.251"
-        containers_running_before = num_containers_running(node_1_ip)
+        self.assertEqual(len(containers_running(node_1_ip)), 0)
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
@@ -144,8 +152,7 @@ class DeploymentTests(TestCase):
         check_output([b"flocker-deploy"] +
             [deployment_config_path.path] + [application_config_path.path])
 
-        self.assertEqual(num_containers_running(node_1_ip),
-            containers_running_before + 1)
+        self.assertEqual(len(containers_running(node_1_ip)), 1)
         # We now want to check that the application is deployed. We could
         # do this with runSSH and then checking the output with regex OR
         # I'd hope that it isn't too hard to use docker-py over SSH.
