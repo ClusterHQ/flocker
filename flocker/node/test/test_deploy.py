@@ -1437,13 +1437,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         old_postgres_app = Application(
             name=u'postgres-example',
-            image=u'clusterhq/postgres:latest',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
             volume=None
         )
 
         new_postgres_app = Application(
             name=u'postgres-example',
-            image=u'docker/postgres:latest',
+            image=DockerImage.from_string(u'docker/postgres:latest'),
             volume=None
         )
 
@@ -1498,7 +1498,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         old_postgres_app = Application(
             name=u'postgres-example',
-            image=u'clusterhq/postgres:latest',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
             volume=None,
             ports=frozenset([Port(
                 internal_port=5432,
@@ -1508,7 +1508,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         new_postgres_app = Application(
             name=u'postgres-example',
-            image=u'clusterhq/postgres:latest',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
             volume=None,
             ports=frozenset([Port(
                 internal_port=5433,
@@ -1585,7 +1585,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         old_wordpress_app = Application(
             name=u'wordpress-example',
-            image=u'clusterhq/wordpress:latest',
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
             volume=None,
             links=frozenset([
                 Link(
@@ -1596,7 +1596,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         new_wordpress_app = Application(
             name=u'wordpress-example',
-            image=u'docker/wordpress:latest',
+            image=DockerImage.from_string(u'docker/wordpress:latest'),
             volume=None,
             links=frozenset([
                 Link(

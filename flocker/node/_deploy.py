@@ -422,8 +422,26 @@ class Deployer(object):
                 if app.name in not_running
             ]
 
-            for application in desired_node_applications:
-                pass
+            applications_to_inspect = current_state & desired_local_state
+            current_applications_dict = dict(zip(
+                [a.name for a in current_node_applications],
+                current_node_applications
+            ))
+            desired_applications_dict = dict(zip(
+                [a.name for a in desired_node_applications],
+                desired_node_applications
+            ))
+            for application_name in applications_to_inspect:
+                inspect_desired = desired_applications_dict[application_name]
+                inspect_current = current_applications_dict[application_name]
+                # import pdb;pdb.set_trace()
+                if inspect_desired != inspect_current:
+                    changes = [
+                        StopApplication(application=inspect_current),
+                        StartApplication(application=inspect_desired,
+                                         hostname=hostname)
+                    ]
+                    restart_containers.append(Sequentially(changes=changes))
 
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
