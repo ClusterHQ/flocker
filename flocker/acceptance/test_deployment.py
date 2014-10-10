@@ -42,6 +42,7 @@ class DeploymentTests(TestCase):
 
         This will probably be a utility function
         """
+        return
         namespace = u"acceptance-tests"
         self.client = NamespacedDockerClient(namespace)
         node_1_name = random_name()
@@ -101,7 +102,8 @@ class DeploymentTests(TestCase):
 
         #node_1_ip = self.node_1_ip
         #node_2_ip = self.node_2_ip
-        # Use VMs for testing
+        # Use VMs for testing, until the docker container situation is
+        # viable
         node_1_ip = "172.16.255.250"
         node_2_ip = "172.16.255.251"
         deployment_config_path = temp.child(b"deployment.yml")
@@ -114,6 +116,7 @@ class DeploymentTests(TestCase):
         }))
         result = check_output([b"flocker-deploy"] +
             [deployment_config_path.path] + [application_config_path.path])
-        import pdb; pdb.set_trace()
-        # TODO use self.client.list() to check that the application is
-        # deployed onto the right node
+
+        # We now want to check that the application is deployed. We could
+        # do this with runSSH and then checking the output with regex OR
+        # I'd hope that it isn't too hard to use docker-py over SSH.
