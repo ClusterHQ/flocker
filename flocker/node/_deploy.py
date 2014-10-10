@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage
+    NodeState, DockerImage, Port
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -324,9 +324,18 @@ class Deployer(object):
                     volume = AttachedVolume(name=unit.name, mountpoint=None)
                 else:
                     volume = None
-                application = Application(name=unit.name,
-                                          image=image,
-                                          volume=volume)
+                ports = []
+                for portmap in unit.ports:
+                    ports.append(Port(
+                        internal_port=portmap.internal_port,
+                        external_port=portmap.external_port
+                    ))
+                application = Application(
+                    name=unit.name,
+                    image=image,
+                    ports=frozenset(ports),
+                    volume=volume
+                )
                 if unit.activation_state == u"active":
                     running.append(application)
                 else:
