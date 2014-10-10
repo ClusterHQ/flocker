@@ -1416,6 +1416,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         ])
         self.assertEqual(expected, changes)
 
+    def test_app_with_changed_image_restarted(self):
+        """
+        An ``Application`` running on a given node that has a different image
+        specified in the desired state to the image used by the application now
+        is added to the list of applications to restart.
+        """
+        self.fail("Not implemented yet.")
+
 
 class SetProxiesTests(SynchronousTestCase):
     """
