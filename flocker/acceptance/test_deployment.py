@@ -20,7 +20,7 @@ from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import NamespacedDockerClient
+from flocker.node._docker import NamespacedDockerClient, Unit
 
 from flocker.testtools import random_name
 
@@ -30,11 +30,14 @@ from flocker.testtools import random_name
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
-
 def containers_running(ip):
     """
-    Find the number of containers which are running. This is a bit of a hack
-    and could hopefully use docker py.
+    Containers which are running on a node.
+    
+    This is a bit of a hack and could hopefully use docker py.
+    This would be *much* better with namespacing,
+    which is hopefully doable with NamespacedDockerClient if that can be used
+    over SSH.
     """
     docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
         [b"ps"])
@@ -44,9 +47,19 @@ def containers_running(ip):
             container_id, image, command, created, status, ports, names = (
                 [section.strip() for section in container.split('  ') if
                  section.strip() != ''])
-            containers.append({'container_id': container_id, 'image': image,
-                'command': command, 'created': created, 'status': status,
-                'ports': ports, 'names': names})
+
+            if status.startswith('Up'):
+                state = u'active'
+            else:
+                state = u'inactive'
+
+            unit = Unit(name=names, # Is this right?
+                        container_name=names,
+                        activation_state=state,
+                        container_image=image,
+                        # ports=ports, - # TODO use frozenset of PortMap instances
+            )
+            containers.append(unit)
 
         return containers
     else:
@@ -139,7 +152,7 @@ class DeploymentTests(TestCase):
         # ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
         node_1_ip = "172.16.255.250"
         node_2_ip = "172.16.255.251"
-        self.assertEqual(len(containers_running(node_1_ip)), 0)
+        containers_running_before = containers_running(node_1_ip)
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
@@ -152,7 +165,13 @@ class DeploymentTests(TestCase):
         check_output([b"flocker-deploy"] +
             [deployment_config_path.path] + [application_config_path.path])
 
-        self.assertEqual(len(containers_running(node_1_ip)), 1)
-        # We now want to check that the application is deployed. We could
-        # do this with runSSH and then checking the output with regex OR
-        # I'd hope that it isn't too hard to use docker-py over SSH.
+        containers_running_after = containers_running(node_1_ip)
+
+        new_containers = set(containers_running_after) - set(containers_running_before)
+        import pdb; pdb.set_trace()
+        expected = set([Unit(name=u'mongodb-example-data',
+                             container_name=u'mongodb-example-data',
+                             activation_state=u'active',
+                             container_image=u'clusterhq/mongodb:latest',
+                             ports=(), environment=None, volumes=())])
+        self.assertEqual(new_containers, expected)
