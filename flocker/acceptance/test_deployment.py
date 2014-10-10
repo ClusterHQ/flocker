@@ -10,14 +10,16 @@ Run with:
 """
 from subprocess import check_output
 from unittest import skipUnless
+from yaml import safe_dump
 
 from docker import Client
 
 from twisted.python.procutils import which
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import NamespacedDockerClient
-#from flocker.node.testtools import wait_for_unit_state
+
 from flocker.testtools import random_name
 
 _require_installed = skipUnless(which("flocker-deploy"),
@@ -51,7 +53,10 @@ class DeploymentTests(TestCase):
         d.addCallback(lambda _: self.client.add(node_2_name, image))
         d.addCallback(lambda _: self.client.list())
         # TODO wait_for_unit_state? Why (not)?
-        # add cleanup
+        # from flocker.node.testtools import wait_for_unit_state
+
+        # TODO add cleanup
+        #     self.addCleanup(self.client.remove, node_1_name)
 
         def get_ips(units):
             docker = Client()
@@ -75,8 +80,7 @@ class DeploymentTests(TestCase):
         # of just finding them
         # How do we specify that the containers should be priviledged (so as
         # to be able to be run inside another docker container)
-        from twisted.python.filepath import FilePath
-        from yaml import safe_dump
+
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
@@ -98,8 +102,8 @@ class DeploymentTests(TestCase):
                 self.node_2_ip: [],
             },
         }))
-        result = check_output([b"flocker-deploy"] + [deployment_config_path.path] +
-                     [application_config_path.path])
+        result = check_output([b"flocker-deploy"] +
+            [deployment_config_path.path] + [application_config_path.path])
         import pdb; pdb.set_trace()
         # TODO use self.client.list() to check that the application is
         # deployed onto the right node
