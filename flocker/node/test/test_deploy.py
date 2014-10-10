@@ -693,10 +693,22 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume1'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
                      activation_state=u'active')
         unit2 = Unit(name=u'site-example.net',
                      container_name=u'site-example.net',
                      container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume2'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
@@ -708,12 +720,15 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         # Eventually when https://github.com/ClusterHQ/flocker/issues/289
         # is fixed the mountpoint should actually be specified.
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name,
-                                    image=DockerImage.from_string(
-                                        unit.container_image),
-                                    volume=AttachedVolume(name=unit.name,
-                                                          mountpoint=None))
-                        for unit in units.values()]
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+                volume=AttachedVolume(
+                    name=unit.name,
+                    mountpoint=FilePath(b'/var/lib/data')
+                    )
+            ) for unit in units.values()]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
