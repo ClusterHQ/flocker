@@ -45,6 +45,7 @@ class DeploymentTests(TestCase):
         node_1_name = random_name()
         node_2_name = random_name()
         image = u"openshift/busybox-http-app"
+        # TODO Enable ssh on the nodes
         d = self.client.add(node_1_name, image)
 
         d.addCallback(lambda _: self.client.add(node_2_name, image))
@@ -70,14 +71,10 @@ class DeploymentTests(TestCase):
         Call a 'deploy' utility function with an application and deployment
         config and watch docker ps output.
         """
-        # TODO Write out YAML files or use ready-made ones?
-        # minimal-application.yml as made for the documentation is suitable
-        # but minimal-deployment.yml needs to know node IP addresses
         # Is it possible to set the docker container's IP addresses? Instead
         # of just finding them
         # How do we specify that the containers should be priviledged (so as
-        # to be able to be run inside)
-        # TODO no need to check output, just run the command
+        # to be able to be run inside another docker container)
         from twisted.python.filepath import FilePath
         from yaml import safe_dump
         temp = FilePath(self.mktemp())
