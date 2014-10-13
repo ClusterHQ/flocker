@@ -298,6 +298,7 @@ class BuildRpmTests(TestCase):
             Architecture=expected_architecture,
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
+        assert_rpmlint(self, rpms[0])
 
 
 class SumoRpmBuilderTests(TestCase):
@@ -381,3 +382,19 @@ class SumoRpmBuilderTests(TestCase):
             Description='A Docker orchestration and volume management tool',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
+        assert_rpmlint(self, rpms[0])
+
+def assert_rpmlint(test_case, rpm_path):
+    """
+    """
+    from subprocess import check_output, CalledProcessError
+    try:
+        check_output(['rpmlint', rpm_path])
+    except CalledProcessError as e:
+        output = []
+        for line in e.output.splitlines():
+            # Ignore certain warning lines
+            if 'dir-or-file-in-opt' in line:
+                continue
+            output.append(line)
+        test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
