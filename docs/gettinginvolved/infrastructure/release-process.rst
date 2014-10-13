@@ -138,9 +138,7 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    Wait for an accepted code review before continuing.
 
-   .. warning:: Do not merge the branch yet.
-                It should only be merged once it has been tagged, in the next series of steps.
-                Add a note to that effect in the pull request description.
+   .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
 Review Process
@@ -190,6 +188,8 @@ Review Process
           config.vm.box_version = "= 0"
       ...
 
+.. warning:: The branch should not be merged yet.
+             It should only be merged once it has been tagged, in the next series of steps.
 
 Release
 -------
