@@ -24,8 +24,11 @@ def running_units(ip):
 
     This is a hack and could hopefully use docker py over ssh.
     """
+    container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
+                    None).splitlines()
+
     containers = []
-    for container in running_container_ids(ip):
+    for container in container_ids:
         inspect = runSSH(22, 'root', ip, [b"docker"] + [b"inspect"] +
                          [container], None)
         details = loads(inspect)[0]
@@ -33,10 +36,10 @@ def running_units(ip):
         # TODO use frozenset of PortMap instances from ``details`` for ports
         # and check the activation state.
 
-        unit = Unit(name=details.get('Name')[1:],
-                    container_name=details.get('Name')[1:],
+        unit = Unit(name=details['Name'][1:],
+                    container_name=details['Name'][1:],
                     activation_state=u'active',
-                    container_image=details.get('Config').get('Image'),
+                    container_image=details['Config']['Image'],
                     ports=(),
                     )
         containers.append(unit)
@@ -44,23 +47,15 @@ def running_units(ip):
     return containers
 
 
-def running_container_ids(ip):
-    """
-    Get the IDs of all containers running on a node.
-    """
-    ps = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"],
-                None)
-    return ps.splitlines()
-
-
 def remove_all_containers(ip):
     """
     Remove all containers on a node
     """
-    for container in running_container_ids(ip):
+    container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] +
+                           [b"-q"], None).splitlines()
+    for container in container_ids:
         runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] + [container],
                None)
-        # TODO wait until container is removed before continuing
 
 
 def runSSH(port, user, node, command, input, key=None):
@@ -183,3 +178,5 @@ ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
 
     d.addCallback(get_ips)
     return d
+
+# TODO Make flocker-deploy a utility function

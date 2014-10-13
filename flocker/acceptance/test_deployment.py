@@ -17,7 +17,6 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-
 from .utils import running_units, require_installed, get_node_ips
 
 
