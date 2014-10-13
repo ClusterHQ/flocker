@@ -188,8 +188,8 @@ Review Process
           config.vm.box_version = "= 0"
       ...
 
-.. note:: It is the reviewer's job to also review the ``homebrew`` pull request which is created in the following release steps.
-          See the "Update the Homebrew recipe" step below which explains how to test the new ``homebrew`` recipe from a branch.
+.. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
+          See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
 
 .. warning:: The branch should not be merged yet.
              It should only be merged once it has been tagged, in the next series of steps.
@@ -259,7 +259,7 @@ Release
 
 #. Update the Homebrew recipe
 
-   The aim of this step is to provide a version specific ``homebrew`` recipe for each release.
+   The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
 
    - Checkout the `homebrew-tap`_ repository.
 
@@ -300,7 +300,7 @@ Release
 
        .. code-block:: console
 
-          git commit -am "Bumped version number and checksum in homebrew recipe"
+          git commit -am "Bumped version number and checksum in Homebrew recipe"
           git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed
@@ -320,7 +320,7 @@ Release
 
    - Do not continue until the pull request is merged.
 
-     Otherwise the documentation will refer to an unavailable ``homebrew`` recipe.
+     Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Build tagged docs at Read the Docs:
 
