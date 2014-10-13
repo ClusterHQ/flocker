@@ -234,6 +234,7 @@ class BuildRpmTests(TestCase):
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
         expected_url = 'https://www.example.com/foo/bar'
+        expected_vendor = 'Acme Corporation'
         BuildRpm(
             destination_path=destination_path,
             source_path=source_path,
@@ -243,6 +244,7 @@ class BuildRpmTests(TestCase):
             rpm_version=expected_rpm_version,
             license=expected_license,
             url=expected_url,
+            vendor=expected_vendor,
         ).run()
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -256,6 +258,7 @@ class BuildRpmTests(TestCase):
             License=expected_license,
             URL=expected_url,
             Relocations=expected_prefix.path,
+            Vendor=expected_vendor,
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 
@@ -277,6 +280,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_version = '0.3dev1'
         expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
+        expected_vendor = 'ClusterHQ'
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
@@ -291,6 +295,7 @@ class SumoRpmBuilderTests(TestCase):
                     rpm_version=make_rpm_version(expected_version),
                     license=expected_license,
                     url=expected_url,
+                    vendor=expected_vendor,
                 )
             )
         )
@@ -325,5 +330,6 @@ class SumoRpmBuilderTests(TestCase):
             License='ASL 2.0',
             URL='https://clusterhq.com',
             Relocations=b'/opt/flocker',
+            Vendor='ClusterHQ'
         )
         assert_rpm_headers(self, expected_headers, rpms[0])

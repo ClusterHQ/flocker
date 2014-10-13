@@ -52,7 +52,7 @@ class InstallApplication(object):
 
 @attributes(
     ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
-     'rpm_version', 'license', 'url'])
+     'rpm_version', 'license', 'url', 'vendor'])
 class BuildRpm(object):
     """
     Use `fpm` to build an RPM file from the supplied `source_path`.
@@ -72,6 +72,7 @@ class BuildRpm(object):
             '--iteration', self.rpm_version.release,
             '--license', self.license,
             '--url', self.url,
+            '--vendor', self.vendor,
             '.'], cwd=self.source_path.path
         )
 
@@ -161,6 +162,7 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
                 rpm_version=make_rpm_version(version),
                 license='ASL 2.0',
                 url='https://clusterhq.com',
+                vendor='ClusterHQ',
             )
         )
     )
