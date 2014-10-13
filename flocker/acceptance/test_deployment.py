@@ -118,14 +118,20 @@ def runSSH(port, user, node, command, input, key=None):
 
     return result[0]
 
+def running_container_ids(ip):
+    """
+    Get the IDs of all containers running on a node.
+    """
+    ps = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"], None)
+    return ps.splitlines()
 
 def remove_all_containers(ip):
     """
     Remove all containers on a node
     """
-    all_containers = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"], None)
-    for container in all_containers.splitlines():
+    for container in running_container_ids(ip):
         runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] + [container], None)
+        # TODO wait until container is removed before continuing
 
 
 class DeploymentTests(TestCase):
