@@ -189,6 +189,7 @@ Review Process
       ...
 
 .. note:: It is the reviewer's job to also review the ``homebrew`` pull request which is created in the following release steps.
+          See the "Update the Homebrew recipe" step below which explains how to test the new ``homebrew`` recipe from a branch.
 
 .. warning:: The branch should not be merged yet.
              It should only be merged once it has been tagged, in the next series of steps.
