@@ -73,7 +73,7 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
    #. Compare it to the package versions listed in ``python-flocker.spec.in``.
-   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
+   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
 
    .. note:: XXX: Automate the checking of package versions.
              See https://github.com/ClusterHQ/flocker/issues/881.
