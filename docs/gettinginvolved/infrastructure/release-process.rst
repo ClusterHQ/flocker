@@ -50,13 +50,13 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    vagrant ssh -- -A
 
-#. Choose a version number:
+#. Choose a version number according to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-   - Release numbers should be of the form x.y.z e.g.:
+#. Export the version number as an environment variable for later use:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        export VERSION=0.1.2
+      export VERSION=0.1.2
 
 #. Create an issue:
 

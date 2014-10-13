@@ -22,6 +22,8 @@ After each release is distributed, the engineer who performed the release will c
 The release engineer should then spend 4-8 hours working on making improvements to release process.
 If there is an issue that will likely take over 8 hours then they should consult the team manager before starting them.
 
+.. _version-numbers:
+
 Version Numbers
 ---------------
 
