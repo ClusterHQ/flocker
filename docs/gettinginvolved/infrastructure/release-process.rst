@@ -188,6 +188,8 @@ Review Process
           config.vm.box_version = "= 0"
       ...
 
+.. note:: It is the reviewer's job to also review the ``homebrew`` pull request which is created in the following release steps.
+
 .. warning:: The branch should not be merged yet.
              It should only be merged once it has been tagged, in the next series of steps.
 
