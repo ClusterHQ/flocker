@@ -52,7 +52,8 @@ class InstallApplication(object):
 
 @attributes(
     ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
-     'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture'])
+     'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture',
+     'description'])
 class BuildRpm(object):
     """
     Use `fpm` to build an RPM file from the supplied `source_path`.
@@ -79,6 +80,7 @@ class BuildRpm(object):
             '--vendor', self.vendor,
             '--maintainer', self.maintainer,
             '--architecture', architecture,
+            '--description', self.description,
             '.'], cwd=self.source_path.path
         )
 
@@ -171,6 +173,7 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
                 vendor='ClusterHQ',
                 maintainer='noreply@build.clusterhq.com',
                 architecture=None,
+                description='A Docker orchestration and volume management tool',
             )
         )
     )

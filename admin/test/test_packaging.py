@@ -24,6 +24,35 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
 
+def assert_equal_steps(test_case, expected, actual):
+    """
+    """
+    expected_steps = getattr(expected, 'steps')
+    actual_steps = getattr(actual, 'steps')
+    if None in (expected_steps, actual_steps):
+        test_case.assertEqual(expected, actual)
+    else:
+        mismatch_steps = []
+        missing_steps = []
+        for index, expected_step in enumerate(expected_steps):
+            try:
+                actual_step = actual_steps[index]
+            except IndexError:
+                missing_steps = expected_steps[index:]
+                break
+            if expected_step != actual_step:
+                mismatch_steps.append('expected: {} != actual: {}'.format(
+                    expected_step, actual_step))
+
+        if mismatch_steps or missing_steps:
+            test_case.fail(
+                'Step Mismatch\n'
+                'Mismatch: {}\n'
+                'Missing: {}\n'.format(mismatch_steps, missing_steps)
+            )
+
+
+
 def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
     """
     `actual_dict` contains all the items in `expected_dict`.
@@ -237,6 +266,7 @@ class BuildRpmTests(TestCase):
         expected_vendor = 'Acme Corporation'
         expected_maintainer = 'noreply@example.com'
         expected_architecture = 'i386'
+        expected_description = 'Explosive Tennis Balls'
         BuildRpm(
             destination_path=destination_path,
             source_path=source_path,
@@ -249,6 +279,7 @@ class BuildRpmTests(TestCase):
             vendor=expected_vendor,
             maintainer=expected_maintainer,
             architecture=expected_architecture,
+            description=expected_description,
         ).run()
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -289,6 +320,8 @@ class SumoRpmBuilderTests(TestCase):
         expected_vendor = 'ClusterHQ'
         expected_maintainer = 'noreply@build.clusterhq.com'
         expected_architecture = None
+        expected_description = 'A Docker orchestration and volume management tool'
+
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
@@ -306,10 +339,12 @@ class SumoRpmBuilderTests(TestCase):
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
                     architecture=expected_architecture,
+                    description=expected_description,
                 )
             )
         )
-        self.assertEqual(
+        assert_equal_steps(
+            self,
             expected,
             sumo_rpm_builder(expected_destination_path,
                              expected_package_path,
@@ -343,5 +378,6 @@ class SumoRpmBuilderTests(TestCase):
             Vendor='ClusterHQ',
             Packager='noreply@build.clusterhq.com',
             Architecture='noarch',
+            Description='A Docker orchestration and volume management tool',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
