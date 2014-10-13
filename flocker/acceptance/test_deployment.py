@@ -32,6 +32,8 @@ from flocker.testtools import random_name
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
+# TODO use this when adding / retrieving containers
+NAMESPACE = 'acceptance-testing-'
 
 def containers_running(ip):
     """
@@ -42,9 +44,7 @@ def containers_running(ip):
     which is hopefully doable with NamespacedDockerClient if that can be used
     over SSH.
     """
-    # Use runSSH
-    docker_ps = check_output([b"ssh"] + [b"root@" + ip] + [b"docker"] +
-                             [b"ps"])
+    docker_ps = runSSH(22, 'root', ip, [b"docker"] + [b"ps"], None)
     if docker_ps.startswith('CONTAINER ID'):
         containers = []
         for container in docker_ps.splitlines()[1:]:
@@ -125,12 +125,8 @@ def remove_all_containers(ip):
     """
     all_containers = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] + [b"-q"], None)
     for container in all_containers.splitlines():
-        try:
-            runSSH(22, 'root', ip, [b"docker"] + [b"stop"] + [container], None)
-            runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [container], None)
-        except:
-            # TODO why does this sometimes happen?
-            pass
+        runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] + [container], None)
+
 
 class DeploymentTests(TestCase):
     """
