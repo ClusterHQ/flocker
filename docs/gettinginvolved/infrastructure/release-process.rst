@@ -13,11 +13,11 @@ Outcomes
 
 By the end of the release process we will have:
 
-- a tag in version control
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_
-- Fedora 20 RPMs for software on the node and client
-- a Vagrant base tutorial image
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_
+- a tag in version control,
+- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
+- Fedora 20 RPMs for software on the node and client,
+- a Vagrant base tutorial image and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
 
 
 Prerequisites
