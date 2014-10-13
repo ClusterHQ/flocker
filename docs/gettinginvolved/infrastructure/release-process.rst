@@ -353,25 +353,21 @@ Appendix: Pre-populating RPM Repository
 
 These steps must be performed from a :doc:`Flocker development environment <vagrant>` because it has the HybridLogic Copr repository pre-installed.
 
-The steps are:
-
-- download all the latest binary and source packages from the Copr repository,
-- create a local repository,
-- upload to Google Cloud Storage using ``gsutil``.
-
 ::
 
    mkdir repo
-   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
-   createrepo repo
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
-
-
-::
-
    mkdir srpm
+
+   # Download all the latest binary and source packages from the Copr repository.
    yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
+   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
+
+   # Create local repositories.
+   createrepo repo
    createrepo srpm
+
+   # Upload to Google Cloud Storage using ``gsutil``.
+   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_6
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
 .. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
