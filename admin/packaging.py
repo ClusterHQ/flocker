@@ -48,6 +48,10 @@ class InstallApplication(object):
         check_call(
             [pip_path, '--quiet', 'install', self.package_path.path]
         )
+        # check_call(
+        #     ['virtualenv', '--quiet', '--relocatable', self.virtualenv_path.path],
+        #     env=dict(PYTHONDONTWRITEBYTECODE='1')
+        # )
 
 
 @attributes(
