@@ -26,6 +26,9 @@ class BuildSequence(object):
 class InstallVirtualEnv(object):
     """
     Install a virtualenv in the supplied `target_path`.
+
+    We call ``virtualenv`` as a subprocess rather than as a library, so that we
+    can turn off Python byte code compilation.
     """
     def run(self):
         check_call(
