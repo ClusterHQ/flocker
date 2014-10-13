@@ -309,6 +309,7 @@ Release
      .. code-block:: console
 
         brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
+        brew test flocker-${VERSION}.rb
 
    - Make a pull request
 
