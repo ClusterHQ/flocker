@@ -34,7 +34,9 @@ If the marketing department decides that this release is sufficiently important 
 
 ``Z`` is the "patch version".
 
-Weekly releases will have the version number of the next release with a ``devX`` suffix, where X starts at ``1`` and is incremented for each weekly release.
+Weekly releases will have the version number of the next release with a ``devX`` suffix, where ``X`` starts at ``1`` and is incremented for each weekly release.
+
+Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
 
 Patch Releases
 --------------
