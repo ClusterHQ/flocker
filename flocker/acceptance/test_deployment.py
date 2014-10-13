@@ -10,6 +10,7 @@ Run with:
 
 for the docker-in-docker stuff, else trial flocker.acceptance is fine
 """
+from json import loads
 from pipes import quote as shellQuote
 from subprocess import check_output, Popen, PIPE
 from unittest import skipUnless
@@ -32,48 +33,29 @@ from flocker.testtools import random_name
 _require_installed = skipUnless(which("flocker-deploy"),
                                 "flocker-deploy not installed")
 
-# TODO use this when adding / retrieving containers
-NAMESPACE = 'acceptance-testing-'
-
-def containers_running(ip):
+def running_units(ip):
     """
     Containers which are running on a node.
 
-    This is a hack and could hopefully use docker py.
-    This would be *much* better with namespacing,
-    which is hopefully doable with NamespacedDockerClient if that can be used
-    over SSH.
+    This is a hack and could hopefully use docker py over ssh.
     """
-    docker_ps = runSSH(22, 'root', ip, [b"docker"] + [b"ps"], None)
-    if docker_ps.startswith('CONTAINER ID'):
-        containers = []
-        for container in docker_ps.splitlines()[1:]:
-            container_id, image, command, created, status, ports, names = (
-                [section.strip() for section in container.split('  ') if
-                 section.strip() != ''])
+    containers = []
+    for container in running_container_ids(ip):
+        inspect = runSSH(22, 'root', ip, [b"docker"] + [b"inspect"] + [container], None)
+        details = loads(inspect)[0]
 
-            if status.startswith('Up'):
-                state = u'active'
-            else:
-                state = u'inactive'
+        # TODO use frozenset of PortMap instances from ``details`` for ports
+        # and check the activation state.
 
-            # TODO use frozenset of PortMap instances
-            ports = ()
+        unit = Unit(name=details.get('Name')[1:],
+                    container_name=details.get('Name')[1:],
+                    activation_state=u'active',
+                    container_image=details.get('Config').get('Image'),
+                    ports=(),
+                    )
+        containers.append(unit)
 
-            # TODO is the name right?
-            unit = Unit(name=names,
-                        container_name=names,
-                        activation_state=state,
-                        container_image=image,
-                        ports=ports,
-                        )
-            containers.append(unit)
-
-        return containers
-    else:
-        # The header is not correct, so it isn't the expected docker_ps
-        # outcome
-        raise Exception
+    return containers
 
 
 def runSSH(port, user, node, command, input, key=None):
@@ -230,7 +212,7 @@ class DeploymentTests(TestCase):
             },
         }))
 
-        containers_running_before = containers_running(self.node_1_ip)
+        containers_running_before = running_units(self.node_1_ip)
         deployment_config_path = temp.child(b"deployment.yml")
         deployment_config_path.setContent(safe_dump({
             u"version": 1,
@@ -246,7 +228,7 @@ class DeploymentTests(TestCase):
                      [deployment_config_path.path] +
                      [application_config_path.path])
 
-        containers_running_after = containers_running(self.node_1_ip)
+        containers_running_after = running_units(self.node_1_ip)
 
         new_containers = (set(containers_running_after) -
                           set(containers_running_before))
