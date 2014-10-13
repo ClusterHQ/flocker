@@ -185,6 +185,7 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    .. warning:: Do not merge the branch yet.
                 It should only be merged once it has been tagged, in the next series of steps.
+                Add a note to that effect in the pull request description.
 
 Release
 -------
