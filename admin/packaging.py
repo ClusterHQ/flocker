@@ -81,7 +81,7 @@ class BuildRpm(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
-#            '--exclude', '*.pyc',
+            '--exclude', '*.pyc',
             '.'], cwd=self.source_path.path
         )
 
