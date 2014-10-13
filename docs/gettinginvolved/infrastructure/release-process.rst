@@ -26,7 +26,7 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A :doc:`Flocker development machine <vagrant>` which has the following commands.
+- A :doc:`Flocker development machine <vagrant>`.
 - A web browser.
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
