@@ -43,12 +43,12 @@ Access
 Preparing For a Release
 -----------------------
 
-.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
+Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. code-block:: console
+.. code-block:: console
 
-                vagrant ssh -- -A
+   vagrant ssh -- -A
 
 #. Choose a version number:
 
