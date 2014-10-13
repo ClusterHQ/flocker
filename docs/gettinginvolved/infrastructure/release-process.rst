@@ -133,6 +133,20 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
+#. Make a pull request on GitHub
+
+   The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+
+   Wait for an accepted code review before continuing.
+
+   .. warning:: Do not merge the branch yet.
+                It should only be merged once it has been tagged, in the next series of steps.
+                Add a note to that effect in the pull request description.
+
+
+Review Process
+--------------
+
 #. Do the acceptance tests:
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
@@ -177,15 +191,6 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
           config.vm.box_version = "= 0"
       ...
 
-#. Make a pull request on GitHub
-
-   The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
-
-   Wait for an accepted code review before continuing.
-
-   .. warning:: Do not merge the branch yet.
-                It should only be merged once it has been tagged, in the next series of steps.
-                Add a note to that effect in the pull request description.
 
 Release
 -------
