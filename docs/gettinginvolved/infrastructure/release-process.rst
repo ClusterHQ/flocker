@@ -72,12 +72,8 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 #. Check that all required versions of the dependency packages are built:
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
-   #. Check that matching RPM packages are available on the ``clusterhq`` repository.
-      You can list the current contents of the ``clusterhq`` repository using the following command on Fedora.
-
-      .. code-block:: console
-
-         repoquery --repoid clusterhq --repofrompath clusterhq,http://archive.clusterhq.com/fedora/20/x86_64/ "*"
+   #. Compare it to the package versions listed in ``python-flocker.spec.in``.
+   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
 
    .. note:: XXX: Automate the checking of package versions.
              See https://github.com/ClusterHQ/flocker/issues/881.
