@@ -32,7 +32,9 @@ The current value of ``X`` is 0 until the project is ready for production.
 ClusterHQ's marketing department is made aware of the content of a release ahead of time.
 If the marketing department decides that this release is sufficiently important to publicize then ``Y`` is incremented and ``Z`` is set to 0.
 
-``Z`` is incremented for each standard weekly release.
+``Z`` is the "patch version".
+
+Weekly releases will have the version number of the next release with a ``devX`` suffix, where X starts at ``1`` and is incremented for each weekly release.
 
 Patch Releases
 --------------
