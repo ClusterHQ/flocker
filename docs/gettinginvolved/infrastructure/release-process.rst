@@ -308,6 +308,8 @@ Release
 
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
 
+     Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
+
    - Do not continue until the pull request is merged.
 
      Otherwise the documentation will refer to an unavailable ``homebrew`` recipe.
