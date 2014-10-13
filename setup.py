@@ -103,6 +103,8 @@ setup(
     },
 
     install_requires=[
+        # Any changes here must be reflected in ``python-flocker.spec.in`` so
+        # that RPM dependencies match.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
