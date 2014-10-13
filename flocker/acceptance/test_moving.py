@@ -29,17 +29,17 @@ class MoveTests(TestCase):
         """
         Test moving an application from one node to another.
         """
-        node_1_ip, node_2_ip = get_node_ips()
+        node_1, node_2 = get_node_ips()
         containers_running_before = {
-            node_1_ip: running_units(node_1_ip),
-            node_2_ip: running_units(node_2_ip),
+            node_1: running_units(node_1),
+            node_2: running_units(node_2),
         }
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
-        application_config_path = temp.child(b"application.yml")
-        application_config_path.setContent(safe_dump({
+        application_config = temp.child(b"application.yml")
+        application_config.setContent(safe_dump({
             u"version": 1,
             u"applications": {
                 u"mongodb-example": {
@@ -48,42 +48,42 @@ class MoveTests(TestCase):
             },
         }))
 
-        deployment_config_path = temp.child(b"deployment.yml")
-        deployment_config_path.setContent(safe_dump({
+        deployment_config = temp.child(b"deployment.yml")
+        deployment_config.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                node_1_ip: [u"mongodb-example"],
-                node_2_ip: [],
+                node_1: [u"mongodb-example"],
+                node_2: [],
             },
         }))
 
         check_output([b"flocker-deploy"] +
-                     [deployment_config_path.path] +
-                     [application_config_path.path])
+                     [deployment_config.path] +
+                     [application_config.path])
 
-        deployment_moved_config_path = temp.child(b"deployment.yml")
-        deployment_moved_config_path.setContent(safe_dump({
+        deployment_moved_config = temp.child(b"deployment.yml")
+        deployment_moved_config.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                node_1_ip: [],
-                node_2_ip: [u"mongodb-example"],
+                node_1: [],
+                node_2: [u"mongodb-example"],
             },
         }))
 
         check_output([b"flocker-deploy"] +
-                     [deployment_moved_config_path.path] +
-                     [application_config_path.path])
+                     [deployment_moved_config.path] +
+                     [application_config.path])
 
         containers_running_after = {
-            node_1_ip: running_units(node_1_ip),
-            node_2_ip: running_units(node_2_ip),
+            node_1: running_units(node_1),
+            node_2: running_units(node_2),
         }
 
         new_containers = {
-            node_1_ip: set(containers_running_after[node_1_ip]) -
-            set(containers_running_before[node_1_ip]),
-            node_2_ip: set(containers_running_after[node_2_ip]) -
-            set(containers_running_before[node_2_ip]),
+            node_1: set(containers_running_after[node_1]) -
+            set(containers_running_before[node_1]),
+            node_2: set(containers_running_after[node_2]) -
+            set(containers_running_before[node_2]),
         }
 
         # TODO why is the name not mongodb-example-data like it is in
@@ -97,7 +97,7 @@ class MoveTests(TestCase):
         self.assertEqual(
             new_containers,
             {
-                node_1_ip: set(),
-                node_2_ip: expected_new
+                node_1: set(),
+                node_2: expected_new
             }
         )

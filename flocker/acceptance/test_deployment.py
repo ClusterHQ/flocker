@@ -36,14 +36,14 @@ class DeploymentTests(TestCase):
         Call a 'deploy' utility function with an application and deployment
         config and watch docker ps output.
         """
-        node_1_ip, node_2_ip = get_node_ips()
-        containers_running_before = running_units(node_1_ip)
+        node_1, node_2 = get_node_ips()
+        containers_running_before = running_units(node_1)
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
-        application_config_path = temp.child(b"application.yml")
-        application_config_path.setContent(safe_dump({
+        application_config = temp.child(b"application.yml")
+        application_config.setContent(safe_dump({
             u"version": 1,
             u"applications": {
                 u"mongodb-example": {
@@ -52,22 +52,22 @@ class DeploymentTests(TestCase):
             },
         }))
 
-        deployment_config_path = temp.child(b"deployment.yml")
-        deployment_config_path.setContent(safe_dump({
+        deployment_config = temp.child(b"deployment.yml")
+        deployment_config.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                node_1_ip: [u"mongodb-example"],
-                node_2_ip: [],
+                node_1: [u"mongodb-example"],
+                node_2: [],
             },
         }))
 
         # How do we specify that the containers should be priviledged (so as
         # to be able to be run inside another docker container)
         check_output([b"flocker-deploy"] +
-                     [deployment_config_path.path] +
-                     [application_config_path.path])
+                     [deployment_config.path] +
+                     [application_config.path])
 
-        containers_running_after = running_units(node_1_ip)
+        containers_running_after = running_units(node_1)
 
         new_containers = (set(containers_running_after) -
                           set(containers_running_before))
