@@ -129,6 +129,7 @@ def remove_all_containers(ip):
             runSSH(22, 'root', ip, [b"docker"] + [b"stop"] + [container], None)
             runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [container], None)
         except:
+            # TODO why does this sometimes happen?
             pass
 
 class DeploymentTests(TestCase):
