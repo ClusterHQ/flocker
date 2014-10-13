@@ -52,7 +52,7 @@ class InstallApplication(object):
 
 @attributes(
     ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
-     'rpm_version', 'license', 'url', 'vendor', 'maintainer'])
+     'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture'])
 class BuildRpm(object):
     """
     Use `fpm` to build an RPM file from the supplied `source_path`.
@@ -60,6 +60,10 @@ class BuildRpm(object):
     def run(self):
         """
         """
+        architecture = self.architecture
+        if architecture is None:
+            architecture = 'all'
+
         check_call([
             'fpm',
             '-s', 'dir',
@@ -74,6 +78,7 @@ class BuildRpm(object):
             '--url', self.url,
             '--vendor', self.vendor,
             '--maintainer', self.maintainer,
+            '--architecture', architecture,
             '.'], cwd=self.source_path.path
         )
 
@@ -165,6 +170,7 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
                 url='https://clusterhq.com',
                 vendor='ClusterHQ',
                 maintainer='noreply@build.clusterhq.com',
+                architecture=None,
             )
         )
     )

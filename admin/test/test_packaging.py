@@ -236,6 +236,7 @@ class BuildRpmTests(TestCase):
         expected_url = 'https://www.example.com/foo/bar'
         expected_vendor = 'Acme Corporation'
         expected_maintainer = 'noreply@example.com'
+        expected_architecture = 'i386'
         BuildRpm(
             destination_path=destination_path,
             source_path=source_path,
@@ -247,6 +248,7 @@ class BuildRpmTests(TestCase):
             url=expected_url,
             vendor=expected_vendor,
             maintainer=expected_maintainer,
+            architecture=expected_architecture,
         ).run()
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -262,6 +264,7 @@ class BuildRpmTests(TestCase):
             Relocations=expected_prefix.path,
             Vendor=expected_vendor,
             Packager=expected_maintainer,
+            Architecture=expected_architecture,
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
 
@@ -285,6 +288,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_url = 'https://clusterhq.com'
         expected_vendor = 'ClusterHQ'
         expected_maintainer = 'noreply@build.clusterhq.com'
+        expected_architecture = None
         expected = BuildSequence(
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
@@ -301,6 +305,7 @@ class SumoRpmBuilderTests(TestCase):
                     url=expected_url,
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
+                    architecture=expected_architecture,
                 )
             )
         )
@@ -337,5 +342,6 @@ class SumoRpmBuilderTests(TestCase):
             Relocations=b'/opt/flocker',
             Vendor='ClusterHQ',
             Packager='noreply@build.clusterhq.com',
+            Architecture='noarch',
         )
         assert_rpm_headers(self, expected_headers, rpms[0])
