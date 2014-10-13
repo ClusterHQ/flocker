@@ -68,6 +68,13 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
 
+#. Create a branch for the release and push it to GitHub:
+
+   .. code-block:: console
+
+      git checkout -b release/flocker-${VERSION} origin/master
+      git push origin --set-upstream release/flocker-${VERSION}
+
 #. Check that all required versions of the dependency packages are built:
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
@@ -76,13 +83,6 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    .. note:: XXX: Automate the checking of package versions.
              See https://github.com/ClusterHQ/flocker/issues/881.
-
-#. Create a branch for the release and push it to GitHub:
-
-   .. code-block:: console
-
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
 
 #. Back port features from master (optional)
 
