@@ -137,15 +137,15 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
 
-   .. note:: You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
 
-             The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
 
-             To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
 
-             At the top, you should find a line beginning ``got version`` which contains the version string.
+   At the top, you should find a line beginning ``got version`` which contains the version string.
 
-             Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
+   Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
 
    .. code-block:: console
 
