@@ -30,8 +30,10 @@ class MoveTests(TestCase):
         Test moving an application from one node to another.
         """
         node_1_ip, node_2_ip = get_node_ips()
-        containers_running_before = {node_1_ip: running_units(node_1_ip),
-                                     node_2_ip: running_units(node_2_ip)}
+        containers_running_before = {
+            node_1_ip: running_units(node_1_ip),
+            node_2_ip: running_units(node_2_ip),
+        }
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
@@ -59,7 +61,6 @@ class MoveTests(TestCase):
                      [deployment_config_path.path] +
                      [application_config_path.path])
 
-
         deployment_moved_config_path = temp.child(b"deployment.yml")
         deployment_moved_config_path.setContent(safe_dump({
             u"version": 1,
@@ -73,13 +74,17 @@ class MoveTests(TestCase):
                      [deployment_moved_config_path.path] +
                      [application_config_path.path])
 
-        containers_running_after = {node_1_ip: running_units(node_1_ip),
-                                    node_2_ip: running_units(node_2_ip)}
+        containers_running_after = {
+            node_1_ip: running_units(node_1_ip),
+            node_2_ip: running_units(node_2_ip),
+        }
 
-        new_containers = {node_1_ip: set(containers_running_after[node_1_ip]) -
-                          set(containers_running_before[node_1_ip]),
-                          node_2_ip: set(containers_running_after[node_2_ip]) -
-                          set(containers_running_before[node_2_ip])}
+        new_containers = {
+            node_1_ip: set(containers_running_after[node_1_ip]) -
+            set(containers_running_before[node_1_ip]),
+            node_2_ip: set(containers_running_after[node_2_ip]) -
+            set(containers_running_before[node_2_ip]),
+        }
 
         # TODO why is the name not mongodb-example-data like it is in
         # test_deployment?
@@ -89,4 +94,10 @@ class MoveTests(TestCase):
                                  container_image=u'clusterhq/mongodb:latest',
                                  ports=(), environment=None, volumes=())])
 
-        self.assertEqual(new_containers, {node_1_ip: set(), node_2_ip: expected_new})
+        self.assertEqual(
+            new_containers,
+            {
+                node_1_ip: set(),
+                node_2_ip: expected_new
+            }
+        )

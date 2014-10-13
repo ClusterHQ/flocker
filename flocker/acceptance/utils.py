@@ -25,7 +25,7 @@ def running_units(ip):
     This is a hack and could hopefully use docker py over ssh.
     """
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
-                    None).splitlines()
+                           None).splitlines()
 
     containers = []
     for container in container_ids:
