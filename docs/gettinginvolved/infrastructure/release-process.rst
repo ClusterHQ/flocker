@@ -40,7 +40,7 @@ Access
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 
 
-Preparing for a release
+Preparing For a Release
 -----------------------
 
 .. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
