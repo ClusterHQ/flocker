@@ -23,7 +23,8 @@ def running_units(ip):
     Containers which are running on a node.
 
     This is a hack and could hopefully use docker py over ssh.
-    # TODO see DockerClient.list for a better way to do this
+    See DockerClient.list - much of this is taken from that and they could
+    hopefully be merged.
     """
     docker = DockerClient()
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
