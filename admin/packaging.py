@@ -27,6 +27,7 @@ class BuildSequence(object):
         for step in self.steps:
             step.run()
 
+
 @attributes(['target_path'])
 class InstallVirtualEnv(object):
     """
@@ -51,7 +52,7 @@ class InstallApplication(object):
     def run(self):
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
-            [pip_path, '--quiet', 'install', self.package_path.path]
+            [pip_path, '--quiet', 'install', self.package_path]
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable', self.virtualenv_path.path],

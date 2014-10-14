@@ -229,13 +229,13 @@ class InstallApplicationTests(TestCase):
         `InstallApplication.run` installs the supplied application in the
         `target_path`.
         """
-        expected_package_path = FilePath('/foo/bar')
+        expected_package_path = '/foo/bar'
         fake_env = fake_virtual_env(self)
         InstallApplication(
             virtualenv_path=fake_env.path,
             package_path=expected_package_path
         ).run()
-        expected_pip_args = ['--quiet', 'install', expected_package_path.path]
+        expected_pip_args = ['--quiet', 'install', expected_package_path]
         fake_env.assert_pip_args(expected_pip_args)
 
 
@@ -313,7 +313,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_name = 'Flocker'
         expected_prefix = FilePath('/opt/flocker')
         expected_epoch = b'0'
-        expected_package_path = FilePath('/foo/bar')
+        expected_package_path = '/foo/bar'
         expected_version = '0.3dev1'
         expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
@@ -363,7 +363,7 @@ class SumoRpmBuilderTests(TestCase):
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
         sumo_rpm_builder(
-            destination_path, FLOCKER_PATH, expected_python_version).run()
+            destination_path, FLOCKER_PATH.path, expected_python_version).run()
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
