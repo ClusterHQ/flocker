@@ -3,6 +3,8 @@
 """
 Tests for communication to applications.
 """
+import pexpect
+
 from subprocess import check_output
 from yaml import safe_dump
 
@@ -88,4 +90,44 @@ class PortsTests(TestCase):
         An application can be accessed even from a connection to a node
         which it is not running on.
         """
-        pass
+        # TODO Put this stuff in setUp
+        node_1, node_2 = get_nodes(num_nodes=2)
+
+        temp = FilePath(self.mktemp())
+        temp.makedirs()
+
+        application_config = temp.child(b"application.yml")
+        application_config.setContent(safe_dump({
+            u"version": 1,
+            u"applications": {
+                u"mongodb-port-example": {
+                    u"image": u"clusterhq/mongodb",
+                    u"ports": [{
+                        u"internal": 27017,
+                        u"external": 27017,
+                    }],
+                },
+            },
+        }))
+
+        deployment_config = temp.child(b"deployment.yml")
+        deployment_config.setContent(safe_dump({
+            u"version": 1,
+            u"nodes": {
+                node_1: [u"mongodb-port-example"],
+                node_2: [],
+            },
+        }))
+
+        flocker_deploy(deployment_config, application_config)
+
+        child = pexpect.spawn ('mongo ' + node_1)
+        # TODO Improve this expectation
+        child.expect('.*')
+        child.sendline('use example;')
+        child.expect('switched to db example')
+        child.sendline('db.records.insert({"flocker": "tested"})')
+        child.sendline('db.records.insert({"flocker": "tested"})')
+        child.sendline('db.records.find({})')
+        child.expect('{ "_id" : ObjectId.*')
+
