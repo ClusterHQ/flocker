@@ -11,7 +11,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit, PortMap
 
-from .utils import running_units, require_installed, get_nodes
+from .utils import running_units, require_installed, get_nodes, flocker_deploy
 
 
 class PortsTests(TestCase):
@@ -42,7 +42,7 @@ class PortsTests(TestCase):
                     u"image": u"clusterhq/mongodb",
                     u"ports": [{
                         u"internal": 27017,
-                        u"external": 27018,
+                        u"external": 27017,
                     }],
                 },
             },
@@ -57,9 +57,7 @@ class PortsTests(TestCase):
             },
         }))
 
-        check_output([b"flocker-deploy"] +
-                     [deployment_config.path] +
-                     [application_config.path])
+        flocker_deploy(deployment_config, application_config)
 
         running = {
             node_1: running_units(node_1),
@@ -67,12 +65,12 @@ class PortsTests(TestCase):
         }
 
         expected = set([
-            Unit(name=u'/mongodb-port-example-data',
-                 container_name=u'/mongodb-port-example-data',
-                 activation_state=u'inactive',
+            Unit(name=u'/mongodb-port-example',
+                 container_name=u'/mongodb-port-example',
+                 activation_state=u'active',
                  container_image=u'clusterhq/mongodb:latest',
                  ports=frozenset([
-                     PortMap(internal_port=27017, external_port=27018)
+                     PortMap(internal_port=27017, external_port=27017)
                  ]),
                  environment=None, volumes=())
         ])

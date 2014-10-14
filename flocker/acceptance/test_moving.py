@@ -11,7 +11,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-from .utils import running_units, require_installed, get_nodes
+from .utils import running_units, require_installed, get_nodes, flocker_deploy
 
 
 class MoveTests(TestCase):
@@ -53,9 +53,7 @@ class MoveTests(TestCase):
             },
         }))
 
-        check_output([b"flocker-deploy"] +
-                     [deployment_config.path] +
-                     [application_config.path])
+        flocker_deploy(deployment_config, application_config)
 
         deployment_moved_config = temp.child(b"deployment.yml")
         deployment_moved_config.setContent(safe_dump({
@@ -66,17 +64,13 @@ class MoveTests(TestCase):
             },
         }))
 
-        check_output([b"flocker-deploy"] +
-                     [deployment_moved_config.path] +
-                     [application_config.path])
+        flocker_deploy(deployment_moved_config, application_config)
 
         running = {
             node_1: running_units(node_1),
             node_2: running_units(node_2),
         }
 
-        # TODO why is the name not mongodb-example-data like it is in
-        # test_deployment?
         expected = set([
             Unit(name=u'/mongodb-example',
                  container_name=u'/mongodb-example',

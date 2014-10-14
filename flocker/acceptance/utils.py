@@ -2,7 +2,8 @@
 
 from json import loads
 from pipes import quote as shellQuote
-from subprocess import Popen, PIPE
+from subprocess import check_output, Popen, PIPE
+from time import sleep
 from unittest import skipUnless
 
 from docker import Client
@@ -196,5 +197,11 @@ def get_nodes(num_nodes):
     d.addCallback(get_ips)
     return d
 
-# TODO Make flocker-deploy a utility function - wait for containers to be
-# active?
+def flocker_deploy(deployment_config, application_config):
+    # How do we specify that the containers should be priviledged (so as
+    # to be able to be run inside another docker container)
+    check_output([b"flocker-deploy"] +
+                 [deployment_config.path] +
+                 [application_config.path])
+    # TODO Use something like wait_for_active instead of this
+    sleep(2)

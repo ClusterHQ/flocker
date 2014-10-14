@@ -9,7 +9,6 @@ Run with:
 
 if using Docker-in-Docker, else trial flocker.acceptance is fine
 """
-from subprocess import check_output
 from yaml import safe_dump
 
 from twisted.python.filepath import FilePath
@@ -17,7 +16,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-from .utils import running_units, require_installed, get_nodes
+from .utils import running_units, require_installed, get_nodes, flocker_deploy
 
 
 class DeploymentTests(TestCase):
@@ -60,16 +59,12 @@ class DeploymentTests(TestCase):
             },
         }))
 
-        # How do we specify that the containers should be priviledged (so as
-        # to be able to be run inside another docker container)
-        check_output([b"flocker-deploy"] +
-                     [deployment_config.path] +
-                     [application_config.path])
+        flocker_deploy(deployment_config, application_config)
 
         expected = set([
-            Unit(name=u'/mongodb-example-data',
-                 container_name=u'/mongodb-example-data',
-                 activation_state=u'inactive',
+            Unit(name=u'/mongodb-example',
+                 container_name=u'/mongodb-example',
+                 activation_state=u'active',
                  container_image=u'clusterhq/mongodb:latest',
                  ports=frozenset(), environment=None, volumes=())
         ])
