@@ -13,6 +13,8 @@ from twisted.python import usage
 
 from characteristic import attributes
 
+import flocker
+
 from .release import make_rpm_version
 
 
@@ -238,7 +240,7 @@ class BuildScript(object):
         options = BuildOptions()
 
         try:
-            options.parseOptions(self.sys_module.argv)
+            options.parseOptions(self.sys_module.argv[1:])
         except usage.UsageError as e:
             self.sys_module.stderr.write("%s\n" % (options,))
             self.sys_module.stderr.write("%s\n" % (e,))
@@ -247,6 +249,7 @@ class BuildScript(object):
         self.build_command(
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
+            version=flocker.__version__,
         ).run()
 
 main = BuildScript().main

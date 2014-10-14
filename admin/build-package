@@ -10,4 +10,4 @@ import sys
 
 from admin.packaging import main
 
-main(argv=sys.argv[1:], top_level=TOPLEVEL, base_path=BASEPATH)
+main(top_level=TOPLEVEL, base_path=BASEPATH)
