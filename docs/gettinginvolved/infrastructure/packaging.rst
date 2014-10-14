@@ -15,7 +15,7 @@ The package will install ``Flocker`` (and all its dependencies) into ``/opt/floc
 Dependencies
 ------------
 
-Flocker depends on a number of packages which aren't available in fedora,
+Flocker depends on a number of packages which aren't available in Fedora,
 or newer versions than are available there.
 So the ``build-package`` script bundles those packages into the RPM.
 We refer to these as "sumo" packages.
