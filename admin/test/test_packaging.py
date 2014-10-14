@@ -9,6 +9,7 @@ from unittest import skipIf
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
+from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase
 
 from ..packaging import (
@@ -431,10 +432,21 @@ class BuildOptionsTests(TestCase):
 
     def test_defaults(self):
         """
+        ``BuildOptions`` default destination and package path default to the
+        current working directory.
         """
-        options = BuildOptions()
         expected_defaults = {
             'destination-path': '.',
             'package-path': '.',
         }
-        self.assertEqual(expected_defaults, options)
+        self.assertEqual(expected_defaults, BuildOptions())
+
+
+    def test_package_uri_missing(self):
+        """
+        ``BuildOptions`` requires a single positional argument describing the
+        location of the Python package which is being packaged.
+        """
+        exception = self.assertRaises(
+            UsageError, BuildOptions().parseOptions, [])
+        self.assertEqual('Wrong number of arguments.', str(exception))

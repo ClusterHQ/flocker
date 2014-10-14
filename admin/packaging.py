@@ -226,6 +226,7 @@ class BuildOptions(usage.Options):
                 'Unsupported package-type: {}.'.format(self['package-type'])
             )
 
+
 def main(argv, top_level, base_path):
     """
     Build a package.
