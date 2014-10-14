@@ -221,7 +221,7 @@ class BuildOptions(usage.Options):
     def postOptions(self):
         """
         """
-        self['destination_path'] = FilePath(self['destination-path'])
+        self['destination-path'] = FilePath(self['destination-path'])
 
         if self['package-type'] not in self.supported_package_types:
             raise usage.UsageError(
