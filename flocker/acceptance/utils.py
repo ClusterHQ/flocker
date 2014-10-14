@@ -14,11 +14,11 @@ from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit
 from flocker.testtools import random_name
 
 __all__ = [
-    # TODO Make things not here private
     'running_units', 'remove_all_containers', 'require_installed',
     ]
 
 
+# TODO Make a "RemoteDockerClient"?
 def running_units(ip):
     """
     Containers which are running on a node.
@@ -151,7 +151,6 @@ def get_nodes(num_nodes):
     Return a list of ip addresses.
     """
     if USE_VAGRANT:
-        # TODO Raise exception if num_nodes is not 2
         node_1 = "172.16.255.250"
         node_2 = "172.16.255.251"
         # As a horrid workaround for not having namespacing support
@@ -163,7 +162,7 @@ def get_nodes(num_nodes):
 
     namespace = u"acceptance-tests"
     client = NamespacedDockerClient(namespace)
-    # TODO use num_nodes
+    # TODO use num_nodes instead of just 2 nodes
     node_1_name = random_name()
     node_2_name = random_name()
     image = u"openshift/busybox-http-app"
