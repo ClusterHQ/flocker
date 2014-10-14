@@ -441,7 +441,6 @@ class BuildOptionsTests(TestCase):
         }
         self.assertEqual(expected_defaults, BuildOptions())
 
-
     def test_package_uri_missing(self):
         """
         ``BuildOptions`` requires a single positional argument describing the
@@ -450,3 +449,14 @@ class BuildOptionsTests(TestCase):
         exception = self.assertRaises(
             UsageError, BuildOptions().parseOptions, [])
         self.assertEqual('Wrong number of arguments.', str(exception))
+
+    def test_package_uri_supplied(self):
+        """
+        ``BuildOptions`` saves the supplied ``package-uri``.
+        """
+        expected_uri = 'http://www.example.com/foo-bar.whl'
+
+        options = BuildOptions()
+        options.parseOptions([expected_uri])
+
+        self.assertEqual(expected_uri, options['package-uri'])

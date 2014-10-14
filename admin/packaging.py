@@ -200,8 +200,6 @@ class BuildOptions(usage.Options):
         ['destination-path', 'd', '.',
          'The path to a directory in which to create package files and '
          'artifacts.'],
-        ['package-path', 'p', '.',
-         'The path or URL of the package which will be installed using pip.'],
     ]
     supported_package_types = ('rpm',)
     longdesc = dedent("""\
@@ -210,21 +208,16 @@ class BuildOptions(usage.Options):
     <package-type>: One of {}
     """.format(' '.join(supported_package_types)))
 
-    def parseArgs(self, package_type):
+    def parseArgs(self, package_uri):
         """
-        The type of package to build.
+        The Python package to install.
         """
-        self['package-type'] = package_type
+        self['package-uri'] = package_uri
 
     def postOptions(self):
         """
         """
         self['destination-path'] = FilePath(self['destination-path'])
-
-        if self['package-type'] not in self.supported_package_types:
-            raise usage.UsageError(
-                'Unsupported package-type: {}.'.format(self['package-type'])
-            )
 
 
 def main(argv, top_level, base_path):
