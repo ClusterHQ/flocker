@@ -1,11 +1,18 @@
+Flocker 0.3.0dev1 (2014-10-08)
+==============================
+
+- ``geard`` has been removed in favour of direct interaction with the Docker API. (#774, #712)
+- Fig compatible application configuration support. (#649)
+- Improvements to infrastructure scripts. (#867)
+
 Flocker 0.2.0 (2014-09-30)
 ==========================
 - Two Phase Push. Reduces downtime during application migration. (#46, #657, #658, #669)
 - Network links. Applications in separate containers can now connect via TCP, even when they are on separate nodes. (#91, #33, #201)
 - Environment variables. Applications can now be supplied with environment variables. (#95, #568, #569, #586, #593)
-- Flocker can be installed on OS X using Homebrew (#498)
-- Documentation is now automatically spell-checked (#484, #622)
-- A "Frequently Asked Questions" section has been added to the documentation (#348)
+- Flocker can be installed on OS X using Homebrew. (#498)
+- Documentation is now automatically spell-checked. (#484, #622)
+- A "Frequently Asked Questions" section has been added to the documentation. (#348)
 
 Flocker 0.1.0 (2014-08-12)
 ==========================

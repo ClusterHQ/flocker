@@ -5,7 +5,7 @@ Release Process
 
    Make sure to follow the `latest documentation`_ when doing a release.
 
-.. _latest documentation: https://docs.clusterhq.com/en/latest/gettinginvolved/infrastructure/release-process.html
+.. _latest documentation: http://doc-dev.clusterhq.com/gettinginvolved/infrastructure/release-process.html
 
 
 Outcomes
@@ -13,11 +13,11 @@ Outcomes
 
 By the end of the release process we will have:
 
-- a tag in version control
-- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_
-- Fedora 20 RPMs for software on the node and client
-- a Vagrant base tutorial image
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_
+- a tag in version control,
+- a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
+- Fedora 20 RPMs for software on the node and client,
+- a Vagrant base tutorial image and
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
 
 
 Prerequisites
@@ -26,59 +26,41 @@ Prerequisites
 Software
 ~~~~~~~~
 
-- A :doc:`Flocker development machine <vagrant>` which has the following commands:
-
-  - ``rpmbuild``
-  - ``createrepo``
-  - ``yumdownloader``
-
-- a web browser
-
-- an up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_
-
-- an up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_
+- A :doc:`Flocker development machine <vagrant>`.
+- A web browser.
+- An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
+- An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
 
 Access
 ~~~~~~
 
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
-
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 
 
-Preparing for a release
+Preparing For a Release
 -----------------------
 
-.. warning:: The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-             Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
+The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
+Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
 
-             .. code-block:: console
+.. code-block:: console
 
-                vagrant ssh -- -A
+   vagrant ssh -- -A
 
-#. Choose a version number:
+#. Choose a version number according to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-   - Release numbers should be of the form x.y.z e.g.:
+#. Export the version number as an environment variable for later use:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        export VERSION=0.1.2
+      export VERSION=0.1.2
 
 #. Create an issue:
 
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
-
-#. Check that all required versions of the dependency packages are built:
-
-   #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
-   #. Check that matching RPM packages are available on the ``clusterhq`` repository.
-      You can list the current contents of the ``clusterhq`` repository using the following command on Fedora.
-
-      .. code-block:: console
-
-         repoquery --repoid clusterhq --repofrompath clusterhq,http://archive.clusterhq.com/fedora/20/x86_64/ "*"
 
 #. Create a clean, local working copy of Flocker with no modifications:
 
@@ -93,6 +75,15 @@ Preparing for a release
       git checkout -b release/flocker-${VERSION} origin/master
       git push origin --set-upstream release/flocker-${VERSION}
 
+#. Check that all required versions of the dependency packages are built:
+
+   #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
+   #. Compare it to the package versions listed in ``python-flocker.spec.in``.
+   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
+
+   .. note:: XXX: Automate the checking of package versions.
+             See https://github.com/ClusterHQ/flocker/issues/881.
+
 #. Back port features from master (optional)
 
    The release may require certain changes to be back ported from the master branch.
@@ -100,13 +91,13 @@ Preparing for a release
 
 #. Update the version numbers in:
 
-   - the ``yum install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_ and
+   - the ``pip install`` line in
+     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
    - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output)
-   - The "Next Release" line in
-     `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_
+     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
+   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
+   - the "Next Release" line in
+     `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
    - Commit the changes:
 
      .. code-block:: console
@@ -141,20 +132,69 @@ Preparing for a release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
-#. Do the acceptance tests:
-
-   .. code-block:: console
-
-      trial flocker.acceptance
-
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
 
    Wait for an accepted code review before continuing.
 
-   .. warning:: Do not merge the branch yet.
-                It should only be merged once it has been tagged, in the next series of steps.
+   .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
+
+
+Review Process
+--------------
+
+#. Do the acceptance tests:
+
+   .. code-block:: console
+
+      trial flocker.acceptance
+
+   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+
+   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+
+   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+
+   At the top, you should find a line beginning ``got version`` which contains the version string.
+
+   Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
+
+   .. code-block:: console
+
+      vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
+
+   Then add the resulting box to ``vagrant`` using the following command:
+
+   .. code-block:: console
+
+      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
+
+   You should now see that box listed:
+
+   .. code-block:: console
+
+      $ vagrant box list
+      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+      clusterhq/flocker-tutorial (virtualbox, 0)
+
+   Finally follow the BuildBot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+
+   .. code-block:: console
+
+      $ cat flocker-tutorial/Vagrantfile
+      ...
+      Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+          config.vm.box = "clusterhq/flocker-tutorial"
+          config.vm.box_version = "= 0"
+      ...
+
+.. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
+          See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
+
+.. warning:: The branch should not be merged yet.
+             It should only be merged once it has been tagged, in the next series of steps.
 
 Release
 -------
@@ -216,31 +256,12 @@ Release
 
 #. Build and upload the tutorial :ref:`vagrant box <build-vagrant-box>`.
 
-#. Build tagged docs at Read the Docs:
-
-   #. Force Read the Docs to reload the repository
-
-      There is a GitHub webhook which should notify Read The Docs about changes in the Flocker repository, but it sometimes fails.
-      Force an update by running:
-
-      .. code-block:: console
-
-         curl -X POST http://readthedocs.org/build/flocker
-
-   #. Go to the `Read the Docs dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
-   #. Enable the version being released.
-   #. Wait for the documentation to build.
-      The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version to that version.
-
-      .. warning:: Skip this step for weekly releases and pre-releases.
-                   The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-                   We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-                   Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
+   .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
+                **not** on a :doc:`Flocker development machine <vagrant>`.
 
 #. Update the Homebrew recipe
 
-   The aim of this step is to provide a version specific ``homebrew`` recipe for each release.
+   The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
 
    - Checkout the `homebrew-tap`_ repository.
 
@@ -252,8 +273,8 @@ Release
 
      .. code-block:: console
 
-        git checkout -b release/flocker-${VERSION%pre*} origin/master
-        git push origin --set-upstream release/flocker-${VERSION%pre*}
+        git checkout -b release/flocker-${VERSION} origin/master
+        git push origin --set-upstream release/flocker-${VERSION}
 
    - Create a ``flocker-${VERSION}.rb`` file
 
@@ -281,7 +302,7 @@ Release
 
        .. code-block:: console
 
-          git commit -am "Bumped version number and checksum in homebrew recipe"
+          git commit -am "Bumped version number and checksum in Homebrew recipe"
           git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed
@@ -291,10 +312,39 @@ Release
      .. code-block:: console
 
         brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
+        brew test flocker-${VERSION}.rb
 
    - Make a pull request
 
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
+
+     Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
+
+   - Do not continue until the pull request is merged.
+
+     Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
+
+#. Build tagged docs at Read the Docs:
+
+   #. Force Read the Docs to reload the repository
+
+      There is a GitHub webhook which should notify Read The Docs about changes in the Flocker repository, but it sometimes fails.
+      Force an update by running:
+
+      .. code-block:: console
+
+         curl -X POST http://readthedocs.org/build/flocker
+
+   #. Go to the `Read the Docs dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+   #. Enable the version being released.
+   #. Wait for the documentation to build.
+      The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
+   #. Set the default version to that version.
+
+      .. warning:: Skip this step for weekly releases and pre-releases.
+                   The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
+                   We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
+                   Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
 
 #. Merge the release branch
 
@@ -316,25 +366,24 @@ Appendix: Pre-populating RPM Repository
 
 .. warning:: This only needs to be done if the dependency packages for Flocker (e.g. 3rd party Python libraries) change; it should *not* be done every release.
              If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository!
-             XXX How does one know?
 
-These steps must be performed from a machine with the ClusterHQ Copr repository installed.
-You can either use the :doc:`Flocker development environment <vagrant>`
-or install the Copr repository locally by running ``curl https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo >/etc/yum.repos.d/hybridlogic.repo``
+These steps must be performed from a :doc:`Flocker development environment <vagrant>` because it has the HybridLogic Copr repository pre-installed.
 
 ::
 
    mkdir repo
-   yumdownloader --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
-   createrepo repo
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
-
-
-::
-
    mkdir srpm
-   yumdownloader --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted
+
+   # Download all the latest binary and source packages from the Copr repository.
+   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
+   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil
+
+   # Create local repositories.
+   createrepo repo
    createrepo srpm
+
+   # Upload to Google Cloud Storage using ``gsutil``.
+   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_6
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
 .. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
