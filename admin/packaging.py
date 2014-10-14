@@ -96,7 +96,7 @@ class BuildRpm(object):
         )
 
 
-def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
+def sumo_rpm_builder(destination_path, package_uri, version, target_dir=None):
     """
     Build an RPM file containing the supplied `package` and all its
     dependencies.
@@ -171,7 +171,7 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
         steps=(
             InstallVirtualEnv(target_path=target_dir),
             InstallApplication(virtualenv_path=target_dir,
-                               package_path=package_path),
+                               package_path=package_uri),
             BuildRpm(
                 destination_path=destination_path,
                 source_path=target_dir,
@@ -238,5 +238,5 @@ def main(argv, top_level, base_path):
 
     sumo_rpm_builder(
         destination_path=options['destination-path'],
-        package_path=options['package-path'],
+        package_uri=options['package-uri'],
     ).run()
