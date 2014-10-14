@@ -3,17 +3,22 @@
 """
 Tests for communication to applications.
 """
+from unittest import skipUnless
 from yaml import safe_dump
 
 from pexpect import spawn
 
 from twisted.python.filepath import FilePath
+from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit, PortMap
 
 from .utils import running_units, require_installed, get_nodes, flocker_deploy
 
+
+require_mongo = skipUnless(which("mongo"),
+                           "The mongo shell is not available.")
 
 class PortsTests(TestCase):
     """
@@ -82,6 +87,7 @@ class PortsTests(TestCase):
             [set([unit]), set()]
         )
 
+    @require_mongo
     def test_traffic_routed(self):
         """
         An application can be accessed even from a connection to a node
