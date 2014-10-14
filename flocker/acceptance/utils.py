@@ -13,6 +13,14 @@ from twisted.python.procutils import which
 from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit
 from flocker.testtools import random_name
 
+# TODO link from the documentation to the tests
+# TODO try to use docker client - modify the vagrant image to allow it
+# TODO document how someone would use this
+# TODO split out the vagrant stuff from the docker stuff
+# TODO create issues for follow up - ELK/PostgreSQL, Docker-in-Docker
+# TODO if num_nodes is not 2, raise an exception
+# TODO run coverage
+
 __all__ = [
     'running_units', 'remove_all_containers', 'require_installed',
     ]
