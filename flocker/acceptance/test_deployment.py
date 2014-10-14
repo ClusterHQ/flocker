@@ -37,7 +37,6 @@ class DeploymentTests(TestCase):
         config and watch docker ps output.
         """
         node_1, node_2 = get_nodes(num_nodes=2)
-        containers_running_before = running_units(node_1)
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
@@ -67,15 +66,10 @@ class DeploymentTests(TestCase):
                      [deployment_config.path] +
                      [application_config.path])
 
-        containers_running_after = running_units(node_1)
+        expected = [Unit(name=u'mongodb-example-data',
+                         container_name=u'mongodb-example-data',
+                         activation_state=u'active',
+                         container_image=u'clusterhq/mongodb:latest',
+                         ports=(), environment=None, volumes=())]
 
-        new_containers = (set(containers_running_after) -
-                          set(containers_running_before))
-
-        expected = set([Unit(name=u'mongodb-example-data',
-                             container_name=u'mongodb-example-data',
-                             activation_state=u'active',
-                             container_image=u'clusterhq/mongodb:latest',
-                             ports=(), environment=None, volumes=())])
-
-        self.assertEqual(new_containers, expected)
+        self.assertEqual(running_units(node_1), expected)

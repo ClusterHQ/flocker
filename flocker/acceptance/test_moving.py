@@ -30,10 +30,6 @@ class MoveTests(TestCase):
         Test moving an application from one node to another.
         """
         node_1, node_2 = get_nodes(num_nodes=2)
-        containers_running_before = {
-            node_1: running_units(node_1),
-            node_2: running_units(node_2),
-        }
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
@@ -74,30 +70,23 @@ class MoveTests(TestCase):
                      [deployment_moved_config.path] +
                      [application_config.path])
 
-        containers_running_after = {
+        running = {
             node_1: running_units(node_1),
             node_2: running_units(node_2),
         }
 
-        new_containers = {
-            node_1: set(containers_running_after[node_1]) -
-            set(containers_running_before[node_1]),
-            node_2: set(containers_running_after[node_2]) -
-            set(containers_running_before[node_2]),
-        }
-
         # TODO why is the name not mongodb-example-data like it is in
         # test_deployment?
-        expected_new = set([Unit(name=u'mongodb-example',
-                                 container_name=u'mongodb-example',
-                                 activation_state=u'active',
-                                 container_image=u'clusterhq/mongodb:latest',
-                                 ports=(), environment=None, volumes=())])
+        expected_new = [Unit(name=u'mongodb-example',
+                             container_name=u'mongodb-example',
+                             activation_state=u'active',
+                             container_image=u'clusterhq/mongodb:latest',
+                             ports=(), environment=None, volumes=())]
 
         self.assertEqual(
-            new_containers,
+            running,
             {
-                node_1: set(),
+                node_1: [],
                 node_2: expected_new
             }
         )

@@ -27,7 +27,7 @@ def running_units(ip):
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
                            None).splitlines()
 
-    containers = []
+    units = []
     for container in container_ids:
         inspect = runSSH(22, 'root', ip, [b"docker"] + [b"inspect"] +
                          [container], None)
@@ -42,9 +42,9 @@ def running_units(ip):
                     container_image=details['Config']['Image'],
                     ports=(),
                     )
-        containers.append(unit)
+        units.append(unit)
 
-    return containers
+    return units
 
 
 def remove_all_containers(ip):
