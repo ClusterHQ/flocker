@@ -230,13 +230,13 @@ class InstallApplicationTests(TestCase):
         `InstallApplication.run` installs the supplied application in the
         `target_path`.
         """
-        expected_package_path = '/foo/bar'
+        expected_package_uri = '/foo/bar'
         fake_env = fake_virtual_env(self)
         InstallApplication(
             virtualenv_path=fake_env.path,
-            package_path=expected_package_path
+            package_uri=expected_package_uri
         ).run()
-        expected_pip_args = ['--quiet', 'install', expected_package_path]
+        expected_pip_args = ['--quiet', 'install', expected_package_uri]
         fake_env.assert_pip_args(expected_pip_args)
 
 
@@ -314,7 +314,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_name = 'Flocker'
         expected_prefix = FilePath('/opt/flocker')
         expected_epoch = b'0'
-        expected_package_path = '/foo/bar'
+        expected_package_uri = '/foo/bar'
         expected_version = '0.3dev1'
         expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
@@ -327,7 +327,7 @@ class SumoRpmBuilderTests(TestCase):
             steps=(
                 InstallVirtualEnv(target_path=expected_target_path),
                 InstallApplication(virtualenv_path=expected_target_path,
-                                   package_path=expected_package_path),
+                                   package_uri=expected_package_uri),
                 BuildRpm(
                     destination_path=expected_destination_path,
                     source_path=expected_target_path,
@@ -348,7 +348,7 @@ class SumoRpmBuilderTests(TestCase):
             self,
             expected,
             sumo_rpm_builder(expected_destination_path,
-                             expected_package_path,
+                             expected_package_uri,
                              expected_version,
                              target_dir=expected_target_path))
 

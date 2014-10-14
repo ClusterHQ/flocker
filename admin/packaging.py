@@ -15,8 +15,6 @@ from characteristic import attributes
 
 from .release import make_rpm_version
 
-import flocker
-
 
 @attributes(['steps'])
 class BuildSequence(object):
@@ -43,16 +41,16 @@ class InstallVirtualEnv(object):
         )
 
 
-@attributes(['virtualenv_path', 'package_path'])
+@attributes(['virtualenv_path', 'package_uri'])
 class InstallApplication(object):
     """
-    Install the supplied `package_path` using `pip` from the supplied
+    Install the supplied `package_uri` using `pip` from the supplied
     `virtualenv_path`.
     """
     def run(self):
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
-            [pip_path, '--quiet', 'install', self.package_path]
+            [pip_path, '--quiet', 'install', self.package_uri]
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable', self.virtualenv_path.path],
@@ -171,7 +169,7 @@ def sumo_rpm_builder(destination_path, package_uri, version, target_dir=None):
         steps=(
             InstallVirtualEnv(target_path=target_dir),
             InstallApplication(virtualenv_path=target_dir,
-                               package_path=package_uri),
+                               package_uri=package_uri),
             BuildRpm(
                 destination_path=destination_path,
                 source_path=target_dir,
