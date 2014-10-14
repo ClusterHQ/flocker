@@ -466,7 +466,7 @@ class BuildOptionsTests(TestCase):
 class BuildScriptOptions(TestCase):
     """
     """
-    def test_usage_error(self):
+    def test_usage_error_status(self):
         """
         ``BuildScript.main`` raises ``SystemExit`` if there are missing command
         line options.
@@ -475,3 +475,19 @@ class BuildScriptOptions(TestCase):
         script = BuildScript(sys_module=fake_sys_module)
         exception = self.assertRaises(SystemExit, script.main)
         self.assertEqual(1, exception.code)
+
+    def test_usage_error_message(self):
+        """
+        ``BuildScript.main`` prints a usage error to ``stderr`` if there are
+        missing command line options.
+        """
+        fake_sys_module = FakeSysModule(argv=[])
+        script = BuildScript(sys_module=fake_sys_module)
+        try:
+            script.main()
+        except SystemExit:
+            pass
+        self.assertEqual(
+            'Wrong number of arguments.',
+            fake_sys_module.stderr.getvalue().splitlines()[-1]
+        )
