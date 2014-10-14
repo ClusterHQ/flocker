@@ -25,9 +25,10 @@ class MoveTests(TestCase):
     def setUp(self):
         pass
 
-    def test_move(self):
+    def test_moving(self):
         """
-        Test moving an application from one node to another.
+        After deploying an application to one node and then moving it onto
+        another node, it is only on the second node.
         """
         node_1, node_2 = get_nodes(num_nodes=2)
 
@@ -66,23 +67,13 @@ class MoveTests(TestCase):
 
         flocker_deploy(deployment_moved_config, application_config)
 
-        running = {
-            node_1: running_units(node_1),
-            node_2: running_units(node_2),
-        }
-
-        expected = set([
-            Unit(name=u'/mongodb-example',
-                 container_name=u'/mongodb-example',
-                 activation_state=u'active',
-                 container_image=u'clusterhq/mongodb:latest',
-                 ports=frozenset(), environment=None, volumes=())
-        ])
+        unit = Unit(name=u'/mongodb-example',
+                    container_name=u'/mongodb-example',
+                    activation_state=u'active',
+                    container_image=u'clusterhq/mongodb:latest',
+                    ports=frozenset(), environment=None, volumes=())
 
         self.assertEqual(
-            running,
-            {
-                node_1: set(),
-                node_2: expected,
-            }
+            [running_units(node_1), running_units(node_2)],
+            [set(), set([unit])]
         )

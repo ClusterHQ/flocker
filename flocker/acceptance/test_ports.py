@@ -6,7 +6,6 @@ Tests for communication to applications.
 from subprocess import check_output
 from yaml import safe_dump
 
-# TODO add this to the dev requirements
 from pexpect import spawn
 
 from twisted.python.filepath import FilePath

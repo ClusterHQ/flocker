@@ -32,8 +32,8 @@ class DeploymentTests(TestCase):
 
     def test_deploy(self):
         """
-        Call a 'deploy' utility function with an application and deployment
-        config and watch docker ps output.
+        Deploying an application to one node and not another puts the
+        application where expected.
         """
         node_1, node_2 = get_nodes(num_nodes=2)
 
@@ -61,23 +61,13 @@ class DeploymentTests(TestCase):
 
         flocker_deploy(deployment_config, application_config)
 
-        expected = set([
-            Unit(name=u'/mongodb-example',
-                 container_name=u'/mongodb-example',
-                 activation_state=u'active',
-                 container_image=u'clusterhq/mongodb:latest',
-                 ports=frozenset(), environment=None, volumes=())
-        ])
-
-        running = {
-            node_1: running_units(node_1),
-            node_2: running_units(node_2),
-        }
+        unit = Unit(name=u'/mongodb-example',
+                    container_name=u'/mongodb-example',
+                    activation_state=u'active',
+                    container_image=u'clusterhq/mongodb:latest',
+                    ports=frozenset(), environment=None, volumes=())
 
         self.assertEqual(
-            running,
-            {
-                node_1: expected,
-                node_2: set(),
-            }
+            [running_units(node_1), running_units(node_2)],
+            [set([unit]), set()]
         )
