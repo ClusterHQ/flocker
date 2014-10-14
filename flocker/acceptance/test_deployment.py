@@ -66,10 +66,12 @@ class DeploymentTests(TestCase):
                      [deployment_config.path] +
                      [application_config.path])
 
-        expected = [Unit(name=u'mongodb-example-data',
-                         container_name=u'mongodb-example-data',
-                         activation_state=u'active',
-                         container_image=u'clusterhq/mongodb:latest',
-                         ports=(), environment=None, volumes=())]
+        expected = set([
+            Unit(name=u'/mongodb-example-data',
+                 container_name=u'/mongodb-example-data',
+                 activation_state=u'inactive',
+                 container_image=u'clusterhq/mongodb:latest',
+                 ports=frozenset(), environment=None, volumes=())
+        ])
 
         self.assertEqual(running_units(node_1), expected)

@@ -77,16 +77,18 @@ class MoveTests(TestCase):
 
         # TODO why is the name not mongodb-example-data like it is in
         # test_deployment?
-        expected_new = [Unit(name=u'mongodb-example',
-                             container_name=u'mongodb-example',
-                             activation_state=u'active',
-                             container_image=u'clusterhq/mongodb:latest',
-                             ports=(), environment=None, volumes=())]
+        expected = set([
+            Unit(name=u'/mongodb-example',
+                 container_name=u'/mongodb-example',
+                 activation_state=u'active',
+                 container_image=u'clusterhq/mongodb:latest',
+                 ports=frozenset(), environment=None, volumes=())
+        ])
 
         self.assertEqual(
             running,
             {
-                node_1: [],
-                node_2: expected_new
+                node_1: set(),
+                node_2: expected,
             }
         )

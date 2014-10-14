@@ -62,20 +62,20 @@ class PortsTests(TestCase):
             node_2: running_units(node_2),
         }
 
-        expected = [
-            Unit(name=u'mongodb-port-example-data',
-            container_name=u'mongodb-port-example-data',
-            activation_state=u'active',
+        expected = set([
+            Unit(name=u'/mongodb-port-example-data',
+            container_name=u'/mongodb-port-example-data',
+            activation_state=u'inactive',
             container_image=u'clusterhq/mongodb:latest',
-            ports=(),
+            ports=frozenset(),
             environment=None, volumes=())
-        ]
+        ])
 
         self.assertEqual(
             running,
             {
                 node_1: expected,
-                node_2: [],
+                node_2: set(),
             }
         )
 
@@ -85,56 +85,4 @@ class PortsTests(TestCase):
         An application can be accessed even from a connection to a node
         which it is not running on.
         """
-        node_1, node_2 = get_nodes(num_nodes=2)
-
-        temp = FilePath(self.mktemp())
-        temp.makedirs()
-
-        application_config = temp.child(b"application.yml")
-        application_config.setContent(safe_dump({
-            u"version": 1,
-            u"applications": {
-                u"mongodb-port-example": {
-                    u"image": u"clusterhq/mongodb",
-                    u"ports": [{
-                        u"internal": 27017,
-                        u"external": 27017,
-                    }],
-                },
-            },
-        }))
-
-        deployment_config = temp.child(b"deployment.yml")
-        deployment_config.setContent(safe_dump({
-            u"version": 1,
-            u"nodes": {
-                node_1: [u"mongodb-port-example"],
-                node_2: [],
-            },
-        }))
-
-        check_output([b"flocker-deploy"] +
-                     [deployment_config.path] +
-                     [application_config.path])
-
-        running = {
-            node_1: running_units(node_1),
-            node_2: running_units(node_2),
-        }
-
-        expected = [
-            Unit(name=u'mongodb-port-example-data',
-            container_name=u'mongodb-port-example-data',
-            activation_state=u'active',
-            container_image=u'clusterhq/mongodb:latest',
-            ports=(),
-            environment=None, volumes=())
-        ]
-
-        self.assertEqual(
-            running,
-            {
-                node_1: expected,
-                node_2: [],
-            }
-        )
+        pass

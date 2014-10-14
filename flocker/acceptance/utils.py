@@ -9,7 +9,7 @@ from docker import Client
 
 from twisted.python.procutils import which
 
-from flocker.node._docker import NamespacedDockerClient, Unit, PortMap
+from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit, PortMap
 from flocker.testtools import random_name
 
 __all__ = [
@@ -23,38 +23,38 @@ def running_units(ip):
     Containers which are running on a node.
 
     This is a hack and could hopefully use docker py over ssh.
+    # TODO see DockerClient.list for a better way to do this
     """
+    docker = DockerClient()
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
                            None).splitlines()
 
-    units = []
+    result = set()
     for container in container_ids:
         inspect = runSSH(22, 'root', ip, [b"docker"] + [b"inspect"] +
                          [container], None)
-        details = loads(inspect)[0]
 
-        # TODO use frozenset of PortMap instances from ``details`` for ports
-        # and check the activation state.
-        ports = set()
-        port_mappings = details['Config']['ExposedPorts']
-        for key in port_mappings:
-            internal = int(key[:len('/tcp')])
-            external = int("1")
-            ports.add(
-                PortMap(internal_port=1, external_port=1)
-            )
+        data = loads(inspect)[0]
+        #data = self._client.inspect_container(i)
+        state = (u"active" if data[u"State"][u"Running"]
+                 else u"inactive")
+        name = data[u"Name"]
+        image = data[u"Config"][u"Image"]
+        port_mappings = data[u"NetworkSettings"][u"Ports"]
+        if port_mappings is not None:
+            ports = docker._parse_container_ports(port_mappings)
+        else:
+            ports = list()
 
-        ports = frozenset(ports)
+        # XXX to extract volume info from the inspect results:
+        # https://github.com/ClusterHQ/flocker/issues/289
+        result.add(Unit(name=name,
+                        container_name=name,
+                        activation_state=state,
+                        container_image=image,
+                        ports=frozenset(ports)))
 
-        unit = Unit(name=details['Name'][1:],
-                    container_name=details['Name'][1:],
-                    activation_state=u'active',
-                    container_image=details['Config']['Image'],
-                    ports=ports,
-                    )
-        units.append(unit)
-
-    return units
+    return result
 
 
 def remove_all_containers(ip):
@@ -196,4 +196,5 @@ def get_nodes(num_nodes):
     d.addCallback(get_ips)
     return d
 
-# TODO Make flocker-deploy a utility function
+# TODO Make flocker-deploy a utility function - wait for containers to be
+# active?
