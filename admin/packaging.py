@@ -4,13 +4,18 @@
 Helper utilities for the Flocker packaging
 """
 
+import sys
 from subprocess import check_call
 from tempfile import mkdtemp
 
 from twisted.python.filepath import FilePath
+from twisted.python import usage
+
 from characteristic import attributes
 
 from .release import make_rpm_version
+
+import flocker
 
 
 @attributes(['steps'])
@@ -182,3 +187,53 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
             )
         )
     )
+
+
+class BuildOptions(usage.Options):
+    """
+    """
+
+    synopsis = 'build-rpm [options] <package-type>'
+
+    optParameters = [
+        ['destination-path', 'd', '.',
+         'The path to a directory in which to create package files and '
+         'artifacts.'],
+        ['package-path', 'p', '.',
+         'The path or URL of the package which will be installed using pip.'],
+        ['flocker-version', 'v', flocker.__version__,
+         'The version number which will be assigned to the package.'],
+    ]
+
+    def parseArgs(self, package_type):
+        """
+        """
+        self['package-type'] = package_type
+
+    def postOptions(self):
+        """
+        """
+        for key in ('destination-path', 'package-path'):
+            self[key] = FilePath(self[key])
+
+
+def main(argv, top_level, base_path):
+    """
+    Build an RPM package.
+
+    :param list argv: The arguments passed to the script.
+    """
+    options = BuildOptions()
+
+    try:
+        options.parseOptions(argv)
+    except usage.UsageError as e:
+        sys.stderr.write("%s\n" % (options,))
+        sys.stderr.write("%s\n" % (e,))
+        raise SystemExit(1)
+
+    sumo_rpm_builder(
+        destination_path=options['destination-path'],
+        package_path=options['package-path'],
+        version=options['flocker-version'],
+    ).run()
