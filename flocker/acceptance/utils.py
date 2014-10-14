@@ -9,7 +9,7 @@ from docker import Client
 
 from twisted.python.procutils import which
 
-from flocker.node._docker import NamespacedDockerClient, Unit
+from flocker.node._docker import NamespacedDockerClient, Unit, PortMap
 from flocker.testtools import random_name
 
 __all__ = [
@@ -35,12 +35,22 @@ def running_units(ip):
 
         # TODO use frozenset of PortMap instances from ``details`` for ports
         # and check the activation state.
+        ports = set()
+        port_mappings = details['Config']['ExposedPorts']
+        for key in port_mappings:
+            internal = int(key[:len('/tcp')])
+            external = int("1")
+            ports.add(
+                PortMap(internal_port=1, external_port=1)
+            )
+
+        ports = frozenset(ports)
 
         unit = Unit(name=details['Name'][1:],
                     container_name=details['Name'][1:],
                     activation_state=u'active',
                     container_image=details['Config']['Image'],
-                    ports=(),
+                    ports=ports,
                     )
         units.append(unit)
 
