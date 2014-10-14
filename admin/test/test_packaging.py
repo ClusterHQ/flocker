@@ -491,3 +491,24 @@ class BuildScriptOptions(TestCase):
             'Wrong number of arguments.',
             fake_sys_module.stderr.getvalue().splitlines()[-1]
         )
+
+    def test_build_command(self):
+        """
+        ``BuildScript.build_command`` is ``sumo_rpm_builder`` by default.
+        """
+        self.assertIs(sumo_rpm_builder, BuildScript.build_command)
+
+
+    def test_run(self):
+        """
+        ``BuildScript.main`` calls ``run`` on the instance returned by
+        ``build_command``.
+        """
+        fake_sys_module = FakeSysModule(
+            argv=['http://www.example.com/foo/bar.whl']
+        )
+        script = BuildScript(sys_module=fake_sys_module)
+        build_step = SpyStep()
+        script.build_command = lambda *args, **kwargs: build_step
+        script.main()
+        self.assertTrue(build_step.ran)

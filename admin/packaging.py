@@ -220,6 +220,8 @@ class BuildOptions(usage.Options):
 
 
 class BuildScript(object):
+    build_command = staticmethod(sumo_rpm_builder)
+
     def __init__(self, sys_module=None):
         """
         """
@@ -242,7 +244,7 @@ class BuildScript(object):
             self.sys_module.stderr.write("%s\n" % (e,))
             raise SystemExit(1)
 
-        sumo_rpm_builder(
+        self.build_command(
             destination_path=options['destination-path'],
             package_uri=options['package-uri'],
         ).run()
