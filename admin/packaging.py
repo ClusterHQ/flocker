@@ -202,8 +202,6 @@ class BuildOptions(usage.Options):
          'artifacts.'],
         ['package-path', 'p', '.',
          'The path or URL of the package which will be installed using pip.'],
-        ['flocker-version', 'v', flocker.__version__,
-         'The version number which will be assigned to the package.'],
     ]
     supported_package_types = ('rpm',)
     longdesc = dedent("""\
@@ -246,5 +244,4 @@ def main(argv, top_level, base_path):
     sumo_rpm_builder(
         destination_path=options['destination-path'],
         package_path=options['package-path'],
-        version=options['flocker-version'],
     ).run()

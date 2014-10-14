@@ -13,7 +13,7 @@ from twisted.trial.unittest import TestCase
 
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
-    BuildSequence
+    BuildSequence, BuildOptions,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -422,3 +422,19 @@ def assert_rpmlint(test_case, rpm_path):
         # Don't print out the summary line unless there are some unfiltered warnings.
         if len(output) > 1:
             test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
+
+
+class BuildOptionsTests(TestCase):
+    """
+    Tests for ``admin.packaging.BuildOptions``.
+    """
+
+    def test_defaults(self):
+        """
+        """
+        options = BuildOptions()
+        expected_defaults = {
+            'destination-path': '.',
+            'package-path': '.',
+        }
+        self.assertEqual(expected_defaults, options)
