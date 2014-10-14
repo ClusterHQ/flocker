@@ -9,8 +9,7 @@ from docker import Client
 
 from twisted.python.procutils import which
 
-from flocker.node._docker import (DockerClient, NamespacedDockerClient, Unit,
-                                  PortMap)
+from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit
 from flocker.testtools import random_name
 
 __all__ = [
@@ -37,7 +36,6 @@ def running_units(ip):
                          [container], None)
 
         data = loads(inspect)[0]
-        #data = self._client.inspect_container(i)
         state = (u"active" if data[u"State"][u"Running"]
                  else u"inactive")
         name = data[u"Name"]

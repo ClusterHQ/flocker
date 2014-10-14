@@ -21,6 +21,10 @@ class PortsTests(TestCase):
     Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     exposing-ports.html
     """
+    @require_installed
+    def setUp(self):
+        pass
+
     def test_deployment_with_ports(self):
         """
         Ports specified are shown by docker inspect.
@@ -64,11 +68,13 @@ class PortsTests(TestCase):
 
         expected = set([
             Unit(name=u'/mongodb-port-example-data',
-            container_name=u'/mongodb-port-example-data',
-            activation_state=u'inactive',
-            container_image=u'clusterhq/mongodb:latest',
-            ports=frozenset([PortMap(internal_port=27017, external_port=27018)]),
-            environment=None, volumes=())
+                 container_name=u'/mongodb-port-example-data',
+                 activation_state=u'inactive',
+                 container_image=u'clusterhq/mongodb:latest',
+                 ports=frozenset([
+                     PortMap(internal_port=27017, external_port=27018)
+                 ]),
+                 environment=None, volumes=())
         ])
 
         self.assertEqual(
@@ -79,8 +85,7 @@ class PortsTests(TestCase):
             }
         )
 
-
-    def atest_traffic_routed(self):
+    def test_traffic_routed(self):
         """
         An application can be accessed even from a connection to a node
         which it is not running on.
