@@ -204,7 +204,7 @@ class BuildOptions(usage.Options):
         ['flocker-version', 'v', flocker.__version__,
          'The version number which will be assigned to the package.'],
     ]
-    supported_package_types = ('RPM',)
+    supported_package_types = ('rpm',)
     longdesc = dedent("""\
     Arguments:
 
@@ -213,24 +213,23 @@ class BuildOptions(usage.Options):
 
     def parseArgs(self, package_type):
         """
-        The type of package to build. One of RPM.
+        The type of package to build.
         """
         self['package-type'] = package_type
 
     def postOptions(self):
         """
         """
-        for key in ('destination-path', 'package-path'):
-            self[key] = FilePath(self[key])
+        self['destination_path'] = FilePath(self['destination-path'])
 
-        if self['package-type'] not in ('RPM',):
+        if self['package-type'] not in self.supported_package_types:
             raise usage.UsageError(
                 'Unsupported package-type: {}.'.format(self['package-type'])
             )
 
 def main(argv, top_level, base_path):
     """
-    Build an RPM package.
+    Build a package.
 
     :param list argv: The arguments passed to the script.
     """
