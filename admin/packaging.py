@@ -216,6 +216,7 @@ class BuildOptions(usage.Options):
 
     def postOptions(self):
         """
+        Coerce to ``FilePath`` where appropriate.
         """
         self['destination-path'] = FilePath(self['destination-path'])
 
