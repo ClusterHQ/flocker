@@ -219,22 +219,32 @@ class BuildOptions(usage.Options):
         self['destination-path'] = FilePath(self['destination-path'])
 
 
-def main(argv, top_level, base_path):
-    """
-    Build a package.
+class BuildScript(object):
+    def __init__(self, sys_module=None):
+        """
+        """
+        if sys_module is None:
+            sys_module = sys
+        self.sys_module = sys_module
 
-    :param list argv: The arguments passed to the script.
-    """
-    options = BuildOptions()
+    def main(self, top_level=None, base_path=None):
+        """
+        Build a package.
 
-    try:
-        options.parseOptions(argv)
-    except usage.UsageError as e:
-        sys.stderr.write("%s\n" % (options,))
-        sys.stderr.write("%s\n" % (e,))
-        raise SystemExit(1)
+        :param list argv: The arguments passed to the script.
+        """
+        options = BuildOptions()
 
-    sumo_rpm_builder(
-        destination_path=options['destination-path'],
-        package_uri=options['package-uri'],
-    ).run()
+        try:
+            options.parseOptions(self.sys_module.argv)
+        except usage.UsageError as e:
+            self.sys_module.stderr.write("%s\n" % (options,))
+            self.sys_module.stderr.write("%s\n" % (e,))
+            raise SystemExit(1)
+
+        sumo_rpm_builder(
+            destination_path=options['destination-path'],
+            package_uri=options['package-uri'],
+        ).run()
+
+main = BuildScript().main

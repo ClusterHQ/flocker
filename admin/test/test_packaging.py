@@ -12,9 +12,11 @@ from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase
 
+from flocker.testtools import FakeSysModule
+
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
-    BuildSequence, BuildOptions,
+    BuildSequence, BuildOptions, BuildScript
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -459,3 +461,17 @@ class BuildOptionsTests(TestCase):
         options.parseOptions([expected_uri])
 
         self.assertEqual(expected_uri, options['package-uri'])
+
+
+class BuildScriptOptions(TestCase):
+    """
+    """
+    def test_usage_error(self):
+        """
+        ``BuildScript.main`` raises ``SystemExit`` if there are missing command
+        line options.
+        """
+        fake_sys_module = FakeSysModule(argv=[])
+        script = BuildScript(sys_module=fake_sys_module)
+        exception = self.assertRaises(SystemExit, script.main)
+        self.assertEqual(1, exception.code)
