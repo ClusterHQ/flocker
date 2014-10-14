@@ -3,7 +3,6 @@
 """
 Tests for moving applications between nodes.
 """
-from subprocess import check_output
 from yaml import safe_dump
 
 from twisted.python.filepath import FilePath

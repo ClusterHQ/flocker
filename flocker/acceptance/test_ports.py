@@ -3,7 +3,6 @@
 """
 Tests for communication to applications.
 """
-from subprocess import check_output
 from yaml import safe_dump
 
 from pexpect import spawn
@@ -25,6 +24,9 @@ class PortsTests(TestCase):
     """
     @require_installed
     def setUp(self):
+        """
+        Deploy an application with an exposed port.
+        """
         self.node_1, self.node_2 = get_nodes(num_nodes=2)
 
         temp = FilePath(self.mktemp())
@@ -63,17 +65,17 @@ class PortsTests(TestCase):
 
     def test_deployment_with_ports(self):
         """
-        Ports specified are shown by docker inspect.
+        Ports are exposed.
         """
-        unit =  Unit(name=u'/' + self.application,
-                     container_name=u'/' + self.application,
-                     activation_state=u'active',
-                     container_image=self.image + u':latest',
-                     ports=frozenset([
-                         PortMap(internal_port=self.internal_port,
-                                 external_port=self.external_port)
-                     ]),
-                     environment=None, volumes=())
+        unit = Unit(name=u'/' + self.application,
+                    container_name=u'/' + self.application,
+                    activation_state=u'active',
+                    container_image=self.image + u':latest',
+                    ports=frozenset([
+                        PortMap(internal_port=self.internal_port,
+                                external_port=self.external_port)
+                    ]),
+                    environment=None, volumes=())
 
         self.assertEqual(
             [running_units(self.node_1), running_units(self.node_2)],

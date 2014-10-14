@@ -196,6 +196,7 @@ def get_nodes(num_nodes):
     d.addCallback(get_ips)
     return d
 
+
 def flocker_deploy(deployment_config, application_config):
     # How do we specify that the containers should be priviledged (so as
     # to be able to be run inside another docker container)
