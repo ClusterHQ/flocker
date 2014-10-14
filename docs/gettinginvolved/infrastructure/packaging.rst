@@ -1,19 +1,22 @@
 Building RPMs
 =============
 
-To build flocker RPMs, run the following commands:
+To build flocker RPMs, run the following command from a clean checkout of the Flocker repository:
 
 .. code-block:: sh
 
-   python setup.py sdist
-   python setup.py generate_spec
-   cp dist/Flocker-$(python setup.py --version).tar.gz ~/rpmbuild/SOURCES
-   sudo yum-builddep flocker.spec
-   rpmbuild -ba flocker.spec
+   admin/build-package .
 
-The above commands require the ``rpmdevtools`` and ``yum-utils`` packages installed.
+This will generate a ``Flocker-X.Y.Z-*.rpm`` package file.
+The package will install ``Flocker`` (and all its dependencies) into ``/opt/flocker`` and add all the Flocker command line scripts to the system path.
+
+.. note:: The ``build-package`` command requires the ``fpm`` tool to be installed.
+
+Dependencies
+------------
 
 Flocker depends on a number of packages which aren't available in fedora,
 or newer versions than are available there.
-These packages are available from `our Copr repository <https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/>`_.
-To enable yum to find them, put the `repo file <https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo>`_ in :file:`/etc/yum.repos.d/`.
+So the ``build-package`` script bundles those packages into the RPM.
+We refer to these as "sumo" packages.
+Elsewhere they are referred to as "omnibus" packages.
