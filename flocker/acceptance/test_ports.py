@@ -9,7 +9,7 @@ from yaml import safe_dump
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit
+from flocker.node._docker import Unit, PortMap
 
 from .utils import running_units, require_installed, get_nodes
 
@@ -67,7 +67,7 @@ class PortsTests(TestCase):
             container_name=u'/mongodb-port-example-data',
             activation_state=u'inactive',
             container_image=u'clusterhq/mongodb:latest',
-            ports=frozenset(),
+            ports=frozenset([PortMap(internal_port=27017, external_port=27018)]),
             environment=None, volumes=())
         ])
 

@@ -9,7 +9,8 @@ from docker import Client
 
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit, PortMap
+from flocker.node._docker import (DockerClient, NamespacedDockerClient, Unit,
+                                  PortMap)
 from flocker.testtools import random_name
 
 __all__ = [

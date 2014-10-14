@@ -74,4 +74,15 @@ class DeploymentTests(TestCase):
                  ports=frozenset(), environment=None, volumes=())
         ])
 
-        self.assertEqual(running_units(node_1), expected)
+        running = {
+            node_1: running_units(node_1),
+            node_2: running_units(node_2),
+        }
+
+        self.assertEqual(
+            running,
+            {
+                node_1: expected,
+                node_2: set(),
+            }
+        )
