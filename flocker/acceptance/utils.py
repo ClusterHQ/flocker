@@ -131,6 +131,7 @@ def get_nodes(num_nodes):
     Return a list of ip addresses.
     """
     if USE_VAGRANT:
+        # TODO Raise exception if num_nodes is not 2
         node_1 = "172.16.255.250"
         node_2 = "172.16.255.251"
         # As a horrid workaround for not having namespacing support
