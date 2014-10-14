@@ -121,13 +121,21 @@ class PortsTests(TestCase):
 
         flocker_deploy(deployment_config, application_config)
 
-        child = pexpect.spawn ('mongo ' + node_1)
+        child_1 = pexpect.spawn ('mongo ' + node_1)
         # TODO Improve this expectation
-        child.expect('.*')
-        child.sendline('use example;')
-        child.expect('switched to db example')
-        child.sendline('db.records.insert({"flocker": "tested"})')
-        child.sendline('db.records.insert({"flocker": "tested"})')
-        child.sendline('db.records.find({})')
-        child.expect('{ "_id" : ObjectId.*')
+        child_1.expect('.*')
+        child_1.sendline('use example;')
+        child_1.expect('switched to db example')
+        child_1.sendline('db.records.insert({"flocker": "tested"})')
+        child_1.sendline('db.records.find({})')
+        # TODO Improve this expectation
+        child_1.expect('{ "_id" : ObjectId.*')
 
+        child_2 = pexpect.spawn ('mongo ' + node_2)
+        # TODO Improve this expectation
+        child_2.expect('.*')
+        child_2.sendline('use example;')
+        child_2.expect('switched to db example')
+        child_2.sendline('db.records.find({})')
+        # TODO Improve this expectation
+        child_2.expect('{ "_id" : ObjectId.*')
