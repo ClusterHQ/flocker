@@ -110,9 +110,9 @@ require_installed = skipUnless(which("flocker-deploy"),
 USE_VAGRANT = True
 
 
-def get_node_ips():
+def get_nodes(num_nodes):
     """
-    Get the IPs of the two nodes to deploy and manage containers on.
+    Create ``num_nodes`` nodes with no docker containers on them.
 
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
@@ -128,24 +128,21 @@ def get_node_ips():
     The VMs may not be "clean" so assert that there are no
     containers running.
 
-    The following is a messy way to remove all containers on node_1:
-ssh root@172.16.255.250 docker stop $(ssh root@172.16.255.250 docker ps -a -q)
-ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
-
-    Use runSSH from HybridCluster to do this automatically?
+    Return a list of ip addresses.
     """
     if USE_VAGRANT:
-        node_1_ip = "172.16.255.250"
-        node_2_ip = "172.16.255.251"
+        node_1 = "172.16.255.250"
+        node_2 = "172.16.255.251"
         # As a horrid workaround for not having namespacing support
         # in this rudementary client for docker, just remove all the
         # running containers on a node
-        remove_all_containers(node_1_ip)
-        remove_all_containers(node_2_ip)
-        return node_1_ip, node_2_ip
+        remove_all_containers(node_1)
+        remove_all_containers(node_2)
+        return [node_1, node_2]
 
     namespace = u"acceptance-tests"
     client = NamespacedDockerClient(namespace)
+    # TODO use num_nodes
     node_1_name = random_name()
     node_2_name = random_name()
     image = u"openshift/busybox-http-app"
@@ -174,7 +171,7 @@ ssh root@172.16.255.250 docker rm $(ssh root@172.16.255.250 docker ps -a -q)
 
         node_1_ip = node_1['NetworkSettings']['IPAddress']
         node_2_ip = node_2['NetworkSettings']['IPAddress']
-        return node_1_ip, node_2_ip
+        return [node_1_ip, node_2_ip]
 
     d.addCallback(get_ips)
     return d

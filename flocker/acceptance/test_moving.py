@@ -11,7 +11,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-from .utils import running_units, require_installed, get_node_ips
+from .utils import running_units, require_installed, get_nodes
 
 
 class MoveTests(TestCase):
@@ -29,7 +29,7 @@ class MoveTests(TestCase):
         """
         Test moving an application from one node to another.
         """
-        node_1, node_2 = get_node_ips()
+        node_1, node_2 = get_nodes(num_nodes=2)
         containers_running_before = {
             node_1: running_units(node_1),
             node_2: running_units(node_2),
