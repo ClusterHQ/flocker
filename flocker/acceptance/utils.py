@@ -54,8 +54,17 @@ def remove_all_containers(ip):
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] +
                            [b"-q"], None).splitlines()
     for container in container_ids:
-        runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] + [container],
-               None)
+        try:
+            runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] +
+                   [container], None)
+        except Exception:
+            # TODO I sometimes see:
+            # Error response from daemon: Cannot destroy container
+            # 08f9ca89053c: Driver devicemapper failed to remove root
+            # filesystem
+            # 08f9ca89053c782130e7394caacc03a00cf9b621e251f909897a9f0c30dfdc72:
+            # Device is Busy
+            pass
 
 
 def runSSH(port, user, node, command, input, key=None):
