@@ -188,7 +188,7 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
         )
     )
 
-
+from textwrap import dedent
 class BuildOptions(usage.Options):
     """
     """
@@ -204,9 +204,16 @@ class BuildOptions(usage.Options):
         ['flocker-version', 'v', flocker.__version__,
          'The version number which will be assigned to the package.'],
     ]
+    supported_package_types = ('RPM',)
+    longdesc = dedent("""\
+    Arguments:
+
+    <package-type>: One of {}
+    """.format(' '.join(supported_package_types)))
 
     def parseArgs(self, package_type):
         """
+        The type of package to build. One of RPM.
         """
         self['package-type'] = package_type
 
@@ -216,6 +223,10 @@ class BuildOptions(usage.Options):
         for key in ('destination-path', 'package-path'):
             self[key] = FilePath(self[key])
 
+        if self['package-type'] not in ('RPM',):
+            raise usage.UsageError(
+                'Unsupported package-type: {}.'.format(self['package-type'])
+            )
 
 def main(argv, top_level, base_path):
     """
