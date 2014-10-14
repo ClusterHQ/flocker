@@ -3,10 +3,11 @@
 """
 Tests for communication to applications.
 """
-import pexpect
-
 from subprocess import check_output
 from yaml import safe_dump
+
+# TODO add this to the dev requirements
+from pexpect import spawn
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -121,21 +122,17 @@ class PortsTests(TestCase):
 
         flocker_deploy(deployment_config, application_config)
 
-        child_1 = pexpect.spawn ('mongo ' + node_1)
-        # TODO Improve this expectation
-        child_1.expect('.*')
+        child_1 = spawn('mongo ' + node_1)
+        child_1.expect('MongoDB shell version:.*')
         child_1.sendline('use example;')
         child_1.expect('switched to db example')
         child_1.sendline('db.records.insert({"flocker": "tested"})')
         child_1.sendline('db.records.find({})')
-        # TODO Improve this expectation
-        child_1.expect('{ "_id" : ObjectId.*')
+        child_1.expect('{ "_id" : ObjectId\(".*"\), "flocker" : "tested" }')
 
-        child_2 = pexpect.spawn ('mongo ' + node_2)
-        # TODO Improve this expectation
-        child_2.expect('.*')
+        child_2 = spawn('mongo ' + node_2)
+        child_2.expect('MongoDB shell version:.*')
         child_2.sendline('use example;')
         child_2.expect('switched to db example')
         child_2.sendline('db.records.find({})')
-        # TODO Improve this expectation
-        child_2.expect('{ "_id" : ObjectId.*')
+        child_2.expect('{ "_id" : ObjectId\(".*"\), "flocker" : "tested" }')
