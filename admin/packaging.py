@@ -192,21 +192,21 @@ def sumo_rpm_builder(destination_path, package_path, version, target_dir=None):
 from textwrap import dedent
 class BuildOptions(usage.Options):
     """
+    Command line options for the ``build-package`` tool.
     """
-
-    synopsis = 'build-rpm [options] <package-type>'
+    synopsis = 'build-rpm [options] <package-uri>'
 
     optParameters = [
         ['destination-path', 'd', '.',
          'The path to a directory in which to create package files and '
          'artifacts.'],
     ]
-    supported_package_types = ('rpm',)
+
     longdesc = dedent("""\
     Arguments:
 
-    <package-type>: One of {}
-    """.format(' '.join(supported_package_types)))
+    <package-uri>: The Python package url or path to install using ``pip``.
+    """)
 
     def parseArgs(self, package_uri):
         """
