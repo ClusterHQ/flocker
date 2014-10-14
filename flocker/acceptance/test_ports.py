@@ -87,6 +87,8 @@ class PortsTests(TestCase):
         An application can be accessed even from a connection to a node
         which it is not running on.
         """
+        # TODO Test that mongo is installed and give an appropriate error
+        # if it is not
         child_1 = spawn('mongo ' + self.node_1)
         child_1.expect('MongoDB shell version:.*')
         child_1.sendline('use example;')

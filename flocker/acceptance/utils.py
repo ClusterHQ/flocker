@@ -18,14 +18,13 @@ __all__ = [
     ]
 
 
-# TODO Make a "RemoteDockerClient"?
 def running_units(ip):
     """
     Containers which are running on a node.
 
-    This is a hack and could hopefully use docker py over ssh.
-    See DockerClient.list - much of this is taken from that and they could
-    hopefully be merged.
+    Note: This is a hack and, like running_units, should use (something closer
+    to) DockerClient. In fact most of this code is copied from
+    ``DockerClient.list``.
     """
     docker = DockerClient()
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
@@ -60,7 +59,9 @@ def running_units(ip):
 
 def remove_all_containers(ip):
     """
-    Remove all containers on a node
+    Remove all containers on a node, given the ip of the node.
+    Note: This is a hack and, like running_units, should use (something closer
+    to) DockerClient.
     """
     container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] +
                            [b"-q"], None).splitlines()
@@ -132,30 +133,28 @@ USE_VAGRANT = True
 
 def get_nodes(num_nodes):
     """
-    Create ``num_nodes`` nodes with no docker containers on them.
+    Create ``num_nodes`` nodes with no Docker containers on them.
 
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
-    Unlike the tutorial which uses Vagrant nodes, we want to have docker
-    containers, and run docker-in-docker:
+    Unlike the tutorial which uses Vagrant nodes, we want to have Docker
+    containers, and run Docker-in-Docker:
       https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
 
     Until that is viable, we can write the tests to use the Vagrant VMs
-    The start of the docker-in-docker plan is below the return
-    Start the VMs manually by following the tutorial
-    The VMs may not be "clean" so assert that there are no
-    containers running.
+    The start of the Docker-in-Docker plan is below the return.
 
-    Return a list of ip addresses.
+    Follow the Release Process's review process to get up to date VMs running,
+    or the tutorial for the latest release.
+
+    :param int num_nodes: The number of nodes to start up.
+    :return: A ``list`` of ``bytes``, the IP addresses of the nodes created.
     """
     if USE_VAGRANT:
-        node_1 = "172.16.255.250"
-        node_2 = "172.16.255.251"
-        # As a horrid workaround for not having namespacing support
-        # in this rudementary client for docker, just remove all the
-        # running containers on a node
+        node_1 = b"172.16.255.250"
+        node_2 = b"172.16.255.251"
         remove_all_containers(node_1)
         remove_all_containers(node_2)
         return [node_1, node_2]
@@ -166,21 +165,21 @@ def get_nodes(num_nodes):
     node_1_name = random_name()
     node_2_name = random_name()
     image = u"openshift/busybox-http-app"
-    # TODO Enable ssh on the nodes by changing the image
-    # also expose the port
-    # Also these need dependencies installed, so they will probably be
-    # a fedora image with zfs and others
+    # TODO Enable ssh on the nodes by changing the images
     # Look at using http://www.packer.io to build Vagrant image and Docker
-    # image
+    # image so that we have all the dependencies
     d = client.add(node_1_name, image)
 
     d.addCallback(lambda _: client.add(node_2_name, image))
     d.addCallback(lambda _: client.list())
-    # TODO wait_for_unit_state? Why (not)?
+    # TODO wait_for_unit_state - we want active units
     #   from flocker.node.testtools import wait_for_unit_state
 
     # TODO add cleanup
     #   self.addCleanup(self.client.remove, node_1_name)
+
+    # How do we specify that the containers should be priviledged (so as
+    # to be able to be run inside another docker container)
 
     def get_ips(units):
         docker = Client()
@@ -191,6 +190,7 @@ def get_nodes(num_nodes):
 
         node_1_ip = node_1['NetworkSettings']['IPAddress']
         node_2_ip = node_2['NetworkSettings']['IPAddress']
+        # Is this always bytes?
         return [node_1_ip, node_2_ip]
 
     d.addCallback(get_ips)
@@ -198,8 +198,14 @@ def get_nodes(num_nodes):
 
 
 def flocker_deploy(deployment_config, application_config):
-    # How do we specify that the containers should be priviledged (so as
-    # to be able to be run inside another docker container)
+    """
+    Run ``flocker-deploy`` with given configuration files.
+
+    :param FilePath deployment_config: A YAML file describing the desired
+        deployment configuration.
+    :param FilePath application_config: A YAML file describing the desired
+        application configuration.
+    """
     check_output([b"flocker-deploy"] +
                  [deployment_config.path] +
                  [application_config.path])
