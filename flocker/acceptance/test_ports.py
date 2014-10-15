@@ -23,6 +23,7 @@ from .utils import running_units, require_installed, get_nodes, flocker_deploy
 require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
 
+
 class PortsTests(TestCase):
     """
     Tests for communication to applications.

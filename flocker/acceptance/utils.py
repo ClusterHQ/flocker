@@ -6,12 +6,9 @@ from subprocess import check_output, Popen, PIPE
 from time import sleep
 from unittest import skipUnless
 
-from docker import Client
-
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, NamespacedDockerClient, Unit
-from flocker.testtools import random_name
+from flocker.node._docker import DockerClient, Unit
 
 # TODO link from the documentation to the tests
 # TODO try to use docker client - modify the vagrant image to allow it
