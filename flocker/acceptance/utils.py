@@ -12,11 +12,10 @@ from flocker.node._docker import DockerClient, Unit
 
 # TODO link from the documentation to the tests
 # TODO try to use docker client - modify the vagrant image to allow it
-# TODO the last step of the tutorial
 # TODO run coverage
 
 __all__ = [
-    'running_units', 'remove_all_containers', 'require_installed',
+    'running_units', 'remove_all_containers', 'require_flocker_cli',
     ]
 
 
@@ -126,12 +125,16 @@ def runSSH(port, user, node, command, input, key=None):
 
     return result[0]
 
-# XXX This assumes that the desired version of flocker-deploy has been
-# installed. Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901
-require_installed = skipUnless(which("flocker-deploy"),
-                               "flocker-deploy not installed")
+# XXX This assumes that the desired version of flocker-cli has been installed.
+# Instead, the testing environment should do this automatically.
+# See https://github.com/ClusterHQ/flocker/issues/901.
+require_flocker_cli = skipUnless(which("flocker-deploy"),
+                                 "flocker-deploy not installed")
 
+# XXX This assumes that the desired version of mongo has been installed. Instead, the testing environment should do this automatically.
+# See https://github.com/ClusterHQ/flocker/issues/901.
+require_mongo = skipUnless(which("mongo"),
+                           "The mongo shell is not available.")
 
 def get_nodes(num_nodes):
     """

@@ -14,14 +14,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit, PortMap
 
-from .utils import running_units, require_installed, get_nodes, flocker_deploy
-
-
-# XXX This assumes that the desired version of mongo has been
-# installed. Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901
-require_mongo = skipUnless(which("mongo"),
-                           "The mongo shell is not available.")
+# TODO alphebetise this and others
+from .utils import running_units, require_flocker_cli, require_mongo, get_nodes, flocker_deploy
 
 
 class PortsTests(TestCase):
@@ -31,7 +25,7 @@ class PortsTests(TestCase):
     Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     exposing-ports.html
     """
-    @require_installed
+    @require_flocker_cli
     def setUp(self):
         """
         Deploy an application with an exposed port.

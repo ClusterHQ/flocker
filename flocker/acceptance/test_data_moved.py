@@ -14,17 +14,18 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit, PortMap
 
-from .utils import running_units, require_installed, get_nodes, flocker_deploy
+from .utils import running_units, require_flocker_cli, get_nodes, flocker_deploy, require_mongo
 
 
-class DataTests(TestCase):
+class DataMoveTests(TestCase):
     """
     Tests for movement of data across nodes.
 
-    Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
-    volumes.html
+    Similar to:
+        http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
-    # TODO Require mongo - make this a utlity function
+    @require_mongo
+    # TODO rename the file to match this
     def test_data_moves(self):
         """
         Moving an application moves that application's data with it.
@@ -50,10 +51,11 @@ class DataTests(TestCase):
                         u"internal": 27017,
                         u"external": 27017,
                     }],
-                    u"volume":
+                    u"volume": {
                         # The location within the container where the data
                         # volume will be mounted:
                         u"mountpoint": u"/data/db"
+                    }
                 },
             },
         }))
@@ -74,10 +76,6 @@ class DataTests(TestCase):
         child_1.sendline('use example;')
         child_1.expect('switched to db example')
         child_1.sendline('db.records.insert({"the data": "it moves"})')
-        child_1.sendline('db.records.find({})')
-        # TODO the below is the wrong expectation
-        child_1.expect('switched to db example')
-        child_1.expect('{ "_id" : ObjectId\(".*"\), "the data" : "it moves" }')
 
         deployment_moved_config = temp.child(b"volume-deployment-moved.yml")
         deployment_moved_config.setContent(safe_dump({
@@ -96,6 +94,4 @@ class DataTests(TestCase):
         child_2.expect('switched to db example')
         child_2.sendline('db.records.insert({"the data": "it moves"})')
         child_2.sendline('db.records.find({})')
-        # TODO the below is the wrong expectation, expect the previously
-        # captured output
-        child_2.expect('switched to db example')
+        child_2.expect('{ "_id" : ObjectId\(".*"\), "the data" : "it moves" }')

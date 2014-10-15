@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-from .utils import running_units, require_installed, get_nodes, flocker_deploy
+from .utils import running_units, require_flocker_cli, get_nodes, flocker_deploy
 
 
 class MoveTests(TestCase):
@@ -20,7 +20,7 @@ class MoveTests(TestCase):
     Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#moving-an-application
     """
-    @require_installed
+    @require_flocker_cli
     def setUp(self):
         pass
 
