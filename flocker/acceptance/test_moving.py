@@ -55,6 +55,7 @@ class MoveTests(TestCase):
 
         flocker_deploy(deployment_config, application_config)
 
+        # TODO change this and other yml names to match the tutorial
         deployment_moved_config = temp.child(b"deployment.yml")
         deployment_moved_config.setContent(safe_dump({
             u"version": 1,
