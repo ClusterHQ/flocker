@@ -27,38 +27,33 @@ class DataTests(TestCase):
     # TODO Require mongo - make this a utlity function
     def test_data_moves(self):
         """
-        Moving an application moves data with it.
+        Moving an application moves that application's data with it.
 
         Instead of pexpect this could use PyMongo, which would mean that the
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
-        # TODO remove all the 'self's
-        self.node_1, self.node_2 = get_nodes(num_nodes=2)
+        node_1, node_2 = get_nodes(num_nodes=2)
 
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
-        self.internal_port = 27017
-        self.external_port = 27017
-
-        self.application = u"mongodb-volume-example"
-        self.image = u"clusterhq/mongodb"
+        application = u"mongodb-volume-example"
 
         application_config = temp.child(b"application.yml")
         application_config.setContent(safe_dump({
             u"version": 1,
             u"applications": {
-                self.application: {
-                    u"image": self.image,
+                application: {
+                    u"image": u"clusterhq/mongodb",
                     u"ports": [{
-                        u"internal": self.internal_port,
-                        u"external": self.external_port,
+                        u"internal": 27017,
+                        u"external": 27017,
                     }],
                     u"volume":
-                          # The location within the container where the data volume will be
-                          # mounted:
-                          u"mountpoint": u"/data/db"
+                        # The location within the container where the data
+                        # volume will be mounted:
+                        u"mountpoint": u"/data/db"
                 },
             },
         }))
@@ -67,14 +62,14 @@ class DataTests(TestCase):
         deployment_config.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                self.node_1: [self.application],
-                self.node_2: [],
+                node_1: [application],
+                node_2: [],
             },
         }))
 
         flocker_deploy(deployment_config, application_config)
 
-        child_1 = spawn('mongo ' + self.node_1)
+        child_1 = spawn('mongo ' + node_1)
         child_1.expect('MongoDB shell version:.*')
         child_1.sendline('use example;')
         child_1.expect('switched to db example')
@@ -88,14 +83,14 @@ class DataTests(TestCase):
         deployment_moved_config.setContent(safe_dump({
             u"version": 1,
             u"nodes": {
-                self.node_1: [],
-                self.node_2: [self.application],
+                node_1: [],
+                node_2: [application],
             },
         }))
 
         flocker_deploy(deployment_moved_config, application_config)
 
-        child_2 = spawn('mongo ' + self.node_2)
+        child_2 = spawn('mongo ' + node_2)
         child_2.expect('MongoDB shell version:.*')
         child_2.sendline('use example;')
         child_2.expect('switched to db example')
