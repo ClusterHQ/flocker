@@ -1064,10 +1064,7 @@ def marshal_configuration(state):
     for application in state.running + state.not_running:
         converter = ApplicationMarshaller(application)
 
-        # XXX image unknown, see
-        # https://github.com/ClusterHQ/flocker/issues/207
-        # When 207 is complete, use ``converter.convert_image``
-        result[application.name] = {"image": "unknown"}
+        result[application.name] = {"image": converter.convert_image()}
 
         result[application.name]["ports"] = converter.convert_ports()
 
