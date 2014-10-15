@@ -3,6 +3,7 @@
 """
 Tests for ``admin.packaging``.
 """
+
 from glob import glob
 from subprocess import check_output
 import sys
@@ -32,6 +33,13 @@ require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
 def assert_equal_steps(test_case, expected, actual):
     """
+    Show inequalities in the steps of two ``BuildSequence`` instances.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param expected: The expected build step instance.
+    :param actual: The actual build step instance.
+    :raises: ``TestFailure`` if the build steps are not equal, showing the
+        unequal or missing steps.
     """
     expected_steps = getattr(expected, 'steps')
     actual_steps = getattr(actual, 'steps')
@@ -59,15 +67,20 @@ def assert_equal_steps(test_case, expected, actual):
 
 
 
-def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
+def assert_dict_contains(test_case, expected, actual, message=''):
     """
-    `actual_dict` contains all the items in `expected_dict`.
+    Fail unless the supplied ``actual`` ``dict`` contains all the items in
+    ``expected``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param expected: The expected build step instance.
+    :param actual: The actual build step instance.
     """
     missing_items = []
     mismatch_items = []
     no_value = object()
-    for key, expected_value in expected_dict.items():
-        actual_value = actual_dict.get(key, no_value)
+    for key, expected_value in expected.items():
+        actual_value = actual.get(key, no_value)
         if actual_value is no_value:
             missing_items.append(key)
         elif actual_value != expected_value:
@@ -80,7 +93,7 @@ def assert_dict_contains(test_case, expected_dict, actual_dict, message=''):
             'Missing items: {}\n'
             'Mismatch items:  {}\n'
             'Actual items: {}'.format(
-                message, missing_items, mismatch_items, actual_dict)
+                message, missing_items, mismatch_items, actual)
         )
 
 
