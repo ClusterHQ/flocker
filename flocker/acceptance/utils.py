@@ -11,7 +11,7 @@ from twisted.python.procutils import which
 from flocker.node._docker import DockerClient, Unit
 
 # TODO link from the documentation to the tests
-# TODO try to use docker client - modify the vagrant image to allow it
+# TODO try to use docker client
 # TODO run coverage
 
 __all__ = [
