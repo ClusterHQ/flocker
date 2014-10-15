@@ -16,7 +16,7 @@ from flocker.testtools import FakeSysModule
 
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
-    BuildSequence, BuildOptions, BuildScript
+    BuildSequence, BuildOptions, BuildScript, GetApplicationVersion
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -240,6 +240,32 @@ class InstallApplicationTests(TestCase):
         ).run()
         expected_pip_args = ['--quiet', 'install', expected_package_uri]
         fake_env.assert_pip_args(expected_pip_args)
+
+    def test_version(self):
+        """
+        """
+        expected_package_uri = '/foo/bar'
+        fake_env = fake_virtual_env(self)
+        InstallApplication(
+            virtualenv_path=fake_env.path,
+            package_uri=expected_package_uri
+        ).run()
+        expected_pip_args = ['--quiet', 'install', expected_package_uri]
+        fake_env.assert_pip_args(expected_pip_args)
+
+
+class GetApplicationVersionTests(TestCase):
+    """
+
+    """
+    def test_version_found(self):
+        """
+        """
+        expected_version = '1.2.3'
+        fake_env = fake_virtual_env(self)
+        step = GetApplicationVersion(virtualenv_path=fake_env.path)
+        step.run()
+        self.assertEqual(expected_version, step.version)
 
 
 class BuildRpmTests(TestCase):

@@ -60,6 +60,20 @@ class InstallApplication(object):
         )
 
 
+@attributes(['virtualenv_path'])
+class GetApplicationVersion(object):
+    """
+    """
+    version = None
+
+    def run(self):
+        """
+        """
+        pip_path = self.virtualenv_path.child('bin').child('pip').path
+        check_call([pip_path, 'freeze'])
+
+
+
 @attributes(
     ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
      'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture',
