@@ -28,6 +28,10 @@ class DataTests(TestCase):
     def test_data_moves(self):
         """
         Moving an application moves data with it.
+
+        Instead of pexpect this could use PyMongo, which would mean that the
+        mongo client would not have to be installed. However, this uses
+        pexpect to be as close as possible to the tutorial.
         """
         # TODO remove all the 'self's
         self.node_1, self.node_2 = get_nodes(num_nodes=2)
@@ -78,7 +82,7 @@ class DataTests(TestCase):
         child_1.sendline('db.records.find({})')
         # TODO the below is the wrong expectation
         child_1.expect('switched to db example')
-        # TODO capture the output
+        child_1.expect('{ "_id" : ObjectId\(".*"\), "the data" : "it moves" }')
 
         deployment_moved_config = temp.child(b"volume-deployment-moved.yml")
         deployment_moved_config.setContent(safe_dump({
@@ -91,13 +95,12 @@ class DataTests(TestCase):
 
         flocker_deploy(deployment_moved_config, application_config)
 
-        # TODO use child_2 with node_2 instead
-        child_1 = spawn('mongo ' + self.node_1)
-        child_1.expect('MongoDB shell version:.*')
-        child_1.sendline('use example;')
-        child_1.expect('switched to db example')
-        child_1.sendline('db.records.insert({"the data": "it moves"})')
-        child_1.sendline('db.records.find({})')
+        child_2 = spawn('mongo ' + self.node_2)
+        child_2.expect('MongoDB shell version:.*')
+        child_2.sendline('use example;')
+        child_2.expect('switched to db example')
+        child_2.sendline('db.records.insert({"the data": "it moves"})')
+        child_2.sendline('db.records.find({})')
         # TODO the below is the wrong expectation, expect the previously
         # captured output
-        child_1.expect('switched to db example')
+        child_2.expect('switched to db example')
