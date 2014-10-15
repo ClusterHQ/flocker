@@ -67,7 +67,6 @@ def assert_equal_steps(test_case, expected, actual):
             )
 
 
-
 def assert_dict_contains(test_case, expected, actual, message=''):
     """
     Fail unless the supplied ``actual`` ``dict`` contains all the items in
@@ -249,10 +248,13 @@ class InstallVirtualEnvTests(TestCase):
         if bad_links:
             self.fail(
                 '\n'.join(
-                    '/'.join(path.segmentsFrom(target_path)) + ' -> ' + path.realpath().path
+                    '/'.join(
+                        path.segmentsFrom(target_path)
+                    ) + ' -> ' + path.realpath().path
                     for path in bad_links
                 )
             )
+
 
 class InstallApplicationTests(TestCase):
     """
@@ -283,8 +285,8 @@ class PackageInfo(namedtuple('PackageInfo', 'root name version')):
 
 def canned_package(test_case):
     """
-    Create a directory containing an empty Python package which can be installed
-    and with a name and version which can later be tested.
+    Create a directory containing an empty Python package which can be
+    installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose assert methods will be called.
     :return: A ``PackageInfo`` instance.
@@ -321,7 +323,6 @@ class GetPackageVersionTests(TestCase):
         step = GetPackageVersion(virtualenv_path=None, package_name=None)
         self.assertIs(None, step.version)
 
-
     def test_version_found(self):
         """
         ``GetPackageVersion`` assigns the version of a found package to its
@@ -334,7 +335,8 @@ class GetPackageVersionTests(TestCase):
         InstallApplication(
             virtualenv_path=test_env, package_uri=test_package.root.path).run()
 
-        step = GetPackageVersion(virtualenv_path=test_env, package_name=test_package.name)
+        step = GetPackageVersion(
+            virtualenv_path=test_env, package_name=test_package.name)
         step.run()
         self.assertEqual(test_package.version, step.version)
 
@@ -348,7 +350,9 @@ class GetPackageVersionTests(TestCase):
         InstallVirtualEnv(target_path=test_env).run()
 
         step = GetPackageVersion(
-            virtualenv_path=test_env, package_name='PackageWhichIsNotInstalled')
+            virtualenv_path=test_env,
+            package_name='PackageWhichIsNotInstalled'
+        )
         step.run()
         self.assertIs(None, step.version)
 
@@ -440,7 +444,8 @@ class SumoRpmBuilderTests(TestCase):
         expected_vendor = 'ClusterHQ'
         expected_maintainer = 'noreply@build.clusterhq.com'
         expected_architecture = None
-        expected_description = 'A Docker orchestration and volume management tool'
+        expected_description = (
+            'A Docker orchestration and volume management tool')
 
         expected = BuildSequence(
             steps=(
