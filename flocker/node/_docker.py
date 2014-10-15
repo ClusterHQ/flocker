@@ -251,9 +251,10 @@ class DockerClient(object):
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self, namespace=BASE_NAMESPACE):
+    def __init__(self, namespace=BASE_NAMESPACE,
+                 base_url='unix://var/run/docker.sock'):
         self.namespace = namespace
-        self._client = Client(version="1.12")
+        self._client = Client(version="1.12", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -440,3 +441,14 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
         """
         self._client = DockerClient(
             namespace=BASE_NAMESPACE + namespace + u"--")
+
+class RemoteDockerClient(proxyForInterface(IDockerClient, "_client")):
+    """
+    A Docker client that connects to a Docker server over TCP.
+    """
+    def __init__(self, ip):
+        """
+        :param unicode ip: IP address of the node where the Docker server is
+        running on port 2375.
+        """
+        self._client = DockerClient(base_url=u'tcp://' + ip + u':2375')

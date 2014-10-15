@@ -5,13 +5,13 @@ Tests for moving applications between nodes.
 """
 from yaml import safe_dump
 
+from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit
+from flocker.node._docker import RemoteDockerClient, Unit
 
-from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
-                    running_units)
+from .utils import flocker_deploy, get_nodes, require_flocker_cli
 
 
 class MovingApplicationTests(TestCase):
@@ -30,51 +30,62 @@ class MovingApplicationTests(TestCase):
         After deploying an application to one node and then moving it onto
         another node, it is only on the second node.
         """
-        node_1, node_2 = get_nodes(num_nodes=2)
-
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
-        application_config = temp.child(b"application.yml")
-        application_config.setContent(safe_dump({
-            u"version": 1,
-            u"applications": {
-                u"mongodb-example": {
-                    u"image": u"clusterhq/mongodb",
+        d = get_nodes(num_nodes=2)
+
+        def deploy_and_move(node_ips):
+            node_1, node_2 = node_ips
+            application_config = temp.child(b"application.yml")
+            application_config.setContent(safe_dump({
+                u"version": 1,
+                u"applications": {
+                    u"mongodb-example": {
+                        u"image": u"clusterhq/mongodb",
+                    },
                 },
-            },
-        }))
+            }))
 
-        deployment_config = temp.child(b"deployment.yml")
-        deployment_config.setContent(safe_dump({
-            u"version": 1,
-            u"nodes": {
-                node_1: [u"mongodb-example"],
-                node_2: [],
-            },
-        }))
+            deployment_config = temp.child(b"deployment.yml")
+            deployment_config.setContent(safe_dump({
+                u"version": 1,
+                u"nodes": {
+                    node_1: [u"mongodb-example"],
+                    node_2: [],
+                },
+            }))
 
-        flocker_deploy(deployment_config, application_config)
+            flocker_deploy(deployment_config, application_config)
 
-        # TODO change this and other yml names to match the tutorial
-        deployment_moved_config = temp.child(b"deployment.yml")
-        deployment_moved_config.setContent(safe_dump({
-            u"version": 1,
-            u"nodes": {
-                node_1: [],
-                node_2: [u"mongodb-example"],
-            },
-        }))
+            # TODO change this and other yml names to match the tutorial
+            deployment_moved_config = temp.child(b"deployment.yml")
+            deployment_moved_config.setContent(safe_dump({
+                u"version": 1,
+                u"nodes": {
+                    node_1: [],
+                    node_2: [u"mongodb-example"],
+                },
+            }))
 
-        flocker_deploy(deployment_moved_config, application_config)
+            flocker_deploy(deployment_moved_config, application_config)
 
-        unit = Unit(name=u'/mongodb-example',
-                    container_name=u'/mongodb-example',
-                    activation_state=u'active',
-                    container_image=u'clusterhq/mongodb:latest',
-                    ports=frozenset(), environment=None, volumes=())
+            unit = Unit(name=u'/mongodb-example',
+                        container_name=u'/mongodb-example',
+                        activation_state=u'active',
+                        container_image=u'clusterhq/mongodb:latest',
+                        ports=frozenset(), environment=None, volumes=())
 
-        self.assertEqual(
-            [running_units(node_1), running_units(node_2)],
-            [set(), set([unit])]
-        )
+            d = gatherResults([RemoteDockerClient(node_1).list(),
+                               RemoteDockerClient(node_2).list()])
+
+            def listed(units):
+                node_1_list, node_2_list = units
+                self.assertEqual([set(), set([unit])],
+                                 [node_1_list, node_2_list])
+
+            d.addCallback(listed)
+            return d
+
+        d.addCallback(deploy_and_move)
+        return d

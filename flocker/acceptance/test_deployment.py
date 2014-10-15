@@ -9,7 +9,7 @@ from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit, RemoteDockerClient
+from flocker.node._docker import RemoteDockerClient, Unit
 
 from .utils import flocker_deploy, get_nodes, require_flocker_cli
 

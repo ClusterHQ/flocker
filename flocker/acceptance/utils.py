@@ -12,7 +12,7 @@ from twisted.python.procutils import which
 from flocker.node._docker import DockerClient, RemoteDockerClient, Unit
 
 # TODO link from the documentation to the tests
-# TODO try to use docker client
+# TODO change the docs here to note that it is all deferreds
 # TODO run coverage
 # TODO Search for TODOs
 
@@ -22,7 +22,7 @@ __all__ = [
 
 def remove_all_containers(ip):
     """
-    Remove all containers on a node, given the ip of the node.
+    Remove all containers on a node, given the IP address of the node.
     """
     docker_client = RemoteDockerClient(ip)
     d = docker_client.list()
