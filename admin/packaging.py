@@ -140,6 +140,20 @@ class InstallApplication(object):
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
+@attributes(['prefix', 'source_path', 'pattern', 'destination_path'])
+class CreateLinks(object):
+    """
+    Create symlinks in ``destination_path`` to the files in ``source_path``
+    which match ``pattern``. The links will be absolute paths relative to
+    ``prefix``.
+    """
+    def run(self):
+        for child in self.source_path.globChildren(self.pattern):
+            absolute_child = FilePath('/').descendant(
+                child.segmentsFrom(self.prefix))
+            absolute_child.linkTo(
+                self.destination_path.child(child.basename()))
+
 
 @attributes(['virtualenv_path', 'package_name'])
 class GetPackageVersion(object):
@@ -304,20 +318,32 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
 
+    virtualenv_dir = target_dir.descendant(['opt', 'flocker'])
+    virtualenv_dir.makedirs()
+
+    bin_dir = target_dir.descendant(['usr', 'bin'])
+    bin_dir.makedirs()
+
     get_package_version_step = GetPackageVersion(
-        virtualenv_path=target_dir, package_name='Flocker')
+        virtualenv_path=virtualenv_dir, package_name='Flocker')
 
     return BuildSequence(
         steps=(
-            InstallVirtualEnv(target_path=target_dir),
-            InstallApplication(virtualenv_path=target_dir,
+            InstallVirtualEnv(target_path=virtualenv_dir),
+            InstallApplication(virtualenv_path=virtualenv_dir,
                                package_uri=package_uri),
             get_package_version_step,
+            CreateLinks(
+                prefix=target_dir,
+                source_path=virtualenv_dir.child('bin'),
+                pattern='flocker-*',
+                destination_path=bin_dir
+            ),
             BuildRpm(
                 destination_path=destination_path,
                 source_path=target_dir,
                 name='Flocker',
-                prefix=FilePath('/opt/flocker'),
+                prefix=FilePath('/'),
                 epoch=b'0',
                 rpm_version=DelayedRpmVersion(
                     package_version_step=get_package_version_step),

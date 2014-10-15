@@ -21,7 +21,7 @@ from flocker.testtools import FakeSysModule
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES
+    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES, CreateLinks
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -297,6 +297,36 @@ class InstallApplicationTests(TestCase):
         fake_env.assert_pip_args(expected_pip_args)
 
 
+class CreateLinksTests(TestCase):
+    def test_run(self):
+        """
+        ``CreateLinks.run`` generates symlinks in ``destination_path`` for all
+        the files in ``source_path`` that match ``pattern``. The link targets
+        are absolute paths relative to the ``prefix``.
+        """
+        root = FilePath(self.mktemp())
+        flocker_bin = root.descendant(['opt', 'flocker', 'bin'])
+        flocker_bin.makedirs()
+        flocker_scripts = ('flocker-one', 'flocker-two')
+        foreign_scripts = ('foo-one', 'bar-one')
+        for script in flocker_scripts + foreign_scripts:
+            flocker_bin.child(script).setContent('A script called ' + script)
+
+        system_bin = root.descendant(['usr', 'bin'])
+        system_bin.makedirs()
+
+        CreateLinks(
+            prefix=root,
+            source_path=flocker_bin,
+            pattern='flocker-*',
+            destination_path=system_bin
+        ).run()
+
+        self.assertEqual(
+            [FilePath('/opt/flocker/bin').child(script) for script in flocker_scripts],
+            [child.realpath() for child in system_bin.children()]
+        )
+
 class PackageInfo(namedtuple('PackageInfo', 'root name version')):
     """
     :ivar FilePath root: The path to the directory containing the package.
@@ -450,12 +480,14 @@ class SumoRpmBuilderTests(TestCase):
         """
         expected_destination_path = FilePath(self.mktemp())
         expected_target_path = FilePath(self.mktemp())
+        expected_virtualenv_path = expected_target_path.descendant(['opt', 'flocker'])
+        expected_sysbin_path = expected_target_path.descendant(['usr', 'bin'])
         expected_name = 'Flocker'
-        expected_prefix = FilePath('/opt/flocker')
+        expected_prefix = FilePath('/')
         expected_epoch = b'0'
         expected_package_uri = '/foo/bar'
         expected_package_version_step = GetPackageVersion(
-            virtualenv_path=expected_target_path,
+            virtualenv_path=expected_virtualenv_path,
             package_name=expected_name
         )
         expected_version = DelayedRpmVersion(
@@ -471,10 +503,16 @@ class SumoRpmBuilderTests(TestCase):
 
         expected = BuildSequence(
             steps=(
-                InstallVirtualEnv(target_path=expected_target_path),
-                InstallApplication(virtualenv_path=expected_target_path,
+                InstallVirtualEnv(target_path=expected_virtualenv_path),
+                InstallApplication(virtualenv_path=expected_virtualenv_path,
                                    package_uri=expected_package_uri),
                 expected_package_version_step,
+                CreateLinks(
+                    prefix=expected_target_path,
+                    source_path=expected_virtualenv_path.child('bin'),
+                    pattern='flocker-*',
+                    destination_path=expected_sysbin_path,
+                ),
                 BuildRpm(
                     destination_path=expected_destination_path,
                     source_path=expected_target_path,
@@ -523,7 +561,7 @@ class SumoRpmBuilderTests(TestCase):
             Release=expected_rpm_version.release,
             License='ASL 2.0',
             URL='https://clusterhq.com',
-            Relocations=b'/opt/flocker',
+            Relocations=b'/',
             Vendor='ClusterHQ',
             Packager='noreply@build.clusterhq.com',
             Architecture='noarch',
@@ -550,6 +588,7 @@ RPMLINT_IGNORED_WARNINGS = (
     'no-changelogname-tag',
     'non-standard-group',
     'backup-file-in-package',
+    'no-manual-page-for-binary',
 )
 
 
