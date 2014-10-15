@@ -14,7 +14,7 @@ from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
                     require_mongo)
 
 
-class DataMoveTests(TestCase):
+class MovingDataTests(TestCase):
     """
     Tests for movement of data across nodes.
 
@@ -23,8 +23,7 @@ class DataMoveTests(TestCase):
     """
     @require_mongo
     @require_flocker_cli
-    # TODO rename the file to match this
-    def test_data_moves(self):
+    def test_moving_data(self):
         """
         Moving an application moves that application's data with it.
 

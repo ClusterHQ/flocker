@@ -14,7 +14,7 @@ from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
                     running_units)
 
 
-class MoveTests(TestCase):
+class MovingApplicationTests(TestCase):
     """
     Tests for moving applications between nodes.
 
@@ -25,7 +25,7 @@ class MoveTests(TestCase):
     def setUp(self):
         pass
 
-    def test_moving(self):
+    def test_moving_application(self):
         """
         After deploying an application to one node and then moving it onto
         another node, it is only on the second node.
