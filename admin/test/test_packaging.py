@@ -21,7 +21,7 @@ from flocker.testtools import FakeSysModule
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion,
+    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -121,6 +121,26 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
     assert_dict_contains(
         test_case, expected_headers, actual_headers, 'Missing RPM Headers: '
     )
+
+
+def assert_rpm_requires(test_case, expected_requirements, rpm_path):
+    """
+    Fail unless the ``RPM`` file at ``rpm_path`` has all the
+    ``expected_requirements``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param list expected_requirements: A list of requirement strings.
+    :param FilePath rpm_path: The path to the RPM file under test.
+    """
+    output = check_output(
+        ['rpm', '--query', '--requires', '--package', rpm_path.path]
+    )
+    actual_requirements = set(line.strip() for line in output.splitlines())
+    expected_requirements = set(expected_requirements)
+    missing_requirements = expected_requirements - actual_requirements
+    if missing_requirements:
+        test_case.fail('Missing requirements: {} in {}'.format(
+            missing_requirements, rpm_path.path))
 
 
 def fake_virtual_env(test_case):
@@ -509,8 +529,10 @@ class SumoRpmBuilderTests(TestCase):
             Architecture='noarch',
             Description='A Docker orchestration and volume management tool',
         )
-        assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
-        assert_rpmlint(self, rpms[0])
+        rpm_file = FilePath(rpms[0])
+        assert_rpm_headers(self, expected_headers, rpm_file)
+        assert_rpm_requires(self, FLOCKER_RPM_DEPENDENCIES, rpm_file)
+        assert_rpmlint(self, rpm_file)
 
 
 # XXX: These warnings are being ignored but should probably be fixed.
@@ -539,7 +561,7 @@ def assert_rpmlint(test_case, rpm_path):
     :param FilePath rpm_path: The path to the RPM file to check.
     """
     try:
-        check_output(['rpmlint', rpm_path])
+        check_output(['rpmlint', rpm_path.path])
     except CalledProcessError as e:
         output = []
         for line in e.output.splitlines():

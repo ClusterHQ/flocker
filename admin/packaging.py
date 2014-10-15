@@ -74,6 +74,14 @@ from characteristic import attributes
 from .release import make_rpm_version
 
 
+# RPM style 'Requires' values which will be added to the Flocker RPM headers.
+FLOCKER_RPM_DEPENDENCIES = (
+    'docker-io',
+    '/usr/sbin/iptables',
+    'zfs',
+)
+
+
 @attributes(['steps'])
 class BuildSequence(object):
     """
@@ -200,6 +208,10 @@ class BuildRpm(object):
         if architecture is None:
             architecture = 'all'
 
+        depends_arguments = []
+        for requirement in FLOCKER_RPM_DEPENDENCIES:
+            depends_arguments.extend(['--depends', requirement])
+
         check_call([
             'fpm',
             '-s', 'dir',
@@ -217,7 +229,7 @@ class BuildRpm(object):
             '--architecture', architecture,
             '--description', self.description,
             '--exclude', '*.pyc',
-            '.'], cwd=self.source_path.path
+            ] + depends_arguments + ['.'], cwd=self.source_path.path
         )
 
 
