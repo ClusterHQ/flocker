@@ -26,6 +26,9 @@ Notes:
       * This means that as and when sufficiently new versions of our
         dependencies are introduced upstream, we can remove them from our sumo
         build.
+      * We'll need to keep track of which of our dependencies are provided on
+        each platform and somehow omit those from the build for that
+        platform.
       * Those dependencies which are either too old or which are not packaged
         will be imported from the sumo virtualenv in preference.
       * Eventually we hope that all our dependencies will filter upstream and
@@ -256,21 +259,21 @@ class DelayedRpmVersion(object):
 
 def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     """
-    Build an RPM file containing the supplied `package` and all its
-    dependencies.
+    Build a sequence of build steps which when run will generate an RPM file in
+    ``destination_path``, containing the package installed from ``package_uri``
+    and all its dependencies.
 
-    Plan:
-    * Create a temporary working dir.
-    * Create virtualenv with `--system-site-packages`
-      * Allows certain python libraries to be supplied by the operating system.
-    * Install flocker from wheel file (which will include all the
-      dependencies).
-      * We'll need to keep track of which of our dependencies are provided on
-        each platform and somehow omit those for from the build for that
-        platform.
-    * Generate an RPM version number.
-    * Run `fpm` supplying the virtualenv path and version number.
+    The steps are:
 
+    * Create a virtualenv with ``--system-site-packages`` which allows certain
+      python libraries to be supplied by the operating system.
+
+    * Install Flocker and all its dependencies in the virtualenv.
+
+    * Find the version of the installed Flocker package, as reported by
+      ``pip``.
+
+    * Build an RPM from the virtualenv directory using ``fpm``.
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
