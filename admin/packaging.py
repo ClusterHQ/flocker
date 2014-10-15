@@ -3,6 +3,59 @@
 
 """
 Helper utilities for Flocker packaging.
+
+Notes:
+
+    Motivation:
+    * We depend on libraries which are not packaged for the target OS.
+    * We depend on newer versions of libraries which have not yet been included
+      in the target OS.
+
+    Disadvantages:
+    * We won't be able to take advantage of library security updates shipped by
+      the target OS.
+      * But by shipping our own separate dependency packages we will need to be
+        responsible for shipping security patches in those packages.
+      * And rather than being responsible only for the security of Flocker, we
+        become responsible for the security of all other packages that depend
+        on that package.
+    * Packages will be larger.
+
+    Followup Issues:
+    * Update all pinned dependencies to instead be minimum dependencies.
+      * This means that as and when sufficiently new versions of our
+        dependencies are introduced upstream, we can remove them from our sumo
+        build.
+      * Those dependencies which are either too old or which are not packaged
+        will be imported from the sumo virtualenv in preference.
+      * Eventually we hope that all our dependencies will filter upstream and
+        we will no longer have to bundle them; at which point the `flocker`
+        package itself may be ready to be packaged by upstream distributions.
+
+    Ticket refs:
+         * https://github.com/ClusterHQ/flocker/issues/88
+
+    Issue: CI integration (??):
+    Update buildbot to build RPMs using new build scripts
+    * Issue: create deb, mac, gentoo build slave
+    * Issue: install from resulting package from repo and run test suite
+
+    Issue: Client package build (??):
+    Sumo packaging of flocker-deploy
+    * For deb, RPM, and mac (via homebrew or ...)
+    * Proper mac packages. See
+      http://stackoverflow.com/questions/11487596/making-os-x-installer-packages-like-a-pro-xcode4-developer-id-mountain-lion-re
+
+    Client package CI integration
+
+    Misc:
+    * separate stable and testing repos for deb and rpm
+    * update python-flocker.spec.in requirements (remove most of them)
+    * maybe even remove the spec file template and generate_spec function
+      entirely (do we need it?)
+    * do we still need to build an SRPM?
+    * automatically build a wheel
+    * automatically build an sdist
 """
 
 import sys
@@ -206,21 +259,6 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     Build an RPM file containing the supplied `package` and all its
     dependencies.
 
-    Motivation:
-    * We depend on libraries which are not packaged for the target OS.
-    * We depend on newer versions of libraries which have not yet been included
-      in the target OS.
-
-    Disadvantages:
-    * We won't be able to take advantage of library security updates shipped by
-      the target OS.
-      * But by shipping our own separate dependency packages we will need to be
-        responsible for shipping security patches in those packages.
-      * And rather than being responsible only for the security of Flocker, we
-        become responsible for the security of all other packages that depend
-        on that package.
-    * Packages will be larger.
-
     Plan:
     * Create a temporary working dir.
     * Create virtualenv with `--system-site-packages`
@@ -233,42 +271,6 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     * Generate an RPM version number.
     * Run `fpm` supplying the virtualenv path and version number.
 
-
-    Followup Issues:
-    * Update all pinned dependencies to instead be minimum dependencies.
-      * This means that as and when sufficiently new versions of our
-        dependencies are introduced upstream, we can remove them from our sumo
-        build.
-      * Those dependencies which are either too old or which are not packaged
-        will be imported from the sumo virtualenv in preference.
-      * Eventually we hope that all our dependencies will filter upstream and
-        we will no longer have to bundle them; at which point the `flocker`
-        package itself may be ready to be packaged by upstream distributions.
-
-    Ticket refs:
-         * https://github.com/ClusterHQ/flocker/issues/88
-
-    Issue: CI integration (??):
-    Update buildbot to build RPMs using new build scripts
-    * Issue: create deb, mac, gentoo build slave
-    * Issue: install from resulting package from repo and run test suite
-
-    Issue: Client package build (??):
-    Sumo packaging of flocker-deploy
-    * For deb, RPM, and mac (via homebrew or ...)
-    * Proper mac packages. See
-      http://stackoverflow.com/questions/11487596/making-os-x-installer-packages-like-a-pro-xcode4-developer-id-mountain-lion-re
-
-    Client package CI integration
-
-    Misc:
-    * separate stable and testing repos for deb and rpm
-    * update python-flocker.spec.in requirements (remove most of them)
-    * maybe even remove the spec file template and generate_spec function
-      entirely (do we need it?)
-    * do we still need to build an SRPM?
-    * automatically build a wheel
-    * automatically build an sdist
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
