@@ -16,9 +16,7 @@ from flocker.testtools import random_name
 # TODO link from the documentation to the tests
 # TODO try to use docker client - modify the vagrant image to allow it
 # TODO document how someone would use this
-# TODO split out the vagrant stuff from the docker stuff
-# TODO create issues for follow up - ELK/PostgreSQL, Docker-in-Docker
-# TODO if num_nodes is not 2, raise an exception
+# TODO the last step of the tutorial
 # TODO run coverage
 
 __all__ = [
@@ -78,12 +76,15 @@ def remove_all_containers(ip):
             runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] +
                    [container], None)
         except Exception:
-            # TODO I sometimes see:
+            # I sometimes see:
             # Error response from daemon: Cannot destroy container
             # 08f9ca89053c: Driver devicemapper failed to remove root
             # filesystem
             # 08f9ca89053c782130e7394caacc03a00cf9b621e251f909897a9f0c30dfdc72:
             # Device is Busy
+            #
+            # Hopefully replacing this with a Docker py client will avoid
+            # this issue.
             pass
 
 
@@ -129,14 +130,11 @@ def runSSH(port, user, node, command, input, key=None):
 
     return result[0]
 
-# TODO Look at
-# https://github.com/ClusterHQ/flocker/compare/acceptance-tests-577
-# for a start on installing flocker-deploy latest
-# The version of flocker-deploy should probably also be checked
+# XXX This assumes that the desired version of flocker-deploy has been
+# installed. Instead, the testing environment should do this automatically.
+# See https://github.com/ClusterHQ/flocker/issues/901
 require_installed = skipUnless(which("flocker-deploy"),
                                "flocker-deploy not installed")
-
-USE_VAGRANT = True
 
 
 def get_nodes(num_nodes):
@@ -147,68 +145,25 @@ def get_nodes(num_nodes):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
-    Unlike the tutorial which uses Vagrant nodes, we want to have Docker
-    containers, and run Docker-in-Docker:
-      https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
-
-    Until that is viable, we can write the tests to use the Vagrant VMs
-    The start of the Docker-in-Docker plan is below the return.
-
-    Follow the Release Process's review process to get up to date VMs running,
-    or the tutorial for the latest release.
+    XXX This is a temporary solution which ignores num_nodes and returns the IP
+    addresses of the tutorial VMs which must already be started. num_nodes
+    Docker containers will be created instead to replace this, see
+    https://github.com/ClusterHQ/flocker/issues/900
 
     :param int num_nodes: The number of nodes to start up.
     :return: A ``list`` of ``bytes``, the IP addresses of the nodes created.
     """
-    if USE_VAGRANT:
-        node_1 = b"172.16.255.250"
-        node_2 = b"172.16.255.251"
-        # The problem with this is that anyone running "trial flocker" while
-        # their tutorial nodes are running may inadvertently remove all
-        # containers which are running on those nodes. If it stays this way
-        # I'll leave it to a reviewer to decide if that is so bad that it must
-        # be changed (note that in future this will be dropped for a
-        # Docker-in-Docker solution).
-        remove_all_containers(node_1)
-        remove_all_containers(node_2)
-        return [node_1, node_2]
-
-    namespace = u"acceptance-tests"
-    client = NamespacedDockerClient(namespace)
-    # TODO use num_nodes instead of just 2 nodes
-    node_1_name = random_name()
-    node_2_name = random_name()
-    image = u"openshift/busybox-http-app"
-    # TODO Enable ssh on the nodes by changing the images
-    # Look at using http://www.packer.io to build Vagrant image and Docker
-    # image so that we have all the dependencies
-    d = client.add(node_1_name, image)
-
-    d.addCallback(lambda _: client.add(node_2_name, image))
-    d.addCallback(lambda _: client.list())
-    # TODO wait_for_unit_state - we want active units
-    #   from flocker.node.testtools import wait_for_unit_state
-
-    # TODO add cleanup
-    #   self.addCleanup(self.client.remove, node_1_name)
-
-    # How do we specify that the containers should be priviledged (so as
-    # to be able to be run inside another docker container)
-
-    def get_ips(units):
-        docker = Client()
-        prefix = u'flocker--' + namespace + u'--'
-
-        node_1 = docker.inspect_container(prefix + node_1_name)
-        node_2 = docker.inspect_container(prefix + node_2_name)
-
-        node_1_ip = node_1['NetworkSettings']['IPAddress']
-        node_2_ip = node_2['NetworkSettings']['IPAddress']
-        # Is this always bytes?
-        return [node_1_ip, node_2_ip]
-
-    d.addCallback(get_ips)
-    return d
+    node_1 = b"172.16.255.250"
+    node_2 = b"172.16.255.251"
+    # The problem with this is that anyone running "trial flocker" while
+    # their tutorial nodes are running may inadvertently remove all
+    # containers which are running on those nodes. If it stays this way
+    # I'll leave it to a reviewer to decide if that is so bad that it must
+    # be changed (note that in future this will be dropped for a
+    # Docker-in-Docker solution).
+    remove_all_containers(node_1)
+    remove_all_containers(node_2)
+    return [node_1, node_2]
 
 
 def flocker_deploy(deployment_config, application_config):
@@ -223,5 +178,8 @@ def flocker_deploy(deployment_config, application_config):
     check_output([b"flocker-deploy"] +
                  [deployment_config.path] +
                  [application_config.path])
-    # TODO Use something like wait_for_active instead of this
+    # XXX Without this some of the tests fail, so there is a race condition.
+    # My guess is that this is because `flocker-deploy` returns too
+    # early. The issue that describes similar behaviour is
+    # https://github.com/ClusterHQ/flocker/issues/341
     sleep(2)
