@@ -6,9 +6,10 @@ from subprocess import check_output, PIPE, Popen
 from time import sleep
 from unittest import skipUnless
 
+from twisted.internet.defer import gatherResults
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, Unit
+from flocker.node._docker import DockerClient, RemoteDockerClient, Unit
 
 # TODO link from the documentation to the tests
 # TODO try to use docker client
@@ -16,75 +17,21 @@ from flocker.node._docker import DockerClient, Unit
 # TODO Search for TODOs
 
 __all__ = [
-    'remove_all_containers', 'require_flocker_cli', 'require_mongo',
+    'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'require_mongo',
     ]
 
 def remove_all_containers(ip):
     """
     Remove all containers on a node, given the ip of the node.
-    Note: This is a hack and, like running_units, should use (something closer
-    to) DockerClient.
     """
-    container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-a"] +
-                           [b"-q"], None).splitlines()
-    for container in container_ids:
-        try:
-            runSSH(22, 'root', ip, [b"docker"] + [b"rm"] + [b"-f"] +
-                   [container], None)
-        except Exception:
-            # I sometimes see:
-            # Error response from daemon: Cannot destroy container
-            # 08f9ca89053c: Driver devicemapper failed to remove root
-            # filesystem
-            # 08f9ca89053c782130e7394caacc03a00cf9b621e251f909897a9f0c30dfdc72:
-            # Device is Busy
-            #
-            # Hopefully replacing this with a Docker py client will avoid
-            # this issue.
-            pass
+    docker_client = RemoteDockerClient(ip)
+    d = docker_client.list()
 
+    d.addCallback(lambda units:
+        gatherResults([docker_client.remove(unit.name) for unit in units]))
 
-def runSSH(port, user, node, command, input, key=None):
-    """
-    # TODO Format this with a PEP8 style
-
-    Run a command via SSH.
-
-    @param port: Port to connect to.
-    @type port: L{int}
-    @param node: Node to run command on
-    @param node: L{bytes}
-    @param command: command to run
-    @type command: L{list} of L{bytes}
-    @param input: Input to send to command.
-    @type input: L{bytes}
-
-    @param key: If not L{None}, the path to a private key to use.
-    @type key: L{FilePath}
-
-    @return: stdout
-    @rtype: L{bytes}
-    """
-    quotedCommand = ' '.join(map(shellQuote, command))
-    command = [
-        b'ssh',
-        b'-p', b'%d' % (port,),
-        ]
-    if key is not None:
-        command.extend([
-            b"-i",
-            key.path])
-    command.extend([
-        b'@'.join([user, node]),
-        quotedCommand
-    ])
-    process = Popen(command, stdout=PIPE, stdin=PIPE)
-
-    result = process.communicate(input)
-    if process.returncode != 0:
-        raise Exception('Command Failed', command, process.returncode)
-
-    return result[0]
+    return d
+    
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
@@ -116,17 +63,16 @@ def get_nodes(num_nodes):
     :param int num_nodes: The number of nodes to start up.
     :return: A ``list`` of ``bytes``, the IP addresses of the nodes created.
     """
-    node_1 = b"172.16.255.250"
-    node_2 = b"172.16.255.251"
+    nodes = [b"172.16.255.250", b"172.16.255.251"]
     # The problem with this is that anyone running "trial flocker" while
     # their tutorial nodes are running may inadvertently remove all
     # containers which are running on those nodes. If it stays this way
     # I'll leave it to a reviewer to decide if that is so bad that it must
     # be changed (note that in future this will be dropped for a
     # Docker-in-Docker solution).
-    remove_all_containers(node_1)
-    remove_all_containers(node_2)
-    return [node_1, node_2]
+    d = gatherResults([remove_all_containers(node) for node in nodes])
+    d.addCallback(lambda _: nodes)
+    return d
 
 
 def flocker_deploy(deployment_config, application_config):

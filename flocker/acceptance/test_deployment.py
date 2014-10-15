@@ -31,45 +31,50 @@ class DeploymentTests(TestCase):
         Deploying an application to one node and not another puts the
         application where expected.
         """
-        node_1, node_2 = get_nodes(num_nodes=2)
-
         temp = FilePath(self.mktemp())
         temp.makedirs()
 
-        application_config = temp.child(b"application.yml")
-        application_config.setContent(safe_dump({
-            u"version": 1,
-            u"applications": {
-                u"mongodb-example": {
-                    u"image": u"clusterhq/mongodb",
+        d = get_nodes(num_nodes=2)
+
+        def deploy(node_ips):
+            node_1, node_2 = node_ips
+            application_config = temp.child(b"application.yml")
+            application_config.setContent(safe_dump({
+                u"version": 1,
+                u"applications": {
+                    u"mongodb-example": {
+                        u"image": u"clusterhq/mongodb",
+                    },
                 },
-            },
-        }))
+            }))
 
-        deployment_config = temp.child(b"deployment.yml")
-        deployment_config.setContent(safe_dump({
-            u"version": 1,
-            u"nodes": {
-                node_1: [u"mongodb-example"],
-                node_2: [],
-            },
-        }))
+            deployment_config = temp.child(b"deployment.yml")
+            deployment_config.setContent(safe_dump({
+                u"version": 1,
+                u"nodes": {
+                    node_1: [u"mongodb-example"],
+                    node_2: [],
+                },
+            }))
 
-        flocker_deploy(deployment_config, application_config)
+            flocker_deploy(deployment_config, application_config)
 
-        unit = Unit(name=u'mongodb-example',
-                    container_name=u'flocker--mongodb-example',
-                    activation_state=u'active',
-                    container_image=u'clusterhq/mongodb:latest',
-                    ports=frozenset(), environment=None, volumes=())
+            unit = Unit(name=u'mongodb-example',
+                        container_name=u'flocker--mongodb-example',
+                        activation_state=u'active',
+                        container_image=u'clusterhq/mongodb:latest',
+                        ports=frozenset(), environment=None, volumes=())
 
-        d = gatherResults([RemoteDockerClient(node_1).list(),
-                           RemoteDockerClient(node_2).list()])
+            d = gatherResults([RemoteDockerClient(node_1).list(),
+                               RemoteDockerClient(node_2).list()])
 
-        def listed(units):
-            node_1_list, node_2_list = units
-            self.assertEqual([set([unit]), set()],
-                             [node_1_list, node_2_list])
+            def listed(units):
+                node_1_list, node_2_list = units
+                self.assertEqual([set([unit]), set()],
+                                 [node_1_list, node_2_list])
 
-        d.addCallback(listed)
+            d.addCallback(listed)
+            return d
+
+        d.addCallback(deploy)
         return d
