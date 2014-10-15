@@ -42,7 +42,7 @@ class InstallVirtualEnv(object):
     """
     def run(self):
         check_call(
-            ['virtualenv', '--quiet', '--system-site-packages', 
+            ['virtualenv', '--quiet', '--system-site-packages',
              self.target_path.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
@@ -67,7 +67,7 @@ class InstallApplication(object):
             [python_path, pip_path, '--quiet', 'install', self.package_uri]
         )
         check_call(
-            ['virtualenv', '--quiet', '--relocatable', 
+            ['virtualenv', '--quiet', '--relocatable',
              self.virtualenv_path.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
@@ -162,10 +162,24 @@ class BuildRpm(object):
 
 @attributes(['package_version_step'])
 class DelayedRpmVersion(object):
+    """
+    Pretend to be an ``rpm_version`` instance providing a ``version`` and
+    ``release`` attribute.
+
+    The values of these attributes will be calculated from the Python version
+    string read from a previous ``GetPackageVersion`` build step.
+
+    :ivar GetPackageVersion package_version_step: An instance of
+        ``GetPackageVersion`` whose ``run`` method has been called and from
+        which the version string will be read.
+    """
     _rpm_version = None
 
     @property
     def rpm_version(self):
+        """
+        :return: An ``rpm_version`` and cache it.
+        """
         if self._rpm_version is None:
             self._rpm_version = make_rpm_version(
                 self.package_version_step.version
@@ -174,10 +188,16 @@ class DelayedRpmVersion(object):
 
     @property
     def version(self):
+        """
+        :return: The ``version`` string.
+        """
         return self.rpm_version.version
 
     @property
     def release(self):
+        """
+        :return: The ``release`` string.
+        """
         return self.rpm_version.release
 
 
