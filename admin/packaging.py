@@ -64,6 +64,7 @@ Notes:
 import sys
 from subprocess import check_call, check_output
 from tempfile import mkdtemp
+from textwrap import dedent
 
 from twisted.python.filepath import FilePath
 from twisted.python import usage
@@ -309,12 +310,13 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
                 vendor='ClusterHQ',
                 maintainer='noreply@build.clusterhq.com',
                 architecture=None,
-                description='A Docker orchestration and volume management tool',
+                description=(
+                    'A Docker orchestration and volume management tool'),
             )
         )
     )
 
-from textwrap import dedent
+
 class BuildOptions(usage.Options):
     """
     Command line options for the ``build-package`` tool.
@@ -347,10 +349,21 @@ class BuildOptions(usage.Options):
 
 
 class BuildScript(object):
+    """
+    Check supplied command line arguments, print command line argument errors
+    to ``stderr`` otherwise build the RPM package.
+
+    :ivar build_command: The function responsible for building the
+        package. Allows the command to be overridden in tests.
+    """
     build_command = staticmethod(sumo_rpm_builder)
 
     def __init__(self, sys_module=None):
         """
+        :param sys_module: A ``sys`` like object whose ``argv``, ``stdout`` and
+            ``stderr`` will be used in the script. Can be overridden in tests
+            to make assertions about the script argument parsing and output
+            printing. Default is ``sys``.
         """
         if sys_module is None:
             sys_module = sys
@@ -358,9 +371,10 @@ class BuildScript(object):
 
     def main(self, top_level=None, base_path=None):
         """
-        Build a package.
+        Check command line arguments and run the build steps.
 
-        :param list argv: The arguments passed to the script.
+        :param top_level: ignored.
+        :param base_path: ignored.
         """
         options = BuildOptions()
 
