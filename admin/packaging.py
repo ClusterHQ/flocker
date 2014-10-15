@@ -1,7 +1,8 @@
+# -*- test-case-name: admin.test.test_packaging -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Helper utilities for the Flocker packaging
+Helper utilities for Flocker packaging.
 """
 
 import sys
@@ -13,15 +14,15 @@ from twisted.python import usage
 
 from characteristic import attributes
 
-import flocker
-
 from .release import make_rpm_version
 
 
 @attributes(['steps'])
 class BuildSequence(object):
     """
-    Run the supplied `steps` in consecutively.
+    Run the supplied ``steps`` consecutively.
+
+    :ivar tuple steps: A sequence of steps.
     """
     def run(self):
         for step in self.steps:
@@ -31,14 +32,18 @@ class BuildSequence(object):
 @attributes(['target_path'])
 class InstallVirtualEnv(object):
     """
-    Install a virtualenv in the supplied `target_path`.
+    Install a virtualenv in the supplied ``target_path``.
 
     We call ``virtualenv`` as a subprocess rather than as a library, so that we
     can turn off Python byte code compilation.
+
+    :ivar FilePath target_path: The path to a directory in which to create the
+        virtualenv.
     """
     def run(self):
         check_call(
-            ['virtualenv', '--quiet', '--system-site-packages', self.target_path.path],
+            ['virtualenv', '--quiet', '--system-site-packages', 
+             self.target_path.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
@@ -46,8 +51,14 @@ class InstallVirtualEnv(object):
 @attributes(['virtualenv_path', 'package_uri'])
 class InstallApplication(object):
     """
-    Install the supplied `package_uri` using `pip` from the supplied
-    `virtualenv_path`.
+    Install the supplied ``package_uri`` using ``pip`` from the supplied
+    ``virtualenv_path``.
+
+    After installing the package and its dependencies, the virtualenv is made
+    ``relocatable`` to remove and absolute paths and shebang lines in scripts.
+
+    :ivar FilePath virtualenv_path: The path to an existing ``virtualenv``.
+    :ivar bytes package_uri: A ``pip install`` compatible package URI.
     """
     def run(self):
         python_path = self.virtualenv_path.child('bin').child('python').path
@@ -56,7 +67,8 @@ class InstallApplication(object):
             [python_path, pip_path, '--quiet', 'install', self.package_uri]
         )
         check_call(
-            ['virtualenv', '--quiet', '--relocatable', self.virtualenv_path.path],
+            ['virtualenv', '--quiet', '--relocatable', 
+             self.virtualenv_path.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
@@ -64,12 +76,20 @@ class InstallApplication(object):
 @attributes(['virtualenv_path', 'package_name'])
 class GetPackageVersion(object):
     """
+    Record the version of ``package_name`` installed in ``virtualenv_path`` by
+    parsing the output of ``pip show``.
+
+    :ivar FilePath virtualenv_path: The path of the ``virtualenv`` containing
+        the package.
+    :ivar bytes package_name: The name of the package whose version will be
+        recorded.
+    :ivar version: The version string of the supplied package. Default is
+        ``None`` until the step has been run or if the supplied
+        ``package_name`` is not found.
     """
     version = None
 
     def run(self):
-        """
-        """
         python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         # Can't just call pip directly, because in tests its shebang line
@@ -92,11 +112,29 @@ class GetPackageVersion(object):
      'description'])
 class BuildRpm(object):
     """
-    Use `fpm` to build an RPM file from the supplied `source_path`.
+    Use ``fpm`` to build an RPM file from the supplied ``source_path``.
+
+    :ivar FilePath destination_path: The path in which to save the resulting
+        RPM package file.
+    :ivar FilePath source_path: The path to a directory whose contents will be
+        packaged.
+    :ivar bytes name: The name of the package.
+    :ivar FilePath prefix: The path beneath which the packaged files will be
+         installed.
+    :ivar bytes epoch: An integer string tag used to help RPM determine version
+        number ordering.
+    :ivar rpm_version rpm_version: An object representing an RPM style version
+        containing a release and a version attribute.
+    :ivar bytes license: The name of the license under which this package is
+        released.
+    :ivar bytes url: The URL of the source of this package.
+    :ivar unicode vendor: The name of the package vendor.
+    :ivar bytes maintainer: The email address of the package maintainer.
+    :ivar bytes architecture: The OS architecture for which this package is
+        targeted. Default ``None`` means architecture independent.
+    :ivar unicode description: A description of the package.
     """
     def run(self):
-        """
-        """
         architecture = self.architecture
         if architecture is None:
             architecture = 'all'
