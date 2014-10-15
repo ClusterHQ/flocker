@@ -70,8 +70,8 @@ class MovingApplicationTests(TestCase):
 
             flocker_deploy(deployment_moved_config, application_config)
 
-            unit = Unit(name=u'/mongodb-example',
-                        container_name=u'/mongodb-example',
+            unit = Unit(name=u'mongodb-example',
+                        container_name=u'flocker--mongodb-example',
                         activation_state=u'active',
                         container_image=u'clusterhq/mongodb:latest',
                         ports=frozenset(), environment=None, volumes=())
