@@ -144,57 +144,60 @@ Log into the machine using SSH agent forwarding so that you can push changes to 
 Review Process
 --------------
 
-#. Do the acceptance tests:
+You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
 
-   .. code-block:: console
+The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
 
-      trial flocker.acceptance
+To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
 
-   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+At the top, you should find a line beginning ``got version`` which contains the version string.
 
-   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
 
-   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+.. code-block:: console
 
-   At the top, you should find a line beginning ``got version`` which contains the version string.
+  vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
 
-   Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
+Then add the resulting box to ``vagrant`` using the following command:
 
-   .. code-block:: console
+.. code-block:: console
 
-      vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
+  vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
 
-   Then add the resulting box to ``vagrant`` using the following command:
+You should now see that box listed:
 
-   .. code-block:: console
+.. code-block:: console
 
-      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
+  $ vagrant box list
+  clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+  clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+  clusterhq/flocker-tutorial (virtualbox, 0)
 
-   You should now see that box listed:
+Modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
 
-   .. code-block:: console
+.. code-block:: console
 
-      $ vagrant box list
-      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-      clusterhq/flocker-tutorial (virtualbox, 0)
+  $ cat flocker-tutorial/Vagrantfile
+  ...
+  Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+      config.vm.box = "clusterhq/flocker-tutorial"
+      config.vm.box_version = "= 0"
+  ...
 
-   Finally follow the BuildBot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+Run the acceptance tests by installing ``flocker-cli`` and ``mongo`` as well as setting up your SSH keys, then run:
+# TODO make this read better / make sure it includes all the right information.
 
-   .. code-block:: console
+.. code-block:: console
 
-      $ cat flocker-tutorial/Vagrantfile
-      ...
-      Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-          config.vm.box = "clusterhq/flocker-tutorial"
-          config.vm.box_version = "= 0"
-      ...
-
-.. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
-          See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
+   $ trial flocker.acceptance
 
 .. warning:: The branch should not be merged yet.
-             It should only be merged once it has been tagged, in the next series of steps.
+         It should only be merged once it has been tagged, in the next series of steps.
+
+
+.. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
+      See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
+
 
 Release
 -------

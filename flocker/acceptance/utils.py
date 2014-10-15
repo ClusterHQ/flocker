@@ -15,7 +15,6 @@ from flocker.testtools import random_name
 
 # TODO link from the documentation to the tests
 # TODO try to use docker client - modify the vagrant image to allow it
-# TODO document how someone would use this
 # TODO the last step of the tutorial
 # TODO run coverage
 
