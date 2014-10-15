@@ -20,8 +20,8 @@ class PortsTests(TestCase):
     """
     Tests for communication to applications.
 
-    Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
-    exposing-ports.html
+    Similar to:
+    http://doc-dev.clusterhq.com/gettingstarted/tutorial/exposing-ports.html
     """
     @require_flocker_cli
     def setUp(self):

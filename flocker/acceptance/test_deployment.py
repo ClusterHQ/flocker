@@ -18,7 +18,8 @@ class DeploymentTests(TestCase):
     """
     Tests for deploying applications.
 
-    Similar to http://doc-dev.clusterhq.com/gettingstarted/tutorial/
+    Similar to:
+    http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
     """
     @require_flocker_cli
