@@ -3,18 +3,15 @@
 """
 Tests for movement of data across nodes.
 """
-from unittest import skipUnless
 from yaml import safe_dump
 
 from pexpect import spawn
 
 from twisted.python.filepath import FilePath
-from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit, PortMap
-
-from .utils import running_units, require_flocker_cli, get_nodes, flocker_deploy, require_mongo
+from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
+                    require_mongo)
 
 
 class DataMoveTests(TestCase):
@@ -25,6 +22,7 @@ class DataMoveTests(TestCase):
         http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
     @require_mongo
+    @require_flocker_cli
     # TODO rename the file to match this
     def test_data_moves(self):
         """

@@ -10,7 +10,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import Unit
 
-from .utils import running_units, require_flocker_cli, get_nodes, flocker_deploy
+from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
+                    running_units)
 
 
 class MoveTests(TestCase):

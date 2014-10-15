@@ -3,19 +3,17 @@
 """
 Tests for communication to applications.
 """
-from unittest import skipUnless
 from yaml import safe_dump
 
 from pexpect import spawn
 
 from twisted.python.filepath import FilePath
-from twisted.python.procutils import which
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit, PortMap
+from flocker.node._docker import PortMap, Unit
 
-# TODO alphebetise this and others
-from .utils import running_units, require_flocker_cli, require_mongo, get_nodes, flocker_deploy
+from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
+                    require_mongo, running_units)
 
 
 class PortsTests(TestCase):

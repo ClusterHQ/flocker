@@ -2,7 +2,7 @@
 
 from json import loads
 from pipes import quote as shellQuote
-from subprocess import check_output, Popen, PIPE
+from subprocess import check_output, PIPE, Popen
 from time import sleep
 from unittest import skipUnless
 
@@ -131,10 +131,13 @@ def runSSH(port, user, node, command, input, key=None):
 require_flocker_cli = skipUnless(which("flocker-deploy"),
                                  "flocker-deploy not installed")
 
-# XXX This assumes that the desired version of mongo has been installed. Instead, the testing environment should do this automatically.
+
+# XXX This assumes that the desired version of mongo has been installed.
+# Instead, the testing environment should do this automatically.
 # See https://github.com/ClusterHQ/flocker/issues/901.
 require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
+
 
 def get_nodes(num_nodes):
     """
