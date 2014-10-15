@@ -118,6 +118,9 @@ class InstallApplication(object):
     :ivar bytes package_uri: A ``pip install`` compatible package URI.
     """
     def run(self):
+        # We can't just call pip directly, because in the virtualenvs created
+        # in tests, the shebang line becomes too long and triggers an
+        # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
@@ -147,10 +150,11 @@ class GetPackageVersion(object):
     version = None
 
     def run(self):
+        # We can't just call pip directly, because in the virtualenvs created
+        # in tests, the shebang line becomes too long and triggers an
+        # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
-        # Can't just call pip directly, because in tests its shebang line
-        # becomes too long.
         output = check_output(
             [python_path, pip_path, 'show', self.package_name])
 

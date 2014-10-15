@@ -106,7 +106,9 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
     :param dict expected_headers: A dictionary of header key / value pairs.
     :param FilePath rpm_path: The path to the RPM file under test.
     """
-    output = check_output(['rpm', '--query', '--info', '--package', rpm_path])
+    output = check_output(
+        ['rpm', '--query', '--info', '--package', rpm_path.path]
+    )
     actual_headers = {}
     for line in output.splitlines():
         parts = [value.strip() for value in line.split(':', 1)]
