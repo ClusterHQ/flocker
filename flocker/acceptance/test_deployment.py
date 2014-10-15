@@ -5,13 +5,13 @@ Tests for deploying applications.
 """
 from yaml import safe_dump
 
+from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import Unit
+from flocker.node._docker import Unit, RemoteDockerClient
 
-from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
-                    running_units)
+from .utils import flocker_deploy, get_nodes, require_flocker_cli
 
 
 class DeploymentTests(TestCase):
@@ -57,13 +57,19 @@ class DeploymentTests(TestCase):
 
         flocker_deploy(deployment_config, application_config)
 
-        unit = Unit(name=u'/mongodb-example',
-                    container_name=u'/mongodb-example',
+        unit = Unit(name=u'mongodb-example',
+                    container_name=u'flocker--mongodb-example',
                     activation_state=u'active',
                     container_image=u'clusterhq/mongodb:latest',
                     ports=frozenset(), environment=None, volumes=())
 
-        self.assertEqual(
-            [running_units(node_1), running_units(node_2)],
-            [set([unit]), set()]
-        )
+        d = gatherResults([RemoteDockerClient(node_1).list(),
+                           RemoteDockerClient(node_2).list()])
+
+        def listed(units):
+            node_1_list, node_2_list = units
+            self.assertEqual([set([unit]), set()],
+                             [node_1_list, node_2_list])
+
+        d.addCallback(listed)
+        return d

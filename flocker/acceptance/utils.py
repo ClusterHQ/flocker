@@ -13,50 +13,11 @@ from flocker.node._docker import DockerClient, Unit
 # TODO link from the documentation to the tests
 # TODO try to use docker client
 # TODO run coverage
+# TODO Search for TODOs
 
 __all__ = [
-    'running_units', 'remove_all_containers', 'require_flocker_cli',
+    'remove_all_containers', 'require_flocker_cli', 'require_mongo',
     ]
-
-
-def running_units(ip):
-    """
-    Containers which are running on a node.
-
-    Note: This is a hack and, like running_units, should use (something closer
-    to) DockerClient. In fact most of this code is copied from
-    ``DockerClient.list``.
-    """
-    docker = DockerClient()
-    container_ids = runSSH(22, 'root', ip, [b"docker"] + [b"ps"] + [b"-q"],
-                           None).splitlines()
-
-    result = set()
-    for container in container_ids:
-        inspect = runSSH(22, 'root', ip, [b"docker"] + [b"inspect"] +
-                         [container], None)
-
-        data = loads(inspect)[0]
-        state = (u"active" if data[u"State"][u"Running"]
-                 else u"inactive")
-        name = data[u"Name"]
-        image = data[u"Config"][u"Image"]
-        port_mappings = data[u"NetworkSettings"][u"Ports"]
-        if port_mappings is not None:
-            ports = docker._parse_container_ports(port_mappings)
-        else:
-            ports = list()
-
-        # XXX to extract volume info from the inspect results:
-        # https://github.com/ClusterHQ/flocker/issues/289
-        result.add(Unit(name=name,
-                        container_name=name,
-                        activation_state=state,
-                        container_image=image,
-                        ports=frozenset(ports)))
-
-    return result
-
 
 def remove_all_containers(ip):
     """
