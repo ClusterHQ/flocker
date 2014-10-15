@@ -274,6 +274,15 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
       ``pip``.
 
     * Build an RPM from the virtualenv directory using ``fpm``.
+
+    :param FilePath destination_path: The path to a directory in which to save
+        the resulting RPM file.
+    :param bytes package_uri: A ``pip install`` compatible package URI.
+    :param FilePath target_dir: An optional path in which to create the
+        virtualenv from which the package will be generated. Default is a
+        temporary directory created using ``mkdtemp``.
+    :return: A ``BuildSequence`` instance containing all the required build
+        steps.
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
