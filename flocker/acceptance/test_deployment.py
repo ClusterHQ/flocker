@@ -2,12 +2,6 @@
 
 """
 Tests for deploying applications.
-
-Run with:
-
-  $ sudo -E PATH=$PATH $(type -p trial) --temp=/tmp/trial flocker.acceptance
-
-if using Docker-in-Docker, else trial flocker.acceptance is fine
 """
 from yaml import safe_dump
 

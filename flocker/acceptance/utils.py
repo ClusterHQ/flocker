@@ -175,8 +175,8 @@ def flocker_deploy(deployment_config, application_config):
     :param FilePath application_config: A YAML file describing the desired
         application configuration.
     """
-    check_output([b"flocker-deploy"] +
-                 [deployment_config.path] +
+    # TODO check_output - check that there is no output
+    check_output([b"flocker-deploy"] + [deployment_config.path] +
                  [application_config.path])
     # XXX Without this some of the tests fail, so there is a race condition.
     # My guess is that this is because `flocker-deploy` returns too
