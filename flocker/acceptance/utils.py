@@ -163,6 +163,12 @@ def get_nodes(num_nodes):
     if USE_VAGRANT:
         node_1 = b"172.16.255.250"
         node_2 = b"172.16.255.251"
+        # The problem with this is that anyone running "trial flocker" while
+        # their tutorial nodes are running may inadvertently remove all
+        # containers which are running on those nodes. If it stays this way
+        # I'll leave it to a reviewer to decide if that is so bad that it must
+        # be changed (note that in future this will be dropped for a
+        # Docker-in-Docker solution).
         remove_all_containers(node_1)
         remove_all_containers(node_2)
         return [node_1, node_2]
