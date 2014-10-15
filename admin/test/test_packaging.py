@@ -5,6 +5,7 @@ Tests for ``admin.packaging``.
 """
 from glob import glob
 from subprocess import check_output
+import sys
 from textwrap import dedent
 from unittest import skipIf
 
@@ -17,7 +18,8 @@ from flocker.testtools import FakeSysModule
 
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
-    BuildSequence, BuildOptions, BuildScript, GetPackageVersion
+    BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
+    DelayedRpmVersion,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -110,10 +112,15 @@ def fake_virtual_env(test_case):
     fake virtualenv.
     """
     virtualenv_path = FilePath(test_case.mktemp())
-    pip_log_path = virtualenv_path.child('pip.log')
-    from textwrap import dedent
     bin_path = virtualenv_path.child('bin')
     bin_path.makedirs()
+
+    pip_log_path = virtualenv_path.child('pip.log')
+    pip_log_path.setContent('')
+
+    python_path = bin_path.child('python')
+    FilePath(sys.executable).linkTo(python_path)
+
     pip_path = bin_path.child('pip')
     pip_path.setContent(
         dedent("""
@@ -242,17 +249,6 @@ class InstallApplicationTests(TestCase):
         expected_pip_args = ['--quiet', 'install', expected_package_uri]
         fake_env.assert_pip_args(expected_pip_args)
 
-    def test_version(self):
-        """
-        """
-        expected_package_uri = '/foo/bar'
-        fake_env = fake_virtual_env(self)
-        InstallApplication(
-            virtualenv_path=fake_env.path,
-            package_uri=expected_package_uri
-        ).run()
-        expected_pip_args = ['--quiet', 'install', expected_package_uri]
-        fake_env.assert_pip_args(expected_pip_args)
 
 from collections import namedtuple
 package_info = namedtuple('package_info', 'root name version')
@@ -399,7 +395,13 @@ class SumoRpmBuilderTests(TestCase):
         expected_prefix = FilePath('/opt/flocker')
         expected_epoch = b'0'
         expected_package_uri = '/foo/bar'
-        expected_version = '0.3dev1'
+        expected_package_version_step = GetPackageVersion(
+            virtualenv_path=expected_target_path,
+            package_name=expected_name
+        )
+        expected_version = DelayedRpmVersion(
+            package_version_step=expected_package_version_step
+        )
         expected_license = 'ASL 2.0'
         expected_url = 'https://clusterhq.com'
         expected_vendor = 'ClusterHQ'
@@ -412,13 +414,14 @@ class SumoRpmBuilderTests(TestCase):
                 InstallVirtualEnv(target_path=expected_target_path),
                 InstallApplication(virtualenv_path=expected_target_path,
                                    package_uri=expected_package_uri),
+                expected_package_version_step,
                 BuildRpm(
                     destination_path=expected_destination_path,
                     source_path=expected_target_path,
                     name=expected_name,
                     prefix=expected_prefix,
                     epoch=expected_epoch,
-                    rpm_version=make_rpm_version(expected_version),
+                    rpm_version=expected_version,
                     license=expected_license,
                     url=expected_url,
                     vendor=expected_vendor,
@@ -433,7 +436,6 @@ class SumoRpmBuilderTests(TestCase):
             expected,
             sumo_rpm_builder(expected_destination_path,
                              expected_package_uri,
-                             expected_version,
                              target_dir=expected_target_path))
 
     @require_fpm
@@ -447,11 +449,13 @@ class SumoRpmBuilderTests(TestCase):
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
-        sumo_rpm_builder(
-            destination_path, FLOCKER_PATH.path, expected_python_version).run()
+
+        sumo_rpm_builder(destination_path, FLOCKER_PATH.path).run()
+
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
         self.assertEqual(1, len(rpms))
+
         expected_headers = dict(
             Name=expected_name,
             Epoch=b'0',
@@ -545,7 +549,7 @@ class BuildOptionsTests(TestCase):
         self.assertEqual(expected_uri, options['package-uri'])
 
 
-class BuildScriptOptions(TestCase):
+class BuildScriptTests(TestCase):
     """
     """
     def test_usage_error_status(self):
@@ -587,7 +591,7 @@ class BuildScriptOptions(TestCase):
         ``build_command``.
         """
         fake_sys_module = FakeSysModule(
-            argv=['http://www.example.com/foo/bar.whl']
+            argv=['build-command-name', 'http://www.example.com/foo/bar.whl']
         )
         script = BuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()

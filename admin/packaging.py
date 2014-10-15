@@ -122,7 +122,28 @@ class BuildRpm(object):
         )
 
 
-def sumo_rpm_builder(destination_path, package_uri, version, target_dir=None):
+@attributes(['package_version_step'])
+class DelayedRpmVersion(object):
+    _rpm_version = None
+
+    @property
+    def rpm_version(self):
+        if self._rpm_version is None:
+            self._rpm_version = make_rpm_version(
+                self.package_version_step.version
+            )
+        return self._rpm_version
+
+    @property
+    def version(self):
+        return self.rpm_version.version
+
+    @property
+    def release(self):
+        return self.rpm_version.release
+
+
+def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     """
     Build an RPM file containing the supplied `package` and all its
     dependencies.
@@ -193,18 +214,24 @@ def sumo_rpm_builder(destination_path, package_uri, version, target_dir=None):
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
+
+    get_package_version_step = GetPackageVersion(
+        virtualenv_path=target_dir, package_name='Flocker')
+
     return BuildSequence(
         steps=(
             InstallVirtualEnv(target_path=target_dir),
             InstallApplication(virtualenv_path=target_dir,
                                package_uri=package_uri),
+            get_package_version_step,
             BuildRpm(
                 destination_path=destination_path,
                 source_path=target_dir,
                 name='Flocker',
                 prefix=FilePath('/opt/flocker'),
                 epoch=b'0',
-                rpm_version=make_rpm_version(version),
+                rpm_version=DelayedRpmVersion(
+                    package_version_step=get_package_version_step),
                 license='ASL 2.0',
                 url='https://clusterhq.com',
                 vendor='ClusterHQ',
@@ -274,8 +301,7 @@ class BuildScript(object):
 
         self.build_command(
             destination_path=options['destination-path'],
-            package_uri=options['package-uri'],
-            version=flocker.__version__,
+            package_uri=options['package-uri']
         ).run()
 
 main = BuildScript().main
