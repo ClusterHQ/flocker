@@ -5,7 +5,7 @@ Helper utilities for the Flocker packaging
 """
 
 import sys
-from subprocess import check_call
+from subprocess import check_call, check_output
 from tempfile import mkdtemp
 
 from twisted.python.filepath import FilePath
@@ -50,9 +50,10 @@ class InstallApplication(object):
     `virtualenv_path`.
     """
     def run(self):
+        python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
         check_call(
-            [pip_path, '--quiet', 'install', self.package_uri]
+            [python_path, pip_path, '--quiet', 'install', self.package_uri]
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable', self.virtualenv_path.path],
@@ -60,8 +61,8 @@ class InstallApplication(object):
         )
 
 
-@attributes(['virtualenv_path'])
-class GetApplicationVersion(object):
+@attributes(['virtualenv_path', 'package_name'])
+class GetPackageVersion(object):
     """
     """
     version = None
@@ -69,9 +70,20 @@ class GetApplicationVersion(object):
     def run(self):
         """
         """
+        python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
-        check_call([pip_path, 'freeze'])
+        # Can't just call pip directly, because in tests its shebang line
+        # becomes too long.
+        output = check_output(
+            [python_path, pip_path, 'show', self.package_name])
 
+        for line in output.splitlines():
+            parts = [part.strip() for part in line.split(':', 1)]
+            if len(parts) == 2:
+                key, value = parts
+                if key.lower() == 'version':
+                    self.version = value
+                    return
 
 
 @attributes(

@@ -5,6 +5,7 @@ Tests for ``admin.packaging``.
 """
 from glob import glob
 from subprocess import check_output
+from textwrap import dedent
 from unittest import skipIf
 
 from twisted.python.filepath import FilePath
@@ -16,7 +17,7 @@ from flocker.testtools import FakeSysModule
 
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
-    BuildSequence, BuildOptions, BuildScript, GetApplicationVersion
+    BuildSequence, BuildOptions, BuildScript, GetPackageVersion
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -253,19 +254,74 @@ class InstallApplicationTests(TestCase):
         expected_pip_args = ['--quiet', 'install', expected_package_uri]
         fake_env.assert_pip_args(expected_pip_args)
 
+from collections import namedtuple
+package_info = namedtuple('package_info', 'root name version')
 
-class GetApplicationVersionTests(TestCase):
+def canned_package(test_case):
+    """
+    """
+    version = '1.2.3'
+    name = 'FooBar'
+
+    root = FilePath(test_case.mktemp())
+    root.makedirs()
+    setup_py = root.child('setup.py')
+    setup_py.setContent(
+        dedent("""
+        import os
+        from setuptools import setup, find_packages
+
+        setup(
+            name="{package_name}",
+            version="{package_version}",
+        )
+        """).format(package_name=name, package_version=version)
+    )
+
+    return package_info(root, name, version)
+
+
+class GetPackageVersionTests(TestCase):
     """
 
     """
+    def test_version_default(self):
+        """
+        ``GetPackageVersion.version`` is ``None`` by default.
+        """
+        step = GetPackageVersion(virtualenv_path=None, package_name=None)
+        self.assertIs(None, step.version)
+
+
     def test_version_found(self):
         """
+        ``GetPackageVersion`` assigns the version of a found package to its
+        ``version`` attribute.
         """
-        expected_version = '1.2.3'
-        fake_env = fake_virtual_env(self)
-        step = GetApplicationVersion(virtualenv_path=fake_env.path)
+        test_env = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=test_env).run()
+
+        test_package = canned_package(self)
+        InstallApplication(
+            virtualenv_path=test_env, package_uri=test_package.root.path).run()
+
+        step = GetPackageVersion(virtualenv_path=test_env, package_name=test_package.name)
         step.run()
-        self.assertEqual(expected_version, step.version)
+        self.assertEqual(test_package.version, step.version)
+
+    def test_version_not_found(self):
+        """
+        ``GetPackageVersion.run`` leaves the ``version`` attribute set to
+        ``None`` if the supplied ``package_name`` is not installed in the
+        supplied ``virtual_env``.
+        """
+        test_env = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=test_env).run()
+
+        step = GetPackageVersion(
+            virtualenv_path=test_env, package_name='PackageWhichIsNotInstalled')
+        step.run()
+        self.assertIs(None, step.version)
 
 
 class BuildRpmTests(TestCase):
