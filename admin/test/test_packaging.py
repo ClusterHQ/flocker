@@ -4,8 +4,9 @@
 Tests for ``admin.packaging``.
 """
 
+from collections import namedtuple
 from glob import glob
-from subprocess import check_output
+from subprocess import check_output, CalledProcessError
 import sys
 from textwrap import dedent
 from unittest import skipIf
@@ -99,7 +100,12 @@ def assert_dict_contains(test_case, expected, actual, message=''):
 
 def assert_rpm_headers(test_case, expected_headers, rpm_path):
     """
-    The `RPM` file at `rpm_path` contains all the `expected_headers`.
+    Fail unless the ``RPM`` file at ``rpm_path`` contains all the
+    ``expected_headers``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param dict expected_headers: A dictionary of header key / value pairs.
+    :param FilePath rpm_path: The path to the RPM file under test.
     """
     output = check_output(['rpm', '--query', '--info', '--package', rpm_path])
     actual_headers = {}
@@ -123,6 +129,9 @@ def fake_virtual_env(test_case):
 
     Return an object containing methods with which to make assertions about the
     fake virtualenv.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :return: A ``Tester`` instance.
     """
     virtualenv_path = FilePath(test_case.mktemp())
     bin_path = virtualenv_path.child('bin')
@@ -161,7 +170,9 @@ def fake_virtual_env(test_case):
 
 class SpyStep(object):
     """
-    A `BuildStep` which records the fact that it has been run.
+    A build step which records the fact that it has been run.
+
+    :ivar bool ran: ``False`` by default.
     """
     ran = False
 
@@ -171,11 +182,11 @@ class SpyStep(object):
 
 class BuildSequenceTests(TestCase):
     """
-    Tests for `BuildSequence`.
+    Tests for ``BuildSequence``.
     """
     def test_run(self):
         """
-        `BuildSequence` calls the `run` method of each of its `steps`.
+        ``BuildSequence`` calls the ``run`` method of each of its ``steps``.
         """
         step1 = SpyStep()
         step2 = SpyStep()
@@ -187,8 +198,8 @@ class BuildSequenceTests(TestCase):
 
 def assert_has_paths(test_case, expected_paths, parent_path):
     """
-    Fail if any of the `expected_paths` are not existing relative paths of
-    `parent_path`.
+    Fail if any of the ``expected_paths`` are not existing relative paths of
+    ``parent_path``.
     """
     missing_paths = []
     for path in expected_paths:
@@ -200,12 +211,12 @@ def assert_has_paths(test_case, expected_paths, parent_path):
 
 class InstallVirtualEnvTests(TestCase):
     """
-    Tests for `InstallVirtualEnv`.
+    Tests for ``InstallVirtualEnv``.
     """
     def test_run(self):
         """
-        `InstallVirtualEnv.run` installs a virtual python environment in its
-        `target_path`.
+        ``InstallVirtualEnv.run`` installs a virtual python environment in its
+        ``target_path``.
         """
         target_path = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=target_path).run()
@@ -214,15 +225,14 @@ class InstallVirtualEnvTests(TestCase):
 
     def test_internal_symlinks_only(self):
         """
-        The resulting `virtualenv` only contains symlinks to files in /lib.
+        The resulting ``virtualenv`` only contains symlinks to files inside the
+        virtualenv and to /usr on the host OS.
         """
         target_path = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=target_path).run()
         allowed_targets = (target_path, FilePath('/usr'),)
         bad_links = []
         for path in target_path.walk():
-            # if path.path.endswith('lib64/python2.7/ntpath.py'):
-            #     import pdb; pdb.set_trace()
             if path.islink():
                 realpath = path.realpath()
                 for allowed_target in allowed_targets:
@@ -246,12 +256,12 @@ class InstallVirtualEnvTests(TestCase):
 
 class InstallApplicationTests(TestCase):
     """
-    Tests for `InstallApplication`.
+    Tests for ``InstallApplication``.
     """
     def test_run(self):
         """
-        `InstallApplication.run` installs the supplied application in the
-        `target_path`.
+        ``InstallApplication.run`` installs the supplied application in the
+        ``target_path``.
         """
         expected_package_uri = '/foo/bar'
         fake_env = fake_virtual_env(self)
@@ -263,11 +273,21 @@ class InstallApplicationTests(TestCase):
         fake_env.assert_pip_args(expected_pip_args)
 
 
-from collections import namedtuple
-package_info = namedtuple('package_info', 'root name version')
+class PackageInfo(namedtuple('PackageInfo', 'root name version')):
+    """
+    :ivar FilePath root: The path to the directory containing the package.
+    :ivar bytes name: The name of the package.
+    :ivar bytes version: The version of the package.
+    """
+
 
 def canned_package(test_case):
     """
+    Create a directory containing an empty Python package which can be installed
+    and with a name and version which can later be tested.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :return: A ``PackageInfo`` instance.
     """
     version = '1.2.3'
     name = 'FooBar'
@@ -287,12 +307,12 @@ def canned_package(test_case):
         """).format(package_name=name, package_version=version)
     )
 
-    return package_info(root, name, version)
+    return PackageInfo(root, name, version)
 
 
 class GetPackageVersionTests(TestCase):
     """
-
+    Tests for ``GetPackageVersion``.
     """
     def test_version_default(self):
         """
@@ -343,7 +363,7 @@ class BuildRpmTests(TestCase):
 
     def test_run(self):
         """
-        `BuildRpm.run` creates an RPM from the supplied `source_path`.
+        ``BuildRpm.run`` creates an RPM from the supplied ``source_path``.
         """
         destination_path = FilePath(self.mktemp())
         destination_path.makedirs()
@@ -391,12 +411,12 @@ class BuildRpmTests(TestCase):
             Packager=expected_maintainer,
             Architecture=expected_architecture,
         )
-        assert_rpm_headers(self, expected_headers, rpms[0])
+        assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
 
 
 class SumoRpmBuilderTests(TestCase):
     """
-    Tests for `sumo_rpm_builder`.
+    Tests for ``sumo_rpm_builder``.
     """
     def test_steps(self):
         """
@@ -482,8 +502,9 @@ class SumoRpmBuilderTests(TestCase):
             Architecture='noarch',
             Description='A Docker orchestration and volume management tool',
         )
-        assert_rpm_headers(self, expected_headers, rpms[0])
+        assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
         assert_rpmlint(self, rpms[0])
+
 
 # XXX: These warnings are being ignored but should probably be fixed.
 RPMLINT_IGNORED_WARNINGS = (
@@ -502,11 +523,14 @@ RPMLINT_IGNORED_WARNINGS = (
     'backup-file-in-package',
 )
 
+
 def assert_rpmlint(test_case, rpm_path):
     """
     Fail for certain rpmlint warnings on a supplied RPM file.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param FilePath rpm_path: The path to the RPM file to check.
     """
-    from subprocess import check_output, CalledProcessError
     try:
         check_output(['rpmlint', rpm_path])
     except CalledProcessError as e:
@@ -521,20 +545,21 @@ def assert_rpmlint(test_case, rpm_path):
             if show_line:
                 output.append(line)
 
-        # Don't print out the summary line unless there are some unfiltered warnings.
+        # Don't print out the summary line unless there are some unfiltered
+        # warnings.
         if len(output) > 1:
             test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
 
 
 class BuildOptionsTests(TestCase):
     """
-    Tests for ``admin.packaging.BuildOptions``.
+    Tests for ``BuildOptions``.
     """
 
     def test_defaults(self):
         """
-        ``BuildOptions`` default destination and package path default to the
-        current working directory.
+        ``BuildOptions`` destination path defaults to the current working
+        directory.
         """
         expected_defaults = {
             'destination-path': '.',
@@ -543,8 +568,8 @@ class BuildOptionsTests(TestCase):
 
     def test_package_uri_missing(self):
         """
-        ``BuildOptions`` requires a single positional argument describing the
-        location of the Python package which is being packaged.
+        ``BuildOptions`` requires a single positional argument containing the
+        URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
             UsageError, BuildOptions().parseOptions, [])
@@ -564,6 +589,7 @@ class BuildOptionsTests(TestCase):
 
 class BuildScriptTests(TestCase):
     """
+    Tests for ``BuildScript``.
     """
     def test_usage_error_status(self):
         """
@@ -596,7 +622,6 @@ class BuildScriptTests(TestCase):
         ``BuildScript.build_command`` is ``sumo_rpm_builder`` by default.
         """
         self.assertIs(sumo_rpm_builder, BuildScript.build_command)
-
 
     def test_run(self):
         """
