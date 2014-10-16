@@ -1702,8 +1702,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
 
 
-
-
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._deployment_from_configuration``.
@@ -2288,11 +2286,8 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }}
 
-        e = self.assertRaises(
-                ConfigurationError,
-                current_from_configuration,
-                config
-            )
+        e = self.assertRaises(ConfigurationError, current_from_configuration,
+                              config)
         expected = (
             "Application 'mysql-hybridcluster' has a config error. Invalid "
             "volume specification. Mountpoint None contains non-ASCII "
