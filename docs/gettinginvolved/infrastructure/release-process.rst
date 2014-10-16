@@ -186,7 +186,7 @@ Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutor
        config.vm.box_version = "= 0"
    ...
 
-Run the automated acceptance tests:
+Run the automated acceptance tests and ensure that they all pass, with no skips:
 
 .. code-block:: console
 
