@@ -172,6 +172,11 @@ class GetPackageVersion(object):
     Record the version of ``package_name`` installed in ``virtualenv_path`` by
     parsing the output of ``pip show``.
 
+    XXX: This wouldn't be necessary if pip had a way to report the version of
+    the package that it is about to install eg
+    ``pip install --dry-run http://www.example.com/my/wheel.whl``
+    See: https://github.com/pypa/pip/issues/53
+
     :ivar FilePath virtualenv_path: The path of the ``virtualenv`` containing
         the package.
     :ivar bytes package_name: The name of the package whose version will be
