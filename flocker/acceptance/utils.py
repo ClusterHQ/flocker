@@ -2,7 +2,6 @@
 
 from pipes import quote as shellQuote
 from subprocess import check_output, PIPE, Popen
-from time import sleep
 from unittest import skipUnless
 
 from twisted.internet.defer import gatherResults
