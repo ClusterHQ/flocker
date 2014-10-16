@@ -75,7 +75,8 @@ class PortsTests(TestCase):
         Ports are exposed as specified in the application configuration.
         """
         unit = Unit(name=self.application,
-        # TODO Here and other places use BASE_NAMESPACE from _docker
+                    # TODO Here and other places use BASE_NAMESPACE from
+                    # _docker
                     container_name=u'flocker--' + self.application,
                     activation_state=u'active',
                     container_image=self.image + u':latest',
@@ -95,7 +96,6 @@ class PortsTests(TestCase):
 
         d.addCallback(listed)
         return d
-
 
     @require_mongo
     def test_traffic_routed(self):

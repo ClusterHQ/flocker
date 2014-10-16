@@ -1,15 +1,13 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from json import loads
-from pipes import quote as shellQuote
-from subprocess import check_output, PIPE, Popen
+from subprocess import check_output
 from time import sleep
 from unittest import skipUnless
 
 from twisted.internet.defer import gatherResults
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, RemoteDockerClient, Unit
+from flocker.node._docker import RemoteDockerClient
 
 # TODO link from the documentation to the tests
 # TODO change the docs here to note that it is all deferreds
@@ -20,6 +18,20 @@ __all__ = [
     'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'require_mongo',
     ]
 
+
+# XXX This assumes that the desired version of flocker-cli has been installed.
+# Instead, the testing environment should do this automatically.
+# See https://github.com/ClusterHQ/flocker/issues/901.
+require_flocker_cli = skipUnless(which("flocker-deploy"),
+                                 "flocker-deploy not installed")
+
+# XXX This assumes that the desired version of mongo has been installed.
+# Instead, the testing environment should do this automatically.
+# See https://github.com/ClusterHQ/flocker/issues/901.
+require_mongo = skipUnless(which("mongo"),
+                           "The mongo shell is not available.")
+
+
 def remove_all_containers(ip):
     """
     Remove all containers on a node, given the IP address of the node.
@@ -28,23 +40,10 @@ def remove_all_containers(ip):
     d = docker_client.list()
 
     d.addCallback(lambda units:
-        gatherResults([docker_client.remove(unit.name) for unit in units]))
+                  gatherResults(
+                      [docker_client.remove(unit.name) for unit in units]))
 
     return d
-    
-
-# XXX This assumes that the desired version of flocker-cli has been installed.
-# Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901.
-require_flocker_cli = skipUnless(which("flocker-deploy"),
-                                 "flocker-deploy not installed")
-
-
-# XXX This assumes that the desired version of mongo has been installed.
-# Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901.
-require_mongo = skipUnless(which("mongo"),
-                           "The mongo shell is not available.")
 
 
 def get_nodes(num_nodes):
