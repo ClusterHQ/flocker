@@ -6,5 +6,4 @@ RUN ["curl", "--output", "/etc/yum.repos.d/hybridlogic.repo", "https://copr.fedo
 RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "python-twisted", "python-characteristic", "python-virtualenv", "ruby-devel"]
 RUN ["gem", "install", "fpm"]
 VOLUME /flocker
-ENTRYPOINT ["/flocker/admin/build-package"]
-CMD ["--destination-path=/flocker", "/flocker"]
+ENTRYPOINT ["/flocker/admin/build-package", "--destination-path=/flocker"]
