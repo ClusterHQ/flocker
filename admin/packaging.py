@@ -107,8 +107,7 @@ class InstallVirtualEnv(object):
     """
     def run(self):
         check_call(
-            ['virtualenv', '--quiet', '--system-site-packages',
-             self.target_path.path],
+            ['virtualenv', '--quiet', self.target_path.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
