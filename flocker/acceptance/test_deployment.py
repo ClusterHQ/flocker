@@ -9,7 +9,7 @@ from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import RemoteDockerClient, Unit
+from flocker.node._docker import BASE_NAMESPACE, RemoteDockerClient, Unit
 
 from .utils import flocker_deploy, get_nodes, require_flocker_cli
 
@@ -60,7 +60,7 @@ class DeploymentTests(TestCase):
             flocker_deploy(deployment_config, application_config)
 
             unit = Unit(name=u'mongodb-example',
-                        container_name=u'flocker--mongodb-example',
+                        container_name=BASE_NAMESPACE + u'mongodb-example',
                         activation_state=u'active',
                         container_image=u'clusterhq/mongodb:latest',
                         ports=frozenset(), environment=None, volumes=())

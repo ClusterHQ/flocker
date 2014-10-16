@@ -11,7 +11,8 @@ from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import PortMap, RemoteDockerClient, Unit
+from flocker.node._docker import (BASE_NAMESPACE, PortMap, RemoteDockerClient,
+                                  Unit)
 
 from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
                     require_mongo)
@@ -75,9 +76,7 @@ class PortsTests(TestCase):
         Ports are exposed as specified in the application configuration.
         """
         unit = Unit(name=self.application,
-                    # TODO Here and other places use BASE_NAMESPACE from
-                    # _docker
-                    container_name=u'flocker--' + self.application,
+                    container_name=BASE_NAMESPACE + self.application,
                     activation_state=u'active',
                     container_image=self.image + u':latest',
                     ports=frozenset([
