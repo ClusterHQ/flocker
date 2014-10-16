@@ -71,6 +71,8 @@ def get_nodes(num_nodes):
     # I'll leave it to a reviewer to decide if that is so bad that it must
     # be changed (note that in future this will be dropped for a
     # Docker-in-Docker solution).
+
+    # XXX Ping the nodes and give a sensible error if they aren't available?
     d = gatherResults([remove_all_containers(node) for node in nodes])
     d.addCallback(lambda _: nodes)
     return d
