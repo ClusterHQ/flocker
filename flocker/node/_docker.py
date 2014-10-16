@@ -442,6 +442,7 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
         self._client = DockerClient(
             namespace=BASE_NAMESPACE + namespace + u"--")
 
+
 class RemoteDockerClient(proxyForInterface(IDockerClient, "_client")):
     """
     A Docker client that connects to a Docker server over TCP.
