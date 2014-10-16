@@ -89,6 +89,7 @@ class MovingDataTests(TestCase):
             flocker_deploy(deployment_moved_config, application_config)
 
             child_2 = spawn('mongo ' + node_2)
+            # XXX There is a race condition here.
             # The docs say "If you get a connection refused error try again
             # after a few seconds; the application might take some time to
             # fully start up.". If this problem manifests here, program that

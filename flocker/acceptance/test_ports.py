@@ -108,6 +108,7 @@ class PortsTests(TestCase):
         pexpect to be as close as possible to the tutorial.
         """
         child_1 = spawn('mongo ' + self.node_1)
+        # XXX There is a race condition here.
         # The docs say "If you get a connection refused error try again after
         # a few seconds; the application might take some time to fully start
         # up.". If this problem manifests here, program that with an except
