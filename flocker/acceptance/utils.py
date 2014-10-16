@@ -77,8 +77,8 @@ def runSSH(port, user, node, command, input, key=None):
 
 def _clean_node(ip):
     """
-    Remove all containers on a node, given the IP address of the node. Returns
-    a Deferred which fires when finished.
+    Remove all containers and zfs volumes on a node, given the IP address of
+    the node. Returns a Deferred which fires when finished.
     """
     docker_client = RemoteDockerClient(ip)
     d = docker_client.list()
@@ -87,13 +87,14 @@ def _clean_node(ip):
                       gatherResults(
                           [docker_client.remove(unit.name) for unit in units]))
 
-    # Without the below, deploying an application with a data volume in two
-    # tests will fail. This happens outside of the tests too, with:
+    # Without the below, deploying the same application with a data volume
+    # twice fails:
     #   $ flocker-deploy volume-deployment.yml volume-application.yml
     #   $ ssh root@${NODE} docker ps -a -q # outputs an ID, ${ID}
     #   $ ssh root@${NODE} docker stop ${ID}
     #   $ ssh root@${NODE} docker rm ${ID}
     #   $ flocker-deploy volume-deployment.yml volume-application.yml
+    #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     d = d.addCallback(lambda _:
                       runSSH(22, 'root', ip,
@@ -147,12 +148,3 @@ def flocker_deploy(deployment_config, application_config):
     # TODO check_output - not necessary, just wait for it to finish
     check_output([b"flocker-deploy"] + [deployment_config.path] +
                  [application_config.path])
-    # XXX Without this some of the tests fail, so there is a race condition.
-    # My guess is that this is because `flocker-deploy` returns too
-    # early. The issue that describes similar behaviour is
-    # https://github.com/ClusterHQ/flocker/issues/341
-    # XXX Check if this is `mongo` taking its time to start up - if so add
-    # the sleep there. The tutorial says of mongo "If you get a connection
-    # refused error try again after a few seconds; the application might take
-    # some time to fully start up.".
-    sleep(2)

@@ -3,6 +3,7 @@
 """
 Tests for movement of data across nodes.
 """
+from time import sleep
 from yaml import safe_dump
 
 from pexpect import spawn
@@ -70,6 +71,11 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(deployment_config, application_config)
 
+            # There is a race condition here.
+            # The tutorial says "If you get a connection refused error try
+            # again after a few seconds; the application might take some time
+            # to fully start up.".
+            sleep(5)
             child_1 = spawn('mongo ' + node_1)
             child_1.expect('MongoDB shell version:.*')
             child_1.sendline('use example;')
@@ -89,11 +95,6 @@ class MovingDataTests(TestCase):
             flocker_deploy(deployment_moved_config, application_config)
 
             child_2 = spawn('mongo ' + node_2)
-            # XXX There is a race condition here.
-            # The docs say "If you get a connection refused error try again
-            # after a few seconds; the application might take some time to
-            # fully start up.". If this problem manifests here, program that
-            # with an except clause (I think for pexpect.EOF).
             child_2.expect('MongoDB shell version:.*')
             child_2.sendline('use example;')
             child_2.expect('switched to db example')

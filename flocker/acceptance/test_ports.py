@@ -3,6 +3,7 @@
 """
 Tests for communication to applications across nodes.
 """
+from time import sleep
 from yaml import safe_dump
 
 from pexpect import spawn
@@ -106,12 +107,12 @@ class PortsTests(TestCase):
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
+        # There is a race condition here.
+        # The tutorial says "If you get a connection refused error try again
+        # after a few seconds; the application might take some time to fully
+        # start up.".
+        sleep(5)
         child_1 = spawn('mongo ' + self.node_1)
-        # XXX There is a race condition here.
-        # The docs say "If you get a connection refused error try again after
-        # a few seconds; the application might take some time to fully start
-        # up.". If this problem manifests here, program that with an except
-        # clause (I think for pexpect.EOF).
         child_1.expect('MongoDB shell version:.*')
         child_1.sendline('use example;')
         child_1.expect('switched to db example')
