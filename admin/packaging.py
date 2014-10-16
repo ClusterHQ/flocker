@@ -59,6 +59,13 @@ Notes:
     * do we still need to build an SRPM?
     * automatically build a wheel
     * automatically build an sdist
+
+    Similar / Related Systems:
+    * http://dh-virtualenv.readthedocs.org/en/latest/info.html
+    * https://github.com/mozilla/socorro/blob/master/scripts/install.sh and
+      https://github.com/mozilla/socorro/blob/master/scripts/package.sh and
+      http://socorro.readthedocs.org/en/latest/installation/install-src-prod.html
+    *
 """
 
 import sys
