@@ -94,6 +94,11 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(deployment_moved_config, application_config)
 
+            # There is a race condition here.
+            # The tutorial says "If you get a connection refused error try
+            # again after a few seconds; the application might take some time
+            # to fully start up.".
+            sleep(5)
             child_2 = spawn('mongo ' + node_2)
             child_2.expect('MongoDB shell version:.*')
             child_2.sendline('use example;')

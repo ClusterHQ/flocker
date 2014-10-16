@@ -88,7 +88,8 @@ def _clean_node(ip):
                           [docker_client.remove(unit.name) for unit in units]))
 
     # Without the below, deploying the same application with a data volume
-    # twice fails:
+    # twice fails. See the error given with the tutorial's yml files:
+    #
     #   $ flocker-deploy volume-deployment.yml volume-application.yml
     #   $ ssh root@${NODE} docker ps -a -q # outputs an ID, ${ID}
     #   $ ssh root@${NODE} docker stop ${ID}
