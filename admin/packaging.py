@@ -328,7 +328,8 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
-
+    # Flocker is installed in /opt.
+    # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt
     virtualenv_dir = target_dir.descendant(['opt', 'flocker'])
     virtualenv_dir.makedirs()
 
