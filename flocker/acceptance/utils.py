@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from pipes import quote as shellQuote
-from subprocess import check_output, PIPE, Popen
+from subprocess import call, PIPE, Popen
 from unittest import skipUnless
 
 from twisted.internet.defer import gatherResults
@@ -136,15 +136,13 @@ def get_nodes(num_nodes):
     return d
 
 
-def flocker_deploy(deployment_config, application_config):
+def flocker_deploy(deployment, application):
     """
     Run ``flocker-deploy`` with given configuration files.
 
-    :param FilePath deployment_config: A YAML file describing the desired
-        deployment configuration.
-    :param FilePath application_config: A YAML file describing the desired
-        application configuration.
+    :param FilePath deployment: A YAML file describing the desired deployment
+        configuration.
+    :param FilePath application: A YAML file describing the desired application
+        configuration.
     """
-    # TODO check_output - not necessary, just wait for it to finish
-    check_output([b"flocker-deploy"] + [deployment_config.path] +
-                 [application_config.path])
+    call([b"flocker-deploy"] + [deployment.path] + [application.path])
