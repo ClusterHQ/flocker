@@ -84,11 +84,12 @@ def flocker_deploy(deployment_config, application_config):
     :param FilePath application_config: A YAML file describing the desired
         application configuration.
     """
-    # TODO check_output - check that there is no output
+    # TODO check_output - not necessary, just wait for it to finish
     check_output([b"flocker-deploy"] + [deployment_config.path] +
                  [application_config.path])
     # XXX Without this some of the tests fail, so there is a race condition.
     # My guess is that this is because `flocker-deploy` returns too
     # early. The issue that describes similar behaviour is
     # https://github.com/ClusterHQ/flocker/issues/341
+    # TODO check that this is still necessary
     sleep(2)

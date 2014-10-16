@@ -30,13 +30,14 @@ class MovingApplicationTests(TestCase):
         After deploying an application to one node and then moving it onto
         another node, it is only on the second node.
         """
-        temp = FilePath(self.mktemp())
-        temp.makedirs()
-
         d = get_nodes(num_nodes=2)
 
         def deploy_and_move(node_ips):
             node_1, node_2 = node_ips
+
+            temp = FilePath(self.mktemp())
+            temp.makedirs()
+
             application_config = temp.child(b"application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
