@@ -30,7 +30,7 @@ require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
 
 
-def remove_all_containers(ip):
+def _remove_all_containers(ip):
     """
     Remove all containers on a node, given the IP address of the node. Returns
     a Deferred which fires when all containers have been removed.
@@ -73,7 +73,7 @@ def get_nodes(num_nodes):
     # Docker-in-Docker solution).
 
     # XXX Ping the nodes and give a sensible error if they aren't available?
-    d = gatherResults([remove_all_containers(node) for node in nodes])
+    d = gatherResults([_remove_all_containers(node) for node in nodes])
     d.addCallback(lambda _: nodes)
     return d
 
