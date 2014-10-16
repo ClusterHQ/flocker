@@ -92,7 +92,7 @@ class MovingDataTests(TestCase):
             # The docs say "If you get a connection refused error try again
             # after a few seconds; the application might take some time to
             # fully start up.". If this problem manifests here, program that
-            # with an except clause.
+            # with an except clause (I think for pexpect.EOF).
             child_2.expect('MongoDB shell version:.*')
             child_2.sendline('use example;')
             child_2.expect('switched to db example')
