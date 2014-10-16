@@ -197,7 +197,7 @@ Run the automated acceptance tests:
 
 
 .. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
-      See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
+          See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
 
 
 Release
