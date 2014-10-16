@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from subprocess import check_output
+from pipes import quote as shellQuote
+from subprocess import check_output, PIPE, Popen
 from time import sleep
 from unittest import skipUnless
 
@@ -30,18 +31,74 @@ require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
 
 
-def _remove_all_containers(ip):
+def runSSH(port, user, node, command, input, key=None):
+    """
+    XXX This is taken directly from HybridCluster and is perhaps not all
+    necessary. It is also not formatted like flocker code.
+
+    Run a command via SSH.
+
+    @param port: Port to connect to.
+    @type port: L{int}
+    @param node: Node to run command on
+    @param node: L{bytes}
+    @param command: command to run
+    @type command: L{list} of L{bytes}
+    @param input: Input to send to command.
+    @type input: L{bytes}
+
+    @param key: If not L{None}, the path to a private key to use.
+    @type key: L{FilePath}
+
+    @return: stdout
+    @rtype: L{bytes}
+    """
+    quotedCommand = ' '.join(map(shellQuote, command))
+    command = [
+        b'ssh',
+        b'-p', b'%d' % (port,),
+        ]
+    if key is not None:
+        command.extend([
+            b"-i",
+            key.path])
+    command.extend([
+        b'@'.join([user, node]),
+        quotedCommand
+    ])
+    process = Popen(command, stdout=PIPE, stdin=PIPE)
+
+    result = process.communicate(input)
+    if process.returncode != 0:
+        raise Exception('Command Failed', command, process.returncode)
+
+    return result[0]
+
+
+def _clean_node(ip):
     """
     Remove all containers on a node, given the IP address of the node. Returns
-    a Deferred which fires when all containers have been removed.
+    a Deferred which fires when finished.
     """
     docker_client = RemoteDockerClient(ip)
     d = docker_client.list()
 
-    d.addCallback(lambda units:
-                  gatherResults(
-                      [docker_client.remove(unit.name) for unit in units]))
+    d = d.addCallback(lambda units:
+                      gatherResults(
+                          [docker_client.remove(unit.name) for unit in units]))
 
+    # Without the below, deploying an application with a data volume in two
+    # tests will fail. This happens outside of the tests too, with:
+    #   $ flocker-deploy volume-deployment.yml volume-application.yml
+    #   $ ssh root@${NODE} docker ps -a -q # outputs an ID, ${ID}
+    #   $ ssh root@${NODE} docker stop ${ID}
+    #   $ ssh root@${NODE} docker rm ${ID}
+    #   $ flocker-deploy volume-deployment.yml volume-application.yml
+    # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
+    d = d.addCallback(lambda _:
+                      runSSH(22, 'root', ip,
+                             [b"zfs"] + [b"destroy"] + [b"-r"] + [b"flocker"],
+                             None))
     return d
 
 
@@ -73,7 +130,7 @@ def get_nodes(num_nodes):
     # Docker-in-Docker solution).
 
     # XXX Ping the nodes and give a sensible error if they aren't available?
-    d = gatherResults([_remove_all_containers(node) for node in nodes])
+    d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
     return d
 
