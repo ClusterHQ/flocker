@@ -44,7 +44,7 @@ class PortsTests(TestCase):
 
             temp = FilePath(self.mktemp())
             temp.makedirs()
-            application_config = temp.child(b"application.yml")
+            application_config = temp.child(b"port-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
                 u"applications": {
@@ -58,7 +58,7 @@ class PortsTests(TestCase):
                 },
             }))
 
-            deployment_config = temp.child(b"deployment.yml")
+            deployment_config = temp.child(b"port-deployment.yml")
             deployment_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {

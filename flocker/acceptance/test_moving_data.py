@@ -41,7 +41,7 @@ class MovingDataTests(TestCase):
 
             application = u"mongodb-volume-example"
 
-            application_config = temp.child(b"application.yml")
+            application_config = temp.child(b"volume-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
                 u"applications": {
@@ -60,7 +60,7 @@ class MovingDataTests(TestCase):
                 },
             }))
 
-            deployment_config = temp.child(b"deployment.yml")
+            deployment_config = temp.child(b"volume-deployment.yml")
             deployment_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {

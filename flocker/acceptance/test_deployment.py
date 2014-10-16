@@ -38,7 +38,7 @@ class DeploymentTests(TestCase):
 
         def deploy(node_ips):
             node_1, node_2 = node_ips
-            application_config = temp.child(b"application.yml")
+            application_config = temp.child(b"minimal-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
                 u"applications": {
@@ -48,7 +48,7 @@ class DeploymentTests(TestCase):
                 },
             }))
 
-            deployment_config = temp.child(b"deployment.yml")
+            deployment_config = temp.child(b"minimal-deployment.yml")
             deployment_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {

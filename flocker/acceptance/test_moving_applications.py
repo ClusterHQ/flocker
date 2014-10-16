@@ -38,7 +38,7 @@ class MovingApplicationTests(TestCase):
             temp = FilePath(self.mktemp())
             temp.makedirs()
 
-            application_config = temp.child(b"application.yml")
+            application_config = temp.child(b"minimal-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
                 u"applications": {
@@ -48,7 +48,7 @@ class MovingApplicationTests(TestCase):
                 },
             }))
 
-            deployment_config = temp.child(b"deployment.yml")
+            deployment_config = temp.child(b"minimal-deployment.yml")
             deployment_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {
@@ -59,8 +59,8 @@ class MovingApplicationTests(TestCase):
 
             flocker_deploy(deployment_config, application_config)
 
-            # TODO change this and other yml names to match the tutorial
-            deployment_moved_config = temp.child(b"deployment.yml")
+            deployment_moved_config = temp.child(
+                b"minimal-deployment-moved.yml")
             deployment_moved_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {
