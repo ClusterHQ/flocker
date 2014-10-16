@@ -244,6 +244,20 @@ class InstallVirtualEnvTests(TestCase):
         expected_paths = ['bin/pip', 'bin/python']
         assert_has_paths(self, expected_paths, target_path)
 
+    def test_pythonpath(self):
+        """
+        ``InstallVirtualEnv.run`` installs a virtual python whose path does not
+        include the system python libraries.
+        """
+        target_path = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=target_path).run()
+        output = check_output([
+            target_path.descendant(['bin', 'python']).path,
+            '-c', r'import sys; sys.stdout.write("\n".join(sys.path))'
+        ])
+        self.assertNotIn(
+            '/usr/lib/python2.7/site-packages', output.splitlines())
+
     def test_internal_symlinks_only(self):
         """
         The resulting ``virtualenv`` only contains symlinks to files inside the
