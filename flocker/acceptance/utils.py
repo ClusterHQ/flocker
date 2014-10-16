@@ -90,5 +90,8 @@ def flocker_deploy(deployment_config, application_config):
     # My guess is that this is because `flocker-deploy` returns too
     # early. The issue that describes similar behaviour is
     # https://github.com/ClusterHQ/flocker/issues/341
-    # TODO check that this is still necessary
+    # XXX Check if this is `mongo` taking its time to start up - if so add
+    # the sleep there. The tutorial says of mongo "If you get a connection
+    # refused error try again after a few seconds; the application might take
+    # some time to fully start up.".
     sleep(2)
