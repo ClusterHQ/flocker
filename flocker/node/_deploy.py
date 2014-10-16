@@ -508,6 +508,7 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
+
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)
@@ -554,4 +555,5 @@ def find_volume_changes(hostname, current_state, desired_state):
     creating = set(volume for volume in local_desired_volumes
                    if volume.name in creating_names)
 
+    # import pdb; pdb.set_trace()
     return VolumeChanges(going=going, coming=coming, creating=creating)

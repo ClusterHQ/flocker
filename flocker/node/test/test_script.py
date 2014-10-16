@@ -8,6 +8,7 @@ from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
@@ -126,7 +127,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'applications': {
                 'mysql-something': {
                     'image': 'unknown',
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/lib/data'},
                 }
             },
             'version': 1
@@ -159,7 +160,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'applications': {
                 'mysql-something': {
                     'image': 'unknown',
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/lib/data'},
                 }
             },
             'version': 1
@@ -174,7 +175,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     links=frozenset(),
                     volume=AttachedVolume(
                         name='mysql-something',
-                        mountpoint=None,
+                        mountpoint=FilePath(b'/var/lib/data'),
                     )
                 ),
             ]))]))

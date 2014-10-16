@@ -588,9 +588,6 @@ APPLICATION_WITH_VOLUME = Application(
     links=frozenset(),
 )
 
-# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
-# current state passed to calculate_necessary_state_changes won't know
-# mountpoint.
 DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string(b"psql-clusterhq"),
@@ -598,7 +595,7 @@ DISCOVERED_APPLICATION_WITH_VOLUME = Application(
         # XXX For now we require volume names match application names,
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
-        mountpoint=None,
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
 )
@@ -717,8 +714,6 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.successResultOf(self.volume_service.create(
             _to_volume_name(u"site-example.net")))
 
-        # Eventually when https://github.com/ClusterHQ/flocker/issues/289
-        # is fixed the mountpoint should actually be specified.
         fake_docker = FakeDockerClient(units=units)
         applications = [
             Application(
@@ -1361,8 +1356,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ),
             links=frozenset(),
         )
-        # XXX don't know volume because of
-        # https://github.com/ClusterHQ/flocker/issues/289
         discovered_another_application = Application(
             name=u"another",
             image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
@@ -1370,7 +1363,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 # XXX For now we require volume names match application names,
                 # see https://github.com/ClusterHQ/flocker/issues/49
                 name=u"another",
-                mountpoint=None,
+                mountpoint=FilePath(b"/blah"),
             )
         )
 
