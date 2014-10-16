@@ -167,25 +167,26 @@ Then add the resulting box to ``vagrant`` using the following command:
 You should now see that box listed:
 
 .. code-block:: console
+   :emphasize-lines: 4
 
-  $ vagrant box list
-  clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-  clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-  clusterhq/flocker-tutorial (virtualbox, 0)
+   $ vagrant box list
+   clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+   clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+   clusterhq/flocker-tutorial (virtualbox, 0)
 
-Modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but change the ``config.vm.box_version`` in the Vagrantfile to ``0``.
 
 .. code-block:: console
+   :emphasize-lines: 5
 
-  $ cat flocker-tutorial/Vagrantfile
-  ...
-  Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-      config.vm.box = "clusterhq/flocker-tutorial"
-      config.vm.box_version = "= 0"
-  ...
+   $ cat flocker-tutorial/Vagrantfile
+   ...
+   Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+       config.vm.box = "clusterhq/flocker-tutorial"
+       config.vm.box_version = "= 0"
+   ...
 
-Run the acceptance tests by installing ``flocker-cli`` and ``mongo`` as well as setting up your SSH keys, then run:
-# TODO make this read better / make sure it includes all the right information.
+Run the automated acceptance tests:
 
 .. code-block:: console
 
