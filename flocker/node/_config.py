@@ -1041,11 +1041,6 @@ def marshal_configuration(state):
     Generate representation of a node's applications using only simple Python
     types.
 
-    A bunch of information is missing, but this is sufficient for the
-    initial requirement of determining what to do about volumes when
-    applying configuration changes.
-    https://github.com/ClusterHQ/flocker/issues/289
-
     :param NodeState state: The configuration state to marshal.
 
     :return: An object representing the node configuration in a structure
