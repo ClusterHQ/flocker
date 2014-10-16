@@ -38,11 +38,13 @@ class MovingApplicationTests(TestCase):
             temp = FilePath(self.mktemp())
             temp.makedirs()
 
+            application = u"mongodb-example"
+
             application_config = temp.child(b"minimal-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
                 u"applications": {
-                    u"mongodb-example": {
+                    application: {
                         u"image": u"clusterhq/mongodb",
                     },
                 },
@@ -52,7 +54,7 @@ class MovingApplicationTests(TestCase):
             deployment_config.setContent(safe_dump({
                 u"version": 1,
                 u"nodes": {
-                    node_1: [u"mongodb-example"],
+                    node_1: [application],
                     node_2: [],
                 },
             }))
@@ -65,14 +67,14 @@ class MovingApplicationTests(TestCase):
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
-                    node_2: [u"mongodb-example"],
+                    node_2: [application],
                 },
             }))
 
             flocker_deploy(deployment_moved_config, application_config)
 
-            unit = Unit(name=u'mongodb-example',
-                        container_name=BASE_NAMESPACE + u'mongodb-example',
+            unit = Unit(name=application,
+                        container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
                         container_image=u'clusterhq/mongodb:latest',
                         ports=frozenset(), environment=None, volumes=())

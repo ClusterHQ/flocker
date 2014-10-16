@@ -36,6 +36,7 @@ class MovingDataTests(TestCase):
 
         def deploy_data_application(node_ips):
             node_1, node_2 = node_ips
+
             temp = FilePath(self.mktemp())
             temp.makedirs()
 

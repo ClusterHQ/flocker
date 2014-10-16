@@ -44,6 +44,7 @@ class PortsTests(TestCase):
 
             temp = FilePath(self.mktemp())
             temp.makedirs()
+
             application_config = temp.child(b"port-application.yml")
             application_config.setContent(safe_dump({
                 u"version": 1,
