@@ -2,16 +2,26 @@
 A HTTP REST API for controlling the Volume Manager.
 """
 
+from __future__ import unicode_literals
+
 from klein import Klein
 
+from ._schemas.v1 import TYPES, ENDPOINTS
 from ..restapi import structured
 
 
-class VolumeAPIUser(object):
+V1_SCHEMAS = {b"endpoints.json": ENDPOINTS,
+              b"types.json": TYPES}
+
+
+class VolumeAPIUserV1(object):
     """
-    A user accessing the API.
+    A user accessing the v1 API.
     """
     app = Klein()
+
+    def __init__(self, volume_service):
+        self.volume_service = volume_service
 
     @app.route("/noop")
     @structured({}, {})
@@ -20,3 +30,16 @@ class VolumeAPIUser(object):
         Do nothing.
         """
         return None
+
+    @app.route("/volumes", methods=["GET"])
+    @structured({}, {"$ref": "/endpoints.json#/definitions/volumes/output"},
+                V1_SCHEMAS)
+    def volumes(self):
+        d = self.volume_service.enumerate()
+
+        def got_results(volumes):
+            return {"Volumes":
+                    list({"Name": volume.name.id} for volume in volumes)}
+        d.addCallback(got_results)
+        return d
+
