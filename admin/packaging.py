@@ -351,7 +351,7 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
                 url='https://clusterhq.com',
                 vendor='ClusterHQ',
                 maintainer='noreply@build.clusterhq.com',
-                architecture=None,
+                architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
             )

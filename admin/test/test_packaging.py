@@ -502,7 +502,7 @@ class SumoRpmBuilderTests(TestCase):
         expected_url = 'https://clusterhq.com'
         expected_vendor = 'ClusterHQ'
         expected_maintainer = 'noreply@build.clusterhq.com'
-        expected_architecture = None
+        expected_architecture = 'native'
         expected_description = (
             'A Docker orchestration and volume management tool')
 
@@ -569,7 +569,7 @@ class SumoRpmBuilderTests(TestCase):
             Relocations=b'/',
             Vendor='ClusterHQ',
             Packager='noreply@build.clusterhq.com',
-            Architecture='noarch',
+            Architecture='x86_64',
             Description='A Docker orchestration and volume management tool',
         )
         rpm_file = FilePath(rpms[0])
@@ -589,11 +589,11 @@ RPMLINT_IGNORED_WARNINGS = (
     'dangling-relative-symlink',
     'dangling-symlink',
     'no-documentation',
-    'arch-independent-package-contains-binary-or-object',
     'no-changelogname-tag',
     'non-standard-group',
     'backup-file-in-package',
     'no-manual-page-for-binary',
+    'unstripped-binary-or-object',
 )
 
 
