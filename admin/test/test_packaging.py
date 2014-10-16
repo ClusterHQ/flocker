@@ -298,6 +298,9 @@ class InstallApplicationTests(TestCase):
 
 
 class CreateLinksTests(TestCase):
+    """
+    Tests for ``CreateLinks``.
+    """
     def test_run(self):
         """
         ``CreateLinks.run`` generates symlinks in ``destination_path`` for all
@@ -323,9 +326,11 @@ class CreateLinksTests(TestCase):
         ).run()
 
         self.assertEqual(
-            [FilePath('/opt/flocker/bin').child(script) for script in flocker_scripts],
+            [FilePath('/opt/flocker/bin').child(script)
+             for script in flocker_scripts],
             [child.realpath() for child in system_bin.children()]
         )
+
 
 class PackageInfo(namedtuple('PackageInfo', 'root name version')):
     """
