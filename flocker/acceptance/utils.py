@@ -10,9 +10,7 @@ from twisted.python.procutils import which
 from flocker.node._docker import RemoteDockerClient
 
 # TODO link from the documentation to the tests
-# TODO change the docs here to note that it is all deferreds
 # TODO run coverage
-# TODO Search for TODOs
 
 __all__ = [
     'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'require_mongo',
@@ -34,7 +32,8 @@ require_mongo = skipUnless(which("mongo"),
 
 def remove_all_containers(ip):
     """
-    Remove all containers on a node, given the IP address of the node.
+    Remove all containers on a node, given the IP address of the node. Returns
+    a Deferred which fires when all containers have been removed.
     """
     docker_client = RemoteDockerClient(ip)
     d = docker_client.list()
@@ -58,9 +57,12 @@ def get_nodes(num_nodes):
     addresses of the tutorial VMs which must already be started. num_nodes
     Docker containers will be created instead to replace this, see
     https://github.com/ClusterHQ/flocker/issues/900
+    Should I remove the parameter? It isn't used but I want the tests to be
+    written in such a way that they don't have to change when Docker-in-Docker
+    arrives.
 
     :param int num_nodes: The number of nodes to start up.
-    :return: A ``list`` of ``bytes``, the IP addresses of the nodes created.
+    :return: A a deferred which fires with a list of IP addresses.
     """
     nodes = [b"172.16.255.250", b"172.16.255.251"]
     # The problem with this is that anyone running "trial flocker" while
