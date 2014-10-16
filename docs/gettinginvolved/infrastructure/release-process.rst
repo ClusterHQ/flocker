@@ -174,7 +174,7 @@ You should now see that box listed:
    clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
    clusterhq/flocker-tutorial (virtualbox, 0)
 
-Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but change the ``config.vm.box_version`` in the Vagrantfile to ``0``.
+Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but change the ``config.vm.box_version`` in the ``Vagrantfile`` to ``0``.
 
 .. code-block:: console
    :emphasize-lines: 5
