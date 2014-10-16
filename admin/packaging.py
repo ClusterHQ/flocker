@@ -121,6 +121,11 @@ class InstallApplication(object):
     After installing the package and its dependencies, the virtualenv is made
     ``relocatable`` to remove and absolute paths and shebang lines in scripts.
 
+    XXX: The --relocatable option is said to be broken. Investigate using
+    ``virtualenv-tools`` instead. See
+    https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253 and
+    https://github.com/fireteam/virtualenv-tools
+
     :ivar FilePath virtualenv_path: The path to an existing ``virtualenv``.
     :ivar bytes package_uri: A ``pip install`` compatible package URI.
     """
