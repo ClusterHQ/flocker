@@ -12,7 +12,9 @@
 FROM ubuntu:14.04
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
 RUN ["apt-get", "update"]
-RUN ["apt-get", "install", "-y", "ruby-dev", "gcc"]
+RUN ["apt-get", "install", "--no-install-recommends", "-y", "ruby-dev", "build-essential", "python-twisted", "python-pip", "python-virtualenv", "python2.7-dev"]
+# XXX: Characteristic isn't packaged for Ubuntu.
+RUN ["pip", "install", "characteristic"]
 # Despite being a packaging tool, fpm isn't yet packaged for Ubuntu
 # See https://github.com/jordansissel/fpm/issues/611 and
 # https://github.com/jordansissel/fpm/issues/657
