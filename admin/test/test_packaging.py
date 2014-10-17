@@ -693,7 +693,7 @@ class SumoPackageBuilderTests(TestCase):
         rpm_file = FilePath(rpms[0])
         assert_rpm_headers(self, expected_headers, rpm_file)
         assert_rpm_requires(self, FLOCKER_DEPENDENCIES_RPM, rpm_file)
-        assert_rpmlint(self, rpm_file)
+        assert_rpm_lint(self, rpm_file)
 
     @require_fpm
     @require_deb
@@ -732,7 +732,7 @@ class SumoPackageBuilderTests(TestCase):
         )
         package_file = FilePath(packages[0])
         assert_deb_headers(self, expected_headers, package_file)
-#        assert_deb_lint(self, package_file)
+        assert_deb_lint(self, package_file)
 
 
 # XXX: These warnings are being ignored but should probably be fixed.
@@ -755,7 +755,7 @@ RPMLINT_IGNORED_WARNINGS = (
 )
 
 
-def assert_rpmlint(test_case, rpm_path):
+def assert_rpm_lint(test_case, rpm_path):
     """
     Fail for certain rpmlint warnings on a supplied RPM file.
 
@@ -780,6 +780,52 @@ def assert_rpmlint(test_case, rpm_path):
         # warnings.
         if len(output) > 1:
             test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
+
+
+LINTIAN_IGNORED_WARNINGS = (
+    'script-not-executable',
+    'python-script-but-no-python-dep',
+    'binary-without-manpage',
+    'dir-or-file-in-opt',
+    'unstripped-binary-or-object',
+    'missing-dependency-on-libc',
+    'no-copyright-file',
+    'description-synopsis-starts-with-article',
+    'extended-description-is-empty',
+    'debian-revision-not-well-formed',
+    'maintainer-name-missing',
+    'unknown-section',
+    'non-standard-file-perm',
+    'extra-license-file',
+    'non-standard-executable-perm',
+)
+
+
+def assert_deb_lint(test_case, package_path):
+    """
+    Fail for certain lintian warnings on a supplied ``package_path``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param FilePath package_path: The path to the deb file to check.
+    """
+    try:
+        check_output(['lintian', package_path.path])
+    except CalledProcessError as e:
+        output = []
+        for line in e.output.splitlines():
+            # Ignore certain warning lines
+            show_line = True
+            for ignored in LINTIAN_IGNORED_WARNINGS:
+                if ignored in line:
+                    show_line = False
+                    break
+            if show_line:
+                output.append(line)
+
+        # Don't print out the summary line unless there are some unfiltered
+        # warnings.
+        if len(output) > 1:
+            test_case.fail('lintian warnings:\n{}'.format('\n'.join(output)))
 
 
 class BuildOptionsTests(TestCase):
