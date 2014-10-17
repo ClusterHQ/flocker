@@ -163,6 +163,9 @@ class InstallApplication(object):
     https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253 and
     https://github.com/fireteam/virtualenv-tools
 
+    TODO: We need to byte-compile python scripts before packaging. See
+    http://fedoraproject.org/wiki/Packaging:Python#Byte_compiling
+
     :ivar FilePath virtualenv_path: The path to an existing ``virtualenv``.
     :ivar bytes package_uri: A ``pip install`` compatible package URI.
     """
