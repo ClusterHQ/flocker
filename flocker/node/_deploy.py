@@ -438,10 +438,10 @@ class Deployer(object):
                 [a.name for a in desired_node_applications],
                 desired_node_applications
             ))
+            # import pdb;pdb.set_trace()
             for application_name in applications_to_inspect:
                 inspect_desired = desired_applications_dict[application_name]
                 inspect_current = current_applications_dict[application_name]
-                # import pdb;pdb.set_trace()
                 if inspect_desired != inspect_current:
                     changes = [
                         StopApplication(application=inspect_current),
@@ -538,7 +538,6 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
-
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)

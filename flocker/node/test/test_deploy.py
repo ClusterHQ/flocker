@@ -1001,8 +1001,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         application = Application(
             name=u'mysql-hybridcluster',
-            image=DockerImage(repository=u'clusterhq/flocker',
-                              tag=u'release-14.0'),
+            image=DockerImage(repository=u'clusterhq/mysql',
+                              tag=u'latest'),
             ports=frozenset(),
         )
 
@@ -1230,13 +1230,16 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
             container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=b'/tmp')]),
             activation_state=u'active'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
         current_node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
         desired_node = Node(
             hostname=u"node1.example.com",
