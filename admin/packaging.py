@@ -61,6 +61,7 @@ Notes:
     * automatically build an sdist
 
     Similar / Related Systems:
+    * https://github.com/opscode/omnibus (Package Ruby apps with their dependencies)
     * http://dh-virtualenv.readthedocs.org/en/latest/info.html
     * https://github.com/mozilla/socorro/blob/master/scripts/install.sh and
       https://github.com/mozilla/socorro/blob/master/scripts/package.sh and
