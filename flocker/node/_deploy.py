@@ -555,5 +555,4 @@ def find_volume_changes(hostname, current_state, desired_state):
     creating = set(volume for volume in local_desired_volumes
                    if volume.name in creating_names)
 
-    # import pdb; pdb.set_trace()
     return VolumeChanges(going=going, coming=coming, creating=creating)
