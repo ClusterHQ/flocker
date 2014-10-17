@@ -1255,8 +1255,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         current = Deployment(nodes=frozenset([current_node, another_node]))
         desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(_to_volume_name(APPLICATION_WITH_VOLUME_NAME)))
+
         api = Deployer(
-            create_volume_service(self), docker_client=docker,
+            volume_service, docker_client=docker,
             network=make_memory_network()
         )
 
