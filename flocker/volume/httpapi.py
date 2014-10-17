@@ -7,12 +7,8 @@ from __future__ import unicode_literals
 
 from klein import Klein
 
-from ._schemas.v1 import TYPES, ENDPOINTS
+from ._schemas.v1 import V1_SCHEMAS
 from ..restapi import structured
-
-
-V1_SCHEMAS = {b"endpoints.json": ENDPOINTS,
-              b"types.json": TYPES}
 
 
 class VolumeAPIUserV1(object):

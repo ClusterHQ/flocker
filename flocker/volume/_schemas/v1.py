@@ -45,3 +45,7 @@ ENDPOINTS = {
         },
     }
 }
+
+
+V1_SCHEMAS = {"endpoints.json": ENDPOINTS,
+              "types.json": TYPES}
