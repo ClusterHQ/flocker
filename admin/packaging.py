@@ -104,7 +104,7 @@ FLOCKER_DEPENDENCIES = dict(
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = dict(
-    rpm=('fedora',),
+    rpm=('fedora', 'centos linux'),
     deb=('ubuntu',),
 )
 

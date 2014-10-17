@@ -752,6 +752,9 @@ RPMLINT_IGNORED_WARNINGS = (
     'no-manual-page-for-binary',
     'unstripped-binary-or-object',
     'zero-length',
+    # Only on Centos7 (not Fedora)
+    # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
+    'no-binary',
 )
 
 
