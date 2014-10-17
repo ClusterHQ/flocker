@@ -422,9 +422,12 @@ class BuildOptions(usage.Options):
 
     def postOptions(self):
         """
-        Coerce to ``FilePath`` where appropriate.
+        Coerce paths to ``FilePath`` and select a suitable ``native``
+        ``package-type``.
         """
         self['destination-path'] = FilePath(self['destination-path'])
+        if self['package-type'] == 'native':
+            self['package-type'] = _native_package_type()
 
 
 class BuildScript(object):
