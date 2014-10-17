@@ -458,6 +458,7 @@ class BuildPackageTests(TestCase):
         expected_architecture = 'i386'
         expected_description = 'Explosive Tennis Balls'
         BuildPackage(
+            package_type="rpm",
             destination_path=destination_path,
             source_path=source_path,
             name=expected_name,
@@ -498,6 +499,7 @@ class SumoPackageBuilderTests(TestCase):
         """
         A sequence of build steps is returned.
         """
+        expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
         expected_target_path = FilePath(self.mktemp())
         expected_virtualenv_path = expected_target_path.descendant(['opt', 'flocker'])
@@ -534,6 +536,7 @@ class SumoPackageBuilderTests(TestCase):
                     destination_path=expected_sysbin_path,
                 ),
                 BuildPackage(
+                    package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     source_path=expected_target_path,
                     name=expected_name,
@@ -552,9 +555,11 @@ class SumoPackageBuilderTests(TestCase):
         assert_equal_steps(
             self,
             expected,
-            sumo_package_builder(expected_destination_path,
+            sumo_package_builder(expected_package_type,
+                                 expected_destination_path,
                                  expected_package_uri,
                                  target_dir=expected_target_path))
+
 
     @require_fpm
     def test_functional_rpm(self):
@@ -568,7 +573,7 @@ class SumoPackageBuilderTests(TestCase):
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
 
-        sumo_package_builder(destination_path, FLOCKER_PATH.path).run()
+        sumo_package_builder('rpm', destination_path, FLOCKER_PATH.path).run()
 
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -728,11 +733,28 @@ class BuildScriptTests(TestCase):
         ``BuildScript.main`` calls ``run`` on the instance returned by
         ``build_command``.
         """
+        expected_destination_path = FilePath(self.mktemp())
+        expected_package_uri = 'http://www.example.com/foo/bar.whl'
         fake_sys_module = FakeSysModule(
-            argv=['build-command-name', 'http://www.example.com/foo/bar.whl']
+            argv=[
+                'build-command-name',
+                '--destination-path=%s' % (expected_destination_path.path,),
+                '--package-type=native',
+                expected_package_uri]
         )
         script = BuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
-        script.build_command = lambda *args, **kwargs: build_step
+        arguments = []
+        def record_arguments(*args, **kwargs):
+            arguments.append((args, kwargs))
+            return build_step
+        script.build_command = record_arguments
         script.main()
+        expected_build_arguments = [(
+            (),
+            dict(destination_path=expected_destination_path,
+                 package_uri=expected_package_uri,
+                 package_type=_native_package_type())
+        )]
+        self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)

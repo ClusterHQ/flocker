@@ -224,9 +224,9 @@ class GetPackageVersion(object):
 
 
 @attributes(
-    ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
-     'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture',
-     'description'])
+    ['package_type', 'destination_path', 'source_path', 'name', 'prefix',
+     'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
+     'architecture', 'description'])
 class BuildPackage(object):
     """
     Use ``fpm`` to build an RPM file from the supplied ``source_path``.
@@ -263,7 +263,7 @@ class BuildPackage(object):
         check_call([
             'fpm',
             '-s', 'dir',
-            '-t', 'rpm',
+            '-t', self.package_type,
             '--package', self.destination_path.path,
             '--name', self.name,
             '--prefix', self.prefix.path,
@@ -322,7 +322,8 @@ class DelayedRpmVersion(object):
         return self.rpm_version.release
 
 
-def sumo_package_builder(destination_path, package_uri, target_dir=None):
+def sumo_package_builder(
+        package_type, destination_path, package_uri, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -375,6 +376,7 @@ def sumo_package_builder(destination_path, package_uri, target_dir=None):
                 destination_path=bin_dir
             ),
             BuildPackage(
+                package_type=package_type,
                 destination_path=destination_path,
                 source_path=target_dir,
                 name='Flocker',
@@ -468,6 +470,7 @@ class BuildScript(object):
             raise SystemExit(1)
 
         self.build_command(
+            package_type=options['package-type'],
             destination_path=options['destination-path'],
             package_uri=options['package-uri']
         ).run()
