@@ -785,7 +785,6 @@ def assert_rpm_lint(test_case, rpm_path):
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian
 LINTIAN_IGNORED_WARNINGS = (
     'script-not-executable',
-    'python-script-but-no-python-dep',
     'binary-without-manpage',
     'dir-or-file-in-opt',
     'unstripped-binary-or-object',

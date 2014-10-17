@@ -89,16 +89,12 @@ from .release import make_rpm_version
 
 # RPM style 'Requires' values which will be added to the Flocker RPM headers.
 FLOCKER_DEPENDENCIES_RPM = (
-    'docker-io',
-    '/usr/sbin/iptables',
-    'zfs',
+    'python',
 )
 
 # DEB style 'Depends' values which will be added to the Flocker DEB headers.
 FLOCKER_DEPENDENCIES_DEB = (
-    'docker.io',
-    'iptables',
-    'zfs',
+    'python2.7',
 )
 
 FLOCKER_DEPENDENCIES = dict(
