@@ -1256,7 +1256,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         desired = Deployment(nodes=frozenset([desired_node, another_node]))
 
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(_to_volume_name(APPLICATION_WITH_VOLUME_NAME)))
+        self.successResultOf(volume_service.create(
+            _to_volume_name(APPLICATION_WITH_VOLUME_NAME))
+        )
 
         api = Deployer(
             volume_service, docker_client=docker,
@@ -1582,16 +1584,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ])),
             activation_state=u'active'
         )
-        unit3 = Unit(
-            name=u'mysql-example',
-            container_name=u'mysql-example',
-            container_image=u'clusterhq/mysql:latest',
-            activation_state=u'active'
-        )
+
         docker = FakeDockerClient(units={
             unit1.name: unit1,
             unit2.name: unit2,
-            unit3.name: unit3,
         })
 
         api = Deployer(
@@ -1605,30 +1601,30 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             volume=None,
             links=frozenset([
                 Link(
-                    local_port=5432, remote_port=50432, alias='postgres'
+                    local_port=5432, remote_port=50432, alias='POSTGRES'
                 )
             ])
+        )
+
+        postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest')
         )
 
         new_wordpress_app = Application(
             name=u'wordpress-example',
-            image=DockerImage.from_string(u'docker/wordpress:latest'),
+            image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
             volume=None,
             links=frozenset([
                 Link(
-                    local_port=3306, remote_port=53306, alias='mysql'
+                    local_port=5432, remote_port=51432, alias='POSTGRES'
                 )
             ])
         )
 
-        node = Node(
-            hostname=u"node1.example.com",
-            applications=frozenset({old_wordpress_app}),
-        )
-
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset({new_wordpress_app})),
+            Node(hostname=u'node1.example.com',
+                 applications=frozenset({new_wordpress_app, postgres_app})),
         }))
         d = api.calculate_necessary_state_changes(
             desired_state=desired,

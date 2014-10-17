@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+import re
+
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
@@ -14,7 +16,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage, Port
+    NodeState, DockerImage, Port, Link
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -328,11 +330,26 @@ class Deployer(object):
                         internal_port=portmap.internal_port,
                         external_port=portmap.external_port
                     ))
+                links = []
+                link_pattern = re.compile(
+                    "^([A-Z0-9]+)_PORT_([0-9]+)_TCP_PORT$")
+                if unit.environment:
+                    environment_dict = unit.environment.to_dict()
+                    for label, value in environment_dict.items():
+                        link_match = re.match(link_pattern, label)
+                        if link_match is not None:
+                            link_identifiers = link_match.groups()
+                            links.append(Link(
+                                local_port=int(link_identifiers[1]),
+                                remote_port=int(value),
+                                alias=link_identifiers[0]
+                            ))
                 application = Application(
                     name=unit.name,
                     image=image,
                     ports=frozenset(ports),
-                    volume=volume
+                    volume=volume,
+                    links=frozenset(links)
                 )
                 if unit.activation_state == u"active":
                     running.append(application)
@@ -438,7 +455,6 @@ class Deployer(object):
                 [a.name for a in desired_node_applications],
                 desired_node_applications
             ))
-            # import pdb;pdb.set_trace()
             for application_name in applications_to_inspect:
                 inspect_desired = desired_applications_dict[application_name]
                 inspect_current = current_applications_dict[application_name]
