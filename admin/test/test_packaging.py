@@ -782,6 +782,7 @@ def assert_rpm_lint(test_case, rpm_path):
             test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
 
 
+# See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian
 LINTIAN_IGNORED_WARNINGS = (
     'script-not-executable',
     'python-script-but-no-python-dep',
