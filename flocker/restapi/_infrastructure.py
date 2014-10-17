@@ -146,8 +146,11 @@ def structured(inputSchema, outputSchema, schema_store=None):
     The encoded form of the object returned by C{original} will define the
     response body.
 
-    @param inputSchema: JSON Schema describing the request body.
-    @param outputSchema: JSON Schema describing the response body.
+    :param inputSchema: JSON Schema describing the request body.
+    :param outputSchema: JSON Schema describing the response body.
+    :param schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
+        input/output schemas to just be references.
     """
     if schema_store is None:
         schema_store = {}
