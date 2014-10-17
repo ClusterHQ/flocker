@@ -333,21 +333,26 @@ Release
 
          curl -X POST http://readthedocs.org/build/flocker
 
-   #. Go to the `Read the Docs dashboard <https://readthedocs.org/dashboard/flocker/versions/>`_.
+   #. Go to the `Read the Docs dashboard Versions section`_.
    #. Enable the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version to that version.
+   #. Set the default version and latest version to that version:
 
       .. warning:: Skip this step for weekly releases and pre-releases.
                    The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
                    We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
                    Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
 
+      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the version being released.
+
+      - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
+
 #. Merge the release branch
 
    Merge release branch and close the release pull request.
 
+.. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
 .. _back-porting-changes:
 
