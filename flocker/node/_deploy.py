@@ -319,9 +319,7 @@ class Deployer(object):
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
-                    # XXX Mountpoint is not available, see
-                    # https://github.com/ClusterHQ/flocker/issues/289
-                    volume = AttachedVolume(name=unit.name, mountpoint=None)
+                    volume = AttachedVolume.from_unit(unit)
                 else:
                     volume = None
                 ports = []
@@ -540,6 +538,7 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
+
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)

@@ -339,7 +339,9 @@ class StartApplicationTests(SynchronousTestCase):
                                         hostname="node1.example.com").run(api)
         exists_result = fake_docker.exists(unit_name=application.name)
 
-        port_maps = [PortMap(internal_port=80, external_port=8080)]
+        port_maps = frozenset(
+            [PortMap(internal_port=80, external_port=8080)]
+        )
         self.assertEqual(
             (None, True, docker_image.full_name, port_maps),
             (self.successResultOf(start_result),
@@ -484,8 +486,8 @@ class StartApplicationTests(SynchronousTestCase):
             _to_volume_name(application_name)).get_filesystem()
 
         self.assertEqual(
-            [DockerVolume(node_path=filesystem.get_path(),
-                          container_path=mountpoint)],
+            frozenset([DockerVolume(node_path=filesystem.get_path(),
+                                    container_path=mountpoint)]),
             fake_docker._units[application_name].volumes
         )
 
@@ -586,9 +588,6 @@ APPLICATION_WITH_VOLUME = Application(
     links=frozenset(),
 )
 
-# XXX Until https://github.com/ClusterHQ/flocker/issues/289 is fixed the
-# current state passed to calculate_necessary_state_changes won't know
-# mountpoint.
 DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string(b"psql-clusterhq"),
@@ -596,7 +595,7 @@ DISCOVERED_APPLICATION_WITH_VOLUME = Application(
         # XXX For now we require volume names match application names,
         # see https://github.com/ClusterHQ/flocker/issues/49
         name=APPLICATION_WITH_VOLUME_NAME,
-        mountpoint=None,
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
 )
@@ -691,10 +690,22 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume1'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
                      activation_state=u'active')
         unit2 = Unit(name=u'site-example.net',
                      container_name=u'site-example.net',
                      container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume2'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
 
@@ -703,15 +714,16 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.successResultOf(self.volume_service.create(
             _to_volume_name(u"site-example.net")))
 
-        # Eventually when https://github.com/ClusterHQ/flocker/issues/289
-        # is fixed the mountpoint should actually be specified.
         fake_docker = FakeDockerClient(units=units)
-        applications = [Application(name=unit.name,
-                                    image=DockerImage.from_string(
-                                        unit.container_image),
-                                    volume=AttachedVolume(name=unit.name,
-                                                          mountpoint=None))
-                        for unit in units.values()]
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+                volume=AttachedVolume(
+                    name=unit.name,
+                    mountpoint=FilePath(b'/var/lib/data')
+                    )
+            ) for unit in units.values()]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -1344,8 +1356,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ),
             links=frozenset(),
         )
-        # XXX don't know volume because of
-        # https://github.com/ClusterHQ/flocker/issues/289
         discovered_another_application = Application(
             name=u"another",
             image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
@@ -1353,7 +1363,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 # XXX For now we require volume names match application names,
                 # see https://github.com/ClusterHQ/flocker/issues/49
                 name=u"another",
-                mountpoint=None,
+                mountpoint=FilePath(b"/blah"),
             )
         )
 

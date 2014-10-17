@@ -1701,34 +1701,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_lenient_mode(self):
-        """
-        ``Configuration.applications`` in lenient mode
-        accepts a volume with a null mountpoint.
-        """
-        config = dict(
-            version=1,
-            applications={
-                'mysql-hybridcluster': dict(
-                    image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': None}
-                ),
-            }
-        )
-        parser = FlockerConfiguration(config, lenient=True)
-        applications = parser.applications()
-        expected_applications = {
-            'mysql-hybridcluster': Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                links=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
-                    mountpoint=None)),
-        }
-        self.assertEqual(expected_applications, applications)
-
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
@@ -2097,7 +2069,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/mysql/data'},
                     'image': u'flocker/mysql:v1.0.0',
                     'ports': []
                 }
@@ -2139,7 +2111,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/mysql/data'},
                     'image': u'flocker/mysql:v1.0.0',
                     'ports': []
                 }
@@ -2178,10 +2150,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
-                    # Mountpoint will only be available once
-                    # https://github.com/ClusterHQ/flocker/issues/289 is
-                    # fixed.
-                    mountpoint=None)
+                    mountpoint=FilePath(b"/var/lib/data"))
             ),
             Application(
                 name='site-hybridcluster',
@@ -2203,7 +2172,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
-                    mountpoint=None,
+                    mountpoint=FilePath(b"/var/lib/data")
                 )
             ),
             b'site-hybridcluster': Application(
@@ -2219,7 +2188,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         result = marshal_configuration(
             NodeState(running=applications, not_running=[]))
-        config = FlockerConfiguration(result, lenient=True)
+        config = FlockerConfiguration(result)
         apps = config.applications()
         self.assertEqual(expected_applications, apps)
 
@@ -2302,11 +2271,10 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected,
                          current_from_configuration(config))
 
-    def test_lenient(self):
+    def test_error_on_mountpoint_none(self):
         """
-        Until https://github.com/ClusterHQ/flocker/issues/289 is fixed,
-        ``current_from_configuration`` accepts ``None`` for volume
-        mountpoints.
+        ``current_from_configuration`` rejects ``None`` for volume
+        mountpoints, raising a ``ConfigurationError``.
         """
         config = {'example.com': {
             'applications': {
@@ -2317,18 +2285,12 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
             },
             'version': 1
         }}
-        expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        name='mysql-hybridcluster',
-                        mountpoint=None,
-                    )
-                ),
-            ]))]))
-        self.assertEqual(expected,
-                         current_from_configuration(config))
+
+        e = self.assertRaises(ConfigurationError, current_from_configuration,
+                              config)
+        expected = (
+            "Application 'mysql-hybridcluster' has a config error. Invalid "
+            "volume specification. Mountpoint None contains non-ASCII "
+            "(unsupported)."
+        )
+        self.assertEqual(e.message, expected)
