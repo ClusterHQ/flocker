@@ -67,7 +67,7 @@ Notes:
       http://socorro.readthedocs.org/en/latest/installation/install-src-prod.html
     *
 """
-
+import platform
 import sys
 from subprocess import check_call, check_output
 from tempfile import mkdtemp
@@ -87,6 +87,24 @@ FLOCKER_RPM_DEPENDENCIES = (
     '/usr/sbin/iptables',
     'zfs',
 )
+
+# Associate package formats with platform operating systems.
+PACKAGE_TYPE_MAP = dict(
+    rpm=('fedora',),
+    deb=('ubuntu',),
+)
+
+def _native_package_type():
+    """
+    :return: The ``bytes`` name of the native package format for this platform.
+    """
+    (distribution_name,
+     distribution_version,
+     distribution_id) = platform.linux_distribution()
+
+    for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
+        if distribution_name.lower() in distribution_names:
+            return package_type
 
 
 @attributes(['steps'])

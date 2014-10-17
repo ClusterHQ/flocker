@@ -21,7 +21,8 @@ from flocker.testtools import FakeSysModule
 from ..packaging import (
     sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES, CreateLinks
+    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES, CreateLinks,
+    _native_package_type
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -653,6 +654,16 @@ class BuildOptionsTests(TestCase):
             'package-type': 'native',
         }
         self.assertEqual(expected_defaults, BuildOptions())
+
+    def test_native(self):
+        """
+        ``BuildOptions`` package-type is selected automatically if the keyword
+        ``native`` is supplied.
+        """
+        options = BuildOptions()
+        options.parseOptions(
+            ['--package-type=native', 'http://example.com/fake/uri'])
+        self.assertEqual(_native_package_type(), options['package-type'])
 
     def test_package_uri_missing(self):
         """
