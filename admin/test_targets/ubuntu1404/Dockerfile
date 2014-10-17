@@ -7,7 +7,7 @@
 # docker build --tag='clusterhq/test_ubuntu:14.04' ~/projects/flocker/admin/test_targets/ubuntu1404
 #
 # Run:
-# docker run --volume=~/projects/flocker:/flocker clusterhq/test_ubuntu:14.04 -e py27
+# docker run --volume=~/projects/flocker:/flocker clusterhq/test_ubuntu:14.04 -e admin
 
 FROM ubuntu:14.04
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
