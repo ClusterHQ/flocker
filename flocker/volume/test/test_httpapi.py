@@ -7,7 +7,7 @@ from twisted.web.client import readBody
 from ...restapi.testtools import (
     buildIntegrationTests, loads, goodResult)
 
-from ..api import VolumeAPIUser
+from ..httpapi import VolumeAPIUser
 
 
 class APITestsMixin(object):
