@@ -609,6 +609,7 @@ RPMLINT_IGNORED_WARNINGS = (
     'backup-file-in-package',
     'no-manual-page-for-binary',
     'unstripped-binary-or-object',
+    'zero-length',
 )
 
 
