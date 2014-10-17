@@ -65,6 +65,10 @@ Notes:
     * https://github.com/mozilla/socorro/blob/master/scripts/install.sh and
       https://github.com/mozilla/socorro/blob/master/scripts/package.sh and
       http://socorro.readthedocs.org/en/latest/installation/install-src-prod.html
+
+    TODO:
+    * Build fpm platform packages for quicker installation on build slaves
+      https://github.com/hatt/omnibus-fpm
     *
 """
 import platform
