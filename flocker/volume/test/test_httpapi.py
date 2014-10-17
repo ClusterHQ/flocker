@@ -1,12 +1,13 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Tests for ``flocker.volume.api``.
+Tests for ``flocker.volume.httpapi``.
 """
 
 from twisted.web.client import readBody
 from ...restapi.testtools import (
     buildIntegrationTests, loads, goodResult)
 
-from ..api import VolumeAPIUser
+from ..httpapi import VolumeAPIUser
 
 
 class APITestsMixin(object):

@@ -70,7 +70,7 @@ def _logging(original):
         action = REQUEST(logger, request_path=path)
 
         # Can't construct a good identifier without using private things.
-        # See https://www.pivotaltracker.com/story/show/63982202
+        # See https://github.com/ClusterHQ/eliot/issues/29
         uuid = action._identification[u"task_uuid"]
         level = action._identification[u"task_level"]
         incidentIdentifier = uuid + u"," + level
@@ -146,8 +146,11 @@ def structured(inputSchema, outputSchema, schema_store=None):
     The encoded form of the object returned by C{original} will define the
     response body.
 
-    @param inputSchema: JSON Schema describing the request body.
-    @param outputSchema: JSON Schema describing the response body.
+    :param inputSchema: JSON Schema describing the request body.
+    :param outputSchema: JSON Schema describing the response body.
+    :param schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure, allowing
+        input/output schemas to just be references.
     """
     if schema_store is None:
         schema_store = {}

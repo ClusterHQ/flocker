@@ -1,3 +1,4 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 A HTTP REST API for controlling the Volume Manager.
 """

@@ -1,3 +1,4 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Utilities for testing REST APIs.
 """
