@@ -386,6 +386,8 @@ class BuildOptions(usage.Options):
         ['destination-path', 'd', '.',
          'The path to a directory in which to create package files and '
          'artifacts.'],
+        ['package-type', 't', 'native',
+         'The type of package to build. One of rpm, deb, or native.'],
     ]
 
     longdesc = dedent("""\

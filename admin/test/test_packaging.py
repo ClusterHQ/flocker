@@ -650,6 +650,7 @@ class BuildOptionsTests(TestCase):
         """
         expected_defaults = {
             'destination-path': '.',
+            'package-type': 'native',
         }
         self.assertEqual(expected_defaults, BuildOptions())
 
