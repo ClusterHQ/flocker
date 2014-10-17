@@ -1,5 +1,6 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-Tests for ``flocker.volume.api``.
+Tests for ``flocker.volume.httpapi``.
 """
 
 from twisted.web.client import readBody
