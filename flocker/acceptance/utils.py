@@ -9,9 +9,6 @@ from twisted.python.procutils import which
 
 from flocker.node._docker import RemoteDockerClient
 
-# TODO link from the documentation to the tests
-# TODO run coverage
-
 __all__ = [
     'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'require_mongo',
     ]

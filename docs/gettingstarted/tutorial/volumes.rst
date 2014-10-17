@@ -2,6 +2,9 @@
 Data Volumes
 ============
 
+.. This section is tested in flocker.acceptance.test_moving_data.MovingDataTests.
+   Reflect any relevant changes here in those tests.
+
 The Problem
 ===========
 
