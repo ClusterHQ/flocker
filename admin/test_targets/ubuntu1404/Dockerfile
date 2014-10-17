@@ -12,9 +12,7 @@
 FROM ubuntu:14.04
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
 RUN ["apt-get", "update"]
-RUN ["apt-get", "install", "--no-install-recommends", "-y", "build-essential", "git", "python-tox"]
-RUN ["apt-get", "install", "--no-install-recommends", "-y", "python-dev"]
-RUN ["apt-get", "install", "--no-install-recommends", "-y", "ruby-dev"]
+RUN ["apt-get", "install", "--no-install-recommends", "-y", "build-essential", "git", "python-tox", "python-dev", "ruby-dev"]
 # Despite being a packaging tool, fpm isn't yet packaged for Ubuntu
 # See https://github.com/jordansissel/fpm/issues/611 and
 # https://github.com/jordansissel/fpm/issues/657
