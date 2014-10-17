@@ -348,6 +348,8 @@ Release
 
       - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
 
+      - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
+
 #. Merge the release branch
 
    Merge release branch and close the release pull request.
