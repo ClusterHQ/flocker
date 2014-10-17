@@ -19,7 +19,7 @@ from twisted.trial.unittest import TestCase
 from flocker.testtools import FakeSysModule
 
 from ..packaging import (
-    sumo_rpm_builder, InstallVirtualEnv, InstallApplication, BuildRpm,
+    sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
     DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES, CreateLinks,
     _native_package_type
@@ -429,17 +429,17 @@ class GetPackageVersionTests(TestCase):
         self.assertIs(None, step.version)
 
 
-class BuildRpmTests(TestCase):
+class BuildPackageTests(TestCase):
     """
-    Tests for `BuildRpm`.
+    Tests for `BuildPackage`.
     """
     @require_fpm
     def setUp(self):
         pass
 
-    def test_run(self):
+    def test_rpm(self):
         """
-        ``BuildRpm.run`` creates an RPM from the supplied ``source_path``.
+        ``BuildPackage.run`` creates an RPM from the supplied ``source_path``.
         """
         destination_path = FilePath(self.mktemp())
         destination_path.makedirs()
@@ -457,7 +457,7 @@ class BuildRpmTests(TestCase):
         expected_maintainer = 'noreply@example.com'
         expected_architecture = 'i386'
         expected_description = 'Explosive Tennis Balls'
-        BuildRpm(
+        BuildPackage(
             destination_path=destination_path,
             source_path=source_path,
             name=expected_name,
@@ -490,9 +490,9 @@ class BuildRpmTests(TestCase):
         assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
 
 
-class SumoRpmBuilderTests(TestCase):
+class SumoPackageBuilderTests(TestCase):
     """
-    Tests for ``sumo_rpm_builder``.
+    Tests for ``sumo_package_builder``.
     """
     def test_steps(self):
         """
@@ -533,7 +533,7 @@ class SumoRpmBuilderTests(TestCase):
                     pattern='flocker-*',
                     destination_path=expected_sysbin_path,
                 ),
-                BuildRpm(
+                BuildPackage(
                     destination_path=expected_destination_path,
                     source_path=expected_target_path,
                     name=expected_name,
@@ -552,12 +552,12 @@ class SumoRpmBuilderTests(TestCase):
         assert_equal_steps(
             self,
             expected,
-            sumo_rpm_builder(expected_destination_path,
-                             expected_package_uri,
-                             target_dir=expected_target_path))
+            sumo_package_builder(expected_destination_path,
+                                 expected_package_uri,
+                                 target_dir=expected_target_path))
 
     @require_fpm
-    def test_functional(self):
+    def test_functional_rpm(self):
         """
         An RPM file with the expected headers is built.
         """
@@ -568,7 +568,7 @@ class SumoRpmBuilderTests(TestCase):
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
 
-        sumo_rpm_builder(destination_path, FLOCKER_PATH.path).run()
+        sumo_package_builder(destination_path, FLOCKER_PATH.path).run()
 
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -718,9 +718,9 @@ class BuildScriptTests(TestCase):
 
     def test_build_command(self):
         """
-        ``BuildScript.build_command`` is ``sumo_rpm_builder`` by default.
+        ``BuildScript.build_command`` is ``sumo_package_builder`` by default.
         """
-        self.assertIs(sumo_rpm_builder, BuildScript.build_command)
+        self.assertIs(sumo_package_builder, BuildScript.build_command)
 
     def test_run(self):
         """

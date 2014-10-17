@@ -227,7 +227,7 @@ class GetPackageVersion(object):
     ['destination_path', 'source_path', 'name', 'prefix', 'epoch',
      'rpm_version', 'license', 'url', 'vendor', 'maintainer', 'architecture',
      'description'])
-class BuildRpm(object):
+class BuildPackage(object):
     """
     Use ``fpm`` to build an RPM file from the supplied ``source_path``.
 
@@ -322,9 +322,9 @@ class DelayedRpmVersion(object):
         return self.rpm_version.release
 
 
-def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
+def sumo_package_builder(destination_path, package_uri, target_dir=None):
     """
-    Build a sequence of build steps which when run will generate an RPM file in
+    Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
     and all its dependencies.
 
@@ -374,7 +374,7 @@ def sumo_rpm_builder(destination_path, package_uri, target_dir=None):
                 pattern='flocker-*',
                 destination_path=bin_dir
             ),
-            BuildRpm(
+            BuildPackage(
                 destination_path=destination_path,
                 source_path=target_dir,
                 name='Flocker',
@@ -438,7 +438,7 @@ class BuildScript(object):
     :ivar build_command: The function responsible for building the
         package. Allows the command to be overridden in tests.
     """
-    build_command = staticmethod(sumo_rpm_builder)
+    build_command = staticmethod(sumo_package_builder)
 
     def __init__(self, sys_module=None):
         """
