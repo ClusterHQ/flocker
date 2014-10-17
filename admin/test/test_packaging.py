@@ -131,6 +131,36 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
     )
 
 
+def assert_deb_headers(test_case, expected_headers, package_path):
+    """
+    Fail unless the ``deb`` file at ``package_path`` contains all the
+    ``expected_headers``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param dict expected_headers: A dictionary of header key / value pairs.
+    :param FilePath package_path: The path to the deb file under test.
+    """
+    output = check_output(
+        ['dpkg', '--info', package_path.path]
+    )
+    actual_headers = {}
+    key = None
+    for line in output.splitlines():
+        parts = [value.strip() for value in line.split(':', 1)]
+        if len(parts) == 2:
+            key, val = parts
+            actual_headers[key] = val
+        else:
+            if key:
+                actual_headers[key] += parts[0]
+            else:
+                key = None
+
+    assert_dict_contains(
+        test_case, expected_headers, actual_headers, 'Missing dpkg Headers: '
+    )
+
+
 def assert_rpm_requires(test_case, expected_requirements, rpm_path):
     """
     Fail unless the ``RPM`` file at ``rpm_path`` has all the
@@ -497,6 +527,65 @@ class BuildPackageTests(TestCase):
             Architecture=expected_architecture,
         )
         assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
+
+
+    @require_deb
+    def test_deb(self):
+        """
+        ``BuildPackage.run`` creates a .deb package from the supplied
+        ``source_path``.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        source_path.child('Foo').touch()
+        source_path.child('Bar').touch()
+        expected_name = 'FooBar'.lower()
+        expected_prefix = FilePath('/foo/bar')
+        expected_epoch = b'3'
+        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        expected_license = 'My Test License'
+        expected_url = 'https://www.example.com/foo/bar'
+        expected_vendor = 'Acme Corporation'
+        expected_maintainer = 'noreply@example.com'
+        expected_architecture = 'i386'
+        expected_description = 'Explosive Tennis Balls'
+        BuildPackage(
+            package_type="deb",
+            destination_path=destination_path,
+            source_path=source_path,
+            name=expected_name,
+            prefix=expected_prefix,
+            epoch=expected_epoch,
+            rpm_version=expected_rpm_version,
+            license=expected_license,
+            url=expected_url,
+            vendor=expected_vendor,
+            maintainer=expected_maintainer,
+            architecture=expected_architecture,
+            description=expected_description,
+        ).run()
+        packages = glob('{}*.deb'.format(
+            destination_path.child(expected_name.lower()).path))
+        self.assertEqual(1, len(packages))
+
+        expected_headers = dict(
+            Package=expected_name,
+            Version=(
+                expected_epoch
+                + b':'
+                + expected_rpm_version.version
+                + '-'
+                + expected_rpm_version.release
+            ),
+            License=expected_license,
+            Vendor=expected_vendor,
+            Architecture=expected_architecture,
+            Maintainer=expected_maintainer,
+            Homepage=expected_url,
+        )
+        assert_deb_headers(self, expected_headers, FilePath(packages[0]))
 
 
 class SumoPackageBuilderTests(TestCase):
