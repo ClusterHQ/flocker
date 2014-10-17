@@ -732,7 +732,6 @@ class SumoPackageBuilderTests(TestCase):
         )
         package_file = FilePath(packages[0])
         assert_deb_headers(self, expected_headers, package_file)
-#        assert_deb_requires(self, FLOCKER_DEB_DEPENDENCIES, package_file)
 #        assert_deb_lint(self, package_file)
 
 
