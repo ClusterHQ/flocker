@@ -21,8 +21,8 @@ from flocker.testtools import FakeSysModule
 from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion, FLOCKER_RPM_DEPENDENCIES, CreateLinks,
-    _native_package_type
+    DelayedRpmVersion, FLOCKER_DEPENDENCIES_RPM, FLOCKER_DEPENDENCIES_DEB,
+    CreateLinks, _native_package_type
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -692,7 +692,7 @@ class SumoPackageBuilderTests(TestCase):
         )
         rpm_file = FilePath(rpms[0])
         assert_rpm_headers(self, expected_headers, rpm_file)
-        assert_rpm_requires(self, FLOCKER_RPM_DEPENDENCIES, rpm_file)
+        assert_rpm_requires(self, FLOCKER_DEPENDENCIES_RPM, rpm_file)
         assert_rpmlint(self, rpm_file)
 
     @require_fpm
@@ -728,6 +728,7 @@ class SumoPackageBuilderTests(TestCase):
             Maintainer='noreply@build.clusterhq.com',
             Architecture='amd64',
             Description='A Docker orchestration and volume management tool',
+            Depends=', '.join(FLOCKER_DEPENDENCIES_DEB)
         )
         package_file = FilePath(packages[0])
         assert_deb_headers(self, expected_headers, package_file)

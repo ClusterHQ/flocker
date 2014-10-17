@@ -82,10 +82,22 @@ from .release import make_rpm_version
 
 
 # RPM style 'Requires' values which will be added to the Flocker RPM headers.
-FLOCKER_RPM_DEPENDENCIES = (
+FLOCKER_DEPENDENCIES_RPM = (
     'docker-io',
     '/usr/sbin/iptables',
     'zfs',
+)
+
+# DEB style 'Depends' values which will be added to the Flocker DEB headers.
+FLOCKER_DEPENDENCIES_DEB = (
+    'docker.io',
+    'iptables',
+    'zfs',
+)
+
+FLOCKER_DEPENDENCIES = dict(
+    rpm=FLOCKER_DEPENDENCIES_RPM,
+    deb=FLOCKER_DEPENDENCIES_DEB,
 )
 
 # Associate package formats with platform operating systems.
@@ -257,7 +269,7 @@ class BuildPackage(object):
             architecture = 'all'
 
         depends_arguments = []
-        for requirement in FLOCKER_RPM_DEPENDENCIES:
+        for requirement in FLOCKER_DEPENDENCIES.get(self.package_type, []):
             depends_arguments.extend(['--depends', requirement])
 
         check_call([
