@@ -32,6 +32,13 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
+PLATFORM_PACKAGE_TYPE = _native_package_type()
+require_rpm = skipIf(PLATFORM_PACKAGE_TYPE != 'rpm',
+                     "Tests require an `rpm` based platform. Found {}.".format(
+                         PLATFORM_PACKAGE_TYPE))
+require_deb = skipIf(PLATFORM_PACKAGE_TYPE != 'deb',
+                     "Tests require a `deb` based platform. Found {}.".format(
+                         PLATFORM_PACKAGE_TYPE))
 
 def assert_equal_steps(test_case, expected, actual):
     """
@@ -437,6 +444,7 @@ class BuildPackageTests(TestCase):
     def setUp(self):
         pass
 
+    @require_rpm
     def test_rpm(self):
         """
         ``BuildPackage.run`` creates an RPM from the supplied ``source_path``.
@@ -562,6 +570,7 @@ class SumoPackageBuilderTests(TestCase):
 
 
     @require_fpm
+    @require_rpm
     def test_functional_rpm(self):
         """
         An RPM file with the expected headers is built.
