@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd. See LICENSE file for details.
 #
-# A Docker image for running the ``admin/build-package`` script in a clean
-# Ubuntu 14.04 build environment.
+# A Docker image for running Flocker tests via ``tox`` in a clean
+# Ubuntu 14.04 environment.
 #
 # Build:
 # docker build --tag='clusterhq/test_ubuntu:14.04' ~/projects/flocker/admin/test_targets/ubuntu1404
