@@ -68,7 +68,7 @@ class AttachedVolume(object):
         """
         Given a Docker ``Unit``, return a :class:`AttachedVolume`.
 
-        :param ``Unit`` unit: A Docker ``Unit`` from which to create an
+        :param Unit unit: A Docker ``Unit`` from which to create an
             ``AttachedVolume`` where the volume name will be the unit name
             and the mountpoint will be the unit's volume's container path.
 
@@ -78,6 +78,7 @@ class AttachedVolume(object):
         volumes = set(unit.volumes)
         name = unit.name
         # XXX we only support one data volume per container at this time
+        # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
             return cls(name=name, mountpoint=volume.container_path)
