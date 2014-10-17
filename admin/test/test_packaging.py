@@ -695,6 +695,45 @@ class SumoPackageBuilderTests(TestCase):
         assert_rpm_requires(self, FLOCKER_RPM_DEPENDENCIES, rpm_file)
         assert_rpmlint(self, rpm_file)
 
+    @require_fpm
+    @require_deb
+    def test_functional_deb(self):
+        """
+        An deb file with the expected headers is built.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        expected_name = 'Flocker'.lower()
+        expected_python_version = check_output(
+            ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
+        expected_rpm_version = make_rpm_version(expected_python_version)
+
+        sumo_package_builder('deb', destination_path, FLOCKER_PATH.path).run()
+
+        packages = glob('{}*.deb'.format(
+            destination_path.child(expected_name).path))
+        self.assertEqual(1, len(packages))
+
+        expected_headers = dict(
+            Package=expected_name,
+            Version=(
+                b'0:'
+                + expected_rpm_version.version
+                + '-' +
+                expected_rpm_version.release
+            ),
+            License='ASL 2.0',
+            Homepage='https://clusterhq.com',
+            Vendor='ClusterHQ',
+            Maintainer='noreply@build.clusterhq.com',
+            Architecture='amd64',
+            Description='A Docker orchestration and volume management tool',
+        )
+        package_file = FilePath(packages[0])
+        assert_deb_headers(self, expected_headers, package_file)
+#        assert_deb_requires(self, FLOCKER_DEB_DEPENDENCIES, package_file)
+#        assert_deb_lint(self, package_file)
+
 
 # XXX: These warnings are being ignored but should probably be fixed.
 RPMLINT_IGNORED_WARNINGS = (
