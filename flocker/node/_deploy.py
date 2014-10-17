@@ -319,7 +319,7 @@ class Deployer(object):
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
-                    volume = AttachedVolume.from_unit(unit)
+                    volume = AttachedVolume.from_unit(unit).pop()
                 else:
                     volume = None
                 ports = []

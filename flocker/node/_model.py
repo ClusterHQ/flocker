@@ -80,7 +80,7 @@ class AttachedVolume(object):
         # XXX we only support one data volume per container at this time
         try:
             volume = volumes.pop()
-            return cls(name=name, mountpoint=volume.container_path)
+            return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
 
