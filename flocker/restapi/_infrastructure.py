@@ -70,7 +70,7 @@ def _logging(original):
         action = REQUEST(logger, request_path=path)
 
         # Can't construct a good identifier without using private things.
-        # See https://www.pivotaltracker.com/story/show/63982202
+        # See https://github.com/ClusterHQ/eliot/issues/29
         uuid = action._identification[u"task_uuid"]
         level = action._identification[u"task_level"]
         incidentIdentifier = uuid + u"," + level
