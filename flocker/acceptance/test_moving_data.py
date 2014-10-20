@@ -3,9 +3,8 @@
 """
 Tests for movement of data across nodes.
 """
-from time import sleep
-
 from pymongo import MongoClient
+
 from twisted.trial.unittest import TestCase
 
 from .utils import (flocker_deploy, get_nodes, require_flocker_cli,

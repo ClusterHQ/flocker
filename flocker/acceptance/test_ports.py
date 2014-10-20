@@ -3,9 +3,7 @@
 """
 Tests for communication to applications across nodes.
 """
-from time import sleep
-
-from pexpect import spawn
+from pymongo import MongoClient
 
 from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
@@ -101,22 +99,11 @@ class PortsTests(TestCase):
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
-        # There is a race condition here.
-        # The tutorial says "If you get a connection refused error try again
-        # after a few seconds; the application might take some time to fully
-        # start up.".
-        sleep(5)
-        child_1 = spawn('mongo ' + self.node_1)
-        child_1.expect('MongoDB shell version:.*')
-        child_1.sendline('use example;')
-        child_1.expect('switched to db example')
-        child_1.sendline('db.records.insert({"flocker": "tested"})')
-        child_1.sendline('db.records.find({})')
-        child_1.expect('{ "_id" : ObjectId\(".*"\), "flocker" : "tested" }')
+        client_1 = MongoClient(self.node_1)
+        database_1 = client_1.example
+        database_1.posts.insert({u"the data": u"it moves"})
+        data = database_1.posts.find_one()
 
-        child_2 = spawn('mongo ' + self.node_2)
-        child_2.expect('MongoDB shell version:.*')
-        child_2.sendline('use example;')
-        child_2.expect('switched to db example')
-        child_2.sendline('db.records.find({})')
-        child_2.expect('{ "_id" : ObjectId\(".*"\), "flocker" : "tested" }')
+        client_2 = MongoClient(self.node_2)
+        database_2 = client_2.example
+        self.assertEqual(data, database_2.posts.find_one())
