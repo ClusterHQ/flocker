@@ -119,9 +119,9 @@ def get_nodes(num_nodes):
     arrives.
 
     :param int num_nodes: The number of nodes to start up.
-    :return: A a deferred which fires with a list of IP addresses.
+    :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = [b"172.16.255.250", b"172.16.255.251"]
+    nodes = set([b"172.16.255.250", b"172.16.255.251"])
     # The problem with this is that anyone running "trial flocker" while
     # their tutorial nodes are running may inadvertently remove all
     # containers which are running on those nodes. If it stays this way
