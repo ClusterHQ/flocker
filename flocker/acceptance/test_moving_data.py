@@ -5,8 +5,7 @@ Tests for movement of data across nodes.
 """
 from time import sleep
 
-from pexpect import spawn
-
+from pymongo import MongoClient
 from twisted.trial.unittest import TestCase
 
 from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
@@ -26,6 +25,7 @@ class MovingDataTests(TestCase):
         """
         Moving an application moves that application's data with it.
 
+        # TODO remove this because it is wrong
         Instead of pexpect this could use PyMongo, which would mean that the
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
@@ -65,16 +65,10 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(self, deployment_config, application_config)
 
-            # There is a race condition here.
-            # The tutorial says "If you get a connection refused error try
-            # again after a few seconds; the application might take some time
-            # to fully start up.".
-            sleep(5)
-            child_1 = spawn('mongo ' + node_1)
-            child_1.expect('MongoDB shell version:.*')
-            child_1.sendline('use example;')
-            child_1.expect('switched to db example')
-            child_1.sendline('db.records.insert({"the data": "it moves"})')
+            client_1 = MongoClient(node_1)
+            database_1 = client_1.example
+            database_1.posts.insert({u"the data": u"it moves"})
+            data = database_1.posts.find_one()
 
             deployment_moved_config = {
                 u"version": 1,
@@ -86,19 +80,9 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(self, deployment_moved_config, application_config)
 
-            # There is a race condition here.
-            # The tutorial says "If you get a connection refused error try
-            # again after a few seconds; the application might take some time
-            # to fully start up.".
-            sleep(5)
-            child_2 = spawn('mongo ' + node_2)
-            child_2.expect('MongoDB shell version:.*')
-            child_2.sendline('use example;')
-            child_2.expect('switched to db example')
-            child_2.sendline('db.records.insert({"the data": "it moves"})')
-            child_2.sendline('db.records.find({})')
-            child_2.expect('{ "_id" : ObjectId\(".*"\), ' +
-                           '"the data" : "it moves" }')
+            client_2 = MongoClient(node_2)
+            database_2 = client_2.example
+            self.assertEqual(data, database_2.posts.find_one())
 
         d.addCallback(deploy_data_application)
         return d
