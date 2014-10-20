@@ -3,10 +3,7 @@
 """
 Tests for moving applications between nodes.
 """
-from yaml import safe_dump
-
 from twisted.internet.defer import gatherResults
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, RemoteDockerClient, Unit
@@ -35,43 +32,36 @@ class MovingApplicationTests(TestCase):
         def deploy_and_move(node_ips):
             node_1, node_2 = node_ips
 
-            temp = FilePath(self.mktemp())
-            temp.makedirs()
-
             application = u"mongodb-example"
 
-            application_config = temp.child(b"minimal-application.yml")
-            application_config.setContent(safe_dump({
+            application_config = {
                 u"version": 1,
                 u"applications": {
                     application: {
                         u"image": u"clusterhq/mongodb",
                     },
                 },
-            }))
+            }
 
-            deployment_config = temp.child(b"minimal-deployment.yml")
-            deployment_config.setContent(safe_dump({
+            deployment_config = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [application],
                     node_2: [],
                 },
-            }))
+            }
 
-            flocker_deploy(deployment_config, application_config)
+            flocker_deploy(self, deployment_config, application_config)
 
-            deployment_moved_config = temp.child(
-                b"minimal-deployment-moved.yml")
-            deployment_moved_config.setContent(safe_dump({
+            deployment_moved_config = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
                     node_2: [application],
                 },
-            }))
+            }
 
-            flocker_deploy(deployment_moved_config, application_config)
+            flocker_deploy(self, deployment_moved_config, application_config)
 
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
