@@ -146,8 +146,7 @@ class InstallVirtualEnv(object):
     """
     def run(self):
         check_call(
-            ['virtualenv', '--quiet', self.target_path.path],
-            env=dict(PYTHONDONTWRITEBYTECODE='1')
+            ['virtualenv', '--quiet', self.target_path.path]
         )
 
 
@@ -182,8 +181,7 @@ class InstallApplication(object):
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable',
-             self.virtualenv_path.path],
-            env=dict(PYTHONDONTWRITEBYTECODE='1')
+             self.virtualenv_path.path]
         )
 
 @attributes(['prefix', 'source_path', 'pattern', 'destination_path'])
@@ -293,7 +291,6 @@ class BuildPackage(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
-            '--exclude', '*.pyc',
             ] + depends_arguments + ['.'], cwd=self.source_path.path
         )
 

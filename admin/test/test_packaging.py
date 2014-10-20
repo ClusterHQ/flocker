@@ -3,7 +3,6 @@
 """
 Tests for ``admin.packaging``.
 """
-
 from collections import namedtuple
 from glob import glob
 from subprocess import check_output, CalledProcessError
@@ -755,6 +754,7 @@ RPMLINT_IGNORED_WARNINGS = (
     # Only on Centos7 (not Fedora)
     # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
     'no-binary',
+    'python-bytecode-inconsistent-mtime',
 )
 
 
