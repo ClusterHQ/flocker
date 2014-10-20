@@ -33,7 +33,7 @@ class PortsTests(TestCase):
             self.node_1, self.node_2 = node_ips
 
             self.internal_port = 27017
-            self.external_port = 27017
+            self.external_port = 27018
 
             self.application = u"mongodb-port-example"
             self.image = u"clusterhq/mongodb"
@@ -99,11 +99,11 @@ class PortsTests(TestCase):
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
-        client_1 = MongoClient(self.node_1)
+        client_1 = MongoClient(self.node_1, self.external_port)
         database_1 = client_1.example
         database_1.posts.insert({u"the data": u"it moves"})
         data = database_1.posts.find_one()
 
-        client_2 = MongoClient(self.node_2)
+        client_2 = MongoClient(self.node_2, self.external_port)
         database_2 = client_2.example
         self.assertEqual(data, database_2.posts.find_one())
