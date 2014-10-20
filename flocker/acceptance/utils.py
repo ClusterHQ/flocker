@@ -136,7 +136,6 @@ def flocker_deploy(testcase, deployment_config, application_config):
     :param FilePath application: A YAML file describing the desired application
         configuration.
     """
-
     temp = FilePath(testcase.mktemp())
     temp.makedirs()
 

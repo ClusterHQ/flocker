@@ -156,8 +156,8 @@ setup(
             # The test suite uses network namespaces
             "nomenclature >= 0.1.0",
 
-            # The acceptance tests interact with child processes
-            "pexpect>=3.3"
+            # The acceptance tests interact with MongoDB
+            "pymongo>=2.7.2"
             ],
 
         # This extra is for Flocker release engineers to set up their release
