@@ -216,7 +216,7 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
         volume = self.successResultOf(service.create(MY_VOLUME))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
-                         Permissions(0777))
+                         Permissions(0o777))
 
     def test_clone_to_result(self):
         """
@@ -278,7 +278,7 @@ class VolumeServiceAPITests(TestCase):
 
         volume = self.successResultOf(service.clone_to(parent, MY_VOLUME2))
         self.assertEqual(pool.get(volume).get_path().getPermissions(),
-                         Permissions(0777))
+                         Permissions(0o777))
 
     def test_get(self):
         """
