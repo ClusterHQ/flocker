@@ -6,9 +6,10 @@ Tests for moving applications between nodes.
 from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, RemoteDockerClient, Unit
+from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .utils import flocker_deploy, get_nodes, require_flocker_cli
+from .utils import (flocker_deploy, get_nodes, RemoteDockerClient,
+                    require_flocker_cli)
 
 
 class MovingApplicationTests(TestCase):
@@ -33,12 +34,13 @@ class MovingApplicationTests(TestCase):
             node_1, node_2 = node_ips
 
             application = u"mongodb-example"
+            image = u"clusterhq/mongodb"
 
             application_config = {
                 u"version": 1,
                 u"applications": {
                     application: {
-                        u"image": u"clusterhq/mongodb",
+                        u"image": image,
                     },
                 },
             }
@@ -66,7 +68,7 @@ class MovingApplicationTests(TestCase):
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
-                        container_image=u'clusterhq/mongodb:latest',
+                        container_image=image + u':latest',
                         ports=frozenset(), environment=None, volumes=())
 
             d = gatherResults([RemoteDockerClient(node_1).list(),

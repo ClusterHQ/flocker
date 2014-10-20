@@ -8,11 +8,10 @@ from pymongo import MongoClient
 from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import (BASE_NAMESPACE, PortMap, RemoteDockerClient,
-                                  Unit)
+from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
-from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
-                    require_mongo)
+from .utils import (flocker_deploy, get_nodes, RemoteDockerClient,
+                    require_flocker_cli, require_mongo)
 
 
 class PortsTests(TestCase):
@@ -99,6 +98,8 @@ class PortsTests(TestCase):
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
+        # There is a potential race condition here
+        # TODO Explain how it may manifest, and be fixed
         client_1 = MongoClient(self.node_1, self.external_port)
         database_1 = client_1.example
         database_1.posts.insert({u"the data": u"it moves"})

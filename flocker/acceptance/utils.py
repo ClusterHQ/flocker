@@ -6,13 +6,15 @@ from unittest import skipUnless
 from yaml import safe_dump
 
 from twisted.internet.defer import gatherResults
+from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import RemoteDockerClient
+from flocker.node._docker import DockerClient, IDockerClient
 
 __all__ = [
-    'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'require_mongo',
+    'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'RemoteDockerClient',
+    'require_mongo',
     ]
 
 
@@ -27,6 +29,18 @@ require_flocker_cli = skipUnless(which("flocker-deploy"),
 # See https://github.com/ClusterHQ/flocker/issues/901.
 require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
+
+
+class RemoteDockerClient(proxyForInterface(IDockerClient, "_client")):
+    """
+    A Docker client that connects to a Docker server over TCP.
+    """
+    def __init__(self, ip):
+        """
+        :param unicode ip: IP address of the node where the Docker server is
+        running on port 2375.
+        """
+        self._client = DockerClient(base_url=u'tcp://' + ip + u':2375')
 
 
 def _run_SSH(port, user, node, command, input, key=None):
@@ -146,3 +160,6 @@ def flocker_deploy(testcase, deployment_config, application_config):
     application.setContent(safe_dump(application_config))
 
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
+
+# TODO have a wait_until method and call it from any test which needs an
+# active container

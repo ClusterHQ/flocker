@@ -7,9 +7,10 @@ from twisted.internet.defer import gatherResults
 
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, RemoteDockerClient, Unit
+from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .utils import flocker_deploy, get_nodes, require_flocker_cli
+from .utils import (flocker_deploy, get_nodes, RemoteDockerClient,
+                    require_flocker_cli)
 
 
 class DeploymentTests(TestCase):
