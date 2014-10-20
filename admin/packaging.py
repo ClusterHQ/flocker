@@ -146,7 +146,7 @@ class InstallVirtualEnv(object):
     """
     def run(self):
         check_call(
-            ['virtualenv', '--quiet', self.target_path.path]
+            ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', self.target_path.path]
         )
 
 
