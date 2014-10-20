@@ -172,14 +172,14 @@ class _CloneToSubcommandOptions(Options):
 
     Parameters:
 
-    * owner-uuid: The UUID of the volume manager that owns the parent volume.
+    * owner uuid: The UUID of the volume manager that owns the parent volume.
 
-    * parent_name: The name of the parent volume.
+    * parent name: The name of the parent volume.
 
-    * child_name: The name of the new volume.
+    * child name: The name of the new volume.
     """
 
-    synopsis = "<owner-uuid> <parent_name> <child_name>"
+    synopsis = "<owner uuid> <parent name> <child name>"
 
     def parseArgs(self, uuid, parent_name, child_name):
         self["uuid"] = uuid.decode("ascii")
