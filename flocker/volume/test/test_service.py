@@ -266,7 +266,8 @@ class VolumeServiceAPITests(TestCase):
 
     @skip_on_broken_permissions
     def test_clone_to_mode(self):
-        """The cloned-to filesystem is readable/writable/executable by anyone.
+        """
+        The cloned-to filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
         https://github.com/ClusterHQ/flocker/issues/34
