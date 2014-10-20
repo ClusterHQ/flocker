@@ -162,6 +162,43 @@ class _AcquireSubcommandOptions(Options):
         return d
 
 
+class _CloneToSubcommandOptions(Options):
+    """
+    Command line options for ``flocker-volume clone_to``.
+    """
+
+    longdesc = """\
+    Clone an existing volume, creating a new one.
+
+    Parameters:
+
+    * owner uuid: The UUID of the volume manager that owns the parent volume.
+
+    * parent name: The name of the parent volume.
+
+    * child name: The name of the new volume.
+    """
+
+    synopsis = "<owner uuid> <parent name> <child name>"
+
+    def parseArgs(self, uuid, parent_name, child_name):
+        self["uuid"] = uuid.decode("ascii")
+        self["parent_name"] = parent_name
+        self["child_name"] = child_name
+
+    def run(self, service):
+        """
+        Run the action for this sub-command.
+
+        :param VolumeService service: The volume manager service to utilize.
+        """
+        parent = Volume(uuid=self["uuid"],
+                        name=VolumeName.from_bytes(self["parent_name"]),
+                        service=service)
+        return service.clone_to(
+            parent, VolumeName.from_bytes(self["child_name"]))
+
+
 @flocker_standard_options
 @flocker_volume_options
 class VolumeOptions(Options):
@@ -180,6 +217,8 @@ class VolumeOptions(Options):
          "Receive a remotely pushed volume."],
         ["acquire", None, _AcquireSubcommandOptions,
          "Acquire a remotely owned volume."],
+        ["clone_to", None, _CloneToSubcommandOptions,
+         "Clone an existing volume."],
     ]
 
 
