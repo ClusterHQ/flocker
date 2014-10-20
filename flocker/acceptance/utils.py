@@ -28,6 +28,9 @@ __all__ = [
 # TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
 # Think about how to expose fewer implementation details in the tests
 
+# TODO Think about coverage - should it skip the whole module?
+# https://github.com/ClusterHQ/flocker/pull/897#discussion_r19010139
+
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
 # See https://github.com/ClusterHQ/flocker/issues/901.
