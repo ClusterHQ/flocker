@@ -8,6 +8,7 @@ from StringIO import StringIO
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
+from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
@@ -126,7 +127,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'applications': {
                 'mysql-something': {
                     'image': 'unknown',
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/lib/data'},
                 }
             },
             'version': 1
@@ -159,7 +160,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             'applications': {
                 'mysql-something': {
                     'image': 'unknown',
-                    'volume': {'mountpoint': None},
+                    'volume': {'mountpoint': b'/var/lib/data'},
                 }
             },
             'version': 1
@@ -174,7 +175,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     links=frozenset(),
                     volume=AttachedVolume(
                         name='mysql-something',
-                        mountpoint=None,
+                        mountpoint=FilePath(b'/var/lib/data'),
                     )
                 ),
             ]))]))
@@ -372,10 +373,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {
-                'site-example.net': {'image': unit2.container_image,
-                                     'ports': []},
-                'site-example.com': {'image': unit1.container_image,
-                                     'ports': []}
+                'site-example.net': {'image': unit2.container_image},
+                'site-example.com': {'image': unit1.container_image}
             },
             'version': 1,
         }

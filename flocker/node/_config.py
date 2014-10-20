@@ -113,9 +113,7 @@ class ApplicationMarshaller(object):
         :returns: A ``dict`` containing the application's converted properties.
         """
         config = dict()
-        image = self.convert_image()
-        if image:
-            config['image'] = image
+        config['image'] = self.convert_image()
         ports = self.convert_ports()
         if ports:
             config['ports'] = ports
@@ -150,12 +148,14 @@ class ApplicationMarshaller(object):
         for those ports.
         """
         ports = []
-        for port in self._application.ports:
-            ports.append(dict(
-                internal=port.internal_port,
-                external=port.external_port
-            ))
-        return sorted(ports)
+        if self._application.ports:
+            for port in self._application.ports:
+                ports.append(dict(
+                    internal=port.internal_port,
+                    external=port.external_port
+                ))
+            return sorted(ports)
+        return None
 
     def convert_environment(self):
         """
@@ -165,7 +165,7 @@ class ApplicationMarshaller(object):
         """
         if self._application.environment:
             return dict(self._application.environment)
-        return dict()
+        return None
 
     def convert_links(self):
         """
@@ -174,13 +174,15 @@ class ApplicationMarshaller(object):
         for those links.
         """
         links = []
-        for link in self._application.links:
-            links.append(dict(
-                local_port=link.local_port,
-                remote_port=link.remote_port,
-                alias=link.alias
-            ))
-        return sorted(links)
+        if self._application.links:
+            for link in self._application.links:
+                links.append(dict(
+                    local_port=link.local_port,
+                    remote_port=link.remote_port,
+                    alias=link.alias
+                ))
+            return sorted(links)
+        return None
 
     def convert_volume(self):
         """
@@ -622,13 +624,8 @@ class FlockerConfiguration(object):
     """
     Validate and parse native Flocker-formatted configurations.
     """
-    def __init__(self, application_configuration, lenient=False):
+    def __init__(self, application_configuration):
         """
-        :param bool lenient: If ``True`` don't complain about certain
-            deficiencies in the output of ``flocker-reportstate``, In
-            particular https://github.com/ClusterHQ/flocker/issues/289 means
-            the mountpoint is unknown.
-
         :param dict application_configuration: The native parsed YAML
             configuration to load into ``Application`` instances.
             See :ref:`Configuration` for details.
@@ -639,7 +636,6 @@ class FlockerConfiguration(object):
                 format(type=type(application_configuration).__name__)
             )
         self._application_configuration = application_configuration
-        self._lenient = lenient
         self._allowed_keys = {
             "image", "environment", "ports",
             "links", "volume"
@@ -894,29 +890,28 @@ class FlockerConfiguration(object):
                     except KeyError:
                         raise ValueError("Missing mountpoint.")
 
-                    if not (self._lenient and mountpoint is None):
-                        if not isinstance(mountpoint, str):
-                            raise ValueError(
-                                "Mountpoint {path} contains non-ASCII "
-                                "(unsupported).".format(
-                                    path=mountpoint
-                                )
+                    if not isinstance(mountpoint, str):
+                        raise ValueError(
+                            "Mountpoint \"{path}\" contains non-ASCII "
+                            "(unsupported).".format(
+                                path=mountpoint
                             )
-                        if not os.path.isabs(mountpoint):
-                            raise ValueError(
-                                "Mountpoint {path} is not an absolute path."
-                                .format(
-                                    path=mountpoint
-                                )
+                        )
+                    if not os.path.isabs(mountpoint):
+                        raise ValueError(
+                            "Mountpoint \"{path}\" is not an absolute path."
+                            .format(
+                                path=mountpoint
                             )
-                        configured_volume.pop('mountpoint')
-                        if configured_volume:
-                            raise ValueError(
-                                "Unrecognised keys: {keys}.".format(
-                                    keys=', '.join(sorted(
-                                        configured_volume.keys()))
-                                ))
-                        mountpoint = FilePath(mountpoint)
+                        )
+                    configured_volume.pop('mountpoint')
+                    if configured_volume:
+                        raise ValueError(
+                            "Unrecognised keys: {keys}.".format(
+                                keys=', '.join(sorted(
+                                    configured_volume.keys()))
+                            ))
+                    mountpoint = FilePath(mountpoint)
 
                     volume = AttachedVolume(
                         name=application_name,
@@ -1036,7 +1031,7 @@ def current_from_configuration(current_configuration):
     """
     nodes = []
     for hostname, applications in current_configuration.items():
-        configuration = FlockerConfiguration(applications, lenient=True)
+        configuration = FlockerConfiguration(applications)
         node_applications = configuration.applications()
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications.values())))
@@ -1047,11 +1042,6 @@ def marshal_configuration(state):
     """
     Generate representation of a node's applications using only simple Python
     types.
-
-    A bunch of information is missing, but this is sufficient for the
-    initial requirement of determining what to do about volumes when
-    applying configuration changes.
-    https://github.com/ClusterHQ/flocker/issues/289
 
     :param NodeState state: The configuration state to marshal.
 
@@ -1064,21 +1054,8 @@ def marshal_configuration(state):
     for application in state.running + state.not_running:
         converter = ApplicationMarshaller(application)
 
-        result[application.name] = {"image": converter.convert_image()}
+        result[application.name] = converter.convert()
 
-        result[application.name]["ports"] = converter.convert_ports()
-
-        if application.links:
-            result[application.name]["links"] = converter.convert_links()
-
-        if application.volume:
-            # Until multiple volumes are supported, assume volume name
-            # matches application name, see:
-            # https://github.com/ClusterHQ/flocker/issues/49
-            # When 49 is complete, use ``converter.convert_volume``
-            result[application.name]["volume"] = {
-                "mountpoint": None,
-            }
     return {
         "version": 1,
         "applications": result,
