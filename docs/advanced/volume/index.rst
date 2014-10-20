@@ -40,9 +40,8 @@ Cloning
 
 Cloning a volume relies on ZFS's underlying cloning functionality.
 
-* The cost of cloning is trivial, since ZFS is a copy-on-write filesystem.
-* Any on-disk data in the parent volume that is referenced by the clone will not
-  be freed so long as the clone exists.
+* The cost of cloning is trivial because ZFS is a copy-on-write filesystem.
+* Any on-disk data in the parent volume that is referenced by the clone will not be freed so long as the clone exists.
 
 
 Implementation Details
