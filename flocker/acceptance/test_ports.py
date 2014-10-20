@@ -4,12 +4,10 @@
 Tests for communication to applications across nodes.
 """
 from time import sleep
-from yaml import safe_dump
 
 from pexpect import spawn
 
 from twisted.internet.defer import gatherResults
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import (BASE_NAMESPACE, PortMap, RemoteDockerClient,
@@ -42,11 +40,7 @@ class PortsTests(TestCase):
             self.application = u"mongodb-port-example"
             self.image = u"clusterhq/mongodb"
 
-            temp = FilePath(self.mktemp())
-            temp.makedirs()
-
-            application_config = temp.child(b"port-application.yml")
-            application_config.setContent(safe_dump({
+            application_config = {
                 u"version": 1,
                 u"applications": {
                     self.application: {
@@ -57,18 +51,17 @@ class PortsTests(TestCase):
                         }],
                     },
                 },
-            }))
+            }
 
-            deployment_config = temp.child(b"port-deployment.yml")
-            deployment_config.setContent(safe_dump({
+            deployment_config = {
                 u"version": 1,
                 u"nodes": {
                     self.node_1: [self.application],
                     self.node_2: [],
                 },
-            }))
+            }
 
-            flocker_deploy(deployment_config, application_config)
+            flocker_deploy(self, deployment_config, application_config)
 
         d.addCallback(deploy_port_application)
         return d

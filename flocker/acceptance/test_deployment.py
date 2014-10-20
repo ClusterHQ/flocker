@@ -36,6 +36,8 @@ class DeploymentTests(TestCase):
 
             application = u"mongodb-example"
 
+            # TODO change this and other variables to be similar to tutorial
+            # yml files
             application_config = {
                 u"version": 1,
                 u"applications": {
