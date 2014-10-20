@@ -23,11 +23,6 @@ class MovingDataTests(TestCase):
     def test_moving_data(self):
         """
         Moving an application moves that application's data with it.
-
-        # TODO remove this because it is wrong
-        Instead of pexpect this could use PyMongo, which would mean that the
-        mongo client would not have to be installed. However, this uses
-        pexpect to be as close as possible to the tutorial.
         """
         d = get_nodes(num_nodes=2)
 

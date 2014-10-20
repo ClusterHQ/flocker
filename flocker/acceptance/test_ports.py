@@ -93,10 +93,6 @@ class PortsTests(TestCase):
         """
         An application can be accessed even from a connection to a node
         which it is not running on.
-
-        Instead of pexpect this could use PyMongo, which would mean that the
-        mongo client would not have to be installed. However, this uses
-        pexpect to be as close as possible to the tutorial.
         """
         # There is a race condition here
         # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474
