@@ -150,15 +150,13 @@ def get_nodes(num_nodes):
 
 def flocker_deploy(testcase, deployment_config, application_config):
     """
-    # TODO update docstring
-    # TODO move requirement for flocker-deploy here
     Run ``flocker-deploy`` with given configuration files.
 
-    :param FilePath deployment: A YAML file describing the desired deployment
-        configuration.
-    :param FilePath application: A YAML file describing the desired application
-        configuration.
+    :param dict deployment_config: The desired deployment configuration.
+    :param dict application_config: The desired application configuration.
     """
+    # TODO move requirement for flocker-deploy here, if possible
+
     temp = FilePath(testcase.mktemp())
     temp.makedirs()
 
