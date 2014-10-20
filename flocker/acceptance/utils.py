@@ -17,6 +17,16 @@ __all__ = [
     'require_mongo',
     ]
 
+# TODO have a wait_until method and call it from any test which needs an
+# active container github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
+
+# TODO Document how to build the vagrant tutorial / testing box
+
+# TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
+# Add more detailed docstrings for the tests
+
+# TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
+# Think about how to expose fewer implementation details in the tests
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
@@ -100,6 +110,8 @@ def _clean_node(ip):
     #   $ flocker-deploy volume-deployment.yml volume-application.yml
     #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
+    # TODO File and link issue(s) for this
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19028814
     d = d.addCallback(lambda _:
                       _run_SSH(22, 'root', ip,
                                [b"zfs"] + [b"destroy"] + [b"-r"] +
@@ -119,9 +131,6 @@ def get_nodes(num_nodes):
     addresses of the tutorial VMs which must already be started. num_nodes
     Docker containers will be created instead to replace this, see
     https://github.com/ClusterHQ/flocker/issues/900
-    Should I remove the parameter? It isn't used but I want the tests to be
-    written in such a way that they don't have to change when Docker-in-Docker
-    arrives.
 
     :param int num_nodes: The number of nodes to start up.
     :return: A ``Deferred`` which fires with a set of IP addresses.
@@ -129,10 +138,9 @@ def get_nodes(num_nodes):
     nodes = set([b"172.16.255.250", b"172.16.255.251"])
     # The problem with this is that anyone running "trial flocker" while
     # their tutorial nodes are running may inadvertently remove all
-    # containers which are running on those nodes. If it stays this way
-    # I'll leave it to a reviewer to decide if that is so bad that it must
-    # be changed (note that in future this will be dropped for a
-    # Docker-in-Docker solution).
+    # containers which are running on those nodes.
+    # TODO Temporarily require an environment variable to be set
+    # github.com/ClusterHQ/flocker/pull/897#discussion_r19024847
 
     # XXX Ping the nodes and give a sensible error if they aren't available?
     d = gatherResults([_clean_node(node) for node in nodes])
@@ -160,6 +168,3 @@ def flocker_deploy(testcase, deployment_config, application_config):
     application.setContent(safe_dump(application_config))
 
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
-
-# TODO have a wait_until method and call it from any test which needs an
-# active container

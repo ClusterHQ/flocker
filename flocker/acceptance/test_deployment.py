@@ -36,6 +36,7 @@ class DeploymentTests(TestCase):
             node_1, node_2 = node_ips
 
             application = u"mongodb-example"
+            image = u"clusterhq/mongodb"
 
             # TODO change this and other variables to be similar to tutorial
             # yml files
@@ -43,7 +44,7 @@ class DeploymentTests(TestCase):
                 u"version": 1,
                 u"applications": {
                     application: {
-                        u"image": u"clusterhq/mongodb",
+                        u"image": image,
                     },
                 },
             }
@@ -58,10 +59,14 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, deployment_config, application_config)
 
+            # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024229
+            # This assertion setup code is very similar to the one in previous
+            # test; probably we can make utility assertion function that
+            # covers both cases.
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
-                        container_image=u'clusterhq/mongodb:latest',
+                        container_image=image + u':latest',
                         ports=frozenset(), environment=None, volumes=())
 
             d = gatherResults([RemoteDockerClient(node_1).list(),

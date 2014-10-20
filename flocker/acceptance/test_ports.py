@@ -98,8 +98,9 @@ class PortsTests(TestCase):
         mongo client would not have to be installed. However, this uses
         pexpect to be as close as possible to the tutorial.
         """
-        # There is a potential race condition here
-        # TODO Explain how it may manifest, and be fixed
+        # There is a race condition here
+        # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474
+        # Use a loop_until construct
         client_1 = MongoClient(self.node_1, self.external_port)
         database_1 = client_1.example
         database_1.posts.insert({u"the data": u"it moves"})

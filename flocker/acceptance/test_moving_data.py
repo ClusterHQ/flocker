@@ -64,6 +64,9 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(self, deployment_config, application_config)
 
+            # There is a race condition here
+            # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474
+            # Use a loop_until construct
             client_1 = MongoClient(node_1)
             database_1 = client_1.example
             database_1.posts.insert({u"the data": u"it moves"})
@@ -77,6 +80,8 @@ class MovingDataTests(TestCase):
                 },
             }
 
+            # TODO Assert that mongo is running in the right place after this
+            # github.com/ClusterHQ/flocker/pull/897#discussion_r19028899
             flocker_deploy(self, deployment_moved_config, application_config)
 
             client_2 = MongoClient(node_2)
