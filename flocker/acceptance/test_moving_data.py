@@ -4,11 +4,9 @@
 Tests for movement of data across nodes.
 """
 from time import sleep
-from yaml import safe_dump
 
 from pexpect import spawn
 
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
 from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
@@ -37,13 +35,9 @@ class MovingDataTests(TestCase):
         def deploy_data_application(node_ips):
             node_1, node_2 = node_ips
 
-            temp = FilePath(self.mktemp())
-            temp.makedirs()
-
             application = u"mongodb-volume-example"
 
-            application_config = temp.child(b"volume-application.yml")
-            application_config.setContent(safe_dump({
+            application_config = {
                 u"version": 1,
                 u"applications": {
                     application: {
@@ -59,18 +53,17 @@ class MovingDataTests(TestCase):
                         }
                     },
                 },
-            }))
+            }
 
-            deployment_config = temp.child(b"volume-deployment.yml")
-            deployment_config.setContent(safe_dump({
+            deployment_config = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [application],
                     node_2: [],
                 },
-            }))
+            }
 
-            flocker_deploy(deployment_config, application_config)
+            flocker_deploy(self, deployment_config, application_config)
 
             # There is a race condition here.
             # The tutorial says "If you get a connection refused error try
@@ -83,17 +76,15 @@ class MovingDataTests(TestCase):
             child_1.expect('switched to db example')
             child_1.sendline('db.records.insert({"the data": "it moves"})')
 
-            deployment_moved_config = temp.child(
-                b"volume-deployment-moved.yml")
-            deployment_moved_config.setContent(safe_dump({
+            deployment_moved_config = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
                     node_2: [application],
                 },
-            }))
+            }
 
-            flocker_deploy(deployment_moved_config, application_config)
+            flocker_deploy(self, deployment_moved_config, application_config)
 
             # There is a race condition here.
             # The tutorial says "If you get a connection refused error try
