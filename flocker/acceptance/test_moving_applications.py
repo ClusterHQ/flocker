@@ -20,13 +20,12 @@ class MovingApplicationTests(TestCase):
     moving-applications.html#moving-an-application
     """
     @require_flocker_cli
-    def setUp(self):
-        pass
-
     def test_moving_application(self):
         """
         After deploying an application to one node and then moving it onto
-        another node, it is only on the second node.
+        another node, it is only on the second node. This only tests that the
+        application is present with the given name and image on a second node
+        after it has been moved from the first.
         """
         d = get_nodes(num_nodes=2)
 

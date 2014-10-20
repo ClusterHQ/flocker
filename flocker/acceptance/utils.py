@@ -23,9 +23,6 @@ __all__ = [
 # TODO Document how to build the vagrant tutorial / testing box
 
 # TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
-# Add more detailed docstrings for the tests
-
-# TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
 # Think about how to expose fewer implementation details in the tests
 
 # TODO Think about coverage - should it skip the whole module?
@@ -154,6 +151,7 @@ def get_nodes(num_nodes):
 def flocker_deploy(testcase, deployment_config, application_config):
     """
     # TODO update docstring
+    # TODO move requirement for flocker-deploy here
     Run ``flocker-deploy`` with given configuration files.
 
     :param FilePath deployment: A YAML file describing the desired deployment

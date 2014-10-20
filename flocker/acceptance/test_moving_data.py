@@ -22,7 +22,10 @@ class MovingDataTests(TestCase):
     @require_flocker_cli
     def test_moving_data(self):
         """
-        Moving an application moves that application's data with it.
+        Moving an application moves that application's data with it. In
+        particular, if MongoDB is deployed to a node, and data added to it,
+        and then the application is moved to another node, the data remains
+        available.
         """
         d = get_nodes(num_nodes=2)
 

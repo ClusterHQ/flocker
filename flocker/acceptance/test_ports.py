@@ -24,7 +24,8 @@ class PortsTests(TestCase):
     @require_flocker_cli
     def setUp(self):
         """
-        Deploy an application with an exposed port.
+        Deploy an application with an internal port mapped to a different
+        external port.
         """
         d = get_nodes(num_nodes=2)
 
@@ -66,6 +67,8 @@ class PortsTests(TestCase):
     def test_deployment_with_ports(self):
         """
         Ports are exposed as specified in the application configuration.
+        Docker has internal representations of the port mappings given by the
+        configuration files supplied to flocker-deploy.
         """
         unit = Unit(name=self.application,
                     container_name=BASE_NAMESPACE + self.application,
@@ -92,7 +95,9 @@ class PortsTests(TestCase):
     def test_traffic_routed(self):
         """
         An application can be accessed even from a connection to a node
-        which it is not running on.
+        which it is not running on. In particular, if MongoDB is deployed to a
+        node, and data added to it, that data is visible when a client connects
+        to a different node on the cluster.
         """
         # There is a race condition here
         # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474

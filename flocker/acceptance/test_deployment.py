@@ -22,13 +22,12 @@ class DeploymentTests(TestCase):
     moving-applications.html#starting-an-application
     """
     @require_flocker_cli
-    def setUp(self):
-        pass
-
     def test_deploy(self):
         """
         Deploying an application to one node and not another puts the
-        application where expected.
+        application where expected. Where applicable, Docker has internal
+        representations of the data given by the configuration files supplied
+        to flocker-deploy.
         """
         d = get_nodes(num_nodes=2)
 
