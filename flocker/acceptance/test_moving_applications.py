@@ -35,7 +35,15 @@ class MovingApplicationTests(TestCase):
             application = u"mongodb-example"
             image = u"clusterhq/mongodb"
 
-            application_config = {
+            minimal_deployment = {
+                u"version": 1,
+                u"nodes": {
+                    node_1: [application],
+                    node_2: [],
+                },
+            }
+
+            minimal_application = {
                 u"version": 1,
                 u"applications": {
                     application: {
@@ -44,17 +52,9 @@ class MovingApplicationTests(TestCase):
                 },
             }
 
-            deployment_config = {
-                u"version": 1,
-                u"nodes": {
-                    node_1: [application],
-                    node_2: [],
-                },
-            }
+            flocker_deploy(self, minimal_deployment, minimal_application)
 
-            flocker_deploy(self, deployment_config, application_config)
-
-            deployment_moved_config = {
+            minimal_deployment_moved = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
@@ -62,7 +62,7 @@ class MovingApplicationTests(TestCase):
                 },
             }
 
-            flocker_deploy(self, deployment_moved_config, application_config)
+            flocker_deploy(self, minimal_deployment_moved, minimal_application)
 
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,

@@ -34,7 +34,15 @@ class MovingDataTests(TestCase):
 
             application = u"mongodb-volume-example"
 
-            application_config = {
+            volume_deployment = {
+                u"version": 1,
+                u"nodes": {
+                    node_1: [application],
+                    node_2: [],
+                },
+            }
+
+            volume_application = {
                 u"version": 1,
                 u"applications": {
                     application: {
@@ -52,15 +60,7 @@ class MovingDataTests(TestCase):
                 },
             }
 
-            deployment_config = {
-                u"version": 1,
-                u"nodes": {
-                    node_1: [application],
-                    node_2: [],
-                },
-            }
-
-            flocker_deploy(self, deployment_config, application_config)
+            flocker_deploy(self, volume_deployment, volume_application)
 
             # There is a race condition here
             # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474
@@ -70,7 +70,7 @@ class MovingDataTests(TestCase):
             database_1.posts.insert({u"the data": u"it moves"})
             data = database_1.posts.find_one()
 
-            deployment_moved_config = {
+            volume_deployment_moved = {
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
@@ -80,7 +80,7 @@ class MovingDataTests(TestCase):
 
             # TODO Assert that mongo is running in the right place after this
             # github.com/ClusterHQ/flocker/pull/897#discussion_r19028899
-            flocker_deploy(self, deployment_moved_config, application_config)
+            flocker_deploy(self, volume_deployment_moved, volume_application)
 
             client_2 = MongoClient(node_2)
             database_2 = client_2.example

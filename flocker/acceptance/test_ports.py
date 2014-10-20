@@ -38,7 +38,15 @@ class PortsTests(TestCase):
             self.application = u"mongodb-port-example"
             self.image = u"clusterhq/mongodb"
 
-            application_config = {
+            port_deployment = {
+                u"version": 1,
+                u"nodes": {
+                    self.node_1: [self.application],
+                    self.node_2: [],
+                },
+            }
+
+            port_application = {
                 u"version": 1,
                 u"applications": {
                     self.application: {
@@ -51,15 +59,7 @@ class PortsTests(TestCase):
                 },
             }
 
-            deployment_config = {
-                u"version": 1,
-                u"nodes": {
-                    self.node_1: [self.application],
-                    self.node_2: [],
-                },
-            }
-
-            flocker_deploy(self, deployment_config, application_config)
+            flocker_deploy(self, port_deployment, port_application)
 
         d.addCallback(deploy_port_application)
         return d

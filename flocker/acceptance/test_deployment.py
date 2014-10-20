@@ -37,9 +37,15 @@ class DeploymentTests(TestCase):
             application = u"mongodb-example"
             image = u"clusterhq/mongodb"
 
-            # TODO change this and other variables to be similar to tutorial
-            # yml files
-            application_config = {
+            minimal_deployment = {
+                u"version": 1,
+                u"nodes": {
+                    node_1: [application],
+                    node_2: [],
+                },
+            }
+
+            minimal_application = {
                 u"version": 1,
                 u"applications": {
                     application: {
@@ -48,15 +54,7 @@ class DeploymentTests(TestCase):
                 },
             }
 
-            deployment_config = {
-                u"version": 1,
-                u"nodes": {
-                    node_1: [application],
-                    node_2: [],
-                },
-            }
-
-            flocker_deploy(self, deployment_config, application_config)
+            flocker_deploy(self, minimal_deployment, minimal_application)
 
             # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024229
             # This assertion setup code is very similar to the one in previous
