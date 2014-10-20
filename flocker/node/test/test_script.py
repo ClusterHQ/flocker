@@ -373,10 +373,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {
-                'site-example.net': {'image': unit2.container_image,
-                                     'ports': []},
-                'site-example.com': {'image': unit1.container_image,
-                                     'ports': []}
+                'site-example.net': {'image': unit2.container_image},
+                'site-example.com': {'image': unit1.container_image}
             },
             'version': 1,
         }

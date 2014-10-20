@@ -1651,8 +1651,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid volume specification. Mountpoint ./.././var// is not an "
-            "absolute path.",
+            "Invalid volume specification. Mountpoint \"./.././var//\" is not "
+            "an absolute path.",
             exception.message
         )
 
@@ -1675,7 +1675,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid volume specification. Mountpoint {mount} contains "
+            "Invalid volume specification. Mountpoint \"{mount}\" contains "
             "non-ASCII (unsupported).".format(mount=mountpoint_unicode),
             exception.message
         )
@@ -1937,8 +1937,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
-                                        'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
             },
             'version': 1,
         }
@@ -1966,11 +1965,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': []
+                    'image': u'flocker/wordpress:v1.0.0'
                 },
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
-                                        'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
             },
             'version': 1,
         }
@@ -2028,7 +2025,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [],
                     'links': [{'local_port': 3306, 'remote_port': 63306,
                                'alias': 'mysql'}]
                 },
@@ -2070,8 +2066,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'ports': []
+                    'image': u'flocker/mysql:v1.0.0'
                 }
             },
             'version': 1,
@@ -2112,8 +2107,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'ports': []
+                    'image': u'flocker/mysql:v1.0.0'
                 }
             },
             'version': 1
@@ -2290,7 +2284,7 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                               config)
         expected = (
             "Application 'mysql-hybridcluster' has a config error. Invalid "
-            "volume specification. Mountpoint None contains non-ASCII "
+            "volume specification. Mountpoint \"None\" contains non-ASCII "
             "(unsupported)."
         )
         self.assertEqual(e.message, expected)

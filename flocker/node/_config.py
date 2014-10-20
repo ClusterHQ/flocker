@@ -113,9 +113,7 @@ class ApplicationMarshaller(object):
         :returns: A ``dict`` containing the application's converted properties.
         """
         config = dict()
-        image = self.convert_image()
-        if image:
-            config['image'] = image
+        config['image'] = self.convert_image()
         ports = self.convert_ports()
         if ports:
             config['ports'] = ports
@@ -150,12 +148,14 @@ class ApplicationMarshaller(object):
         for those ports.
         """
         ports = []
-        for port in self._application.ports:
-            ports.append(dict(
-                internal=port.internal_port,
-                external=port.external_port
-            ))
-        return sorted(ports)
+        if self._application.ports:
+            for port in self._application.ports:
+                ports.append(dict(
+                    internal=port.internal_port,
+                    external=port.external_port
+                ))
+            return sorted(ports)
+        return None
 
     def convert_environment(self):
         """
@@ -165,7 +165,7 @@ class ApplicationMarshaller(object):
         """
         if self._application.environment:
             return dict(self._application.environment)
-        return dict()
+        return None
 
     def convert_links(self):
         """
@@ -174,13 +174,15 @@ class ApplicationMarshaller(object):
         for those links.
         """
         links = []
-        for link in self._application.links:
-            links.append(dict(
-                local_port=link.local_port,
-                remote_port=link.remote_port,
-                alias=link.alias
-            ))
-        return sorted(links)
+        if self._application.links:
+            for link in self._application.links:
+                links.append(dict(
+                    local_port=link.local_port,
+                    remote_port=link.remote_port,
+                    alias=link.alias
+                ))
+            return sorted(links)
+        return None
 
     def convert_volume(self):
         """
@@ -890,14 +892,14 @@ class FlockerConfiguration(object):
 
                     if not isinstance(mountpoint, str):
                         raise ValueError(
-                            "Mountpoint {path} contains non-ASCII "
+                            "Mountpoint \"{path}\" contains non-ASCII "
                             "(unsupported).".format(
                                 path=mountpoint
                             )
                         )
                     if not os.path.isabs(mountpoint):
                         raise ValueError(
-                            "Mountpoint {path} is not an absolute path."
+                            "Mountpoint \"{path}\" is not an absolute path."
                             .format(
                                 path=mountpoint
                             )
@@ -1052,18 +1054,8 @@ def marshal_configuration(state):
     for application in state.running + state.not_running:
         converter = ApplicationMarshaller(application)
 
-        result[application.name] = {"image": converter.convert_image()}
+        result[application.name] = converter.convert()
 
-        result[application.name]["ports"] = converter.convert_ports()
-
-        if application.links:
-            result[application.name]["links"] = converter.convert_links()
-
-        if application.volume:
-            # Until multiple volumes are supported, assume volume name
-            # matches application name, see:
-            # https://github.com/ClusterHQ/flocker/issues/49
-            result[application.name]["volume"] = converter.convert_volume()
     return {
         "version": 1,
         "applications": result,
