@@ -1,6 +1,6 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from pipes import quote as shellQuote
+from pipes import quote as shell_quote
 from subprocess import call, PIPE, Popen
 from unittest import skipUnless
 from yaml import safe_dump
@@ -29,29 +29,20 @@ require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
 
 
-def runSSH(port, user, node, command, input, key=None):
+def _run_SSH(port, user, node, command, input, key=None):
     """
-    XXX This is taken directly from HybridCluster and is perhaps not all
-    necessary. It is also not formatted like flocker code.
-
     Run a command via SSH.
 
-    @param port: Port to connect to.
-    @type port: L{int}
-    @param node: Node to run command on
-    @param node: L{bytes}
-    @param command: command to run
-    @type command: L{list} of L{bytes}
-    @param input: Input to send to command.
-    @type input: L{bytes}
+    :param int port: Port to connect to.
+    :param bytes node: Node to run command on
+    :param command: Command to run
+    :type command: ``list`` of ``bytes``.
+    :param bytes input: Input to send to command.
+    :param FilePath key: If not None, the path to a private key to use.
 
-    @param key: If not L{None}, the path to a private key to use.
-    @type key: L{FilePath}
-
-    @return: stdout
-    @rtype: L{bytes}
+    :return: stdout as ``bytes``.
     """
-    quotedCommand = ' '.join(map(shellQuote, command))
+    quotedCommand = ' '.join(map(shell_quote, command))
     command = [
         b'ssh',
         b'-p', b'%d' % (port,),
@@ -96,9 +87,9 @@ def _clean_node(ip):
     #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     d = d.addCallback(lambda _:
-                      runSSH(22, 'root', ip,
-                             [b"zfs"] + [b"destroy"] + [b"-r"] + [b"flocker"],
-                             None))
+                      _run_SSH(22, 'root', ip,
+                               [b"zfs"] + [b"destroy"] + [b"-r"] +
+                               [b"flocker"], None))
     return d
 
 
