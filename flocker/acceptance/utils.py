@@ -3,8 +3,10 @@
 from pipes import quote as shellQuote
 from subprocess import call, PIPE, Popen
 from unittest import skipUnless
+from yaml import safe_dump
 
 from twisted.internet.defer import gatherResults
+from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._docker import RemoteDockerClient
@@ -133,8 +135,9 @@ def get_nodes(num_nodes):
     return d
 
 
-def flocker_deploy(deployment, application):
+def flocker_deploy(testcase, deployment_config, application_config):
     """
+    # TODO update docstring
     Run ``flocker-deploy`` with given configuration files.
 
     :param FilePath deployment: A YAML file describing the desired deployment
@@ -142,4 +145,14 @@ def flocker_deploy(deployment, application):
     :param FilePath application: A YAML file describing the desired application
         configuration.
     """
+
+    temp = FilePath(testcase.mktemp())
+    temp.makedirs()
+
+    deployment = temp.child(b"deployment.yml")
+    deployment.setContent(safe_dump(deployment_config))
+
+    application = temp.child(b"application.yml")
+    application.setContent(safe_dump(application_config))
+
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
