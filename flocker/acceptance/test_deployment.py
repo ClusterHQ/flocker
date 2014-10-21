@@ -67,7 +67,7 @@ class DeploymentTests(TestCase):
                         container_image=image + u':latest',
                         ports=frozenset(), environment=None, volumes=())
 
-            d = assertExpectedDeployment({
+            d = assertExpectedDeployment(self, {
                 node_1: set([unit]),
                 node_2: set([]),
             })
