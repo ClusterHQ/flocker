@@ -147,7 +147,8 @@ class InstallVirtualEnv(object):
     """
     def run(self):
         check_call(
-            ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', self.target_path.path]
+            ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', self.target_path.path],
+            env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
         # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
         # modules. See https://github.com/pypa/virtualenv/issues/659
@@ -194,12 +195,18 @@ class InstallApplication(object):
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv_path.child('bin').child('python').path
         pip_path = self.virtualenv_path.child('bin').child('pip').path
+        import os
+        env = os.environ.copy()
+        env['PYTHONDONTWRITEBYTECODE'] = '1'
+
         check_call(
-            [python_path, pip_path, '--quiet', 'install', self.package_uri]
+            [python_path, pip_path, '--quiet', 'install', self.package_uri],
+            env=env
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable',
-             self.virtualenv_path.path]
+             self.virtualenv_path.path],
+            env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
 @attributes(['prefix', 'source_path', 'pattern', 'destination_path'])
@@ -285,6 +292,12 @@ class BuildPackage(object):
     :ivar unicode description: A description of the package.
     """
     def run(self):
+        # Remove newly compiled bytecode from the package.
+        for path in self.source_path.walk():
+            basename, extension = path.splitext()
+            if not path.islink() and extension in ('.pyc', 'pyo'):
+                path.remove()
+
         architecture = self.architecture
         if architecture is None:
             architecture = 'all'
