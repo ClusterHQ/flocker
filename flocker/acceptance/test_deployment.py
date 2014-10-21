@@ -60,6 +60,7 @@ class DeploymentTests(TestCase):
             # This assertion setup code is very similar to the one in previous
             # test; probably we can make utility assertion function that
             # covers both cases.
+            # TODO this has some defaults in it
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
