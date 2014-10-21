@@ -200,4 +200,4 @@ def assertExpectedDeployment(test_case, expected):
             actual[node] = units
         test_case.assertEqual(actual, expected)
 
-    deferreds.addCallback(add_units)
+    d = gatherResults(deferreds)
