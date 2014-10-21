@@ -631,7 +631,7 @@ class SumoPackageBuilderTests(TestCase):
         expected_target_path = FilePath(self.mktemp())
         expected_virtualenv_path = expected_target_path.descendant(['opt', 'flocker'])
         expected_sysbin_path = expected_target_path.descendant(['usr', 'bin'])
-        expected_name = 'Flocker'
+        expected_name = 'python-flocker'
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
         expected_package_uri = '/foo/bar'
@@ -696,7 +696,7 @@ class SumoPackageBuilderTests(TestCase):
         """
         destination_path = FilePath(self.mktemp())
         destination_path.makedirs()
-        expected_name = 'Flocker'
+        expected_name = 'python-flocker'
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
@@ -733,7 +733,7 @@ class SumoPackageBuilderTests(TestCase):
         """
         destination_path = FilePath(self.mktemp())
         destination_path.makedirs()
-        expected_name = 'Flocker'.lower()
+        expected_name = 'python-flocker'
         expected_python_version = check_output(
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
