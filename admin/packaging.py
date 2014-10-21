@@ -411,7 +411,7 @@ def sumo_package_builder(
                 package_type=package_type,
                 destination_path=destination_path,
                 source_path=target_dir,
-                name='Flocker',
+                name='python-flocker',
                 prefix=FilePath('/'),
                 epoch=b'0',
                 rpm_version=DelayedRpmVersion(
