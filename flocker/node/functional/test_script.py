@@ -43,3 +43,9 @@ class FlockerReportStateTests(make_script_tests(b"flocker-reportstate")):
     """
     Tests for ``flocker-reportstate``.
     """
+
+
+class FlockerServeTests(make_script_tests(b"flocker-serve")):
+    """
+    Tests for ``flocker-serve``.
+    """

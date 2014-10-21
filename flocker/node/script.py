@@ -27,12 +27,17 @@ from . import (ConfigurationError, model_from_configuration, Deployer,
                FlockerConfiguration, current_from_configuration)
 
 __all__ = [
+    # TODO The main scripts are exposed because setup.py uses them.  Why are
+    # all of the support classes exposed?
     "ChangeStateOptions",
     "ChangeStateScript",
     "flocker_changestate_main",
     "ReportStateOptions",
     "ReportStateScript",
     "flocker_reportstate_main",
+    "ServeOptions",
+    "ServeScript",
+    "flocker_serve_main",
 ]
 
 
@@ -249,3 +254,31 @@ def _main_for_service(reactor, service):
     reactor.addSystemEventTrigger(
         "before", "shutdown", _chain_stop_result, service, stop)
     return stop
+
+
+@flocker_standard_options
+@flocker_volume_options
+class ServeOptions(Options):
+    """
+    Command line options for ``flocker-serve`` cluster management process.
+    """
+    # Maybe options for things like what port to listen on or perhaps where to
+    # find certificate material to use for TLS.
+
+
+@implementer(ICommandLineVolumeScript)
+class ServeScript(object):
+    """
+    A command to start a long-running process to manage volumes on one node of
+    a Flocker cluster.
+    """
+    def main(self, reactor, options, volume_service):
+        pass
+        # return _main_for_service(volume_service, volume_service)
+
+
+def flocker_serve_main():
+    return FlockerScriptRunner(
+        script=VolumeScript(ServeScript()),
+        options=ServeOptions()
+    ).main()

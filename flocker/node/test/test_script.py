@@ -17,11 +17,11 @@ from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
-from ...volume.test.test_script import make_volume_options_tests
+from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    _main_for_service,
+    _main_for_service, ServeOptions,
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
 from .._docker import FakeDockerClient, Unit
@@ -507,3 +507,10 @@ class MainForServiceTests(SynchronousTestCase):
         self._shutdown_reactor(self.reactor)
         async.callback(None)
         self.assertIs(None, self.successResultOf(result))
+
+
+class StandardServeOptionsTests(
+        make_volume_options_tests(ServeOptions)):
+    """
+    Tests for the volume configuration arguments of ``ServeOptions``.
+    """
