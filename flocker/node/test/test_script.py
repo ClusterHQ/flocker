@@ -21,9 +21,9 @@ from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    _main_for_service, ServeOptions,
+    ServeOptions, ServeScript,
     ChangeStateOptions, ChangeStateScript,
-    ReportStateScript, ReportStateOptions)
+    ReportStateOptions, ReportStateScript)
 from .._docker import FakeDockerClient, Unit
 from .._deploy import Deployer
 from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
@@ -437,13 +437,17 @@ class AsyncStopService(Service):
         return self.stop_result
 
 
-class MainForServiceTests(SynchronousTestCase):
+class ServeScriptMainTests(SynchronousTestCase):
     """
-    Tests for ``_main_for_service``.
+    Tests for ``ServeScript.main``.
     """
     def setUp(self):
         self.reactor = MemoryCoreReactor()
         self.service = Service()
+        self.script = ServeScript()
+
+    def main(self, reactor, service):
+        return self.script.main(reactor, {}, service)
 
     def _shutdown_reactor(self, reactor):
         """
@@ -455,55 +459,55 @@ class MainForServiceTests(SynchronousTestCase):
 
     def test_starts_service(self):
         """
-        ``_main_for_service`` accepts an ``IService`` provider and returns a
+        ``ServeScript.main`` accepts an ``IService`` provider and returns a
         function which starts the given service when it is called.
         """
-        _main_for_service(self.reactor, self.service)
+        self.main(self.reactor, self.service)
         self.assertTrue(
             self.service.running, "The service should have been started.")
 
     def test_returns_unfired_deferred(self):
         """
-        ``_main_for_service`` returns a ``Deferred`` which has not fired.
+        ``ServeScript.main`` returns a ``Deferred`` which has not fired.
         """
-        result = _main_for_service(self.reactor, self.service)
+        result = self.main(self.reactor, self.service)
         self.assertNoResult(result)
 
     def test_fire_on_stop(self):
         """
-        The ``Deferred`` returned by ``_main_for_service`` fires with ``None``
+        The ``Deferred`` returned by ``ServeScript.main`` fires with ``None``
         when the reactor is stopped.
         """
-        result = _main_for_service(self.reactor, self.service)
+        result = self.main(self.reactor, self.service)
         self._shutdown_reactor(self.reactor)
         self.assertIs(None, self.successResultOf(result))
 
     def test_stops_service(self):
         """
-        When the reactor is stopped, ``_main_for_service`` stops the service it
+        When the reactor is stopped, ``ServeScript.main`` stops the service it
         was called with.
         """
-        _main_for_service(self.reactor, self.service)
+        self.main(self.reactor, self.service)
         self._shutdown_reactor(self.reactor)
         self.assertFalse(
             self.service.running, "The service should have been stopped.")
 
     def test_wait_for_service_stop(self):
         """
-        The ``Deferred`` returned by ``_main_for_service`` does not fire before
+        The ``Deferred`` returned by ``ServeScript.main`` does not fire before
         the ``Deferred`` returned by the service's ``stopService`` method fires.
         """
-        result = _main_for_service(self.reactor, AsyncStopService(Deferred()))
+        result = self.main(self.reactor, AsyncStopService(Deferred()))
         self._shutdown_reactor(self.reactor)
         self.assertNoResult(result)
 
     def test_fire_after_service_stop(self):
         """
-        The ``Deferred`` returned by ``_main_for_service`` fires once the
+        The ``Deferred`` returned by ``ServeScript.main`` fires once the
         ``Deferred`` returned by the service's ``stopService`` method fires.
         """
         async = Deferred()
-        result = _main_for_service(self.reactor, AsyncStopService(async))
+        result = self.main(self.reactor, AsyncStopService(async))
         self._shutdown_reactor(self.reactor)
         async.callback(None)
         self.assertIs(None, self.successResultOf(result))

@@ -273,8 +273,7 @@ class ServeScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        pass
-        # return _main_for_service(volume_service, volume_service)
+        return _main_for_service(reactor, volume_service)
 
 
 def flocker_serve_main():
