@@ -226,6 +226,13 @@ def _main_for_service(reactor, service):
     """
     Start a service and integrate its shutdown with reactor shutdown.
 
+    This is useful for hooking driving an ``IService`` provider with
+    ``twisted.internet.task.react``.  For example::
+
+        from twisted.internet.task import react
+        from yourapp import YourService
+        react(_main_for_service, [YourService()])
+
     :param IReactorCore reactor: The reactor the run lifetime of which to tie
         to the given service.  When the reactor is shutdown, the service will
         be shutdown.
