@@ -396,6 +396,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 # TODO: This should be provided by Twisted (also it should be more complete
 # instead of 1/3rd done).
 from twisted.internet.base import _ThreePhaseEvent
+
+
 @implementer(IReactorCore)
 class MemoryCoreReactor(object):
     """
@@ -469,8 +471,8 @@ class MainForServiceTests(SynchronousTestCase):
 
     def test_fire_on_stop(self):
         """
-        The ``Deferred`` returned by ``_main_for_service`` fires with ``None`` when
-        the reactor is stopped.
+        The ``Deferred`` returned by ``_main_for_service`` fires with ``None``
+        when the reactor is stopped.
         """
         result = _main_for_service(self.reactor, self.service)
         self._shutdown_reactor(self.reactor)
@@ -478,8 +480,8 @@ class MainForServiceTests(SynchronousTestCase):
 
     def test_stops_service(self):
         """
-        When the reactor is stopped, ``_main_for_service`` stops the service it was
-        called with.
+        When the reactor is stopped, ``_main_for_service`` stops the service it
+        was called with.
         """
         _main_for_service(self.reactor, self.service)
         self._shutdown_reactor(self.reactor)
@@ -488,8 +490,8 @@ class MainForServiceTests(SynchronousTestCase):
 
     def test_wait_for_service_stop(self):
         """
-        The ``Deferred`` returned by ``_main_for_service`` does not fire before the
-        ``Deferred`` returned by the service's ``stopService`` method fires.
+        The ``Deferred`` returned by ``_main_for_service`` does not fire before
+        the ``Deferred`` returned by the service's ``stopService`` method fires.
         """
         result = _main_for_service(self.reactor, AsyncStopService(Deferred()))
         self._shutdown_reactor(self.reactor)

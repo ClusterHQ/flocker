@@ -246,5 +246,6 @@ def _main_for_service(reactor, service):
     """
     service.startService()
     stop = Deferred()
-    reactor.addSystemEventTrigger("before", "shutdown", _chain_stop_result, service, stop)
+    reactor.addSystemEventTrigger(
+        "before", "shutdown", _chain_stop_result, service, stop)
     return stop
