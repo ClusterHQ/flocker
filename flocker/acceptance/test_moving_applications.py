@@ -66,8 +66,7 @@ class MovingApplicationTests(TestCase):
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
-                        container_image=image + u':latest',
-                        ports=frozenset(), environment=None, volumes=())
+                        container_image=image + u':latest')
 
             d = assertExpectedDeployment(self, {
                 node_1: set([]),

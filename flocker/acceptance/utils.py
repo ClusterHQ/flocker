@@ -97,8 +97,8 @@ def _clean_node(ip):
     #   $ flocker-deploy volume-deployment.yml volume-application.yml
     #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
-    # TODO File and link issue(s) for this
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19028814
+    # A tool or flocker-deploy option to purge the state of a node does
+    # not yet exist. See https://github.com/ClusterHQ/flocker/issues/682
     d = d.addCallback(lambda _:
                       _run_SSH(22, 'root', ip,
                                [b"zfs"] + [b"destroy"] + [b"-r"] +

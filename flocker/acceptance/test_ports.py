@@ -9,6 +9,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
+from flocker.testtools import loop_until
+
 from .utils import (assertExpectedDeployment, flocker_deploy, get_nodes,
                     require_flocker_cli, require_mongo)
 
@@ -76,8 +78,7 @@ class PortsTests(TestCase):
                     ports=frozenset([
                         PortMap(internal_port=self.internal_port,
                                 external_port=self.external_port)
-                    ]),
-                    environment=None, volumes=())
+                    ]))
 
         d = assertExpectedDeployment(self, {
             self.node_1: set([unit]),
@@ -94,14 +95,23 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        # There is a race condition here
-        # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024474
-        # Use a loop_until construct
-        client_1 = MongoClient(self.node_1, self.external_port)
-        database_1 = client_1.example
-        database_1.posts.insert({u"the data": u"it moves"})
-        data = database_1.posts.find_one()
+        client_1 = None
+        def create_mongo_client():
+            try:
+                client_1 = MongoClient(self.node_1, self.external_port)
+                return True
+            except Exception as e:
+                return False
 
-        client_2 = MongoClient(self.node_2, self.external_port)
-        database_2 = client_2.example
-        self.assertEqual(data, database_2.posts.find_one())
+        d = loop_until(create_mongo_client)
+
+        def verify_data(ignored):
+            database_1 = client_1.example
+            database_1.posts.insert({u"the data": u"it moves"})
+            data = database_1.posts.find_one()
+            client_2 = MongoClient(self.node_2, self.external_port)
+            database_2 = client_2.example
+            self.assertEqual(data, database_2.posts.find_one())
+
+        d.addCallback(verify_data)
+        return d
