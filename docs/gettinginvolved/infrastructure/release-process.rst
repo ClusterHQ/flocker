@@ -93,6 +93,17 @@ Preparing For a Release
 
         git commit -am "Bumped version numbers"
 
+#. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
+
+   `git log` can be used to see all merges between two versions.
+
+   .. code-block:: console
+
+	  # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+	  $ export OLD_VERSION=0.3.0
+	  $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+      $ git commit -am "Updated What's New"
+
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
@@ -104,7 +115,10 @@ Preparing For a Release
 
    .. code-block:: console
 
-      git commit -am "Updated NEWS"
+	  # Choose the tag of the last version with a NEWS entry to compare the latest version to.
+	  $ export OLD_VERSION=0.3.0
+	  $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+      $ git commit -am "Updated NEWS"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
