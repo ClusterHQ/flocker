@@ -8,8 +8,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .utils import (flocker_deploy, get_nodes,
-    require_flocker_cli, create_remote_docker_client)
+from .utils import (assertExpectedDeployment, flocker_deploy,
+    get_nodes, require_flocker_cli)
 
 
 class MovingApplicationTests(TestCase):
@@ -70,15 +70,10 @@ class MovingApplicationTests(TestCase):
                         container_image=image + u':latest',
                         ports=frozenset(), environment=None, volumes=())
 
-            d = gatherResults([RemoteDockerClient(node_1).list(),
-                               RemoteDockerClient(node_2).list()])
+            d = assertExpectedDeployment(self, {
+                node_1: set(),
+                node_2: set([unit])})
 
-            def listed(units):
-                node_1_list, node_2_list = units
-                self.assertEqual([set(), set([unit])],
-                                 [node_1_list, node_2_list])
-
-            d.addCallback(listed)
             return d
 
         d.addCallback(deploy_and_move)
