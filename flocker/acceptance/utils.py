@@ -188,9 +188,16 @@ def assertExpectedDeployment(test_case, expected):
     """
     # TODO build up a dictionary mapping IPs to deployments
     actual = {}
-    for node in expected.keys():
+    deferreds = []
+    for node in sorted(expected.keys()):
         client = DockerClient(base_url=u'tcp://' + node + u':2375')
-        d = client.list()
-        actual[node] = test_case.successResultOf(d)
+        deferreds.append(client.list())
+
+    def add_units(all_units):
         import pdb;pdb.set_trace()
-    test_case.assertEqual(actual, expected)
+        for node in sorted(expected.keys()):
+            units = all_units.pop()
+            actual[node] = units
+        test_case.assertEqual(actual, expected)
+
+    deferreds.addCallback(add_units)
