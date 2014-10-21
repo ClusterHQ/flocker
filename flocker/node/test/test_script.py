@@ -419,6 +419,14 @@ class MemoryCoreReactor(object):
 
 
 class AsyncStopService(Service):
+    """
+    An ``IService`` implementation which can return an unfired ``Deferred``
+    from its ``stopService`` method.
+
+    :ivar Deferred stop_result: The object to return from ``stopService``.
+        ``AsyncStopService`` won't do anything more than return it.  If it is
+        ever going to fire, some external code is responsible for firing it.
+    """
     def __init__(self, stop_result):
         self.stop_result = stop_result
 
@@ -436,6 +444,11 @@ class MainForServiceTests(SynchronousTestCase):
         self.service = Service()
 
     def _shutdown_reactor(self, reactor):
+        """
+        Simulate reactor shutdown.
+
+        :param IReactorCore reactor: The reactor to shut down.
+        """
         reactor.fireSystemEvent("shutdown")
 
     def test_starts_service(self):
