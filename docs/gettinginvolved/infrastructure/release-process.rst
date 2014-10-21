@@ -213,6 +213,7 @@ Release
 
 #. Change your working directory to be the Flocker release branch working directory.
    # TODO clone and check out the flocker release branch - it isn't in the VM now
+   # Export the version here
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
@@ -237,7 +238,9 @@ Release
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
 
-#. Build python packages and upload them to ``archive.clusterhq.com``
+# TODO Do any steps wait on this being built? Can I do the next step while I wait?
+
+#. Build Python packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
 
