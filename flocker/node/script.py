@@ -211,10 +211,32 @@ def flocker_reportstate_main():
 
 
 def _chain_stop_result(service, stop):
+    """
+    Stop a service and chain the resulting ``Deferred`` to another
+    ``Deferred``.
+
+    :param IService service: The service to stop.
+    :param Deferred stop: The ``Deferred`` which will be fired when the service
+        has stopped.
+    """
     maybeDeferred(service.stopService).chainDeferred(stop)
 
 
 def _main_for_service(reactor, service):
+    """
+    Start a service and integrate its shutdown with reactor shutdown.
+
+    :param IReactorCore reactor: The reactor the run lifetime of which to tie
+        to the given service.  When the reactor is shutdown, the service will
+        be shutdown.
+
+    :param IService service: The service to tie to the run lifetime of the
+        given reactor.  It will be started immediately and made to stop when
+        the reactor stops.
+
+    :return: A ``Deferred`` which fires after the service has finished
+        stopping.
+    """
     service.startService()
     stop = Deferred()
     reactor.addSystemEventTrigger("before", "shutdown", _chain_stop_result, service, stop)
