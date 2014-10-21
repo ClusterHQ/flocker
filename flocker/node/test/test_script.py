@@ -386,3 +386,88 @@ class ReportStateScriptMainTests(SynchronousTestCase):
             reactor=object(), options=[],
             volume_service=create_volume_service(self))
         self.assertEqual(safe_load(content.getvalue()), expected)
+
+
+@implementer(IReactorCore)
+class MemoryCoreReactor(object):
+    # Implement IReactorCore (at least `addSystemEventTrigger`) in a
+    # test-friendly way.
+    pass
+
+
+class AsyncStopService(Service):
+    def __init__(self, stop_result):
+        self.stop_result = stop_result
+
+    def stopService(self):
+        Service.stopService(self)
+        return self.stop_result
+
+
+class MainForServiceTests(SynchronousTestCase):
+    """
+    Tests for ``_main_for_service``.
+    """
+    def setUp(self):
+        self.reactor = MemoryCoreReactor()
+        self.service = Service()
+
+    def _shutdown_reactor(self, reactor):
+        # Or something.  _fire_shutdown()?  Also, does it need to be set
+        # `running` first?
+        reactor.stop()
+
+    def test_starts_service(self):
+        """
+        ``_main_for_service`` accepts an ``IService`` provider and returns a
+        function which starts the given service when it is called.
+        """
+        _main_for_service(self.reactor, self.service)
+        self.assertTrue(
+            self.service.running, "The service should have been started.")
+
+    def test_returns_unfired_deferred(self):
+        """
+        ``_main_for_service`` returns a ``Deferred`` which has not fired.
+        """
+        result = _main_for_service(self.reactor, self.service)
+        self.assertNoResult(result)
+
+    def test_fire_on_stop(self):
+        """
+        The ``Deferred`` returned by ``_main_for_service`` fires with ``None`` when
+        the reactor is stopped.
+        """
+        result = _main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertIs(None, self.successResultOf(result))
+
+    def test_stops_service(self):
+        """
+        When the reactor is stopped, ``_main_for_service`` stops the service it was
+        called with.
+        """
+        _main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertFalse(
+            self.service.running, "The service should have been stopped.")
+
+    def test_wait_for_service_stop(self):
+        """
+        The ``Deferred`` returned by ``_main_for_service`` does not fire before the
+        ``Deferred`` returned by the service's ``stopService`` method fires.
+        """
+        result = _main_for_service(self.reactor, AsyncStopService(Deferred()))
+        self._shutdown_reactor(self.reactor)
+        self.assertNoResult(result)
+
+    def test_fire_after_service_stop(self):
+        """
+        The ``Deferred`` returned by ``_main_for_service`` fires once the
+        ``Deferred`` returned by the service's ``stopService`` method fires.
+        """
+        async = Deferred()
+        result = _main_for_service(self.reactor, AsyncStopService(async))
+        self._shutdown_reactor(self.reactor)
+        async.callback(None)
+        self.assertIs(None, self.successResultOf(result))
