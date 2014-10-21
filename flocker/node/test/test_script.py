@@ -393,6 +393,9 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
+# TODO: This should be provided by Twisted (also it should be more complete
+# instead of 1/3rd done).
+from twisted.internet.base import _ThreePhaseEvent
 @implementer(IReactorCore)
 class MemoryCoreReactor(object):
     """
