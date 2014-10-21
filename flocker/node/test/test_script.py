@@ -459,8 +459,7 @@ class ServeScriptMainTests(SynchronousTestCase):
 
     def test_starts_service(self):
         """
-        ``ServeScript.main`` accepts an ``IService`` provider and returns a
-        function which starts the given service when it is called.
+        ``ServeScript.main`` accepts an ``IService`` provider and starts it.
         """
         self.main(self.reactor, self.service)
         self.assertTrue(
