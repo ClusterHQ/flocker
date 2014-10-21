@@ -207,3 +207,12 @@ def flocker_reportstate_main():
         script=VolumeScript(ReportStateScript()),
         options=ReportStateOptions()
     ).main()
+
+
+def _main_for_service(reactor, service):
+    # Start the service
+    # Install a before shutdown hook on the reactor that stops the given service.
+    # Chain the service's stopService Deferred to a new Deferred
+    # Give the new Deferred a cancellation function that stops the reactor.
+    # Return the new Deferred
+    pass
