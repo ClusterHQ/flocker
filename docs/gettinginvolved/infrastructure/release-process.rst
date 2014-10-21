@@ -309,6 +309,7 @@ Release
 
        .. code-block:: console
 
+          # TODO This doesn't add untracked files, explicitly add the file
           git commit -am "Bumped version number and checksum in Homebrew recipe"
           git push
 
