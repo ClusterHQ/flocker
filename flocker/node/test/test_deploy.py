@@ -1510,7 +1510,63 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         An ``Application`` will only be added once to the list of applications
         to restart.
         """
-        self.fail("Not implemented yet")
+        unit = Unit(
+            name=u'postgres-example',
+            container_name=u'postgres-example',
+            container_image=u'clusterhq/postgres:latest',
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        old_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'clusterhq/postgres:latest'),
+            volume=None
+        )
+
+        new_postgres_app = Application(
+            name=u'postgres-example',
+            image=DockerImage.from_string(u'docker/postgres:latest'),
+            volume=AttachedVolume(
+                name='postgres-example', mountpoint=b'/var/lib/data')
+        )
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({old_postgres_app}),
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({new_postgres_app})),
+        }))
+        d = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=EMPTY,
+            hostname=u'node1.example.com'
+        )
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[
+                CreateVolume(volume=AttachedVolume(
+                    name='postgres-example', mountpoint='/var/lib/data')
+                )]
+            ),
+            InParallel(changes=[
+                Sequentially(changes=[
+                    StopApplication(application=old_postgres_app),
+                    StartApplication(application=new_postgres_app,
+                                     hostname=u'node1.example.com')
+                ])
+            ])
+        ])
+
+        self.assertEqual(expected, self.successResultOf(d))
 
     def test_app_with_changed_image_restarted(self):
         """

@@ -72,12 +72,13 @@ class AttachedVolume(object):
             ``AttachedVolume`` where the volume name will be the unit name
             and the mountpoint will be the unit's volume's container path.
 
-        :returns: An ``AttachedVolume`` instance, or None if there is no
-            volume within the supplied ``Unit`` instance.
+        :returns: A set of ``AttachedVolume`` instances, or None if there
+            is no volume within the supplied ``Unit`` instance.
         """
         volumes = set(unit.volumes)
         name = unit.name
         # XXX we only support one data volume per container at this time
+        # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
             return {cls(name=name, mountpoint=volume.container_path)}

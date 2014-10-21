@@ -321,6 +321,8 @@ class Deployer(object):
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
+                    # XXX we only support one volume per container at this time
+                    # https://github.com/ClusterHQ/flocker/issues/49
                     volume = AttachedVolume.from_unit(unit).pop()
                 else:
                     volume = None
@@ -464,7 +466,9 @@ class Deployer(object):
                         StartApplication(application=inspect_desired,
                                          hostname=hostname)
                     ]
-                    restart_containers.append(Sequentially(changes=changes))
+                    sequence = Sequentially(changes=changes)
+                    if sequence not in restart_containers:
+                        restart_containers.append(sequence)
 
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
