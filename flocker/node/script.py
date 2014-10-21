@@ -27,16 +27,8 @@ from . import (ConfigurationError, model_from_configuration, Deployer,
                FlockerConfiguration, current_from_configuration)
 
 __all__ = [
-    # TODO The main scripts are exposed because setup.py uses them.  Why are
-    # all of the support classes exposed?
-    "ChangeStateOptions",
-    "ChangeStateScript",
     "flocker_changestate_main",
-    "ReportStateOptions",
-    "ReportStateScript",
     "flocker_reportstate_main",
-    "ServeOptions",
-    "ServeScript",
     "flocker_serve_main",
 ]
 
