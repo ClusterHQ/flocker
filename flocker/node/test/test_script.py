@@ -495,7 +495,8 @@ class ServeScriptMainTests(SynchronousTestCase):
     def test_wait_for_service_stop(self):
         """
         The ``Deferred`` returned by ``ServeScript.main`` does not fire before
-        the ``Deferred`` returned by the service's ``stopService`` method fires.
+        the ``Deferred`` returned by the service's ``stopService`` method
+        fires.
         """
         result = self.main(self.reactor, AsyncStopService(Deferred()))
         self._shutdown_reactor(self.reactor)
