@@ -6,6 +6,10 @@ Tests for :module:`flocker.node.script`.
 
 from StringIO import StringIO
 
+from zope.interface import implementer
+
+from twisted.internet.interfaces import IReactorCore
+from twisted.internet.defer import Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
@@ -17,6 +21,7 @@ from ...volume.test.test_script import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
+    _main_for_service,
     ChangeStateOptions, ChangeStateScript,
     ReportStateScript, ReportStateOptions)
 from .._docker import FakeDockerClient, Unit
@@ -390,9 +395,24 @@ class ReportStateScriptMainTests(SynchronousTestCase):
 
 @implementer(IReactorCore)
 class MemoryCoreReactor(object):
-    # Implement IReactorCore (at least `addSystemEventTrigger`) in a
-    # test-friendly way.
-    pass
+    """
+    Just enough of an implementation of IReactorCore to pass to
+    ``_main_for_service`` in the unit tests.
+    """
+    def __init__(self):
+        self._triggers = {}
+
+    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.addTrigger(phase, callable, args, kw)
+        # removeSystemEventTrigger isn't implemented so the return value here
+        # isn't useful.
+        return object()
+
+    def fireSystemEvent(self, eventType):
+        event = self._triggers.get(eventType)
+        if event is not None:
+            event.fireEvent()
 
 
 class AsyncStopService(Service):
@@ -413,9 +433,7 @@ class MainForServiceTests(SynchronousTestCase):
         self.service = Service()
 
     def _shutdown_reactor(self, reactor):
-        # Or something.  _fire_shutdown()?  Also, does it need to be set
-        # `running` first?
-        reactor.stop()
+        reactor.fireSystemEvent("shutdown")
 
     def test_starts_service(self):
         """
