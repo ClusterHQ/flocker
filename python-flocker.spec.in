@@ -117,6 +117,7 @@ trial flocker
 %doc README.rst
 
 %{_bindir}/flocker-volume
+%{_bindir}/flocker-serve
 %{_bindir}/flocker-changestate
 %{_bindir}/flocker-reportstate
 

@@ -99,6 +99,7 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
+            'flocker-serve = flocker.node.script:flocker_serve_main',
         ],
     },
 
