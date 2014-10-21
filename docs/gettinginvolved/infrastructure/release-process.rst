@@ -395,7 +395,7 @@ These steps must be performed from a :doc:`Flocker development environment <vagr
    createrepo srpm
 
    # Upload to Google Cloud Storage using ``gsutil``.
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_6
+   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
 .. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
