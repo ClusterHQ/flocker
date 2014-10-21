@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
 from .utils import (flocker_deploy, get_nodes, RemoteDockerClient,
-                    require_flocker_cli)
+                    require_flocker_cli, assertExpectedDeployment)
 
 
 class DeploymentTests(TestCase):
@@ -66,15 +66,11 @@ class DeploymentTests(TestCase):
                         container_image=image + u':latest',
                         ports=frozenset(), environment=None, volumes=())
 
-            d = gatherResults([RemoteDockerClient(node_1).list(),
-                               RemoteDockerClient(node_2).list()])
+            d = assertExpectedDeployment({
+                node1: set([unit]),
+                node_2: set([]),
+            })
 
-            def listed(units):
-                node_1_list, node_2_list = units
-                self.assertEqual([set([unit]), set()],
-                                 [node_1_list, node_2_list])
-
-            d.addCallback(listed)
             return d
 
         d.addCallback(deploy)

@@ -40,19 +40,6 @@ require_flocker_cli = skipUnless(which("flocker-deploy"),
 require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
 
-
-class RemoteDockerClient(proxyForInterface(IDockerClient, "_client")):
-    """
-    A Docker client that connects to a Docker server over TCP.
-    """
-    def __init__(self, ip):
-        """
-        :param unicode ip: IP address of the node where the Docker server is
-        running on port 2375.
-        """
-        self._client = DockerClient(base_url=u'tcp://' + ip + u':2375')
-
-
 def _run_SSH(port, user, node, command, input, key=None):
     """
     Run a command via SSH.
@@ -148,16 +135,17 @@ def get_nodes(num_nodes):
     return d
 
 
-def flocker_deploy(testcase, deployment_config, application_config):
+def flocker_deploy(test_case, deployment_config, application_config):
     """
     Run ``flocker-deploy`` with given configuration files.
 
+    :param test_case: The ``TestCase`` running this unit test.
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
     """
     # TODO move requirement for flocker-deploy here, if possible
 
-    temp = FilePath(testcase.mktemp())
+    temp = FilePath(test_case.mktemp())
     temp.makedirs()
 
     deployment = temp.child(b"deployment.yml")
@@ -167,3 +155,24 @@ def flocker_deploy(testcase, deployment_config, application_config):
     application.setContent(safe_dump(application_config))
 
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
+
+# TODO make this public
+# TODO can we remove remote docker client / put it in here / private?
+def assertExpectedDeployment(test_case, expected):
+    """
+    :param test_case: The ``TestCase`` running this unit test.
+
+    # TODO better docstring
+
+    Expected: A dictionary mapping IP addresses to their expected deployments
+    e.g.
+    {
+        node1: set([some_unit]),
+        node2: set([])
+    }
+    """
+    # TODO build up a dictionary mapping IPs to deployments
+    actual = {}
+    for node in expected:
+        client = DockerClient(base_url=u'tcp://' + ip + u':2375')
+        actual[node] = 1
