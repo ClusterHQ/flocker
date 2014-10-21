@@ -12,8 +12,8 @@ from twisted.python.procutils import which
 from flocker.node._docker import DockerClient
 
 __all__ = [
-    'flocker_deploy', 'get_nodes', 'require_flocker_cli',
-    'require_mongo', 'create_remote_docker_client'
+    'assertExpectedDeployment', 'flocker_deploy', 'get_nodes',
+    'require_flocker_cli', 'require_mongo',
     ]
 
 # TODO have a wait_until method and call it from any test which needs an
@@ -205,3 +205,4 @@ def assertExpectedDeployment(test_case, expected):
 
     d = gatherResults(deferreds)
     d.addCallback(add_units)
+    return d

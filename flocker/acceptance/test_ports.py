@@ -4,6 +4,7 @@
 Tests for communication to applications across nodes.
 """
 from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
 
 from twisted.trial.unittest import TestCase
 
@@ -95,23 +96,24 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        client_1 = None
         def create_mongo_client():
             try:
-                client_1 = MongoClient(self.node_1, self.external_port)
-                return True
-            except Exception as e:
+                return MongoClient(self.node_1, self.external_port)
+            except ConnectionFailure:
                 return False
 
+        # TODO Make this whole loop a test utility
         d = loop_until(create_mongo_client)
 
-        def verify_data(ignored):
-            database_1 = client_1.example
-            database_1.posts.insert({u"the data": u"it moves"})
-            data = database_1.posts.find_one()
-            client_2 = MongoClient(self.node_2, self.external_port)
-            database_2 = client_2.example
-            self.assertEqual(data, database_2.posts.find_one())
+        def verify_traffic_routed(client_1):
+            posts_1 = client_1.example.posts
+            posts_1.insert({u"the data": u"it moves"})
 
-        d.addCallback(verify_data)
+            self.assertEqual(
+                posts_1.find_one(),
+                MongoClient(self.node_2,
+                            self.external_port).example.posts.find_one()
+            )
+
+        d.addCallback(verify_traffic_routed)
         return d

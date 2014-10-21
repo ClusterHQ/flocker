@@ -61,7 +61,8 @@ class DeploymentTests(TestCase):
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
-                        container_image=image + u':latest')
+                        container_image=image + u':latest',
+                        ports=frozenset([]))
 
             d = assertExpectedDeployment(self, {
                 node_1: set([unit]),
