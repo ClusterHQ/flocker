@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
-from .utils import (flocker_deploy, get_nodes, RemoteDockerClient,
+from .utils import (assertExpectedDeployment, flocker_deploy, get_nodes,
                     require_flocker_cli, require_mongo)
 
 
@@ -80,15 +80,10 @@ class PortsTests(TestCase):
                     ]),
                     environment=None, volumes=())
 
-        d = gatherResults([RemoteDockerClient(self.node_1).list(),
-                           RemoteDockerClient(self.node_2).list()])
+        d = assertExpectedDeployment(self, {
+                self.node_1: set([unit]),
+                self.node_2: set()})
 
-        def listed(units):
-            node_1_list, node_2_list = units
-            self.assertEqual([set([unit]), set()],
-                             [node_1_list, node_2_list])
-
-        d.addCallback(listed)
         return d
 
     @require_mongo
