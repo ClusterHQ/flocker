@@ -5,7 +5,6 @@ Tests for communication to applications across nodes.
 """
 from pymongo import MongoClient
 
-from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
@@ -81,8 +80,9 @@ class PortsTests(TestCase):
                     environment=None, volumes=())
 
         d = assertExpectedDeployment(self, {
-                self.node_1: set([unit]),
-                self.node_2: set()})
+            self.node_1: set([unit]),
+            self.node_2: set([]),
+        })
 
         return d
 

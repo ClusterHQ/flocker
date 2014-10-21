@@ -239,6 +239,7 @@ class PortMap(object):
 BASE_NAMESPACE = u"flocker--"
 BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
+
 @implementer(IDockerClient)
 class DockerClient(object):
     """

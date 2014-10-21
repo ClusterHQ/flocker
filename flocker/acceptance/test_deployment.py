@@ -3,8 +3,6 @@
 """
 Tests for deploying applications.
 """
-from twisted.internet.defer import gatherResults
-
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit

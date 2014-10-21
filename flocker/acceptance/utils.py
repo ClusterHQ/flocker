@@ -6,7 +6,6 @@ from unittest import skipUnless
 from yaml import safe_dump
 
 from twisted.internet.defer import gatherResults
-from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
@@ -39,6 +38,7 @@ require_flocker_cli = skipUnless(which("flocker-deploy"),
 # See https://github.com/ClusterHQ/flocker/issues/901.
 require_mongo = skipUnless(which("mongo"),
                            "The mongo shell is not available.")
+
 
 def _run_SSH(port, user, node, command, input, key=None):
     """
@@ -170,6 +170,7 @@ def flocker_deploy(test_case, deployment_config, application_config):
     application.setContent(safe_dump(application_config))
 
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
+
 
 # TODO make this public
 # TODO can we remove remote docker client / put it in here / private?

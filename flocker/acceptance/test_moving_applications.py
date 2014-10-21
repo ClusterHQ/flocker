@@ -3,13 +3,12 @@
 """
 Tests for moving applications between nodes.
 """
-from twisted.internet.defer import gatherResults
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .utils import (assertExpectedDeployment, flocker_deploy,
-    get_nodes, require_flocker_cli)
+from .utils import (assertExpectedDeployment, flocker_deploy, get_nodes,
+                    require_flocker_cli)
 
 
 class MovingApplicationTests(TestCase):
@@ -71,8 +70,9 @@ class MovingApplicationTests(TestCase):
                         ports=frozenset(), environment=None, volumes=())
 
             d = assertExpectedDeployment(self, {
-                node_1: set(),
-                node_2: set([unit])})
+                node_1: set([]),
+                node_2: set([unit])
+            })
 
             return d
 
