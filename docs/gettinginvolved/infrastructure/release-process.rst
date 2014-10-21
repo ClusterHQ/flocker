@@ -60,7 +60,7 @@ Preparing For a Release
    .. code-block:: console
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-	  cd flocker-${VERSION}
+      cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
       git push origin --set-upstream release/flocker-${VERSION}
 
@@ -72,6 +72,29 @@ Preparing For a Release
 
    .. note:: XXX: Automate the checking of package versions.
              See https://github.com/ClusterHQ/flocker/issues/881.
+
+   .. note:: The process for uploading a missing dependency package is roughly as follows:
+
+             .. code-block:: console
+                # We use the python-jsonschema package as an example.
+
+                # Create directories for storing RPMs and SRPMs.
+                mkdir repo
+                mkdir srpm
+
+                # Download binary and source RPM files to your workstation.
+                yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-jsonschema
+                yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-jsonschema
+
+                # Upload those to Google Storage
+                gsutil cp -a public-read srpm/python-jsonschema-2.4.0-1.fc20.src.rpm gs://archive.clusterhq.com/fedora/20/SRPMS/
+                gsutil cp -a public-read repo/python-jsonschema-2.4.0-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/20/x86_64/
+
+                # Finally we rebuild the repo index using the version
+                # number of the *last* Flocker release.
+                admin/upload-rpms 0.3.0dev1
+
+             This step will not be necessary once https://github.com/ClusterHQ/flocker/issues/508 is resolved.
 
 #. Back port features from master (optional)
 
@@ -99,9 +122,9 @@ Preparing For a Release
 
    .. code-block:: console
 
-	  # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
-	  $ export OLD_VERSION=0.3.0
-	  $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+      # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+      $ export OLD_VERSION=0.3.0
+      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
       $ git commit -am "Updated What's New"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
@@ -115,9 +138,9 @@ Preparing For a Release
 
    .. code-block:: console
 
-	  # Choose the tag of the last version with a NEWS entry to compare the latest version to.
-	  $ export OLD_VERSION=0.3.0
-	  $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+      # Choose the tag of the last version with a NEWS entry to compare the latest version to.
+      $ export OLD_VERSION=0.3.0
+      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
       $ git commit -am "Updated NEWS"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
