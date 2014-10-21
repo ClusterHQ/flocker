@@ -10,11 +10,11 @@ from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, IDockerClient
+from flocker.node._docker import DockerClient
 
 __all__ = [
-    'flocker_deploy', 'get_nodes', 'require_flocker_cli', 'RemoteDockerClient',
-    'require_mongo',
+    'flocker_deploy', 'get_nodes', 'require_flocker_cli',
+    'require_mongo', 'create_remote_docker_client'
     ]
 
 # TODO have a wait_until method and call it from any test which needs an
@@ -80,7 +80,7 @@ def _clean_node(ip):
     Remove all containers and zfs volumes on a node, given the IP address of
     the node. Returns a Deferred which fires when finished.
     """
-    docker_client = RemoteDockerClient(ip)
+    docker_client = DockerClient(base_url=u'tcp://' + ip + u':2375')
     d = docker_client.list()
 
     d = d.addCallback(lambda units:
@@ -104,6 +104,21 @@ def _clean_node(ip):
                                [b"zfs"] + [b"destroy"] + [b"-r"] +
                                [b"flocker"], None))
     return d
+
+
+def create_remote_docker_client(ip, port):
+    """
+    Create and return a ``DockerClient`` using a TCP connection string
+    as the base URL.
+
+    :param str ip: The IP address or hostname of the target Docker API.
+
+    :param int port: The port number to connect on.
+
+    :returns: A ``DockerClient`` instance.
+    """
+    base_url = ''.join(['tcp://', ip, ':', str(port)])
+    return DockerClient(base_url=base_url)
 
 
 def get_nodes(num_nodes):
@@ -173,6 +188,9 @@ def assertExpectedDeployment(test_case, expected):
     """
     # TODO build up a dictionary mapping IPs to deployments
     actual = {}
-    for node in expected:
-        client = DockerClient(base_url=u'tcp://' + ip + u':2375')
-        actual[node] = 1
+    for node in expected.keys():
+        client = DockerClient(base_url=u'tcp://' + node + u':2375')
+        d = client.list()
+        actual[node] = test_case.successResultOf(d)
+        import pdb;pdb.set_trace()
+    test_case.assertEqual(actual, expected)
