@@ -98,6 +98,10 @@ Preparing For a Release
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/523
 
+   The NEWS date format is YYYY-MM-DD.
+   The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
+   This means that in doing a release the title for the NEWS updates for an older pre-release may have to be changed for example.
+
    .. code-block:: console
 
       git commit -am "Updated NEWS"

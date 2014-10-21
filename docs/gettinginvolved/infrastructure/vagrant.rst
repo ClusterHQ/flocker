@@ -1,6 +1,8 @@
 Vagrant
 =======
 
+# TODO Make this clearer on how to build a development box the first time
+
 There is a :file:`Vagrantfile` in the base of the repository,
 that is pre-installed with all of the dependencies required to run flocker.
 
