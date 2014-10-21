@@ -67,7 +67,7 @@ Preparing For a Release
 #. Check that all required versions of the dependency packages are built:
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
-   #. Compare it to the package versions listed in ``python-flocker.spec.in``.
+   #. Compare it to the package versions listed in the "Requires" lines in ``python-flocker.spec.in``.
    #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
 
    .. note:: XXX: Automate the checking of package versions.
