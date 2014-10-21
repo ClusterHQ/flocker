@@ -9,6 +9,7 @@ tools.
 import sys
 
 from twisted.python.usage import Options, UsageError
+from twisted.internet.defer import Deferred, maybeDeferred
 
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
@@ -209,10 +210,12 @@ def flocker_reportstate_main():
     ).main()
 
 
+def _chain_stop_result(service, stop):
+    maybeDeferred(service.stopService).chainDeferred(stop)
+
+
 def _main_for_service(reactor, service):
-    # Start the service
-    # Install a before shutdown hook on the reactor that stops the given service.
-    # Chain the service's stopService Deferred to a new Deferred
-    # Give the new Deferred a cancellation function that stops the reactor.
-    # Return the new Deferred
-    pass
+    service.startService()
+    stop = Deferred()
+    reactor.addSystemEventTrigger("before", "shutdown", _chain_stop_result, service, stop)
+    return stop
