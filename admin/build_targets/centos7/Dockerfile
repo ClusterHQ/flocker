@@ -15,7 +15,7 @@
 FROM centos
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
 RUN ["yum", "groupinstall", "--assumeyes", "Development Tools"]
-RUN ["yum", "install", "--assumeyes", "git", "ruby-devel"]
+RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel"]
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
