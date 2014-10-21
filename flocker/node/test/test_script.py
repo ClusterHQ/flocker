@@ -407,7 +407,7 @@ class MemoryCoreReactor(object):
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
         event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, args, kw)
+        event.addTrigger(phase, callable, *args, **kw)
         # removeSystemEventTrigger isn't implemented so the return value here
         # isn't useful.
         return object()
