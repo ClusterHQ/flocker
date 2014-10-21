@@ -71,6 +71,7 @@ class MovingDataTests(TestCase):
                     return False
 
             d = loop_until(create_mongo_client)
+            # TODO look at the timeouts on http://api.mongodb.org/python/current/api/pymongo/mongo_client.html
 
             def verify_data_moves(client_1):
                 database_1 = client_1.example
