@@ -194,10 +194,11 @@ def assertExpectedDeployment(test_case, expected):
         deferreds.append(client.list())
 
     def add_units(all_units):
-        import pdb;pdb.set_trace()
-        for node in sorted(expected.keys()):
+        for node in sorted(expected.keys(), reverse=True):
             units = all_units.pop()
             actual[node] = units
         test_case.assertEqual(actual, expected)
 
     d = gatherResults(deferreds)
+    d.addCallback(add_units)
+    return d
