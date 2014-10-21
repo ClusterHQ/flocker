@@ -42,13 +42,6 @@ Access
 Preparing For a Release
 -----------------------
 
-The following steps should be carried out on a :doc:`Flocker development machine <vagrant>`.
-Log into the machine using SSH agent forwarding so that you can push changes to GitHub using the keys from your workstation.
-
-.. code-block:: console
-
-   vagrant ssh -- -A
-
 #. Choose a version number according to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 #. Export the version number as an environment variable for later use:
