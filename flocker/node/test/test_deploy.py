@@ -682,6 +682,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_discover_application_with_links(self):
+        """
+        An ``Application`` with ``Link`` objects is discovered from a ``Unit``
+        with environment variables that correspond to an exposed link.
+        """
+        self.fail("Not implemented yet")
+
+    def test_discover_application_with_ports(self):
+        """
+        An ``Application`` with ``Port`` objects is discovered from a ``Unit``
+        with exposed ``Portmap`` objects.
+        """
+        self.fail("Not implemented yet")
+
     def test_discover_locally_owned_volume(self):
         """
         Locally owned volumes are added to ``Application`` with same name as
@@ -1433,6 +1447,13 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                                  hostname="node1.example.com")]),
         ])
         self.assertEqual(expected, changes)
+
+    def test_restart_application_once_only(self):
+        """
+        An ``Application`` will only be added once to the list of applications
+        to restart.
+        """
+        self.fail("Not implemented yet")
 
     def test_app_with_changed_image_restarted(self):
         """
