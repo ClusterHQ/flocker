@@ -55,16 +55,12 @@ Preparing For a Release
    #. Set the title to "Release flocker $VERSION"
    #. Assign it to yourself
 
-#. Create a clean, local working copy of Flocker with no modifications:
+#. Create a clean, local Flocker release branch with no modifications:
 
    .. code-block:: console
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-
-#. Create a branch for the release and push it to GitHub:
-
-   .. code-block:: console
-
+	  cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
       git push origin --set-upstream release/flocker-${VERSION}
 
