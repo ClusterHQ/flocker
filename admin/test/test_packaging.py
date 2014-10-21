@@ -15,6 +15,8 @@ from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase
 
+import virtualenv
+
 from flocker.testtools import FakeSysModule
 
 from ..packaging import (
@@ -38,6 +40,7 @@ require_rpm = skipIf(PLATFORM_PACKAGE_TYPE != 'rpm',
 require_deb = skipIf(PLATFORM_PACKAGE_TYPE != 'deb',
                      "Tests require a `deb` based platform. Found {}.".format(
                          PLATFORM_PACKAGE_TYPE))
+
 
 def assert_equal_steps(test_case, expected, actual):
     """
@@ -294,6 +297,34 @@ class InstallVirtualEnvTests(TestCase):
         ])
         self.assertNotIn(
             '/usr/lib/python2.7/site-packages', output.splitlines())
+
+    def test_bootstrap_pyc(self):
+        """
+        ``InstallVirtualEnv.run`` creates links to the pyc files for all the
+        modules required for the virtualenv bootstrap process.
+        """
+        target_path = FilePath(self.mktemp())
+        InstallVirtualEnv(target_path=target_path).run()
+
+        py_files = []
+        for module_name in virtualenv.REQUIRED_MODULES:
+            py_base = target_path.descendant(['lib', 'python2.7', module_name])
+            py = py_base.siblingExtension('.py')
+            pyc = py_base.siblingExtension('.pyc')
+            if py.exists() and False in (py.islink(), pyc.islink()):
+                py_files.append('PY: {} > {}\nPYC: {} > {}\n'.format(
+                    '/'.join(py.segmentsFrom(target_path)),
+                    py.realpath().path,
+                    '/'.join(pyc.segmentsFrom(target_path)),
+                    pyc.islink() and pyc.realpath().path or 'NOT A SYMLINK'
+                ))
+
+        if py_files:
+            self.fail(
+                'Non-linked bootstrap pyc files in {}: \n{}'.format(
+                    target_path, '\n'.join(py_files)
+                )
+            )
 
     def test_internal_symlinks_only(self):
         """

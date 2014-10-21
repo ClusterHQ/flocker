@@ -83,6 +83,7 @@ from twisted.python.filepath import FilePath
 from twisted.python import usage
 
 from characteristic import attributes
+import virtualenv
 
 from .release import make_rpm_version
 
@@ -148,6 +149,23 @@ class InstallVirtualEnv(object):
         check_call(
             ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', self.target_path.path]
         )
+        # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
+        # modules. See https://github.com/pypa/virtualenv/issues/659
+        for module_name in virtualenv.REQUIRED_MODULES:
+            py_base = self.target_path.descendant(
+                ['lib', 'python2.7', module_name])
+            py = py_base.siblingExtension('.py')
+            if py.exists() and py.islink():
+                pyc = py_base.siblingExtension('.pyc')
+                py_target = py.realpath()
+                pyc_target = FilePath(
+                    py_target.splitext()[0]).siblingExtension('.pyc')
+
+                if pyc.exists():
+                    pyc.remove()
+
+                if pyc_target.exists():
+                    pyc_target.linkTo(pyc)
 
 
 @attributes(['virtualenv_path', 'package_uri'])
