@@ -212,6 +212,7 @@ Release
                 vagrant ssh -- -A
 
 #. Change your working directory to be the Flocker release branch working directory.
+   # TODO clone and check out the flocker release branch - it isn't in the VM now
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
