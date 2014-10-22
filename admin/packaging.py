@@ -82,7 +82,7 @@ from textwrap import dedent
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
 import virtualenv
 
 from .release import make_rpm_version
@@ -266,7 +266,8 @@ class GetPackageVersion(object):
 @attributes(
     ['package_type', 'destination_path', 'source_path', 'name', 'prefix',
      'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
-     'architecture', 'description'])
+     'architecture', 'description',
+     Attribute('after_install', default_value=None)])
 class BuildPackage(object):
     """
     Use ``fpm`` to build an RPM file from the supplied ``source_path``.
