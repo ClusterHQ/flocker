@@ -695,12 +695,6 @@ class SumoPackageBuilderTests(TestCase):
                 InstallApplication(virtualenv_path=expected_virtualenv_path,
                                    package_uri=expected_package_uri),
                 expected_package_version_step,
-                CreateLinks(
-                    prefix=expected_target_path,
-                    source_path=expected_virtualenv_path.child('bin'),
-                    pattern='flocker-*',
-                    destination_path=expected_sysbin_path,
-                ),
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
