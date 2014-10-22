@@ -102,21 +102,6 @@ def _clean_node(ip):
     return d
 
 
-def create_remote_docker_client(ip, port):
-    """
-    Create and return a ``DockerClient`` using a TCP connection string
-    as the base URL.
-
-    :param str ip: The IP address or hostname of the target Docker API.
-
-    :param int port: The port number to connect on.
-
-    :returns: A ``DockerClient`` instance.
-    """
-    base_url = ''.join(['tcp://', ip, ':', str(port)])
-    return DockerClient(base_url=base_url)
-
-
 def get_nodes(num_nodes):
     """
     Create ``num_nodes`` nodes with no Docker containers on them.
