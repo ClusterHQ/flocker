@@ -85,24 +85,3 @@ check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 check_call(['mkdir', '-p', '/opt/flocker'])
 check_call(['truncate', '--size', '1G', '/opt/flocker/pool-vdev'])
 check_call(['zpool', 'create', 'flocker', '/opt/flocker/pool-vdev'])
-
-# Allow the Docker API to be used over TCP
-# See https://coreos.com/docs/launching-containers/building/customizing-docker/
-# for details
-with open('/etc/systemd/system/docker-tcp.socket', 'w') as f:
-    config = """\
-[Unit]
-Description=Docker Socket for the API
-
-[Socket]
-ListenStream=2375
-BindIPv6Only=both
-Service=docker.service
-
-[Install]
-WantedBy=sockets.target
-"""
-    f.write(config)
-
-check_call(['systemctl', 'daemon-reload'])
-check_call(['systemctl', 'enable', 'docker-tcp.socket'])
