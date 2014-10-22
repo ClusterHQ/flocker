@@ -294,7 +294,7 @@ class BuildPackage(object):
     """
     def run(self):
         # Remove newly compiled bytecode from the package.
-        for path in self.source_path.walk():
+        for path in self.source_path.walk(descend=lambda f: not f.islink()):
             basename, extension = path.splitext()
             if not path.islink() and extension in ('.pyc', 'pyo'):
                 path.remove()
