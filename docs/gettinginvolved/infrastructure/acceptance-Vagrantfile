@@ -39,15 +39,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.cache.scope = :box
   end
 
-  # TODO increment these IP addresses by 2, and change get_nodes in utils.py
-  # to reference the new IP addresses.
   config.vm.define "node1" do |node1|
-    node1.vm.network :private_network, :ip => "172.16.255.250"
+    node1.vm.network :private_network, :ip => "172.16.255.251"
     node1.vm.hostname = "node1"
   end
 
   config.vm.define "node2" do |node2|
-    node2.vm.network :private_network, :ip => "172.16.255.251"
+    node2.vm.network :private_network, :ip => "172.16.255.252"
     node2.vm.hostname = "node2"
   end
 

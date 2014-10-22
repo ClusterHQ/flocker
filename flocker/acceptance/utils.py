@@ -105,14 +105,14 @@ def get_nodes(num_nodes):
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
     XXX This is a temporary solution which ignores num_nodes and returns the IP
-    addresses of the tutorial VMs which must already be started. num_nodes
-    Docker containers will be created instead to replace this, see
+    addresses of the acceptance testing VMs which must already be started.
+    num_nodes Docker containers will be created instead to replace this, see
     https://github.com/ClusterHQ/flocker/issues/900
 
     :param int num_nodes: The number of nodes to start up.
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.250", b"172.16.255.251"])
+    nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
     # TODO Ping the nodes and give a sensible error if they aren't available.
     # Maybe skip the tests if they're not
