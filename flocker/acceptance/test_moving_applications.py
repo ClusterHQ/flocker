@@ -7,8 +7,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .utils import (assert_expected_deployment, flocker_deploy, get_nodes,
-                    require_flocker_cli)
+from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
+                        require_flocker_cli)
 
 
 class MovingApplicationTests(TestCase):
