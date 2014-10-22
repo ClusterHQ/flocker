@@ -390,6 +390,7 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=variables.copy(),
             links=frozenset(),
+            ports=None
         )
 
         StartApplication(application=application,
@@ -687,24 +688,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         An ``Application`` with ``Link`` objects is discovered from a ``Unit``
         with environment variables that correspond to an exposed link.
         """
-        environment = Environment(variables=frozenset((
-            ('APACHE_PORT_80_TCP', 'tcp://example.com:8080'),
-            ('APACHE_PORT_80_TCP_PROTO', 'tcp'),
-            ('APACHE_PORT_80_TCP_ADDR', 'example.com'),
-            ('APACHE_PORT_80_TCP_PORT', '8080'))
-        ))
-        unit1 = Unit(name=u'site-example.com',
-                     container_name=u'site-example.com',
-                     container_image=u'clusterhq/wordpress:latest',
-                     environment=environment,
-                     activation_state=u'active')
-        units = {unit1.name: unit1}
-
-        fake_docker = FakeDockerClient(units=units)
+        fake_docker = FakeDockerClient()
         applications = [
             Application(
-                name=unit1.name,
-                image=DockerImage.from_string(unit1.container_image),
+                name=u'site-example.com',
+                image=DockerImage.from_string(u'clusterhq/wordpress:latest'),
                 links=frozenset([
                     Link(local_port=80, remote_port=8080, alias='APACHE')
                 ])
@@ -715,6 +703,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             docker_client=fake_docker,
             network=self.network
         )
+        for app in applications:
+            StartApplication(
+                hostname='node1.example.com', application=app
+            ).run(api)
         d = api.discover_node_configuration()
 
         self.assertEqual(sorted(applications),
@@ -1508,13 +1500,14 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     def test_restart_application_once_only(self):
         """
         An ``Application`` will only be added once to the list of applications
-        to restart.
+        to restart even if there are different reasons to restart it (it is
+        not running and its setup has changed).
         """
         unit = Unit(
             name=u'postgres-example',
             container_name=u'postgres-example',
             container_image=u'clusterhq/postgres:latest',
-            activation_state=u'active'
+            activation_state=u'inactive'
         )
         docker = FakeDockerClient(units={unit.name: unit})
 
@@ -1559,13 +1552,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ),
             InParallel(changes=[
                 Sequentially(changes=[
-                    StopApplication(application=old_postgres_app),
+                    StopApplication(application=new_postgres_app),
                     StartApplication(application=new_postgres_app,
                                      hostname=u'node1.example.com')
                 ])
             ])
         ])
-
         self.assertEqual(expected, self.successResultOf(d))
 
     def test_app_with_changed_image_restarted(self):
@@ -1700,29 +1692,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         application's current state is added to the list of applications to
         restart.
         """
-        unit1 = Unit(
-            name=u'postgres-example',
-            container_name=u'postgres-example',
-            container_image=u'clusterhq/postgres:latest',
-            activation_state=u'active'
-        )
-        unit2 = Unit(
-            name=u'wordpress-example',
-            container_name=u'wordpress-example',
-            container_image=u'clusterhq/wordpress:latest',
-            environment=Environment(variables=frozenset([
-                ('POSTGRES_PORT_5432_TCP', 'tcp://node1.example.com:50432'),
-                ('POSTGRES_PORT_5432_TCP_PROTO', 'tcp'),
-                ('POSTGRES_PORT_5432_TCP_ADDR', 'node1.example.com'),
-                ('POSTGRES_PORT_5432_TCP_PORT', '50432'),
-            ])),
-            activation_state=u'active'
-        )
-
-        docker = FakeDockerClient(units={
-            unit1.name: unit1,
-            unit2.name: unit2,
-        })
+        docker = FakeDockerClient()
 
         api = Deployer(
             create_volume_service(self), docker_client=docker,
@@ -1744,6 +1714,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             name=u'postgres-example',
             image=DockerImage.from_string(u'clusterhq/postgres:latest')
         )
+
+        StartApplication(hostname=u'node1.example.com',
+                         application=postgres_app).run(api)
+
+        StartApplication(hostname=u'node1.example.com',
+                         application=old_wordpress_app).run(api)
 
         new_wordpress_app = Application(
             name=u'wordpress-example',
