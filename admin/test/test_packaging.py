@@ -791,9 +791,8 @@ class SumoPackageBuilderTests(TestCase):
             'rpm', destination_path, FLOCKER_PATH.path,
             target_dir=target_dir).run()
 
-        rpms = glob('{}*.rpm'.format(
-            destination_path.child(expected_name).path))
-        self.assertEqual(1, len(rpms))
+        rpms = glob('{}/*.rpm'.format(destination_path.path))
+        self.assertEqual(3, len(rpms))
 
         expected_headers = dict(
             Name=expected_name,
@@ -828,9 +827,8 @@ class SumoPackageBuilderTests(TestCase):
 
         sumo_package_builder('deb', destination_path, FLOCKER_PATH.path).run()
 
-        packages = glob('{}*.deb'.format(
-            destination_path.child(expected_name).path))
-        self.assertEqual(1, len(packages))
+        packages = glob('{}/*.deb'.format(destination_path.path))
+        self.assertEqual(3, len(packages))
 
         expected_headers = dict(
             Package=expected_name,
