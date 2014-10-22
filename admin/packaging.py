@@ -79,6 +79,7 @@ from subprocess import check_call, check_output
 from tempfile import mkdtemp
 from textwrap import dedent
 
+from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
 from twisted.python import usage
 
@@ -372,6 +373,14 @@ class DelayedRpmVersion(object):
         return self.rpm_version.release
 
 
+class PACKAGE(Values):
+    EPOCH = ValueConstant(b'0')
+    LICENSE = ValueConstant(b'ASL 2.0')
+    URL = ValueConstant(b'https://clusterhq.com')
+    VENDOR = ValueConstant(b'ClusterHQ')
+    MAINTAINER = ValueConstant(b'noreply@build.clusterhq.com')
+
+
 def sumo_package_builder(
         package_type, destination_path, package_uri, target_dir=None):
     """
@@ -433,13 +442,13 @@ def sumo_package_builder(
                 source_path=python_flocker_path,
                 name='python-flocker',
                 prefix=FilePath('/'),
-                epoch=b'0',
+                epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
                     package_version_step=get_package_version_step),
-                license='ASL 2.0',
-                url='https://clusterhq.com',
-                vendor='ClusterHQ',
-                maintainer='noreply@build.clusterhq.com',
+                license=PACKAGE.LICENSE.value,
+                url=PACKAGE.URL.value,
+                vendor=PACKAGE.VENDOR.value,
+                maintainer=PACKAGE.MAINTAINER.value,
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
@@ -459,13 +468,13 @@ def sumo_package_builder(
                 source_path=flocker_cli_path,
                 name='flocker-cli',
                 prefix=FilePath('/'),
-                epoch=b'0',
+                epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
                     package_version_step=get_package_version_step),
-                license='ASL 2.0',
-                url='https://clusterhq.com',
-                vendor='ClusterHQ',
-                maintainer='noreply@build.clusterhq.com',
+                license=PACKAGE.LICENSE.value,
+                url=PACKAGE.URL.value,
+                vendor=PACKAGE.VENDOR.value,
+                maintainer=PACKAGE.MAINTAINER.value,
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
@@ -487,13 +496,13 @@ def sumo_package_builder(
                 source_path=flocker_node_path,
                 name='flocker-node',
                 prefix=FilePath('/'),
-                epoch=b'0',
+                epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
                     package_version_step=get_package_version_step),
-                license='ASL 2.0',
-                url='https://clusterhq.com',
-                vendor='ClusterHQ',
-                maintainer='noreply@build.clusterhq.com',
+                license=PACKAGE.LICENSE.value,
+                url=PACKAGE.URL.value,
+                vendor=PACKAGE.VENDOR.value,
+                maintainer=PACKAGE.MAINTAINER.value,
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
