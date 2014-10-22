@@ -34,6 +34,7 @@ class DeploymentTests(TestCase):
             node_1, node_2 = node_ips
 
             application = u"mongodb-example"
+            # TODO Import this image name from utils (and for other tests)
             image = u"clusterhq/mongodb"
 
             minimal_deployment = {
