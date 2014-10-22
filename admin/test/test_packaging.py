@@ -386,31 +386,23 @@ class CreateLinksTests(TestCase):
     def test_run(self):
         """
         ``CreateLinks.run`` generates symlinks in ``destination_path`` for all
-        the files in ``source_path`` that match ``pattern``. The link targets
-        are absolute paths relative to the ``prefix``.
+        the supplied ``links``.
         """
         root = FilePath(self.mktemp())
-        flocker_bin = root.descendant(['opt', 'flocker', 'bin'])
-        flocker_bin.makedirs()
-        flocker_scripts = ('flocker-one', 'flocker-two')
-        foreign_scripts = ('foo-one', 'bar-one')
-        for script in flocker_scripts + foreign_scripts:
-            flocker_bin.child(script).setContent('A script called ' + script)
-
-        system_bin = root.descendant(['usr', 'bin'])
-        system_bin.makedirs()
+        bin_dir = root.descendant(['usr', 'bin'])
+        bin_dir.makedirs()
 
         CreateLinks(
-            prefix=root,
-            source_path=flocker_bin,
-            pattern='flocker-*',
-            destination_path=system_bin
+            links=[
+                (FilePath('/opt/flocker/bin/flocker-foo'), bin_dir),
+                (FilePath('/opt/flocker/bin/flocker-bar'), bin_dir),
+            ]
         ).run()
 
         self.assertEqual(
             [FilePath('/opt/flocker/bin').child(script)
-             for script in flocker_scripts],
-            [child.realpath() for child in system_bin.children()]
+             for script in ('flocker-foo', 'flocker-bar')],
+            [child.realpath() for child in bin_dir.children()]
         )
 
 
@@ -667,8 +659,15 @@ class SumoPackageBuilderTests(TestCase):
         """
         expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
-        expected_target_path = FilePath(self.mktemp())
-        expected_virtualenv_path = expected_target_path.descendant(
+
+        target_path = FilePath(self.mktemp())
+        python_flocker_path = target_path.child('python-flocker')
+        flocker_cli_path = target_path.child('flocker-cli')
+        flocker_cli_bin_path = flocker_cli_path.descendant(['usr', 'bin'])
+        flocker_node_path = target_path.child('flocker-node')
+        flocker_node_bin_path = flocker_node_path.descendant(['usr', 'bin'])
+
+        expected_virtualenv_path = python_flocker_path.descendant(
             ['opt', 'flocker'])
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
@@ -690,6 +689,7 @@ class SumoPackageBuilderTests(TestCase):
 
         expected = BuildSequence(
             steps=(
+                # python-flocker steps
                 InstallVirtualEnv(target_path=expected_virtualenv_path),
                 InstallApplication(virtualenv_path=expected_virtualenv_path,
                                    package_uri=expected_package_uri),
@@ -697,7 +697,7 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_path=expected_target_path,
+                    source_path=python_flocker_path,
                     name='python-flocker',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -711,7 +711,15 @@ class SumoPackageBuilderTests(TestCase):
                     after_install=FilePath(__file__).parent().parent().child(
                         'after_install.sh'
                     )
-                )
+                ),
+
+                # flocker-cli steps
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/flocker-deploy'),
+                         flocker_cli_bin_path),
+                    ]
+                ),
             )
         )
         assert_equal_steps(
@@ -720,7 +728,7 @@ class SumoPackageBuilderTests(TestCase):
             sumo_package_builder(expected_package_type,
                                  expected_destination_path,
                                  expected_package_uri,
-                                 target_dir=expected_target_path))
+                                 target_dir=target_path))
 
 
     @require_fpm

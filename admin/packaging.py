@@ -209,19 +209,18 @@ class InstallApplication(object):
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
 
-@attributes(['prefix', 'source_path', 'pattern', 'destination_path'])
+@attributes(['links'])
 class CreateLinks(object):
     """
-    Create symlinks in ``destination_path`` to the files in ``source_path``
-    which match ``pattern``. The links will be absolute paths relative to
-    ``prefix``.
+    Create symlinks to the files in ``links``.
     """
     def run(self):
-        for child in self.source_path.globChildren(self.pattern):
-            absolute_child = FilePath('/').descendant(
-                child.segmentsFrom(self.prefix))
-            absolute_child.linkTo(
-                self.destination_path.child(child.basename()))
+        for target, link in self.links:
+            if link.isdir():
+                name = link.child(target.basename())
+            else:
+                name = link
+            target.linkTo(name)
 
 
 @attributes(['virtualenv_path', 'package_name'])
@@ -403,9 +402,18 @@ def sumo_package_builder(
     """
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
+
+    python_flocker_path = target_dir.child('python-flocker')
+    python_flocker_path.makedirs()
+    flocker_cli_path = target_dir.child('flocker-cli')
+    flocker_cli_path.makedirs()
+    flocker_cli_bin_path = flocker_cli_path.descendant(['usr', 'bin'])
+    flocker_cli_bin_path.makedirs()
+    flocker_node_path = target_dir.child('flocker-node')
+    flocker_node_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt
-    virtualenv_dir = target_dir.descendant(['opt', 'flocker'])
+    virtualenv_dir = python_flocker_path.descendant(['opt', 'flocker'])
     virtualenv_dir.makedirs()
 
     get_package_version_step = GetPackageVersion(
@@ -420,7 +428,7 @@ def sumo_package_builder(
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
-                source_path=target_dir,
+                source_path=python_flocker_path,
                 name='python-flocker',
                 prefix=FilePath('/'),
                 epoch=b'0',
@@ -434,7 +442,16 @@ def sumo_package_builder(
                 description=(
                     'A Docker orchestration and volume management tool'),
                 after_install=FilePath(__file__).sibling('after_install.sh'),
-            )
+            ),
+
+            # flocker-cli steps
+            CreateLinks(
+                links=[
+                    (FilePath('/opt/flocker/bin/flocker-deploy'),
+                     flocker_cli_bin_path),
+                ]
+            ),
+
         )
     )
 
