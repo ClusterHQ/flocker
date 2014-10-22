@@ -116,6 +116,7 @@ def get_nodes(num_nodes):
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
     # Skip the test if the nodes are not available
+    # TODO This is very slow
     for node in nodes:
         response = system("ping -c 1 " + node)
         if response != 0:
