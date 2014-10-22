@@ -10,8 +10,9 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
-# Stop the Docker daemon and restart after 1 second, with an extra
-# command line parameter to allow the Docker API to be used over TCP.
+# Allow the Docker API to be used over TCP
+# See https://coreos.com/docs/launching-containers/building/customizing-docker/
+# for details
 $bootstrap = <<SCRIPT
 echo "[Unit]
 Description=Docker Socket for the API
