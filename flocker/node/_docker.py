@@ -255,7 +255,6 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        # TODO tests for the custom base_url
         self._client = Client(version="1.12", base_url=base_url)
 
     def _to_container_name(self, unit_name):
