@@ -174,7 +174,7 @@ You should now see that box listed:
    clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
    clusterhq/flocker-tutorial (virtualbox, 0)
 
-Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>`, to a new directory and rename it ``Vagrantfile``.
+Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
 Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
