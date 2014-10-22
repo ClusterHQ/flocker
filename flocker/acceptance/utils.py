@@ -20,8 +20,7 @@ __all__ = [
     'require_flocker_cli',
     ]
 
-# TODO have a wait_until method and call it from any test which needs an
-# active container github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
+
 
 # TODO Change how the box is built. Inherit from the tutorial one for a new
 # one?
@@ -180,6 +179,9 @@ def assert_expected_deployment(test_case, expected_deployment):
         [DockerClient(base_url=u'tcp://' + node + u':2375').list() for node in
          sorted_nodes])
 
+    # XXX Wait for the unit states to be as expected using wait_for_unit_state
+    # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
+    # See https://github.com/ClusterHQ/flocker/issues/937
     d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
         {node: units_sorted_by_node.pop() for node in reversed(sorted_nodes)},
         expected_deployment
