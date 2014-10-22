@@ -74,9 +74,6 @@ class MovingDataTests(TestCase):
                     },
                 }
 
-                # TODO Assert that mongo is running in the right place after
-                # this:
-                # github.com/ClusterHQ/flocker/pull/897#discussion_r19028899
                 flocker_deploy(self, volume_deployment_moved,
                                volume_application)
 
