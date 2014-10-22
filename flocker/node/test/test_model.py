@@ -79,7 +79,7 @@ class ApplicationInitTests(make_with_init_tests(
         ports=None, volume=None, environment=None,
         links=frozenset(),
     ),
-    expected_defaults={'links': None},
+    expected_defaults={'links': frozenset()},
 )):
     """
     Tests for ``Application.__init__``.

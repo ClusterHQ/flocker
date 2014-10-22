@@ -72,8 +72,8 @@ class AttachedVolume(object):
             ``AttachedVolume`` where the volume name will be the unit name
             and the mountpoint will be the unit's volume's container path.
 
-        :returns: An ``AttachedVolume`` instance, or None if there is no
-            volume within the supplied ``Unit`` instance.
+        :returns: A set of ``AttachedVolume`` instances, or None if there
+            is no volume within the supplied ``Unit`` instance.
         """
         volumes = set(unit.volumes)
         name = unit.name
@@ -81,14 +81,14 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
-            return cls(name=name, mountpoint=volume.container_path)
+            return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
 
 
 @attributes(["name", "image", "ports", "volume", "links", "environment"],
             defaults=dict(ports=frozenset(), volume=None,
-                          links=None, environment=None))
+                          links=frozenset(), environment=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
