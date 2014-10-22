@@ -25,9 +25,6 @@ __all__ = [
     'require_flocker_cli',
     ]
 
-# TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
-# Think about how to expose fewer implementation details in the tests
-
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
 # See https://github.com/ClusterHQ/flocker/issues/901.
