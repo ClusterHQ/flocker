@@ -408,9 +408,6 @@ def sumo_package_builder(
     virtualenv_dir = target_dir.descendant(['opt', 'flocker'])
     virtualenv_dir.makedirs()
 
-    bin_dir = target_dir.descendant(['usr', 'bin'])
-    bin_dir.makedirs()
-
     get_package_version_step = GetPackageVersion(
         virtualenv_path=virtualenv_dir, package_name='Flocker')
 
@@ -420,12 +417,6 @@ def sumo_package_builder(
             InstallApplication(virtualenv_path=virtualenv_dir,
                                package_uri=package_uri),
             get_package_version_step,
-            CreateLinks(
-                prefix=target_dir,
-                source_path=virtualenv_dir.child('bin'),
-                pattern='flocker-*',
-                destination_path=bin_dir
-            ),
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
