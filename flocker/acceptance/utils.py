@@ -185,34 +185,29 @@ def get_mongo_client(host, port=27017):
     return d
 
 
-def assert_expected_deployment(test_case, expected):
+def assert_expected_deployment(test_case, expected_deployment):
     """
     Assert that the set of units expected on a set of nodes is the same as
     the set of units on those nodes.
 
     :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected: A mapping of IP addresses to sets of units expected
-        on the nodes with those IP addresses.
+    :param dict expected_deployment: A mapping of IP addresses to sets of units
+        expected on the nodes with those IP addresses.
 
     :return: A ``Deferred`` which fires with an assertion that the set of units
-        on a group of nodes is the same as ``expected``.
+        on a group of nodes is the same as ``expected_deployment``.
     """
-    actual = {}
-    deferreds = []
-    sorted_nodes = sorted(expected.keys())
-    for node in sorted_nodes:
-        client = DockerClient(base_url=u'tcp://' + node + u':2375')
-        deferreds.append(client.list())
+    sorted_nodes = sorted(expected_deployment.keys())
 
-    def add_units(units):
-        """
-        units is a list of sets of all units on the expected nodes, sorted
-        by the IP address of the corresponding node.
-        """
+    d = gatherResults(
+        [DockerClient(base_url=u'tcp://' + node + u':2375').list() for node in
+         sorted_nodes])
+
+    def verify_expected_deployment(unit_sets_sorted_by_node):
+        actual_deployment = {}
         for node in reversed(sorted_nodes):
-            actual[node] = units.pop()
-        test_case.assertEqual(actual, expected)
+            actual_deployment[node] = unit_sets_sorted_by_node.pop()
+        test_case.assertEqual(actual_deployment, expected_deployment)
 
-    d = gatherResults(deferreds)
-    d.addCallback(add_units)
+    d.addCallback(verify_expected_deployment)
     return d
