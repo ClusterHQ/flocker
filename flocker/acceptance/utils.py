@@ -137,13 +137,9 @@ def get_nodes(num_nodes):
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
     nodes = set([b"172.16.255.250", b"172.16.255.251"])
-    # The problem with this is that anyone running "trial flocker" while
-    # their tutorial nodes are running may inadvertently remove all
-    # containers which are running on those nodes.
-    # TODO Temporarily require an environment variable to be set
-    # github.com/ClusterHQ/flocker/pull/897#discussion_r19024847
 
-    # XXX Ping the nodes and give a sensible error if they aren't available?
+    # TODO Ping the nodes and give a sensible error if they aren't available.
+    # Maybe skip the tests if they're not
     d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
     return d
