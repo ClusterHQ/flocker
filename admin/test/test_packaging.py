@@ -394,16 +394,16 @@ class CreateLinksTests(TestCase):
         bin_dir.makedirs()
 
         CreateLinks(
-            links=[
+            links=frozenset([
                 (FilePath('/opt/flocker/bin/flocker-foo'), bin_dir),
                 (FilePath('/opt/flocker/bin/flocker-bar'), bin_dir),
-            ]
+            ])
         ).run()
 
         self.assertEqual(
-            [FilePath('/opt/flocker/bin').child(script)
-             for script in ('flocker-foo', 'flocker-bar')],
-            [child.realpath() for child in bin_dir.children()]
+            set(FilePath('/opt/flocker/bin').child(script)
+                for script in ('flocker-foo', 'flocker-bar')),
+            set(child.realpath() for child in bin_dir.children())
         )
 
 
