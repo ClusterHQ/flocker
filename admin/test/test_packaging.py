@@ -617,6 +617,43 @@ class BuildPackageTests(TestCase):
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
 
+    def test_afterinstall(self):
+        """
+        ``BuildPackage.run`` adds the supplied ``after_install`` script as a
+        post install helper.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        after_install = FilePath(self.mktemp())
+        after_install.setContent(dedent("""
+        #!/bin/sh
+        echo "FooBarBaz"
+        """))
+        BuildPackage(
+            package_type="rpm",
+            destination_path=destination_path,
+            source_path=source_path,
+            name='FooBar',
+            prefix=FilePath('/opt/Foo'),
+            epoch='1',
+            rpm_version=make_rpm_version('1'),
+            license='A license',
+            url='http://www.example.com',
+            vendor='The Vendor',
+            maintainer='The Maintainer',
+            architecture='native',
+            description='The Description',
+            after_install=after_install,
+        ).run()
+        packages = glob('{}/*.rpm'.format(destination_path.path))
+        self.assertEqual(1, len(packages))
+        output = check_output(
+            ['rpm', '--query', '--scripts', '--package', packages[0]]
+        )
+        self.assertIn(after_install.getContent(), output)
+
 
 class SumoPackageBuilderTests(TestCase):
     """

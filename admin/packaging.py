@@ -307,6 +307,11 @@ class BuildPackage(object):
         for requirement in FLOCKER_DEPENDENCIES.get(self.package_type, []):
             depends_arguments.extend(['--depends', requirement])
 
+        if self.after_install is not None:
+            depends_arguments.extend(
+                ['--after-install', self.after_install.path]
+            )
+
         check_call([
             'fpm',
             '-s', 'dir',
