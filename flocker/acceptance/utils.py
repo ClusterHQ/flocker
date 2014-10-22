@@ -203,11 +203,9 @@ def assert_expected_deployment(test_case, expected_deployment):
         [DockerClient(base_url=u'tcp://' + node + u':2375').list() for node in
          sorted_nodes])
 
-    def verify_expected_deployment(unit_sets_sorted_by_node):
-        actual_deployment = {}
-        for node in reversed(sorted_nodes):
-            actual_deployment[node] = unit_sets_sorted_by_node.pop()
-        test_case.assertEqual(actual_deployment, expected_deployment)
+    d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
+        {node: units_sorted_by_node.pop() for node in reversed(sorted_nodes)},
+        expected_deployment
+    ))
 
-    d.addCallback(verify_expected_deployment)
     return d
