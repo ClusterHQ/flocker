@@ -20,8 +20,6 @@ __all__ = [
     'require_flocker_cli',
     ]
 
-
-
 # TODO Change how the box is built. Inherit from the tutorial one for a new
 # one?
 
