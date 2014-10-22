@@ -5,8 +5,6 @@
 Deploy applications on nodes.
 """
 
-import re
-
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
@@ -333,18 +331,21 @@ class Deployer(object):
                         external_port=portmap.external_port
                     ))
                 links = []
-                link_pattern = re.compile(
-                    "^([A-Z0-9]+)_PORT_([0-9]+)_TCP_PORT$")
                 if unit.environment:
                     environment_dict = unit.environment.to_dict()
                     for label, value in environment_dict.items():
-                        link_match = re.match(link_pattern, label)
-                        if link_match is not None:
-                            link_identifiers = link_match.groups()
+                        # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
+                        parts = label.rsplit(b"_", 4)
+                        try:
+                            alias, pad_a, port, pad_b, pad_c = parts
+                            local_port = int(port)
+                        except ValueError:
+                            continue
+                        if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
                             links.append(Link(
-                                local_port=int(link_identifiers[1]),
+                                local_port=local_port,
                                 remote_port=int(value),
-                                alias=link_identifiers[0]
+                                alias=alias,
                             ))
                 application = Application(
                     name=unit.name,
