@@ -174,8 +174,12 @@ You should now see that box listed:
    clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
    clusterhq/flocker-tutorial (virtualbox, 0)
 
-Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but download `<this Vagrantfile>` instead of the tutorial's Vagrantfile.
-This launches Docker listening on a TCP socket on nodes with IP addresses 172.16.255.252 and 172.16.255.253 instead of the tutorial's 172.16.255.250 and 172.16.255.251.
+Download the :download:`acceptance testing Vagrantfile <Vagrantfile>`, to a new directory and rename it ``Vagrantfile``.
+
+Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
+
+    - Instead of downloading the tutorial's Vagrantfile, use the acceptance testing Vagrantfile.
+    - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.252 and 172.16.255.253).
 
 Run the automated acceptance tests and ensure that they all pass, with no skips:
 
