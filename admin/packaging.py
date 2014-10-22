@@ -411,6 +411,8 @@ def sumo_package_builder(
     flocker_cli_bin_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
+    flocker_node_bin_path = flocker_node_path.descendant(['usr', 'bin'])
+    flocker_node_bin_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt
     virtualenv_dir = python_flocker_path.descendant(['opt', 'flocker'])
@@ -456,6 +458,34 @@ def sumo_package_builder(
                 destination_path=destination_path,
                 source_path=flocker_cli_path,
                 name='flocker-cli',
+                prefix=FilePath('/'),
+                epoch=b'0',
+                rpm_version=DelayedRpmVersion(
+                    package_version_step=get_package_version_step),
+                license='ASL 2.0',
+                url='https://clusterhq.com',
+                vendor='ClusterHQ',
+                maintainer='noreply@build.clusterhq.com',
+                architecture='native',
+                description=(
+                    'A Docker orchestration and volume management tool'),
+            ),
+            # flocker-node steps
+            CreateLinks(
+                links=[
+                    (FilePath('/opt/flocker/bin/flocker-reportstate'),
+                     flocker_node_bin_path),
+                    (FilePath('/opt/flocker/bin/flocker-changestate'),
+                     flocker_node_bin_path),
+                    (FilePath('/opt/flocker/bin/flocker-volume'),
+                     flocker_node_bin_path),
+                ]
+            ),
+            BuildPackage(
+                package_type=package_type,
+                destination_path=destination_path,
+                source_path=flocker_node_path,
+                name='flocker-node',
                 prefix=FilePath('/'),
                 epoch=b'0',
                 rpm_version=DelayedRpmVersion(

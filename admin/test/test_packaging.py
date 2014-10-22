@@ -68,12 +68,13 @@ def assert_equal_steps(test_case, expected, actual):
             if expected_step != actual_step:
                 mismatch_steps.append('expected: {} != actual: {}'.format(
                     expected_step, actual_step))
-
-        if mismatch_steps or missing_steps:
+        extra_steps = actual_steps[index+1:]
+        if mismatch_steps or missing_steps or extra_steps:
             test_case.fail(
                 'Step Mismatch\n'
                 'Mismatch: {}\n'
-                'Missing: {}\n'.format(mismatch_steps, missing_steps)
+                'Missing: {}\n'
+                'Extra: {}'.format(mismatch_steps, missing_steps, extra_steps)
             )
 
 
@@ -725,6 +726,32 @@ class SumoPackageBuilderTests(TestCase):
                     destination_path=expected_destination_path,
                     source_path=flocker_cli_path,
                     name='flocker-cli',
+                    prefix=expected_prefix,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    license=expected_license,
+                    url=expected_url,
+                    vendor=expected_vendor,
+                    maintainer=expected_maintainer,
+                    architecture=expected_architecture,
+                    description=expected_description,
+                ),
+                # flocker-node steps
+                CreateLinks(
+                    links=[
+                        (FilePath('/opt/flocker/bin/flocker-reportstate'),
+                         flocker_node_bin_path),
+                        (FilePath('/opt/flocker/bin/flocker-changestate'),
+                         flocker_node_bin_path),
+                        (FilePath('/opt/flocker/bin/flocker-volume'),
+                         flocker_node_bin_path),
+                    ]
+                ),
+                BuildPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    source_path=flocker_node_path,
+                    name='flocker-node',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
                     rpm_version=expected_version,
