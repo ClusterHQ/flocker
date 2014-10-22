@@ -720,6 +720,21 @@ class SumoPackageBuilderTests(TestCase):
                          flocker_cli_bin_path),
                     ]
                 ),
+                BuildPackage(
+                    package_type=expected_package_type,
+                    destination_path=expected_destination_path,
+                    source_path=flocker_cli_path,
+                    name='flocker-cli',
+                    prefix=expected_prefix,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    license=expected_license,
+                    url=expected_url,
+                    vendor=expected_vendor,
+                    maintainer=expected_maintainer,
+                    architecture=expected_architecture,
+                    description=expected_description,
+                ),
             )
         )
         assert_equal_steps(

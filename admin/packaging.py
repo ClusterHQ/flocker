@@ -451,7 +451,23 @@ def sumo_package_builder(
                      flocker_cli_bin_path),
                 ]
             ),
-
+            BuildPackage(
+                package_type=package_type,
+                destination_path=destination_path,
+                source_path=flocker_cli_path,
+                name='flocker-cli',
+                prefix=FilePath('/'),
+                epoch=b'0',
+                rpm_version=DelayedRpmVersion(
+                    package_version_step=get_package_version_step),
+                license='ASL 2.0',
+                url='https://clusterhq.com',
+                vendor='ClusterHQ',
+                maintainer='noreply@build.clusterhq.com',
+                architecture='native',
+                description=(
+                    'A Docker orchestration and volume management tool'),
+            ),
         )
     )
 
