@@ -20,9 +20,6 @@ __all__ = [
     'require_flocker_cli',
     ]
 
-# TODO Change how the box is built. Inherit from the tutorial one for a new
-# one?
-
 # TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
 # Think about how to expose fewer implementation details in the tests
 
