@@ -137,6 +137,8 @@ def flocker_deploy(test_case, deployment_config, application_config):
     :param test_case: The ``TestCase`` running this unit test.
     :param dict deployment_config: The desired deployment configuration.
     :param dict application_config: The desired application configuration.
+
+    XXX Perhaps require_flocker_cli should instead be a ``raise SkipTest`` here
     """
     temp = FilePath(test_case.mktemp())
     temp.makedirs()
