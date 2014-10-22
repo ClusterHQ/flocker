@@ -6,7 +6,7 @@ Tests for movement of data across nodes.
 from twisted.trial.unittest import TestCase
 
 from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
-                        require_flocker_cli)
+                        require_flocker_cli, require_mongo)
 
 
 class MovingDataTests(TestCase):
@@ -17,6 +17,7 @@ class MovingDataTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
     @require_flocker_cli
+    @require_mongo
     def test_moving_data(self):
         """
         Moving an application moves that application's data with it. In

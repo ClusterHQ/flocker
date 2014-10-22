@@ -7,8 +7,13 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
-from .testtools import (flocker_deploy, get_nodes, require_flocker_cli,
-                        assert_expected_deployment)
+<<<<<<< HEAD
+from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
+                        require_flocker_cli, require_mongo)
+=======
+from .utils import (assert_expected_deployment, flocker_deploy, get_nodes,
+                    require_flocker_cli, )
+>>>>>>> 1d36615e76d6474bdf7e76a8c1048b361d0ebdc8
 
 
 class DeploymentTests(TestCase):
@@ -20,6 +25,7 @@ class DeploymentTests(TestCase):
     moving-applications.html#starting-an-application
     """
     @require_flocker_cli
+    @require_mongo
     def test_deploy(self):
         """
         Deploying an application to one node and not another puts the
