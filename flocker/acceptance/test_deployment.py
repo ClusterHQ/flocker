@@ -54,10 +54,6 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, minimal_deployment, minimal_application)
 
-            # TODO github.com/ClusterHQ/flocker/pull/897#discussion_r19024229
-            # This assertion setup code is very similar to the one in previous
-            # test; probably we can make utility assertion function that
-            # covers both cases.
             unit = Unit(name=application,
                         container_name=BASE_NAMESPACE + application,
                         activation_state=u'active',
