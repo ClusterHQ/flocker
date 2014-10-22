@@ -185,20 +185,17 @@ def get_mongo_client(host, port=27017):
     return d
 
 
-# TODO make this public
-# TODO can we remove remote docker client / put it in here / private?
 def assert_expected_deployment(test_case, expected):
     """
+    Assert that the set of units expected on a set of nodes is the same as
+    the set of units on those nodes.
+
     :param test_case: The ``TestCase`` running this unit test.
+    :param dict expected: A mapping of IP addresses to sets of units expected
+        on the nodes with those IP addresses.
 
-    # TODO better docstring
-
-    Expected: A dictionary mapping IP addresses to their expected deployments
-    e.g.
-    {
-        node1: set([some_unit]),
-        node2: set([])
-    }
+    :return: A ``Deferred`` which fires with an assertion that the set of units
+        on a group of nodes is the same as ``expected``.
     """
     actual = {}
     deferreds = []
