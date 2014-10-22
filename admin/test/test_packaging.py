@@ -617,10 +617,12 @@ class BuildPackageTests(TestCase):
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
 
+
+    @require_rpm
     def test_afterinstall(self):
         """
-        ``BuildPackage.run`` adds the supplied ``after_install`` script as a
-        post install helper.
+        ``BuildPackage.run`` adds the supplied ``after_install`` script to the
+        RPM as a post install script.
         """
         destination_path = FilePath(self.mktemp())
         destination_path.makedirs()
@@ -740,7 +742,10 @@ class SumoPackageBuilderTests(TestCase):
             ['python', 'setup.py', '--version'], cwd=FLOCKER_PATH.path).strip()
         expected_rpm_version = make_rpm_version(expected_python_version)
 
-        sumo_package_builder('rpm', destination_path, FLOCKER_PATH.path).run()
+        target_dir = FilePath(self.mktemp())
+        sumo_package_builder(
+            'rpm', destination_path, FLOCKER_PATH.path,
+            target_dir=target_dir).run()
 
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))

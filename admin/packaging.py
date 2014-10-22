@@ -442,6 +442,7 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
+                after_install=FilePath(__file__).sibling('after_install.sh'),
             )
         )
     )
