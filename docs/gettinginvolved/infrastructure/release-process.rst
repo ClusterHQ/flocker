@@ -178,7 +178,7 @@ Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>`
 
 Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
-    - Instead of downloading the tutorial's Vagrantfile, use the acceptance testing ``Vagrantfile``.
+    - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
     - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.252 and 172.16.255.253).
 
 Run the automated acceptance tests and ensure that they all pass, with no skips:
