@@ -174,17 +174,9 @@ You should now see that box listed:
    clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
    clusterhq/flocker-tutorial (virtualbox, 0)
 
-Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but change the ``config.vm.box_version`` in the ``Vagrantfile`` to ``0``.
+Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial, but download `<this Vagrantfile>` instead of the tutorial Vagrantfile; the version included here launches Docker listening on a TCP socket.
 
-.. code-block:: console
-   :emphasize-lines: 5
-
-   $ cat flocker-tutorial/Vagrantfile
-   ...
-   Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-       config.vm.box = "clusterhq/flocker-tutorial"
-       config.vm.box_version = "= 0"
-   ...
+.. note:: The IP addresses for the nodes created by this Vagrantfile are 172.16.255.252 and 172.16.255.253 so you will need to replace the IP addresses referenced in the tutorial documentation with these.
 
 Run the automated acceptance tests and ensure that they all pass, with no skips:
 
