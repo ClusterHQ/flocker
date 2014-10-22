@@ -7,13 +7,8 @@ from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
-<<<<<<< HEAD
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         require_flocker_cli, require_mongo)
-=======
-from .utils import (assert_expected_deployment, flocker_deploy, get_nodes,
-                    require_flocker_cli, )
->>>>>>> 1d36615e76d6474bdf7e76a8c1048b361d0ebdc8
 
 
 class DeploymentTests(TestCase):
