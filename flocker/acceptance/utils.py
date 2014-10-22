@@ -1,8 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
+from os import system
 from pipes import quote as shell_quote
 from subprocess import call, PIPE, Popen
-from unittest import skipUnless
+from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
 from pymongo import MongoClient
@@ -114,8 +115,12 @@ def get_nodes(num_nodes):
     """
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
-    # TODO Ping the nodes and give a sensible error if they aren't available.
-    # Maybe skip the tests if they're not
+    # Skip the test if the nodes are not available
+    for node in nodes:
+        response = system("ping -c 1 " + node)
+        if response != 0:
+          raise SkipTest("Acceptance testing nodes must be running.")
+
     d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
     return d
