@@ -668,7 +668,8 @@ class SumoPackageBuilderTests(TestCase):
         expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
         expected_target_path = FilePath(self.mktemp())
-        expected_virtualenv_path = expected_target_path.descendant(['opt', 'flocker'])
+        expected_virtualenv_path = expected_target_path.descendant(
+            ['opt', 'flocker'])
         expected_sysbin_path = expected_target_path.descendant(['usr', 'bin'])
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
