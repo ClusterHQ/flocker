@@ -23,7 +23,8 @@ __all__ = [
 # TODO have a wait_until method and call it from any test which needs an
 # active container github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
 
-# TODO Document how to build the vagrant tutorial / testing box
+# TODO Change how the box is built. Inherit from the tutorial one for a new
+# one?
 
 # TODO https://github.com/ClusterHQ/flocker/pull/897#issuecomment-59541962
 # Think about how to expose fewer implementation details in the tests
