@@ -38,6 +38,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.cache.scope = :box
   end
 
+  # TODO increment these IP addresses by 2, and change get_nodes in utils.py
+  # to reference the new IP addresses.
+  # TODO remove the new stuff from bootstrap.py
   config.vm.define "node1" do |node1|
     node1.vm.network :private_network, :ip => "172.16.255.250"
     node1.vm.hostname = "node1"
