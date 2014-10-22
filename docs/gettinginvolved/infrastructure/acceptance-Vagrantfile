@@ -13,10 +13,20 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 # Stop the Docker daemon and restart after 1 second, with an extra
 # command line parameter to allow the Docker API to be used over TCP.
 $bootstrap = <<SCRIPT
-set -e
-service docker stop
-sleep 5
-docker -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock -d &
+echo "[Unit]
+Description=Docker Socket for the API
+
+[Socket]
+ListenStream=2375
+BindIPv6Only=both
+Service=docker.service
+
+[Install]
+WantedBy=sockets.target" > /etc/systemd/system/docker-tcp.socket
+systemctl enable docker-tcp.socket
+systemctl stop docker
+systemctl start docker-tcp.socket
+systemctl start docker
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
