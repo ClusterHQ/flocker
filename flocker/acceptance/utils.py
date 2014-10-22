@@ -5,15 +5,19 @@ from subprocess import call, PIPE, Popen
 from unittest import skipUnless
 from yaml import safe_dump
 
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
+
 from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._docker import DockerClient
+from flocker.testtools import loop_until
 
 __all__ = [
-    'assertExpectedDeployment', 'flocker_deploy', 'get_nodes',
-    'require_flocker_cli', 'require_mongo',
+    'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
+    'require_flocker_cli',
     ]
 
 # TODO have a wait_until method and call it from any test which needs an
@@ -32,12 +36,6 @@ __all__ = [
 # See https://github.com/ClusterHQ/flocker/issues/901.
 require_flocker_cli = skipUnless(which("flocker-deploy"),
                                  "flocker-deploy not installed")
-
-# XXX This assumes that the desired version of mongo has been installed.
-# Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901.
-require_mongo = skipUnless(which("mongo"),
-                           "The mongo shell is not available.")
 
 
 def _run_SSH(port, user, node, command, input, key=None):
@@ -172,9 +170,24 @@ def flocker_deploy(test_case, deployment_config, application_config):
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
 
 
+def get_mongo_client(host, port=27017):
+    """
+    Returns a Deferred which fires with a MongoClient when one has been
+    created.
+    """
+    def create_mongo_client():
+        try:
+            return MongoClient(host=host, port=port)
+        except ConnectionFailure:
+            return False
+
+    d = loop_until(create_mongo_client)
+    return d
+
+
 # TODO make this public
 # TODO can we remove remote docker client / put it in here / private?
-def assertExpectedDeployment(test_case, expected):
+def assert_expected_deployment(test_case, expected):
     """
     :param test_case: The ``TestCase`` running this unit test.
 

@@ -3,14 +3,10 @@
 """
 Tests for movement of data across nodes.
 """
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-
 from twisted.trial.unittest import TestCase
 
-from flocker.testtools import loop_until
-from .utils import (flocker_deploy, get_nodes, require_flocker_cli,
-                    require_mongo)
+from .utils import (flocker_deploy, get_mongo_client, get_nodes,
+                    require_flocker_cli)
 
 
 class MovingDataTests(TestCase):
@@ -20,7 +16,6 @@ class MovingDataTests(TestCase):
     Similar to:
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/volumes.html
     """
-    @require_mongo
     @require_flocker_cli
     def test_moving_data(self):
         """
@@ -64,13 +59,7 @@ class MovingDataTests(TestCase):
 
             flocker_deploy(self, volume_deployment, volume_application)
 
-            def create_mongo_client():
-                try:
-                    return MongoClient(node_1)
-                except ConnectionFailure:
-                    return False
-
-            d = loop_until(create_mongo_client)
+            d = get_mongo_client(node_1)
 
             def verify_data_moves(client_1):
                 database_1 = client_1.example
@@ -91,10 +80,13 @@ class MovingDataTests(TestCase):
                 flocker_deploy(self, volume_deployment_moved,
                                volume_application)
 
-                # TODO use the wait_for_mongo util here
-                client_2 = MongoClient(node_2)
-                database_2 = client_2.example
-                self.assertEqual(data, database_2.posts.find_one())
+                d = get_mongo_client(node_2)
+
+                d.addCallback(lambda client_2: self.assertEqual(
+                    data,
+                    client_2.example.posts.find_one()))
+
+                return d
 
             d.addCallback(verify_data_moves)
             return d

@@ -3,17 +3,12 @@
 """
 Tests for communication to applications across nodes.
 """
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-
 from twisted.trial.unittest import TestCase
 
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
-from flocker.testtools import loop_until
-
-from .utils import (assertExpectedDeployment, flocker_deploy, get_nodes,
-                    require_flocker_cli, require_mongo)
+from .utils import (assert_expected_deployment, flocker_deploy,
+                    get_mongo_client, get_nodes, require_flocker_cli)
 
 
 class PortsTests(TestCase):
@@ -81,14 +76,13 @@ class PortsTests(TestCase):
                                 external_port=self.external_port)
                     ]))
 
-        d = assertExpectedDeployment(self, {
+        d = assert_expected_deployment(self, {
             self.node_1: set([unit]),
             self.node_2: set([]),
         })
 
         return d
 
-    @require_mongo
     def test_traffic_routed(self):
         """
         An application can be accessed even from a connection to a node
@@ -96,24 +90,19 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        def create_mongo_client():
-            try:
-                return MongoClient(self.node_1, self.external_port)
-            except ConnectionFailure:
-                return False
-
-        # TODO Make this whole loop a test utility
-        d = loop_until(create_mongo_client)
+        d = get_mongo_client(self.node_1, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
             posts_1.insert({u"the data": u"it moves"})
 
-            self.assertEqual(
+            d = get_mongo_client(self.node_2, self.external_port)
+            d.addCallback(lambda client_2: self.assertEqual(
                 posts_1.find_one(),
-                MongoClient(self.node_2,
-                            self.external_port).example.posts.find_one()
-            )
+                client_2.example.posts.find_one()
+            ))
+
+            return d
 
         d.addCallback(verify_traffic_routed)
         return d

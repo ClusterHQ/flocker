@@ -8,7 +8,7 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
 from .utils import (flocker_deploy, get_nodes,
-                    require_flocker_cli, assertExpectedDeployment)
+                    require_flocker_cli, assert_expected_deployment)
 
 
 class DeploymentTests(TestCase):
@@ -64,7 +64,7 @@ class DeploymentTests(TestCase):
                         container_image=image + u':latest',
                         ports=frozenset([]))
 
-            d = assertExpectedDeployment(self, {
+            d = assert_expected_deployment(self, {
                 node_1: set([unit]),
                 node_2: set([]),
             })
