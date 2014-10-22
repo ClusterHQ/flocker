@@ -6,15 +6,19 @@ from subprocess import call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
-
 from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._docker import DockerClient
 from flocker.testtools import loop_until
+
+try:
+    from pymongo import MongoClient
+    from pymongo.errors import ConnectionFailure
+    PYMONGO_INSTALLED = True
+except ImportError:
+    PYMONGO_INSTALLED = False
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
@@ -29,6 +33,9 @@ __all__ = [
 # See https://github.com/ClusterHQ/flocker/issues/901.
 require_flocker_cli = skipUnless(which("flocker-deploy"),
                                  "flocker-deploy not installed")
+
+require_mongo = skipUnless(
+    PYMONGO_INSTALLED, "PyMongo not installed")
 
 
 def _run_SSH(port, user, node, command, input, key=None):

@@ -8,7 +8,8 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
 from .utils import (assert_expected_deployment, flocker_deploy,
-                    get_mongo_client, get_nodes, require_flocker_cli)
+                    get_mongo_client, get_nodes, require_flocker_cli,
+                    require_mongo)
 
 
 class PortsTests(TestCase):
@@ -83,6 +84,7 @@ class PortsTests(TestCase):
 
         return d
 
+    @require_mongo
     def test_traffic_routed(self):
         """
         An application can be accessed even from a connection to a node
