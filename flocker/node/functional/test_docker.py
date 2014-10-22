@@ -107,7 +107,7 @@ class GenericDockerClientTests(TestCase):
         ``DockerClient`` instantiated with a custom base URL for a TCP
         connection has a client HTTP url after the connection is made.
         """
-        client = DockerClient(base_url=u'unix://var/run/docker.sock')
+        client = DockerClient()
         self.assertEqual(client._client.base_url,
                          u'http+unix://var/run/docker.sock')
 
