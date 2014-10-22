@@ -116,11 +116,10 @@ def get_nodes(num_nodes):
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
     # Skip the test if the nodes are not available
-    # TODO This is very slow
     for node in nodes:
-        response = system("ping -c 1 " + node)
+        response = system("ping -c 1 -n -w 5 " + node)
         if response != 0:
-          raise SkipTest("Acceptance testing nodes must be running.")
+            raise SkipTest("Acceptance testing nodes must be running.")
 
     d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
