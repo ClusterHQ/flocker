@@ -121,7 +121,7 @@ def get_nodes(num_nodes):
 
     # Skip the test if the nodes are not available
     for node in nodes:
-        response = system("ping -c 1 -n -w 5 " + node)
+        response = system("ping -c 1 -n " + node)
         if response != 0:
             raise SkipTest("Acceptance testing nodes must be running.")
 
