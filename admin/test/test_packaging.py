@@ -184,7 +184,7 @@ def assert_rpm_requires(test_case, expected_requirements, rpm_path):
             missing_requirements, rpm_path.path))
 
 
-def fake_virtual_env(test_case):
+def canned_virtual_env(test_case):
     """
     Create a directory containing a fake pip executable which records its
     arguments when executed.
@@ -371,13 +371,13 @@ class InstallApplicationTests(TestCase):
         ``target_path``.
         """
         expected_package_uri = '/foo/bar'
-        fake_env = fake_virtual_env(self)
+        virtual_env = canned_virtual_env(self)
         InstallApplication(
-            virtualenv_path=fake_env.path,
+            virtualenv_path=virtual_env.path,
             package_uri=expected_package_uri
         ).run()
         expected_pip_args = ['--quiet', 'install', expected_package_uri]
-        fake_env.assert_pip_args(expected_pip_args)
+        virtual_env.assert_pip_args(expected_pip_args)
 
 
 class CreateLinksTests(TestCase):
