@@ -336,13 +336,13 @@ Release
 
    The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
 
-   - Checkout the `homebrew-tap`_ repository.
+   - Checkout the `homebrew-tap`_ repository:
 
      .. code-block:: console
 
         git clone git@github.com:ClusterHQ/homebrew-tap.git
 
-   - Create a release branch
+   - Create a release branch:
 
      .. code-block:: console
 
@@ -351,33 +351,33 @@ Release
 
    - Create a ``flocker-${VERSION}.rb`` file by copying the last recipe file and renaming it for this release.
 
-   - Update recipe file
+   - Update recipe file:
 
-     - Update the version number
+     - Update the version number:
 
        The version number is included in the class name with all dots and dashes removed.
        e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
 
-     - Update the URL
+     - Update the URL:
 
        The version number is also included in the ``url`` part of the recipe.
 
-     - Update the ``sha1`` checksum.
+     - Update the ``sha1`` checksum:
 
        .. code-block:: console
 
           sha1sum "dist/Flocker-${VERSION}.tar.gz"
           ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
 
-     - Commit the changes and push
+     - Commit the changes and push:
 
        .. code-block:: console
 
-          # TODO This doesn't add untracked files, explicitly add the file
-          git commit -am "Bumped version number and checksum in Homebrew recipe"
+          git add *new recipe*
+          git commit -m "New Homebrew recipe with bumped version number and checksum"
           git push
 
-   - Test the new recipe on OS X with `Homebrew`_ installed
+   - Test the new recipe on OS X with `Homebrew`_ installed:
 
      Try installing the new recipe directly from a GitHub link
 
@@ -386,14 +386,13 @@ Release
         brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
 
-   - Make a pull request
+   - Make a pull request:
 
      Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
 
      Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
 
    - Do not continue until the pull request is merged.
-
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Build tagged docs at Read the Docs:
