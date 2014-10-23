@@ -192,10 +192,10 @@ class FakeVirtualEnv(object):
             initial_packages = []
         self._packages = initial_packages
 
-    def install(self, package):
+    def install(self, package_uri):
         """
         """
-        self._packages.append(package)
+        self._packages.append(PythonPackage.from_uri(package_uri))
 
     def packages(self):
         """
@@ -351,6 +351,20 @@ class CreateVirtualenvTests(TestCase):
             )
 
 
+    def test_install(self):
+        """
+        ``VirtualEnv.install`` accepts a ``PythonPackage`` instance and installs
+        it.
+        """
+        target_path = FilePath(self.mktemp())
+        virtualenv = create_virtualenv(root=target_path)
+        package_root = FilePath(self.mktemp())
+        expected_package = canned_package(root=package_root)
+        virtualenv.install(package_uri=package_root.path)
+        self.assertIn(expected_package, virtualenv.packages())
+
+
+
 class InstallApplicationTests(TestCase):
     """
     Tests for ``InstallApplication``.
@@ -360,15 +374,15 @@ class InstallApplicationTests(TestCase):
         ``InstallApplication.run`` installs the supplied application in the
         ``target_path``.
         """
-        expected_package = PythonPackage(
-            uri='/foo/bar', name='Bar', version='1.2.3')
+        package_uri = 'http://www.example.com/Bar-1.2.3.whl'
         fake_env = FakeVirtualEnv()
         InstallApplication(
             virtualenv=fake_env,
-            package=expected_package
+            package_uri=package_uri
         ).run()
 
-        self.assertEqual([expected_package], fake_env.packages())
+        self.assertEqual(
+            [PythonPackage.from_uri(package_uri)], fake_env.packages())
 
 
 class CreateLinksTests(TestCase):
@@ -398,7 +412,7 @@ class CreateLinksTests(TestCase):
         )
 
 
-def canned_package(test_case):
+def canned_package(root):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
@@ -408,7 +422,6 @@ def canned_package(test_case):
     """
     version = '1.2.3'
     name = 'FooBar'
-    root = FilePath(test_case.mktemp())
     root.makedirs()
     setup_py = root.child('setup.py')
     setup_py.setContent(
@@ -423,7 +436,7 @@ def canned_package(test_case):
         """).format(package_name=name, package_version=version)
     )
 
-    return PythonPackage(uri=root.path, name=name, version=version)
+    return PythonPackage(name=name, version=version)
 
 
 class GetPackageVersionTests(TestCase):
@@ -444,8 +457,7 @@ class GetPackageVersionTests(TestCase):
         """
         test_env = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=test_env).run()
-
-        test_package = canned_package(self)
+        test_package = canned_package(root=FilePath(self.mktemp()))
         InstallApplication(
             virtualenv_path=test_env, package_uri=test_package.root.path).run()
 
