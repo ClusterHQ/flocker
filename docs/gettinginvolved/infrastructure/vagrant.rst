@@ -37,8 +37,8 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
 (If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
 
+# TODO does this have an API?
 Then add a version on `Vagrant Cloud (flocker-dev) <https://vagrantcloud.com/clusterhq/flocker-dev>`_ or `Vagrant Cloud (flocker-tutorial) <https://vagrantcloud.com/clusterhq/flocker-tutorial>`_ as applicable.
-The version on Vagrant Cloud should be the version with ``-`` replaced with ``.``.
 
 Testing
 ^^^^^^^
