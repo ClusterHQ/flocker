@@ -6,7 +6,8 @@ Tests for movement of data across nodes.
 from twisted.trial.unittest import TestCase
 
 from .testtools import (flocker_deploy, get_mongo_client, get_nodes,
-                        require_flocker_cli, require_mongo)
+                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
+                        require_mongo)
 
 
 class MovingDataTests(TestCase):
@@ -30,12 +31,10 @@ class MovingDataTests(TestCase):
         def deploy_data_application(node_ips):
             node_1, node_2 = node_ips
 
-            application = u"mongodb-volume-example"
-
             volume_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    node_1: [application],
+                    node_1: [MONGO_APPLICATION],
                     node_2: [],
                 },
             }
@@ -43,8 +42,8 @@ class MovingDataTests(TestCase):
             volume_application = {
                 u"version": 1,
                 u"applications": {
-                    application: {
-                        u"image": u"clusterhq/mongodb",
+                    MONGO_APPLICATION: {
+                        u"image": MONGO_IMAGE,
                         u"ports": [{
                             u"internal": 27017,
                             u"external": 27017,
@@ -71,7 +70,7 @@ class MovingDataTests(TestCase):
                     u"version": 1,
                     u"nodes": {
                         node_1: [],
-                        node_2: [application],
+                        node_2: [MONGO_APPLICATION],
                     },
                 }
 

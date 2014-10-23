@@ -8,7 +8,7 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli)
+                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli)
 
 
 class MovingApplicationTests(TestCase):
@@ -31,13 +31,10 @@ class MovingApplicationTests(TestCase):
         def deploy_and_move(node_ips):
             node_1, node_2 = node_ips
 
-            application = u"mongodb-example"
-            image = u"clusterhq/mongodb"
-
             minimal_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    node_1: [application],
+                    node_1: [MONGO_APPLICATION],
                     node_2: [],
                 },
             }
@@ -45,8 +42,8 @@ class MovingApplicationTests(TestCase):
             minimal_application = {
                 u"version": 1,
                 u"applications": {
-                    application: {
-                        u"image": image,
+                    MONGO_APPLICATION: {
+                        u"image": MONGO_IMAGE,
                     },
                 },
             }
@@ -57,16 +54,17 @@ class MovingApplicationTests(TestCase):
                 u"version": 1,
                 u"nodes": {
                     node_1: [],
-                    node_2: [application],
+                    node_2: [MONGO_APPLICATION],
                 },
             }
 
             flocker_deploy(self, minimal_deployment_moved, minimal_application)
 
-            unit = Unit(name=application,
-                        container_name=BASE_NAMESPACE + application,
+            unit = Unit(name=MONGO_APPLICATION,
+                        container_name=BASE_NAMESPACE + MONGO_APPLICATION,
                         activation_state=u'active',
-                        container_image=image + u':latest', ports=frozenset())
+                        container_image=MONGO_IMAGE + u':latest',
+                        ports=frozenset())
 
             d = assert_expected_deployment(self, {
                 node_1: set([]),

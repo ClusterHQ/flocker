@@ -8,8 +8,8 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_mongo_client, get_nodes, require_flocker_cli,
-                        require_mongo)
+                        get_mongo_client, get_nodes, MONGO_APPLICATION,
+                        MONGO_IMAGE, require_flocker_cli, require_mongo)
 
 
 class PortsTests(TestCase):
@@ -33,13 +33,10 @@ class PortsTests(TestCase):
             self.internal_port = 27017
             self.external_port = 27018
 
-            self.application = u"mongodb-port-example"
-            self.image = u"clusterhq/mongodb"
-
             port_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    self.node_1: [self.application],
+                    self.node_1: [MONGO_APPLICATION],
                     self.node_2: [],
                 },
             }
@@ -47,8 +44,8 @@ class PortsTests(TestCase):
             port_application = {
                 u"version": 1,
                 u"applications": {
-                    self.application: {
-                        u"image": self.image,
+                    MONGO_APPLICATION: {
+                        u"image": MONGO_IMAGE,
                         u"ports": [{
                             u"internal": self.internal_port,
                             u"external": self.external_port,
@@ -68,10 +65,10 @@ class PortsTests(TestCase):
         Docker has internal representations of the port mappings given by the
         configuration files supplied to flocker-deploy.
         """
-        unit = Unit(name=self.application,
-                    container_name=BASE_NAMESPACE + self.application,
+        unit = Unit(name=MONGO_APPLICATION,
+                    container_name=BASE_NAMESPACE + MONGO_APPLICATION,
                     activation_state=u'active',
-                    container_image=self.image + u':latest',
+                    container_image=MONGO_IMAGE + u':latest',
                     ports=frozenset([
                         PortMap(internal_port=self.internal_port,
                                 external_port=self.external_port)

@@ -8,7 +8,8 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import BASE_NAMESPACE, Unit
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        require_flocker_cli, require_mongo)
+                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
+                        require_mongo)
 
 
 class DeploymentTests(TestCase):
@@ -33,14 +34,10 @@ class DeploymentTests(TestCase):
         def deploy(node_ips):
             node_1, node_2 = node_ips
 
-            application = u"mongodb-example"
-            # TODO Import this image name from utils (and for other tests)
-            image = u"clusterhq/mongodb"
-
             minimal_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    node_1: [application],
+                    node_1: [MONGO_APPLICATION],
                     node_2: [],
                 },
             }
@@ -48,18 +45,18 @@ class DeploymentTests(TestCase):
             minimal_application = {
                 u"version": 1,
                 u"applications": {
-                    application: {
-                        u"image": image,
+                    MONGO_APPLICATION: {
+                        u"image": MONGO_IMAGE,
                     },
                 },
             }
 
             flocker_deploy(self, minimal_deployment, minimal_application)
 
-            unit = Unit(name=application,
-                        container_name=BASE_NAMESPACE + application,
+            unit = Unit(name=MONGO_APPLICATION,
+                        container_name=BASE_NAMESPACE + MONGO_APPLICATION,
                         activation_state=u'active',
-                        container_image=image + u':latest',
+                        container_image=MONGO_IMAGE + u':latest',
                         ports=frozenset([]))
 
             d = assert_expected_deployment(self, {

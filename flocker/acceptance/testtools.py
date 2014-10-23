@@ -21,8 +21,11 @@ except ImportError:
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
-    'require_flocker_cli',
+    'MONGO_APPLICATION', 'MONGO_IMAGE', 'require_flocker_cli',
     ]
+
+MONGO_APPLICATION = u"mongodb-example-application"
+MONGO_IMAGE = u"clusterhq/mongodb"
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
