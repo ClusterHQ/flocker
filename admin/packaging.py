@@ -135,66 +135,84 @@ class BuildSequence(object):
             step.run()
 
 
+def create_virtualenv(root):
+    """
+    Create a virtualenv in ``root``.
+
+    :param FilePath root: The directory in which to install a virtualenv.
+    :returns: A ``VirtualEnv`` instance.
+    """
+    # We call ``virtualenv`` as a subprocess rather than as a library, so that we
+    # can turn off Python byte code compilation.
+    check_call(
+        ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
+        env=dict(PYTHONDONTWRITEBYTECODE='1')
+    )
+    # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
+    # modules. See https://github.com/pypa/virtualenv/issues/659
+    for module_name in virtualenv.REQUIRED_MODULES:
+        py_base = root.descendant(
+            ['lib', 'python2.7', module_name])
+        py = py_base.siblingExtension('.py')
+        if py.exists() and py.islink():
+            pyc = py_base.siblingExtension('.pyc')
+            py_target = py.realpath()
+            pyc_target = FilePath(
+                py_target.splitext()[0]).siblingExtension('.pyc')
+
+            if pyc.exists():
+                pyc.remove()
+
+            if pyc_target.exists():
+                pyc_target.linkTo(pyc)
+
+    return VirtualEnv(root=root)
+
+
 @attributes(['target_path'])
 class InstallVirtualEnv(object):
     """
     Install a virtualenv in the supplied ``target_path``.
 
-    We call ``virtualenv`` as a subprocess rather than as a library, so that we
-    can turn off Python byte code compilation.
-
     :ivar FilePath target_path: The path to a directory in which to create the
         virtualenv.
     """
+    _create_virtualenv = staticmethod(create_virtualenv)
+
     def run(self):
-        check_call(
-            ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', self.target_path.path],
-            env=dict(PYTHONDONTWRITEBYTECODE='1')
-        )
-        # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
-        # modules. See https://github.com/pypa/virtualenv/issues/659
-        for module_name in virtualenv.REQUIRED_MODULES:
-            py_base = self.target_path.descendant(
-                ['lib', 'python2.7', module_name])
-            py = py_base.siblingExtension('.py')
-            if py.exists() and py.islink():
-                pyc = py_base.siblingExtension('.pyc')
-                py_target = py.realpath()
-                pyc_target = FilePath(
-                    py_target.splitext()[0]).siblingExtension('.pyc')
-
-                if pyc.exists():
-                    pyc.remove()
-
-                if pyc_target.exists():
-                    pyc_target.linkTo(pyc)
+        self._create_virtualenv(root=self.target_path)
 
 
-@attributes(['virtualenv_path', 'package_uri'])
-class InstallApplication(object):
+@attributes(['uri', 'name', 'version'])
+class PythonPackage(object):
     """
-    Install the supplied ``package_uri`` using ``pip`` from the supplied
-    ``virtualenv_path``.
-
-    After installing the package and its dependencies, the virtualenv is made
-    ``relocatable`` to remove and absolute paths and shebang lines in scripts.
-
-    XXX: The --relocatable option is said to be broken. Investigate using
-    ``virtualenv-tools`` instead. See
-    https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253 and
-    https://github.com/fireteam/virtualenv-tools
-
-    TODO: We need to byte-compile python scripts before packaging. See
-    http://fedoraproject.org/wiki/Packaging:Python#Byte_compiling
-
-    :ivar FilePath virtualenv_path: The path to an existing ``virtualenv``.
-    :ivar bytes package_uri: A ``pip install`` compatible package URI.
+    :ivar FilePath root: The path to the directory containing the package.
+    :ivar bytes name: The name of the package.
+    :ivar bytes version: The version of the package.
     """
-    def run(self):
+
+
+@attributes(['root'])
+class VirtualEnv(object):
+    """
+    """
+    def install(self, package):
+        """
+        After installing the package and its dependencies, the virtualenv is made
+        ``relocatable`` to remove and absolute paths and shebang lines in scripts.
+
+        XXX: The --relocatable option is said to be broken. Investigate using
+        ``virtualenv-tools`` instead. See
+        https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253 and
+        https://github.com/fireteam/virtualenv-tools
+
+        TODO: We need to byte-compile python scripts before packaging. See
+        http://fedoraproject.org/wiki/Packaging:Python#Byte_compiling
+        """
         # We can't just call pip directly, because in the virtualenvs created
         # in tests, the shebang line becomes too long and triggers an
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
-        python_path = self.virtualenv_path.child('bin').child('python').path
+        python_path = self.root.child('bin').child('python').path
         import os
         env = os.environ.copy()
         env['PYTHONDONTWRITEBYTECODE'] = '1'
@@ -205,9 +223,26 @@ class InstallApplication(object):
         )
         check_call(
             ['virtualenv', '--quiet', '--relocatable',
-             self.virtualenv_path.path],
+             self.root.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
+
+    def packages(self):
+        """
+        """
+
+
+@attributes(['virtualenv', 'package'])
+class InstallApplication(object):
+    """
+    Install the supplied ``package`` using the supplied ``virtualenv``.
+
+    :ivar VirtualEnv virtualenv: The virtual environment in which to install ``package``.
+    :ivar Package package: A package object with a pip compatible URI.
+    """
+    def run(self):
+        self.virtualenv.install(self.package)
+
 
 @attributes(['links'])
 class CreateLinks(object):
@@ -380,7 +415,7 @@ class PACKAGE(Values):
 
 
 def sumo_package_builder(
-        package_type, destination_path, package_uri, target_dir=None):
+        package_type, destination_path, package, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -400,7 +435,8 @@ def sumo_package_builder(
 
     :param FilePath destination_path: The path to a directory in which to save
         the resulting RPM file.
-    :param bytes package_uri: A ``pip install`` compatible package URI.
+    :param Package package: A ``Package`` instance with a ``pip install``
+        compatible package URI.
     :param FilePath target_dir: An optional path in which to create the
         virtualenv from which the package will be generated. Default is a
         temporary directory created using ``mkdtemp``.
@@ -431,8 +467,8 @@ def sumo_package_builder(
     return BuildSequence(
         steps=(
             InstallVirtualEnv(target_path=virtualenv_dir),
-            InstallApplication(virtualenv_path=virtualenv_dir,
-                               package_uri=package_uri),
+            InstallApplication(virtualenv=VirtualEnv(root=virtualenv_dir),
+                               package=package),
             get_package_version_step,
             BuildPackage(
                 package_type=package_type,

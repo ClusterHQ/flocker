@@ -3,10 +3,8 @@
 """
 Tests for ``admin.packaging``.
 """
-from collections import namedtuple
 from glob import glob
 from subprocess import check_output, CalledProcessError
-import sys
 from textwrap import dedent
 from unittest import skipIf
 
@@ -23,7 +21,7 @@ from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
     DelayedRpmVersion, FLOCKER_DEPENDENCIES_RPM, FLOCKER_DEPENDENCIES_DEB,
-    CreateLinks, _native_package_type
+    CreateLinks, _native_package_type, PythonPackage, create_virtualenv, VirtualEnv,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -184,50 +182,25 @@ def assert_rpm_requires(test_case, expected_requirements, rpm_path):
             missing_requirements, rpm_path.path))
 
 
-def canned_virtual_env(test_case):
+class FakeVirtualEnv(object):
     """
-    Create a directory containing a fake pip executable which records its
-    arguments when executed.
-
-    Return an object containing methods with which to make assertions about the
-    fake virtualenv.
-
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :return: A ``Tester`` instance.
     """
-    virtualenv_path = FilePath(test_case.mktemp())
-    bin_path = virtualenv_path.child('bin')
-    bin_path.makedirs()
+    def __init__(self, initial_packages=None):
+        """
+        """
+        if initial_packages is None:
+            initial_packages = []
+        self._packages = initial_packages
 
-    pip_log_path = virtualenv_path.child('pip.log')
-    pip_log_path.setContent('')
+    def install(self, package):
+        """
+        """
+        self._packages.append(package)
 
-    python_path = bin_path.child('python')
-    FilePath(sys.executable).linkTo(python_path)
-
-    pip_path = bin_path.child('pip')
-    pip_path.setContent(
-        dedent("""
-        #!/usr/bin/env python
-        import sys
-        open({pip_log_path}, 'w').write('\\0'.join(sys.argv[1:]))
-        """).lstrip().format(pip_log_path=repr(pip_log_path.path))
-    )
-    pip_path.chmod(0700)
-
-    class Tester(object):
-        path = virtualenv_path
-
-        def assert_pip_args(self, expected_args):
-            """
-            `pip` was called with the `expected_args`.
-            """
-            test_case.assertEqual(
-                expected_args,
-                pip_log_path.getContent().strip().split('\0')
-            )
-
-    return Tester()
+    def packages(self):
+        """
+        """
+        return self._packages
 
 
 class SpyStep(object):
@@ -277,7 +250,24 @@ class InstallVirtualEnvTests(TestCase):
     """
     def test_run(self):
         """
-        ``InstallVirtualEnv.run`` installs a virtual python environment in its
+        ``InstallVirtualEnv.run`` installs a virtual python environment using
+        create_virtualenv passing ``target_path`` as ``root``.
+        """
+        target_path = FilePath(self.mktemp())
+        step = InstallVirtualEnv(target_path=target_path)
+        calls = []
+        self.patch(
+            step, '_create_virtualenv', lambda **kwargs: calls.append(kwargs))
+        step.run()
+        self.assertEqual([dict(root=target_path)], calls)
+
+
+class CreateVirtualenvTests(TestCase):
+    """
+    """
+    def test_bin(self):
+        """
+        ``create_virtualenv`` installs a virtual python environment in its
         ``target_path``.
         """
         target_path = FilePath(self.mktemp())
@@ -287,11 +277,11 @@ class InstallVirtualEnvTests(TestCase):
 
     def test_pythonpath(self):
         """
-        ``InstallVirtualEnv.run`` installs a virtual python whose path does not
+        ``create_virtualenv`` installs a virtual python whose path does not
         include the system python libraries.
         """
         target_path = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=target_path).run()
+        create_virtualenv(root=target_path)
         output = check_output([
             target_path.descendant(['bin', 'python']).path,
             '-c', r'import sys; sys.stdout.write("\n".join(sys.path))'
@@ -301,11 +291,11 @@ class InstallVirtualEnvTests(TestCase):
 
     def test_bootstrap_pyc(self):
         """
-        ``InstallVirtualEnv.run`` creates links to the pyc files for all the
+        ``create_virtualenv`` creates links to the pyc files for all the
         modules required for the virtualenv bootstrap process.
         """
         target_path = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=target_path).run()
+        create_virtualenv(root=target_path)
 
         py_files = []
         for module_name in virtualenv.REQUIRED_MODULES:
@@ -333,7 +323,7 @@ class InstallVirtualEnvTests(TestCase):
         virtualenv and to /usr on the host OS.
         """
         target_path = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=target_path).run()
+        create_virtualenv(root=target_path)
         allowed_targets = (target_path, FilePath('/usr'),)
         bad_links = []
         for path in target_path.walk():
@@ -370,14 +360,15 @@ class InstallApplicationTests(TestCase):
         ``InstallApplication.run`` installs the supplied application in the
         ``target_path``.
         """
-        expected_package_uri = '/foo/bar'
-        virtual_env = canned_virtual_env(self)
+        expected_package = PythonPackage(
+            uri='/foo/bar', name='Bar', version='1.2.3')
+        fake_env = FakeVirtualEnv()
         InstallApplication(
-            virtualenv_path=virtual_env.path,
-            package_uri=expected_package_uri
+            virtualenv=fake_env,
+            package=expected_package
         ).run()
-        expected_pip_args = ['--quiet', 'install', expected_package_uri]
-        virtual_env.assert_pip_args(expected_pip_args)
+
+        self.assertEqual([expected_package], fake_env.packages())
 
 
 class CreateLinksTests(TestCase):
@@ -407,25 +398,16 @@ class CreateLinksTests(TestCase):
         )
 
 
-class PackageInfo(namedtuple('PackageInfo', 'root name version')):
-    """
-    :ivar FilePath root: The path to the directory containing the package.
-    :ivar bytes name: The name of the package.
-    :ivar bytes version: The version of the package.
-    """
-
-
 def canned_package(test_case):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
 
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :return: A ``PackageInfo`` instance.
+    :param test_case: The ``TestCase`` whose mktemp method will be called.
+    :return: A ``TemporaryPythonPackage`` instance.
     """
     version = '1.2.3'
     name = 'FooBar'
-
     root = FilePath(test_case.mktemp())
     root.makedirs()
     setup_py = root.child('setup.py')
@@ -441,7 +423,7 @@ def canned_package(test_case):
         """).format(package_name=name, package_version=version)
     )
 
-    return PackageInfo(root, name, version)
+    return PythonPackage(uri=root.path, name=name, version=version)
 
 
 class GetPackageVersionTests(TestCase):
@@ -704,7 +686,11 @@ class SumoPackageBuilderTests(TestCase):
             ['opt', 'flocker'])
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
-        expected_package_uri = '/foo/bar'
+        expected_package = PythonPackage(
+            uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
+            name='Bar',
+            version='1.2.3'
+        )
         expected_package_version_step = GetPackageVersion(
             virtualenv_path=expected_virtualenv_path,
             package_name='Flocker'
@@ -724,8 +710,10 @@ class SumoPackageBuilderTests(TestCase):
             steps=(
                 # python-flocker steps
                 InstallVirtualEnv(target_path=expected_virtualenv_path),
-                InstallApplication(virtualenv_path=expected_virtualenv_path,
-                                   package_uri=expected_package_uri),
+                InstallApplication(
+                    virtualenv=VirtualEnv(root=expected_virtualenv_path),
+                    package=expected_package,
+                ),
                 expected_package_version_step,
                 BuildPackage(
                     package_type=expected_package_type,
@@ -801,7 +789,7 @@ class SumoPackageBuilderTests(TestCase):
             expected,
             sumo_package_builder(expected_package_type,
                                  expected_destination_path,
-                                 expected_package_uri,
+                                 expected_package,
                                  target_dir=target_path))
 
 
