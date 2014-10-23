@@ -264,9 +264,19 @@ Release
 
                 vagrant ssh -- -A
 
-#. Change your working directory to be the Flocker release branch working directory.
-   # TODO clone and check out the flocker release branch - it isn't in the VM now
-   # Export the version here
+#. Create a clean, local copy of the Flocker release branch with no modifications:
+
+   .. code-block:: console
+
+      git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+      cd flocker-${VERSION}
+      git checkout release/flocker-${VERSION}
+
+#. Export the version number as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
@@ -291,7 +301,7 @@ Release
    .. note:: We force a build on the tag as well as the branch because the RPMs built before pushing the tag won't have the right version.
              Also, the RPM upload script currently expects the RPMs to be built from the tag, rather than the branch.
 
-# TODO Do any steps wait on this being built? Can I do the next step while I wait?
+   Wait for the build to complete successfully.
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
