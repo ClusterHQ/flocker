@@ -396,7 +396,8 @@ Release
          curl -X POST http://readthedocs.org/build/flocker
 
    #. Go to the `Read the Docs dashboard Versions section`_.
-   #. Enable the version being released.
+   #. Set the version being released to be "Active".
+   #. Unset "Active" for each previous weekly release or pre-release of the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
    #. Set the default version and latest version to that version:
@@ -411,6 +412,7 @@ Release
       - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
 
       - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
+        Wait for the new HTML build to pass.
 
 #. Submit the release pull request for review again.
 
