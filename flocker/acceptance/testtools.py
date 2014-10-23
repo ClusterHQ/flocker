@@ -1,8 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-from os import system
 from pipes import quote as shell_quote
-from subprocess import call, PIPE, Popen
+from subprocess import call, CalledProcessError, check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
@@ -119,10 +118,10 @@ def get_nodes(num_nodes):
     """
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
-    # Skip the test if the nodes are not available
     for node in nodes:
-        response = system("ping -c 1 -n " + node)
-        if response != 0:
+        try:
+            check_call(['ping', '-c1', '-n', node])
+        except CalledProcessError:
             raise SkipTest("Acceptance testing nodes must be running.")
 
     d = gatherResults([_clean_node(node) for node in nodes])
