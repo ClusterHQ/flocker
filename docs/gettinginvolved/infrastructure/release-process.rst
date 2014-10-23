@@ -319,6 +319,7 @@ Release
 
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
+                This means that ``gsutil`` must be installed and configured on your workstation.
 
 #. Update the Homebrew recipe
 
