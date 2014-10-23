@@ -399,11 +399,12 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
-                for container_path, node_path in data[u"Volumes"].items():
-                    volumes.append(
-                        Volume(container_path=FilePath(container_path),
-                               node_path=FilePath(node_path))
-                    )
+                if isinstance(data[u"Volumes"], dict):
+                    for container_path, node_path in data[u"Volumes"].items():
+                        volumes.append(
+                            Volume(container_path=FilePath(container_path),
+                                   node_path=FilePath(node_path))
+                        )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
