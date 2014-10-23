@@ -76,6 +76,7 @@ Preparing For a Release
    .. note:: The process for uploading a missing dependency package is roughly as follows:
 
              .. code-block:: console
+
                 # We use the python-jsonschema package as an example.
 
                 # Create directories for storing RPMs and SRPMs.
@@ -174,6 +175,10 @@ Preparing For a Release
 Review Process
 --------------
 
+.. note::
+
+   Make sure to follow the latest version of this documentation when reviewing a release.
+
 .. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
             **not** on a :doc:`Flocker development machine <vagrant>`.
 
@@ -226,11 +231,27 @@ Review Process
           config.vm.box_version = "= 0"
       ...
 
-.. note:: It is the reviewer's job to also review the ``Homebrew`` pull request which is created in the following release steps.
-          See the "Update the Homebrew recipe" step below which explains how to test the new ``Homebrew`` recipe from a branch.
+#. Comment on the release issue whether everything has worked.
+   If it has, comment that the release engineer can continue by following :ref:`the Release section <release>`.
+   If it has not, any issues must be resolved before repeating the review process.
 
-.. warning:: The branch should not be merged yet.
-             It should only be merged once it has been tagged, in the next series of steps.
+#. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
+   See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
+
+#. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
+
+   .. code-block:: console
+
+      $ vagrant box remove clusterhq/flocker-tutorial
+
+#. Check that Read The Docs is set up correctly.
+   docs.clusterhq.com/en/latest and docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
+
+#. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
+
+#. Merge the release pull request.
+
+.. _release:
 
 Release
 -------
@@ -391,9 +412,7 @@ Release
 
       - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
 
-#. Merge the release branch
-
-   Merge release branch and close the release pull request.
+#. Submit the release pull request for review again.
 
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
