@@ -174,6 +174,9 @@ Preparing For a Release
 Review Process
 --------------
 
+.. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
+            **not** on a :doc:`Flocker development machine <vagrant>`.
+
 #. Do the acceptance tests:
 
    XXX: See https://github.com/ClusterHQ/flocker/issues/315
@@ -186,19 +189,24 @@ Review Process
 
    At the top, you should find a line beginning ``got version`` which contains the version string.
 
-   Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
+   Export the final and got version numbers as an environment variable for later use:
 
    .. code-block:: console
 
-      vagrant/tutorial/build --flocker-version=0.2.1-378-gb59b886 --branch=release/flocker-0.3.0dev1
+      export VERSION=0.1.2
+      export GOT_VERSION=0.2.1-378-gb59b886
 
-   Then add the resulting box to ``vagrant`` using the following command:
+   Clone the release branch.
+
+   Then build the tutorial image and add the resulting box to ``vagrant``:
 
    .. code-block:: console
 
-      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-0.2.1-378-gb59b886.box
+      cd vagrant/tutorial
+      ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
+      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
 
-   You should now see that box listed:
+   You should now see the flocker-tutorial box listed:
 
    .. code-block:: console
 
