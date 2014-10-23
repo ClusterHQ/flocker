@@ -5,8 +5,8 @@ What's New
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
 
-v0.3 (in development)
-=====================
+v0.3
+====
 
 * ``geard`` is no longer used to manage Docker containers.
 * Added support for `Fig`_ compatible :ref:`application configuration <fig-compatible-config>` files.
