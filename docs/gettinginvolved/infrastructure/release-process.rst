@@ -120,7 +120,7 @@ Preparing For a Release
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
-   `git log` can be used to see all merges between two versions.
+   ``git log`` can be used to see all merges between two versions.
 
    .. code-block:: console
 
@@ -362,7 +362,7 @@ Release
 
        The version number is also included in the ``url`` part of the recipe.
 
-     - Update the ``sha1`` checksum:
+     - Update the ``sha1`` checksum. Retrieve it with ``sha1sum``:
 
        .. code-block:: console
 
