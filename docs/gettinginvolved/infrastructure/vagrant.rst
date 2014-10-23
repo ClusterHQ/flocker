@@ -35,8 +35,6 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
 (If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
 
-# TODO does this have an API?
-
 Then add a version on Vagrant Cloud:
 
 #. Retrieve the public link:
