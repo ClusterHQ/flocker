@@ -1,5 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
+"""
+Testing utilities for ``flocker.acceptance``.
+"""
+
 from pipes import quote as shell_quote
 from subprocess import call, CalledProcessError, check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
