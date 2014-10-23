@@ -195,13 +195,12 @@ class InstallApplication(object):
         # in tests, the shebang line becomes too long and triggers an
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv_path.child('bin').child('python').path
-        pip_path = self.virtualenv_path.child('bin').child('pip').path
         import os
         env = os.environ.copy()
         env['PYTHONDONTWRITEBYTECODE'] = '1'
 
         check_call(
-            [python_path, pip_path, '--quiet', 'install', self.package_uri],
+            [python_path, '-m', 'pip', '--quiet', 'install', self.package_uri],
             env=env
         )
         check_call(
