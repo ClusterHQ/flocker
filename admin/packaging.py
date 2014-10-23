@@ -249,9 +249,8 @@ class GetPackageVersion(object):
         # in tests, the shebang line becomes too long and triggers an
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.virtualenv_path.child('bin').child('python').path
-        pip_path = self.virtualenv_path.child('bin').child('pip').path
         output = check_output(
-            [python_path, pip_path, 'show', self.package_name])
+            [python_path, '-m', 'pip', 'show', self.package_name])
 
         for line in output.splitlines():
             parts = [part.strip() for part in line.split(':', 1)]
