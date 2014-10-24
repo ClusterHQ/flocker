@@ -141,7 +141,7 @@ Preparing For a Release
 
    The NEWS date format is YYYY-MM-DD.
    The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
-   This means that in doing a release the title for the NEWS updates for an older pre-release may have to be changed for example.
+   This means that in doing a release, you may have to change the NEWS heading from a previous weekly or pre-release.
 
    Use the previously-saved logs to update "NEWS" and commit changes:
 
@@ -199,7 +199,7 @@ Review Process
 
    At the top, you should find a line beginning ``got version`` which contains the version string.
 
-   Export the final and got version numbers as an environment variable for later use:
+   Export the ``final`` and ``got`` version numbers as an environment variable for later use:
 
    .. code-block:: console
 
@@ -236,9 +236,11 @@ Review Process
           config.vm.box_version = "= 0"
       ...
 
-#. Comment on the release issue whether everything has worked.
-   If it has, comment that the release engineer can continue by following :ref:`the Release section <release>`.
-   If it has not, any issues must be resolved before repeating the review process.
+#. Accept or reject the release issue depending on whether everything has worked.
+
+   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>`.
+
+   - If rejecting the issue, any problems must be resolved before repeating the review process.
 
 #. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
    See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
