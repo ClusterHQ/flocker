@@ -251,7 +251,7 @@ Reviewing "Preparing For a Release"
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
-   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>`.
+   - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
 
