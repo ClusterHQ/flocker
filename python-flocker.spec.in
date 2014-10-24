@@ -26,7 +26,7 @@ BuildRequires:  python-jsonschema = 2.4.0
 BuildRequires:  python-klein = 0.2.3
 # The test suite runs the ssh command-line client and uses other utilities such
 # as ssh-keygen.
-BuildRequires: openssh-clients
+BuildRequires:  openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
@@ -45,6 +45,7 @@ Requires:       python-klein = 0.2.3
 %package -n flocker-cli
 Summary:        Docker orchestration and volume management frontend
 Requires:       python-flocker = %{version}-%{release}
+Requires:       openssh-clients
 
 %package -n flocker-node
 Summary:        Node software for flocker
@@ -54,6 +55,7 @@ Requires:       python-psutil = 2.1.2
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
 Requires:       zfs
+Requires:       openssh-clients
 
 %description
 Flocker is an open-source volume manager and multi-host Docker container
