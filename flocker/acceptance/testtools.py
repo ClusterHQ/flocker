@@ -31,6 +31,9 @@ __all__ = [
 # The port on which the acceptance testing nodes make docker available
 REMOTE_DOCKER_PORT = u"2375"
 
+# XXX The MONGO_APPLICATION will have to be removed because it does not match
+# the tutorial yml files, and the yml should be testably the same:
+# https://github.com/ClusterHQ/flocker/issues/947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
 
