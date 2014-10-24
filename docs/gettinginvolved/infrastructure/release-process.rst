@@ -174,6 +174,8 @@ You should now see that box listed:
    clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
    clusterhq/flocker-tutorial (virtualbox, 0)
 
+.. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
+
 Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
 Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
