@@ -357,6 +357,27 @@ class DockerClient(object):
         except APIError:
             return False
 
+    def _blocking_volume_exists(self, container_name):
+        """
+        Blocking API to check if container exists and has Volumes information.
+
+        :param unicode container_name: The name of the container to inspect.
+
+        :return: ``True`` if unit exists and includes a non-null u"Volumes"
+            entry, otherwise ``False``.
+        """
+        # return True
+        try:
+            data = self._client.inspect_container(container_name)
+            volumes = data[u"Volumes"].items()
+            return True
+        except APIError:
+            return False
+        except KeyError:
+            return False
+        except AttributeError:
+            return False
+
     def exists(self, unit_name):
         container_name = self._to_container_name(unit_name)
         return deferToThread(self._blocking_exists, container_name)
@@ -388,6 +409,13 @@ class DockerClient(object):
             ids = [d[u"Id"] for d in
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
+                attempts = 0
+                while not self._blocking_volume_exists(i):
+                    sleep(0.001)
+                    attempts += 1
+                    if attempts > 750:
+                        raise Exception("Max trys exceeded :(")
+                    continue
                 data = self._client.inspect_container(i)
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
@@ -399,12 +427,11 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
-                if isinstance(data[u"Volumes"], dict):
-                    for container_path, node_path in data[u"Volumes"].items():
-                        volumes.append(
-                            Volume(container_path=FilePath(container_path),
-                                   node_path=FilePath(node_path))
-                        )
+                for container_path, node_path in data[u"Volumes"].items():
+                    volumes.append(
+                        Volume(container_path=FilePath(container_path),
+                               node_path=FilePath(node_path))
+                    )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
