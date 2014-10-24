@@ -125,6 +125,13 @@ Preparing For a Release
       # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
       $ export OLD_VERSION=0.3.0
       $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+
+   Save the result of the previous command to create a "What's New" entry and NEWS entry later.
+
+   Update "What's New" and commit changes:
+
+   .. code-block:: console
+
       $ git commit -am "Updated What's New"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
