@@ -189,65 +189,65 @@ Review Process
 
 #. Do the acceptance tests:
 
-You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
 
-The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
 
-To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
 
-At the top, you should find a line beginning ``got version`` which contains the version string.
+   At the top, you should find a line beginning ``got version`` which contains the version string.
 
-Export the ``final`` and ``got`` version numbers as an environment variable for later use:
+   Export the ``final`` and ``got`` version numbers as an environment variable for later use:
 
-.. code-block:: console
+   .. code-block:: console
 
-   export VERSION=0.1.2
-   export GOT_VERSION=0.2.1-378-gb59b886
+      export VERSION=0.1.2
+      export GOT_VERSION=0.2.1-378-gb59b886
 
-Clone Flocker on your local workstation and install all ``dev`` requirements:
+   Clone Flocker on your local workstation and install all ``dev`` requirements:
 
-.. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-.. code-block:: console
+   .. code-block:: console
 
-  git clone git@github.com:ClusterHQ/flocker.git
-  cd flocker
-  git checkout -b *release branch*
-  mkvirtualenv flocker-release-${VERSION}
-  pip install --editable .[dev]
+     git clone git@github.com:ClusterHQ/flocker.git
+     cd flocker
+     git checkout -b *release branch*
+     mkvirtualenv flocker-release-${VERSION}
+     pip install --editable .[dev]
 
-Then build the tutorial image and add the resulting box to ``vagrant``:
+   Then build the tutorial image and add the resulting box to ``vagrant``:
 
-.. code-block:: console
+   .. code-block:: console
 
-      cd vagrant/tutorial
-      ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
-      vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
+         cd vagrant/tutorial
+         ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
+         vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
 
-   You should now see the ``flocker-tutorial`` box listed:
+      You should now see the ``flocker-tutorial`` box listed:
 
-.. code-block:: console
-   :emphasize-lines: 4
+   .. code-block:: console
+      :emphasize-lines: 4
 
-   $ vagrant box list
-   clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-   clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-   clusterhq/flocker-tutorial (virtualbox, 0)
+      $ vagrant box list
+      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+      clusterhq/flocker-tutorial (virtualbox, 0)
 
-.. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
+   .. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
 
-Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
+   Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
-Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
+   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
-   - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
-   - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
+      - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
+      - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
 
-Run the automated acceptance tests and ensure that they all pass, with no skips:
+   Run the automated acceptance tests and ensure that they all pass, with no skips:
 
-.. code-block:: console
+   .. code-block:: console
 
-   $ trial flocker.acceptance
+      $ trial flocker.acceptance
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
