@@ -29,6 +29,9 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
+        # TODO flatten tests and use clearer variable names:
+        # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19270545
+
         d = get_nodes(num_nodes=2)
 
         def deploy(node_ips):

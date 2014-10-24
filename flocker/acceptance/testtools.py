@@ -51,6 +51,8 @@ def _run_SSH(port, user, node, command, input, key=None):
     """
     Run a command via SSH.
 
+    # TODO document user
+
     :param int port: Port to connect to.
     :param bytes node: Node to run command on
     :param command: Command to run
@@ -131,6 +133,8 @@ def get_nodes(num_nodes):
     """
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
+    # TODO Remove noisy ping output
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271451
     for node in nodes:
         try:
             check_call(['ping', '-c1', '-n', node])
@@ -161,13 +165,21 @@ def flocker_deploy(test_case, deployment_config, application_config):
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
 
+    # TODO use check_call with a single list of arguments
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271566
     call([b"flocker-deploy"] + [deployment.path] + [application.path])
 
 
 def get_mongo_client(host, port=27017):
     """
-    Returns a Deferred which fires with a MongoClient when one has been
+    Returns a ``Deferred`` which fires with a ``MongoClient`` when one has been
     created.
+
+    # TODO Param docs and note about waiting for a connection
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271617
+
+    # TODO Look into using MongoClient variables instead
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271768
     """
     def create_mongo_client():
         try:
@@ -200,6 +212,9 @@ def assert_expected_deployment(test_case, expected_deployment):
     # XXX Wait for the unit states to be as expected using wait_for_unit_state
     # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
     # See https://github.com/ClusterHQ/flocker/issues/937
+
+    # TODO try using zip for clarity
+    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19272643
     d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
         {node: units_sorted_by_node.pop() for node in reversed(sorted_nodes)},
         expected_deployment

@@ -185,6 +185,9 @@ Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutor
 
 Run the automated acceptance tests and ensure that they all pass, with no skips:
 
+# TODO The release environment must be set up on a local workstation
+# https://github.com/ClusterHQ/flocker/pull/897#discussion_r19269871
+
 .. code-block:: console
 
    $ trial flocker.acceptance
