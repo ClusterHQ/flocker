@@ -189,28 +189,36 @@ Review Process
 
 #. Do the acceptance tests:
 
-   XXX: See https://github.com/ClusterHQ/flocker/issues/315
+You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
 
-   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
 
-   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
 
-   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+At the top, you should find a line beginning ``got version`` which contains the version string.
 
-   At the top, you should find a line beginning ``got version`` which contains the version string.
+Export the ``final`` and ``got`` version numbers as an environment variable for later use:
 
-   Export the ``final`` and ``got`` version numbers as an environment variable for later use:
+.. code-block:: console
 
-   .. code-block:: console
+   export VERSION=0.1.2
+   export GOT_VERSION=0.2.1-378-gb59b886
 
-      export VERSION=0.1.2
-      export GOT_VERSION=0.2.1-378-gb59b886
+Clone Flocker on your local workstation and install all ``dev`` requirements:
 
-   Clone the release branch.
+.. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-   Then build the tutorial image and add the resulting box to ``vagrant``:
+.. code-block:: console
 
-   .. code-block:: console
+  git clone git@github.com:ClusterHQ/flocker.git
+  cd flocker
+  git checkout -b *release branch*
+  mkvirtualenv flocker-release-${VERSION}
+  pip install --editable .[dev]
+
+Then build the tutorial image and add the resulting box to ``vagrant``:
+
+.. code-block:: console
 
       cd vagrant/tutorial
       ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
@@ -218,23 +226,32 @@ Review Process
 
    You should now see the ``flocker-tutorial`` box listed:
 
-   .. code-block:: console
+.. code-block:: console
+   :emphasize-lines: 4
 
-      $ vagrant box list
-      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-      clusterhq/flocker-tutorial (virtualbox, 0)
+   $ vagrant box list
+   clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+   clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+   clusterhq/flocker-tutorial (virtualbox, 0)
 
-   Finally follow the BuildBot built tutorial documentation from the release branch, but modify the ``config.vm.box_version`` line in ``docs/gettingstarted/tutorial/Vagrantfile`` version to ``0`` before running ``vagrant up``.
+.. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
 
-   .. code-block:: console
+Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
-      $ cat flocker-tutorial/Vagrantfile
-      ...
-      Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-          config.vm.box = "clusterhq/flocker-tutorial"
-          config.vm.box_version = "= 0"
-      ...
+Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
+
+   - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
+   - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
+
+Run the automated acceptance tests and ensure that they all pass, with no skips:
+
+.. code-block:: console
+
+   $ trial flocker.acceptance
+
+.. warning:: The branch should not be merged yet.
+         It should only be merged once it has been tagged, in the next series of steps.
+
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
@@ -257,6 +274,7 @@ Review Process
 #. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
 
 #. Merge the release pull request.
+
 
 .. _release:
 

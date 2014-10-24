@@ -2,6 +2,9 @@
 Exposing Ports
 ==============
 
+.. This section is tested in flocker.acceptance.test_ports.PortsTests.
+   Reflect any relevant changes here in those tests.
+
 Each application running in a Docker container has its own isolated networking stack.
 To communicate with an application running inside the container we need to forward traffic from a network port in the node where the container is located to the appropriate port within the container.
 Flocker takes this one step further: an application is reachable on all nodes in the cluster, no matter where it is currently located.

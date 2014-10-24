@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage
+    NodeState, DockerImage, Port, Link
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -319,12 +319,41 @@ class Deployer(object):
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
-                    volume = AttachedVolume.from_unit(unit)
+                    # XXX we only support one volume per container at this time
+                    # https://github.com/ClusterHQ/flocker/issues/49
+                    volume = AttachedVolume.from_unit(unit).pop()
                 else:
                     volume = None
-                application = Application(name=unit.name,
-                                          image=image,
-                                          volume=volume)
+                ports = []
+                for portmap in unit.ports:
+                    ports.append(Port(
+                        internal_port=portmap.internal_port,
+                        external_port=portmap.external_port
+                    ))
+                links = []
+                if unit.environment:
+                    environment_dict = unit.environment.to_dict()
+                    for label, value in environment_dict.items():
+                        # <ALIAS>_PORT_<PORTNUM>_TCP_PORT=<value>
+                        parts = label.rsplit(b"_", 4)
+                        try:
+                            alias, pad_a, port, pad_b, pad_c = parts
+                            local_port = int(port)
+                        except ValueError:
+                            continue
+                        if (pad_a, pad_b, pad_c) == (b"PORT", b"TCP", b"PORT"):
+                            links.append(Link(
+                                local_port=local_port,
+                                remote_port=int(value),
+                                alias=alias,
+                            ))
+                application = Application(
+                    name=unit.name,
+                    image=image,
+                    ports=frozenset(ports),
+                    volume=volume,
+                    links=frozenset(links)
+                )
                 if unit.activation_state == u"active":
                     running.append(application)
                 else:
@@ -420,6 +449,28 @@ class Deployer(object):
                 if app.name in not_running
             ]
 
+            applications_to_inspect = current_state & desired_local_state
+            current_applications_dict = dict(zip(
+                [a.name for a in current_node_applications],
+                current_node_applications
+            ))
+            desired_applications_dict = dict(zip(
+                [a.name for a in desired_node_applications],
+                desired_node_applications
+            ))
+            for application_name in applications_to_inspect:
+                inspect_desired = desired_applications_dict[application_name]
+                inspect_current = current_applications_dict[application_name]
+                if inspect_desired != inspect_current:
+                    changes = [
+                        StopApplication(application=inspect_current),
+                        StartApplication(application=inspect_desired,
+                                         hostname=hostname)
+                    ]
+                    sequence = Sequentially(changes=changes)
+                    if sequence not in restart_containers:
+                        restart_containers.append(sequence)
+
             # Find any applications with volumes that are moving to or from
             # this node - or that are being newly created by this new
             # configuration.
@@ -508,7 +559,6 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
-
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)

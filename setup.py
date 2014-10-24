@@ -99,6 +99,7 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
+            'flocker-serve = flocker.node.script:flocker_serve_main',
         ],
     },
 
@@ -159,6 +160,9 @@ setup(
 
             # The test suite uses network namespaces
             "nomenclature >= 0.1.0",
+
+            # The acceptance tests interact with MongoDB
+            "pymongo>=2.7.2"
             ],
 
         # This extra is for Flocker release engineers to set up their release

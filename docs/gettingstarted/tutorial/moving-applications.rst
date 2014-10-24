@@ -7,6 +7,9 @@ Moving Applications
 Starting an Application
 =======================
 
+.. This section is tested in flocker.acceptance.test_deployment.DeploymentTests.
+   Reflect any relevant changes here in those tests.
+
 Let's look at an extremely simple Flocker configuration for one node running a container containing a MongoDB server.
 
 :download:`minimal-application.yml`
@@ -47,6 +50,9 @@ To fix this, use ``flocker-deploy`` with the simple configuration files given ab
 
 Moving an Application
 =====================
+
+.. This section is tested in flocker.acceptance.test_moving_applications.MovingApplicationTests.
+   Reflect any relevant changes here in those tests.
 
 Let's see how ``flocker-deploy`` can move this application to a different VM.
 Recall that the Vagrant configuration supplied in the setup portion of the tutorial started two VMs.

@@ -17,7 +17,7 @@ Development Box (:file:`vagrant/dev`)
 
 Tutorial Box (:file:`vagrant/tutorial`)
    This box is initialized with the yum repositories for ZFS and Flocker, and has Flocker pre-installed.
-   This is the box the :ref:`tutorial <VagrantSetup>` is based on.
+   This is the box the :ref:`tutorial <vagrant-setup>` is based on.
 
 
 .. _build-vagrant-box:
