@@ -126,7 +126,7 @@ Preparing For a Release
       $ export OLD_VERSION=0.3.0
       $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   Save the result of the previous command to create a "What's New" entry and NEWS entry later.
+   Save the result of the previous command to create a "What's New" entry and NEWS entry with later.
 
    Update "What's New" and commit changes:
 
@@ -143,12 +143,11 @@ Preparing For a Release
    The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
    This means that in doing a release the title for the NEWS updates for an older pre-release may have to be changed for example.
 
+   Use the previously-saved logs to update "NEWS" and commit changes:
+
    .. code-block:: console
 
-      # Choose the tag of the last version with a NEWS entry to compare the latest version to.
-      $ export OLD_VERSION=0.3.0
-      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
-      $ git commit -am "Updated NEWS"
+      $ git commit -am "Updated What's NEWS"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
