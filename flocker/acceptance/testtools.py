@@ -51,11 +51,10 @@ def _run_SSH(port, user, node, command, input, key=None):
     """
     Run a command via SSH.
 
-    # TODO document user
-
     :param int port: Port to connect to.
-    :param bytes node: Node to run command on
-    :param command: Command to run
+    :param bytes user: User to run the command as.
+    :param bytes node: Node to run command on.
+    :param command: Command to run.
     :type command: ``list`` of ``bytes``.
     :param bytes input: Input to send to command.
     :param FilePath key: If not None, the path to a private key to use.
