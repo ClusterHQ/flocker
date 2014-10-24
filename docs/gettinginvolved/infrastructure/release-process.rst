@@ -249,10 +249,6 @@ Run the automated acceptance tests and ensure that they all pass, with no skips:
 
    $ trial flocker.acceptance
 
-.. warning:: The branch should not be merged yet.
-         It should only be merged once it has been tagged, in the next series of steps.
-
-
 #. Accept or reject the release issue depending on whether everything has worked.
 
    - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>`.
