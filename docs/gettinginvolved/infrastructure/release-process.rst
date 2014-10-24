@@ -177,8 +177,8 @@ Preparing For a Release
    .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
-Review Process
---------------
+Reviewing "Preparing For a Release"
+-----------------------------------
 
 .. note::
 
@@ -254,23 +254,6 @@ Review Process
    - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>`.
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
-
-#. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
-   See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
-
-#. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
-
-   .. code-block:: console
-
-      $ vagrant box remove clusterhq/flocker-tutorial
-
-#. Check that Read The Docs is set up correctly.
-   https://docs.clusterhq.com/en/latest and https://docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
-
-#. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
-
-#. Merge the release pull request.
-
 
 .. _release:
 
@@ -446,6 +429,26 @@ Release
         Wait for the new HTML build to pass.
 
 #. Submit the release pull request for review again.
+
+Reviewing "Release"
+-------------------
+
+#. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
+   See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
+
+#. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
+
+   .. code-block:: console
+
+      $ vagrant box remove clusterhq/flocker-tutorial
+
+#. Check that Read The Docs is set up correctly.
+   https://docs.clusterhq.com/en/latest and https://docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
+
+#. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
+
+#. Merge the release pull request.
+
 
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
