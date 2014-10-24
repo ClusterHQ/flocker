@@ -4,6 +4,7 @@ What's New
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
+.. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
 Next Release
 ============
@@ -13,8 +14,6 @@ Next Release
 * Added support for environment variables in the :doc:`application configuration<./configuration>`.
 * Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
 * Added support for `Fig`_ compatible application configuration files.
-
-.. note:: If you already have ``flocker-cli`` installed from v0.1, delete the install script and directory before installing v0.2.
 
 v0.1
 ====
