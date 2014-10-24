@@ -13,6 +13,7 @@ BuildRequires:  python
 BuildRequires:  python-setuptools
 # For tests
 BuildRequires:  python-eliot == 0.4.0
+BuildRequires:  python-zope-interface >= 4.0.5
 BuildRequires:  pytz
 BuildRequires:  python-psutil = 2.1.2
 BuildRequires:  python-characteristic >= 14.1.0
@@ -32,6 +33,7 @@ BuildRequires:  docker-io
 
 Requires:       python-setuptools
 Requires:       python-eliot == 0.4.0
+Requires:       python-zope-interface >= 4.0.5
 Requires:       pytz
 Requires:       python-characteristic >= 14.1.0
 Requires:       python-twisted = 14.0.0
