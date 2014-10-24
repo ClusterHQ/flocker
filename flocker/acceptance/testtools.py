@@ -131,7 +131,7 @@ def get_nodes(num_nodes):
     :param int num_nodes: The number of nodes to start up.
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.252", b"172.16.255.253"])
+    nodes = set([b"172.16.255.260", b"172.16.255.261"])
 
     for node in nodes:
         sock = socket()
