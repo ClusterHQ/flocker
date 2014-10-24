@@ -69,34 +69,32 @@ Preparing For a Release
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
    #. Compare it to the package versions listed in the "Requires" lines in ``python-flocker.spec.in``.
-   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and update the ``archive.clusterhq.com`` repository by following the steps in :ref:`pre-populating-rpm-repository`, adding any missing package names to the lists of downloaded packages.
+   #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and add any missing package names to the lists of downloaded packages in :ref:`pre-populating-rpm-repository`.
+      Also, upload the missing dependency packages as follows (we use the ``python-jsonschema`` package as an example):
 
    .. note:: XXX: Automate the checking of package versions.
              See https://github.com/ClusterHQ/flocker/issues/881.
 
-   .. note:: The process for uploading a missing dependency package is roughly as follows:
 
-             .. code-block:: console
+   .. code-block:: console
 
-                # We use the python-jsonschema package as an example.
+      # Create directories for storing RPMs and SRPMs.
+      mkdir repo
+      mkdir srpm
 
-                # Create directories for storing RPMs and SRPMs.
-                mkdir repo
-                mkdir srpm
+      # Download binary and source RPM files to your workstation.
+      yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-jsonschema
+      yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-jsonschema
 
-                # Download binary and source RPM files to your workstation.
-                yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-jsonschema
-                yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-jsonschema
+      # Upload those to Google Storage
+      gsutil cp -a public-read srpm/python-jsonschema-2.4.0-1.fc20.src.rpm gs://archive.clusterhq.com/fedora/20/SRPMS/
+      gsutil cp -a public-read repo/python-jsonschema-2.4.0-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/20/x86_64/
 
-                # Upload those to Google Storage
-                gsutil cp -a public-read srpm/python-jsonschema-2.4.0-1.fc20.src.rpm gs://archive.clusterhq.com/fedora/20/SRPMS/
-                gsutil cp -a public-read repo/python-jsonschema-2.4.0-1.fc20.noarch.rpm gs://archive.clusterhq.com/fedora/20/x86_64/
+      # Finally we rebuild the repo index using the version
+      # number of the *last* Flocker release.
+      admin/upload-rpms 0.3.0dev1
 
-                # Finally we rebuild the repo index using the version
-                # number of the *last* Flocker release.
-                admin/upload-rpms 0.3.0dev1
-
-             This step will not be necessary once https://github.com/ClusterHQ/flocker/issues/508 is resolved.
+   This step will not be necessary once https://github.com/ClusterHQ/flocker/issues/508 is resolved.
 
 #. Back port features from master (optional)
 
