@@ -26,67 +26,66 @@ class MovingDataTests(TestCase):
         and then the application is moved to another node, the data remains
         available.
         """
-        d = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(num_nodes=2)
+
+        volume_application = {
+            u"version": 1,
+            u"applications": {
+                MONGO_APPLICATION: {
+                    u"image": MONGO_IMAGE,
+                    u"ports": [{
+                        u"internal": 27017,
+                        u"external": 27017,
+                    }],
+                    u"volume": {
+                        # The location within the container where the data
+                        # volume will be mounted:
+                        u"mountpoint": u"/data/db"
+                    }
+                },
+            },
+        }
 
         def deploy_data_application(node_ips):
-            node_1, node_2 = node_ips
+            self.node_1, self.node_2 = node_ips
 
             volume_deployment = {
                 u"version": 1,
                 u"nodes": {
-                    node_1: [MONGO_APPLICATION],
-                    node_2: [],
-                },
-            }
-
-            volume_application = {
-                u"version": 1,
-                u"applications": {
-                    MONGO_APPLICATION: {
-                        u"image": MONGO_IMAGE,
-                        u"ports": [{
-                            u"internal": 27017,
-                            u"external": 27017,
-                        }],
-                        u"volume": {
-                            # The location within the container where the data
-                            # volume will be mounted:
-                            u"mountpoint": u"/data/db"
-                        }
-                    },
+                    self.node_1: [MONGO_APPLICATION],
+                    self.node_2: [],
                 },
             }
 
             flocker_deploy(self, volume_deployment, volume_application)
 
-            d = get_mongo_client(node_1)
+        deploying = getting_nodes.addCallback(deploy_data_application)
 
-            def verify_data_moves(client_1):
-                database_1 = client_1.example
-                database_1.posts.insert({u"the data": u"it moves"})
-                data = database_1.posts.find_one()
+        getting_client = deploying.addCallback(
+            lambda _: get_mongo_client(self.node_1))
 
-                volume_deployment_moved = {
-                    u"version": 1,
-                    u"nodes": {
-                        node_1: [],
-                        node_2: [MONGO_APPLICATION],
-                    },
-                }
+        def verify_data_moves(client_1):
+            database_1 = client_1.example
+            database_1.posts.insert({u"the data": u"it moves"})
+            data = database_1.posts.find_one()
 
-                flocker_deploy(self, volume_deployment_moved,
-                               volume_application)
+            volume_deployment_moved = {
+                u"version": 1,
+                u"nodes": {
+                    self.node_1: [],
+                    self.node_2: [MONGO_APPLICATION],
+                },
+            }
 
-                d = get_mongo_client(node_2)
+            flocker_deploy(self, volume_deployment_moved, volume_application)
 
-                d.addCallback(lambda client_2: self.assertEqual(
-                    data,
-                    client_2.example.posts.find_one()))
+            d = get_mongo_client(self.node_2)
 
-                return d
+            d.addCallback(lambda client_2: self.assertEqual(
+                data,
+                client_2.example.posts.find_one()))
 
-            d.addCallback(verify_data_moves)
             return d
 
-        d.addCallback(deploy_data_application)
-        return d
+        verifying = getting_client.addCallback(verify_data_moves)
+        return verifying
