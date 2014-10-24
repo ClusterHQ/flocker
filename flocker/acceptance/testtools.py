@@ -5,7 +5,7 @@ Testing utilities for ``flocker.acceptance``.
 """
 
 from pipes import quote as shell_quote
-from socket import gaierror, socket
+from socket import socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump
@@ -133,7 +133,6 @@ def get_nodes(num_nodes):
     """
     nodes = set([b"172.16.255.240", b"172.16.255.241"])
 
-    from socket import error
     for node in nodes:
         sock = socket()
         sock.settimeout(0.1)
