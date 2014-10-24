@@ -221,10 +221,8 @@ def assert_expected_deployment(test_case, expected_deployment):
     # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
     # See https://github.com/ClusterHQ/flocker/issues/937
 
-    # TODO try using zip for clarity
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19272643
     d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
-        {node: units_sorted_by_node.pop() for node in reversed(sorted_nodes)},
+        dict(zip(sorted_nodes, units_sorted_by_node)),
         expected_deployment
     ))
 
