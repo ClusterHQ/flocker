@@ -28,6 +28,9 @@ __all__ = [
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'require_flocker_cli',
     ]
 
+# The port on which the acceptance testing nodes make docker available
+REMOTE_DOCKER_PORT = u"2375"
+
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
 
@@ -81,7 +84,8 @@ def _clean_node(ip):
     Remove all containers and zfs volumes on a node, given the IP address of
     the node. Returns a Deferred which fires when finished.
     """
-    docker_client = DockerClient(base_url=u'tcp://' + ip + u':2375')
+    docker_client = DockerClient(base_url=u'tcp://' + ip + u':' +
+                                 REMOTE_DOCKER_PORT)
     d = docker_client.list()
 
     d = d.addCallback(lambda units:
@@ -187,8 +191,8 @@ def assert_expected_deployment(test_case, expected_deployment):
     sorted_nodes = sorted(expected_deployment.keys())
 
     d = gatherResults(
-        [DockerClient(base_url=u'tcp://' + node + u':2375').list() for node in
-         sorted_nodes])
+        [DockerClient(base_url=u'tcp://' + node + u':' +
+                      REMOTE_DOCKER_PORT).list() for node in sorted_nodes])
 
     # XXX Wait for the unit states to be as expected using wait_for_unit_state
     # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
