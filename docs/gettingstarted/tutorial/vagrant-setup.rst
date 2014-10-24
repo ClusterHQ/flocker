@@ -63,7 +63,7 @@ Other Systems
 
 See the official `MongoDB installation guide`_ for your system.
 
-.. _VagrantSetup:
+.. _vagrant-setup:
 
 Creating Vagrant VMs Needed for Flocker
 ---------------------------------------
