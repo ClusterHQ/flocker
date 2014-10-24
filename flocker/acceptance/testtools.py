@@ -5,7 +5,8 @@ Testing utilities for ``flocker.acceptance``.
 """
 
 from pipes import quote as shell_quote
-from subprocess import CalledProcessError, check_call, PIPE, Popen
+from socket import gaierror, socket
+from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
@@ -29,7 +30,7 @@ __all__ = [
     ]
 
 # The port on which the acceptance testing nodes make docker available
-REMOTE_DOCKER_PORT = u"2375"
+REMOTE_DOCKER_PORT = 2375
 
 # XXX The MONGO_APPLICATION will have to be removed because it does not match
 # the tutorial yml files, and the yml should be testably the same:
@@ -89,7 +90,7 @@ def _clean_node(ip):
     the node. Returns a Deferred which fires when finished.
     """
     docker_client = DockerClient(base_url=u'tcp://' + ip + u':' +
-                                 REMOTE_DOCKER_PORT)
+                                 unicode(REMOTE_DOCKER_PORT))
     d = docker_client.list()
 
     d = d.addCallback(lambda units:
@@ -132,13 +133,14 @@ def get_nodes(num_nodes):
     """
     nodes = set([b"172.16.255.252", b"172.16.255.253"])
 
-    # TODO Remove noisy ping output
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271451
     for node in nodes:
+        sock = socket()
         try:
-            check_call(['ping', '-c1', '-n', node])
-        except CalledProcessError:
+            sock.connect_ex((node, REMOTE_DOCKER_PORT))
+        except gaierror:
             raise SkipTest("Acceptance testing nodes must be running.")
+        finally:
+            sock.close()
 
     d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
@@ -212,7 +214,8 @@ def assert_expected_deployment(test_case, expected_deployment):
 
     d = gatherResults(
         [DockerClient(base_url=u'tcp://' + node + u':' +
-                      REMOTE_DOCKER_PORT).list() for node in sorted_nodes])
+                      unicode(REMOTE_DOCKER_PORT)).list() for node in
+         sorted_nodes])
 
     # XXX Wait for the unit states to be as expected using wait_for_unit_state
     # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
