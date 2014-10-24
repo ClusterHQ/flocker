@@ -184,9 +184,6 @@ def get_mongo_client(host, port=27017):
     The tutorial says "If you get a connection refused error try again after a
     few seconds; the application might take some time to fully start up."
     and so here we wait until the client can be created.
-
-    # TODO Look into using MongoClient variables instead
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271768
     """
     def create_mongo_client():
         try:
