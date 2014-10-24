@@ -131,16 +131,19 @@ def get_nodes(num_nodes):
     :param int num_nodes: The number of nodes to start up.
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.260", b"172.16.255.261"])
+    nodes = set([b"172.16.255.240", b"172.16.255.241"])
 
+    from socket import error
     for node in nodes:
         sock = socket()
+        sock.settimeout(0.1)
         try:
-            sock.connect_ex((node, REMOTE_DOCKER_PORT))
-        except gaierror:
-            raise SkipTest("Acceptance testing nodes must be running.")
+            can_connect = not sock.connect_ex((node, REMOTE_DOCKER_PORT))
         finally:
             sock.close()
+
+    if not can_connect:
+        raise SkipTest("Acceptance testing nodes must be running.")
 
     d = gatherResults([_clean_node(node) for node in nodes])
     d.addCallback(lambda _: nodes)
