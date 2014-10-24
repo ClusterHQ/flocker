@@ -240,8 +240,8 @@ Reviewing "Preparing For a Release"
 
    Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
-      - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
-      - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
+   - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
+   - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
 
    Run the automated acceptance tests and ensure that they all pass, with no skips:
 
