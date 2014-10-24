@@ -152,6 +152,18 @@ To find the version, visit the BuildBot build results page and navigate to the `
 
 At the top, you should find a line beginning ``got version`` which contains the version string.
 
+Clone Flocker on your local workstation and install all ``dev`` requirements:
+
+.. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+
+.. code-block:: console
+
+  git clone git@github.com:ClusterHQ/flocker.git
+  cd flocker
+  git checkout -b *release branch*
+  mkvirtualenv flocker-release-${VERSION}
+  pip install --editable .[dev]
+
 Then run the tutorial image build script as follows, substituting the ``--branch`` and ``--flocker-version`` values:
 
 .. code-block:: console
@@ -184,9 +196,6 @@ Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutor
     - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.252 and 172.16.255.253).
 
 Run the automated acceptance tests and ensure that they all pass, with no skips:
-
-# TODO The release environment must be set up on a local workstation
-# https://github.com/ClusterHQ/flocker/pull/897#discussion_r19269871
 
 .. code-block:: console
 
