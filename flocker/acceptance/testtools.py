@@ -174,8 +174,16 @@ def get_mongo_client(host, port=27017):
     Returns a ``Deferred`` which fires with a ``MongoClient`` when one has been
     created.
 
-    # TODO Param docs and note about waiting for a connection
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271617
+    See http://api.mongodb.org/python/current/api/pymongo/mongo_client.html#
+        pymongo.mongo_client.MongoClient
+    for more parameter information.
+
+    :param bytes host: Hostname or IP address of the instance to connect to.
+    :param int port: Port number on which to connect.
+
+    The tutorial says "If you get a connection refused error try again after a
+    few seconds; the application might take some time to fully start up."
+    and so here we wait until the client can be created.
 
     # TODO Look into using MongoClient variables instead
     # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271768
