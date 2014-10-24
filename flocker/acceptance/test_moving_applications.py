@@ -26,7 +26,7 @@ class MovingApplicationTests(TestCase):
         application is present with the given name and image on a second node
         after it has been moved from the first.
         """
-        d = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(num_nodes=2)
 
         def deploy_and_move(node_ips):
             node_1, node_2 = node_ips
@@ -73,5 +73,5 @@ class MovingApplicationTests(TestCase):
 
             return d
 
-        d.addCallback(deploy_and_move)
-        return d
+        getting_nodes.addCallback(deploy_and_move)
+        return getting_nodes

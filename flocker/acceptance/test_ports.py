@@ -25,7 +25,7 @@ class PortsTests(TestCase):
         Deploy an application with an internal port mapped to a different
         external port.
         """
-        d = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(num_nodes=2)
 
         def deploy_port_application(node_ips):
             self.node_1, self.node_2 = node_ips
@@ -56,8 +56,8 @@ class PortsTests(TestCase):
 
             flocker_deploy(self, port_deployment, port_application)
 
-        d.addCallback(deploy_port_application)
-        return d
+        getting_nodes.addCallback(deploy_port_application)
+        return getting_nodes
 
     def test_deployment_with_ports(self):
         """
@@ -89,7 +89,7 @@ class PortsTests(TestCase):
         node, and data added to it, that data is visible when a client connects
         to a different node on the cluster.
         """
-        d = get_mongo_client(self.node_1, self.external_port)
+        getting_client = get_mongo_client(self.node_1, self.external_port)
 
         def verify_traffic_routed(client_1):
             posts_1 = client_1.example.posts
@@ -103,5 +103,5 @@ class PortsTests(TestCase):
 
             return d
 
-        d.addCallback(verify_traffic_routed)
-        return d
+        getting_client.addCallback(verify_traffic_routed)
+        return getting_client
