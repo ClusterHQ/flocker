@@ -212,7 +212,7 @@ Review Process
       ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
       vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
 
-   You should now see the flocker-tutorial box listed:
+   You should now see the ``flocker-tutorial`` box listed:
 
    .. code-block:: console
 
@@ -246,7 +246,7 @@ Review Process
       $ vagrant box remove clusterhq/flocker-tutorial
 
 #. Check that Read The Docs is set up correctly.
-   docs.clusterhq.com/en/latest and docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
+   https://docs.clusterhq.com/en/latest and https://docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
 
 #. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
 

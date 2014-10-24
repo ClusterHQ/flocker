@@ -51,7 +51,7 @@ Then add a version on Vagrant Cloud:
 
 #. Click "Create version" and then "Create new provider".
 
-#. Set the new provider as "virtualbox" and set the URL to be the public link retrieved earlier.
+#. Set the new provider as "``virtualbox``" and set the URL to be the public link retrieved earlier.
 
 #. Click "Release now".
 
