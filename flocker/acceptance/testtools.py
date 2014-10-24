@@ -5,7 +5,7 @@ Testing utilities for ``flocker.acceptance``.
 """
 
 from pipes import quote as shell_quote
-from subprocess import call, CalledProcessError, check_call, PIPE, Popen
+from subprocess import CalledProcessError, check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump
 
@@ -164,9 +164,7 @@ def flocker_deploy(test_case, deployment_config, application_config):
     application = temp.child(b"application.yml")
     application.setContent(safe_dump(application_config))
 
-    # TODO use check_call with a single list of arguments
-    # https://github.com/ClusterHQ/flocker/pull/897#discussion_r19271566
-    call([b"flocker-deploy"] + [deployment.path] + [application.path])
+    check_call([b"flocker-deploy", deployment.path, application.path])
 
 
 def get_mongo_client(host, port=27017):
