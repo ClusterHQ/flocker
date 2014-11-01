@@ -34,7 +34,9 @@ The current value of ``X`` is 0 until the project is ready for production.
 ClusterHQ's marketing department is made aware of the content of a release ahead of time.
 If the marketing department decides that this release is sufficiently important to publicize then ``Y`` is incremented and ``Z`` is set to 0.
 
-``Z`` is the "patch version".
+``Z`` is the "patch" or "micro" version.
+This "micro" version may be incremented for an early marketing release.
+For example, if an important feature, that is part of an upcoming minor release is completed early; marketing may request an early "micro marketing" release instead of the normal weekly release, in order to make the new feature available for public testing.
 
 Weekly releases will have the version number of the next release with a ``devX`` suffix, where ``X`` starts at ``1`` and is incremented for each weekly release.
 
