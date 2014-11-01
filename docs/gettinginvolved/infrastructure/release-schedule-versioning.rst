@@ -36,7 +36,7 @@ If the marketing department decides that this release is sufficiently important 
 
 ``Z`` is the "patch" or "micro" version.
 This "micro" version may be incremented for an early marketing release.
-For example, if an important feature, that is part of an upcoming minor release is completed early; marketing may request an early "micro marketing" release instead of the normal weekly release, in order to make the new feature available for public testing.
+For example, if an important feature which is part of an upcoming marketing version is completed early; marketing may request an early "micro marketing" release instead of the normal weekly release, in order to make the new feature available for public testing.
 
 Weekly releases will have the version number of the next release with a ``devX`` suffix, where ``X`` starts at ``1`` and is incremented for each weekly release.
 
@@ -45,23 +45,19 @@ Pre-releases will have the version number of the next release with a ``preX`` su
 For example:
 
 +---------------+-------------------------------------------------+
-| ``0.3.0dev1`` | Weekly releases of 0.3.0                        |
-+---------------+-------------------------------------------------+
-| ``0.3.0dev2`` |                                                 |
-+---------------+-------------------------------------------------+
-| ``0.3.0pre1`` | Pre-releases of 0.3.0 for acceptance testing    |
-+---------------+-------------------------------------------------+
-| ``0.3.0pre2`` |                                                 |
-+---------------+-------------------------------------------------+
 | ``0.3.0``     | 0.3.0 released                                  |
 +---------------+-------------------------------------------------+
-| ``0.4.0dev1`` | Weekly releases of 0.4.0                        |
+| ``0.3.1dev1`` | Weekly releases of 0.3.1                        |
 +---------------+-------------------------------------------------+
-| ``0.3.1pre1`` | Pre-release of an emergency patch release 0.3.1 |
+| ``0.3.1``     | Micro marketing release                         |
 +---------------+-------------------------------------------------+
-| ``0.3.1``     | 0.3.1 released                                  |
+| ``0.3.2dev1`` | Weekly release                                  |
 +---------------+-------------------------------------------------+
-| ``0.4.0dev2`` | Weekly releases of 0.4.0 continue               |
+| ``0.3.2dev2`` | Weekly release                                  |
++---------------+-------------------------------------------------+
+| ``0.4.0pre1`` | Pre-release of 0.4.0                            |
++---------------+-------------------------------------------------+
+| ``0.4.0``     | 0.4.0 released                                  |
 +---------------+-------------------------------------------------+
 
 Patch Releases
