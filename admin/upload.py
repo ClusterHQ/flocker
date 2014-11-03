@@ -6,16 +6,20 @@ from admin.runner import run
 
 def add_rpms_to_repository(rpm_directory, target_repo):
     # Create repository metadata for new packages.
-    run([b'createrepo', b'--update', rpm_directory.path])
+    run([b'createrepo_c', rpm_directory.path])
 
     # Merge with remote metadata.
     run([
-        'mergerepo',
+        'mergerepo_c',
+        # Include all versions of all packages.
+        b'--all',
+        # Don't record the repos we are merging.
+        b'--omit-baseurl',
         b'--repo', target_repo.replace('gs://',
                                        'https://storage.googleapis.com/'),
         b'--repo', rpm_directory.path,
         # FIXME?: Should this be a seperate directory?
-        b'--output', rpm_directory.path])
+        b'--outputdir', rpm_directory.path])
 
     # Upload updated repository
     run(
