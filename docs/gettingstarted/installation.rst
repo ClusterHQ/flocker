@@ -108,3 +108,57 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+
+
+Installing ``flocker-node
+=========================
+
+Fedora 20
+---------
+
+Before installing ``flocker-node``, you need to have the development files for the currently running kernel installed.
+
+.. I guess the following could be a script of some sort?
+.. Maybe we should have instructions on what to do if you install things in the wrong order. It will appear to succeed, but then won't work.
+.. code-block:: sh
+
+  UNAME_R=$(uname -r)
+  PV=${UNAME_R%.*}
+  KV=${PV%%-*}
+  SV=${PV##*-}
+  ARCH=$(uname -m)
+  yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
+
+To install ``flocker-node`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository:
+
+.. code-block:: sh
+
+   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm`
+   yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
+   yum install -y flocker-node
+
+Flocker requires docker to be running. To run docker:
+
+.. code-block:: sh
+
+   systemctl start docker
+
+To enable docker at every boot:
+
+.. code-block:: sh
+
+   systemctl enable docker
+
+Flocker requires a zfs pool named ``flocker``.
+The following commands will create a zfs pool backed by a file.
+
+.. code-block:: sh
+
+   mkdir /opt/flocker
+   truncate --size 1G /opt/flocker/pool-vdev
+   zpool create flocker /opt/flocker/pool-vdev
+
+It is also possible to create the pool on a block device.
+
+.. If you do this on a couple of machines, then you can point the tutorial deployment files at them, and things will work.
+.. I've tried it with the voume tutorial.
