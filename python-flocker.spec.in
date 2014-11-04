@@ -10,7 +10,7 @@ Source0:        http://archive.clusterhq.com/downloads/flocker/Flocker-%{flocker
 BuildRequires:  python-devel
 
 BuildRequires:  python
-BuildRequires:  python-setuptools
+BuildRequires:  python-setuptools >= 1.4
 # For tests
 BuildRequires:  python-eliot == 0.4.0
 BuildRequires:  python-zope-interface >= 4.0.5
@@ -31,7 +31,7 @@ BuildRequires:  openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
-Requires:       python-setuptools
+Requires:       python-setuptools >= 1.4
 Requires:       python-eliot == 0.4.0
 Requires:       python-zope-interface >= 4.0.5
 Requires:       pytz
