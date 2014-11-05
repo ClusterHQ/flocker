@@ -426,8 +426,7 @@ def canned_package(root):
     setup_py = root.child('setup.py')
     setup_py.setContent(
         dedent("""
-        import os
-        from setuptools import setup, find_packages
+        from setuptools import setup
 
         setup(
             name="{package_name}",
