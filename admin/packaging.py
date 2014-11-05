@@ -73,13 +73,11 @@ Notes:
       https://github.com/hatt/omnibus-fpm
     *
 """
-import os
 import platform
 import sys
 from subprocess import check_output
 from tempfile import mkdtemp
 from textwrap import dedent
-from urlparse import urlparse, urlunparse
 
 
 from twisted.python.constants import ValueConstant, Values
@@ -204,46 +202,6 @@ class PythonPackage(object):
     :ivar bytes name: The name of the package.
     :ivar bytes version: The version of the package.
     """
-    @classmethod
-    def from_path(cls, path):
-        """
-        """
-        output = check_output(
-            ['python', 'setup.py', '--name', '--version'], cwd=path.path).strip()
-
-        package_name, package_version = [
-            line.strip() for line in output.splitlines()]
-        return cls(name=package_name, version=package_version)
-
-
-    @classmethod
-    def from_url(cls, url):
-        """
-        """
-        filename, extension = os.path.splitext(os.path.basename(url.path))
-        if extension == '.whl':
-            package_name, package_version = filename.split('-', 1)
-        else:
-            raise ValueError(
-                'Unhandled file extension: {} in {}'.format(
-                    extension, urlunparse(url)))
-
-        return cls(name=package_name, version=package_version)
-
-
-    @classmethod
-    def from_uri(cls, uri):
-        """
-        """
-        maybe_file = FilePath(uri)
-        if maybe_file.exists():
-            return cls.from_path(path=maybe_file)
-
-        maybe_url = urlparse(uri)
-        if maybe_url.netloc:
-            return cls.from_url(maybe_url)
-
-        raise ValueError('Unhandled uri: {}'.format(uri))
 
 
 @attributes(['root'])
@@ -280,22 +238,6 @@ class VirtualEnv(object):
              self.root.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
         )
-
-    def packages(self):
-        """
-        Return a list of ``PythonPackage`` instances of all the packages
-        installed in this environment.
-        """
-        python_path = self.root.child('bin').child('python').path
-        output = check_output(
-            [python_path, '-m', 'pip', 'freeze'],
-        )
-        packages = []
-        for line in output.splitlines():
-            package_name, package_version = line.split('==', 1)
-            packages.append(
-                PythonPackage(name=package_name, version=package_version))
-        return packages
 
 
 @attributes(['virtualenv', 'package_uri'])

@@ -193,22 +193,13 @@ def assert_rpm_requires(test_case, expected_requirements, rpm_path):
 class FakeVirtualEnv(object):
     """
     """
-    def __init__(self, initial_packages=None):
-        """
-        """
-        if initial_packages is None:
-            initial_packages = []
-        self._packages = initial_packages
+    def __init__(self):
+        self._installed_packages = []
 
     def install(self, package_uri):
         """
         """
-        self._packages.append(PythonPackage.from_uri(package_uri))
-
-    def packages(self):
-        """
-        """
-        return self._packages
+        self._installed_packages.append(package_uri)
 
 
 class SpyStep(object):
@@ -392,7 +383,7 @@ class InstallApplicationTests(TestCase):
         ).run()
 
         self.assertEqual(
-            [PythonPackage.from_uri(package_uri)], fake_env.packages())
+            [package_uri], fake_env._installed_packages)
 
 
 class CreateLinksTests(TestCase):
