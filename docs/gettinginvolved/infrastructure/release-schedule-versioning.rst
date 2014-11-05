@@ -29,18 +29,56 @@ Version Numbers
 
 Released version numbers take the form of ``X.Y.Z``.
 The current value of ``X`` is 0 until the project is ready for production.
+``Y`` is the minor version.
+``Z`` is the micro version.
 
-``Y`` is the "marketing version".
-ClusterHQ's marketing department is made aware of the content of a release ahead of time.
-If the marketing department decides that this release is sufficiently important to publicize then ``Y`` is incremented and ``Z`` is set to 0.
+Until
 
-``Z`` is the "patch" or "micro" version.
-This "micro" version may be incremented for an early marketing release.
-For example, if an important feature which is part of an upcoming marketing version is completed early; marketing may request an early "micro marketing" release instead of the normal weekly release, in order to make the new feature available for public testing.
+1.0 Production Release
+^^^^^^^^^^^^^^^^^^^^^^
 
-Weekly releases will have the version number of the next release with a ``devX`` suffix, where ``X`` starts at ``1`` and is incremented for each weekly release.
+We intend to release version 1.0 when some set of features is determeined to be production ready.
+Our current intention is to adopt `semantic versioning`_ at that time, with regards to production ready features.
+
+.. _`semantic versioning`: http://semver.org/
+
+Major Marketing Release
+^^^^^^^^^^^^^^^^^^^^^^^
+The content of a major marketing releases will typically planned significantly in advance
+and will have a significant collection of new functionality.
+The determination of when to make a major marketing release will be made by ClusterHQ's product team, in consultation with the marketing and engineering teams.
+
+These releases will typically get thorough pre-release testing.
+
+The version of a major marketing release will have the minor version number incremented from the previous marketing release, the micro version reset to 0.
+
+Minor Marketing Release
+^^^^^^^^^^^^^^^^^^^^^^^
+Minor marketing releases will be made when some particular feature of a major marketing release is ready
+and ClusterHQ's marketing team wants to announce that feature.
+These release will typically be made in preparation for a blog post or other announcement of a feature.
+The determination of when to make a minor marketing release will be made by ClusterHQ's product team, in consultation with the marketing and engineering teams.
+
+The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
+
+Weekly Development Release
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Weekly releases are made primarily to facilitate the testing and automation of the release process itself.
+
+If the previous release was a marketing release (either major or minor), the version of the following weekly release will increment the micro version
+and append a ``dev1`` suffix.
+Otherwise, if the previous release was a weekly development release, the ``devX`` suffix will be incremented.
+
+
+Pre-release
+^^^^^^^^^^^
+Pre-releases are made as part of ClusterHQ's internal release process.
+We don't currently solicit external feedback on pre-releases.
 
 Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
+
+Examples
+^^^^^^^^
 
 For example:
 
@@ -60,7 +98,7 @@ For example:
 | ``0.4.0``     | 0.4.0 released                                  |
 +---------------+-------------------------------------------------+
 
-Patch Releases
---------------
+Bugfix Releases
+^^^^^^^^^^^^^^^
 
-ClusterHQ will not be producing patch releases until the project is ready for production.
+ClusterHQ will not be producing bugfix releases until the project is ready for production.
