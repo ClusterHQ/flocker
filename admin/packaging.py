@@ -522,7 +522,7 @@ def sumo_package_builder(
                 package_type=package_type,
                 destination_path=destination_path,
                 source_path=python_flocker_path,
-                name='python-flocker',
+                name='clusterhq-python-flocker',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
@@ -547,7 +547,7 @@ def sumo_package_builder(
                 package_type=package_type,
                 destination_path=destination_path,
                 source_path=flocker_cli_path,
-                name='flocker-cli',
+                name='clusterhq-flocker-cli',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
@@ -575,7 +575,7 @@ def sumo_package_builder(
                 package_type=package_type,
                 destination_path=destination_path,
                 source_path=flocker_node_path,
-                name='flocker-node',
+                name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=DelayedRpmVersion(
