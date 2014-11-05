@@ -76,7 +76,7 @@ Notes:
 import os
 import platform
 import sys
-from subprocess import check_call, check_output
+from subprocess import check_output
 from tempfile import mkdtemp
 from textwrap import dedent
 from urlparse import urlparse, urlunparse
@@ -84,7 +84,7 @@ from urlparse import urlparse, urlunparse
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
-from twisted.python import usage
+from twisted.python import usage, log
 
 from characteristic import attributes, Attribute
 import virtualenv
@@ -138,6 +138,18 @@ class BuildSequence(object):
             step.run()
 
 
+def run_command(args, env=None, cwd=None):
+    log.msg(
+        format="Running %(args)r with environemnt %(env)r "
+               "and working directory %(cwd)s",
+        args=args, env=env, cwd=cwd)
+    return check_output(
+        args=args,
+        env=env,
+        cwd=cwd,
+    )
+
+
 def create_virtualenv(root):
     """
     Create a virtualenv in ``root``.
@@ -147,7 +159,7 @@ def create_virtualenv(root):
     """
     # We call ``virtualenv`` as a subprocess rather than as a library, so that we
     # can turn off Python byte code compilation.
-    check_call(
+    run_command(
         ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
         env=dict(PYTHONDONTWRITEBYTECODE='1')
     )
@@ -259,11 +271,11 @@ class VirtualEnv(object):
         env = os.environ.copy()
         env['PYTHONDONTWRITEBYTECODE'] = '1'
 
-        check_call(
+        run_command(
             [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
             env=env
         )
-        check_call(
+        run_command(
             ['virtualenv', '--quiet', '--relocatable',
              self.root.path],
             env=dict(PYTHONDONTWRITEBYTECODE='1')
@@ -393,7 +405,7 @@ class BuildPackage(object):
                 ['--after-install', self.after_install.path]
             )
 
-        check_call([
+        run_command([
             'fpm',
             '-s', 'dir',
             '-t', self.package_type,
@@ -423,8 +435,8 @@ class DelayedRpmVersion(object):
     string read from a previous ``GetPackageVersion`` build step.
 
     :ivar GetPackageVersion package_version_step: An instance of
-        ``GetPackageVersion`` whose ``run`` method has been called and from
-        which the version string will be read.
+        ``GetPackageVersion`` whose ``run`` method will have been called and
+        from which the version string will be read.
     """
     _rpm_version = None
 
@@ -511,6 +523,8 @@ def sumo_package_builder(
 
     get_package_version_step = GetPackageVersion(
         virtualenv_path=virtualenv_dir, package_name='Flocker')
+    rpm_version=DelayedRpmVersion(
+        package_version_step=get_package_version_step)
 
     return BuildSequence(
         steps=(
@@ -525,8 +539,7 @@ def sumo_package_builder(
                 name='clusterhq-python-flocker',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
-                rpm_version=DelayedRpmVersion(
-                    package_version_step=get_package_version_step),
+                rpm_version=rpm_version,
                 license=PACKAGE.LICENSE.value,
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
@@ -550,8 +563,7 @@ def sumo_package_builder(
                 name='clusterhq-flocker-cli',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
-                rpm_version=DelayedRpmVersion(
-                    package_version_step=get_package_version_step),
+                rpm_version=rpm_version,
                 license=PACKAGE.LICENSE.value,
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
@@ -578,8 +590,7 @@ def sumo_package_builder(
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
-                rpm_version=DelayedRpmVersion(
-                    package_version_step=get_package_version_step),
+                rpm_version=rpm_version,
                 license=PACKAGE.LICENSE.value,
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
