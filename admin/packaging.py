@@ -380,12 +380,6 @@ class BuildPackage(object):
     :ivar unicode description: A description of the package.
     """
     def run(self):
-        # Remove newly compiled bytecode from the package.
-        for path in self.source_path.walk(descend=lambda f: not f.islink()):
-            basename, extension = path.splitext()
-            if not path.islink() and extension in ('.pyc', 'pyo'):
-                path.remove()
-
         architecture = self.architecture
         if architecture is None:
             architecture = 'all'
@@ -540,7 +534,6 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
-                after_install=FilePath(__file__).sibling('after_install.sh'),
             ),
 
             # flocker-cli steps
