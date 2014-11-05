@@ -469,7 +469,7 @@ class PACKAGE(Values):
 
 
 def sumo_package_builder(
-        package_type, destination_path, package, target_dir=None):
+        package_type, destination_path, package_uri, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -522,7 +522,7 @@ def sumo_package_builder(
         steps=(
             InstallVirtualEnv(target_path=virtualenv_dir),
             InstallApplication(virtualenv=VirtualEnv(root=virtualenv_dir),
-                               package=package),
+                               package_uri=package_uri),
             get_package_version_step,
             BuildPackage(
                 package_type=package_type,
