@@ -106,6 +106,31 @@ def assert_dict_contains(test_case, expected, actual, message=''):
         )
 
 
+def parse_colon_dict(data):
+    """
+    Parse colon seperated values into a dictionary, treating lines
+    lacking a colon as continutation lines.
+
+    Any leading lines without a colon will be associated with the key
+    ``None``.
+
+    This is the format output by ``rpm --query`` and ``dpkg --info``.
+
+    :param bytes data: Data to parse
+    :return: A ``dict`` containing the parsed data.
+    """
+    result = {}
+    key = None
+    for line in data.splitlines():
+        parts = [value.strip() for value in line.split(':', 1)]
+        if len(parts) == 2:
+            key, val = parts
+            result[key] = val
+        else:
+            result[key] += parts[0]
+    return result
+
+
 def assert_rpm_headers(test_case, expected_headers, rpm_path):
     """
     Fail unless the ``RPM`` file at ``rpm_path`` contains all the
@@ -118,14 +143,7 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
     output = check_output(
         ['rpm', '--query', '--info', '--package', rpm_path.path]
     )
-    actual_headers = {}
-    for line in output.splitlines():
-        parts = [value.strip() for value in line.split(':', 1)]
-        if len(parts) == 2:
-            key, val = parts
-            actual_headers[key] = val
-        else:
-            actual_headers[key] += parts[0]
+    actual_headers = parse_colon_dict(output)
 
     assert_dict_contains(
         test_case, expected_headers, actual_headers, 'Missing RPM Headers: '
@@ -144,18 +162,7 @@ def assert_deb_headers(test_case, expected_headers, package_path):
     output = check_output(
         ['dpkg', '--info', package_path.path]
     )
-    actual_headers = {}
-    key = None
-    for line in output.splitlines():
-        parts = [value.strip() for value in line.split(':', 1)]
-        if len(parts) == 2:
-            key, val = parts
-            actual_headers[key] = val
-        else:
-            if key:
-                actual_headers[key] += parts[0]
-            else:
-                key = None
+    actual_headers = parse_colon_dict(output)
 
     assert_dict_contains(
         test_case, expected_headers, actual_headers, 'Missing dpkg Headers: '
