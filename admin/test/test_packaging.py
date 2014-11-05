@@ -457,9 +457,10 @@ class GetPackageVersionTests(TestCase):
         """
         test_env = FilePath(self.mktemp())
         InstallVirtualEnv(target_path=test_env).run()
-        test_package = canned_package(root=FilePath(self.mktemp()))
+        package_root = FilePath(self.mktemp())
+        test_package = canned_package(root=package_root)
         InstallApplication(
-            virtualenv_path=test_env, package_uri=test_package.root.path).run()
+            virtualenv_path=test_env, package_uri=package_root.path).run()
 
         step = GetPackageVersion(
             virtualenv_path=test_env, package_name=test_package.name)
@@ -698,11 +699,7 @@ class SumoPackageBuilderTests(TestCase):
             ['opt', 'flocker'])
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
-        expected_package = PythonPackage(
-            uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
-            name='Bar',
-            version='1.2.3'
-        )
+        expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv_path=expected_virtualenv_path,
             package_name='Flocker'
@@ -724,7 +721,7 @@ class SumoPackageBuilderTests(TestCase):
                 InstallVirtualEnv(target_path=expected_virtualenv_path),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
-                    package=expected_package,
+                    package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
                 ),
                 expected_package_version_step,
                 BuildPackage(
@@ -796,9 +793,9 @@ class SumoPackageBuilderTests(TestCase):
         assert_equal_steps(
             self,
             expected,
-            sumo_package_builder(expected_package_type,
-                                 expected_destination_path,
-                                 expected_package,
+            sumo_package_builder(package_type=expected_package_type,
+                                 destination_path=expected_destination_path,
+                                 package_uri=expected_package_uri,
                                  target_dir=target_path))
 
 
