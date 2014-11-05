@@ -32,8 +32,6 @@ The current value of ``X`` is 0 until the project is ready for production.
 ``Y`` is the minor version.
 ``Z`` is the micro version.
 
-Until
-
 1.0 Production Release
 ^^^^^^^^^^^^^^^^^^^^^^
 
