@@ -342,6 +342,7 @@ class CreateVirtualenvTests(TestCase):
                     bad_links.append(path)
         if bad_links:
             self.fail(
+                "Symlinks outside of virtualenv detected:" +
                 '\n'.join(
                     '/'.join(
                         path.segmentsFrom(target_path)
