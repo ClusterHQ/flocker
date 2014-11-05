@@ -750,9 +750,6 @@ class SumoPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture=expected_architecture,
                     description=expected_description,
-                    after_install=FilePath(__file__).parent().parent().child(
-                        'after_install.sh'
-                    )
                 ),
 
                 # flocker-cli steps
