@@ -37,7 +37,7 @@ Until
 1.0 Production Release
 ^^^^^^^^^^^^^^^^^^^^^^
 
-We intend to release version 1.0 when some set of features is determeined to be production ready.
+We intend to release version 1.0 when some set of features is determined to be production ready.
 Our current intention is to adopt `semantic versioning`_ at that time, with regards to production ready features.
 
 .. _`semantic versioning`: http://semver.org/
