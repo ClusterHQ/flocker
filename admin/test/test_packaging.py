@@ -42,7 +42,8 @@ require_deb = skipIf(PLATFORM_PACKAGE_TYPE != 'deb',
 
 def assert_equal_steps(test_case, expected, actual):
     """
-    Show inequalities in the steps of two ``BuildSequence`` instances.
+    Assert that the list of provided steps are the same.
+    If they are not, display the differences inteligently.
 
     :param test_case: The ``TestCase`` whose assert methods will be called.
     :param expected: The expected build step instance.
@@ -293,6 +294,7 @@ class CreateVirtualenvTests(TestCase):
             target_path.descendant(['bin', 'python']).path,
             '-c', r'import sys; sys.stdout.write("\n".join(sys.path))'
         ])
+        # We should probably check for lib64 as well here.
         self.assertNotIn(
             '/usr/lib/python2.7/site-packages', output.splitlines())
 
