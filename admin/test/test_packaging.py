@@ -883,9 +883,12 @@ class SumoPackageBuilderTests(TestCase):
         assert_deb_lint(self, package_file)
 
 
-# XXX: These warnings are being ignored but should probably be fixed.
 RPMLINT_IGNORED_WARNINGS = (
+    # This isn't an distribution package, so we deliberately install in /opt
     'dir-or-file-in-opt',
+    # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
+    'zero-length',
+# XXX: These warnings are being ignored but should probably be fixed.
     'non-standard-executable-perm',
     'incorrect-fsf-address',
     'pem-certificate',
@@ -899,7 +902,6 @@ RPMLINT_IGNORED_WARNINGS = (
     'backup-file-in-package',
     'no-manual-page-for-binary',
     'unstripped-binary-or-object',
-    'zero-length',
     # Only on Centos7 (not Fedora)
     # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
     'no-binary',
