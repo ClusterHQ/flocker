@@ -295,18 +295,6 @@ class Deployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def _calculate_start_containers(self):
-        pass
-
-    def _calculate_stop_containers(self):
-        pass
-
-    def _calculate_restart_containers(self):
-        pass
-
-    def _calculate_volume_changes(self):
-        pass
-
     def discover_node_configuration(self):
         """
         List all the ``Application``\ s running on this node.

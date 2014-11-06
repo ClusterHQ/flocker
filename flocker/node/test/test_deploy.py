@@ -891,45 +891,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     Tests for ``Deployer.calculate_necessary_state_changes``.
     """
-    def test_calculate_start_containers(self):
-        """
-        ``Deployer._calculate_start_containers`` returns a list of
-        ``StartApplication`` instances containing ``Application``s that are
-        in the desired local state but not currently on the local host in
-        either a running or not running state.
-        """
-        self.fail("Not implemented yet.")
-
-    def test_calculate_stop_containers(self):
-        """
-        ``Deployer._calculate_stop_containers`` returns a list of
-        ``StopApplication`` instances containing ``Application``s that are
-        NOT in the desired local state but are currently on the local host in
-        either a running or not running state.
-        """
-        self.fail("Not implemented yet.")
-
-    def test_calculate_restart_containers(self):
-        """
-        ``Deployer._calculate_restart_containers`` returns a list of
-        ``Sequentially`` instances containing a ``StopApplication`` and
-        ``StartApplication`` changes sequence for ``Application``s that need
-        to be restarted; these are applications which are in the desired local
-        state but not running, or applications which are in the desired local
-        state and running but have a different desired configuration to the
-        currently running configuration.
-        """
-        self.fail("Not implemented yet.")
-
-    def test_calculate_volume_changes(self):
-        """
-        ``Deployer._calculate_volume_changes`` returns a list of ``InParallel``
-        instances containing changes that push, handoff, wait for and create
-        volumes in accordance with the going, coming and creating volumes sets
-        in a supplied ``VolumeChanges`` instance.
-        """
-        self.fail("Not implemented yet.")
-
     def test_no_state_changes(self):
         """
         ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
