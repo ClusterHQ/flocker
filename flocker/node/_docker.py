@@ -61,7 +61,10 @@ class Volume(object):
              Attribute("container_image", default_value=None),
              Attribute("ports", default_value=()),
              Attribute("environment", default_value=None),
-             Attribute("volumes", default_value=())])
+             Attribute("volumes", default_value=()),
+             # Attribute("mem_limit", default_value=None),
+             # Attribute("cpu_shares", default_value=None),
+         ])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -94,6 +97,18 @@ class Unit(object):
 
     :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
         volumes.
+
+    :ivar int mem_limit: The number of bytes to which to limit the in-core
+        memory allocations of this unit.  Or ``None`` to apply no limits.  The
+        behavior when the limit is encountered depends on the container
+        execution driver but the likely behavior is for the container process
+        to be killed (and therefore the container to exit).  Docker most likely
+        maps this value onto the cgroups ``memory.limit_in_bytes`` value.
+
+    :ivar int cpu_shares: The number of CPU shares to allocate to this unit.
+        Or ``None`` to let it have the default number of shares.  Docker maps
+        this value onto the cgroups ``cpu.shares`` value (the default of which
+        is probably 1024).
     """
 
 
@@ -107,7 +122,8 @@ class IDockerClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, environment=None, volumes=()):
+    def add(unit_name, image_name, ports=None, environment=None, volumes=(),
+            mem_limit=None, cpu_shares=None):
         """
         Install and start a new unit.
 
@@ -131,6 +147,15 @@ class IDockerClient(Interface):
             variables will be supplied to the unit.
 
         :param volumes: A sequence of ``Volume`` instances to mount.
+
+        :param int mem_limit: The number of bytes to which to limit the in-core
+            memory allocations of the new unit.  Or ``None`` to apply no
+            limits.
+
+        :param int cpu_shares: The number of CPU shares to allocate to the new
+            unit.  Or ``None`` to let it have the default number of shares.
+            Docker maps this value onto the cgroups ``cpu.shares`` value (the
+            default of which is probably 1024).
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -188,7 +213,7 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=frozenset()):
+            volumes=frozenset(), mem_limit=None, cpu_shares=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -198,7 +223,9 @@ class FakeDockerClient(object):
             ports=frozenset(ports),
             environment=environment,
             volumes=frozenset(volumes),
-            activation_state=u'active'
+            activation_state=u'active',
+            # mem_limit=mem_limit,
+            # cpu_shares=cpu_shares,
         )
         return succeed(None)
 
@@ -292,7 +319,7 @@ class DockerClient(object):
         return ports
 
     def add(self, unit_name, image_name, ports=None, environment=None,
-            volumes=()):
+            volumes=(), mem_limit=None, cpu_shares=None):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -306,7 +333,10 @@ class DockerClient(object):
                 name=container_name,
                 environment=environment,
                 volumes=list(volume.container_path.path for volume in volumes),
-                ports=[p.internal_port for p in ports])
+                ports=[p.internal_port for p in ports],
+                # mem_limit=mem_limit,
+                # cpu_shares=cpu_shares,
+            )
 
         def _add():
             try:
@@ -415,7 +445,11 @@ class DockerClient(object):
                                 activation_state=state,
                                 container_image=image,
                                 ports=frozenset(ports),
-                                volumes=frozenset(volumes)))
+                                volumes=frozenset(volumes),
+                                # get mem_limit
+                                # get cpu_shares
+                            ),
+                )
             return result
         return deferToThread(_list)
 

@@ -119,7 +119,10 @@ def make_idockerclient_tests(fixture):
             expected = Unit(
                 name=name, container_name=name, activation_state=u"active",
                 container_image=image, ports=frozenset(portmaps),
-                environment=None, volumes=frozenset(volumes)
+                environment=None, volumes=frozenset(volumes),
+                # set mem_limit and cpu_shares to something.  maybe split this
+                # test up and verify various boundary conditions of each unit
+                # attribute are handled correctly.
             )
 
             def got_list(units):

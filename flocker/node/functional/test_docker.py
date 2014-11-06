@@ -393,6 +393,10 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
+    # Test starting a container with a memory limit.  Test this by extending list to populate the memory limit of the Unit it returns.
+
+    # Test starting a container with a cpu shares setting.  Test this by extending list to populate the cpu shares of the Unit it returns.
+
 
 class DockerClientTests(TestCase):
     """
