@@ -84,6 +84,16 @@ The following parameters are optional when defining an application:
      "volume":
        "mountpoint": "/var/www/data"
 
+  Optionally, you can also specify the maximum size of the volume via the ``maximum_size`` key.
+  The value for this key must be an integer giving the maximum size in bytes.
+  For example, to set the maximum size of a volume to 1GB:
+
+  .. code-block:: yaml
+
+     "volume":
+       "mountpoint": "/var/www/data"
+       "maximum_size": 1073741824
+
 - ``environment``
 
   This is an optional mapping of key/value pairs for environment variables that will be applied to the application container.
