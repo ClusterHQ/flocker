@@ -49,6 +49,8 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
+# Add a maximum_size attribute?  This seems weird but there isn't anywhere else to put it.
+# It will default to None.
 @attributes(["name", "mountpoint"])
 class AttachedVolume(object):
     """
@@ -79,6 +81,7 @@ class AttachedVolume(object):
         name = unit.name
         # XXX we only support one data volume per container at this time
         # https://github.com/ClusterHQ/flocker/issues/49
+        # XXX Unless Volume changes too we won't know the maximum_size.
         try:
             volume = volumes.pop()
             return {cls(name=name, mountpoint=volume.container_path)}

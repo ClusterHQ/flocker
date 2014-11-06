@@ -194,6 +194,8 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
+        # Fix this somehow so as not to destroy the maximum_size information on
+        # self.volume when creating the object to pass to create.
         return deployer.volume_service.create(
             _to_volume_name(self.volume.name))
 
@@ -542,6 +544,12 @@ def find_volume_changes(hostname, current_state, desired_state):
     XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
     https://github.com/ClusterHQ/flocker/issues/351 for more details.
+
+    XXX The logic here assumes the maximum size of a volume never changes.
+    ZFS, OpenStack, and AWS volume managers should all be capable of handling
+    resizes but they will probably all require an explicit separate step.
+    First part of that is to generate `resizes` in the result of this function.
+    # XXX File a ticket for that
 
     XXX The logic here assumes volumes are never added or removed to
     existing applications, merely moved across nodes. As a result test

@@ -194,6 +194,7 @@ class ApplicationMarshaller(object):
         logic will need refactoring in future if this changes.
         """
         if self._application.volume:
+            # Include the maximum size here, if there is one
             return {u'mountpoint': self._application.volume.mountpoint.path}
         return None
 
@@ -913,9 +914,12 @@ class FlockerConfiguration(object):
                             ))
                     mountpoint = FilePath(mountpoint)
 
+                    # Parse out the optional maximum_size value here as well.
+
                     volume = AttachedVolume(
                         name=application_name,
-                        mountpoint=mountpoint
+                        mountpoint=mountpoint,
+                        # maximum_size=maximum_size,
                         )
                 except ValueError as e:
                     raise ConfigurationError(

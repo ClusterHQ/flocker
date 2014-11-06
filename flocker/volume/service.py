@@ -124,6 +124,7 @@ class VolumeService(Service):
         self.uuid = config[u"uuid"]
         self.pool.startService()
 
+    # add maximum_size parameter
     def create(self, name):
         """Create a new volume.
 
@@ -131,6 +132,7 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
+        # initialize Volume with maximum_size
         volume = Volume(uuid=self.uuid, name=name, service=self)
         d = self.pool.create(volume)
 
@@ -352,6 +354,7 @@ class VolumeService(Service):
         return changing_owner
 
 
+# add new optional maximum_size attribute
 @attributes(["uuid", "name", "service"])
 class Volume(object):
     """
