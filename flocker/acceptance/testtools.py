@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient, Volume
+from flocker.node._docker import BASE_NAMESPACE, DockerClient, Unit, Volume
 from flocker.testtools import loop_until
 
 try:
@@ -26,7 +26,8 @@ except ImportError:
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', 'require_flocker_cli',
+    'MONGO_APPLICATION', 'MONGO_IMAGE', 'MONGO_VOLUMES', 'MONGO_UNIT',
+    'require_flocker_cli',
     ]
 
 # The port on which the acceptance testing nodes make docker available
@@ -41,6 +42,13 @@ MONGO_VOLUMES = frozenset([
     Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/db')),
     Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/log')),
 ])
+MONGO_UNIT = Unit(name=MONGO_APPLICATION,
+                  container_name=BASE_NAMESPACE + MONGO_APPLICATION,
+                  activation_state=u'active',
+                  container_image=MONGO_IMAGE + u':latest',
+                  ports=frozenset([]),
+                  volumes=MONGO_VOLUMES,
+                  )
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
