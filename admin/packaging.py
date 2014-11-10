@@ -97,7 +97,7 @@ class PackageTypes(Values):
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora', 'centos linux'),
+    PackageTypes.RPM: ('fedora', 'centos'),
     PackageTypes.DEB: ('ubuntu',),
 }
 
