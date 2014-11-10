@@ -17,11 +17,13 @@ import virtualenv
 
 from flocker.testtools import FakeSysModule
 
+from .. import packaging
 from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
     DelayedRpmVersion, FLOCKER_DEPENDENCIES_RPM, FLOCKER_DEPENDENCIES_DEB,
     CreateLinks, _native_package_type, PythonPackage, create_virtualenv, VirtualEnv,
+    PackageTypes,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -31,7 +33,11 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 
-PLATFORM_PACKAGE_TYPE = _native_package_type()
+# XXX
+try:
+    PLATFORM_PACKAGE_TYPE = _native_package_type()
+except ValueError:
+    PLATFORM_PACKAGE_TYPE = None
 require_rpm = skipIf(PLATFORM_PACKAGE_TYPE != 'rpm',
                      "Tests require an `rpm` based platform. Found {}.".format(
                          PLATFORM_PACKAGE_TYPE))
@@ -982,6 +988,14 @@ class BuildOptionsTests(TestCase):
     Tests for ``BuildOptions``.
     """
 
+    native_package_type = object()
+
+    def setUp(self):
+        """
+        Patch ``admin.packaging._native_package_type`` to return a fixed value.
+        """
+        self.patch(packaging, '_native_package_type', lambda: self.native_package_type)
+
     def test_defaults(self):
         """
         ``BuildOptions`` destination path defaults to the current working
@@ -1001,7 +1015,7 @@ class BuildOptionsTests(TestCase):
         options = BuildOptions()
         options.parseOptions(
             ['--package-type=native', 'http://example.com/fake/uri'])
-        self.assertEqual(_native_package_type(), options['package-type'])
+        self.assertEqual(self.native_package_type, options['package-type'])
 
     def test_package_uri_missing(self):
         """
@@ -1071,7 +1085,7 @@ class BuildScriptTests(TestCase):
             argv=[
                 'build-command-name',
                 '--destination-path=%s' % (expected_destination_path.path,),
-                '--package-type=native',
+                '--package-type=rpm',
                 expected_package_uri]
         )
         script = BuildScript(sys_module=fake_sys_module)
@@ -1086,7 +1100,7 @@ class BuildScriptTests(TestCase):
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
-                 package_type=_native_package_type())
+                 package_type=PackageTypes.RPM)
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)

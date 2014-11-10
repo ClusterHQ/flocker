@@ -130,6 +130,8 @@ def _native_package_type():
     for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
         if distribution_name.lower() in distribution_names:
             return package_type
+    else:
+        raise ValueError("Unknown distribution.", distribution_name)
 
 
 @attributes(['steps'])
@@ -169,7 +171,7 @@ class Dependency(object):
             raise ValueError(
                 "Must specify both or neither compare and version.")
 
-    def format(self, package_type=_native_package_type()):
+    def format(self, package_type):
         if package_type == PackageTypes.DEB:
             if self.version:
                 return "%s (%s %s)" % (
@@ -426,7 +428,7 @@ class BuildPackage(object):
 
         depends_arguments = []
         for requirement in self.dependencies:
-            depends_arguments.extend(['--depends', requirement.format()])
+            depends_arguments.extend(['--depends', requirement.format(self.package_type)])
 
         if self.after_install is not None:
             depends_arguments.extend(
@@ -436,7 +438,7 @@ class BuildPackage(object):
         run_command([
             'fpm',
             '-s', 'dir',
-            '-t', self.package_type,
+            '-t', self.package_type.value,
             '--package', self.destination_path.path,
             '--name', self.name,
             '--prefix', self.prefix.path,
@@ -670,6 +672,8 @@ class BuildOptions(usage.Options):
         self['destination-path'] = FilePath(self['destination-path'])
         if self['package-type'] == 'native':
             self['package-type'] = _native_package_type()
+        else:
+            self['package-type'] = PackageTypes.lookupByValue(self['package-type'])
 
 
 class BuildScript(object):
