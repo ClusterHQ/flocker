@@ -90,17 +90,22 @@ import virtualenv
 from .release import make_rpm_version
 
 
+class PackageTypes(Values):
+    rpm = ValueConstant('rpm')
+    deb = ValueConstant('deb')
+
+
 # Associate package formats with platform operating systems.
-PACKAGE_TYPE_MAP = dict(
-    rpm=('fedora', 'centos linux'),
-    deb=('ubuntu',),
-)
+PACKAGE_TYPE_MAP = {
+    PackageTypes.rpm: ('fedora', 'centos linux'),
+    PackageTypes.deb: ('ubuntu',),
+}
 
 
 @attributes(['name', 'version'])
 class Distribution(object):
     """
-    A linux distirubtion
+    A linux distribution.
 
     :ivar bytes name: The name of the distribution.
     :ivar bytes version: The version of the distribution.
@@ -108,8 +113,9 @@ class Distribution(object):
 
     @classmethod
     def _get_current_distribution(klass):
-        name, version, id = platform.linux_distribution()
-        return klass(name=name, version=version)
+        name, version, id = (
+            platform.linux_distribution(full_distribution_name=False))
+        return klass(name=name.lower(), version=version)
 
 
 CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
@@ -149,6 +155,7 @@ def run_command(args, env=None, cwd=None):
         cwd=cwd,
     )
 
+
 @attributes([
     Attribute('package'),
     Attribute('compare', default_value=None),
@@ -159,19 +166,24 @@ class Dependency(object):
     """
     def __init__(self):
         if (self.compare is None) != (self.version is None):
-            raise ValueError("Must specify both or neither compare and version.")
+            raise ValueError(
+                "Must specify both or neither compare and version.")
 
-    def deb_format(self):
-        if self.version:
-            return "%s (%s %s)" % (self.package, self.compare, self.version)
+    def format(self, package_type=_native_package_type()):
+        if package_type == PackageTypes.DEB:
+            if self.version:
+                return "%s (%s %s)" % (
+                    self.package, self.compare, self.version)
+            else:
+                return self.package
+        elif package_type == PackageTypes.RPM:
+            if self.version:
+                return "%s %s %s" % (self.package, self.compare, self.version)
+            else:
+                return self.package
         else:
-            return self.package
+            raise ValueError("Unknown package type.")
 
-    def rpm_format(self):
-        if self.version:
-            return "%s %s %s" % (self.package, self.compare, self.version)
-        else:
-            return self.package
 
 DEPENDENCIES = {
     'python': {
@@ -199,7 +211,8 @@ DEPENDENCIES = {
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
-            Dependency(package='docker.io', compare='>=', version='1.0.1'), # trust-updates version
+            # trust-updates version
+            Dependency(package='docker.io', compare='>=', version='1.0.1'),
             Dependency(package='iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
             Dependency(package='openssh-client'),
@@ -218,6 +231,7 @@ DEPENDENCIES = {
     },
 }
 
+
 def create_virtualenv(root):
     """
     Create a virtualenv in ``root``.
@@ -225,8 +239,8 @@ def create_virtualenv(root):
     :param FilePath root: The directory in which to install a virtualenv.
     :returns: A ``VirtualEnv`` instance.
     """
-    # We call ``virtualenv`` as a subprocess rather than as a library, so that we
-    # can turn off Python byte code compilation.
+    # We call ``virtualenv`` as a subprocess rather than as a library, so that
+    # we can turn off Python byte code compilation.
     run_command(
         ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
         env=dict(PYTHONDONTWRITEBYTECODE='1')
@@ -280,12 +294,14 @@ class VirtualEnv(object):
     """
     def install(self, package_uri):
         """
-        After installing the package and its dependencies, the virtualenv is made
-        ``relocatable`` to remove and absolute paths and shebang lines in scripts.
+        After installing the package and its dependencies, the virtualenv is
+        made ``relocatable`` to remove and absolute paths and shebang lines in
+        scripts.
 
         XXX: The --relocatable option is said to be broken. Investigate using
         ``virtualenv-tools`` instead. See
-        https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253 and
+        https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253
+        and
         https://github.com/fireteam/virtualenv-tools
 
         TODO: We need to byte-compile python scripts before packaging. See
@@ -315,7 +331,8 @@ class InstallApplication(object):
     """
     Install the supplied ``package`` using the supplied ``virtualenv``.
 
-    :ivar VirtualEnv virtualenv: The virtual environment in which to install ``package``.
+    :ivar VirtualEnv virtualenv: The virtual environment in which to install
+       ``package``.
     :ivar bytes package_uri: A pip compatible URI.
     """
     def run(self):
@@ -411,7 +428,7 @@ class BuildPackage(object):
 
         depends_arguments = []
         for requirement in self.dependencies:
-            depends_arguments.extend(['--depends', requirement])
+            depends_arguments.extend(['--depends', requirement.format()])
 
         if self.after_install is not None:
             depends_arguments.extend(
@@ -544,7 +561,8 @@ def sumo_package_builder(
             InstallVirtualEnv(target_path=virtualenv_dir),
             InstallApplication(virtualenv=VirtualEnv(root=virtualenv_dir),
                                package_uri=package_uri),
-            # get_package_version_step must be run before steps that reference rpm_version
+            # get_package_version_step must be run before steps that reference
+            # rpm_version
             get_package_version_step,
             BuildPackage(
                 package_type=package_type,
