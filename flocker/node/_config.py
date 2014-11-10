@@ -376,7 +376,7 @@ class FigConfiguration(object):
 
         :param dict environment: A dictionary of environment variable
             names and values or a list of strings representing key/value
-            pairs in the form KEY=VALUE
+            pairs in the form KEY=VALUE (or just KEY for an empty value)
 
         :raises ConfigurationError: if the environment config does
             not validate.
