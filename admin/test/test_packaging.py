@@ -258,13 +258,13 @@ class InstallVirtualEnvTests(TestCase):
         ``InstallVirtualEnv.run`` installs a virtual python environment using
         create_virtualenv passing ``target_path`` as ``root``.
         """
-        target_path = FilePath(self.mktemp())
-        step = InstallVirtualEnv(target_path=target_path)
+        virtualenv = VirtualEnv(root=FilePath(self.mktemp()))
+        step = InstallVirtualEnv(virtualenv=virtualenv)
         calls = []
         self.patch(
             step, '_create_virtualenv', lambda **kwargs: calls.append(kwargs))
         step.run()
-        self.assertEqual([dict(root=target_path)], calls)
+        self.assertEqual([dict(root=virtualenv.root)], calls)
 
 
 class CreateVirtualenvTests(TestCase):
@@ -275,10 +275,10 @@ class CreateVirtualenvTests(TestCase):
         ``create_virtualenv`` installs a virtual python environment in its
         ``target_path``.
         """
-        target_path = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=target_path).run()
+        virtualenv = VirtualEnv(root=FilePath(self.mktemp()))
+        InstallVirtualEnv(virtualenv=virtualenv).run()
         expected_paths = ['bin/pip', 'bin/python']
-        assert_has_paths(self, expected_paths, target_path)
+        assert_has_paths(self, expected_paths, virtualenv.root)
 
     def test_pythonpath(self):
         """
@@ -453,7 +453,7 @@ class GetPackageVersionTests(TestCase):
         """
         ``GetPackageVersion.version`` is ``None`` by default.
         """
-        step = GetPackageVersion(virtualenv_path=None, package_name=None)
+        step = GetPackageVersion(virtualenv=None, package_name=None)
         self.assertIs(None, step.version)
 
     def test_version_found(self):
@@ -462,14 +462,15 @@ class GetPackageVersionTests(TestCase):
         ``version`` attribute.
         """
         test_env = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=test_env).run()
+        virtualenv = VirtualEnv(root=test_env)
+        InstallVirtualEnv(virtualenv=virtualenv).run()
         package_root = FilePath(self.mktemp())
         test_package = canned_package(root=package_root)
         InstallApplication(
-            virtualenv_path=test_env, package_uri=package_root.path).run()
+            virtualenv=virtualenv, package_uri=package_root.path).run()
 
         step = GetPackageVersion(
-            virtualenv_path=test_env, package_name=test_package.name)
+            virtualenv=virtualenv, package_name=test_package.name)
         step.run()
         self.assertEqual(test_package.version, step.version)
 
@@ -480,10 +481,11 @@ class GetPackageVersionTests(TestCase):
         supplied ``virtual_env``.
         """
         test_env = FilePath(self.mktemp())
-        InstallVirtualEnv(target_path=test_env).run()
+        virtualenv = VirtualEnv(root=test_env)
+        InstallVirtualEnv(virtualenv=virtualenv).run()
 
         step = GetPackageVersion(
-            virtualenv_path=test_env,
+            virtualenv=virtualenv,
             package_name='PackageWhichIsNotInstalled'
         )
         step.run()
@@ -707,7 +709,7 @@ class SumoPackageBuilderTests(TestCase):
         expected_epoch = b'0'
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
-            virtualenv_path=expected_virtualenv_path,
+            virtualenv=VirtualEnv(root=expected_virtualenv_path),
             package_name='Flocker'
         )
         expected_version = DelayedRpmVersion(
@@ -724,7 +726,7 @@ class SumoPackageBuilderTests(TestCase):
         expected = BuildSequence(
             steps=(
                 # python-flocker steps
-                InstallVirtualEnv(target_path=expected_virtualenv_path),
+                InstallVirtualEnv(virtualenv=VirtualEnv(root=expected_virtualenv_path)),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',

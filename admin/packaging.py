@@ -268,7 +268,7 @@ def create_virtualenv(root):
     return VirtualEnv(root=root)
 
 
-@attributes(['target_path'])
+@attributes(['virtualenv'])
 class InstallVirtualEnv(object):
     """
     Install a virtualenv in the supplied ``target_path``.
@@ -279,7 +279,7 @@ class InstallVirtualEnv(object):
     _create_virtualenv = staticmethod(create_virtualenv)
 
     def run(self):
-        self._create_virtualenv(root=self.target_path)
+        self._create_virtualenv(root=self.virtualenv.root)
 
 
 @attributes(['name', 'version'])
@@ -355,7 +355,7 @@ class CreateLinks(object):
             target.linkTo(name)
 
 
-@attributes(['virtualenv_path', 'package_name'])
+@attributes(['virtualenv', 'package_name'])
 class GetPackageVersion(object):
     """
     Record the version of ``package_name`` installed in ``virtualenv_path`` by
@@ -366,8 +366,7 @@ class GetPackageVersion(object):
     ``pip install --dry-run http://www.example.com/my/wheel.whl``
     See: https://github.com/pypa/pip/issues/53
 
-    :ivar FilePath virtualenv_path: The path of the ``virtualenv`` containing
-        the package.
+    :ivar VirtualEnv virtualenv: The ``virtualenv`` containing the package.
     :ivar bytes package_name: The name of the package whose version will be
         recorded.
     :ivar version: The version string of the supplied package. Default is
@@ -380,7 +379,7 @@ class GetPackageVersion(object):
         # We can't just call pip directly, because in the virtualenvs created
         # in tests, the shebang line becomes too long and triggers an
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
-        python_path = self.virtualenv_path.child('bin').child('python').path
+        python_path = self.virtualenv.root.child('bin').child('python').path
         output = check_output(
             [python_path, '-m', 'pip', 'show', self.package_name])
 
@@ -551,15 +550,18 @@ def sumo_package_builder(
     virtualenv_dir = python_flocker_path.descendant(['opt', 'flocker'])
     virtualenv_dir.makedirs()
 
+    virtualenv = VirtualEnv(root=virtualenv_dir)
+
     get_package_version_step = GetPackageVersion(
-        virtualenv_path=virtualenv_dir, package_name='Flocker')
+        virtualenv=virtualenv, package_name='Flocker')
     rpm_version = DelayedRpmVersion(
         package_version_step=get_package_version_step)
 
+
     return BuildSequence(
         steps=(
-            InstallVirtualEnv(target_path=virtualenv_dir),
-            InstallApplication(virtualenv=VirtualEnv(root=virtualenv_dir),
+            InstallVirtualEnv(virtualenv=virtualenv),
+            InstallApplication(virtualenv=virtualenv,
                                package_uri=package_uri),
             # get_package_version_step must be run before steps that reference
             # rpm_version
