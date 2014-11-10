@@ -32,15 +32,14 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # XXX: Get fpm installed on the build slaves.
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
+require_rpm = skipIf(not which('rpm'), "Tests require the `rpm` command.")
+require_dpkg = skipIf(not which('dpkg'), "Tests require the `dpkg` command.")
 
 # XXX
 try:
     PLATFORM_PACKAGE_TYPE = _native_package_type()
 except ValueError:
     PLATFORM_PACKAGE_TYPE = None
-require_rpm = skipIf(PLATFORM_PACKAGE_TYPE != 'rpm',
-                     "Tests require an `rpm` based platform. Found {}.".format(
-                         PLATFORM_PACKAGE_TYPE))
 require_deb = skipIf(PLATFORM_PACKAGE_TYPE != 'deb',
                      "Tests require a `deb` based platform. Found {}.".format(
                          PLATFORM_PACKAGE_TYPE))
@@ -134,6 +133,7 @@ def parse_colon_dict(data):
             key, val = parts
             result[key] = val
         else:
+            result.setdefault(key, '')
             result[key] += parts[0]
     return result
 
@@ -521,8 +521,9 @@ class BuildPackageTests(TestCase):
         expected_maintainer = 'noreply@example.com'
         expected_architecture = 'i386'
         expected_description = 'Explosive Tennis Balls'
+        expected_dependencies = ['test-dep', 'version-dep >= 42']
         BuildPackage(
-            package_type="rpm",
+            package_type=PackageTypes.RPM,
             destination_path=destination_path,
             source_path=source_path,
             name=expected_name,
@@ -535,6 +536,9 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            dependencies=[
+                Dependency(package='test-dep'),
+                Dependency(package='version-dep', compare='>=', version='42')],
         ).run()
         rpms = glob('{}*.rpm'.format(
             destination_path.child(expected_name).path))
@@ -552,10 +556,11 @@ class BuildPackageTests(TestCase):
             Packager=expected_maintainer,
             Architecture=expected_architecture,
         )
+        assert_rpm_requires(self, expected_dependencies, FilePath(rpms[0]))
         assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
 
 
-    @require_deb
+    @require_dpkg
     def test_deb(self):
         """
         ``BuildPackage.run`` creates a .deb package from the supplied
@@ -578,7 +583,7 @@ class BuildPackageTests(TestCase):
         expected_architecture = 'i386'
         expected_description = 'Explosive Tennis Balls'
         BuildPackage(
-            package_type="deb",
+            package_type=PackageTypes.DEB,
             destination_path=destination_path,
             source_path=source_path,
             name=expected_name,
@@ -591,6 +596,9 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            dependencies=[
+                Dependency(package='test-dep'),
+                Dependency(package='version-dep', compare='>=', version='42')],
         ).run()
         packages = glob('{}*.deb'.format(
             destination_path.child(expected_name.lower()).path))
@@ -610,6 +618,7 @@ class BuildPackageTests(TestCase):
             Architecture=expected_architecture,
             Maintainer=expected_maintainer,
             Homepage=expected_url,
+            Depends=', '.join(['test-dep', 'version-dep (>= 42)'])
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
 
