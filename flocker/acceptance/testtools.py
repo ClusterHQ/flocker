@@ -42,13 +42,14 @@ MONGO_VOLUMES = frozenset([
     Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/db')),
     Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/log')),
 ])
-MONGO_UNIT = Unit(name=MONGO_APPLICATION,
-                  container_name=BASE_NAMESPACE + MONGO_APPLICATION,
-                  activation_state=u'active',
-                  container_image=MONGO_IMAGE + u':latest',
-                  ports=frozenset([]),
-                  volumes=MONGO_VOLUMES,
-                  )
+MONGO_UNIT = Unit(
+    name=MONGO_APPLICATION,
+    container_name=BASE_NAMESPACE + MONGO_APPLICATION,
+    activation_state=u'active',
+    container_image=MONGO_IMAGE + u':latest',
+    ports=frozenset([]),
+    volumes=MONGO_VOLUMES,
+)
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
