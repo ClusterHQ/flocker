@@ -807,10 +807,85 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
-    def test_invalid_fig_config_environment_not_dict(self):
+    def test_fig_config_environment_list_item_empty_value(self):
+        """
+        An entry in a list of environment variables that is just a label is
+        mapped to its label and a value of an empty unicode string.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_fig_config_environment_list_item_value(self):
+        """
+        A list of environment variables supplied in the form of LABEL=VALUE are
+        parsed in to a ``frozenset`` mapping LABEL to VALUE.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD=admin'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'admin')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_invalid_fig_config_environment_list_item(self):
+        """
+        A ``ConfigurationError`` is raised if an entry in a list of
+        'environment' values is not a string.
+        """
+        config = {
+            'postgres': {
+                'environment': [27014],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' value '27014' must be a string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_format(self):
         """
         A ``ConfigurationError`` is raised if the "environments" key of a fig
-        application config is not a dictionary.
+        application config is not a dictionary or list.
         """
         config = {
             'postgres': {
@@ -828,7 +903,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'postgres' has a config error. "
-            "'environment' must be a dictionary; got type 'str'."
+            "'environment' must be a dictionary or list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
 
