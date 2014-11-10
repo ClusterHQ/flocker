@@ -3,9 +3,10 @@
 """
 Tests for communication to applications across nodes.
 """
+from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
+from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit, Volume
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
                         get_mongo_client, get_nodes, MONGO_APPLICATION,
@@ -72,6 +73,12 @@ class PortsTests(TestCase):
                     ports=frozenset([
                         PortMap(internal_port=self.internal_port,
                                 external_port=self.external_port)
+                    ]),
+                    volumes=frozenset([
+                        Volume(node_path=FilePath(b'/some_path'),
+                               container_path=FilePath(b'/data/db')),
+                        Volume(node_path=FilePath(b'/some_path'),
+                               container_path=FilePath(b'/data/log')),
                     ]))
 
         d = assert_expected_deployment(self, {
