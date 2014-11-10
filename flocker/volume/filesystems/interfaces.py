@@ -44,6 +44,9 @@ class IFilesystemSnapshots(Interface):
 class IFilesystem(Interface):
     """A filesystem that is part of a pool."""
 
+    # Add maximum size accessor here.  Returns a Deferred for easy async
+    # implementation on the ZFS backend.
+
     def get_path():
         """Retrieve the filesystem's local path.
 

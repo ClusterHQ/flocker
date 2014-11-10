@@ -247,7 +247,9 @@ class VolumeService(Service):
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
-                # Add maximum size information here.
+
+                # Add maximum size information here.  Take it from the
+                # filesystem object.
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,

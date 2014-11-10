@@ -164,6 +164,7 @@ def _latest_common_snapshot(some, others):
     return None
 
 
+# Add maximum size information here
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
 @with_repr(["pool", "dataset"])
@@ -220,6 +221,9 @@ class Filesystem(object):
         if self.dataset is None:
             return self.pool
         return b"%s/%s" % (self.pool, self.dataset)
+
+    # Add maximum size accessor here - call in to ZFS and ask for the value of
+    # the refquota property.
 
     def get_path(self):
         return self._mountpoint
@@ -593,6 +597,9 @@ def _list_filesystems(reactor, pool):
         of which are ``tuples`` containing the name and mountpoint of each
         filesystem.
     """
+    # Get refquota property here to populate maximum size information on the
+    # Filesystem instances
+
     # ZFS list command with a depth of 1, so that only this dataset and its
     # direct children are shown.
     # No headers are printed.
