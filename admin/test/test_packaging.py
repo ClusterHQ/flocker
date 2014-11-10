@@ -23,7 +23,7 @@ from ..packaging import (
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
     DelayedRpmVersion, FLOCKER_DEPENDENCIES_RPM, FLOCKER_DEPENDENCIES_DEB,
     CreateLinks, _native_package_type, PythonPackage, create_virtualenv, VirtualEnv,
-    PackageTypes,
+    PackageTypes, Distribution, Dependency
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -693,6 +693,15 @@ class SumoPackageBuilderTests(TestCase):
         """
         A sequence of build steps is returned.
         """
+        self.patch(packaging, 'CURRENT_DISTRIBUTION',
+                   Distribution(name='test-distro', version='30'))
+        self.patch(packaging, 'DEPENDENCIES', {
+            'python': {'test-distro': [Dependency(package='python-dep')]},
+            'node': {'test-distro': [Dependency(package='node-dep')]},
+            'cli': {'test-distro': [Dependency(package='cli-dep')]},
+            })
+
+
         expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
 
@@ -746,6 +755,7 @@ class SumoPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture=expected_architecture,
                     description=expected_description,
+                    dependencies=[Dependency(package='python-dep')],
                 ),
 
                 # flocker-cli steps
@@ -769,6 +779,7 @@ class SumoPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture=expected_architecture,
                     description=expected_description,
+                    dependencies=[Dependency(package='cli-dep')],
                 ),
                 # flocker-node steps
                 CreateLinks(
@@ -795,6 +806,7 @@ class SumoPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture=expected_architecture,
                     description=expected_description,
+                    dependencies=[Dependency(package='node-dep')],
                 ),
             )
         )
