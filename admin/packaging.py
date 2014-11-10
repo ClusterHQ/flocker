@@ -423,8 +423,6 @@ class BuildPackage(object):
     """
     def run(self):
         architecture = self.architecture
-        if architecture is None:
-            architecture = 'all'
 
         depends_arguments = []
         for requirement in self.dependencies:
