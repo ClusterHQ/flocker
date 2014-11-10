@@ -536,7 +536,7 @@ def sumo_package_builder(
 
     get_package_version_step = GetPackageVersion(
         virtualenv_path=virtualenv_dir, package_name='Flocker')
-    rpm_version=DelayedRpmVersion(
+    rpm_version = DelayedRpmVersion(
         package_version_step=get_package_version_step)
 
     return BuildSequence(
@@ -544,6 +544,7 @@ def sumo_package_builder(
             InstallVirtualEnv(target_path=virtualenv_dir),
             InstallApplication(virtualenv=VirtualEnv(root=virtualenv_dir),
                                package_uri=package_uri),
+            # get_package_version_step must be run before steps that reference rpm_version
             get_package_version_step,
             BuildPackage(
                 package_type=package_type,
