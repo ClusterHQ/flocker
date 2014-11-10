@@ -199,6 +199,8 @@ class CreateVolume(object):
         return deployer.volume_service.create(
             _to_volume_name(self.volume.name))
 
+# Add an IStateChange to change the maximum size of a volume.
+# Not in this branch though.  Add resizing support later.
 
 @implementer(IStateChange)
 @attributes(["volume"])
@@ -478,6 +480,9 @@ class Deployer(object):
             # configuration.
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
+
+            # XXX Need to look at volumes that are changing maximum size and
+            # add changes to make that happen.
 
             # Do an initial push of all volumes that are going to move, so
             # that the final push which happens during handoff is a quick

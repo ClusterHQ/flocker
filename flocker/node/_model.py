@@ -84,6 +84,7 @@ class AttachedVolume(object):
         # XXX Unless Volume changes too we won't know the maximum_size.
         try:
             volume = volumes.pop()
+            # Include the maximum size here
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None

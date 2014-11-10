@@ -124,7 +124,8 @@ class VolumeService(Service):
         self.uuid = config[u"uuid"]
         self.pool.startService()
 
-    # add maximum_size parameter
+    # add maximum_size parameter or better, replace name with a volume model
+    # object that can describe many parameters
     def create(self, name):
         """Create a new volume.
 
@@ -246,6 +247,7 @@ class VolumeService(Service):
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
+                # Add maximum size information here.
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,
@@ -383,6 +385,7 @@ class Volume(object):
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
+        # Preserve maximum size field
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
                             service=self.service)
         d = self.service.pool.change_owner(self, new_volume)
