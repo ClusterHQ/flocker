@@ -313,13 +313,9 @@ class VirtualEnv(object):
         # in tests, the shebang line becomes too long and triggers an
         # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
         python_path = self.root.child('bin').child('python').path
-        import os
-        env = os.environ.copy()
-        env['PYTHONDONTWRITEBYTECODE'] = '1'
 
         run_command(
             [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
-            env=env
         )
         run_command(
             ['virtualenv', '--quiet', '--relocatable',
