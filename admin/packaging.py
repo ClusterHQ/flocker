@@ -582,7 +582,7 @@ def sumo_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture='all',
                 description=(
                     'A Docker orchestration and volume management tool'),
                 dependencies=DEPENDENCIES['cli'][CURRENT_DISTRIBUTION.name],
@@ -610,7 +610,7 @@ def sumo_package_builder(
                 url=PACKAGE.URL.value,
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
-                architecture='native',
+                architecture='all',
                 description=(
                     'A Docker orchestration and volume management tool'),
                 dependencies=DEPENDENCIES['node'][CURRENT_DISTRIBUTION.name],
