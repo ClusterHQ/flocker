@@ -13,7 +13,7 @@ from zope.interface import Interface, implementer
 from docker import Client
 from docker.errors import APIError
 
-from characteristic import attributes, Attribute
+from characteristic import attributes, Attribute, with_cmp
 
 from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
@@ -44,6 +44,7 @@ class Environment(object):
         return dict(self.variables)
 
 
+@with_cmp(["container_path"])
 @attributes(["node_path", "container_path"])
 class Volume(object):
     """
