@@ -91,14 +91,14 @@ from .release import make_rpm_version
 
 
 class PackageTypes(Values):
-    rpm = ValueConstant('rpm')
-    deb = ValueConstant('deb')
+    RPM = ValueConstant('rpm')
+    DEB = ValueConstant('deb')
 
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.rpm: ('fedora', 'centos linux'),
-    PackageTypes.deb: ('ubuntu',),
+    PackageTypes.RPM: ('fedora', 'centos linux'),
+    PackageTypes.DEB: ('ubuntu',),
 }
 
 
