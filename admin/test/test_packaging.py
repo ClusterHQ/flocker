@@ -728,7 +728,6 @@ class SumoPackageBuilderTests(TestCase):
         expected_url = 'https://clusterhq.com'
         expected_vendor = 'ClusterHQ'
         expected_maintainer = 'noreply@build.clusterhq.com'
-        expected_architecture = 'native'
         expected_description = (
             'A Docker orchestration and volume management tool')
 
@@ -753,7 +752,7 @@ class SumoPackageBuilderTests(TestCase):
                     url=expected_url,
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
-                    architecture=expected_architecture,
+                    architecture='native',
                     description=expected_description,
                     dependencies=[Dependency(package='python-dep')],
                 ),
@@ -777,7 +776,7 @@ class SumoPackageBuilderTests(TestCase):
                     url=expected_url,
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
-                    architecture=expected_architecture,
+                    architecture='all',
                     description=expected_description,
                     dependencies=[Dependency(package='cli-dep')],
                 ),
@@ -804,7 +803,7 @@ class SumoPackageBuilderTests(TestCase):
                     url=expected_url,
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
-                    architecture=expected_architecture,
+                    architecture='all',
                     description=expected_description,
                     dependencies=[Dependency(package='node-dep')],
                 ),
