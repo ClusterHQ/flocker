@@ -435,6 +435,24 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
+    def test_add_without_cpu_or_mem_limits(self):
+        """
+        ``DockerClient.add`` when creating a container with no mem_limit or
+        cpu_shares specified will create a container without these resource
+        limits, returning integer 0 as the values for Memory and CpuShares from
+        its API when inspecting such a container.
+        """
+        name = random_name()
+        d = self.start_container(name)
+
+        def started(_):
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"Memory"], 0)
+            self.assertEqual(data[u"Config"][u"CpuShares"], 0)
+        d.addCallback(started)
+        return d
+
 
 class DockerClientTests(TestCase):
     """
