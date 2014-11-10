@@ -90,34 +90,36 @@ import virtualenv
 from .release import make_rpm_version
 
 
-# RPM style 'Requires' values which will be added to the Flocker RPM headers.
-FLOCKER_DEPENDENCIES_RPM = (
-    'python',
-)
-
-# DEB style 'Depends' values which will be added to the Flocker DEB headers.
-FLOCKER_DEPENDENCIES_DEB = (
-    'python2.7',
-)
-
-FLOCKER_DEPENDENCIES = dict(
-    rpm=FLOCKER_DEPENDENCIES_RPM,
-    deb=FLOCKER_DEPENDENCIES_DEB,
-)
-
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = dict(
     rpm=('fedora', 'centos linux'),
     deb=('ubuntu',),
 )
 
+
+@attributes(['name', 'version'])
+class Distribution(object):
+    """
+    A linux distirubtion
+
+    :ivar bytes name: The name of the distribution.
+    :ivar bytes version: The version of the distribution.
+    """
+
+    @classmethod
+    def _get_current_distribution(klass):
+        name, version, id = platform.linux_distribution()
+        return klass(name=name, version=version)
+
+
+CURRENT_DISTRIBUTION = Distribution._get_current_distribution()
+
+
 def _native_package_type():
     """
     :return: The ``bytes`` name of the native package format for this platform.
     """
-    (distribution_name,
-     distribution_version,
-     distribution_id) = platform.linux_distribution()
+    distribution_name = CURRENT_DISTRIBUTION.name.lower()
 
     for package_type, distribution_names in PACKAGE_TYPE_MAP.items():
         if distribution_name.lower() in distribution_names:
@@ -147,6 +149,74 @@ def run_command(args, env=None, cwd=None):
         cwd=cwd,
     )
 
+@attributes([
+    Attribute('package'),
+    Attribute('compare', default_value=None),
+    Attribute('version', default_value=None)])
+class Dependency(object):
+    """
+    Package dependency
+    """
+    def __init__(self):
+        if (self.compare is None) != (self.version is None):
+            raise ValueError("Must specify both or neither compare and version.")
+
+    def deb_format(self):
+        if self.version:
+            return "%s (%s %s)" % (self.package, self.compare, self.version)
+        else:
+            return self.package
+
+    def rpm_format(self):
+        if self.version:
+            return "%s %s %s" % (self.package, self.compare, self.version)
+        else:
+            return self.package
+
+DEPENDENCIES = {
+    'python': {
+        'fedora': (
+            Dependency(package='python'),
+        ),
+        'centos': (
+            Dependency(package='python'),
+        ),
+        'ubuntu': (
+            Dependency(package='python2.7'),
+        ),
+    },
+    'node': {
+        'fedora': (
+            Dependency(package='docker-io', compare='>=', version='1.2'),
+            Dependency(package='/usr/sbin/iptables'),
+            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            Dependency(package='docker', compare='>=', version='1.2'),
+            Dependency(package='/usr/sbin/iptables'),
+            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            Dependency(package='docker.io', compare='>=', version='1.0.1'), # trust-updates version
+            Dependency(package='iptables'),
+            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            Dependency(package='openssh-client'),
+        ),
+    },
+    'cli': {
+        'fedora': (
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            Dependency(package='openssh-client'),
+        ),
+    },
+}
 
 def create_virtualenv(root):
     """
@@ -307,7 +377,7 @@ class GetPackageVersion(object):
 @attributes(
     ['package_type', 'destination_path', 'source_path', 'name', 'prefix',
      'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
-     'architecture', 'description',
+     'architecture', 'description', 'dependencies',
      Attribute('after_install', default_value=None)])
 class BuildPackage(object):
     """
@@ -332,6 +402,7 @@ class BuildPackage(object):
     :ivar bytes architecture: The OS architecture for which this package is
         targeted. Default ``None`` means architecture independent.
     :ivar unicode description: A description of the package.
+    :ivar list dependencies: The list of dependencies of the package.
     """
     def run(self):
         architecture = self.architecture
@@ -339,7 +410,7 @@ class BuildPackage(object):
             architecture = 'all'
 
         depends_arguments = []
-        for requirement in FLOCKER_DEPENDENCIES.get(self.package_type, []):
+        for requirement in self.dependencies:
             depends_arguments.extend(['--depends', requirement])
 
         if self.after_install is not None:
@@ -489,6 +560,7 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
+                dependencies=DEPENDENCIES['python'][CURRENT_DISTRIBUTION.name],
             ),
 
             # flocker-cli steps
@@ -513,6 +585,7 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
+                dependencies=DEPENDENCIES['cli'][CURRENT_DISTRIBUTION.name],
             ),
             # flocker-node steps
             CreateLinks(
@@ -540,6 +613,7 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
+                dependencies=DEPENDENCIES['node'][CURRENT_DISTRIBUTION.name],
             ),
         )
     )
