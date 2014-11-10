@@ -3,13 +3,12 @@
 """
 Tests for deploying applications.
 """
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, Unit, Volume
+from flocker.node._docker import BASE_NAMESPACE, Unit
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
+                        MONGO_APPLICATION, MONGO_IMAGE, MONGO_VOLUMES, require_flocker_cli,
                         require_mongo)
 
 
@@ -59,12 +58,8 @@ class DeploymentTests(TestCase):
                         activation_state=u'active',
                         container_image=MONGO_IMAGE + u':latest',
                         ports=frozenset([]),
-                        volumes=frozenset([
-                            Volume(node_path=FilePath(b'/some_path'),
-                                   container_path=FilePath(b'/data/db')),
-                            Volume(node_path=FilePath(b'/some_path'),
-                                   container_path=FilePath(b'/data/log')),
-                        ]))
+                        volumes=MONGO_VOLUMES,
+                    )
 
             d = assert_expected_deployment(self, {
                 node_1: set([unit]),

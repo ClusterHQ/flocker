@@ -3,14 +3,14 @@
 """
 Tests for communication to applications across nodes.
 """
-from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit, Volume
+from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
                         get_mongo_client, get_nodes, MONGO_APPLICATION,
-                        MONGO_IMAGE, require_flocker_cli, require_mongo)
+                        MONGO_IMAGE, MONGO_VOLUMES, require_flocker_cli,
+                        require_mongo)
 
 
 class PortsTests(TestCase):
@@ -66,6 +66,7 @@ class PortsTests(TestCase):
         Docker has internal representations of the port mappings given by the
         configuration files supplied to flocker-deploy.
         """
+        # TODO Mongo unit in testtools?
         unit = Unit(name=MONGO_APPLICATION,
                     container_name=BASE_NAMESPACE + MONGO_APPLICATION,
                     activation_state=u'active',
@@ -74,13 +75,8 @@ class PortsTests(TestCase):
                         PortMap(internal_port=self.internal_port,
                                 external_port=self.external_port)
                     ]),
-                    volumes=frozenset([
-                        # TODO MONGO_VOLUMES in testtools
-                        Volume(node_path=FilePath(b'/some_path'),
-                               container_path=FilePath(b'/data/db')),
-                        Volume(node_path=FilePath(b'/some_path'),
-                               container_path=FilePath(b'/data/log')),
-                    ]))
+                    volumes=MONGO_VOLUMES,
+                )
 
         d = assert_expected_deployment(self, {
             self.node_1: set([unit]),

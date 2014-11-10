@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient
+from flocker.node._docker import DockerClient, Volume
 from flocker.testtools import loop_until
 
 try:
@@ -37,6 +37,10 @@ REMOTE_DOCKER_PORT = 2375
 # https://github.com/ClusterHQ/flocker/issues/947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
+MONGO_VOLUMES = frozenset([
+    Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/db')),
+    Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/log')),
+])
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
