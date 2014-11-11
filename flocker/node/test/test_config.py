@@ -1107,35 +1107,98 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         if the supplied configuration contains a cpu_shares entry that is not
         an integer.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': b"1024"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "cpu_shares must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
 
     def test_default_memory_limit(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         memory_limit of None if no limit was specified in the configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].memory_limit)
 
     def test_default_cpu_shares(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         cpu_shares of None if no limit was specified in the configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].cpu_shares)
 
     def test_application_with_memory_limit(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         memory_limit set to the value specified in the configuration.
         """
-        self.fail("Not implemented yet.")
+        MEMORY_100MB = 100000000
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': MEMORY_100MB
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].memory_limit,
+                         MEMORY_100MB)
 
     def test_application_with_cpu_shares(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         cpu_shares set to the value specified in the configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': 512
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].cpu_shares,
+                         512)
 
     def test_not_valid_on_application_not_dict(self):
         """
