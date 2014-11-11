@@ -239,6 +239,14 @@ As an alternative to Flocker's configuration syntax, you may also use `Fig`_'s c
      volumes:
        - "/var/lib/mysql"
 
+- ``mem_limit``
+
+  This is an optional integer value representing the maximum RAM allocated to a container, in bytes.
+
+  .. code-block:: yaml
+
+     "mem_limit": 100000000
+
 Here's a complete example of a Fig compatible application configuration for Flocker:
 
 .. code-block:: yaml
@@ -249,6 +257,7 @@ Here's a complete example of a Fig compatible application configuration for Floc
        "MYSQL_ROOT_PASSWORD": "clusterhq"
      ports:
        - "3306:3306"
+     mem_limit: 100000000
      volumes:
        - "/var/lib/mysql"
 
