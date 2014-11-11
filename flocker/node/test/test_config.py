@@ -413,14 +413,48 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         representing the bytes memory limit for a container when given a valid
         configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': 100000000
+            }
+        }
+        parser = FigConfiguration(config)
+        limit = parser._parse_mem_limit(
+            'postgres',
+            config['postgres']['mem_limit']
+        )
+        self.assertEqual(limit, 100000000)
 
     def test_invalid_fig_config_mem_limit(self):
         """
         ``FigConfiguration._parse`` raises a ``ConfigurationError`` if a
         mem_limit config is specified that is not an integer.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': b"100000000"
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._parse
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "mem_limit must be an integer; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
 
     def test_valid_fig_config_default_mem_limit(self):
         """
@@ -428,7 +462,19 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         memory_limit of None if no mem_limit is specified in a valid Fig
         configuration.
         """
-        self.fail("Not implemented yet.")
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': 100000000
+            }
+        }
+        parser = FigConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['postgres'].memory_limit, 100000000)
 
     def test_valid_fig_config_volumes(self):
         """
