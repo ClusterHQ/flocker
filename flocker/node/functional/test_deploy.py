@@ -188,3 +188,19 @@ class DeployerTests(TestCase):
                          for k, v in expected_variables])
         d.addCallback(started)
         return d
+
+    @if_docker_configured
+    def test_memory_limit(self):
+        """
+        The memory limit number specified in an ``Application`` is passed to
+        the container.
+        """
+        self.fail("Not implemented yet.")
+
+    @if_docker_configured
+    def test_cpu_shares(self):
+        """
+        The CPU shares number specified in an ``Application`` is passed to the
+        container.
+        """
+        self.fail("Not implemented yet.")
