@@ -49,6 +49,10 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
+# Add VolumeSize info here.  It will default to None.  This seems weird and
+# redundant with the information on Volume but it's needed in both places.
+# Perhaps in the future replace this redundancy with a separate Volume
+# model-only object that can be shared between AttachedVolume and Volume?
 @attributes(["name", "mountpoint"])
 class AttachedVolume(object):
     """
@@ -81,6 +85,8 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
+            # Include the size information here, copied unmodified from the
+            # Volume instance.
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
