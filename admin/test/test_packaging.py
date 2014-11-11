@@ -21,9 +21,8 @@ from .. import packaging
 from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
     BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion,
-    CreateLinks, _native_package_type, PythonPackage, create_virtualenv, VirtualEnv,
-    PackageTypes, Distribution, Dependency
+    DelayedRpmVersion, CreateLinks, PythonPackage, create_virtualenv,
+    VirtualEnv, PackageTypes, Distribution, Dependency
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -390,11 +389,10 @@ class CreateVirtualenvTests(TestCase):
 class TestVirtualEnv(TestCase):
     def test_install(self):
         """
-        ``VirtualEnv.install`` accepts a ``PythonPackage`` instance and installs
-        it.
+        ``VirtualEnv.install`` accepts a ``PythonPackage`` instance and
+        installs it.
         """
     test_install.todo = 'write test'
-
 
 
 class InstallApplicationTests(TestCase):
@@ -556,8 +554,8 @@ class BuildPackageTests(TestCase):
             package_type=PackageTypes.RPM,
             destination_path=destination_path,
             source_paths={
-               source_path: FilePath('/foo/bar'),
-               source_path.child('Foo'): FilePath('/other/file'),
+                source_path: FilePath('/foo/bar'),
+                source_path.child('Foo'): FilePath('/other/file'),
             },
             name=expected_name,
             prefix=FilePath('/'),
@@ -593,7 +591,6 @@ class BuildPackageTests(TestCase):
         assert_rpm_headers(self, expected_headers, rpm_path)
         assert_rpm_content(self, expected_paths, rpm_path)
 
-
     @require_dpkg
     def test_deb(self):
         """
@@ -625,8 +622,8 @@ class BuildPackageTests(TestCase):
             package_type=PackageTypes.DEB,
             destination_path=destination_path,
             source_paths={
-               source_path: FilePath('/foo/bar'),
-               source_path.child('Foo'): FilePath('/other/file'),
+                source_path: FilePath('/foo/bar'),
+                source_path.child('Foo'): FilePath('/other/file'),
             },
             name=expected_name,
             prefix=FilePath("/"),
@@ -664,7 +661,6 @@ class BuildPackageTests(TestCase):
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
-
 
     @require_rpm
     def test_afterinstall_rpm(self):
@@ -763,7 +759,6 @@ class SumoPackageBuilderTests(TestCase):
             'cli': {'test-distro': [Dependency(package='cli-dep')]},
             })
 
-
         expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
 
@@ -792,7 +787,8 @@ class SumoPackageBuilderTests(TestCase):
         expected = BuildSequence(
             steps=(
                 # python-flocker steps
-                InstallVirtualEnv(virtualenv=VirtualEnv(root=expected_virtualenv_path)),
+                InstallVirtualEnv(
+                    virtualenv=VirtualEnv(root=expected_virtualenv_path)),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
                     package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
@@ -801,7 +797,9 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={expected_virtualenv_path: expected_virtualenv_path},
+                    source_paths={
+                        expected_virtualenv_path: expected_virtualenv_path
+                    },
                     name='clusterhq-python-flocker',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -874,7 +872,6 @@ class SumoPackageBuilderTests(TestCase):
                                  destination_path=expected_destination_path,
                                  package_uri=expected_package_uri,
                                  target_dir=target_path))
-
 
     def test_functional_rpm(self):
         """
@@ -1000,7 +997,9 @@ class BuildOptionsTests(TestCase):
         """
         Patch ``admin.packaging._native_package_type`` to return a fixed value.
         """
-        self.patch(packaging, '_native_package_type', lambda: self.native_package_type)
+        self.patch(
+            packaging, '_native_package_type',
+            lambda: self.native_package_type)
 
     def test_defaults(self):
         """
@@ -1097,6 +1096,7 @@ class BuildScriptTests(TestCase):
         script = BuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
         arguments = []
+
         def record_arguments(*args, **kwargs):
             arguments.append((args, kwargs))
             return build_step

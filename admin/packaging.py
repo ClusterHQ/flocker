@@ -383,8 +383,8 @@ class BuildPackage(object):
 
     :ivar FilePath destination_path: The path in which to save the resulting
         RPM package file.
-    :ivar dict source_paths: A dictionary mapping paths in the filesystem to the
-        path in the package.
+    :ivar dict source_paths: A dictionary mapping paths in the filesystem to
+        the path in the package.
     :ivar bytes name: The name of the package.
     :ivar FilePath prefix: The path beneath which the packaged files will be
          installed.
@@ -407,7 +407,8 @@ class BuildPackage(object):
 
         depends_arguments = []
         for requirement in self.dependencies:
-            depends_arguments.extend(['--depends', requirement.format(self.package_type)])
+            depends_arguments.extend(
+                ['--depends', requirement.format(self.package_type)])
 
         if self.after_install is not None:
             depends_arguments.extend(
@@ -418,7 +419,8 @@ class BuildPackage(object):
         for source_path, package_path in self.source_paths.items():
             # Think of /= as a separate operator. It causes fpm to copy the
             # content of the directory rather than the directory its self.
-            path_arguments.append("%s/=%s" % (source_path.path, package_path.path))
+            path_arguments.append(
+                "%s/=%s" % (source_path.path, package_path.path))
 
         run_command([
             'fpm',
@@ -536,7 +538,6 @@ def sumo_package_builder(
     rpm_version = DelayedRpmVersion(
         package_version_step=get_package_version_step)
 
-
     return BuildSequence(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
@@ -648,9 +649,11 @@ class DockerRun(object):
     def run(self):
         volume_options = []
         for container, host in self.volumes.iteritems():
-            volume_options.extend(['--volume', '%s:%s' % (host.path, container.path)])
+            volume_options.extend(
+                ['--volume', '%s:%s' % (host.path, container.path)])
 
-        check_call(['docker', 'run',] + volume_options +  [self.tag] + self.command)
+        check_call(
+            ['docker', 'run'] + volume_options + [self.tag] + self.command)
 
 
 def build_package(destination_path, distribution, top_level, package_uri):
@@ -666,10 +669,10 @@ def build_package(destination_path, distribution, top_level, package_uri):
     """
     if destination_path.exists() and not destination_path.isdir():
         raise ValueError("go away")
-    #destination_path.makedirs()
 
     tag = "clusterhq/build_%s" % (distribution,)
-    build_directory = top_level.descendant(['admin', 'build_targets', distribution])
+    build_directory = top_level.descendant(
+        ['admin', 'build_targets', distribution])
 
     return BuildSequence(
         steps=[
@@ -723,7 +726,8 @@ class DockerBuildOptions(usage.Options):
         if self['package-type'] == 'native':
             self['package-type'] = _native_package_type()
         else:
-            self['package-type'] = PackageTypes.lookupByValue(self['package-type'])
+            self['package-type'] = PackageTypes.lookupByValue(
+                self['package-type'])
 
 
 class DockerBuildScript(object):
@@ -804,7 +808,7 @@ class BuildOptions(usage.Options):
         ``package-type``.
         """
         self['destination-path'] = FilePath(self['destination-path'])
-        if self['distribution'] == None:
+        if self['distribution'] is None:
             raise usage.UsageError('Must specify --distribution.')
 
 
