@@ -271,12 +271,12 @@ class FigConfiguration(object):
         self._possible_identifiers = {'image', 'build'}
         self._unsupported_keys = {
             "working_dir", "entrypoint", "user", "hostname",
-            "domainname", "mem_limit", "privileged", "dns", "net",
+            "domainname", "privileged", "dns", "net",
             "volumes_from", "expose", "command"
         }
         self._allowed_keys = {
             "image", "environment", "ports",
-            "links", "volumes"
+            "links", "volumes", "mem_limit",
         }
 
     def applications(self):
@@ -501,6 +501,25 @@ class FigConfiguration(object):
             )
         return return_ports
 
+    def _parse_mem_limit(self, application, limit):
+        """
+        Validate and parse the mem_limit portion of an application
+        configuration.
+
+        :param bytes application: The name of the application this config
+            is mapped to.
+
+        :param int limit: The parsed configuration value for mem_limit.
+
+        :raises ConfigurationError: if the mem_limit config is not an int.
+
+        :returns: An ``int`` representing the memory limit in bytes.
+        """
+        _check_type(value=limit, types=(int),
+                    description="mem_limit must be an integer",
+                    application_name=application)
+        return limit
+
     def _parse_app_links(self, application, links):
         """
         Validate and parse the links portion of an application
@@ -595,6 +614,7 @@ class FigConfiguration(object):
                 environment = None
                 ports = []
                 volume = None
+                mem_limit = None
                 self._application_links[application_name] = []
                 if 'environment' in config:
                     environment = self._parse_app_environment(
@@ -616,13 +636,18 @@ class FigConfiguration(object):
                         application_name,
                         config['links']
                     )
+                if 'mem_limit' in config:
+                    mem_limit = self._parse_mem_limit(
+                        application_name, config['mem_limit']
+                    )
                 self._applications[application_name] = Application(
                     name=application_name,
                     image=image,
                     volume=volume,
                     ports=frozenset(ports),
                     links=frozenset(),
-                    environment=environment
+                    environment=environment,
+                    memory_limit=mem_limit
                 )
             except ValueError as e:
                 raise ConfigurationError(
