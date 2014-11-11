@@ -8,9 +8,6 @@
 #
 # Run:
 # docker run --volume=~/projects/flocker:/flocker clusterhq/build_fedora:20 https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.2.1-py2-none-any.whl
-#
-# TODO: Explicitly uninstall prelink (if it's installed). See
-# https://github.com/jordansissel/fpm/issues/352
 
 FROM mattdm/fedora-small:f20
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
