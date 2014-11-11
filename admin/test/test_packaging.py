@@ -19,10 +19,10 @@ from flocker.testtools import FakeSysModule
 
 from .. import packaging
 from ..packaging import (
-    sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
-    BuildSequence, BuildOptions, BuildScript, GetPackageVersion,
-    DelayedRpmVersion, CreateLinks, PythonPackage, create_virtualenv,
-    VirtualEnv, PackageTypes, Distribution, Dependency
+    sumo_package_builder, InstallVirtualEnv, InstallApplication,
+    BuildPackage, BuildSequence, DockerBuildOptions, BuildScript,
+    GetPackageVersion, DelayedRpmVersion, CreateLinks, PythonPackage,
+    create_virtualenv, VirtualEnv, PackageTypes, Distribution, Dependency
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -986,9 +986,9 @@ def assert_deb_lint(test_case, package_path):
             test_case.fail('lintian warnings:\n{}'.format('\n'.join(output)))
 
 
-class BuildOptionsTests(TestCase):
+class DockerBuildOptionsTests(TestCase):
     """
-    Tests for ``BuildOptions``.
+    Tests for ``DockerBuildOptions``.
     """
 
     native_package_type = object()
@@ -1003,41 +1003,41 @@ class BuildOptionsTests(TestCase):
 
     def test_defaults(self):
         """
-        ``BuildOptions`` destination path defaults to the current working
+        ``DockerBuildOptions`` destination path defaults to the current working
         directory.
         """
         expected_defaults = {
             'destination-path': '.',
             'package-type': 'native',
         }
-        self.assertEqual(expected_defaults, BuildOptions())
+        self.assertEqual(expected_defaults, DockerBuildOptions())
 
     def test_native(self):
         """
-        ``BuildOptions`` package-type is selected automatically if the keyword
+        ``DockerBuildOptions`` package-type is selected automatically if the keyword
         ``native`` is supplied.
         """
-        options = BuildOptions()
+        options = DockerBuildOptions()
         options.parseOptions(
             ['--package-type=native', 'http://example.com/fake/uri'])
         self.assertEqual(self.native_package_type, options['package-type'])
 
     def test_package_uri_missing(self):
         """
-        ``BuildOptions`` requires a single positional argument containing the
+        ``DockerBuildOptions`` requires a single positional argument containing the
         URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
-            UsageError, BuildOptions().parseOptions, [])
+            UsageError, DockerBuildOptions().parseOptions, [])
         self.assertEqual('Wrong number of arguments.', str(exception))
 
     def test_package_uri_supplied(self):
         """
-        ``BuildOptions`` saves the supplied ``package-uri``.
+        ``DockerBuildOptions`` saves the supplied ``package-uri``.
         """
         expected_uri = 'http://www.example.com/foo-bar.whl'
 
-        options = BuildOptions()
+        options = DockerBuildOptions()
         options.parseOptions([expected_uri])
 
         self.assertEqual(expected_uri, options['package-uri'])
