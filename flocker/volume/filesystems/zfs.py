@@ -222,9 +222,6 @@ class Filesystem(object):
             return self.pool
         return b"%s/%s" % (self.pool, self.dataset)
 
-    # Add maximum size accessor here - call in to ZFS and ask for the value of
-    # the refquota property.
-
     def get_path(self):
         return self._mountpoint
 

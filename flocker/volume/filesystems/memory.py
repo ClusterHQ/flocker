@@ -42,6 +42,9 @@ class CannedFilesystemSnapshots(object):
         return succeed(self._snapshots)
 
 
+# Add maximum size attribute.  Perhaps store an integer value in a
+# `.maximum_size` file in the root - similar to the `.snapshots` file used
+# elsewhere in this implementation.
 @implementer(IFilesystem)
 @attributes(["path"])
 class DirectoryFilesystem(object):
@@ -53,10 +56,6 @@ class DirectoryFilesystem(object):
     taken.  No other state related to snapshots is tracked (eg, the state of
     the directory at the time of those snapshots is not recorded).
     """
-
-    # Add maximum size accessor.  Perhaps store an integer value in a
-    # `.maximum_size` file in the root - similar to the `.snapshots` file used
-    # elsewhere in this implementation.
 
     def get_path(self):
         return self.path
