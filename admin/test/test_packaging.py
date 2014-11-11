@@ -20,7 +20,7 @@ from flocker.testtools import FakeSysModule
 from .. import packaging
 from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication,
-    BuildPackage, BuildSequence, DockerBuildOptions, BuildScript,
+    BuildPackage, BuildSequence, DockerBuildOptions, DockerBuildScript,
     GetPackageVersion, DelayedRpmVersion, CreateLinks, PythonPackage,
     create_virtualenv, VirtualEnv, PackageTypes, Distribution, Dependency
 )
@@ -1043,27 +1043,27 @@ class DockerBuildOptionsTests(TestCase):
         self.assertEqual(expected_uri, options['package-uri'])
 
 
-class BuildScriptTests(TestCase):
+class DockerBuildScriptTests(TestCase):
     """
-    Tests for ``BuildScript``.
+    Tests for ``DockerBuildScript``.
     """
     def test_usage_error_status(self):
         """
-        ``BuildScript.main`` raises ``SystemExit`` if there are missing command
+        ``DockerBuildScript.main`` raises ``SystemExit`` if there are missing command
         line options.
         """
         fake_sys_module = FakeSysModule(argv=[])
-        script = BuildScript(sys_module=fake_sys_module)
+        script = DockerBuildScript(sys_module=fake_sys_module)
         exception = self.assertRaises(SystemExit, script.main)
         self.assertEqual(1, exception.code)
 
     def test_usage_error_message(self):
         """
-        ``BuildScript.main`` prints a usage error to ``stderr`` if there are
+        ``DockerBuildScript.main`` prints a usage error to ``stderr`` if there are
         missing command line options.
         """
         fake_sys_module = FakeSysModule(argv=[])
-        script = BuildScript(sys_module=fake_sys_module)
+        script = DockerBuildScript(sys_module=fake_sys_module)
         try:
             script.main()
         except SystemExit:
@@ -1075,13 +1075,13 @@ class BuildScriptTests(TestCase):
 
     def test_build_command(self):
         """
-        ``BuildScript.build_command`` is ``sumo_package_builder`` by default.
+        ``DockerBuildScript.build_command`` is ``sumo_package_builder`` by default.
         """
-        self.assertIs(sumo_package_builder, BuildScript.build_command)
+        self.assertIs(sumo_package_builder, DockerBuildScript.build_command)
 
     def test_run(self):
         """
-        ``BuildScript.main`` calls ``run`` on the instance returned by
+        ``DockerBuildScript.main`` calls ``run`` on the instance returned by
         ``build_command``.
         """
         expected_destination_path = FilePath(self.mktemp())
@@ -1093,7 +1093,7 @@ class BuildScriptTests(TestCase):
                 '--package-type=rpm',
                 expected_package_uri]
         )
-        script = BuildScript(sys_module=fake_sys_module)
+        script = DockerBuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
         arguments = []
 
