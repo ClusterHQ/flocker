@@ -723,9 +723,7 @@ class SumoPackageBuilderTests(TestCase):
         target_path = FilePath(self.mktemp())
         python_flocker_path = target_path.child('python-flocker')
         flocker_cli_path = target_path.child('flocker-cli')
-        flocker_cli_bin_path = flocker_cli_path.descendant(['usr', 'bin'])
         flocker_node_path = target_path.child('flocker-node')
-        flocker_node_bin_path = flocker_node_path.descendant(['usr', 'bin'])
 
         expected_virtualenv_path = python_flocker_path.descendant(
             ['opt', 'flocker'])
@@ -776,13 +774,13 @@ class SumoPackageBuilderTests(TestCase):
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-deploy'),
-                         flocker_cli_bin_path),
+                         flocker_cli_path),
                     ]
                 ),
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={flocker_cli_path: FilePath("/")},
+                    source_paths={flocker_cli_path: FilePath("/usr/bin")},
                     name='clusterhq-flocker-cli',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -799,17 +797,17 @@ class SumoPackageBuilderTests(TestCase):
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                         flocker_node_bin_path),
+                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-changestate'),
-                         flocker_node_bin_path),
+                         flocker_node_path),
                         (FilePath('/opt/flocker/bin/flocker-volume'),
-                         flocker_node_bin_path),
+                         flocker_node_path),
                     ]
                 ),
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={flocker_node_path: FilePath("/")},
+                    source_paths={flocker_node_path: FilePath("/usr/sbin")},
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
