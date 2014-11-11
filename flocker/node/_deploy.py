@@ -194,6 +194,8 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
+        # Fix this somehow so as not to destroy the maximum_size information on
+        # self.volume when creating the object to pass to create.
         return deployer.volume_service.create(
             _to_volume_name(self.volume.name))
 
