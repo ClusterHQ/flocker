@@ -389,7 +389,7 @@ class GetPackageVersion(object):
 
 
 @attributes(
-    ['package_type', 'destination_path', 'source_path', 'name', 'prefix',
+    ['package_type', 'destination_path', 'source_paths', 'name', 'prefix',
      'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
      'architecture', 'description', 'dependencies',
      Attribute('after_install', default_value=None)])
@@ -399,8 +399,8 @@ class BuildPackage(object):
 
     :ivar FilePath destination_path: The path in which to save the resulting
         RPM package file.
-    :ivar FilePath source_path: The path to a directory whose contents will be
-        packaged.
+    :ivar dict source_paths: A dictionary mapping paths in the filesystem to the
+        path in the package.
     :ivar bytes name: The name of the package.
     :ivar FilePath prefix: The path beneath which the packaged files will be
          installed.
@@ -430,6 +430,10 @@ class BuildPackage(object):
                 ['--after-install', self.after_install.path]
             )
 
+        path_arguments = []
+        for source_path, package_path in self.source_paths.items():
+            path_arguments.append("%s=%s" % (source_path.path, package_path.path))
+
         run_command([
             'fpm',
             '-s', 'dir',
@@ -446,7 +450,7 @@ class BuildPackage(object):
             '--maintainer', self.maintainer,
             '--architecture', architecture,
             '--description', self.description,
-            ] + depends_arguments + ['.'], cwd=self.source_path.path
+            ] + depends_arguments + path_arguments
         )
 
 
@@ -535,12 +539,8 @@ def sumo_package_builder(
     python_flocker_path.makedirs()
     flocker_cli_path = target_dir.child('flocker-cli')
     flocker_cli_path.makedirs()
-    flocker_cli_bin_path = flocker_cli_path.descendant(['usr', 'bin'])
-    flocker_cli_bin_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
-    flocker_node_bin_path = flocker_node_path.descendant(['usr', 'bin'])
-    flocker_node_bin_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt
     virtualenv_dir = python_flocker_path.descendant(['opt', 'flocker'])
@@ -565,7 +565,7 @@ def sumo_package_builder(
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
-                source_path=python_flocker_path,
+                source_paths={python_flocker_path: FilePath("/")},
                 name='clusterhq-python-flocker',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
@@ -584,13 +584,13 @@ def sumo_package_builder(
             CreateLinks(
                 links=[
                     (FilePath('/opt/flocker/bin/flocker-deploy'),
-                     flocker_cli_bin_path),
+                     flocker_cli_path),
                 ]
             ),
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
-                source_path=flocker_cli_path,
+                source_paths={flocker_cli_path: FilePath("/usr/bin")},
                 name='clusterhq-flocker-cli',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
@@ -608,17 +608,17 @@ def sumo_package_builder(
             CreateLinks(
                 links=[
                     (FilePath('/opt/flocker/bin/flocker-reportstate'),
-                     flocker_node_bin_path),
+                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-changestate'),
-                     flocker_node_bin_path),
+                     flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-volume'),
-                     flocker_node_bin_path),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
-                source_path=flocker_node_path,
+                source_paths={flocker_node_path: FilePath("/usr/sbin")},
                 name='clusterhq-flocker-node',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,
