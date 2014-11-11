@@ -157,6 +157,44 @@ def assert_rpm_headers(test_case, expected_headers, rpm_path):
     )
 
 
+def assert_rpm_content(test_case, expected_paths, package_path):
+    """
+    Fail unless the ``RPM`` file at ``rpm_path`` contains all the
+    ``expected_paths``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param set expected_paths: A set of ``FilePath`` s
+    :param FilePath package_path: The path to the package under test.
+    """
+    output = check_output(
+        ['rpm', '--query', '--list', '--package', package_path.path]
+    )
+    actual_paths = set(map(FilePath, output.splitlines()))
+    test_case.assertEqual(expected_paths, actual_paths)
+
+
+def assert_deb_content(test_case, expected_paths, package_path):
+    """
+    Fail unless the ``deb`` file at ``package_path`` contains all the
+    ``expected_paths``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param set expected_paths: A set of ``FilePath`` s
+    :param FilePath package_path: The path to the package under test.
+    """
+    output_dir = FilePath(test_case.mktemp())
+    output_dir.makedirs()
+    check_output(['dpkg', '--extract', package_path.path, output_dir.path])
+
+    actual_paths = set()
+    for f in output_dir.walk():
+        if f.isdir():
+            continue
+        actual_paths.add(FilePath('/').descendant(f.segmentsFrom(output_dir)))
+
+    test_case.assertEqual(expected_paths, actual_paths)
+
+
 def assert_deb_headers(test_case, expected_headers, package_path):
     """
     Fail unless the ``deb`` file at ``package_path`` contains all the
@@ -507,8 +545,13 @@ class BuildPackageTests(TestCase):
         source_path.makedirs()
         source_path.child('Foo').touch()
         source_path.child('Bar').touch()
-        expected_name = 'FooBar'
         expected_prefix = FilePath('/foo/bar')
+        expected_paths = set([
+            expected_prefix.child('Foo'),
+            expected_prefix.child('Bar'),
+            FilePath('/other/file'),
+        ])
+        expected_name = 'FooBar'
         expected_epoch = b'3'
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
@@ -521,9 +564,12 @@ class BuildPackageTests(TestCase):
         BuildPackage(
             package_type=PackageTypes.RPM,
             destination_path=destination_path,
-            source_paths={source_path: FilePath('/')},
+            source_paths={
+               source_path: FilePath('/foo/bar'),
+               source_path.child('Foo'): FilePath('/other/file'),
+            },
             name=expected_name,
-            prefix=expected_prefix,
+            prefix=FilePath('/'),
             epoch=expected_epoch,
             rpm_version=expected_rpm_version,
             license=expected_license,
@@ -547,13 +593,14 @@ class BuildPackageTests(TestCase):
             Release=expected_rpm_version.release,
             License=expected_license,
             URL=expected_url,
-            Relocations=expected_prefix.path,
             Vendor=expected_vendor,
             Packager=expected_maintainer,
             Architecture=expected_architecture,
         )
-        assert_rpm_requires(self, expected_dependencies, FilePath(rpms[0]))
-        assert_rpm_headers(self, expected_headers, FilePath(rpms[0]))
+        rpm_path = FilePath(rpms[0])
+        assert_rpm_requires(self, expected_dependencies, rpm_path)
+        assert_rpm_headers(self, expected_headers, rpm_path)
+        assert_rpm_content(self, expected_paths, rpm_path)
 
 
     @require_dpkg
@@ -568,8 +615,13 @@ class BuildPackageTests(TestCase):
         source_path.makedirs()
         source_path.child('Foo').touch()
         source_path.child('Bar').touch()
-        expected_name = 'FooBar'.lower()
         expected_prefix = FilePath('/foo/bar')
+        expected_paths = set([
+            expected_prefix.child('Foo'),
+            expected_prefix.child('Bar'),
+            FilePath('/other/file'),
+        ])
+        expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
         expected_rpm_version = rpm_version('0.3', '0.dev.1')
         expected_license = 'My Test License'
@@ -581,9 +633,12 @@ class BuildPackageTests(TestCase):
         BuildPackage(
             package_type=PackageTypes.DEB,
             destination_path=destination_path,
-            source_paths={source_path: FilePath('/')},
+            source_paths={
+               source_path: FilePath('/foo/bar'),
+               source_path.child('Foo'): FilePath('/other/file'),
+            },
             name=expected_name,
-            prefix=expected_prefix,
+            prefix=FilePath("/"),
             epoch=expected_epoch,
             rpm_version=expected_rpm_version,
             license=expected_license,
@@ -617,6 +672,7 @@ class BuildPackageTests(TestCase):
             Depends=', '.join(['test-dep', 'version-dep (>= 42)'])
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
+        assert_deb_content(self, expected_paths, FilePath(packages[0]))
 
 
     @require_rpm

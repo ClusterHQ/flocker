@@ -427,7 +427,9 @@ class BuildPackage(object):
 
         path_arguments = []
         for source_path, package_path in self.source_paths.items():
-            path_arguments.append("%s=%s" % (source_path.path, package_path.path))
+            # Think of /= as a separate operator. It causes fpm to copy the
+            # content of the directory rather than the directory its self.
+            path_arguments.append("%s/=%s" % (source_path.path, package_path.path))
 
         run_command([
             'fpm',
