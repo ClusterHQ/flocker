@@ -19,10 +19,11 @@ from flocker.testtools import FakeSysModule
 
 from .. import packaging
 from ..packaging import (
-    sumo_package_builder, InstallVirtualEnv, InstallApplication,
-    BuildPackage, BuildSequence, BuildOptions, DockerBuildOptions, DockerBuildScript,
-    GetPackageVersion, DelayedRpmVersion, CreateLinks, PythonPackage,
-    create_virtualenv, VirtualEnv, PackageTypes, Distribution, Dependency
+    sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
+    BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
+    DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
+    PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
+    Dependency, build_package
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -1162,3 +1163,73 @@ class BuildOptionsTests(TestCase):
             (expected_distribution, expected_uri),
             (options['distribution'], options['package-uri'])
         )
+
+class BuildScriptTests(TestCase):
+    """
+    Tests for ``BuildScript``.
+    """
+    def test_usage_error_status(self):
+        """
+        ``BuildScript.main`` raises ``SystemExit`` if there are missing command
+        line options.
+        """
+        fake_sys_module = FakeSysModule(argv=[])
+        script = BuildScript(sys_module=fake_sys_module)
+        exception = self.assertRaises(SystemExit, script.main)
+        self.assertEqual(1, exception.code)
+
+    def test_usage_error_message(self):
+        """
+        ``BuildScript.main`` prints a usage error to ``stderr`` if there are
+        missing command line options.
+        """
+        fake_sys_module = FakeSysModule(argv=[])
+        script = BuildScript(sys_module=fake_sys_module)
+        try:
+            script.main()
+        except SystemExit:
+            pass
+        self.assertEqual(
+            'Wrong number of arguments.',
+            fake_sys_module.stderr.getvalue().splitlines()[-1]
+        )
+
+    def test_build_command(self):
+        """
+        ``BuildScript.build_command`` is ``package_builder`` by default.
+        """
+        self.assertIs(build_package, BuildScript.build_command)
+
+    def test_run(self):
+        """
+        ``BuildScript.main`` calls ``run`` on the instance returned by
+        ``build_command``.
+        """
+        expected_destination_path = FilePath(self.mktemp())
+        expected_distribution = 'centos7'
+        expected_package_uri = 'http://www.example.com/foo/bar.whl'
+        fake_sys_module = FakeSysModule(
+            argv=[
+                'build-command-name',
+                '--destination-path', expected_destination_path.path,
+                '--distribution=%s' % (expected_distribution,),
+                expected_package_uri]
+        )
+        script = BuildScript(sys_module=fake_sys_module)
+        build_step = SpyStep()
+        arguments = []
+
+        def record_arguments(*args, **kwargs):
+            arguments.append((args, kwargs))
+            return build_step
+        script.build_command = record_arguments
+        script.main()
+        expected_build_arguments = [(
+            (),
+            dict(destination_path=expected_destination_path,
+                 distribution=expected_distribution,
+                 package_uri=expected_package_uri,
+                 top_level=None)
+        )]
+        self.assertEqual(expected_build_arguments, arguments)
+        self.assertTrue(build_step.ran)
