@@ -317,11 +317,6 @@ class VirtualEnv(object):
         run_command(
             [python_path, '-m', 'pip', '--quiet', 'install', package_uri],
         )
-        run_command(
-            ['virtualenv', '--quiet', '--relocatable',
-             self.root.path],
-            env=dict(PYTHONDONTWRITEBYTECODE='1')
-        )
 
 
 @attributes(['virtualenv', 'package_uri'])
@@ -535,16 +530,13 @@ def sumo_package_builder(
     if target_dir is None:
         target_dir = FilePath(mkdtemp())
 
-    python_flocker_path = target_dir.child('python-flocker')
-    python_flocker_path.makedirs()
     flocker_cli_path = target_dir.child('flocker-cli')
     flocker_cli_path.makedirs()
     flocker_node_path = target_dir.child('flocker-node')
     flocker_node_path.makedirs()
     # Flocker is installed in /opt.
     # See http://fedoraproject.org/wiki/Packaging:Guidelines#Limited_usage_of_.2Fopt.2C_.2Fetc.2Fopt.2C_and_.2Fvar.2Fopt
-    virtualenv_dir = python_flocker_path.descendant(['opt', 'flocker'])
-    virtualenv_dir.makedirs()
+    virtualenv_dir = FilePath('/opt/flocker')
 
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
@@ -565,7 +557,7 @@ def sumo_package_builder(
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
-                source_paths={python_flocker_path: FilePath("/")},
+                source_paths={virtualenv_dir: virtualenv_dir},
                 name='clusterhq-python-flocker',
                 prefix=FilePath('/'),
                 epoch=PACKAGE.EPOCH.value,

@@ -721,12 +721,10 @@ class SumoPackageBuilderTests(TestCase):
         expected_destination_path = FilePath(self.mktemp())
 
         target_path = FilePath(self.mktemp())
-        python_flocker_path = target_path.child('python-flocker')
         flocker_cli_path = target_path.child('flocker-cli')
         flocker_node_path = target_path.child('flocker-node')
 
-        expected_virtualenv_path = python_flocker_path.descendant(
-            ['opt', 'flocker'])
+        expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
         expected_epoch = b'0'
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
@@ -756,7 +754,7 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_paths={python_flocker_path: FilePath("/")},
+                    source_paths={expected_virtualenv_path: expected_virtualenv_path},
                     name='clusterhq-python-flocker',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
