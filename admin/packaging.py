@@ -75,7 +75,7 @@ Notes:
 """
 import platform
 import sys
-from subprocess import check_output
+from subprocess import check_output, check_call
 from tempfile import mkdtemp
 from textwrap import dedent
 
@@ -619,11 +619,65 @@ def sumo_package_builder(
     )
 
 
-class BuildOptions(usage.Options):
+@attributes(['tag', 'build_directory'])
+class DockerBuild(object):
     """
-    Command line options for the ``build-package`` tool.
     """
-    synopsis = 'build-rpm [options] <package-uri>'
+    def run(self):
+        """
+        """
+        check_call(['docker', 'build',
+#'--no-cache',
+ '--tag', self.tag, self.build_directory])
+
+
+@attributes(['tag', 'volumes', 'command'])
+class DockerRun(object):
+    """
+    """
+    def run(self):
+        """
+        """
+        volume_options = []
+        for container, host in self.volumes.iteritems():
+            volume_options.extend(['--volume', '%s:%s' % (host.path, container.path)])
+
+        check_call(['docker', 'run',] + volume_options +  [self.tag] + self.command)
+
+
+def build_package(destination_path, distribution, top_level, package_uri):
+    """
+    Build flocker packages.
+    """
+    if destination_path.exists() and not destination_path.isdir():
+        raise ValueError("go away")
+    #destination_path.makedirs()
+
+    tag = "clusterhq/build_%s" % (distribution,)
+    build_directory = top_level.descendant(['admin', 'build_targets', distribution])
+
+    return BuildSequence(
+        steps=[
+            DockerBuild(
+                tag=tag,
+                build_directory=build_directory.path
+            ),
+            DockerRun(
+                tag=tag,
+                volumes={
+                    FilePath('/output'): destination_path,
+                    FilePath('/flocker'): top_level,
+                },
+                command=[package_uri]
+            ),
+        ])
+
+
+class DockerBuildOptions(usage.Options):
+    """
+    Command line options for the ``build-package-entrypoint`` tool.
+    """
+    synopsis = 'build-package-entrypoint [options] <package-uri>'
 
     optParameters = [
         ['destination-path', 'd', '.',
@@ -657,7 +711,7 @@ class BuildOptions(usage.Options):
             self['package-type'] = PackageTypes.lookupByValue(self['package-type'])
 
 
-class BuildScript(object):
+class DockerBuildScript(object):
     """
     Check supplied command line arguments, print command line argument errors
     to ``stderr`` otherwise build the RPM package.
@@ -666,6 +720,88 @@ class BuildScript(object):
         package. Allows the command to be overridden in tests.
     """
     build_command = staticmethod(sumo_package_builder)
+
+    def __init__(self, sys_module=None):
+        """
+        :param sys_module: A ``sys`` like object whose ``argv``, ``stdout`` and
+            ``stderr`` will be used in the script. Can be overridden in tests
+            to make assertions about the script argument parsing and output
+            printing. Default is ``sys``.
+        """
+        if sys_module is None:
+            sys_module = sys
+        self.sys_module = sys_module
+
+    def main(self, top_level=None, base_path=None):
+        """
+        Check command line arguments and run the build steps.
+
+        :param top_level: ignored.
+        :param base_path: ignored.
+        """
+        options = DockerBuildOptions()
+
+        try:
+            options.parseOptions(self.sys_module.argv[1:])
+        except usage.UsageError as e:
+            self.sys_module.stderr.write("%s\n" % (options,))
+            self.sys_module.stderr.write("%s\n" % (e,))
+            raise SystemExit(1)
+
+        self.build_command(
+            package_type=options['package-type'],
+            destination_path=options['destination-path'],
+            package_uri=options['package-uri'],
+        ).run()
+
+docker_main = DockerBuildScript().main
+
+
+class BuildOptions(usage.Options):
+    """
+    Command line options for the ``build-package`` tool.
+    """
+    synopsis = 'build-package [options] <package-uri>'
+
+    optParameters = [
+        ['destination-path', 'd', '.',
+         'The path to a directory in which to create package files and '
+         'artifacts.'],
+        ['distribution', None, None,
+         'The type of package to build. One of rpm, deb, or native.'],
+    ]
+
+    longdesc = dedent("""\
+    Arguments:
+
+    <package-uri>: The Python package url or path to install using ``pip``.
+    """)
+
+    def parseArgs(self, package_uri):
+        """
+        The Python package to install.
+        """
+        self['package-uri'] = package_uri
+
+    def postOptions(self):
+        """
+        Coerce paths to ``FilePath`` and select a suitable ``native``
+        ``package-type``.
+        """
+        self['destination-path'] = FilePath(self['destination-path'])
+        if self['distribution'] == None:
+            raise usage.UsageError('Must specify --distribution.')
+
+
+class BuildScript(object):
+    """
+    Check supplied command line arguments, print command line argument errors
+    to ``stderr`` otherwise build the RPM package.
+
+    :ivar build_command: The function responsible for building the
+        package. Allows the command to be overridden in tests.
+    """
+    build_command = staticmethod(build_package)
 
     def __init__(self, sys_module=None):
         """
@@ -695,9 +831,10 @@ class BuildScript(object):
             raise SystemExit(1)
 
         self.build_command(
-            package_type=options['package-type'],
             destination_path=options['destination-path'],
-            package_uri=options['package-uri']
+            package_uri=options['package-uri'],
+            top_level=top_level,
+            distribution=options['distribution'],
         ).run()
 
 main = BuildScript().main

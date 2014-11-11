@@ -24,4 +24,4 @@ RUN ["python", "get-pip.py"]
 RUN ["pip", "install", "twisted", "characteristic", "virtualenv"]
 VOLUME /flocker
 WORKDIR /
-ENTRYPOINT ["/flocker/admin/build-package", "--destination-path=/flocker"]
+ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

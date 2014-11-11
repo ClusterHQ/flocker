@@ -20,4 +20,4 @@ RUN ["pip", "install", "characteristic"]
 # https://github.com/jordansissel/fpm/issues/657
 RUN ["gem", "install", "fpm"]
 VOLUME /flocker
-ENTRYPOINT ["/flocker/admin/build-package", "--destination-path=/flocker"]
+ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

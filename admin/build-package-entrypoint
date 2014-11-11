@@ -6,6 +6,6 @@ Build operating system packages for Flocker.
 
 from _preamble import TOPLEVEL, BASEPATH
 
-from admin.packaging import main
+from admin.packaging import docker_main
 
-main(top_level=TOPLEVEL, base_path=BASEPATH)
+docker_main(top_level=TOPLEVEL, base_path=BASEPATH)
