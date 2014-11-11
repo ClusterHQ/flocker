@@ -216,7 +216,7 @@ DEPENDENCIES = {
             # trust-updates version
             Dependency(package='docker.io', compare='>=', version='1.0.1'),
             Dependency(package='iptables'),
-            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            Dependency(package='zfsutils', compare='>=', version='0.6.3'),
             Dependency(package='openssh-client'),
         ),
     },
