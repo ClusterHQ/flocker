@@ -521,7 +521,7 @@ class BuildPackageTests(TestCase):
         BuildPackage(
             package_type=PackageTypes.RPM,
             destination_path=destination_path,
-            source_path=source_path,
+            source_paths={source_path: FilePath('/')},
             name=expected_name,
             prefix=expected_prefix,
             epoch=expected_epoch,
@@ -581,7 +581,7 @@ class BuildPackageTests(TestCase):
         BuildPackage(
             package_type=PackageTypes.DEB,
             destination_path=destination_path,
-            source_path=source_path,
+            source_paths={source_path: FilePath('/')},
             name=expected_name,
             prefix=expected_prefix,
             epoch=expected_epoch,
@@ -637,7 +637,7 @@ class BuildPackageTests(TestCase):
         BuildPackage(
             package_type=PackageTypes.RPM,
             destination_path=destination_path,
-            source_path=source_path,
+            source_paths={source_path: FilePath('/')},
             name='FooBar',
             prefix=FilePath('/opt/Foo'),
             epoch='1',
@@ -758,7 +758,7 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_path=python_flocker_path,
+                    source_paths={python_flocker_path: FilePath("/")},
                     name='clusterhq-python-flocker',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -782,7 +782,7 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_path=flocker_cli_path,
+                    source_paths={flocker_cli_path: FilePath("/")},
                     name='clusterhq-flocker-cli',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
@@ -809,7 +809,7 @@ class SumoPackageBuilderTests(TestCase):
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
-                    source_path=flocker_node_path,
+                    source_paths={flocker_node_path: FilePath("/")},
                     name='clusterhq-flocker-node',
                     prefix=expected_prefix,
                     epoch=expected_epoch,
