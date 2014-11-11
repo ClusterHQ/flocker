@@ -44,10 +44,10 @@ class IFilesystemSnapshots(Interface):
 class IFilesystem(Interface):
     """A filesystem that is part of a pool."""
 
-    # Add maximum size attribute here.  This is not expected to be kept up to
-    # date with respect to changes to the system.  It's just a snapshot at some
-    # point in time (ie whoever creates the IFilesystem provider can look it up
-    # and pass it in).
+    # Add size attribute here.  An instance of VolumeSize defined in
+    # service.py.  This is not expected to be kept up to date with respect to
+    # changes to the system.  It's just a snapshot at some point in time (ie
+    # whoever creates the IFilesystem provider can look it up and pass it in).
 
     def get_path():
         """Retrieve the filesystem's local path.

@@ -164,7 +164,7 @@ def _latest_common_snapshot(some, others):
     return None
 
 
-# Add maximum size information here
+# Add VolumeSize information here
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
 @with_repr(["pool", "dataset"])
@@ -487,7 +487,7 @@ class StoragePool(Service):
         properties = [b"-o", b"mountpoint=" + mount_path]
         if volume.locally_owned():
             properties.extend([b"-o", b"readonly=off"])
-        # check for maximum_size, set refquota property as well if there is one
+        # check for maximum size, set refquota property as well if there is one
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
         d.addCallback(lambda _: filesystem)
