@@ -2,6 +2,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Build operating system packages for Flocker.
+
+This script is for use as an entry point inside a docker image.
 """
 
 from _preamble import TOPLEVEL, BASEPATH

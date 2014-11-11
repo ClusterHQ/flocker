@@ -622,22 +622,30 @@ def sumo_package_builder(
 @attributes(['tag', 'build_directory'])
 class DockerBuild(object):
     """
+    Build a docker image and tag it.
+
+    :ivar bytes tag: The tag name which will be assigned to the generated
+        docker image.
+    :ivar FilePath build_directory: The directory containing the ``Dockerfile``
+        to build.
     """
     def run(self):
-        """
-        """
-        check_call(['docker', 'build',
-#'--no-cache',
- '--tag', self.tag, self.build_directory])
+        check_call(
+            ['docker', 'build', '--tag', self.tag, self.build_directory])
 
 
 @attributes(['tag', 'volumes', 'command'])
 class DockerRun(object):
     """
+    Run a docker image with the supplied volumes and command line arguments.
+
+    :ivar bytes tag: The tag name of the image to run.
+    :ivar dict volumes: A dict mapping ``FilePath`` container path to
+        ``FilePath`` host path for each docker volume.
+    :ivar list command: The command line arguments which will be supplied to
+        the docker image entry point.
     """
     def run(self):
-        """
-        """
         volume_options = []
         for container, host in self.volumes.iteritems():
             volume_options.extend(['--volume', '%s:%s' % (host.path, container.path)])
@@ -647,7 +655,14 @@ class DockerRun(object):
 
 def build_package(destination_path, distribution, top_level, package_uri):
     """
-    Build flocker packages.
+    Build a flocker package for a given ``distribution`` inside a clean docker
+    container of that ``distribution``.
+
+    :param FilePath destination_path: The directory to which the generated
+         packages will be copied.
+    :param bytes distribution: The distribution name for which to build a
+        package.
+    :param bytes package_uri: The ``pip`` style python package URI to install.
     """
     if destination_path.exists() and not destination_path.isdir():
         raise ValueError("go away")
@@ -768,7 +783,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The type of package to build. One of rpm, deb, or native.'],
+         'The target distribution. One of fedora20, centos7, or ubuntu1404.'],
     ]
 
     longdesc = dedent("""\
@@ -818,7 +833,8 @@ class BuildScript(object):
         """
         Check command line arguments and run the build steps.
 
-        :param top_level: ignored.
+        :param top_level: The path to the root of the checked out flocker
+            directory.
         :param base_path: ignored.
         """
         options = BuildOptions()

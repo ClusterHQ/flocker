@@ -1,13 +1,8 @@
 # Copyright Hybrid Logic Ltd. See LICENSE file for details.
 #
-# A Docker image for running the ``admin/build-package`` script in a clean
-# Ubuntu 14.04 build environment.
+# A Docker image for building packages in a clean Ubuntu 14.04 build
+# environment.
 #
-# Build:
-# docker build --tag='clusterhq/build_ubuntu:14.04' ~/projects/flocker/admin/build_targets/ubuntu1404
-#
-# Run:
-# docker run --volume=~/projects/flocker:/flocker clusterhq/build_ubuntu:14.04 https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.2.1-py2-none-any.whl
 
 FROM ubuntu:14.04
 MAINTAINER Richard Wall <richard.wall@clusterhq.com>
