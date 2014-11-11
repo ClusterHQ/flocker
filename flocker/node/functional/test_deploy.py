@@ -188,3 +188,106 @@ class DeployerTests(TestCase):
                          for k, v in expected_variables])
         d.addCallback(started)
         return d
+
+    @if_docker_configured
+    def test_memory_limit(self):
+        """
+        The memory limit number specified in an ``Application`` is passed to
+        the container.
+        """
+        docker_dir = FilePath(__file__).sibling('env-docker')
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
+        application_name = random_name()
+
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service, docker_client,
+                            make_memory_network())
+
+        desired_state = Deployment(nodes=frozenset([
+            Node(hostname=u"localhost",
+                 applications=frozenset([Application(
+                     name=application_name,
+                     image=DockerImage.from_string(
+                         image_name),
+                     volume=AttachedVolume(
+                         name=application_name,
+                         mountpoint=FilePath('/data'),
+                         ),
+                     memory_limit=100000000
+                     )]))]))
+
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
+        d.addCallback(lambda _: wait_for_unit_state(
+            docker_client,
+            application_name,
+            [u'active'])
+        )
+
+        def inspect_application(_):
+            du = docker_client.list()
+
+            def app_memory(units):
+                unit = units.pop()
+                self.assertEqual(unit.mem_limit, 100000000)
+            du.addCallback(app_memory)
+        d.addCallback(inspect_application)
+        return d
+
+    @if_docker_configured
+    def test_cpu_shares(self):
+        """
+        The CPU shares number specified in an ``Application`` is passed to the
+        container.
+        """
+        docker_dir = FilePath(__file__).sibling('env-docker')
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
+        application_name = random_name()
+
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service, docker_client,
+                            make_memory_network())
+
+        desired_state = Deployment(nodes=frozenset([
+            Node(hostname=u"localhost",
+                 applications=frozenset([Application(
+                     name=application_name,
+                     image=DockerImage.from_string(
+                         image_name),
+                     volume=AttachedVolume(
+                         name=application_name,
+                         mountpoint=FilePath('/data'),
+                         ),
+                     cpu_shares=512
+                     )]))]))
+
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
+        d.addCallback(lambda _: wait_for_unit_state(
+            docker_client,
+            application_name,
+            [u'active'])
+        )
+
+        def inspect_application(_):
+            du = docker_client.list()
+
+            def app_memory(units):
+                unit = units.pop()
+                self.assertEqual(unit.cpu_shares, 512)
+
+            du.addCallback(app_memory)
+        d.addCallback(inspect_application)
+        return d

@@ -492,6 +492,61 @@ class StartApplicationTests(SynchronousTestCase):
             fake_docker._units[application_name].volumes
         )
 
+    def test_memory_limit(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s mem_limit to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        MEMORY_100MB = 100000000
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=None,
+            links=frozenset(),
+            memory_limit=MEMORY_100MB
+        )
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+
+        self.assertEqual(
+            MEMORY_100MB,
+            fake_docker._units[application_name].mem_limit
+        )
+
+    def test_cpu_shares(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s cpu_shares to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=None,
+            links=frozenset(),
+            cpu_shares=512
+        )
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+
+        self.assertEqual(
+            512,
+            fake_docker._units[application_name].cpu_shares
+        )
+
 
 class LinkEnviromentTests(SynchronousTestCase):
     """

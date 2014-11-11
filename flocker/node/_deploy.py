@@ -143,6 +143,8 @@ class StartApplication(object):
             ports=port_maps,
             environment=docker_environment,
             volumes=volumes,
+            mem_limit=application.memory_limit,
+            cpu_shares=application.cpu_shares,
         )
 
 

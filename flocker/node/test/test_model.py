@@ -98,7 +98,8 @@ class ApplicationTests(SynchronousTestCase):
                                   ports=None, links=frozenset())
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, links=frozenset([]), environment=None)>",
+            "volume=None, links=frozenset([]), environment=None, "
+            "memory_limit=None, cpu_shares=None)>",
             repr(application)
         )
 
