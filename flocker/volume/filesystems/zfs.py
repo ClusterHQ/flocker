@@ -164,6 +164,7 @@ def _latest_common_snapshot(some, others):
     return None
 
 
+# Add maximum size information here
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
 @with_repr(["pool", "dataset"])
@@ -486,6 +487,7 @@ class StoragePool(Service):
         properties = [b"-o", b"mountpoint=" + mount_path]
         if volume.locally_owned():
             properties.extend([b"-o", b"readonly=off"])
+        # check for maximum_size, set refquota property as well if there is one
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
         d.addCallback(lambda _: filesystem)
@@ -592,6 +594,9 @@ def _list_filesystems(reactor, pool):
         of which are ``tuples`` containing the name and mountpoint of each
         filesystem.
     """
+    # Get refquota property here to populate maximum size information on the
+    # Filesystem instances
+
     # ZFS list command with a depth of 1, so that only this dataset and its
     # direct children are shown.
     # No headers are printed.

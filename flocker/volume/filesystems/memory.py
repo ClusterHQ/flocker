@@ -42,6 +42,7 @@ class CannedFilesystemSnapshots(object):
         return succeed(self._snapshots)
 
 
+# add maximum size attribute
 @implementer(IFilesystem)
 @attributes(["path"])
 class DirectoryFilesystem(object):
