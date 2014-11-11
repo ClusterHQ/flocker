@@ -35,15 +35,6 @@ require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 require_rpm = skipIf(not which('rpm'), "Tests require the `rpm` command.")
 require_dpkg = skipIf(not which('dpkg'), "Tests require the `dpkg` command.")
 
-# XXX
-try:
-    PLATFORM_PACKAGE_TYPE = _native_package_type()
-except ValueError:
-    PLATFORM_PACKAGE_TYPE = None
-require_deb = skipIf(PLATFORM_PACKAGE_TYPE != 'deb',
-                     "Tests require a `deb` based platform. Found {}.".format(
-                         PLATFORM_PACKAGE_TYPE))
-
 
 def assert_equal_steps(test_case, expected, actual):
     """
