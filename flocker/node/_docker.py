@@ -62,9 +62,8 @@ class Volume(object):
              Attribute("ports", default_value=()),
              Attribute("environment", default_value=None),
              Attribute("volumes", default_value=()),
-             # Attribute("mem_limit", default_value=None),
-             # Attribute("cpu_shares", default_value=None),
-         ])
+             Attribute("mem_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None)])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -224,8 +223,8 @@ class FakeDockerClient(object):
             environment=environment,
             volumes=frozenset(volumes),
             activation_state=u'active',
-            # mem_limit=mem_limit,
-            # cpu_shares=cpu_shares,
+            mem_limit=mem_limit,
+            cpu_shares=cpu_shares,
         )
         return succeed(None)
 
@@ -334,8 +333,8 @@ class DockerClient(object):
                 environment=environment,
                 volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports],
-                # mem_limit=mem_limit,
-                # cpu_shares=cpu_shares,
+                mem_limit=mem_limit,
+                cpu_shares=cpu_shares,
             )
 
         def _add():
@@ -440,15 +439,23 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                result.add(Unit(name=name,
-                                container_name=self._to_container_name(name),
-                                activation_state=state,
-                                container_image=image,
-                                ports=frozenset(ports),
-                                volumes=frozenset(volumes),
-                                # get mem_limit
-                                # get cpu_shares
-                            ),
+                # Our Unit model counts None as the value for cpu_shares and
+                # mem_limit in containers without specified limits, however
+                # Docker returns the values in these cases as zero, so we
+                # manually convert.
+                cpu_shares = data[u"Config"][u"CpuShares"]
+                cpu_shares = None if cpu_shares == 0 else cpu_shares
+                mem_limit = data[u"Config"][u"Memory"]
+                mem_limit = None if mem_limit == 0 else mem_limit
+                result.add(Unit(
+                    name=name,
+                    container_name=self._to_container_name(name),
+                    activation_state=state,
+                    container_image=image,
+                    ports=frozenset(ports),
+                    volumes=frozenset(volumes),
+                    mem_limit=mem_limit,
+                    cpu_shares=cpu_shares),
                 )
             return result
         return deferToThread(_list)
