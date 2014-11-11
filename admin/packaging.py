@@ -296,18 +296,7 @@ class VirtualEnv(object):
     """
     def install(self, package_uri):
         """
-        After installing the package and its dependencies, the virtualenv is
-        made ``relocatable`` to remove and absolute paths and shebang lines in
-        scripts.
-
-        XXX: The --relocatable option is said to be broken. Investigate using
-        ``virtualenv-tools`` instead. See
-        https://github.com/jordansissel/fpm/issues/697#issuecomment-48880253
-        and
-        https://github.com/fireteam/virtualenv-tools
-
-        TODO: We need to byte-compile python scripts before packaging. See
-        http://fedoraproject.org/wiki/Packaging:Python#Byte_compiling
+        Install package and its dependencies into this virtualenv.
         """
         # We can't just call pip directly, because in the virtualenvs created
         # in tests, the shebang line becomes too long and triggers an
