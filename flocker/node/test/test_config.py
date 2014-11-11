@@ -1075,6 +1075,68 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Application configuration must be a dictionary, got str."
         )
 
+    def test_error_on_memory_limit_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a mem_limit entry that is not
+        an integer.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': b"abcdef"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "mem_limit must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
+
+    def test_error_on_cpu_shares_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a cpu_shares entry that is not
+        an integer.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_default_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit of None if no limit was specified in the configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_default_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares of None if no limit was specified in the configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_application_with_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit set to the value specified in the configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_application_with_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares set to the value specified in the configuration.
+        """
+        self.fail("Not implemented yet.")
+
     def test_not_valid_on_application_not_dict(self):
         """
         ``FlockerConfiguration.is_valid_format`` returns ``False`` if the
