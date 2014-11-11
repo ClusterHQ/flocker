@@ -20,7 +20,7 @@ from flocker.testtools import FakeSysModule
 from .. import packaging
 from ..packaging import (
     sumo_package_builder, InstallVirtualEnv, InstallApplication,
-    BuildPackage, BuildSequence, DockerBuildOptions, DockerBuildScript,
+    BuildPackage, BuildSequence, BuildOptions, DockerBuildOptions, DockerBuildScript,
     GetPackageVersion, DelayedRpmVersion, CreateLinks, PythonPackage,
     create_virtualenv, VirtualEnv, PackageTypes, Distribution, Dependency
 )
@@ -1110,3 +1110,55 @@ class DockerBuildScriptTests(TestCase):
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
+
+
+class BuildOptionsTests(TestCase):
+    """
+    Tests for ``BuildOptions``.
+    """
+
+    def test_defaults(self):
+        """
+        ``BuildOptions`` destination path defaults to the current working
+        directory.
+        """
+        expected_defaults = {
+            'destination-path': '.',
+            'distribution': None,
+        }
+        self.assertEqual(expected_defaults, BuildOptions())
+
+    def test_distribution_missing(self):
+        """
+        ``BuildOptions.parseOptions`` raises ``UsageError`` if
+        ``--distribution`` is not supplied.
+        """
+        options = BuildOptions()
+        self.assertRaises(
+            UsageError,
+            options.parseOptions,
+            ['http://example.com/fake/uri'])
+
+    def test_package_uri_missing(self):
+        """
+        ``DockerBuildOptions`` requires a single positional argument containing the
+        URI of the Python package which is being packaged.
+        """
+        exception = self.assertRaises(
+            UsageError, BuildOptions().parseOptions, [])
+        self.assertEqual('Wrong number of arguments.', str(exception))
+
+    def test_package_options_supplied(self):
+        """
+        ``BuildOptions`` saves the supplied options.
+        """
+        expected_uri = 'http://www.example.com/foo-bar.whl'
+        expected_distribution = 'ubuntu1404'
+        options = BuildOptions()
+        options.parseOptions(
+            ['--distribution', expected_distribution, expected_uri])
+
+        self.assertEqual(
+            (expected_distribution, expected_uri),
+            (options['distribution'], options['package-uri'])
+        )
