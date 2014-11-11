@@ -407,6 +407,29 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(expected_result, environment)
 
+    def test_valid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse_mem_limit`` returns an ``int``
+        representing the bytes memory limit for a container when given a valid
+        configuration.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` raises a ``ConfigurationError`` if a
+        mem_limit config is specified that is not an integer.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_valid_fig_config_default_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` creates an ``Application`` instance with a
+        memory_limit of None if no mem_limit is specified in a valid Fig
+        configuration.
+        """
+        self.fail("Not implemented yet.")
+
     def test_valid_fig_config_volumes(self):
         """
         ``FigConfiguration._parse_app_volumes`` returns a ``AttachedVolume``
