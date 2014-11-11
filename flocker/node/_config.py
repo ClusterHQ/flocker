@@ -375,7 +375,8 @@ class FigConfiguration(object):
             is mapped to.
 
         :param dict environment: A dictionary of environment variable
-            names and values.
+            names and values or a list of strings representing key/value
+            pairs in the form KEY=VALUE (or just KEY for an empty value)
 
         :raises ConfigurationError: if the environment config does
             not validate.
@@ -383,17 +384,34 @@ class FigConfiguration(object):
         :returns: A ``frozenset`` of environment variable name/value
             pairs.
         """
-        _check_type(environment, dict,
-                    "'environment' must be a dictionary",
+        _check_type(environment, (dict, list),
+                    "'environment' must be a dictionary or list",
                     application)
-        for var, val in environment.items():
+        if isinstance(environment, list):
+            environment_dict = dict()
+            for item in environment:
+                _check_type(
+                    item, (str, unicode,),
+                    ("'environment' value '{item}' must be a string"
+                     .format(item=item)),
+                    application
+                )
+                try:
+                    label, value = item.split('=')
+                except ValueError:
+                    label = item
+                    value = ''
+                environment_dict[label] = value
+        else:
+            environment_dict = environment
+        for var, val in environment_dict.items():
             _check_type(
                 val, (str, unicode,),
                 ("'environment' value for '{var}' must be a string"
                  .format(var=var)),
                 application
             )
-        return frozenset(environment.items())
+        return frozenset(environment_dict.items())
 
     def _parse_app_volumes(self, application, volumes):
         """
