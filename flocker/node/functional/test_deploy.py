@@ -232,6 +232,7 @@ class DeployerTests(TestCase):
 
         def inspect_application(_):
             du = docker_client.list()
+
             def app_memory(units):
                 unit = units.pop()
                 self.assertEqual(unit.mem_limit, 100000000)
@@ -282,9 +283,11 @@ class DeployerTests(TestCase):
 
         def inspect_application(_):
             du = docker_client.list()
+
             def app_memory(units):
                 unit = units.pop()
                 self.assertEqual(unit.cpu_shares, 512)
+
             du.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
