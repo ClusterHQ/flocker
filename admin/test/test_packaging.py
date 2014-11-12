@@ -5,7 +5,7 @@ Tests for ``admin.packaging``.
 """
 
 from glob import glob
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
 
@@ -17,6 +17,7 @@ from twisted.trial.unittest import TestCase
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
+from flocker import __version__
 
 from .. import packaging
 from ..packaging import (
@@ -27,7 +28,7 @@ from ..packaging import (
     Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE,
     make_dependencies,
 )
-from ..release import rpm_version
+from ..release import rpm_version, make_rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -804,7 +805,32 @@ class SumoPackageBuilderTests(TestCase):
         """
         An RPM file with the expected headers is built.
         """
-    test_functional_rpm.todo = 'write test'
+        output_dir = FilePath(self.mktemp())
+        check_call([
+            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            '--destination-path', output_dir.path,
+            '--distribution', 'fedora20',
+            FLOCKER_PATH.path
+        ])
+        python_version = __version__
+        rpm_version = make_rpm_version(python_version)
+
+        expected_basenames = (
+            ('clusterhq-python-flocker', 'x86_64'),
+            ('clusterhq-flocker-cli', 'noarch'),
+            ('clusterhq-flocker-node', 'noarch'),
+        )
+        expected_filenames = []
+        for basename, arch in expected_basenames:
+            f = '{}-{}-{}.{}.rpm'.format(
+                basename, rpm_version.version, rpm_version.release, arch)
+            expected_filenames.append(f)
+
+        self.assertEqual(
+            set(expected_filenames),
+            set(f.basename() for f in output_dir.children())
+        )
+
 
     def test_functional_deb(self):
         """

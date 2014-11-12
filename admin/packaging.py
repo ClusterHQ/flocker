@@ -128,15 +128,17 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
+        # A hack to handle DelayedVersion nonsense.
+        version = getattr(self.version, 'version', self.version)
         if package_type == PackageTypes.DEB:
             if self.version:
                 return "%s (%s %s)" % (
-                    self.package, self.compare, self.version)
+                    self.package, self.compare, version)
             else:
                 return self.package
         elif package_type == PackageTypes.RPM:
             if self.version:
-                return "%s %s %s" % (self.package, self.compare, self.version)
+                return "%s %s %s" % (self.package, self.compare, version)
             else:
                 return self.package
         else:
@@ -666,6 +668,14 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     if destination_path.exists() and not destination_path.isdir():
         raise ValueError("go away")
 
+    volumes = {
+        FilePath('/output'): destination_path,
+        FilePath('/flocker'): top_level,
+    }
+
+    if package_uri == top_level.path:
+        package_uri = '/flocker'
+
     tag = "clusterhq/build_%s" % (distribution,)
     build_directory = top_level.descendant(
         ['admin', 'build_targets', distribution])
@@ -678,10 +688,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
             ),
             DockerRun(
                 tag=tag,
-                volumes={
-                    FilePath('/output'): destination_path,
-                    FilePath('/flocker'): top_level,
-                },
+                volumes=volumes,
                 command=[package_uri]
             ),
         ])
