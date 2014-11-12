@@ -91,6 +91,9 @@ from .release import make_rpm_version
 
 
 class PackageTypes(Values):
+    """
+    Constants representing supported target packaging formats.
+    """
     RPM = ValueConstant('rpm')
     DEB = ValueConstant('deb')
 
@@ -380,6 +383,7 @@ class BuildPackage(object):
     """
     Use ``fpm`` to build an RPM file from the supplied ``source_path``.
 
+    :ivar package_type: A package type constant from ``PackageTypes``.
     :ivar FilePath destination_path: The path in which to save the resulting
         RPM package file.
     :ivar dict source_paths: A dictionary mapping paths in the filesystem to
@@ -504,6 +508,7 @@ def sumo_package_builder(
 
     * Build an RPM from the virtualenv directory using ``fpm``.
 
+    :param package_type: A package type constant from ``PackageTypes``.
     :param FilePath destination_path: The path to a directory in which to save
         the resulting RPM file.
     :param Package package: A ``Package`` instance with a ``pip install``
