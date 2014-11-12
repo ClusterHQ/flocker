@@ -375,8 +375,7 @@ class GetPackageVersion(object):
 @attributes(
     ['package_type', 'destination_path', 'source_paths', 'name', 'prefix',
      'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
-     'architecture', 'description', 'dependencies',
-     Attribute('after_install', default_value=None)])
+     'architecture', 'description', 'dependencies'])
 class BuildPackage(object):
     """
     Use ``fpm`` to build an RPM file from the supplied ``source_path``.
@@ -409,11 +408,6 @@ class BuildPackage(object):
         for requirement in self.dependencies:
             depends_arguments.extend(
                 ['--depends', requirement.format(self.package_type)])
-
-        if self.after_install is not None:
-            depends_arguments.extend(
-                ['--after-install', self.after_install.path]
-            )
 
         path_arguments = []
         for source_path, package_path in self.source_paths.items():

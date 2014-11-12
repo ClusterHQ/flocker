@@ -664,54 +664,6 @@ class BuildPackageTests(TestCase):
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
 
-    @require_rpm
-    def test_afterinstall_rpm(self):
-        """
-        ``BuildPackage.run`` adds the supplied ``after_install`` script to the
-        RPM as a post install script.
-        """
-        destination_path = FilePath(self.mktemp())
-        destination_path.makedirs()
-        source_path = FilePath(self.mktemp())
-        source_path.makedirs()
-        after_install = FilePath(self.mktemp())
-        after_install.setContent(dedent("""
-        #!/bin/sh
-        echo "FooBarBaz"
-        """))
-        BuildPackage(
-            package_type=PackageTypes.RPM,
-            destination_path=destination_path,
-            source_paths={source_path: FilePath('/')},
-            name='FooBar',
-            prefix=FilePath('/opt/Foo'),
-            epoch='1',
-            rpm_version=make_rpm_version('1'),
-            license='A license',
-            url='http://www.example.com',
-            vendor='The Vendor',
-            maintainer='The Maintainer',
-            architecture='native',
-            description='The Description',
-            dependencies=[],
-            after_install=after_install,
-        ).run()
-        packages = glob('{}/*.rpm'.format(destination_path.path))
-        self.assertEqual(1, len(packages))
-        output = check_output(
-            ['rpm', '--query', '--scripts', '--package', packages[0]]
-        )
-        # XXX: This should be more specific.
-        self.assertIn(after_install.getContent(), output)
-
-    @require_dpkg
-    def test_afterinstall_deb(self):
-        """
-        ``BuildPackage.run`` adds the supplied ``after_install`` script to the
-        DEB as a post install script.
-        """
-    test_afterinstall_deb.todo = 'write test'
-
 
 class BuildPythonFlockerPackageTests(TestCase):
     """
