@@ -154,8 +154,8 @@ class BuildSequence(object):
 
 def run_command(args, env=None, cwd=None):
     """
-    Run a subprocess and return its output. The command line and its environment
-    are logged for debugging purposes.
+    Run a subprocess and return its output. The command line and its
+    environment are logged for debugging purposes.
 
     :return: The output of the command.
     """
@@ -212,13 +212,12 @@ class Dependency(object):
             raise ValueError("Unknown package type.")
 
 
-# We generate three packages.  ``python-flocker`` contains the entire code base.
-# ``flocker-cli`` and ``flocker-node`` are meta packages which symlink only the
-# cli or node specific scripts and load only the dependencies required to
-# satisfy those scripts.
-# This map represents the dependencies for each of those three packages and
-# accounts for differing dependency package names and versions on various
-# platforms.
+# We generate three packages.  ``python-flocker`` contains the entire code
+# base.  ``flocker-cli`` and ``flocker-node`` are meta packages which symlink
+# only the cli or node specific scripts and load only the dependencies required
+# to satisfy those scripts.  This map represents the dependencies for each of
+# those three packages and accounts for differing dependency package names and
+# versions on various platforms.
 DEPENDENCIES = {
     'python': {
         'fedora': (
@@ -519,7 +518,8 @@ class DelayedRpmVersion(object):
 
 class PACKAGE(Values):
     """
-    Constants for ClusterHQ specific metadata that we add to all three packages.
+    Constants for ClusterHQ specific metadata that we add to all three
+    packages.
     """
     EPOCH = ValueConstant(b'0')
     LICENSE = ValueConstant(b'ASL 2.0')
