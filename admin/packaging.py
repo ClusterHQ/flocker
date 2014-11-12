@@ -198,6 +198,15 @@ DEPENDENCIES = {
 
 def make_dependencies(package_name, package_version, distribution):
     """
+    Add the supplied version of ``python-flocker`` to the base dependency lists
+    defined in ``DEPENDENCIES``.
+
+    :param bytes package_name: The name of the flocker package to generate
+        dependencies for.
+    :param bytes package_version: The flocker version.
+    :param bytes distribution: The name of the distribution for which to
+        generate dependencies.
+
     :return: A list of ``Dependency`` instances.
     """
     dependencies = DEPENDENCIES[package_name][distribution]
