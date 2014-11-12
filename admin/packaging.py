@@ -317,6 +317,8 @@ class InstallVirtualEnv(object):
 @attributes(['name', 'version'])
 class PythonPackage(object):
     """
+    A model representing a single pip installable Python package.
+
     :ivar bytes name: The name of the package.
     :ivar bytes version: The version of the package.
     """
@@ -325,6 +327,7 @@ class PythonPackage(object):
 @attributes(['root'])
 class VirtualEnv(object):
     """
+    A model representing a virtualenv directory.
     """
     def install(self, package_uri):
         """
