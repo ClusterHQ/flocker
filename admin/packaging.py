@@ -452,7 +452,7 @@ class PACKAGE(Values):
     MAINTAINER = ValueConstant(b'contact@clusterhq.com')
 
 
-def sumo_package_builder(
+def omnibus_package_builder(
         package_type, destination_path, package_uri, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
@@ -708,7 +708,7 @@ class DockerBuildScript(object):
     :ivar build_command: The function responsible for building the
         package. Allows the command to be overridden in tests.
     """
-    build_command = staticmethod(sumo_package_builder)
+    build_command = staticmethod(omnibus_package_builder)
 
     def __init__(self, sys_module=None):
         """

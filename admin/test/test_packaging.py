@@ -21,8 +21,8 @@ from flocker import __version__
 
 from .. import packaging
 from ..packaging import (
-    sumo_package_builder, InstallVirtualEnv, InstallApplication, BuildPackage,
-    BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
+    omnibus_package_builder, InstallVirtualEnv, InstallApplication,
+    BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE,
@@ -575,9 +575,9 @@ class BuildPackageTests(TestCase):
         assert_rpm_content(self, expected_paths, rpm_path)
 
 
-class SumoPackageBuilderTests(TestCase):
+class OmnibusPackageBuilderTests(TestCase):
     """
-    Tests for ``sumo_package_builder``.
+    Tests for ``omnibus_package_builder``.
     """
     def test_steps(self):
         """
@@ -707,10 +707,10 @@ class SumoPackageBuilderTests(TestCase):
         assert_equal_steps(
             self,
             expected,
-            sumo_package_builder(package_type=expected_package_type,
-                                 destination_path=expected_destination_path,
-                                 package_uri=expected_package_uri,
-                                 target_dir=target_path))
+            omnibus_package_builder(package_type=expected_package_type,
+                                    destination_path=expected_destination_path,
+                                    package_uri=expected_package_uri,
+                                    target_dir=target_path))
 
     def test_functional_fedora20(self):
         """
@@ -886,10 +886,10 @@ class DockerBuildScriptTests(TestCase):
 
     def test_build_command(self):
         """
-        ``DockerBuildScript.build_command`` is ``sumo_package_builder`` by
+        ``DockerBuildScript.build_command`` is ``omnibus_package_builder`` by
         default.
         """
-        self.assertIs(sumo_package_builder, DockerBuildScript.build_command)
+        self.assertIs(omnibus_package_builder, DockerBuildScript.build_command)
 
     def test_run(self):
         """
