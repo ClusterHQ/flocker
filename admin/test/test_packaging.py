@@ -665,38 +665,6 @@ class BuildPackageTests(TestCase):
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
 
 
-class BuildPythonFlockerPackageTests(TestCase):
-    """
-    """
-    def test_steps(self):
-        """
-        """
-
-    def test_rpm(self):
-        """
-        """
-
-    def test_deb(self):
-        """
-        """
-
-
-class BuildFlockerCliPackageTests(TestCase):
-    """
-    """
-    def test_steps(self):
-        """
-        """
-
-
-class BuildFlockerNodePackageTests(TestCase):
-    """
-    """
-    def test_steps(self):
-        """
-        """
-
-
 class SumoPackageBuilderTests(TestCase):
     """
     Tests for ``sumo_package_builder``.
