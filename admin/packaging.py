@@ -172,14 +172,31 @@ def run_command(args, env=None, cwd=None):
     Attribute('version', default_value=None)])
 class Dependency(object):
     """
-    Package dependency
+    A package dependency.
+
+    :ivar bytes package: The name of the dependency package.
+    :ivar bytes compare: The operator to use when comparing required and
+        available versions of the dependency package.
+    :ivar bytes version: The version of the dependency package.
     """
     def __init__(self):
+        """
+        :raises ValueError: If ``compare`` and ``version`` values are not
+            compatible.
+        """
         if (self.compare is None) != (self.version is None):
             raise ValueError(
                 "Must specify both or neither compare and version.")
 
     def format(self, package_type):
+        """
+        :return: A ``bytes`` representation of the desired version comparison
+            which can be parsed by the package management tools associated with
+            ``package_type``.
+
+        :raises: ``ValueError`` if supplied with an unrecognised
+            ``package_type``.
+        """
         if package_type == PackageTypes.DEB:
             if self.version:
                 return "%s (%s %s)" % (
