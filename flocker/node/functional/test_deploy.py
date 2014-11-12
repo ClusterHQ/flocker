@@ -225,12 +225,14 @@ class DeployerTests(TestCase):
         )
 
         def inspect_application(_):
-            du = docker_client.list()
+            deferred_list = docker_client.list()
 
             def app_memory(units):
                 unit = units.pop()
                 self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
-            du.addCallback(app_memory)
+                return deferred_list
+
+            deferred_list.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
 
@@ -271,12 +273,13 @@ class DeployerTests(TestCase):
         )
 
         def inspect_application(_):
-            du = docker_client.list()
+            deferred_list = docker_client.list()
 
             def app_memory(units):
                 unit = units.pop()
                 self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
+                return deferred_list
 
-            du.addCallback(app_memory)
+            deferred_list.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
