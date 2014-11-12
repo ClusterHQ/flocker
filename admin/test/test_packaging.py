@@ -722,7 +722,7 @@ class SumoPackageBuilderTests(TestCase):
 
         expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
-        expected_epoch = PACKAGE.EPOCH
+        expected_epoch = PACKAGE.EPOCH.value
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv=VirtualEnv(root=expected_virtualenv_path),
@@ -731,10 +731,10 @@ class SumoPackageBuilderTests(TestCase):
         expected_version = DelayedRpmVersion(
             package_version_step=expected_package_version_step
         )
-        expected_license = PACKAGE.LICENSE
-        expected_url = PACKAGE.URL
-        expected_vendor = PACKAGE.VENDOR
-        expected_maintainer = PACKAGE.MAINTAINER
+        expected_license = PACKAGE.LICENSE.value
+        expected_url = PACKAGE.URL.value
+        expected_vendor = PACKAGE.VENDOR.value
+        expected_maintainer = PACKAGE.MAINTAINER.value
         expected_description = (
             'A Docker orchestration and volume management tool')
 
