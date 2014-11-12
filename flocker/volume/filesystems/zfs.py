@@ -164,7 +164,6 @@ def _latest_common_snapshot(some, others):
     return None
 
 
-# Add VolumeSize information here
 @implementer(IFilesystem)
 @with_cmp(["pool", "dataset"])
 @with_repr(["pool", "dataset"])
@@ -184,6 +183,8 @@ class Filesystem(object):
 
         :param twisted.python.filepath.FilePath mountpoint: Where the
             filesystem is mounted.
+
+        :param VolumeSize size: The capacity information for this filesystem.
         """
         self.pool = pool
         self.dataset = dataset

@@ -44,7 +44,6 @@ class CannedFilesystemSnapshots(object):
         return succeed(self._snapshots)
 
 
-# add VolumeSize attribute
 @implementer(IFilesystem)
 @attributes(["path", "size"],
             defaults=dict(size=VolumeSize(maximum_size=None)))
