@@ -23,7 +23,7 @@ from ..packaging import (
     BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_package, DockerBuild, DockerRun,
+    Dependency, build_in_docker, DockerBuild, DockerRun,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -1149,9 +1149,9 @@ class BuildScriptTests(TestCase):
 
     def test_build_command(self):
         """
-        ``BuildScript.build_command`` is ``package_builder`` by default.
+        ``BuildScript.build_command`` is ``build_in_docker`` by default.
         """
-        self.assertIs(build_package, BuildScript.build_command)
+        self.assertIs(build_in_docker, BuildScript.build_command)
 
     def test_run(self):
         """
@@ -1188,13 +1188,13 @@ class BuildScriptTests(TestCase):
         self.assertTrue(build_step.ran)
 
 
-class BuildPackageFunctionTests(TestCase):
+class BuildInDockerFunctionTests(TestCase):
     """
-    Tests for ``build_package``.
+    Tests for ``build_in_docker``.
     """
     def test_steps(self):
         """
-        ``build_package`` returns a ``BuildSequence`` comprising
+        ``build_in_docker`` returns a ``BuildSequence`` comprising
         ``DockerBuild`` and ``DockerRun`` instances.
         """
         supplied_distribution = 'Foo'
@@ -1223,7 +1223,7 @@ class BuildPackageFunctionTests(TestCase):
                     ),
                 ]
             ),
-            actual=build_package(
+            actual=build_in_docker(
                 destination_path=supplied_destination_path,
                 distribution=supplied_distribution,
                 top_level=supplied_top_level,

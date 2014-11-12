@@ -694,7 +694,7 @@ class DockerRun(object):
             ['docker', 'run'] + volume_options + [self.tag] + self.command)
 
 
-def build_package(destination_path, distribution, top_level, package_uri):
+def build_in_docker(destination_path, distribution, top_level, package_uri):
     """
     Build a flocker package for a given ``distribution`` inside a clean docker
     container of that ``distribution``.
@@ -858,7 +858,7 @@ class BuildScript(object):
     :ivar build_command: The function responsible for building the
         package. Allows the command to be overridden in tests.
     """
-    build_command = staticmethod(build_package)
+    build_command = staticmethod(build_in_docker)
 
     def __init__(self, sys_module=None):
         """
