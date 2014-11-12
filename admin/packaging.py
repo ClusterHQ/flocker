@@ -153,15 +153,17 @@ class BuildSequence(object):
 
 
 def run_command(args, env=None, cwd=None):
+    """
+    Run a subprocess and return its output. The command line and its environment
+    are logged for debugging purposes.
+
+    :return: The output of the command.
+    """
     log.msg(
         format="Running %(args)r with environment %(env)r "
                "and working directory %(cwd)s",
         args=args, env=env, cwd=cwd)
-    return check_output(
-        args=args,
-        env=env,
-        cwd=cwd,
-    )
+    return check_output(args=args, env=env, cwd=cwd,)
 
 
 @attributes([
