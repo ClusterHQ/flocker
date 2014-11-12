@@ -194,6 +194,8 @@ class ApplicationMarshaller(object):
         logic will need refactoring in future if this changes.
         """
         if self._application.volume:
+            # Include the maximum size here, if there is one.  This gets the
+            # info into the reportstate output.
             return {u'mountpoint': self._application.volume.mountpoint.path}
         return None
 

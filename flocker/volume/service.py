@@ -244,6 +244,9 @@ class VolumeService(Service):
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
+
+                # Add maximum size information here.  Take it from the
+                # filesystem object.
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,
@@ -352,6 +355,11 @@ class VolumeService(Service):
         return changing_owner
 
 
+# Add a VolumeSize object with a maximum_size attribute.  This will be a good
+# place to later add minimum and perhaps current size attributes.
+
+
+# add new optional maximum_size attribute
 @attributes(["uuid", "name", "service"])
 class Volume(object):
     """
@@ -380,6 +388,7 @@ class Volume(object):
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
+        # Preserve size field
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
                             service=self.service)
         d = self.service.pool.change_owner(self, new_volume)
