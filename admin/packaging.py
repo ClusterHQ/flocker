@@ -212,6 +212,13 @@ class Dependency(object):
             raise ValueError("Unknown package type.")
 
 
+# We generate three packages.  ``python-flocker`` contains the entire code base.
+# ``flocker-cli`` and ``flocker-node`` are meta packages which symlink only the
+# cli or node specific scripts and load only the dependencies required to
+# satisfy those scripts.
+# This map represents the dependencies for each of those three packages and
+# accounts for differing dependency package names and versions on various
+# platforms.
 DEPENDENCIES = {
     'python': {
         'fedora': (
