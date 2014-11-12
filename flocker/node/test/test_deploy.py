@@ -492,6 +492,62 @@ class StartApplicationTests(SynchronousTestCase):
             fake_docker._units[application_name].volumes
         )
 
+    def test_memory_limit(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s mem_limit to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        EXPECTED_MEMORY_LIMIT = 100000000
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=None,
+            links=frozenset(),
+            memory_limit=EXPECTED_MEMORY_LIMIT
+        )
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+
+        self.assertEqual(
+            EXPECTED_MEMORY_LIMIT,
+            fake_docker._units[application_name].mem_limit
+        )
+
+    def test_cpu_shares(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s cpu_shares to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+        EXPECTED_CPU_SHARES = 512
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            environment=None,
+            links=frozenset(),
+            cpu_shares=EXPECTED_CPU_SHARES
+        )
+
+        StartApplication(application=application,
+                         hostname="node1.example.com").run(deployer)
+
+        self.assertEqual(
+            EXPECTED_CPU_SHARES,
+            fake_docker._units[application_name].cpu_shares
+        )
+
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
