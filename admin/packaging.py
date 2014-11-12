@@ -163,12 +163,14 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
+            Dependency(package='python-flocker'),
             Dependency(package='docker-io', compare='>=', version='1.2'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
+            Dependency(package='python-flocker'),
             Dependency(package='docker', compare='>=', version='1.2'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
@@ -176,6 +178,7 @@ DEPENDENCIES = {
         ),
         'ubuntu': (
             # trust-updates version
+            Dependency(package='python-flocker'),
             Dependency(package='docker.io', compare='>=', version='1.0.1'),
             Dependency(package='iptables'),
             Dependency(package='zfsutils', compare='>=', version='0.6.3'),
@@ -184,12 +187,15 @@ DEPENDENCIES = {
     },
     'cli': {
         'fedora': (
+            Dependency(package='python-flocker'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
+            Dependency(package='python-flocker'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
+            Dependency(package='python-flocker'),
             Dependency(package='openssh-client'),
         ),
     },
