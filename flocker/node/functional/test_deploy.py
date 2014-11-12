@@ -195,9 +195,8 @@ class DeployerTests(TestCase):
         The memory limit number specified in an ``Application`` is passed to
         the container.
         """
-        docker_dir = FilePath(__file__).sibling('env-docker')
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        MEMORY_100MB = 100000000
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
 
         application_name = random_name()
 
@@ -212,13 +211,8 @@ class DeployerTests(TestCase):
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
                      name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     volume=AttachedVolume(
-                         name=application_name,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     memory_limit=100000000
+                     image=image,
+                     memory_limit=MEMORY_100MB
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -235,7 +229,7 @@ class DeployerTests(TestCase):
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.mem_limit, 100000000)
+                self.assertEqual(unit.mem_limit, MEMORY_100MB)
             du.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
@@ -246,9 +240,9 @@ class DeployerTests(TestCase):
         The CPU shares number specified in an ``Application`` is passed to the
         container.
         """
-        docker_dir = FilePath(__file__).sibling('env-docker')
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        CPU_SHARES = 512
+
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
 
         application_name = random_name()
 
@@ -263,13 +257,8 @@ class DeployerTests(TestCase):
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
                      name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     volume=AttachedVolume(
-                         name=application_name,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     cpu_shares=512
+                     image=image,
+                     cpu_shares=CPU_SHARES
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -286,7 +275,7 @@ class DeployerTests(TestCase):
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.cpu_shares, 512)
+                self.assertEqual(unit.cpu_shares, CPU_SHARES)
 
             du.addCallback(app_memory)
         d.addCallback(inspect_application)
