@@ -126,11 +126,9 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
-        # A hack to handle DelayedVersion nonsense.
-        version = getattr(self.version, 'version', self.version)
         if package_type == PackageTypes.RPM:
             if self.version:
-                return "%s %s %s" % (self.package, self.compare, version)
+                return "%s %s %s" % (self.package, self.compare, self.version)
             else:
                 return self.package
         else:
@@ -437,6 +435,9 @@ class DelayedRpmVersion(object):
         :return: The ``release`` string.
         """
         return self.rpm_version.release
+
+    def __str__(self):
+        return self.rpm_version.version + '-' + self.rpm_version.release
 
 
 class PACKAGE(Values):
