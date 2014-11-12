@@ -24,7 +24,8 @@ from ..packaging import (
     BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE
+    Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE,
+    make_dependencies,
 )
 from ..release import rpm_version
 
@@ -1204,4 +1205,39 @@ class BuildInDockerFunctionTests(TestCase):
                 top_level=supplied_top_level,
                 package_uri=expected_package_uri
             )
+        )
+
+class MakeDependenciesTests(TestCase):
+    """
+    Tests for ``make_dependencies``.
+    """
+    def test_node(self):
+        """
+        ``make_dependencies`` includes the supplied ``version`` of
+        ``python-flocker`` for ``flocker-node``.
+        """
+        expected_version = '1.2.3'
+        self.assertIn(
+            Dependency(
+                package='python-flocker',
+                compare='==',
+                version=expected_version
+            ),
+            make_dependencies('node', expected_version, 'fedora')
+        )
+
+
+    def test_cli(self):
+        """
+        ``make_dependencies`` includes the supplied ``version`` of
+        ``python-flocker`` for ``flocker-cli``.
+        """
+        expected_version = '1.2.3'
+        self.assertIn(
+            Dependency(
+                package='python-flocker',
+                compare='==',
+                version=expected_version
+            ),
+            make_dependencies('cli', expected_version, 'fedora')
         )

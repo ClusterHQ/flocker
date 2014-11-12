@@ -163,14 +163,12 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
-            Dependency(package='python-flocker'),
             Dependency(package='docker-io', compare='>=', version='1.2'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
-            Dependency(package='python-flocker'),
             Dependency(package='docker', compare='>=', version='1.2'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
@@ -178,7 +176,6 @@ DEPENDENCIES = {
         ),
         'ubuntu': (
             # trust-updates version
-            Dependency(package='python-flocker'),
             Dependency(package='docker.io', compare='>=', version='1.0.1'),
             Dependency(package='iptables'),
             Dependency(package='zfsutils', compare='>=', version='0.6.3'),
@@ -187,19 +184,31 @@ DEPENDENCIES = {
     },
     'cli': {
         'fedora': (
-            Dependency(package='python-flocker'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
-            Dependency(package='python-flocker'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
-            Dependency(package='python-flocker'),
             Dependency(package='openssh-client'),
         ),
     },
 }
+
+
+def make_dependencies(package_name, package_version, distribution):
+    """
+    :return: A list of ``Dependency`` instances.
+    """
+    dependencies = DEPENDENCIES[package_name][distribution]
+    if package_name in ('node', 'cli'):
+        dependencies += (
+            Dependency(
+                package='python-flocker',
+                compare='==',
+                version=package_version)
+        ,)
+    return dependencies
 
 
 def create_virtualenv(root):
@@ -536,7 +545,8 @@ def sumo_package_builder(
                 architecture='native',
                 description=(
                     'A Docker orchestration and volume management tool'),
-                dependencies=DEPENDENCIES['python'][CURRENT_DISTRIBUTION.name],
+                dependencies=make_dependencies(
+                    'python', rpm_version, CURRENT_DISTRIBUTION.name),
             ),
 
             # flocker-cli steps
@@ -561,7 +571,8 @@ def sumo_package_builder(
                 architecture='all',
                 description=(
                     'A Docker orchestration and volume management tool'),
-                dependencies=DEPENDENCIES['cli'][CURRENT_DISTRIBUTION.name],
+                dependencies=make_dependencies(
+                    'cli', rpm_version, CURRENT_DISTRIBUTION.name),
             ),
             # flocker-node steps
             CreateLinks(
@@ -589,7 +600,8 @@ def sumo_package_builder(
                 architecture='all',
                 description=(
                     'A Docker orchestration and volume management tool'),
-                dependencies=DEPENDENCIES['node'][CURRENT_DISTRIBUTION.name],
+                dependencies=make_dependencies(
+                    'node', rpm_version, CURRENT_DISTRIBUTION.name),
             ),
         )
     )
