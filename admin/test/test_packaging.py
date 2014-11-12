@@ -25,7 +25,7 @@ from ..packaging import (
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE
 )
-from ..release import make_rpm_version, rpm_version
+from ..release import rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
