@@ -180,7 +180,7 @@ def make_dependencies(package_name, package_version, distribution):
     if package_name in ('node', 'cli'):
         dependencies += (
             Dependency(
-                package='python-flocker',
+                package='clusterhq-python-flocker',
                 compare='==',
                 version=package_version),)
     return dependencies

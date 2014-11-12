@@ -1099,7 +1099,7 @@ class MakeDependenciesTests(TestCase):
         expected_version = '1.2.3'
         self.assertIn(
             Dependency(
-                package='python-flocker',
+                package='clusterhq-python-flocker',
                 compare='==',
                 version=expected_version
             ),
@@ -1114,7 +1114,7 @@ class MakeDependenciesTests(TestCase):
         expected_version = '1.2.3'
         self.assertIn(
             Dependency(
-                package='python-flocker',
+                package='clusterhq-python-flocker',
                 compare='==',
                 version=expected_version
             ),
