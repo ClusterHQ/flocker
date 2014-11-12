@@ -352,12 +352,20 @@ class VolumeService(Service):
         return changing_owner
 
 
-# Add a VolumeSize object with a maximum_size attribute.  This will be a good
-# place to later add minimum and perhaps current size attributes.
+@attributes(["maximum_size"], apply_immutable=True)
+class VolumeSize(object):
+    """
+    A data volume's size.
+
+    :ivar int maximum_size: The upper bound on the amount of data that can be
+        stored on this volume, in bytes.  May also be ``None`` to indicate no
+        particular upper bound is required (when representing desired
+        configuration) or known (when representing deployed configuration).
+    """
 
 
-# add new optional maximum_size attribute
-@attributes(["uuid", "name", "service"])
+@attributes(["uuid", "name", "service", "size"],
+            defaults=dict(size=VolumeSize(maximum_size=None)))
 class Volume(object):
     """
     A data volume's identifier.
@@ -365,6 +373,7 @@ class Volume(object):
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
     :ivar VolumeName name: The name of the volume.
+    :ivar VolumeSize size: The storage capacity of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
     def locally_owned(self):

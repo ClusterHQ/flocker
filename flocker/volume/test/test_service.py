@@ -23,6 +23,7 @@ from twisted.trial.unittest import SynchronousTestCase, TestCase
 from ..service import (
     VolumeService, CreateConfigurationError, Volume, VolumeName,
     WAIT_FOR_VOLUME_INTERVAL, VolumeScript, ICommandLineVolumeScript,
+    VolumeSize,
     )
 from ..script import VolumeOptions
 
@@ -85,6 +86,85 @@ class VolumeNameTests(TestCase):
         ``VolumeName`` namespaces can't have a period.
         """
         self.assertRaises(ValueError, VolumeName, namespace=u".x", id=u"y")
+
+
+class VolumeSizeInitializationTests(make_with_init_tests(
+        VolumeSize, {"maximum_size": 12345678})):
+    """
+    Tests for :class:`VolumeSize` initialization.
+    """
+
+
+class VolumeSizeTests(TestCase):
+    """
+    Tests for :class:`VolumeSize`.
+    """
+    def test_immutable(self):
+        """
+        Attributes of :class:`VolumeSize` instances cannot be set.
+        """
+        size = VolumeSize(maximum_size=12345)
+        self.assertRaises(AttributeError, setattr, size, "maximum_size", 123)
+
+
+def assertEqualComparison(self, a, b):
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if not equal:
+        messages.append("a == b evaluated to False")
+    if unequal:
+        messages.append("a != b evaluated to True")
+
+    if messages:
+        self.fail(
+            "Expected a and b to be equal: " + "; ".join(messages))
+
+
+def assertNotEqualComparison(self, a, b):
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if equal:
+        messages.append("a == b evaluated to True")
+    if not unequal:
+        messages.append("a != b evaluated to False")
+
+    if messages:
+        self.fail(
+            "Expected a and b to be not-equal: " + "; ".join(messages))
+
+
+class VolumeSizeComparisonTests(TestCase):
+    """
+    Tests for :class:`VolumeSize` equality.
+    """
+    def test_self(self):
+        """
+        A :class:`VolumeSize` instance compares as equal to itself.
+        """
+        size = VolumeSize(maximum_size=12345)
+        assertEqualComparison(self, size, size)
+
+    def test_equal(self):
+        """
+        Two :class:`VolumeSize` instances with the same value for the
+        ``maximum_size`` attribute compare equal to each other.
+        """
+        a = VolumeSize(maximum_size=12345)
+        b = VolumeSize(maximum_size=12345)
+        assertEqualComparison(self, a, b)
+
+    def test_maximum_size_differs(self):
+        """
+        Two :class:`VolumeSize` instances with different values for the
+        ``maximum_size`` attribute do not compare equal to each other.
+        """
+        a = VolumeSize(maximum_size=12345)
+        b = VolumeSize(maximum_size=54321)
+        assertNotEqualComparison(self, a, b)
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -584,41 +664,89 @@ class VolumeServiceAPITests(TestCase):
         return created
 
 
+class VolumeInitializationTests(make_with_init_tests(
+        Volume,
+        kwargs={
+            "uuid": u"abcd",
+            "name": VolumeName(namespace=u"xyz", id=u"123"),
+            "service": object(),
+            "size": VolumeSize(maximum_size=54321),
+        },
+        expected_defaults={
+            "size": VolumeSize(maximum_size=None),
+        })):
+    """
+    Tests for :class:`Volume` initialization.
+    """
+
+
 class VolumeTests(TestCase):
-    """Tests for ``Volume``."""
+    """
+    Tests for ``Volume``.
+    """
+
+    def setUp(self):
+        self.size = VolumeSize(maximum_size=12345)
 
     def test_equality(self):
-        """Volumes are equal if they have the same name, uuid and pool."""
+        """
+        Volumes are equal if they have the same name, uuid and pool.
+        """
         service = object()
-        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
-        v2 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
-        self.assertTrue(v1 == v2)
-        self.assertFalse(v1 != v2)
+        v1 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
+        v2 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
+        assertEqualComparison(self, v1, v2)
 
     def test_inequality_uuid(self):
-        """Volumes are unequal if they have different uuids."""
+        """
+        Volumes are unequal if they have different uuids.
+        """
         service = object()
-        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
-        v2 = Volume(uuid=u"123zz", name=MY_VOLUME, service=service)
-        self.assertTrue(v1 != v2)
-        self.assertFalse(v1 == v2)
+        v1 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
+        v2 = Volume(
+            uuid=u"123zz", name=MY_VOLUME, service=service, size=self.size)
+        assertNotEqualComparison(self, v1, v2)
 
     def test_inequality_name(self):
-        """Volumes are unequal if they have different names."""
+        """
+        Volumes are unequal if they have different names.
+        """
         service = object()
-        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=service)
-        v2 = Volume(uuid=u"123",
-                    name=VolumeName(namespace=u"mys", id=u"456zz"),
-                    service=service)
-        self.assertTrue(v1 != v2)
-        self.assertFalse(v1 == v2)
+        v1 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
+        v2 = Volume(
+            uuid=u"123", name=VolumeName(namespace=u"mys", id=u"456zz"),
+            service=service, size=self.size,
+        )
+        assertNotEqualComparison(self, v1, v2)
 
-    def test_inequality_pool(self):
-        """Volumes are unequal if they have different pools."""
-        v1 = Volume(uuid=u"123", name=MY_VOLUME, service=object())
-        v2 = Volume(uuid=u"123", name=MY_VOLUME, service=object())
-        self.assertTrue(v1 != v2)
-        self.assertFalse(v1 == v2)
+    def test_inequality_service(self):
+        """
+        Volumes are unequal if they have different services.
+        """
+        v1 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=object(), size=self.size)
+        v2 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=object(), size=self.size)
+        assertNotEqualComparison(self, v1, v2)
+
+    def test_inequality_size(self):
+        """
+        Volumes are unequal if they have different sizes.
+        """
+        service = object()
+        v1 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service,
+            size=VolumeSize(maximum_size=12345),
+        )
+        v2 = Volume(
+            uuid=u"123", name=MY_VOLUME, service=service,
+            size=VolumeSize(maximum_size=54321),
+        )
+        assertNotEqualComparison(self, v1, v2)
 
     def test_get_filesystem(self):
         """``Volume.get_filesystem`` returns the filesystem for the volume."""
