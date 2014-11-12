@@ -341,8 +341,7 @@ class CreateVirtualenvTests(TestCase):
                     except ValueError:
                         pass
                     else:
-                        # The target is a descendent of an allowed_target stop
-                        # looking and don't attempt to remove it.
+                        # The target is a descendent of an allowed_target.
                         break
                 else:
                     bad_links.append(path)
