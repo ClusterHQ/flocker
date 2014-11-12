@@ -518,6 +518,9 @@ class DelayedRpmVersion(object):
 
 
 class PACKAGE(Values):
+    """
+    Constants for ClusterHQ specific metadata that we add to all three packages.
+    """
     EPOCH = ValueConstant(b'0')
     LICENSE = ValueConstant(b'ASL 2.0')
     URL = ValueConstant(b'https://clusterhq.com')
