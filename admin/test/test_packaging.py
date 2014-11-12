@@ -450,7 +450,7 @@ def canned_package(root):
     installed and with a name and version which can later be tested.
 
     :param test_case: The ``TestCase`` whose mktemp method will be called.
-    :return: A ``TemporaryPythonPackage`` instance.
+    :return: A ``PythonPackage`` instance.
     """
     version = '1.2.3'
     name = 'FooBar'
