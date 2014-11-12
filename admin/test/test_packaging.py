@@ -801,9 +801,9 @@ class SumoPackageBuilderTests(TestCase):
                                  package_uri=expected_package_uri,
                                  target_dir=target_path))
 
-    def test_functional_rpm(self):
+    def test_functional_fedora20(self):
         """
-        An RPM file with the expected headers is built.
+        The expected RPM files are built for Fedora20
         """
         output_dir = FilePath(self.mktemp())
         check_call([
@@ -832,11 +832,36 @@ class SumoPackageBuilderTests(TestCase):
         )
 
 
-    def test_functional_deb(self):
+    def test_functional_ubuntu1404(self):
         """
-        An deb file with the expected headers is built.
+        The expected deb files are generated on Ubuntu14.04.
         """
-    test_functional_deb.todo = 'write test'
+        output_dir = FilePath(self.mktemp())
+        check_call([
+            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            '--destination-path', output_dir.path,
+            '--distribution', 'ubuntu1404',
+            FLOCKER_PATH.path
+        ])
+        python_version = __version__
+        rpm_version = make_rpm_version(python_version)
+
+        expected_basenames = (
+            ('clusterhq-python-flocker', 'amd64'),
+            ('clusterhq-flocker-cli', 'all'),
+            ('clusterhq-flocker-node', 'all'),
+        )
+        expected_filenames = []
+        for basename, arch in expected_basenames:
+            f = '{}_{}-{}_{}.deb'.format(
+                basename, rpm_version.version, rpm_version.release, arch)
+            expected_filenames.append(f)
+
+        self.assertEqual(
+            set(expected_filenames),
+            set(f.basename() for f in output_dir.children())
+        )
+
 
 
 RPMLINT_IGNORED_WARNINGS = (
