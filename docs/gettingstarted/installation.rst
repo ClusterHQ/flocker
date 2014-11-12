@@ -165,4 +165,4 @@ The following commands will create a zfs pool backed by a file.
 It is also possible to create the pool on a block device.
 
 .. If you do this on a couple of machines, then you can point the tutorial deployment files at them, and things will work.
-.. I've tried it with the voume tutorial.
+.. I've tried it with the volume tutorial.
