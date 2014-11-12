@@ -1,22 +1,29 @@
-Building RPMs
-=============
+Building Omnibus RPMs
+=====================
 
-To build flocker RPMs, run the following command from a clean checkout of the Flocker repository:
+Flocker depends on a number of Python packages which aren't available in Fedora,
+or newer versions than are available there.
+So the ``build-package`` script bundles those packages into the RPM.
+We refer to these as "Omnibus" packages.
+
+To build omnibus RPMs, run the following command from a clean checkout of the Flocker repository:
 
 .. code-block:: sh
 
-   admin/build-package .
+   ./admin/build-package --distribution=fedora20 $PWD
 
-This will generate a ``Flocker-X.Y.Z-*.rpm`` package file.
-The package will install ``Flocker`` (and all its dependencies) into ``/opt/flocker`` and add all the Flocker command line scripts to the system path.
+This will generate three RPM files in the current working directory. E.g.
 
-.. note:: The ``build-package`` command requires the ``fpm`` tool to be installed.
+* clusterhq-python-flocker-0.3.0-0.dev.1.307.gb6d6e9f.dirty.x86_64.rpm
 
-Dependencies
-------------
+  This package will install ``Flocker`` (and all its Python dependencies) into ``/opt/flocker``.
 
-Flocker depends on a number of packages which aren't available in Fedora,
-or newer versions than are available there.
-So the ``build-package`` script bundles those packages into the RPM.
-We refer to these as "sumo" packages.
-Elsewhere they are referred to as "omnibus" packages.
+* clusterhq-flocker-cli-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm
+
+  This meta-package will install all the dependencies needed to run the Flocker client scripts.
+  It will also install a symlink for ``flocker-deploy`` in ``/usr/sbin``.
+
+* clusterhq-flocker-node-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm
+
+  This meta-package will install all the dependencies needed to run the Flocker  scripts.
+  It will also install symlinks in ``/usr/sbin`` for all the Flocker node related scripts.
