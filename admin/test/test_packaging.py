@@ -3,6 +3,7 @@
 """
 Tests for ``admin.packaging``.
 """
+
 from glob import glob
 from subprocess import check_output, CalledProcessError
 from textwrap import dedent
