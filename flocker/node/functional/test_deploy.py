@@ -195,7 +195,7 @@ class DeployerTests(TestCase):
         The memory limit number specified in an ``Application`` is passed to
         the container.
         """
-        MEMORY_100MB = 100000000
+        EXPECTED_MEMORY_LIMIT = 100000000
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
         application_name = random_name()
@@ -212,7 +212,7 @@ class DeployerTests(TestCase):
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,
-                     memory_limit=MEMORY_100MB
+                     memory_limit=EXPECTED_MEMORY_LIMIT
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -229,7 +229,7 @@ class DeployerTests(TestCase):
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.mem_limit, MEMORY_100MB)
+                self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
             du.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
@@ -240,7 +240,7 @@ class DeployerTests(TestCase):
         The CPU shares number specified in an ``Application`` is passed to the
         container.
         """
-        CPU_SHARES = 512
+        EXPECTED_CPU_SHARES = 512
 
         image = DockerImage.from_string(u"openshift/busybox-http-app")
 
@@ -258,7 +258,7 @@ class DeployerTests(TestCase):
                  applications=frozenset([Application(
                      name=application_name,
                      image=image,
-                     cpu_shares=CPU_SHARES
+                     cpu_shares=EXPECTED_CPU_SHARES
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -275,7 +275,7 @@ class DeployerTests(TestCase):
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.cpu_shares, CPU_SHARES)
+                self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
 
             du.addCallback(app_memory)
         d.addCallback(inspect_application)

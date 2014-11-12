@@ -497,7 +497,7 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes an ``Application``'s mem_limit to
         ``DockerClient.add`` which is used when creating a Unit.
         """
-        MEMORY_100MB = 100000000
+        EXPECTED_MEMORY_LIMIT = 100000000
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
         deployer = Deployer(volume_service, fake_docker)
@@ -509,14 +509,14 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=None,
             links=frozenset(),
-            memory_limit=MEMORY_100MB
+            memory_limit=EXPECTED_MEMORY_LIMIT
         )
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
 
         self.assertEqual(
-            MEMORY_100MB,
+            EXPECTED_MEMORY_LIMIT,
             fake_docker._units[application_name].mem_limit
         )
 
@@ -525,6 +525,7 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes an ``Application``'s cpu_shares to
         ``DockerClient.add`` which is used when creating a Unit.
         """
+        EXPECTED_CPU_SHARES = 512
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
         deployer = Deployer(volume_service, fake_docker)
@@ -536,14 +537,14 @@ class StartApplicationTests(SynchronousTestCase):
                               tag=u'9.3.5'),
             environment=None,
             links=frozenset(),
-            cpu_shares=512
+            cpu_shares=EXPECTED_CPU_SHARES
         )
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
 
         self.assertEqual(
-            512,
+            EXPECTED_CPU_SHARES,
             fake_docker._units[application_name].cpu_shares
         )
 
