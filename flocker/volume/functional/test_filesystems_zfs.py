@@ -25,7 +25,8 @@ from ..filesystems.zfs import (
     Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
     zfs_command,
 )
-from ..service import Volume, VolumeName, VolumeSize
+from ..service import Volume, VolumeName
+from .._model import VolumeSize
 from ..testtools import create_zfs_pool, service_for_pool
 
 

@@ -26,6 +26,7 @@ from twisted.internet.task import LoopingCall
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
 from .filesystems.zfs import StoragePool
+from ._model import VolumeSize
 from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
@@ -350,18 +351,6 @@ class VolumeService(Service):
             return volume.change_owner(remote_uuid)
         changing_owner = pushing.addCallback(pushed)
         return changing_owner
-
-
-@attributes(["maximum_size"], apply_immutable=True)
-class VolumeSize(object):
-    """
-    A data volume's size.
-
-    :ivar int maximum_size: The upper bound on the amount of data that can be
-        stored on this volume, in bytes.  May also be ``None`` to indicate no
-        particular upper bound is required (when representing desired
-        configuration) or known (when representing deployed configuration).
-    """
 
 
 @attributes(["uuid", "name", "service", "size"],

@@ -25,8 +25,8 @@ from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists,
     )
-from ..service import Volume, VolumeName, VolumeSize
-
+from ..service import Volume, VolumeName
+from .._model import VolumeSize
 
 def make_ifilesystemsnapshots_tests(fixture):
     """
@@ -547,6 +547,29 @@ def make_istoragepool_tests(fixture):
                 expected = {volume.get_filesystem(), volume2.get_filesystem()}
                 self.assertEqual(expected, result)
             return enumerating.addCallback(enumerated)
+
+        def test_enumerate_provides_size(self):
+            """
+            The ``IStoragePool.enumerate`` implementation produces ``IFilesystem``
+            results which reflect the size configuration those filesystems were
+            created with.
+            """
+            size = VolumeSize(maximum_size=54321)
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            volume.size = size
+            creating = pool.create(volume)
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                [filesystem] = result
+                self.assertEqual(size, filesystem.size)
+            enumerating.addCallback(enumerated)
+            return enumerating
 
         def test_enumerate_spaces(self):
             """

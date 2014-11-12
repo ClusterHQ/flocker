@@ -30,6 +30,8 @@ from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
 
+from .._model import VolumeSize
+
 
 def random_name():
     """Return a random pool name.
@@ -583,13 +585,18 @@ class StoragePool(Service):
         def listed(filesystems):
             result = set()
             for entry in filesystems:
-                dataset, mountpoint = entry
                 filesystem = Filesystem(
-                    self._name, dataset, FilePath(mountpoint))
+                    self._name, entry.dataset, FilePath(entry.mountpoint),
+                    VolumeSize(maximum_size=entry.refquota))
                 result.add(filesystem)
             return result
 
         return listing.addCallback(listed)
+
+
+@attributes(["dataset", "mountpoint", "refquota"])
+class _DatasetInfo(object):
+    pass
 
 
 def _list_filesystems(reactor, pool):
@@ -610,14 +617,30 @@ def _list_filesystems(reactor, pool):
     # name and mountpoint are the properties displayed.
     listing = zfs_command(
         reactor,
-        [b"list", b"-d", b"1", b"-H", b"-o", b"name,mountpoint", pool])
+        [b"list",
+         # Descend the hierarchy to a depth of one (ie, list the direct
+         # children of the pool)
+         b"-d", b"1",
+         # Omit the output header
+         b"-H",
+         # Output exact, machine-parseable values (eg 65536 instead of 64K)
+         b"-p",
+         # Output each dataset's name, mountpoint and refquota
+         b"-o", b"name,mountpoint,refquota",
+         # Look at this pool
+         pool])
 
     def listed(output, pool):
         for line in output.splitlines():
-            name, mountpoint = line.split(b'\t')
+            name, mountpoint, refquota = line.split(b'\t')
             name = name[len(pool) + 1:]
             if name:
-                yield (name, mountpoint)
+                if refquota == b"none":
+                    refquota = None
+                else:
+                    refquota = int(refquota.decode("ascii"))
+                yield _DatasetInfo(
+                    dataset=name, mountpoint=mountpoint, refquota=refquota)
 
     listing.addCallback(listed, pool)
     return listing

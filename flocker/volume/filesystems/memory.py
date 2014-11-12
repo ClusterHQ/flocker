@@ -21,7 +21,7 @@ from .interfaces import (
     FilesystemAlreadyExists)
 from .zfs import Snapshot
 
-from ..service import VolumeSize
+from .._model import VolumeSize
 
 
 @implementer(IFilesystemSnapshots)
