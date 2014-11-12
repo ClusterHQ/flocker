@@ -568,11 +568,18 @@ class SumoPackageBuilderTests(TestCase):
         """
         self.patch(packaging, 'CURRENT_DISTRIBUTION',
                    Distribution(name='test-distro', version='30'))
-        self.patch(packaging, 'DEPENDENCIES', {
+
+        fake_dependencies = {
             'python': {'test-distro': [Dependency(package='python-dep')]},
             'node': {'test-distro': [Dependency(package='node-dep')]},
             'cli': {'test-distro': [Dependency(package='cli-dep')]},
-            })
+        }
+
+        def fake_make_dependencies(
+                package_name, package_version, distribution):
+            return fake_dependencies[package_name][distribution]
+
+        self.patch(packaging, 'make_dependencies', fake_make_dependencies)
 
         expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
