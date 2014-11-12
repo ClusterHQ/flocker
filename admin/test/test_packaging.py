@@ -226,15 +226,15 @@ def assert_rpm_requires(test_case, expected_requirements, rpm_path):
             missing_requirements, rpm_path.path))
 
 
-class FakeVirtualEnv(object):
+class SpyVirtualEnv(object):
     """
+    A ``VirtualEnv`` like class which records the ``package_uri``s which are
+    supplied to its ``install`` method.
     """
     def __init__(self):
         self._installed_packages = []
 
     def install(self, package_uri):
-        """
-        """
         self._installed_packages.append(package_uri)
 
 
@@ -407,7 +407,7 @@ class InstallApplicationTests(TestCase):
         ``target_path``.
         """
         package_uri = 'http://www.example.com/Bar-1.2.3.whl'
-        fake_env = FakeVirtualEnv()
+        fake_env = SpyVirtualEnv()
         InstallApplication(
             virtualenv=fake_env,
             package_uri=package_uri
