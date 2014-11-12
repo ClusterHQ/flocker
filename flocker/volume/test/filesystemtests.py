@@ -16,14 +16,16 @@ from twisted.trial.unittest import TestCase
 from twisted.internet.defer import gatherResults
 from twisted.application.service import IService
 
-from ...testtools import assertNoFDsLeaked
+from ...testtools import (
+    assertNoFDsLeaked, assert_equal_comparison, assert_not_equal_comparison)
+
 from ..testtools import service_for_pool
 
 from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists,
     )
-from ..service import Volume, VolumeName
+from ..service import Volume, VolumeName, VolumeSize
 
 
 def make_ifilesystemsnapshots_tests(fixture):
@@ -206,6 +208,30 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystem)
             return d
 
+        def test_create_with_maximum_size(self):
+            """
+            If a maximum size is specified by the volume, the resulting ``IFilesystem``
+            provider has the same size information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            volume_with_size = Volume(
+                uuid=volume.uuid,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+            d.addCallback(created_filesystem)
+            return d
+
         def test_two_names_create_different_filesystems(self):
             """
             Two calls to ``create()`` with different volume names return
@@ -219,10 +245,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystems(filesystems):
                 first, second = filesystems
-                # Thanks Python! *Obviously* you should have two code paths
-                # for equality to work correctly.
-                self.assertTrue(first != second)
-                self.assertFalse(first == second)
+                assert_not_equal_comparison(self, first, second)
             d.addCallback(created_filesystems)
             return d
 
@@ -239,10 +262,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystems(filesystems):
                 first, second = filesystems
-                # Thanks Python! *Obviously* you should have two code paths
-                # for equality to work correctly.
-                self.assertTrue(first != second)
-                self.assertFalse(first == second)
+                assert_not_equal_comparison(self, first, second)
             d.addCallback(created_filesystems)
             return d
 
@@ -258,8 +278,7 @@ def make_istoragepool_tests(fixture):
 
             def created_filesystem(filesystem):
                 filesystem2 = pool.get(volume)
-                self.assertTrue(filesystem == filesystem2)
-                self.assertFalse(filesystem != filesystem2)
+                assert_equal_comparison(self, filesystem, filesystem2)
             d.addCallback(created_filesystem)
             return d
 

@@ -175,7 +175,7 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
-    def __init__(self, pool, dataset, mountpoint=None, reactor=None):
+    def __init__(self, pool, dataset, mountpoint=None, size=None, reactor=None):
         """
         :param pool: The filesystem's pool name, e.g. ``b"hpool"``.
 
@@ -188,6 +188,7 @@ class Filesystem(object):
         self.pool = pool
         self.dataset = dataset
         self._mountpoint = mountpoint
+        self.size = size
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
@@ -487,7 +488,11 @@ class StoragePool(Service):
         properties = [b"-o", b"mountpoint=" + mount_path]
         if volume.locally_owned():
             properties.extend([b"-o", b"readonly=off"])
-        # check for maximum size, set refquota property as well if there is one
+        if volume.size.maximum_size is not None:
+            properties.extend([
+                b"-o", u"refquota={0}".format(
+                    volume.size.maximum_size).encode("ascii")
+            ])
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
         d.addCallback(lambda _: filesystem)
@@ -568,7 +573,8 @@ class StoragePool(Service):
     def get(self, volume):
         dataset = volume_to_dataset(volume)
         mount_path = self._mount_root.child(dataset)
-        return Filesystem(self._name, dataset, mount_path)
+        return Filesystem(
+            self._name, dataset, mount_path, volume.size)
 
     def enumerate(self):
         listing = _list_filesystems(self._reactor, self._name)

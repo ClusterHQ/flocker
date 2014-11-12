@@ -21,6 +21,8 @@ from .interfaces import (
     FilesystemAlreadyExists)
 from .zfs import Snapshot
 
+from ..service import VolumeSize
+
 
 @implementer(IFilesystemSnapshots)
 class CannedFilesystemSnapshots(object):
@@ -44,7 +46,8 @@ class CannedFilesystemSnapshots(object):
 
 # add VolumeSize attribute
 @implementer(IFilesystem)
-@attributes(["path"])
+@attributes(["path", "size"],
+            defaults=dict(size=VolumeSize(maximum_size=None)))
 class DirectoryFilesystem(object):
     """
     A directory pretending to be an independent filesystem.
@@ -186,7 +189,8 @@ class FilesystemStoragePool(Service):
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.to_bytes())))
+                volume.uuid.encode("ascii"), volume.name.to_bytes())),
+            size=volume.size)
 
     def enumerate(self):
         if self._root.isdir():
