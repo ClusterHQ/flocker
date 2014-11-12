@@ -525,7 +525,7 @@ class PACKAGE(Values):
     LICENSE = ValueConstant(b'ASL 2.0')
     URL = ValueConstant(b'https://clusterhq.com')
     VENDOR = ValueConstant(b'ClusterHQ')
-    MAINTAINER = ValueConstant(b'noreply@build.clusterhq.com')
+    MAINTAINER = ValueConstant(b'contact@clusterhq.com')
 
 
 def sumo_package_builder(
