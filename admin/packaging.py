@@ -116,6 +116,9 @@ class Distribution(object):
 
     @classmethod
     def _get_current_distribution(klass):
+        """
+        :return: A ``Distribution`` representing the current platform.
+        """
         name, version, id = (
             platform.linux_distribution(full_distribution_name=False))
         return klass(name=name.lower(), version=version)
