@@ -116,10 +116,14 @@ Installing ``flocker-node
 Fedora 20
 ---------
 
+.. The following commands all need to be run as root.
+.. Using the node requires ssh access to the root user.
+
 Before installing ``flocker-node``, you need to have the development files for the currently running kernel installed.
 
 .. I guess the following could be a script of some sort?
 .. Maybe we should have instructions on what to do if you install things in the wrong order. It will appear to succeed, but then won't work.
+..  - That is, if you install zfs (via flocker-node), without having the headers installed, additional steps are required to compile the module.
 .. code-block:: sh
 
   UNAME_R=$(uname -r)
