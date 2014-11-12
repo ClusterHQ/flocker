@@ -234,6 +234,12 @@ def assert_has_paths(test_case, expected_paths, parent_path):
     """
     Fail if any of the ``expected_paths`` are not existing relative paths of
     ``parent_path``.
+
+    :param TestCase test_case: The ``TestCase`` with which to make assertions.
+    :param list expected_paths: A ``list`` of ``bytes`` relative path names
+        which are expected to exist beneath ``parent_path``.
+    :param FilePath parent_path: The root ``FilePath`` in which to search for
+        ``expected_paths``.
     """
     missing_paths = []
     for path in expected_paths:
