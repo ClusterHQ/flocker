@@ -23,7 +23,7 @@ from ..packaging import (
     BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_package
+    Dependency, build_package, DockerBuild, DockerRun,
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -54,6 +54,7 @@ def assert_equal_steps(test_case, expected, actual):
     else:
         mismatch_steps = []
         missing_steps = []
+        index = 0
         for index, expected_step in enumerate(expected_steps):
             try:
                 actual_step = actual_steps[index]
@@ -61,15 +62,15 @@ def assert_equal_steps(test_case, expected, actual):
                 missing_steps = expected_steps[index:]
                 break
             if expected_step != actual_step:
-                mismatch_steps.append('expected: {} != actual: {}'.format(
+                mismatch_steps.append('* expected: {} !=\n  actual:   {}'.format(
                     expected_step, actual_step))
         extra_steps = actual_steps[index+1:]
         if mismatch_steps or missing_steps or extra_steps:
             test_case.fail(
                 'Step Mismatch\n'
-                'Mismatch: {}\n'
-                'Missing: {}\n'
-                'Extra: {}'.format(mismatch_steps, missing_steps, extra_steps)
+                'Mismatch:\n{}\n'
+                'Missing:\n{}\n'
+                'Extra:\n{}'.format('\n'.join(mismatch_steps), missing_steps, extra_steps)
             )
 
 
@@ -1233,3 +1234,47 @@ class BuildScriptTests(TestCase):
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
+
+
+class BuildPackageFunctionTests(TestCase):
+    """
+    Tests for ``build_package``.
+    """
+    def test_steps(self):
+        """
+        ``build_package`` returns a ``BuildSequence`` comprising
+        ``DockerBuild`` and ``DockerRun`` instances.
+        """
+        supplied_distribution = 'Foo'
+        expected_tag = 'clusterhq/build_%s' % (supplied_distribution,)
+        supplied_top_level = FilePath('/foo/bar')
+        expected_build_directory = supplied_top_level.descendant(
+            ['admin', 'build_targets', supplied_distribution])
+        supplied_destination_path = FilePath('/baz/qux')
+        expected_volumes = {
+            FilePath('/output'): supplied_destination_path,
+            FilePath('/flocker'): supplied_top_level,
+        }
+        expected_package_uri = 'http://www.example.com/foo/bar/whl'
+
+        assert_equal_steps(
+            test_case=self,
+            expected=BuildSequence(
+                steps=[
+                    DockerBuild(
+                        tag=expected_tag,
+                        build_directory=expected_build_directory
+                    ),
+                    DockerRun(
+                        tag=expected_tag,
+                        volumes=expected_volumes, command=[expected_package_uri]
+                    ),
+                ]
+            ),
+            actual=build_package(
+                destination_path=supplied_destination_path,
+                distribution=supplied_distribution,
+                top_level=supplied_top_level,
+                package_uri=expected_package_uri
+            )
+        )

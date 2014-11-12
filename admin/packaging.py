@@ -632,7 +632,7 @@ class DockerBuild(object):
     """
     def run(self):
         check_call(
-            ['docker', 'build', '--tag', self.tag, self.build_directory])
+            ['docker', 'build', '--tag', self.tag, self.build_directory.path])
 
 
 @attributes(['tag', 'volumes', 'command'])
@@ -678,7 +678,7 @@ def build_package(destination_path, distribution, top_level, package_uri):
         steps=[
             DockerBuild(
                 tag=tag,
-                build_directory=build_directory.path
+                build_directory=build_directory
             ),
             DockerRun(
                 tag=tag,
