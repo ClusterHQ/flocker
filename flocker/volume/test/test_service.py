@@ -34,6 +34,7 @@ from ..testtools import create_volume_service
 from ...common import FakeNode
 from ...testtools import (
     skip_on_broken_permissions, attempt_effective_uid, make_with_init_tests,
+    assert_equal_comparison, assert_not_equal_comparison,
     )
 
 
@@ -107,36 +108,6 @@ class VolumeSizeTests(TestCase):
         self.assertRaises(AttributeError, setattr, size, "maximum_size", 123)
 
 
-def assertEqualComparison(self, a, b):
-    equal = a == b
-    unequal = a != b
-
-    messages = []
-    if not equal:
-        messages.append("a == b evaluated to False")
-    if unequal:
-        messages.append("a != b evaluated to True")
-
-    if messages:
-        self.fail(
-            "Expected a and b to be equal: " + "; ".join(messages))
-
-
-def assertNotEqualComparison(self, a, b):
-    equal = a == b
-    unequal = a != b
-
-    messages = []
-    if equal:
-        messages.append("a == b evaluated to True")
-    if not unequal:
-        messages.append("a != b evaluated to False")
-
-    if messages:
-        self.fail(
-            "Expected a and b to be not-equal: " + "; ".join(messages))
-
-
 class VolumeSizeComparisonTests(TestCase):
     """
     Tests for :class:`VolumeSize` equality.
@@ -146,7 +117,7 @@ class VolumeSizeComparisonTests(TestCase):
         A :class:`VolumeSize` instance compares as equal to itself.
         """
         size = VolumeSize(maximum_size=12345)
-        assertEqualComparison(self, size, size)
+        assert_equal_comparison(self, size, size)
 
     def test_equal(self):
         """
@@ -155,7 +126,7 @@ class VolumeSizeComparisonTests(TestCase):
         """
         a = VolumeSize(maximum_size=12345)
         b = VolumeSize(maximum_size=12345)
-        assertEqualComparison(self, a, b)
+        assert_equal_comparison(self, a, b)
 
     def test_maximum_size_differs(self):
         """
@@ -164,7 +135,7 @@ class VolumeSizeComparisonTests(TestCase):
         """
         a = VolumeSize(maximum_size=12345)
         b = VolumeSize(maximum_size=54321)
-        assertNotEqualComparison(self, a, b)
+        assert_not_equal_comparison(self, a, b)
 
 
 class VolumeServiceStartupTests(TestCase):
@@ -697,7 +668,7 @@ class VolumeTests(TestCase):
             uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
         v2 = Volume(
             uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
-        assertEqualComparison(self, v1, v2)
+        assert_equal_comparison(self, v1, v2)
 
     def test_inequality_uuid(self):
         """
@@ -708,7 +679,7 @@ class VolumeTests(TestCase):
             uuid=u"123", name=MY_VOLUME, service=service, size=self.size)
         v2 = Volume(
             uuid=u"123zz", name=MY_VOLUME, service=service, size=self.size)
-        assertNotEqualComparison(self, v1, v2)
+        assert_not_equal_comparison(self, v1, v2)
 
     def test_inequality_name(self):
         """
@@ -721,7 +692,7 @@ class VolumeTests(TestCase):
             uuid=u"123", name=VolumeName(namespace=u"mys", id=u"456zz"),
             service=service, size=self.size,
         )
-        assertNotEqualComparison(self, v1, v2)
+        assert_not_equal_comparison(self, v1, v2)
 
     def test_inequality_service(self):
         """
@@ -731,7 +702,7 @@ class VolumeTests(TestCase):
             uuid=u"123", name=MY_VOLUME, service=object(), size=self.size)
         v2 = Volume(
             uuid=u"123", name=MY_VOLUME, service=object(), size=self.size)
-        assertNotEqualComparison(self, v1, v2)
+        assert_not_equal_comparison(self, v1, v2)
 
     def test_inequality_size(self):
         """
@@ -746,7 +717,7 @@ class VolumeTests(TestCase):
             uuid=u"123", name=MY_VOLUME, service=service,
             size=VolumeSize(maximum_size=54321),
         )
-        assertNotEqualComparison(self, v1, v2)
+        assert_not_equal_comparison(self, v1, v2)
 
     def test_get_filesystem(self):
         """``Volume.get_filesystem`` returns the filesystem for the volume."""
