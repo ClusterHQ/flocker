@@ -346,7 +346,7 @@ class VirtualEnv(object):
 @attributes(['virtualenv', 'package_uri'])
 class InstallApplication(object):
     """
-    Install the supplied ``package`` using the supplied ``virtualenv``.
+    Install the supplied ``package_uri`` using the supplied ``virtualenv``.
 
     :ivar VirtualEnv virtualenv: The virtual environment in which to install
        ``package``.
@@ -362,6 +362,10 @@ class CreateLinks(object):
     Create symlinks to the files in ``links``.
     """
     def run(self):
+        """
+        If link is a directory, the target filename will be used as the link
+        name within that directory.
+        """
         for target, link in self.links:
             if link.isdir():
                 name = link.child(target.basename())
