@@ -352,13 +352,25 @@ class CreateVirtualenvTests(TestCase):
             )
 
 
-class TestVirtualEnv(TestCase):
+class VirtualEnvTests(TestCase):
+    """
+    Tests for ``VirtualEnv``.
+    """
     def test_install(self):
         """
         ``VirtualEnv.install`` accepts a ``PythonPackage`` instance and
         installs it.
         """
-    test_install.todo = 'write test'
+        virtualenv_dir = FilePath(self.mktemp())
+        virtualenv = create_virtualenv(root=virtualenv_dir)
+        package_dir = FilePath(self.mktemp())
+        package = canned_package(package_dir)
+        virtualenv.install(package_dir.path)
+        self.assertIn(
+            '{}-{}-py2.7.egg-info'.format(package.name, package.version),
+            [f.basename() for f in virtualenv_dir.descendant(
+                ['lib', 'python2.7', 'site-packages']).children()]
+        )
 
 
 class InstallApplicationTests(TestCase):
