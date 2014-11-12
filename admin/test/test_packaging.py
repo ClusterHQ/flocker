@@ -23,7 +23,7 @@ from ..packaging import (
     BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_in_docker, DockerBuild, DockerRun,
+    Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE
 )
 from ..release import make_rpm_version, rpm_version
 
@@ -722,7 +722,7 @@ class SumoPackageBuilderTests(TestCase):
 
         expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
-        expected_epoch = b'0'
+        expected_epoch = PACKAGE.EPOCH
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv=VirtualEnv(root=expected_virtualenv_path),
@@ -731,10 +731,10 @@ class SumoPackageBuilderTests(TestCase):
         expected_version = DelayedRpmVersion(
             package_version_step=expected_package_version_step
         )
-        expected_license = 'ASL 2.0'
-        expected_url = 'https://clusterhq.com'
-        expected_vendor = 'ClusterHQ'
-        expected_maintainer = 'noreply@build.clusterhq.com'
+        expected_license = PACKAGE.LICENSE
+        expected_url = PACKAGE.URL
+        expected_vendor = PACKAGE.VENDOR
+        expected_maintainer = PACKAGE.MAINTAINER
         expected_description = (
             'A Docker orchestration and volume management tool')
 
