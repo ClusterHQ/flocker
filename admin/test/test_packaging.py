@@ -13,7 +13,7 @@ from twisted.python.procutils import which
 from twisted.python.usage import UsageError
 from twisted.trial.unittest import TestCase
 
-import virtualenv
+from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
 
@@ -62,15 +62,18 @@ def assert_equal_steps(test_case, expected, actual):
                 missing_steps = expected_steps[index:]
                 break
             if expected_step != actual_step:
-                mismatch_steps.append('* expected: {} !=\n  actual:   {}'.format(
-                    expected_step, actual_step))
+                mismatch_steps.append(
+                    '* expected: {} !=\n'
+                    '  actual:   {}'.format(
+                        expected_step, actual_step))
         extra_steps = actual_steps[index+1:]
         if mismatch_steps or missing_steps or extra_steps:
             test_case.fail(
                 'Step Mismatch\n'
                 'Mismatch:\n{}\n'
                 'Missing:\n{}\n'
-                'Extra:\n{}'.format('\n'.join(mismatch_steps), missing_steps, extra_steps)
+                'Extra:\n{}'.format(
+                    '\n'.join(mismatch_steps), missing_steps, extra_steps)
             )
 
 
@@ -334,7 +337,7 @@ class CreateVirtualenvTests(TestCase):
         create_virtualenv(root=target_path)
 
         py_files = []
-        for module_name in virtualenv.REQUIRED_MODULES:
+        for module_name in VIRTUALENV_REQUIRED_MODULES:
             py_base = target_path.descendant(['lib', 'python2.7', module_name])
             py = py_base.siblingExtension('.py')
             pyc = py_base.siblingExtension('.pyc')
@@ -936,8 +939,8 @@ class DockerBuildOptionsTests(TestCase):
 
     def test_native(self):
         """
-        ``DockerBuildOptions`` package-type is selected automatically if the keyword
-        ``native`` is supplied.
+        ``DockerBuildOptions`` package-type is selected automatically if the
+        keyword ``native`` is supplied.
         """
         options = DockerBuildOptions()
         options.parseOptions(
@@ -946,8 +949,8 @@ class DockerBuildOptionsTests(TestCase):
 
     def test_package_uri_missing(self):
         """
-        ``DockerBuildOptions`` requires a single positional argument containing the
-        URI of the Python package which is being packaged.
+        ``DockerBuildOptions`` requires a single positional argument containing
+        the URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
             UsageError, DockerBuildOptions().parseOptions, [])
@@ -971,8 +974,8 @@ class DockerBuildScriptTests(TestCase):
     """
     def test_usage_error_status(self):
         """
-        ``DockerBuildScript.main`` raises ``SystemExit`` if there are missing command
-        line options.
+        ``DockerBuildScript.main`` raises ``SystemExit`` if there are missing
+        command line options.
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = DockerBuildScript(sys_module=fake_sys_module)
@@ -981,8 +984,8 @@ class DockerBuildScriptTests(TestCase):
 
     def test_usage_error_message(self):
         """
-        ``DockerBuildScript.main`` prints a usage error to ``stderr`` if there are
-        missing command line options.
+        ``DockerBuildScript.main`` prints a usage error to ``stderr`` if there
+        are missing command line options.
         """
         fake_sys_module = FakeSysModule(argv=[])
         script = DockerBuildScript(sys_module=fake_sys_module)
@@ -997,7 +1000,8 @@ class DockerBuildScriptTests(TestCase):
 
     def test_build_command(self):
         """
-        ``DockerBuildScript.build_command`` is ``sumo_package_builder`` by default.
+        ``DockerBuildScript.build_command`` is ``sumo_package_builder`` by
+        default.
         """
         self.assertIs(sumo_package_builder, DockerBuildScript.build_command)
 
@@ -1063,8 +1067,8 @@ class BuildOptionsTests(TestCase):
 
     def test_package_uri_missing(self):
         """
-        ``DockerBuildOptions`` requires a single positional argument containing the
-        URI of the Python package which is being packaged.
+        ``DockerBuildOptions`` requires a single positional argument containing
+        the URI of the Python package which is being packaged.
         """
         exception = self.assertRaises(
             UsageError, BuildOptions().parseOptions, [])
@@ -1084,6 +1088,7 @@ class BuildOptionsTests(TestCase):
             (expected_distribution, expected_uri),
             (options['distribution'], options['package-uri'])
         )
+
 
 class BuildScriptTests(TestCase):
     """
@@ -1187,7 +1192,8 @@ class BuildInDockerFunctionTests(TestCase):
                     ),
                     DockerRun(
                         tag=expected_tag,
-                        volumes=expected_volumes, command=[expected_package_uri]
+                        volumes=expected_volumes,
+                        command=[expected_package_uri]
                     ),
                 ]
             ),
