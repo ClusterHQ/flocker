@@ -245,3 +245,45 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
       "version": 1
       "nodes":
       "54.72.149.156": ["mongodb-example"]
+
+
+Notes
+=====
+
+# Upgrade the kernel
+
+yum upgrade
+
+# The new kernel isn't made default
+
+[root@ip-172-31-21-1 ~]# cat /etc/grub.conf
+default=1
+timeout=0
+
+
+title Fedora (3.17.2-200.fc20.x86_64) 20 (Heisenbug)
+        root (hd0)
+        kernel /boot/vmlinuz-3.17.2-200.fc20.x86_64 ro root=UUID=f1d4c251-e4c9-408b-a7b8-f5a9be8511fd console=hvc0 LANG=en_US.UTF-8
+        initrd /boot/initramfs-3.17.2-200.fc20.x86_64.img
+title Fedora (3.11.10-301.fc20.x86_64)
+        root (hd0)
+        kernel /boot/vmlinuz-3.11.10-301.fc20.x86_64 ro root=UUID=f1d4c251-e4c9-408b-a7b8-f5a9be8511fd console=hvc0 LANG=en_US.UTF-8
+        initrd /boot/initramfs-3.11.10-301.fc20.x86_64.img
+
+# Set the first kernel as default
+
+grubby --set-default-index 0
+
+# Reboot
+
+shutdown -r now
+
+# The new kernel / dkms are incompatible with the stable zfsonlinux package.
+# Add the clusterhq repo which has zfs + dkms Tom's package fixes
+
+yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
+
+
+# Upgrade zfs
+
+yum upgrade
