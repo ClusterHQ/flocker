@@ -196,15 +196,18 @@ class FilesystemStoragePool(Service):
             size=volume.size)
 
     def enumerate(self):
+        filesystems = set()
         if self._root.isdir():
-            return succeed({
-                DirectoryFilesystem(
-                    path=path,
-                    size=VolumeSize(
-                        maximum_size=
-                        int(path.child(b".size").getContent().decode("ascii"))
-                        if path.child(b".size").exists()
-                        else None)
+            for path in self._root.children():
+                if path.child(b".size").exists():
+                    maximum_size = int(
+                        path.child(b".size").getContent().decode("ascii"))
+                else:
+                    maximum_size = None
+                filesystems.add(
+                    DirectoryFilesystem(
+                        path=path,
+                        size=VolumeSize(maximum_size=maximum_size),
                     )
-                for path in self._root.children()})
-        return succeed(set())
+                )
+        return succeed(filesystems)

@@ -28,6 +28,7 @@ from ..filesystems.interfaces import (
 from ..service import Volume, VolumeName
 from .._model import VolumeSize
 
+
 def make_ifilesystemsnapshots_tests(fixture):
     """
     Create a TestCase for IFilesystemSnapshots.
@@ -210,8 +211,8 @@ def make_istoragepool_tests(fixture):
 
         def test_create_with_maximum_size(self):
             """
-            If a maximum size is specified by the volume, the resulting ``IFilesystem``
-            provider has the same size information.
+            If a maximum size is specified by the volume, the resulting
+            ``IFilesystem`` provider has the same size information.
             """
             pool = fixture(self)
             service = service_for_pool(self, pool)
@@ -550,9 +551,9 @@ def make_istoragepool_tests(fixture):
 
         def test_enumerate_provides_size(self):
             """
-            The ``IStoragePool.enumerate`` implementation produces ``IFilesystem``
-            results which reflect the size configuration those filesystems were
-            created with.
+            The ``IStoragePool.enumerate`` implementation produces
+            ``IFilesystem`` results which reflect the size configuration
+            those filesystems were created with.
             """
             size = VolumeSize(maximum_size=54321)
             pool = fixture(self)
