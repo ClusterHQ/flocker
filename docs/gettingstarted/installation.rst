@@ -184,3 +184,48 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
    .. code-block::
 
       sudo yum install clusterhq-flocker-node
+
+
+   .. code-block::
+
+      ...
+
+      Installing : spl-dkms-0.6.3-1.1.fc20.noarch                                                                                                   53/62
+      Loading new spl-0.6.3 DKMS files...
+      /usr/lib/dkms/common.postinst: line 123: which: command not found
+      Building for 3.11.10-301.fc20.x86_64
+      Module build for kernel 3.11.10-301.fc20.x86_64 was skipped since the
+      kernel source for this kernel does not seem to be installed.
+        Installing : zfs-dkms-0.6.3-1.1.fc20.noarch                                                                                                   54/62
+      Loading new zfs-0.6.3 DKMS files...
+      /usr/lib/dkms/common.postinst: line 123: which: command not found
+      Building for 3.11.10-301.fc20.x86_64
+      Module build for kernel 3.11.10-301.fc20.x86_64 was skipped since the
+      kernel source for this kernel does not seem to be installed.
+
+      ...
+
+
+   .. code-block::
+
+      $ flocker-reportstate --version
+      0.3.0-536-gcfaef23
+
+#. Allow SSH access for the ``root`` user
+
+   Remove the "Please login as..." login message below...
+
+   .. code-block::
+
+      cat ~/.ssh/authorized_keys
+      no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"fedora\" rather than the user \"root\".';echo;sleep 10" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D FLOC-983
+
+
+   You should now be able to log in as "root" and the ``authorized_keys`` file should look like this:
+
+   .. code-block::
+
+      ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com cat .ssh/authorized_keys
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D FLOC-983
+
+#.
