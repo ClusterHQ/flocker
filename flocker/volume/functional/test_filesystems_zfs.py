@@ -132,8 +132,8 @@ class StoragePoolTests(TestCase):
 
     def test_no_maximum_size(self):
         """
-        The filesystem is created with no ``refquota`` property if the maximum size
-        is unspecified.
+        The filesystem is created with no ``refquota`` property if the maximum
+        size is unspecified.
         """
         mount_root = FilePath(self.mktemp())
         pool_name = create_zfs_pool(self)
@@ -153,8 +153,8 @@ class StoragePoolTests(TestCase):
 
     def test_maximum_size_sets_refquota(self):
         """
-        The filesystem is created with a ``refquota`` property set to the value of
-        the volume's maximum size if that value is not ``None``.
+        The filesystem is created with a ``refquota`` property set to the value
+        of the volume's maximum size if that value is not ``None``.
         """
         size = VolumeSize(maximum_size=1024 * 64)
         mount_root = FilePath(self.mktemp())
@@ -186,7 +186,6 @@ class StoragePoolTests(TestCase):
             self.assertEqual(size.maximum_size, refquota)
         d.addCallback(created_filesystem)
         return d
-
 
     def test_change_owner_does_not_remove_non_empty_mountpoint(self):
         """
