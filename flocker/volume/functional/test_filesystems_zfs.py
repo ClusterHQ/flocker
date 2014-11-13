@@ -21,6 +21,7 @@ from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
     copy, assertVolumesEqual,
 )
+from ..filesystems.errors import MaximumSizeTooSmall
 from ..filesystems.zfs import (
     Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
     zfs_command,
@@ -504,3 +505,16 @@ class FilesystemTests(TestCase):
 
         loading.addCallback(loaded)
         return loading
+
+    def test_maximum_size_too_small(self):
+        """
+        If the maximum size specified for filesystem creation is smaller than
+        the storage pool allows, ``MaximumSizeTooSmall`` is raised.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        volume = service.get(MY_VOLUME)
+        # This happens to be too small for any ZFS filesystem.
+        volume.size = VolumeSize(maximum_size=10)
+        creating = pool.create(volume)
+        return self.assertFailure(creating, MaximumSizeTooSmall)

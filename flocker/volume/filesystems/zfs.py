@@ -19,6 +19,7 @@ from zope.interface import implementer
 
 from eliot import Field, MessageType, Logger
 
+from twisted.python.failure import Failure
 from twisted.python.filepath import FilePath
 from twisted.internet.endpoints import ProcessEndpoint, connectProtocol
 from twisted.internet.protocol import Protocol
@@ -26,6 +27,7 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.internet.error import ConnectionDone, ProcessTerminated
 from twisted.application.service import Service
 
+from .errors import MaximumSizeTooSmall
 from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
@@ -486,6 +488,13 @@ class StoragePool(Service):
         _sync_command_error_squashed(
             [b"zfs", b"set", b"canmount=off", self._name], self.logger)
 
+    def _check_for_out_of_space(self, reason):
+        """
+        Translate a ZFS command failure into ``MaximumSizeTooSmall`` if that is
+        what the command failure represents.
+        """
+        return Failure(MaximumSizeTooSmall())
+
     def create(self, volume):
         filesystem = self.get(volume)
         mount_path = filesystem.get_path().path
@@ -499,6 +508,7 @@ class StoragePool(Service):
             ])
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
+        d.addErrback(self._check_for_out_of_space)
         d.addCallback(lambda _: filesystem)
         return d
 
