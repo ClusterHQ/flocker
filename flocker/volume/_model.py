@@ -7,6 +7,7 @@ Record types for representing volume models.
 
 from characteristic import attributes
 
+
 @attributes(["maximum_size"], apply_immutable=True)
 class VolumeSize(object):
     """
