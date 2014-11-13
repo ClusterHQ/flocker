@@ -123,13 +123,6 @@ Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to 
 Before installing ``flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
-.. I guess the following could be a script of some sort?
-.. Maybe we should have instructions on what to do if you install things in the wrong order. It will appear to succeed, but then won't work.
-..  - That is, if you install zfs (via flocker-node), without having the headers installed, additional steps are required to compile the module.
-
-.. We need the kernel-devel package for the currently running kernel (at least for the zpool command that follows below).
-.. And, unfortunately, that kernel is often not in the upstream repository anymore, and varies across providers.
-.. It would be better to suggest upgrading to the latest kernel but, anecdotally, I've had issues trying to upgrade the kernel; and it would also require a reboot.
 
 .. code-block:: sh
 
