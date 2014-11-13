@@ -110,8 +110,8 @@ The ``flocker-deploy`` command line program will now be available:
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
 
-Installing ``flocker-node
-=========================
+Installing ``flocker-node``
+===========================
 
 Fedora 20
 ---------
