@@ -156,7 +156,11 @@ class FilesystemStoragePool(Service):
 
     def create(self, volume):
         filesystem = self.get(volume)
-        filesystem.get_path().makedirs()
+        root = filesystem.get_path()
+        root.makedirs()
+        if volume.size.maximum_size is not None:
+            root.child(b".size").setContent(
+                u"{0}".format(volume.size.maximum_size).encode("ascii"))
         return succeed(filesystem)
 
     def clone_to(self, parent, volume):
@@ -194,6 +198,13 @@ class FilesystemStoragePool(Service):
     def enumerate(self):
         if self._root.isdir():
             return succeed({
-                DirectoryFilesystem(path=path)
+                DirectoryFilesystem(
+                    path=path,
+                    size=VolumeSize(
+                        maximum_size=
+                        int(path.child(b".size").getContent().decode("ascii"))
+                        if path.child(b".size").exists()
+                        else None)
+                    )
                 for path in self._root.children()})
         return succeed(set())
