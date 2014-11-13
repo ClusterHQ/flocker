@@ -195,9 +195,8 @@ class DeployerTests(TestCase):
         The memory limit number specified in an ``Application`` is passed to
         the container.
         """
-        docker_dir = FilePath(__file__).sibling('env-docker')
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        EXPECTED_MEMORY_LIMIT = 100000000
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
 
         application_name = random_name()
 
@@ -212,13 +211,8 @@ class DeployerTests(TestCase):
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
                      name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     volume=AttachedVolume(
-                         name=application_name,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     memory_limit=100000000
+                     image=image,
+                     memory_limit=EXPECTED_MEMORY_LIMIT
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -231,12 +225,14 @@ class DeployerTests(TestCase):
         )
 
         def inspect_application(_):
-            du = docker_client.list()
+            deferred_list = docker_client.list()
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.mem_limit, 100000000)
-            du.addCallback(app_memory)
+                self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
+                return deferred_list
+
+            deferred_list.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d
 
@@ -246,9 +242,9 @@ class DeployerTests(TestCase):
         The CPU shares number specified in an ``Application`` is passed to the
         container.
         """
-        docker_dir = FilePath(__file__).sibling('env-docker')
-        image = DockerImageBuilder(test=self, source_dir=docker_dir)
-        image_name = image.build()
+        EXPECTED_CPU_SHARES = 512
+
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
 
         application_name = random_name()
 
@@ -263,13 +259,8 @@ class DeployerTests(TestCase):
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
                      name=application_name,
-                     image=DockerImage.from_string(
-                         image_name),
-                     volume=AttachedVolume(
-                         name=application_name,
-                         mountpoint=FilePath('/data'),
-                         ),
-                     cpu_shares=512
+                     image=image,
+                     cpu_shares=EXPECTED_CPU_SHARES
                      )]))]))
 
         d = deployer.change_node_state(desired_state,
@@ -282,12 +273,13 @@ class DeployerTests(TestCase):
         )
 
         def inspect_application(_):
-            du = docker_client.list()
+            deferred_list = docker_client.list()
 
             def app_memory(units):
                 unit = units.pop()
-                self.assertEqual(unit.cpu_shares, 512)
+                self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
+                return deferred_list
 
-            du.addCallback(app_memory)
+            deferred_list.addCallback(app_memory)
         d.addCallback(inspect_application)
         return d

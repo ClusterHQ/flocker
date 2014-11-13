@@ -71,7 +71,7 @@ def _check_type(value, types, description, application_name):
     Checks ``value`` has type in ``types``.
 
     :param value: Value whose type is to be checked
-    :param tuple types: Tuple of types value can be.
+    :param mixed types: A single type or tuple of types that value can be.
     :param str description: Description of expected type.
     :param application_name unicode: Name of application whose config
         contains ``value``.
@@ -975,7 +975,7 @@ class FlockerConfiguration(object):
 
             if "mem_limit" in config:
                 mem_limit = config["mem_limit"]
-                _check_type(value=mem_limit, types=(int),
+                _check_type(value=mem_limit, types=(int,),
                             description="mem_limit must be an integer",
                             application_name=application_name)
             else:
@@ -983,7 +983,7 @@ class FlockerConfiguration(object):
 
             if "cpu_shares" in config:
                 cpu_shares = config["cpu_shares"]
-                _check_type(value=cpu_shares, types=(int),
+                _check_type(value=cpu_shares, types=(int,),
                             description="cpu_shares must be an integer",
                             application_name=application_name)
             else:

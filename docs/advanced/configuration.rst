@@ -106,8 +106,8 @@ The following parameters are optional when defining an application:
 - ``cpu_shares``
 
   This is an optional integer value representing the relative weighting given to a container for CPU cycles.
-  For example, the default value is 1024, so a container running at a configured value of 512 will receive half the CPU cycles of another container running at the default.
-  See the `Docker Run reference`_ for more information.
+  For example, the default value is 1024, so for example a container running at a configured value of 512 will receive half the CPU cycles of another container running at the default.
+  See the `Docker Run reference`_ for more information on CPU and memory limits.
 
   .. code-block:: yaml
 
@@ -281,4 +281,4 @@ Here's an example of a simple but complete configuration defining a deployment o
       "site-clusterhq.com"
 
 .. _`Fig`: http://www.fig.sh/yml.html
-.. _`Docker Run reference`: https://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory
+.. _`Docker Run reference`: http://docs.docker.com/reference/run/#runtime-constraints-on-cpu-and-memory
