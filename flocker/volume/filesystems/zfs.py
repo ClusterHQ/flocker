@@ -493,6 +493,8 @@ class StoragePool(Service):
         Translate a ZFS command failure into ``MaximumSizeTooSmall`` if that is
         what the command failure represents.
         """
+        # This can't actually check anything.
+        # https://clusterhq.atlassian.net/browse/FLOC-992
         return Failure(MaximumSizeTooSmall())
 
     def create(self, volume):
