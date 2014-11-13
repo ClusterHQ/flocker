@@ -167,5 +167,16 @@ Paste them into a root console:
 
 .. note:: It is also possible to create the pool on a block device.
 
+The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
+Ensure that the firewall allows access to TCP port 22.
+
+The Flocker command line client (``flocker-deploy``) must be able to log into each node as user ``root``.
+Ensure that you add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
+
+You have now installed ``flocker-node`` and created a ZFS for it.
+You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
+
+
+
 .. If you do this on a couple of machines, then you can point the tutorial deployment files at them, and things will work.
 .. I've tried it with the volume tutorial.
