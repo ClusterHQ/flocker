@@ -621,13 +621,6 @@ def _list_filesystems(reactor, pool):
         of which are ``tuples`` containing the name and mountpoint of each
         filesystem.
     """
-    # Get refquota property here to populate maximum size information on the
-    # Filesystem instances
-
-    # ZFS list command with a depth of 1, so that only this dataset and its
-    # direct children are shown.
-    # No headers are printed.
-    # name and mountpoint are the properties displayed.
     listing = zfs_command(
         reactor,
         [b"list",
