@@ -176,7 +176,8 @@ class Filesystem(object):
     filesystem.  This will likely grow into a more sophisticiated
     implementation over time.
     """
-    def __init__(self, pool, dataset, mountpoint=None, size=None, reactor=None):
+    def __init__(self, pool, dataset, mountpoint=None, size=None,
+                 reactor=None):
         """
         :param pool: The filesystem's pool name, e.g. ``b"hpool"``.
 
