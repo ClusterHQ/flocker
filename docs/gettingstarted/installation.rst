@@ -108,3 +108,62 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+
+
+Prepare an Amazon Web Services EC2 Instance
+===========================================
+
+Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flocker.
+
+.. note:: If you are not familiar with EC2 you can read more about the terminology and concepts: http://fedoraproject.org/wiki/User:Gholms/EC2_Primer
+          And full documentation for interacting with EC2 is available from Amazon Web Services: http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/
+
+#. Choose an AMI for your EC2 Instance
+
+   * Visit the EC2 Dashboard page and click "Launch Instance"
+   * Choose a Fedora20 AMI from the "Community AMIs" section
+
+     OR
+
+   * Visit http://fedoraproject.org/en/get-fedora#clouds
+   * Choose Fedora20 and your local region and click the "Launch it!" button.
+
+
+  E.g.
+
+  ::
+
+  Fedora-x86_64-20-20140407-sda (ami-a5ad56d2)
+
+  Description:
+  Official Fedora AMI - Fedora-x86_64-20-20140407-sda
+
+#. Configure the AMI
+
+   Complete the 7 step configuration wizard.
+
+   You will need at least:
+   * XXX GB RAM
+   * XXX GB Storage
+   * XXX CPU
+
+   We recommend the following settings:
+   * XXX
+
+#. Download the Key and add it to your key chain
+
+   .. code-block:: sh
+
+   mv ~/Downloads/my-instance.pem ~/.ssh/
+   chmod 600 ~/.ssh/my-instance.pem
+   ssh-add ~/.ssh/my-instance.pem
+
+#. Log in as user "fedora"
+
+   .. code-block::
+
+      ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
+
+#. Install ZFS and Flocker
+
+   See https://github.com/ClusterHQ/flocker/pull/967
