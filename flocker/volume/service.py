@@ -173,12 +173,14 @@ class VolumeService(Service):
             # 0o777 the long way:
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
-    def get(self, name):
+    def get(self, name, **kwargs):
         """
         Return a locally-owned ``Volume`` with the given name.
 
-        Whether or not this volume actually exists is not checked in any
-        way.
+        Whether or not this volume actually exists is not checked in any way.
+
+        :param **: Additional keyword arguments to pass on to the ``Volume``
+            initializer.
 
         :param VolumeName name: The name of the volume.
 
@@ -187,7 +189,7 @@ class VolumeService(Service):
 
         :return: A ``Volume``.
         """
-        return Volume(uuid=self.uuid, name=name, service=self)
+        return Volume(uuid=self.uuid, name=name, service=self, **kwargs)
 
     def wait_for_volume(self, name):
         """

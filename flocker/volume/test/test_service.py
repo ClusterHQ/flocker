@@ -342,6 +342,15 @@ class VolumeServiceAPITests(TestCase):
                          Volume(uuid=service.uuid, name=MY_VOLUME,
                                 service=service))
 
+    def test_get_extra_args(self):
+        """
+        Additional keyword arguments passed to ``VolumeService.get`` are passed
+        on to the ``Volume`` initializer.
+        """
+        service = create_volume_service(self)
+        size = VolumeSize(maximum_size=54321)
+        self.assertEqual(size, service.get(MY_VOLUME, size=size).size)
+
     def test_push_different_uuid(self):
         """Pushing a remotely-owned volume results in a ``ValueError``."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
