@@ -167,3 +167,12 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
 #. Install ZFS and Flocker
 
    See https://github.com/ClusterHQ/flocker/pull/967
+
+   .. code-block::
+
+      $ sudo tee /etc/yum.repos.d/clusterhq-build.repo
+      [clusterhq-build]
+      name=clusterhq-build
+      baseurl=http://build.staging.clusterhq.com/results/omnibus/sumo-package-508/fedora20/
+      gpgcheck=0
+      enabled=1
