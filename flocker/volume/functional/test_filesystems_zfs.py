@@ -162,8 +162,7 @@ class StoragePoolTests(TestCase):
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
         service = service_for_pool(self, pool)
-        volume = service.get(MY_VOLUME)
-        volume.size = size
+        volume = service.get(MY_VOLUME, size=size)
 
         d = pool.create(volume)
 
@@ -513,8 +512,7 @@ class FilesystemTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = service.get(MY_VOLUME)
         # This happens to be too small for any ZFS filesystem.
-        volume.size = VolumeSize(maximum_size=10)
+        volume = service.get(MY_VOLUME, size=VolumeSize(maximum_size=10))
         creating = pool.create(volume)
         return self.assertFailure(creating, MaximumSizeTooSmall)

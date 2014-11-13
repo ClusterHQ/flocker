@@ -558,8 +558,7 @@ def make_istoragepool_tests(fixture):
             size = VolumeSize(maximum_size=54321)
             pool = fixture(self)
             service = service_for_pool(self, pool)
-            volume = service.get(MY_VOLUME)
-            volume.size = size
+            volume = service.get(MY_VOLUME, size=size)
             creating = pool.create(volume)
 
             def created(ignored):
