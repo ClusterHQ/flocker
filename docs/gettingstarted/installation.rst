@@ -117,7 +117,6 @@ Fedora 20
 ---------
 
 .. note:: The following commands all need to be run as root.
-.. Using the node requires ssh access to the root user.
 
 Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
 Before installing ``flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
