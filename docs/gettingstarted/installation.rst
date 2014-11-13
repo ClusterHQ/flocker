@@ -176,5 +176,5 @@ Ensure that you add your public SSH key to the ``~/.ssh/authorized_keys`` file f
 You have now installed ``flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your servers are correctly configures.
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your servers are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own servers.
