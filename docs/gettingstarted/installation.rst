@@ -148,15 +148,16 @@ Paste them into a root console on the target host:
    yum install -y flocker-node
 
 Installing ``flocker-node`` will have automatically installed Docker, but the ``docker`` service may not have been enabled or started.
-To enable and run Docker:
+To enable and run Docker, run the following commands in a root console:
 
 .. code-block:: sh
 
    systemctl start docker
    systemctl enable docker
 
-Flocker requires a zfs pool named ``flocker``.
-The following commands will create a zfs pool backed by a file.
+Flocker requires a ZFS pool named ``flocker``.
+The following commands will create a ZFS pool backed by a file.
+Paste them into a root console:
 
 .. code-block:: sh
 
@@ -164,7 +165,7 @@ The following commands will create a zfs pool backed by a file.
    truncate --size 1G /opt/flocker/pool-vdev
    zpool create flocker /opt/flocker/pool-vdev
 
-It is also possible to create the pool on a block device.
+.. note:: It is also possible to create the pool on a block device.
 
 .. If you do this on a couple of machines, then you can point the tutorial deployment files at them, and things will work.
 .. I've tried it with the volume tutorial.
