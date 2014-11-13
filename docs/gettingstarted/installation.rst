@@ -113,6 +113,9 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
+.. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora20 operating system.
+             This is the only supported node operating system right now.
+
 Fedora 20
 ---------
 
