@@ -139,7 +139,7 @@ Now install the ``flocker-node`` package.
 To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
 You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``flocker-node`` package.
-Paste them into a root console on the target host:
+Paste them into a root console on the target node:
 
 .. code-block:: sh
 
@@ -168,13 +168,13 @@ Paste them into a root console:
 .. note:: It is also possible to create the pool on a block device.
 
 The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Ensure that the firewall allows access to TCP port 22.
+Ensure that the firewall allows access to TCP port 22 on each node.
 
-The Flocker command line client (``flocker-deploy``) must be able to log into each node as user ``root``.
-Ensure that you add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
+The Flocker command line client must also be able to log into each node as user ``root``.
+Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
 
 You have now installed ``flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
-Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your servers are correctly configured.
-Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own servers.
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
