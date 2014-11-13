@@ -113,7 +113,7 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
-.. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora20 operating system.
+.. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora 20 operating system.
              This is the only supported node operating system right now.
 
 Fedora 20
@@ -135,7 +135,11 @@ Copy and paste it into a root console on the target node:
   ARCH=$(uname -m)
   yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 
-To install ``flocker-node`` on Fedora 20 you can install the RPM provided by the ClusterHQ repository:
+Now install the ``flocker-node`` package.
+To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
+You must also install the ZFS package repository.
+The following commands will install the two repositories and the ``flocker-node`` package.
+Paste them into a root console on the target host:
 
 .. code-block:: sh
 
