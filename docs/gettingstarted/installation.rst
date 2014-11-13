@@ -147,16 +147,12 @@ Paste them into a root console on the target host:
    yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
    yum install -y flocker-node
 
-Flocker requires docker to be running. To run docker:
+Installing ``flocker-node`` will have automatically installed Docker, but the ``docker`` service may not have been enabled or started.
+To enable and run Docker:
 
 .. code-block:: sh
 
    systemctl start docker
-
-To enable docker at every boot:
-
-.. code-block:: sh
-
    systemctl enable docker
 
 Flocker requires a zfs pool named ``flocker``.
