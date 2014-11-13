@@ -166,11 +166,38 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
 
       ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
 
+#. Upgrade the Kernel
+
+   The Amazon AMI includes an old kernel whose development package is no longer easily installable.
+
+   We need the kernel-devel package in order to install the ZFS modules, so first we do a system upgrade.
+
+   .. code-block:: sh
+      yum upgrade
+
+   The upgrade doesn't make the new kernel default. Let's do that now.
+
+   .. code-block:: sh
+
+   grubby --set-default-index 0
+
+   And now reboot the machine to make use of the new kernel.
+
+   .. code-block:: sh
+
+      shutdown -r now
+
 #. Install ZFS Repo
 
    See https://github.com/ClusterHQ/flocker/pull/967
 
-#. Install the ClusterHQ Repo
+   The new kernel / dkms are incompatible with the stable zfsonlinux package.
+   So for now, we add the clusterhq repo which has zfs + dkms Tom's package fixes
+
+   .. code-block:: sh
+      yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
+
+#. Install the ClusterHQ omnibus package Repo
 
    .. code-block::
 
@@ -245,45 +272,3 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
       "version": 1
       "nodes":
       "54.72.149.156": ["mongodb-example"]
-
-
-Notes
-=====
-
-# Upgrade the kernel
-
-yum upgrade
-
-# The new kernel isn't made default
-
-[root@ip-172-31-21-1 ~]# cat /etc/grub.conf
-default=1
-timeout=0
-
-
-title Fedora (3.17.2-200.fc20.x86_64) 20 (Heisenbug)
-        root (hd0)
-        kernel /boot/vmlinuz-3.17.2-200.fc20.x86_64 ro root=UUID=f1d4c251-e4c9-408b-a7b8-f5a9be8511fd console=hvc0 LANG=en_US.UTF-8
-        initrd /boot/initramfs-3.17.2-200.fc20.x86_64.img
-title Fedora (3.11.10-301.fc20.x86_64)
-        root (hd0)
-        kernel /boot/vmlinuz-3.11.10-301.fc20.x86_64 ro root=UUID=f1d4c251-e4c9-408b-a7b8-f5a9be8511fd console=hvc0 LANG=en_US.UTF-8
-        initrd /boot/initramfs-3.11.10-301.fc20.x86_64.img
-
-# Set the first kernel as default
-
-grubby --set-default-index 0
-
-# Reboot
-
-shutdown -r now
-
-# The new kernel / dkms are incompatible with the stable zfsonlinux package.
-# Add the clusterhq repo which has zfs + dkms Tom's package fixes
-
-yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-
-
-# Upgrade zfs
-
-yum upgrade
