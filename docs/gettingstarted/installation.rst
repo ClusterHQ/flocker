@@ -148,7 +148,7 @@ Paste them into a root console on the target host:
    yum install -y flocker-node
 
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
-To enable and run Docker, run the following commands in a root console:
+To enable and start Docker, run the following commands in a root console:
 
 .. code-block:: sh
 
