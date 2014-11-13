@@ -150,6 +150,8 @@ Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flo
    We recommend the following settings:
    * XXX
 
+   You will later enable root login to this machine, so we recommend that you configure the security settings to only allow access from you IP address or network.
+
 #. Download the Key and add it to your key chain
 
    .. code-block:: sh
