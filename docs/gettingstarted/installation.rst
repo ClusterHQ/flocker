@@ -191,13 +191,9 @@ You'll probably want to setup at least two nodes.
 
 #. Allow SSH access for the ``root`` user
 
-   Remove the various restrictions in the ``/root/.authorized_keys`` file on your node, anything before ``ssh-rsa`` in the following example:
-
    .. code-block:: sh
 
-      [fedora@aws]$ sudo cat /root/.ssh/authorized_keys
-      no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"fedora\" rather than the user \"root\".';echo;sleep 10" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
-
+      [fedora@aws]$ sudo cp ~/.ssh/authorized_keys /root/.ssh/authorized_keys
 
    You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
 
