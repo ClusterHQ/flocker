@@ -174,7 +174,7 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      [fedora@aws]$ sudo yum upgrade
+      [fedora@aws]$ sudo yum upgrade -y
 
    The upgrade doesn't make the new kernel default.
    Fix that:
