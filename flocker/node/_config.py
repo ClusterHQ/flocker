@@ -71,7 +71,7 @@ def _check_type(value, types, description, application_name):
     Checks ``value`` has type in ``types``.
 
     :param value: Value whose type is to be checked
-    :param tuple types: Tuple of types value can be.
+    :param mixed types: A single type or tuple of types that value can be.
     :param str description: Description of expected type.
     :param application_name unicode: Name of application whose config
         contains ``value``.
@@ -656,7 +656,7 @@ class FlockerConfiguration(object):
         self._application_configuration = application_configuration
         self._allowed_keys = {
             "image", "environment", "ports",
-            "links", "volume"
+            "links", "volume", "mem_limit", "cpu_shares",
         }
         self._applications = {}
 
@@ -948,13 +948,31 @@ class FlockerConfiguration(object):
             environment = self._parse_environment_config(
                 application_name, config)
 
+            if "mem_limit" in config:
+                mem_limit = config["mem_limit"]
+                _check_type(value=mem_limit, types=(int,),
+                            description="mem_limit must be an integer",
+                            application_name=application_name)
+            else:
+                mem_limit = None
+
+            if "cpu_shares" in config:
+                cpu_shares = config["cpu_shares"]
+                _check_type(value=cpu_shares, types=(int,),
+                            description="cpu_shares must be an integer",
+                            application_name=application_name)
+            else:
+                cpu_shares = None
+
             self._applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
                 links=links,
-                environment=environment)
+                environment=environment,
+                memory_limit=mem_limit,
+                cpu_shares=cpu_shares)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):

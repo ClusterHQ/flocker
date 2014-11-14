@@ -133,7 +133,7 @@ Copy and paste it into a root console on the target node:
   KV=${PV%%-*}
   SV=${PV##*-}
   ARCH=$(uname -m)
-  yum install -y https://kojipkgs.fedoraproject.org//packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
+  yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
@@ -143,7 +143,7 @@ Paste them into a root console on the target node:
 
 .. code-block:: sh
 
-   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm`
+   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
    yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
    yum install -y flocker-node
 
