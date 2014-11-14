@@ -164,7 +164,7 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      yourlaptop$ ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
+      yourlaptop$ ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
 #. Upgrade the Kernel
 
