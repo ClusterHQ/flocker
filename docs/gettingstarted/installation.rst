@@ -170,7 +170,8 @@ Paste them into a root console:
 .. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
 
 The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
-Ensure that the firewall allows access to TCP port 22 on each node.
+Additionally, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
