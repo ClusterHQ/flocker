@@ -35,8 +35,25 @@ using `gsutil <https://developers.google.com/storage/docs/gsutil?csw=1>`_::
 
 (If you're uploading the tutorial box the image will be ``flocker-tutorial-...`` instead of ``flocker-dev-...``.)
 
-Then add a version on `Vagrant Cloud (flocker-dev) <https://vagrantcloud.com/clusterhq/flocker-dev>`_ or `Vagrant Cloud (flocker-tutorial) <https://vagrantcloud.com/clusterhq/flocker-tutorial>`_ as applicable.
-The version on Vagrant Cloud should be the version with ``-`` replaced with ``.``.
+Then add a version on Vagrant Cloud:
+
+#. Retrieve the public link:
+
+   - Visit https://console.developers.google.com/project/hybridcluster-docker/storage/clusterhq-vagrant/.
+   - Right click and copy the "Public link" for the relevant box.
+
+#. `Vagrant Cloud (flocker-dev) <https://vagrantcloud.com/clusterhq/flocker-dev>`_ or `Vagrant Cloud (flocker-tutorial) <https://vagrantcloud.com/clusterhq/flocker-tutorial>`_ as applicable.
+
+#. In the dropdown of versions select "Create a version".
+
+#. Set the "Version" to the relevant version.
+   No description is needed.
+
+#. Click "Create version" and then "Create new provider".
+
+#. Set the new provider as "``virtualbox``" and set the URL to be the public link retrieved earlier.
+
+#. Click "Release now".
 
 Testing
 ^^^^^^^
