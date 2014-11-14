@@ -142,6 +142,13 @@ You'll probably want to setup at least two nodes.
 
    You will later enable SSH root login to this machine, so you may wish configure the security settings to only allow access from you IP address or network.
 
+   .. warning::
+
+      Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
+      E.g. if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
+      You can choose to expose these ports but keep in mind that security consequences of exposing unsecured services to the Internet.
+      Links between nodes will also use public ports, but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
+
 #. Download the Key from the AWS web interface and add it to your local key chain:
 
    .. code-block:: sh
@@ -255,6 +262,7 @@ Paste them into a root console:
 The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
 Additionally, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
+Your firewall will also need to allow access to the ports your applications are exposing.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
@@ -264,3 +272,4 @@ You have also ensured that the ``flocker-deploy`` command line tool is able to c
 
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
+Keep in mind that the tutorial was designed with local virtual machines in mind, and results in an insecure environment.
