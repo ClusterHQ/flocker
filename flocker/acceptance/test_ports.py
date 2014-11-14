@@ -8,8 +8,8 @@ from twisted.trial.unittest import TestCase
 from flocker.node._docker import PortMap
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_mongo_client, get_nodes, MONGO_APPLICATION,
-                        MONGO_IMAGE, MONGO_UNIT, require_flocker_cli,
+                        get_mongo_client, _get_mongo_unit, get_nodes,
+                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
                         require_mongo)
 
 
@@ -71,7 +71,7 @@ class PortsTests(TestCase):
                     external_port=self.external_port)
         ])
 
-        unit = MONGO_UNIT
+        unit = _get_mongo_unit()
         unit.ports = ports
 
         d = assert_expected_deployment(self, {

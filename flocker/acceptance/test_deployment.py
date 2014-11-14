@@ -6,7 +6,7 @@ Tests for deploying applications.
 from twisted.trial.unittest import TestCase
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        MONGO_APPLICATION, MONGO_IMAGE, MONGO_UNIT,
+                        MONGO_APPLICATION, MONGO_IMAGE, _get_mongo_unit,
                         require_flocker_cli, require_mongo)
 
 
@@ -52,7 +52,7 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, minimal_deployment, minimal_application)
 
             d = assert_expected_deployment(self, {
-                node_1: set([MONGO_UNIT]),
+                node_1: set([_get_mongo_unit()]),
                 node_2: set([]),
             })
 

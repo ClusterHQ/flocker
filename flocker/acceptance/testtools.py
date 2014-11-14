@@ -8,13 +8,13 @@ from pipes import quote as shell_quote
 from socket import socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
-from yaml import safe_dump
+from yaml import safe_dump, safe_load
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import gatherResults, Deferred, DeferredList
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import BASE_NAMESPACE, DockerClient, Unit, Volume
+from flocker.node._docker import BASE_NAMESPACE, DockerClient, Unit
 from flocker.testtools import loop_until
 
 try:
@@ -26,30 +26,12 @@ except ImportError:
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', 'MONGO_VOLUMES', 'MONGO_UNIT',
+    'MONGO_APPLICATION', 'MONGO_IMAGE', '_get_mongo_unit',
     'require_flocker_cli',
     ]
 
 # The port on which the acceptance testing nodes make docker available
 REMOTE_DOCKER_PORT = 2375
-
-# XXX The MONGO_APPLICATION will have to be removed because it does not match
-# the tutorial yml files, and the yml should be testably the same:
-# https://github.com/ClusterHQ/flocker/issues/947
-MONGO_APPLICATION = u"mongodb-example-application"
-MONGO_IMAGE = u"clusterhq/mongodb"
-MONGO_VOLUMES = frozenset([
-    Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/db')),
-    Volume(node_path=FilePath(b'/tmp'), container_path=FilePath(b'/data/log')),
-])
-MONGO_UNIT = Unit(
-    name=MONGO_APPLICATION,
-    container_name=BASE_NAMESPACE + MONGO_APPLICATION,
-    activation_state=u'active',
-    container_image=MONGO_IMAGE + u':latest',
-    ports=frozenset([]),
-    volumes=MONGO_VOLUMES,
-)
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
@@ -59,6 +41,28 @@ require_flocker_cli = skipUnless(which("flocker-deploy"),
 
 require_mongo = skipUnless(
     PYMONGO_INSTALLED, "PyMongo not installed")
+
+
+# XXX The MONGO_APPLICATION will have to be removed because it does not match
+# the tutorial yml files, and the yml should be testably the same:
+# https://github.com/ClusterHQ/flocker/issues/947
+MONGO_APPLICATION = u"mongodb-example-application"
+MONGO_IMAGE = u"clusterhq/mongodb"
+
+
+def _get_mongo_unit():
+    """
+    Return a new ``Unit`` with a name and image corresponding to the MongoDB
+    tutorial example.
+    """
+    return Unit(
+        name=MONGO_APPLICATION,
+        container_name=BASE_NAMESPACE + MONGO_APPLICATION,
+        activation_state=u'active',
+        container_image=MONGO_IMAGE + u':latest',
+        ports=frozenset(),
+        volumes=frozenset(),
+    )
 
 
 def _run_SSH(port, user, node, command, input, key=None):
@@ -218,22 +222,32 @@ def assert_expected_deployment(test_case, expected_deployment):
         expected on the nodes with those IP addresses.
 
     :return: A ``Deferred`` which fires with an assertion that the set of units
-        on a group of nodes is the same as ``expected_deployment``.
+        on a group of nodes as determined by flocker-reportstate is the same
+        as ``expected_deployment``.
     """
-    sorted_nodes = sorted(expected_deployment.keys())
+    def assertApplications(results):
+        for result in results:
+            yaml, node, test_case, expected_deployment = result[1]
+            state = safe_load(yaml)
+            units = expected_deployment[node]
+            for unit in units:
+                test_case.assertIn(unit.name, state['applications'])
+                test_case.assertEqual(
+                    state['applications'][unit.name]['image'],
+                    unit.container_image
+                )
+                for port in unit.ports:
+                    test_case.assertIn(port.external_port, state['used_ports'])
 
-    d = gatherResults(
-        [DockerClient(base_url=u'tcp://' + node + u':' +
-                      unicode(REMOTE_DOCKER_PORT)).list() for node in
-         sorted_nodes])
+    deferreds = []
+    for node in expected_deployment.keys():
+        deferreds.append(Deferred())
 
-    # XXX Wait for the unit states to be as expected using wait_for_unit_state
-    # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
-    # See https://github.com/ClusterHQ/flocker/issues/937
+    dl = DeferredList(deferreds)
+    dl.addCallback(assertApplications)
 
-    d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
-        dict(zip(sorted_nodes, units_sorted_by_node)),
-        expected_deployment
-    ))
+    for i, node in enumerate(expected_deployment.keys()):
+        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        deferreds[i].callback([yaml, node, test_case, expected_deployment])
 
-    return d
+    return dl
