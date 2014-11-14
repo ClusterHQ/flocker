@@ -150,7 +150,7 @@ You'll probably want to setup at least two nodes.
       Keep in mind that (quite reasonably) the default security settings firewall off all ports other than SSH.
       E.g. if you run the tutorial you won't be able to access MongoDB over the Internet, nor will other nodes in the cluster.
       You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
-      Links between nodes will also use public ports, but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
+      Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
 #. Download the Key from the AWS web interface and add it to your local key chain:
 
