@@ -176,7 +176,8 @@ You'll probably want to setup at least two nodes.
 
       [fedora@aws]$ sudo yum upgrade
 
-   The upgrade doesn't make the new kernel default. Let's do that now.
+   The upgrade doesn't make the new kernel default.
+   Fix that:
 
    .. code-block:: sh
 
