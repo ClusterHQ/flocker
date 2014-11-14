@@ -113,6 +113,9 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
+Vagrant
+-------
+
 The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
