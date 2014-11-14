@@ -124,6 +124,7 @@ Using Amazon Web Services
 -------------------------
 
 One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
+You'll probably want to setup at least two nodes.
 
 .. note:: If you are not familiar with EC2 you can read more about the terminology and concepts: http://fedoraproject.org/wiki/User:Gholms/EC2_Primer
           And full documentation for interacting with EC2 is available from Amazon Web Services: http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/
