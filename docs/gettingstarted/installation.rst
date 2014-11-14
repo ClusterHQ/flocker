@@ -136,16 +136,13 @@ You'll probably want to setup at least two nodes.
 
 #. Configure the AMI
 
-   Complete the 7 step configuration wizard.
+   Complete the configuration wizard; in general the default configuration should suffice.
 
-   We recommend a ``m3.large`` instance.
+   We recommend a ``m3.large`` instance at least.
 
-   We recommend the following settings:
-   * XXX
+   You will later enable SSH root login to this machine, so you may wish configure the security settings to only allow access from you IP address or network.
 
-   You will later enable root login to this machine, so we recommend that you configure the security settings to only allow access from you IP address or network.
-
-#. Download the Key from the AWS web interface and add it to your key chain
+#. Download the Key from the AWS web interface and add it to your local key chain:
 
    .. code-block:: sh
 
@@ -167,18 +164,18 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      aws$ sudo yum upgrade
+      [fedora@aws]$ sudo yum upgrade
 
    The upgrade doesn't make the new kernel default. Let's do that now.
 
    .. code-block:: sh
 
-      aws$ sudo grubby --set-default-index 0
+      [fedora@aws]$ sudo grubby --set-default-index 0
 
    And now reboot the machine to make use of the new kernel.
 
    .. code-block:: sh
-      aws$ sudo shutdown -r now
+      [fedora@aws]$ sudo shutdown -r now
 
 #. Allow SSH access for the ``root`` user
 
@@ -186,7 +183,7 @@ You'll probably want to setup at least two nodes.
 
    .. code-block::
 
-      aws$ sudo cat ~/.ssh/authorized_keys
+      [fedora@aws]$ sudo cat /root/.ssh/authorized_keys
       no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"fedora\" rather than the user \"root\".';echo;sleep 10" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
 
@@ -195,7 +192,7 @@ You'll probably want to setup at least two nodes.
    .. code-block::
 
       yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
-      aws# cat /root/.ssh/authorized_keys
+      [root@aws]# cat /root/.ssh/authorized_keys
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
 #. Follow the generic Fedora 20 installation instructions below.
@@ -241,13 +238,13 @@ To enable and start Docker, run the following commands in a root console:
    systemctl enable docker
 
 Flocker requires a ZFS pool named ``flocker``.
-The following commands will create a ZFS pool backed by a file.
+The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
 
 .. code-block:: sh
 
    mkdir /opt/flocker
-   truncate --size 1G /opt/flocker/pool-vdev
+   truncate --size 10G /opt/flocker/pool-vdev
    zpool create flocker /opt/flocker/pool-vdev
 
 .. note:: It is also possible to create the pool on a block device.
