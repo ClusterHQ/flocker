@@ -141,7 +141,7 @@ You'll probably want to setup at least two nodes.
 
    Complete the configuration wizard; in general the default configuration should suffice.
 
-   We recommend a ``m3.large`` instance at least.
+   We recommend at least the ``m3.large`` instance size.
 
    You will later enable SSH root login to this machine, so you may wish configure the security settings to only allow access from you IP address or network.
 
