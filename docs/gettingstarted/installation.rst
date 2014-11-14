@@ -146,9 +146,9 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-   yourlaptop$ mv ~/Downloads/my-instance.pem ~/.ssh/
-   yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
-   yourlaptop$ ssh-add ~/.ssh/my-instance.pem
+      yourlaptop$ mv ~/Downloads/my-instance.pem ~/.ssh/
+      yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
+      yourlaptop$ ssh-add ~/.ssh/my-instance.pem
 
 #. Log in as user "fedora" to your new node's address, e.g.:
 
