@@ -160,7 +160,7 @@ You'll probably want to setup at least two nodes.
       yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
       yourlaptop$ ssh-add ~/.ssh/my-instance.pem
 
-#. Log in as user "fedora" to your new node's address, e.g.:
+#. Look up the public DNS name or public IP address of the new instance and log in as user "fedora", e.g.:
 
    .. code-block:: sh
 
