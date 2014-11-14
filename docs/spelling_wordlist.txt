@@ -5,9 +5,11 @@ behaviour
 Btrfs
 Buildbot
 checksum
+chmod
 Copr
 dataset
 Deis
+devel
 dropdown
 failover
 filename
@@ -26,8 +28,10 @@ libswarm
 Mesos
 metadata
 multi
+mv
 NAT'd
 namespace
+pem
 petabyte
 petabytes
 pre
@@ -42,4 +46,5 @@ virtualization
 VMware
 webhook
 workflow
+yourlaptop
 ZFS
