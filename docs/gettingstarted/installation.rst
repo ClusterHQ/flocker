@@ -168,9 +168,9 @@ You'll probably want to setup at least two nodes.
 
 #. Upgrade the Kernel
 
-   The Amazon AMI includes an old kernel whose development package is no longer easily installable.
-
-   We need the kernel-devel package in order to install the ZFS modules, so first we do a system upgrade.
+   Installation of the ZFS modules requires the kernel-devel package.
+   The Amazon Fedora 20 AMI includes an old kernel whose development package is no longer easily installable.
+   Upgrade the system to fix this.
 
    .. code-block:: sh
 
