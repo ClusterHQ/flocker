@@ -135,6 +135,8 @@ Copy and paste it into a root console on the target node:
   ARCH=$(uname -m)
   yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 
+.. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
+
 Now install the ``flocker-node`` package.
 To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
 You must also install the ZFS package repository.
