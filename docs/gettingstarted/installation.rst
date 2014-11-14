@@ -152,7 +152,7 @@ You'll probably want to setup at least two nodes.
       You can choose to expose these ports but keep in mind the consequences of exposing unsecured services to the Internet.
       Links between nodes will also use public ports but you can configure the AWS VPC to allow network connections between nodes and disallow them from the Internet.
 
-#. Download the Key from the AWS web interface and add it to your local key chain:
+#. Add the *Key* to your local key chain (download it from the AWS web interface first if necessary):
 
    .. code-block:: sh
 
