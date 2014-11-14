@@ -142,8 +142,8 @@ You'll probably want to setup at least two nodes.
    Complete the configuration wizard; in general the default configuration should suffice.
    However, we do recommend at least the ``m3.large`` instance size.
 
-
-   You will later enable SSH root login to this machine so you may wish configure the security settings to only allow access from your IP address or network.
+   If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``flocker-node``.
+   The ``flocker-deploy`` CLI requires SSH access to the Flocker nodes to control them and Flocker nodes need SSH access to each other for volume data transfers.
 
    .. warning::
 
