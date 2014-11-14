@@ -10,7 +10,7 @@ There is also a ``flocker-node`` package which is installed on each node in the 
 It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
 These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
-.. note:: For now the ``flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+.. note:: The ``flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
@@ -113,13 +113,76 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
+The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
+
 .. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora 20 operating system.
              This is the only supported node operating system right now.
+
+
+Using Amazon Web Services
+-------------------------
+
+One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
+
+.. note:: If you are not familiar with EC2 you can read more about the terminology and concepts: http://fedoraproject.org/wiki/User:Gholms/EC2_Primer
+          And full documentation for interacting with EC2 is available from Amazon Web Services: http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/
+
+#. Choose an AMI for your EC2 Instance
+
+   * Visit http://fedoraproject.org/en/get-fedora#clouds
+   * In the EC2 section choose Fedora 20 and your local region and click the "Launch it!" button.
+
+#. Configure the AMI
+
+   Complete the 7 step configuration wizard.
+
+   We recommend a ``m3.large`` instance.
+
+   We recommend the following settings:
+   * XXX
+
+   You will later enable root login to this machine, so we recommend that you configure the security settings to only allow access from you IP address or network.
+
+#. Download the Key from the AWS web interface and add it to your key chain
+
+   .. code-block:: sh
+
+   yourlaptop$ mv ~/Downloads/my-instance.pem ~/.ssh/
+   yourlaptop$ chmod 600 ~/.ssh/my-instance.pem
+   yourlaptop$ ssh-add ~/.ssh/my-instance.pem
+
+#. Log in as user "fedora" to your new node's address, e.g.:
+
+   .. code-block::
+
+      yourlaptop$ ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
+
+#. Allow SSH access for the ``root`` user
+
+   Remove the various restrictions in the ``/root/.authorized_keys`` file on your node, anything before ``ssh-rsa`` in the following example:
+
+   .. code-block::
+
+      aws$ sudo cat ~/.ssh/authorized_keys
+      no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"fedora\" rather than the user \"root\".';echo;sleep 10" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
+
+
+   You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
+
+   .. code-block::
+
+      yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
+      aws# cat /root/.ssh/authorized_keys
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
+
+#. Follow the generic Fedora 20 installation instructions below.
+
 
 Fedora 20
 ---------
 
-.. note:: The following commands all need to be run as root.
+.. note:: The following commands all need to be run as root on the machine where ``flocker-node`` will be running.
 
 Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
 Before installing ``flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
@@ -174,174 +237,10 @@ Additionally, every node must be able to establish an SSH connection to all othe
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
-Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
+Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
 
 You have now installed ``flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
 Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
-
-
-Prepare an Amazon Web Services EC2 Instance
-===========================================
-
-Launch a Fedora20 EC2 instance and install ZFS in preparation for installing Flocker.
-
-.. note:: If you are not familiar with EC2 you can read more about the terminology and concepts: http://fedoraproject.org/wiki/User:Gholms/EC2_Primer
-          And full documentation for interacting with EC2 is available from Amazon Web Services: http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/
-
-#. Choose an AMI for your EC2 Instance
-
-   * Visit the EC2 Dashboard page and click "Launch Instance"
-   * Choose a Fedora20 AMI from the "Community AMIs" section
-
-     OR
-
-   * Visit http://fedoraproject.org/en/get-fedora#clouds
-   * Choose Fedora20 and your local region and click the "Launch it!" button.
-
-
-  E.g.
-
-  ::
-
-  Fedora-x86_64-20-20140407-sda (ami-a5ad56d2)
-
-  Description:
-  Official Fedora AMI - Fedora-x86_64-20-20140407-sda
-
-#. Configure the AMI
-
-   Complete the 7 step configuration wizard.
-
-   You will need at least:
-   * XXX GB RAM
-   * XXX GB Storage
-   * XXX CPU
-
-   We recommend the following settings:
-   * XXX
-
-   You will later enable root login to this machine, so we recommend that you configure the security settings to only allow access from you IP address or network.
-
-#. Download the Key and add it to your key chain
-
-   .. code-block:: sh
-
-   mv ~/Downloads/my-instance.pem ~/.ssh/
-   chmod 600 ~/.ssh/my-instance.pem
-   ssh-add ~/.ssh/my-instance.pem
-
-#. Log in as user "fedora"
-
-   .. code-block::
-
-      ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
-
-#. Upgrade the Kernel
-
-   The Amazon AMI includes an old kernel whose development package is no longer easily installable.
-
-   We need the kernel-devel package in order to install the ZFS modules, so first we do a system upgrade.
-
-   .. code-block:: sh
-      yum upgrade
-
-   The upgrade doesn't make the new kernel default. Let's do that now.
-
-   .. code-block:: sh
-
-   grubby --set-default-index 0
-
-   And now reboot the machine to make use of the new kernel.
-
-   .. code-block:: sh
-
-      shutdown -r now
-
-#. Install ZFS Repo
-
-   See https://github.com/ClusterHQ/flocker/pull/967
-
-   The new kernel / dkms are incompatible with the stable zfsonlinux package.
-   So for now, we add the clusterhq repo which has zfs + dkms Tom's package fixes
-
-   .. code-block:: sh
-      yum install -y https://storage.googleapis.com/archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-
-#. Install the ClusterHQ omnibus package Repo
-
-   .. code-block::
-
-      sudo tee /etc/yum.repos.d/clusterhq-build.repo
-      [clusterhq-build]
-      name=clusterhq-build
-      baseurl=http://build.staging.clusterhq.com/results/omnibus/sumo-package-508/fedora20/
-      gpgcheck=0
-      enabled=1
-
-#. Install ``flocker-node``
-
-   .. code-block::
-
-      sudo yum install clusterhq-flocker-node
-
-
-   .. code-block::
-
-      ...
-
-      Installing : spl-dkms-0.6.3-1.1.fc20.noarch                                                                                                   53/62
-      Loading new spl-0.6.3 DKMS files...
-      /usr/lib/dkms/common.postinst: line 123: which: command not found
-      Building for 3.11.10-301.fc20.x86_64
-      Module build for kernel 3.11.10-301.fc20.x86_64 was skipped since the
-      kernel source for this kernel does not seem to be installed.
-        Installing : zfs-dkms-0.6.3-1.1.fc20.noarch                                                                                                   54/62
-      Loading new zfs-0.6.3 DKMS files...
-      /usr/lib/dkms/common.postinst: line 123: which: command not found
-      Building for 3.11.10-301.fc20.x86_64
-      Module build for kernel 3.11.10-301.fc20.x86_64 was skipped since the
-      kernel source for this kernel does not seem to be installed.
-
-      ...
-
-
-   .. code-block::
-
-      $ flocker-reportstate --version
-      0.3.0-536-gcfaef23
-
-#. Allow SSH access for the ``root`` user
-
-   Remove the "Please login as..." login message below...
-
-   .. code-block::
-
-      cat ~/.ssh/authorized_keys
-      no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"fedora\" rather than the user \"root\".';echo;sleep 10" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D FLOC-983
-
-
-   You should now be able to log in as "root" and the ``authorized_keys`` file should look like this:
-
-   .. code-block::
-
-      ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com cat .ssh/authorized_keys
-      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D FLOC-983
-
-#. Test a minimal deployment
-
-   Follow the tutorial, but substitute the IP addresses with those of your new EC2 instance.
-
-   .. note:: You will find the Public IP address of your EC2 instance by clicking its row in the "Instances" dashboard.
-             The IP address will be "Description" tab.
-
-   E.g.
-
-   .. code-block:: yaml
-
-      $ cat minimal-deployment.yml
-      "version": 1
-      "nodes":
-      "54.72.149.156": ["mongodb-example"]
