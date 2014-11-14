@@ -134,7 +134,7 @@ You'll probably want to setup at least two nodes.
 
 #. Choose an AMI for your EC2 Instance
 
-   * Visit http://fedoraproject.org/en/get-fedora#clouds
+   * Visit https://fedoraproject.org/en/get-fedora#clouds
    * In the EC2 section choose Fedora 20 and your local region and click the "Launch it!" button.
 
 #. Configure the AMI
