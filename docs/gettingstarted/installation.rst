@@ -158,6 +158,27 @@ One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
 
       yourlaptop$ ssh fedora@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
 
+#. Upgrade the Kernel
+
+   The Amazon AMI includes an old kernel whose development package is no longer easily installable.
+
+   We need the kernel-devel package in order to install the ZFS modules, so first we do a system upgrade.
+
+   .. code-block:: sh
+
+      aws$ sudo yum upgrade
+
+   The upgrade doesn't make the new kernel default. Let's do that now.
+
+   .. code-block:: sh
+
+      aws$ sudo grubby --set-default-index 0
+
+   And now reboot the machine to make use of the new kernel.
+
+   .. code-block:: sh
+      aws$ sudo shutdown -r now
+
 #. Allow SSH access for the ``root`` user
 
    Remove the various restrictions in the ``/root/.authorized_keys`` file on your node, anything before ``ssh-rsa`` in the following example:
