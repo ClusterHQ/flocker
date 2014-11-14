@@ -108,3 +108,76 @@ The ``flocker-deploy`` command line program will now be available:
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
+
+
+Installing ``flocker-node``
+===========================
+
+.. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora 20 operating system.
+             This is the only supported node operating system right now.
+
+Fedora 20
+---------
+
+.. note:: The following commands all need to be run as root.
+
+Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
+Before installing ``flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
+Here is a short script to help you install the correct ``kernel-devel`` package.
+Copy and paste it into a root console on the target node:
+
+.. code-block:: sh
+
+  UNAME_R=$(uname -r)
+  PV=${UNAME_R%.*}
+  KV=${PV%%-*}
+  SV=${PV##*-}
+  ARCH=$(uname -m)
+  yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
+
+Now install the ``flocker-node`` package.
+To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
+You must also install the ZFS package repository.
+The following commands will install the two repositories and the ``flocker-node`` package.
+Paste them into a root console on the target node:
+
+.. code-block:: sh
+
+   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
+   yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
+   yum install -y flocker-node
+
+Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+To enable and start Docker, run the following commands in a root console:
+
+.. code-block:: sh
+
+   systemctl start docker
+   systemctl enable docker
+
+Flocker requires a ZFS pool named ``flocker``.
+The following commands will create a ZFS pool backed by a file.
+Paste them into a root console:
+
+.. code-block:: sh
+
+   mkdir /opt/flocker
+   truncate --size 1G /opt/flocker/pool-vdev
+   zpool create flocker /opt/flocker/pool-vdev
+
+.. note:: It is also possible to create the pool on a block device.
+
+.. XXX: Document how to create a pool on a block device: https://clusterhq.atlassian.net/browse/FLOC-994
+
+The Flocker command line client (``flocker-deploy``) must be able to establish an SSH connection to each node.
+Additionally, every node must be able to establish an SSH connection to all other nodes.
+So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
+
+The Flocker command line client must also be able to log into each node as user ``root``.
+Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node.
+
+You have now installed ``flocker-node`` and created a ZFS for it.
+You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
+
+Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.
+Replace the IP addresses in the ``deployment.yaml`` files with the IP address of your own nodes.
