@@ -10,6 +10,7 @@ Copr
 dataset
 Deis
 devel
+DigitalOcean
 dropdown
 failover
 filename
