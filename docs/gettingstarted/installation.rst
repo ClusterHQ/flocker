@@ -147,26 +147,27 @@ You'll probably want to setup at least two nodes.
 #. Upgrade the Kernel
 
    Older kernels can have bugs that affect Flocker's use of ZFS.
-   Upgrade the system to fix this.
+
+   Install the new kernel:
 
    .. code-block:: sh
 
-      [root@digitalocean]# yum upgrade -y
+      [root@digitalocean]# yum update kernel-3.17.2-200.fc20
 
-   The upgrade doesn't make the new kernel default.
-   Fix that:
-
-   .. code-block:: sh
-
-      [root@digitalocean]# grubby --set-default-index 0
-
-   And now reboot the machine to make use of the new kernel.
+   * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
+   * Choose the matching ``3.17.2-200.fc20 x64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+   * Once the control panel notifies you that the change has been made reboot your machine.
 
    .. code-block:: sh
 
       [root@digitalocean]# shutdown -r now
 
 #. Follow the generic Fedora 20 installation instructions below.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 
 Using Amazon Web Services
