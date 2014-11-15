@@ -123,6 +123,52 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
              This is the only supported node operating system right now.
 
 
+Using DigitalOcean
+------------------
+
+Another way to get a Flocker cluster running is to use DigitalOcean.
+You'll probably want to setup at least two nodes.
+
+#. Create a new Droplet running Fedora 20
+
+   * Visit https://cloud.digitalocean.com/droplets/new
+   * Choose a minimum of 8GB of RAM
+   * Choose the Fedora 20 x64 Linux distribution as your image
+   * You may choose to add an SSH key, or DigitalOcean will email you the root SSH password
+
+#. Look up the public IP address of the new Droplet, and SSH in
+
+   You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
+
+   .. code-block:: sh
+
+      yourlaptop$ ssh root@104.236.46.109
+
+#. Upgrade the Kernel
+
+   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Upgrade the system to fix this.
+
+   .. code-block:: sh
+
+      [root@digitalocean]# yum upgrade -y
+
+   The upgrade doesn't make the new kernel default.
+   Fix that:
+
+   .. code-block:: sh
+
+      [root@digitalocean]# grubby --set-default-index 0
+
+   And now reboot the machine to make use of the new kernel.
+
+   .. code-block:: sh
+
+      [root@digitalocean]# shutdown -r now
+
+#. Follow the generic Fedora 20 installation instructions below.
+
+
 Using Amazon Web Services
 -------------------------
 
