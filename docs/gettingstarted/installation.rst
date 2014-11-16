@@ -113,6 +113,22 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
+There are a number of ways to install Flocker.
+
+These easiest way to get Flocker going is to use our vagrant configuration.
+
+- :ref:`Vagrant <vagrant-install>`
+
+It is also possible to deploy Flocker in the cloud, on a number of different providers.
+
+- :ref:`Using Amazon Web Services <aws-install>`
+
+It is also possible to install Flocker on any Fedora 20 machine.
+
+- :ref:`Installing on Fedora 20 <fedora-20-install>`
+
+.. _vagrant-install:
+
 Vagrant
 -------
 
@@ -123,11 +139,10 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
              This is the only supported node operating system right now.
 
 
+.. _aws-install:
+
 Using Amazon Web Services
 -------------------------
-
-One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
-You'll probably want to setup at least two nodes.
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <https://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
@@ -206,8 +221,8 @@ You'll probably want to setup at least two nodes.
 
 .. _fedora-20-install:
 
-Fedora 20
----------
+Installing on Fedora 20
+-----------------------
 
 .. note:: The following commands all need to be run as root on the machine where ``flocker-node`` will be running.
 
