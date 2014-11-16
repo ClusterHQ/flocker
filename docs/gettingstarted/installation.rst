@@ -168,13 +168,11 @@ You'll probably want to setup at least two nodes.
 
 #. Upgrade the Kernel
 
-   Installation of the ZFS modules requires the kernel-devel package.
-   The Amazon Fedora 20 AMI includes an old kernel whose development package is no longer easily installable.
-   Upgrade the system to fix this.
+   Older kernels can have bugs that affect Flocker's use of ZFS.
 
    .. code-block:: sh
 
-      [fedora@aws]$ sudo yum upgrade -y
+      [fedora@aws]$ sudo yum upgrade -y kernel
 
    The upgrade doesn't make the new kernel default.
    Fix that:
