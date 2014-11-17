@@ -40,6 +40,7 @@ pre
 programmatically
 proxied
 proxying
+Rackspace
 snapshotting
 stateful
 sysadmin
