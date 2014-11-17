@@ -44,7 +44,8 @@ Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
 The content of major marketing releases will typically be planned significantly in advance
 and will have a significant collection of new functionality.
-The determination of when to make a major marketing release will be made by ClusterHQ's product team, in consultation with the marketing and engineering teams.
+
+Major marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
 These releases will typically get thorough pre-release testing.
 
