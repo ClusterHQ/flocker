@@ -113,6 +113,22 @@ The ``flocker-deploy`` command line program will now be available:
 Installing ``flocker-node``
 ===========================
 
+There are a number of ways to install Flocker.
+
+These easiest way to get Flocker going is to use our vagrant configuration.
+
+- :ref:`Vagrant <vagrant-install>`
+
+It is also possible to deploy Flocker in the cloud, on a number of different providers.
+
+- :ref:`Using Amazon Web Services <aws-install>`
+
+It is also possible to install Flocker on any Fedora 20 machine.
+
+- :ref:`Installing on Fedora 20 <fedora-20-install>`
+
+.. _vagrant-install:
+
 Vagrant
 -------
 
@@ -123,11 +139,10 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
              This is the only supported node operating system right now.
 
 
+.. _aws-install:
+
 Using Amazon Web Services
 -------------------------
-
-One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
-You'll probably want to setup at least two nodes.
 
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
@@ -168,13 +183,11 @@ You'll probably want to setup at least two nodes.
 
 #. Upgrade the Kernel
 
-   Installation of the ZFS modules requires the kernel-devel package.
-   The Amazon Fedora 20 AMI includes an old kernel whose development package is no longer easily installable.
-   Upgrade the system to fix this.
+   Older kernels can have bugs that affect Flocker's use of ZFS.
 
    .. code-block:: sh
 
-      [fedora@aws]$ sudo yum upgrade -y
+      [fedora@aws]$ sudo yum upgrade -y kernel
 
    The upgrade doesn't make the new kernel default.
    Fix that:
@@ -203,11 +216,13 @@ You'll probably want to setup at least two nodes.
       [root@aws]# cat /root/.ssh/authorized_keys
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
-#. Follow the generic Fedora 20 installation instructions below.
+#. Follow the generic Fedora 20 installation instructions :ref:`below <fedora-20-install>`.
 
 
-Fedora 20
----------
+.. _fedora-20-install:
+
+Installing on Fedora 20
+-----------------------
 
 .. note:: The following commands all need to be run as root on the machine where ``flocker-node`` will be running.
 
