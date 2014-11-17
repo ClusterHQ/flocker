@@ -32,14 +32,6 @@ The current value of ``X`` is 0 until the project is ready for production.
 ``Y`` is the minor version.
 ``Z`` is the micro version.
 
-Production Release
-^^^^^^^^^^^^^^^^^^
-
-We intend to release version 1.0 when some set of features is determined to be production ready.
-Our current intention is to adopt `semantic versioning`_ at that time, with regards to production ready features.
-
-.. _`semantic versioning`: http://semver.org/
-
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
 The content of major marketing releases will typically be planned significantly in advance
@@ -97,6 +89,15 @@ For example:
 +---------------+-------------------------------------------------+
 | ``0.4.0``     | Major marketing release                         |
 +---------------+-------------------------------------------------+
+
+Production Releases
+^^^^^^^^^^^^^^^^^^^
+
+We intend to release version 1.0 when some set of features is determined to be production ready.
+Our current intention is to adopt `semantic versioning`_ at that time, with regards to production ready features.
+
+.. _`semantic versioning`: http://semver.org/
+
 
 Bugfix Releases
 ^^^^^^^^^^^^^^^
