@@ -6,9 +6,12 @@ Btrfs
 bugfix
 Buildbot
 checksum
+chmod
 Copr
 dataset
 Deis
+devel
+DigitalOcean
 dropdown
 failover
 filename
@@ -21,14 +24,17 @@ handoffs
 hoc
 Homebrew
 hostname
+installable
 internet
 Kubernetes
 libswarm
 Mesos
 metadata
 multi
-NAT'd
+mv
 namespace
+NAT'd
+pem
 petabyte
 petabytes
 pre
@@ -43,4 +49,5 @@ virtualization
 VMware
 webhook
 workflow
+yourlaptop
 ZFS
