@@ -301,7 +301,6 @@ You'll probably want to setup at least two nodes.
    * Choose the Fedora 20 Linux distribution as your image.
    * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
    * Add your SSH key
-   * Note the root password
 
 #. SSH in
 
