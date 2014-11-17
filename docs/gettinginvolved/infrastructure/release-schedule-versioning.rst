@@ -42,7 +42,7 @@ Our current intention is to adopt `semantic versioning`_ at that time, with rega
 
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
-The content of a major marketing releases will typically planned significantly in advance
+The content of major marketing releases will typically be planned significantly in advance
 and will have a significant collection of new functionality.
 The determination of when to make a major marketing release will be made by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
