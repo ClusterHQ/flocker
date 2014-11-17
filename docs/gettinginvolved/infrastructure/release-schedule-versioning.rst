@@ -56,7 +56,8 @@ Minor Marketing Release
 Minor marketing releases will be made when some particular feature of a major marketing release is ready
 and ClusterHQ's marketing team wants to announce that feature.
 These release will typically be made in preparation for a blog post or other announcement of a feature.
-The determination of when to make a minor marketing release will be made by ClusterHQ's product team, in consultation with the marketing and engineering teams.
+
+Minor marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
 The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
 
