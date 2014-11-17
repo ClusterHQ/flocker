@@ -242,7 +242,7 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      yourlaptop$ ssh root@104.236.46.109
+      yourlaptop$ ssh root@203.0.113.109
 
 #. Install a supported Linux kernel
 
