@@ -257,11 +257,6 @@ You'll probably want to setup at least two nodes.
       .. code-block: sh
          yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
 
-      If your Droplet has a newer kernel version, you will have to use the ``rpm`` command to install the required version:
-
-      .. code-block: sh
-         rpm --oldpackage -ivh https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
-
    #. Configure the Droplet to boot with the desired kernel:
 
       * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
