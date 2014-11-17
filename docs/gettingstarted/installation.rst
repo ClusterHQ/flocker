@@ -186,7 +186,7 @@ Using Amazon Web Services
 
 #. Upgrade the Kernel
 
-   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
    .. code-block:: sh
 
@@ -243,11 +243,11 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      yourlaptop$ ssh root@104.236.46.109
+      yourlaptop$ ssh root@203.0.113.109
 
 #. Install a supported Linux kernel
 
-   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
    At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
    To switch to that kernel, follow these steps:
 
@@ -255,13 +255,9 @@ You'll probably want to setup at least two nodes.
 
       This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
 
-      .. code-block: sh
-         yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+      .. code-block:: sh
 
-      If your Droplet has a newer kernel version, you will have to use the ``rpm`` command to install the required version:
-
-      .. code-block: sh
-         rpm --oldpackage -ivh https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+         [root@digitalocean]# yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
 
    #. Configure the Droplet to boot with the desired kernel:
 
@@ -278,21 +274,16 @@ You'll probably want to setup at least two nodes.
 
          [root@digitalocean]# shutdown -h now
 
-      * Click "Boot", on the "Power" administration page.
+      * On the "Power" administration page, click "Boot".
 
-   #. Check the running kernel
+   #. SSH back in and check the running kernel
 
-      .. code-block: sh
+      .. code-block:: sh
 
-         # uname -r
+         [root@digitalocean]# uname -r
          3.16.6-203.fc20.x86_64
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
-
-.. warning::
-
-   Keep in mind the consequences of exposing unsecured services to the Internet.
-   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 
 .. _rackspace-install:
@@ -383,6 +374,11 @@ The Flocker command line client (``flocker-deploy``) must be able to establish a
 Additionally, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
