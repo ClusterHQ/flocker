@@ -244,23 +244,47 @@ You'll probably want to setup at least two nodes.
 
       yourlaptop$ ssh root@104.236.46.109
 
-#. Upgrade the Kernel
+#. Install a supported Linux kernel
 
    Older kernels can have bugs that affect Flocker's use of ZFS.
+   At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
+   To switch to that kernel, follow these steps:
 
-   Install the new kernel:
+   #. Upgrade the kernel package inside the virtual machine:
 
-   .. code-block:: sh
+      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
 
-      [root@digitalocean]# yum update kernel-3.17.2-200.fc20
+      .. code-block: sh
+         yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
 
-   * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
-   * Choose the matching ``3.17.2-200.fc20 x64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
-   * Once the control panel notifies you that the change has been made reboot your machine.
+      If your Droplet has a newer kernel version, you will have to use the ``rpm`` command to install the required version:
 
-   .. code-block:: sh
+      .. code-block: sh
+         rpm --oldpackage -ivh https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
 
-      [root@digitalocean]# shutdown -r now
+   #. Configure the Droplet to boot with the desired kernel:
+
+      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
+      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+
+   #. Power Cycle the Droplet
+
+      Droplet kernel changes only take effect after *power cycling* the virtual machine.
+
+      * Shut down the virtual machine:
+
+      .. code-block:: sh
+
+         [root@digitalocean]# shutdown -h now
+
+      * Click "Boot", on the "Power" administration page.
+
+   #. Check the running kernel
+
+      .. code-block: sh
+
+         # uname -r
+         3.16.6-203.fc20.x86_64
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
