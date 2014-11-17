@@ -272,7 +272,7 @@ You'll probably want to setup at least two nodes.
 
          [root@digitalocean]# shutdown -h now
 
-      * Click "Boot", on the "Power" administration page.
+      * On the "Power" administration page, click "Boot".
 
    #. Check the running kernel
 
