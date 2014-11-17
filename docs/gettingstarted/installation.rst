@@ -218,7 +218,7 @@ Using Amazon Web Services
       [root@aws]# cat /root/.ssh/authorized_keys
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
-#. Follow the generic Fedora 20 installation instructions :ref:`below <fedora-20-install>`.
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
 .. _digitalocean-install:
@@ -262,7 +262,7 @@ You'll probably want to setup at least two nodes.
 
       [root@digitalocean]# shutdown -r now
 
-#. Follow the generic Fedora 20 installation instructions below.
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 .. warning::
 
