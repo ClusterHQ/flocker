@@ -123,6 +123,7 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using DigitalOcean <digitalocean-install>`
+- :ref:`Using Rackspace <rackspace-install>`
 
 It is also possible to install Flocker on any Fedora 20 machine.
 
@@ -292,6 +293,15 @@ You'll probably want to setup at least two nodes.
 
    Keep in mind the consequences of exposing unsecured services to the Internet.
    Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
+
+
+.. _rackspace-install:
+
+Using Rackspace
+---------------
+
+Another way to get a Flocker cluster running is to use Rackspace.
+You'll probably want to setup at least two nodes.
 
 
 .. _fedora-20-install:
