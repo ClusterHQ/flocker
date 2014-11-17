@@ -320,6 +320,7 @@ You'll probably want to setup at least two nodes.
 
       yourlaptop$  ssh root@134.213.135.100
 
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 .. _fedora-20-install:
 
