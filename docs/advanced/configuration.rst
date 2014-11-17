@@ -84,6 +84,9 @@ The following parameters are optional when defining an application:
      "volume":
        "mountpoint": "/var/www/data"
 
+  .. Add documentation for the maximum_size field.
+     FLOC-979
+
 - ``environment``
 
   This is an optional mapping of key/value pairs for environment variables that will be applied to the application container.

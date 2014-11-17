@@ -49,6 +49,11 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
+# Add a maximum_size attribute.  This seems weird but there isn't anywhere else
+# to put it.  It will default to None.  Later on the pure model/configuration
+# stuff should be factored out of AttachedVolume and Volume into a separate
+# object that is purely model.
+# FLOC-979
 @attributes(["name", "mountpoint"])
 class AttachedVolume(object):
     """
@@ -81,6 +86,8 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
+            # Grab size information from the volume and include it in the
+            # object being created.  FLOC-979
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
