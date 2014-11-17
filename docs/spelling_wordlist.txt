@@ -3,6 +3,7 @@ app
 apps
 behaviour
 Btrfs
+bugfix
 Buildbot
 checksum
 chmod
