@@ -309,7 +309,7 @@ You'll probably want to setup at least two nodes.
 
    .. code-block:: sh
 
-      yourlaptop$  ssh root@134.213.135.100
+      yourlaptop$  ssh root@203.0.113.109
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
