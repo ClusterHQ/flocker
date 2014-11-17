@@ -122,6 +122,7 @@ These easiest way to get Flocker going is to use our vagrant configuration.
 It is also possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
+- :ref:`Using DigitalOcean <digitalocean-install>`
 
 It is also possible to install Flocker on any Fedora 20 machine.
 
@@ -219,6 +220,8 @@ Using Amazon Web Services
 
 #. Follow the generic Fedora 20 installation instructions :ref:`below <fedora-20-install>`.
 
+
+.. _digitalocean-install:
 
 Using DigitalOcean
 ------------------
