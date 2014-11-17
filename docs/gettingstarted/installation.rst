@@ -284,11 +284,6 @@ You'll probably want to setup at least two nodes.
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
-.. warning::
-
-   Keep in mind the consequences of exposing unsecured services to the Internet.
-   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
-
 
 .. _fedora-20-install:
 
@@ -351,6 +346,11 @@ The Flocker command line client (``flocker-deploy``) must be able to establish a
 Additionally, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
