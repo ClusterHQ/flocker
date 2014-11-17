@@ -122,10 +122,12 @@ These easiest way to get Flocker going is to use our vagrant configuration.
 It is also possible to deploy Flocker in the cloud, on a number of different providers.
 
 - :ref:`Using Amazon Web Services <aws-install>`
+- :ref:`Using DigitalOcean <digitalocean-install>`
 
 It is also possible to install Flocker on any Fedora 20 machine.
 
 - :ref:`Installing on Fedora 20 <fedora-20-install>`
+
 
 .. _vagrant-install:
 
@@ -183,7 +185,7 @@ Using Amazon Web Services
 
 #. Upgrade the Kernel
 
-   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
    .. code-block:: sh
 
@@ -216,7 +218,71 @@ Using Amazon Web Services
       [root@aws]# cat /root/.ssh/authorized_keys
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
-#. Follow the generic Fedora 20 installation instructions :ref:`below <fedora-20-install>`.
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+
+
+.. _digitalocean-install:
+
+Using DigitalOcean
+------------------
+
+Another way to get a Flocker cluster running is to use DigitalOcean.
+You'll probably want to setup at least two nodes.
+
+#. Create a new Droplet running Fedora 20
+
+   * Visit https://cloud.digitalocean.com/droplets/new
+   * Choose a minimum of 8GB of RAM
+   * Choose the Fedora 20 x64 Linux distribution as your image
+   * You may choose to add an SSH key, or DigitalOcean will email you the root SSH password
+
+#. Look up the public IP address of the new Droplet, and SSH in
+
+   You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
+
+   .. code-block:: sh
+
+      yourlaptop$ ssh root@203.0.113.109
+
+#. Install a supported Linux kernel
+
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
+   At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
+   To switch to that kernel, follow these steps:
+
+   #. Upgrade the kernel package inside the virtual machine:
+
+      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
+
+      .. code-block:: sh
+
+         [root@digitalocean]# yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+
+   #. Configure the Droplet to boot with the desired kernel:
+
+      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
+      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+
+   #. Power Cycle the Droplet
+
+      Droplet kernel changes only take effect after *power cycling* the virtual machine.
+
+      * Shut down the virtual machine:
+
+      .. code-block:: sh
+
+         [root@digitalocean]# shutdown -h now
+
+      * On the "Power" administration page, click "Boot".
+
+   #. SSH back in and check the running kernel
+
+      .. code-block:: sh
+
+         [root@digitalocean]# uname -r
+         3.16.6-203.fc20.x86_64
+
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
 .. _fedora-20-install:
@@ -280,6 +346,11 @@ The Flocker command line client (``flocker-deploy``) must be able to establish a
 Additionally, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
