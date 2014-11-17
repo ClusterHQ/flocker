@@ -275,7 +275,7 @@ You'll probably want to setup at least two nodes.
 
       * On the "Power" administration page, click "Boot".
 
-   #. Check the running kernel
+   #. SSH back in and check the running kernel
 
       .. code-block:: sh
 
