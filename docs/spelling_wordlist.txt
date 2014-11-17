@@ -22,6 +22,7 @@ handoffs
 hoc
 Homebrew
 hostname
+installable
 internet
 Kubernetes
 libswarm
@@ -29,8 +30,8 @@ Mesos
 metadata
 multi
 mv
-NAT'd
 namespace
+NAT'd
 pem
 petabyte
 petabytes
