@@ -185,7 +185,7 @@ Using Amazon Web Services
 
 #. Upgrade the Kernel
 
-   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
    .. code-block:: sh
 
@@ -246,7 +246,7 @@ You'll probably want to setup at least two nodes.
 
 #. Install a supported Linux kernel
 
-   Older kernels can have bugs that affect Flocker's use of ZFS.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
    At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
    To switch to that kernel, follow these steps:
 
