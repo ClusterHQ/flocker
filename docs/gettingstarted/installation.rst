@@ -123,6 +123,7 @@ It is also possible to deploy Flocker in the cloud, on a number of different pro
 
 - :ref:`Using Amazon Web Services <aws-install>`
 - :ref:`Using DigitalOcean <digitalocean-install>`
+- :ref:`Using Rackspace <rackspace-install>`
 
 It is also possible to install Flocker on any Fedora 20 machine.
 
@@ -284,6 +285,32 @@ You'll probably want to setup at least two nodes.
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
+
+.. _rackspace-install:
+
+Using Rackspace
+---------------
+
+Another way to get a Flocker cluster running is to use Rackspace.
+You'll probably want to setup at least two nodes.
+
+#. Create a new Cloud Server running Fedora 20
+
+   * Visit https://mycloud.rackspace.com
+   * Click "Create Server".
+   * Choose the Fedora 20 Linux distribution as your image.
+   * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
+   * Add your SSH key
+
+#. SSH in
+
+   You can find the IP in the Server Details page after it is created.
+
+   .. code-block:: sh
+
+      yourlaptop$  ssh root@203.0.113.109
+
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 .. _fedora-20-install:
 
