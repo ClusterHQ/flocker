@@ -11,7 +11,7 @@ v0.3.1
 
 * Applications can now be configured with a CPU and memory limit.
 * Documentation now includes :ref:`instructions for installing flocker-node on Fedora20<fedora-20-install>`.
-* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install`, and :ref:`DigitalOcean<digitalocean-install>`.
+* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and :ref:`DigitalOcean<digitalocean-install>`.
 
 
 v0.3
