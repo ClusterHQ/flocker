@@ -156,6 +156,19 @@ def create_proxy_to(logger, ip, port):
             b"--jump", b"DNAT", b"--to-destination", encoded_ip,
         ])
 
+        iptables(logger, [
+            b"--table", b"filter",
+            b"--insert", b"FORWARD",
+
+            b"--destination", encoded_ip,
+            b"--protocol", b"tcp", b"--destination-port", encoded_port,
+
+           # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+
+            b"--jump", b"ACCEPT",
+        ])
+
         # The network stack only considers forwarding traffic when certain
         # system configuration is in place.
         #
@@ -199,6 +212,18 @@ def delete_proxy(logger, proxy):
          b"--protocol", b"tcp", b"--destination-port", port,
          b"--match", b"addrtype", b"--dst-type", b"LOCAL",
          b"--jump", b"DNAT", b"--to-destination", ip],
+        [
+            b"--table", b"filter",
+            b"--delete", b"FORWARD",
+
+            b"--destination", ip,
+            b"--protocol", b"tcp", b"--destination-port", port,
+
+            # Tag it as a flocker-created rule so we can recognize it later.
+            b"--match", b"comment", b"--comment", FLOCKER_COMMENT_MARKER,
+
+            b"--jump", b"ACCEPT",
+        ],
     ]
 
     with DELETE_PROXY(logger, target_ip=proxy.ip, target_port=proxy.port):
