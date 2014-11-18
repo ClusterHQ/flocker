@@ -1524,6 +1524,78 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         expected_applications_set = frozenset(expected_applications.values())
         self.assertEqual(applications_set, expected_applications_set)
 
+    def test_invalid_volume_max_size_zero_bytes(self):
+        """
+        A volume maximum_size config value given as an integer cannot be zero.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_volume_max_size_zero_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a quantity of zero.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_volume_max_size_unit_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a unit that is not K, M, G or T.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_bytes(self):
+        """
+        A volume maximum_size config value given as an integer when parsed
+        creates an ``AttachedVolume`` instance with the corresponding
+        maximum_size.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_string_bytes(self):
+        """
+        A volume maximum_size config value given as a string containing only an
+        integer when parsed creates an ``AttachedVolume`` instance with the
+        corresponding maximum_size in bytes.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_kilobytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_megabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and M as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from megabytes to bytes.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_gigabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and G as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from gigabytes to bytes.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_volume_max_size_terabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and T as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from terabytes to bytes.
+        """
+        self.fail("Not implemented yet.")
+
     def test_ports_missing_internal(self):
         """
         ``Configuration.applications`` raises a
