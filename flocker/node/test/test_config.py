@@ -1674,8 +1674,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(ValueError,
                                       parse_storage_string,
                                       "abcdef")
-        self.assertEqual(exception.message,
-            "Value 'abcdef' could not be parsed as a storage quantity.")
+        self.assertEqual(
+            exception.message,
+            "Value 'abcdef' could not be parsed as a storage quantity."
+        )
 
     def test_parse_storage_string_invalid_not_string(self):
         """
@@ -1685,8 +1687,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(ValueError,
                                       parse_storage_string,
                                       610.25)
-        self.assertEqual(exception.message,
-            "Value must be string or unicode, got float.")
+        self.assertEqual(
+            exception.message,
+            "Value must be string or unicode, got float."
+        )
 
     def test_volume_max_size_bytes(self):
         """

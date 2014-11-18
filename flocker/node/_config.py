@@ -124,7 +124,8 @@ def parse_storage_string(value):
     if unit is not None:
         unit = unit.upper()
         quantity = quantity * byte_multipliers[unit]
-    quantity = int(quantity + 1) if int(quantity) != quantity else int(quantity)
+    quantity = (int(quantity + 1) if int(quantity) != quantity
+                else int(quantity))
     return quantity
 
 
