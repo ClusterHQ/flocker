@@ -78,11 +78,15 @@ The following parameters are optional when defining an application:
   This specifies that the application container requires a volume.
   It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
   The value for this key must be a string giving an absolute path.
+  Optionally, you can also specify the maximum size of the volume via the ``maximum_size`` key.
+  The value for this key must be either an integer giving the maximum size in bytes, or a string giving the maximum size including the first letter of the storage unit, for example 1G for 1 Gigabyte.
+  Supported units are K for kilobytes, M for megabytes, G for gigabytes and T for terabytes.
 
   .. code-block:: yaml
 
      "volume":
        "mountpoint": "/var/www/data"
+       "maximum_size": "500M"
 
 - ``environment``
 
