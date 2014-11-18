@@ -1541,6 +1541,15 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         A volume maximum_size config value given as a string specifying a
         quantity and a unit cannot have a unit that is not K, M, G or T.
+        A ``ConfigurationError`` is raised.
+        """
+        self.fail("Not implemented yet.")
+
+    def test_invalid_volume_max_size_invalid_string(self):
+        """
+        ``StorageUnitParser.parse`` raises a ``ValidationError`` when given a
+        string which is not in a valid format for parsing in to a quantity of
+        bytes.
         """
         self.fail("Not implemented yet.")
 
@@ -1569,30 +1578,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         """
         self.fail("Not implemented yet.")
 
-    def test_volume_max_size_megabytes(self):
+    def test_volume_max_size_parse_valid_unit(self):
         """
-        A volume maximum_size config value given as a string specifying a
-        quanity and M as a unit identifier when parsed creates an
-        ``AttachedVolume`` instance with the corresponding maximum_size
-        converted from megabytes to bytes.
-        """
-        self.fail("Not implemented yet.")
-
-    def test_volume_max_size_gigabytes(self):
-        """
-        A volume maximum_size config value given as a string specifying a
-        quanity and G as a unit identifier when parsed creates an
-        ``AttachedVolume`` instance with the corresponding maximum_size
-        converted from gigabytes to bytes.
-        """
-        self.fail("Not implemented yet.")
-
-    def test_volume_max_size_terabytes(self):
-        """
-        A volume maximum_size config value given as a string specifying a
-        quanity and T as a unit identifier when parsed creates an
-        ``AttachedVolume`` instance with the corresponding maximum_size
-        converted from terabytes to bytes.
+        ``StorageUnitParser.parse`` returns the integer number of bytes
+        converted from a string specifying a quantity and unit in a valid
+        format. Valid format is a number followed by a unit identifier,
+        which is one of K, M, G or T.
         """
         self.fail("Not implemented yet.")
 
