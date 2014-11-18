@@ -355,6 +355,13 @@ To enable and start Docker, run the following commands in a root console:
    systemctl start docker
    systemctl enable docker
 
+To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
+
+.. code-block:: sh
+
+  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD_direct 0 -j ACCEPT
+  firewall-cmd --direct --add-rule ipv4 filter FORWARD_direct 0 -j ACCEPT
+
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
