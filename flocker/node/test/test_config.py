@@ -469,12 +469,11 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                     'PG_SCHEMA_NAME': 'example_database',
                     'PG_PGUSER_PASSWORD': 'clusterhq'
                 },
-                'mem_limit': 100000000
             }
         }
         parser = FigConfiguration(config)
         applications = parser.applications()
-        self.assertEqual(applications['postgres'].memory_limit, 100000000)
+        self.assertEqual(applications['postgres'].memory_limit, None)
 
     def test_valid_fig_config_volumes(self):
         """

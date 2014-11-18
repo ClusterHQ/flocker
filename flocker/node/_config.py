@@ -328,7 +328,7 @@ class FigConfiguration(object):
         Checks that a single application definition contains no invalid
         or unsupported keys.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param dict config: A single application definition from
@@ -371,7 +371,7 @@ class FigConfiguration(object):
         Validate and parse the environment portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param dict environment: A dictionary of environment variable
@@ -418,7 +418,7 @@ class FigConfiguration(object):
         Validate and parse the volumes portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list volumes: A list of ``str`` values giving absolute
@@ -458,7 +458,7 @@ class FigConfiguration(object):
         Validate and parse the ports portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list ports: A list of ``str`` values mapping ports that
@@ -506,7 +506,7 @@ class FigConfiguration(object):
         Validate and parse the mem_limit portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param int limit: The parsed configuration value for mem_limit.
@@ -515,7 +515,7 @@ class FigConfiguration(object):
 
         :returns: An ``int`` representing the memory limit in bytes.
         """
-        _check_type(value=limit, types=(int),
+        _check_type(value=limit, types=(int,),
                     description="mem_limit must be an integer",
                     application_name=application)
         return limit
@@ -525,7 +525,7 @@ class FigConfiguration(object):
         Validate and parse the links portion of an application
         configuration and store the links in the internal links map.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list links: A list of ``str`` values specifying the names
