@@ -356,6 +356,8 @@ To enable and start Docker, run the following commands in a root console:
    systemctl enable docker
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
+(Note: This isn't required on AWS, as there is no firewall configured by default there.)
+The following commands will enable forewarding:
 
 .. code-block:: sh
 
