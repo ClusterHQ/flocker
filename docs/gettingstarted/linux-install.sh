@@ -11,5 +11,5 @@ flocker-tutorial/bin/pip install --upgrade pip
 
 # Install flocker-cli and dependencies inside the virtualenv:
 echo "Installing Flocker and dependencies, this may take a few minutes with no output to the terminal..."
-flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.0-py2-none-any.whl
+flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.1-py2-none-any.whl
 echo "Done!"
