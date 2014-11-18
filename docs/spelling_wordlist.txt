@@ -3,6 +3,7 @@ app
 apps
 behaviour
 Btrfs
+bugfix
 Buildbot
 checksum
 chmod
@@ -10,6 +11,7 @@ Copr
 dataset
 Deis
 devel
+DigitalOcean
 dropdown
 failover
 filename
@@ -39,6 +41,7 @@ pre
 programmatically
 proxied
 proxying
+Rackspace
 snapshotting
 stateful
 sysadmin
