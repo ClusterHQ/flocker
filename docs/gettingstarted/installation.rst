@@ -357,7 +357,7 @@ To enable and start Docker, run the following commands in a root console:
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
 On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
-(Note: The fedora AWS don't have firewalld installed, as there is an external firewall configuration.)
+(Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
 The following commands will configure firewalld to enable forwarding:
 
 .. code-block:: sh
