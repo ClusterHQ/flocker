@@ -361,8 +361,8 @@ The following commands will enable forewarding:
 
 .. code-block:: sh
 
-  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD_direct 0 -j ACCEPT
-  firewall-cmd --direct --add-rule ipv4 filter FORWARD_direct 0 -j ACCEPT
+  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
