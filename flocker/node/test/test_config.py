@@ -1694,6 +1694,32 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Value must be string, got float."
         )
 
+    def test_volume_max_size_bytes_integer(self):
+        """
+        A volume maximum_size config value given as an integer raises a
+        ``ConfigurationError`` in ``FlockerConfiguration.applications``.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': 1000000},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            exception.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Value must be string, "
+             "got int.")
+        )
+
     def test_volume_max_size_bytes(self):
         """
         A volume maximum_size config value given as a string when parsed
