@@ -79,8 +79,17 @@ The following parameters are optional when defining an application:
   It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
   The value for this key must be a string giving an absolute path.
   Optionally, you can also specify the maximum size of the volume via the ``maximum_size`` key.
-  The value for this key must be either an integer giving the maximum size in bytes, or a string giving the maximum size including the first letter of the storage unit, for example 1G for 1 Gigabyte.
+  The value for this key must be either a string giving the maximum size in bytes, or a string giving the maximum size including the first letter of the storage unit, for example 1G for 1 Gigabyte.
   Supported units are K for kilobytes, M for megabytes, G for gigabytes and T for terabytes.
+  The following examples are all valid ways to specify a maximum size:
+
+  .. code-block:: yaml
+
+    "maximum_size": "500M"
+    "maximum_size": "1073741824"
+    "maximum_size": "2.5G"
+
+  Here is a complete example of a ``volume`` entry:
 
   .. code-block:: yaml
 

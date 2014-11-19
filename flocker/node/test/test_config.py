@@ -1592,9 +1592,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         expected_applications_set = frozenset(expected_applications.values())
         self.assertEqual(applications_set, expected_applications_set)
 
-    def test_invalid_volume_max_size_zero_bytes(self):
+    def test_invalid_volume_max_size_negative_bytes(self):
         """
-        A volume maximum_size config value given as an integer cannot be zero.
+        A volume maximum_size config value given as a string cannot include
+        a sign symbol (and therefore cannot be negative).
         """
         config = dict(
             version=1,
@@ -1603,7 +1604,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
                     'volume': {'mountpoint': b'/var/lib/mysql',
-                               'maximum_size': 0},
+                               'maximum_size': "-10M"},
                 },
             }
         )
@@ -1612,7 +1613,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             e.message,
             ("Application 'mysql-hybridcluster' has a config error. Invalid "
-             "volume specification. maximum_size: Must be greater than zero.")
+             "volume specification. maximum_size: "
+             "Value '-10M' could not be parsed as a storage quantity.")
         )
 
     def test_invalid_volume_max_size_zero_string(self):
@@ -1689,12 +1691,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       610.25)
         self.assertEqual(
             exception.message,
-            "Value must be string or unicode, got float."
+            "Value must be string, got float."
         )
 
     def test_volume_max_size_bytes(self):
         """
-        A volume maximum_size config value given as an integer when parsed
+        A volume maximum_size config value given as a string when parsed
         creates an ``AttachedVolume`` instance with the corresponding
         maximum_size.
         """
@@ -1758,6 +1760,75 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
         self.assertEqual(volume.maximum_size, 1024000)
+
+    def test_volume_max_size_gigabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and G as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from gigabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1073741824)
+
+    def test_volume_max_size_terabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from terabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1T'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1099511627776)
+
+    def test_volume_max_size_fractional(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and unit where quantity is not an integer when parsed creates
+        an ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1.5G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1610612736)
 
     def test_volume_max_size_parse_valid_unit(self):
         """

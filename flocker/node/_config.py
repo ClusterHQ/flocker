@@ -7,6 +7,7 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import math
 import os
 import re
 import types
@@ -110,7 +111,7 @@ def parse_storage_string(value):
         'G': 1073741824, 'T': 1099511627776
     }
     if not isinstance(value, types.StringTypes):
-        raise ValueError("Value must be string or unicode, got {type}.".format(
+        raise ValueError("Value must be string, got {type}.".format(
             type=type(value).__name__))
     pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
     parsed = pattern.match(value)
@@ -124,8 +125,7 @@ def parse_storage_string(value):
     if unit is not None:
         unit = unit.upper()
         quantity = quantity * byte_multipliers[unit]
-    quantity = (int(quantity + 1) if int(quantity) != quantity
-                else int(quantity))
+    quantity = int(math.ceil(quantity))
     return quantity
 
 
@@ -927,18 +927,19 @@ class FlockerConfiguration(object):
         """
         try:
             maximum_size = configured_volume.pop('maximum_size')
-            if not isinstance(maximum_size, int):
-                maximum_size = parse_storage_string(maximum_size)
-            if maximum_size < 1:
-                raise ValueError("Must be greater than zero.")
+        except KeyError:
+            maximum_size = None
         except AttributeError:
             raise ValueError(
                 "Unexpected value: " + str(configured_volume)
             )
-        except KeyError:
-            maximum_size = None
-        except ValueError as e:
-            raise ValueError('maximum_size: {msg}'.format(msg=e.message))
+        else:
+            try:
+                maximum_size = parse_storage_string(maximum_size)
+                if maximum_size < 1:
+                    raise ValueError("Must be greater than zero.")
+            except ValueError as e:
+                raise ValueError('maximum_size: {msg}'.format(msg=e.message))
         try:
             mountpoint = configured_volume['mountpoint']
         except KeyError:
