@@ -17,6 +17,7 @@ failover
 filename
 filesystem
 filesystems
+firewalld
 Flocker
 Freenode
 handoff
