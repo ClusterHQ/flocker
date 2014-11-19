@@ -207,6 +207,12 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
+        # Change this to not create the Volume instance right away.  Instead,
+        # try to find it by uuid/name in `check_for_volume`.  If a Volume
+        # instance there matches, use that object as the final result of the
+        # Deferred returned by this method (it will have its other attributes
+        # set correctly because they will be set correctly by enumerate).
+        # FLOC-976
         volume = Volume(uuid=self.uuid, name=name, service=self)
 
         def check_for_volume(volumes):
