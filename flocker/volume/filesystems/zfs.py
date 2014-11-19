@@ -607,9 +607,16 @@ class StoragePool(Service):
         return listing.addCallback(listed)
 
 
-@attributes(["dataset", "mountpoint", "refquota"])
+@attributes(["dataset", "mountpoint", "refquota"], apply_immutable=True)
 class _DatasetInfo(object):
-    pass
+    """
+    :ivar bytes dataset: The name of the ZFS dataset to which this information
+        relates.
+    :ivar bytes mountpoint: The value of the dataset's ``mountpoint`` property
+        (where it will be auto-mounted by ZFS).
+    :ivar int refquota: The value of the dataset's ``refquota`` property (the
+        maximum number of bytes the dataset is allowed to have a reference to).
+    """
 
 
 def _list_filesystems(reactor, pool):

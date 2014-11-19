@@ -18,6 +18,7 @@ from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
 from ...testtools import FakeProcessReactor
 
 from ..filesystems.zfs import (
+    _DatasetInfo,
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
     Snapshot,
@@ -325,3 +326,36 @@ class LatestCommonSnapshotTests(SynchronousTestCase):
         b = Snapshot(name=b"b")
         self.assertEqual(
             b, _latest_common_snapshot([a, b], [a, b]))
+
+
+class DatasetInfoTests(SynchronousTestCase):
+    """
+    Tests for ``_DatasetInfo``.
+    """
+    def setUp(self):
+        self.info = _DatasetInfo(
+            dataset=b"foo",
+            mountpoint=b"bar",
+            refquota=1234,
+        )
+
+    def test_immutable_dataset(self):
+        """
+        :class:`_DatasetInfo.dataset` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "dataset", b"bar")
+
+    def test_immutable_mountpoint(self):
+        """
+        :class:`_DatasetInfo.mountpoint` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "mountpoint", b"bar")
+
+    def test_immutable_refquota(self):
+        """
+        :class:`_DatasetInfo.refquota` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "refquota", 321)
