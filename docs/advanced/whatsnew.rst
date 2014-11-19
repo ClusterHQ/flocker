@@ -8,7 +8,8 @@ What's New
 
 v0.3.2
 ======
-* Minor fixes to the ``flocker-node`` installation documentation.
+
+* Documented how to :ref:`configure the Fedora firewall<fedora-20-install>` on certain cloud platforms.
 
 
 v0.3.1
