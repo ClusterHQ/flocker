@@ -6,6 +6,11 @@ What's New
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
+v0.3.2
+======
+* Minor fixes to the ``flocker-node`` installation documentation.
+
+
 v0.3.1
 ======
 
