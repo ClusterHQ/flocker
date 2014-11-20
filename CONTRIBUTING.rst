@@ -106,7 +106,7 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 
 
 Contributing to Flocker
-^^^^^^^^^^^^^^^^^^^^^^^
+=======================
 
 At a minimum you can simply submit a GitHub Pull Request with your changes.
 We would prefer however that you discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
