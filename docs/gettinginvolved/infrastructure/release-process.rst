@@ -139,7 +139,10 @@ Preparing For a Release
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
-   Update "What's New" and commit changes:
+   Update the "What's New" document.
+   Pick out the key new features and improvements from the NEWS file above.
+   And add links (where appropriate) to documentation that has been added for those features.
+   Then commit the changes:
 
    .. code-block:: console
 
