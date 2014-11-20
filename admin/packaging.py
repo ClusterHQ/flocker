@@ -452,6 +452,26 @@ class PACKAGE(Values):
     MAINTAINER = ValueConstant(b'contact@clusterhq.com')
 
 
+class PACKAGE_PYTHON(PACKAGE):
+    DESCRIPTION = ValueConstant(
+        'A Docker orchestration and volume management tool. '
+        'This is the base package of scripts and libraries.')
+
+
+class PACKAGE_CLI(PACKAGE):
+    DESCRIPTION = ValueConstant(
+        'A Docker orchestration and volume management tool. '
+        'This meta-package contains symlinks to the Flocker client utilities, '
+        'and has only the dependencies required to run those tools')
+
+
+class PACKAGE_NODE(PACKAGE):
+    DESCRIPTION = ValueConstant(
+        'A Docker orchestration and volume management tool. '
+        'This meta-package contains symlinks to the Flocker node utilities, '
+        'and has only the dependencies required to run those tools')
+
+
 def omnibus_package_builder(
         package_type, destination_path, package_uri, target_dir=None):
     """
@@ -521,8 +541,7 @@ def omnibus_package_builder(
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
                 architecture='native',
-                description=(
-                    'A Docker orchestration and volume management tool'),
+                description=PACKAGE_PYTHON.DESCRIPTION.value,
                 dependencies=make_dependencies(
                     'python', rpm_version, CURRENT_DISTRIBUTION.name),
             ),
@@ -547,8 +566,7 @@ def omnibus_package_builder(
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
                 architecture='all',
-                description=(
-                    'A Docker orchestration and volume management tool'),
+                description=PACKAGE_CLI.DESCRIPTION.value,
                 dependencies=make_dependencies(
                     'cli', rpm_version, CURRENT_DISTRIBUTION.name),
             ),
@@ -576,8 +594,7 @@ def omnibus_package_builder(
                 vendor=PACKAGE.VENDOR.value,
                 maintainer=PACKAGE.MAINTAINER.value,
                 architecture='all',
-                description=(
-                    'A Docker orchestration and volume management tool'),
+                description=PACKAGE_NODE.DESCRIPTION.value,
                 dependencies=make_dependencies(
                     'node', rpm_version, CURRENT_DISTRIBUTION.name),
             ),

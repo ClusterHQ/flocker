@@ -25,7 +25,8 @@ from ..packaging import (
     BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
     DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
-    Dependency, build_in_docker, DockerBuild, DockerRun, PACKAGE,
+    Dependency, build_in_docker, DockerBuild, DockerRun,
+    PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
     make_dependencies,
 )
 from ..release import rpm_version, make_rpm_version
@@ -620,8 +621,6 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_url = PACKAGE.URL.value
         expected_vendor = PACKAGE.VENDOR.value
         expected_maintainer = PACKAGE.MAINTAINER.value
-        expected_description = (
-            'A Docker orchestration and volume management tool')
 
         expected = BuildSequence(
             steps=(
@@ -648,7 +647,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
                     architecture='native',
-                    description=expected_description,
+                    description=PACKAGE_PYTHON.DESCRIPTION.value,
                     dependencies=[Dependency(package='python-dep')],
                 ),
 
@@ -672,7 +671,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
                     architecture='all',
-                    description=expected_description,
+                    description=PACKAGE_CLI.DESCRIPTION.value,
                     dependencies=[Dependency(package='cli-dep')],
                 ),
                 # flocker-node steps
@@ -699,7 +698,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     vendor=expected_vendor,
                     maintainer=expected_maintainer,
                     architecture='all',
-                    description=expected_description,
+                    description=PACKAGE_NODE.DESCRIPTION.value,
                     dependencies=[Dependency(package='node-dep')],
                 ),
             )
