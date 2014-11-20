@@ -175,6 +175,19 @@ class GenericDockerClientTests(TestCase):
                                  expected_states=(u'inactive',))
         return d
 
+    def test_dead_is_removed(self):
+        """
+        ``DockerClient.remove()`` removes dead units without error.
+
+        We use a `busybox` image here, because it will exit immediately and
+        reach an `inactive` substate of `dead`.
+        """
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name="busybox",
+                                 expected_states=(u'inactive',))
+        d.addCallback(DockerClient.remove, name)
+        return d
+
     def request_until_response(self, port):
         """
         Resend a test HTTP request until a response is received.
