@@ -196,42 +196,17 @@ Pre-release Review Process
 
 #. Do the acceptance tests:
 
-   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+   Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
+   The URL can be found by examining the "upload-base-box" step of the "flocker-vagrant-tutorial-box" builder.
+   The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-X.Y.Z-123-gasdf.box
 
-   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
-
-   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
-
-   At the top, you should find a line beginning ``got version`` which contains the version string.
-
-   Export the ``final`` and ``got`` version numbers as an environment variable for later use:
+   Add the downloaded ``.box`` file to ``vagrant``:
 
    .. code-block:: console
 
-      export VERSION=0.1.2
-      export GOT_VERSION=0.2.1-378-gb59b886
-
-   Clone Flocker on your local workstation and install all ``dev`` requirements:
-
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
-   .. code-block:: console
-
-     git clone git@github.com:ClusterHQ/flocker.git
-     cd flocker
-     git checkout -b *release branch*
-     mkvirtualenv flocker-release-${VERSION}
-     pip install --editable .[dev]
-
-   Then build the tutorial image and add the resulting box to ``vagrant``:
-
-   .. code-block:: console
-
-         cd vagrant/tutorial
-         ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
          vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
 
-      You should now see the ``flocker-tutorial`` box listed:
+   You should now see the ``flocker-tutorial`` box listed:
 
    .. code-block:: console
       :emphasize-lines: 4
