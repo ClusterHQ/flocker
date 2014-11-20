@@ -415,6 +415,12 @@ Release
 Post-Release Review Process
 ---------------------------
 
+#. Remove the Vagrant box which was added as part of the "Pre-Release Review Process".
+
+   .. code-block:: console
+
+      $ vagrant box remove clusterhq/flocker-tutorial
+
 #. Check that Read The Docs is set up correctly.
 
    The following links should both point to the latest release.
@@ -425,13 +431,10 @@ Post-Release Review Process
 
 #. Verify that the tutorial works on all supported platforms.
 
-#. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
-
-   .. code-block:: console
-
-      $ vagrant box remove clusterhq/flocker-tutorial
-
-#. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * The client (``flocker-deploy``) should be installed and on all supported platforms.
+   * The node package (``flocker-node``) should be installed on all supported platforms.
+   * Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Perform the "ELK Example" documentation using a Linux client installation and a Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
