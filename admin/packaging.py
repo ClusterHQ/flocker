@@ -630,6 +630,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
          packages will be copied.
     :param bytes distribution: The distribution name for which to build a
         package.
+    :param FilePath top_level: The Flocker source code directory.
     :param bytes package_uri: The ``pip`` style python package URI to install.
     """
     if destination_path.exists() and not destination_path.isdir():
@@ -640,6 +641,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         FilePath('/flocker'): top_level,
     }
 
+    # Special case to allow building the currently checked out Flocker code.
     if package_uri == top_level.path:
         package_uri = '/flocker'
 
