@@ -11,7 +11,7 @@ from io import BytesIO
 
 from zope.interface import implementer
 
-from characteristic import attributes
+from characteristic import attributes, with_init, with_cmp, with_repr
 
 from twisted.internet.defer import succeed, fail
 from twisted.application.service import Service
@@ -45,8 +45,10 @@ class CannedFilesystemSnapshots(object):
 
 
 @implementer(IFilesystem)
-@attributes(["path", "size"],
-            defaults=dict(size=VolumeSize(maximum_size=None)))
+@with_cmp(["path"])
+@with_repr(["path", "size"])
+@with_init(["path", "size"],
+           defaults=dict(size=VolumeSize(maximum_size=None)))
 class DirectoryFilesystem(object):
     """
     A directory pretending to be an independent filesystem.
@@ -55,6 +57,9 @@ class DirectoryFilesystem(object):
     directory recording the names of snapshots which supposedly have been
     taken.  No other state related to snapshots is tracked (eg, the state of
     the directory at the time of those snapshots is not recorded).
+
+    :ivar FilePath path: The directory where data for this "filesystem" is
+        stored.
     """
     def get_path(self):
         return self.path

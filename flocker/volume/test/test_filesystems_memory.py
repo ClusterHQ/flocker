@@ -12,10 +12,14 @@ from twisted.python.filepath import FilePath
 
 from .filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests,
-    )
+)
 from ..filesystems.memory import (
     CannedFilesystemSnapshots, FilesystemStoragePool,
-    )
+    DirectoryFilesystem,
+)
+from ...testtools import (
+    assert_equal_comparison, assert_not_equal_comparison
+)
 
 
 class IFilesystemSnapshotsTests(make_ifilesystemsnapshots_tests(
@@ -50,3 +54,43 @@ class IStoragePoolTests(make_istoragepool_tests(
     lambda test_case:
         FilesystemStoragePool(FilePath(test_case.mktemp())))):
     """``IStoragePoolTests`` for fake storage pool."""
+
+
+class DirectoryFilesystemTests(SynchronousTestCase):
+    """
+    Direct tests for ``FilesystemStoragePool``\ 's ``IFilesystem``
+    implementation, ``DirectoryFilesystem``.
+    """
+    def test_equality(self):
+        """
+        Two ``DirectoryFilesystem`` instances are equal if they refer to the
+        same directory.
+        """
+        path = FilePath(b"/foo/bar")
+        assert_equal_comparison(
+            self,
+            DirectoryFilesystem(path=path, size=123),
+            DirectoryFilesystem(path=path, size=321)
+        )
+
+    def test_inequality(self):
+        """
+        Two ``DirectoryFilesystem`` instances are not equal if they refer to
+        different directories.
+        """
+        assert_not_equal_comparison(
+            self,
+            DirectoryFilesystem(path=FilePath(b"/foo/bar"), size=123),
+            DirectoryFilesystem(path=FilePath(b"/foo/baz"), size=123)
+        )
+
+    def test_repr(self):
+        """
+        A ``DirectoryFilesystem`` instance represents itself as a string
+        including the type name and the values of its attributes.
+        """
+        self.assertEqual(
+            "<DirectoryFilesystem(path=FilePath('/foo/bar'), size=123)>",
+            repr(DirectoryFilesystem(
+                path=FilePath(b"/foo/bar"), size=123))
+        )
