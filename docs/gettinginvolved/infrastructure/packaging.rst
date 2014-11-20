@@ -48,6 +48,7 @@ This is provided as a template for prospective maintainers who may wish to inclu
 To build Flocker RPMs from the ``spec`` file, run the following commands:
 
 .. code-block:: sh
+
    python setup.py sdist
    python setup.py generate_spec
    cp dist/Flocker-$(python setup.py --version).tar.gz ~/rpmbuild/SOURCES
