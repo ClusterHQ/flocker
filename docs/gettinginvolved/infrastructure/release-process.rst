@@ -43,7 +43,12 @@ Access
 Preparing For a Release
 -----------------------
 
-#. Choose a version number according to :ref:`the Flocker version numbering policy <version-numbers>`.
+#. Confirm that the release and the proposed version number have been approved.
+
+   The release must have been approved.
+   Refer to the ClusterHQ "Flocker Releases and Versioning" policy document.
+
+   The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 #. Export the version number as an environment variable for later use:
 
