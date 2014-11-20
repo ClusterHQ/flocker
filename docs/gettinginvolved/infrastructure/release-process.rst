@@ -184,8 +184,8 @@ Preparing For a Release
    .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
-Reviewing "Preparing For a Release"
------------------------------------
+Pre-release Review Process
+--------------------------
 
 .. note::
 
