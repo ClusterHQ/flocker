@@ -6,7 +6,16 @@ or newer versions than are available there.
 So the ``build-package`` script bundles those packages into the RPM.
 We refer to these as "Omnibus" packages.
 
-To build omnibus RPMs, run the following command from a clean checkout of the Flocker repository:
+To build omnibus RPMs, create a VirtualEnv and install Flocker then its release dependencies:
+
+.. code-block:: sh
+
+   cd /path/to/flocker
+   mkvirtualenv flocker-packaging
+   pip install .
+   pip install Flocker[release]
+
+Then run the following command from a clean checkout of the Flocker repository:
 
 .. code-block:: sh
 
