@@ -126,8 +126,6 @@ Preparing For a Release
       $ export OLD_VERSION=0.3.0
       $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   Save the result of the previous command to create a "What's New" entry and NEWS entry with later.
-
    Update "What's New" and commit changes:
 
    .. code-block:: console
