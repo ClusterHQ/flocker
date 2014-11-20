@@ -147,7 +147,7 @@ Preparing For a Release
 
    .. code-block:: console
 
-      $ git commit -am "Updated What's NEWS"
+      $ git commit -am "Updated NEWS"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
