@@ -119,9 +119,10 @@ Preparing For a Release
    The following ``sed`` command can be used or adapted for this process:
 
    .. code-block:: console
+                   export PREVIOUS_VERSION="0\.3\.1"
 
                    sed --regexp-extended --in-place \
-                       "s/[0-9]+\.[0-9]+\.[0-9]+/$VERSION/g" \
+                       "s/${PREVIOUS_VERSION}/${VERSION}/g" \
                        docs/gettingstarted/linux-install.sh \
                        docs/gettingstarted/tutorial/Vagrantfile \
                        docs/gettingstarted/installation.rst
