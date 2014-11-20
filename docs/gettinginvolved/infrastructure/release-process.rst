@@ -415,8 +415,7 @@ Release
 Post-Release Review Process
 ---------------------------
 
-#. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
-   See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
+#. Verify that the tutorial works on all supported platforms.
 
 #. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
 
