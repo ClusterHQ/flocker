@@ -21,7 +21,7 @@ This will generate three RPM files in the current working directory. E.g.
 * ``clusterhq-flocker-cli-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
   This meta-package will install all the dependencies needed to run the Flocker client scripts.
-  It will also install a symbolic link for ``flocker-deploy`` in ``/usr/sbin``.
+  It will also install a symbolic link for ``flocker-deploy`` in ``/usr/bin``.
 
 * ``clusterhq-flocker-node-0.3.0-0.dev.1.307.gb6d6e9f.dirty.noarch.rpm``
 
