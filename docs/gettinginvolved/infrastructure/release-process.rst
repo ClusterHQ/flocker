@@ -198,13 +198,13 @@ Pre-release Review Process
 
    Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
    The URL can be found by examining the "upload-base-box" step of the "flocker-vagrant-tutorial-box" builder.
-   The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-X.Y.Z-123-gasdf.box
+   The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
    Add the downloaded ``.box`` file to ``vagrant``:
 
    .. code-block:: console
 
-         vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
+         vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
    You should now see the ``flocker-tutorial`` box listed:
 
