@@ -5,6 +5,7 @@ Tests for ``admin.packaging``.
 """
 
 from glob import glob
+import os
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
@@ -37,6 +38,7 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 require_rpm = skipIf(not which('rpm'), "Tests require the `rpm` command.")
+require_root = skipIf(os.getuid() != 0, "Must run as root.")
 
 
 def assert_equal_steps(test_case, expected, actual):
@@ -711,6 +713,7 @@ class OmnibusPackageBuilderTests(TestCase):
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
 
+    @require_root
     def test_functional_fedora20(self):
         """
         The expected RPM files are built for Fedora20
