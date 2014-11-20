@@ -118,14 +118,6 @@ Preparing For a Release
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
-   ``git log`` can be used to see all merges between two versions.
-
-   .. code-block:: console
-
-      # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
-      $ export OLD_VERSION=0.3.0
-      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
-
    Update "What's New" and commit changes:
 
    .. code-block:: console
@@ -140,6 +132,14 @@ Preparing For a Release
    The NEWS date format is YYYY-MM-DD.
    The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
    This means that in doing a release, you may have to change the NEWS heading from a previous weekly or pre-release.
+
+   ``git log`` can be used to see all merges between two versions.
+
+   .. code-block:: console
+
+      # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+      $ export OLD_VERSION=0.3.0
+      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
    Use the previously-saved logs to update "NEWS" and commit changes:
 
