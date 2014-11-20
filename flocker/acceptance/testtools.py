@@ -10,11 +10,13 @@ from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
 
-from twisted.internet.defer import gatherResults, Deferred, DeferredList
+from twisted.internet.defer import gatherResults
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import BASE_NAMESPACE, DockerClient, Unit
+from flocker.node._config import FlockerConfiguration
+from flocker.node._docker import DockerClient
+from flocker.node._model import Application, DockerImage
 from flocker.testtools import loop_until
 
 try:
@@ -26,7 +28,7 @@ except ImportError:
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', '_get_mongo_unit',
+    'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli',
     ]
 
@@ -50,18 +52,14 @@ MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
 
 
-def _get_mongo_unit():
+def get_mongo_application():
     """
-    Return a new ``Unit`` with a name and image corresponding to the MongoDB
-    tutorial example.
+    Return a new ``Application`` with a name and image corresponding to
+    the MongoDB tutorial example.
     """
-    return Unit(
+    return Application(
         name=MONGO_APPLICATION,
-        container_name=BASE_NAMESPACE + MONGO_APPLICATION,
-        activation_state=u'active',
-        container_image=MONGO_IMAGE + u':latest',
-        ports=frozenset(),
-        volumes=frozenset(),
+        container_image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
     )
 
 
@@ -214,40 +212,17 @@ def get_mongo_client(host, port=27017):
 
 def assert_expected_deployment(test_case, expected_deployment):
     """
-    Assert that the set of units expected on a set of nodes is the same as
-    the set of units on those nodes.
+    Assert that the expected set of ``Application`` on a set of nodes is the
+    same as the actual set of ``Application`` on those nodes.
 
     :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected_deployment: A mapping of IP addresses to sets of units
-        expected on the nodes with those IP addresses.
-
-    :return: A ``Deferred`` which fires with an assertion that the set of units
-        on a group of nodes as determined by flocker-reportstate is the same
-        as ``expected_deployment``.
+    :param dict expected_deployment: A mapping of IP addresses to sets of
+        ``Application`` expected on the nodes with those IP addresses.
     """
-    def assertApplications(results):
-        for result in results:
-            yaml, node, test_case, expected_deployment = result[1]
-            state = safe_load(yaml)
-            units = expected_deployment[node]
-            for unit in units:
-                test_case.assertIn(unit.name, state['applications'])
-                test_case.assertEqual(
-                    state['applications'][unit.name]['image'],
-                    unit.container_image
-                )
-                for port in unit.ports:
-                    test_case.assertIn(port.external_port, state['used_ports'])
-
-    deferreds = []
-    for node in expected_deployment.keys():
-        deferreds.append(Deferred())
-
-    dl = DeferredList(deferreds)
-    dl.addCallback(assertApplications)
-
-    for i, node in enumerate(expected_deployment.keys()):
+    for node, expected in enumerate(expected_deployment.items()):
         yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
-        deferreds[i].callback([yaml, node, test_case, expected_deployment])
-
-    return dl
+        state = safe_load(yaml)
+        test_case.assertEqual(
+            set(FlockerConfiguration(
+                state['applications']).applications().values()),
+            expected)
