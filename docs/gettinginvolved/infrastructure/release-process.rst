@@ -115,7 +115,18 @@ Preparing For a Release
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
    - the "Next Release" line in
      `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
-   - Commit the changes:
+
+   The following ``sed`` command can be used or adapted for this process:
+
+   .. code-block:: console
+
+                   sed --regexp-extended --in-place \
+                       "s/[0-9]+\.[0-9]+\.[0-9]+/$VERSION/g" \
+                       docs/gettingstarted/linux-install.sh \
+                       docs/gettingstarted/tutorial/Vagrantfile \
+                       docs/gettingstarted/installation.rst
+
+   Check and commit the changes:
 
      .. code-block:: console
 
