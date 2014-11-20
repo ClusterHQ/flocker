@@ -370,8 +370,8 @@ Release
 
        .. code-block:: console
 
-          git add *new recipe*
-          git commit -m "New Homebrew recipe with bumped version number and checksum"
+          git add flocker-${VERSION}.rb
+          git commit -am "New Homebrew recipe with bumped version number and checksum"
           git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed:
