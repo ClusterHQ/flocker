@@ -415,6 +415,14 @@ Release
 Post-Release Review Process
 ---------------------------
 
+#. Check that Read The Docs is set up correctly.
+
+   The following links should both point to the latest release.
+   (Except in the case of weekly release or pre-release)
+
+   * https://docs.clusterhq.com/en/latest and
+   * https://docs.clusterhq.com/
+
 #. Verify that the tutorial works on all supported platforms.
 
 #. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
@@ -422,9 +430,6 @@ Post-Release Review Process
    .. code-block:: console
 
       $ vagrant box remove clusterhq/flocker-tutorial
-
-#. Check that Read The Docs is set up correctly.
-   https://docs.clusterhq.com/en/latest and https://docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
 
 #. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
 
