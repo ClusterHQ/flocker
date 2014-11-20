@@ -141,8 +141,6 @@ Preparing For a Release
                 $ export OLD_VERSION=0.3.0
                 $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
-   Use the previously-saved logs to update "NEWS" and commit changes:
-
    .. code-block:: console
 
       $ git commit -am "Updated NEWS"
