@@ -412,8 +412,8 @@ Release
 
 #. Submit the release pull request for review again.
 
-Reviewing "Release"
--------------------
+Post-Release Review Process
+---------------------------
 
 #. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
    See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
