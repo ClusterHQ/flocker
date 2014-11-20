@@ -635,7 +635,8 @@ class DockerRun(object):
                 ['--volume', '%s:%s' % (host.path, container.path)])
 
         check_call(
-            ['docker', 'run', '--rm'] + volume_options + [self.tag] + self.command)
+            ['docker', 'run', '--rm']
+            + volume_options + [self.tag] + self.command)
 
 
 def build_in_docker(destination_path, distribution, top_level, package_uri):
