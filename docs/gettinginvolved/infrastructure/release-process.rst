@@ -249,6 +249,12 @@ Release
 
                 vagrant ssh -- -A
 
+#. Export the version number as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
+
 #. Create a clean, local copy of the Flocker release branch with no modifications:
 
    .. code-block:: console
@@ -256,12 +262,6 @@ Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout release/flocker-${VERSION}
-
-#. Export the version number as an environment variable for later use:
-
-   .. code-block:: console
-
-      export VERSION=0.1.2
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
