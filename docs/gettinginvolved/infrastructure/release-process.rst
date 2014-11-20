@@ -170,7 +170,7 @@ Preparing For a Release
 
 #. Make a pull request on GitHub
 
-   The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+   The pull request should be for the release branch against ``master``, with a ``Fixes FLOC-123`` line in the description referring to the release issue that it resolves.
 
    Wait for an accepted code review before continuing.
 
@@ -391,7 +391,7 @@ Release
 
    - Make a pull request:
 
-     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
+     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs FLOC-123`` line in the description referring to the release issue that it resolves.
 
      Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
 
