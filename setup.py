@@ -171,6 +171,8 @@ setup(
             "gsutil",
             "wheel",
             "virtualenv",
+            "PyCrypto",
+            "pyasn1",
             ],
         },
 
