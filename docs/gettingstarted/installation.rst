@@ -56,7 +56,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -66,7 +66,7 @@ You'll need to do this every time you start a new shell.
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -90,9 +90,9 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-0.3.0
+   alice@mercury:~$ brew install flocker-0.3.2
    ...
-   alice@mercury:~$ brew test flocker-0.3.0
+   alice@mercury:~$ brew test flocker-0.3.2
    ...
    alice@mercury:~$
 
@@ -103,7 +103,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
@@ -112,6 +112,25 @@ The ``flocker-deploy`` command line program will now be available:
 
 Installing ``flocker-node``
 ===========================
+
+There are a number of ways to install Flocker.
+
+These easiest way to get Flocker going is to use our vagrant configuration.
+
+- :ref:`Vagrant <vagrant-install>`
+
+It is also possible to deploy Flocker in the cloud, on a number of different providers.
+
+- :ref:`Using Amazon Web Services <aws-install>`
+- :ref:`Using DigitalOcean <digitalocean-install>`
+- :ref:`Using Rackspace <rackspace-install>`
+
+It is also possible to install Flocker on any Fedora 20 machine.
+
+- :ref:`Installing on Fedora 20 <fedora-20-install>`
+
+
+.. _vagrant-install:
 
 Vagrant
 -------
@@ -123,14 +142,13 @@ You can therefore skip this section unless you want to run Flocker on a cluster 
              This is the only supported node operating system right now.
 
 
+.. _aws-install:
+
 Using Amazon Web Services
 -------------------------
 
-One easy way to get a Flocker cluster running is to use Amazon's EC2 service.
-You'll probably want to setup at least two nodes.
-
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
-          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <https://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
+          You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
 
 #. Choose an AMI for your EC2 Instance
 
@@ -168,13 +186,11 @@ You'll probably want to setup at least two nodes.
 
 #. Upgrade the Kernel
 
-   Installation of the ZFS modules requires the kernel-devel package.
-   The Amazon Fedora 20 AMI includes an old kernel whose development package is no longer easily installable.
-   Upgrade the system to fix this.
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
    .. code-block:: sh
 
-      [fedora@aws]$ sudo yum upgrade -y
+      [fedora@aws]$ sudo yum upgrade -y kernel
 
    The upgrade doesn't make the new kernel default.
    Fix that:
@@ -203,11 +219,103 @@ You'll probably want to setup at least two nodes.
       [root@aws]# cat /root/.ssh/authorized_keys
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
-#. Follow the generic Fedora 20 installation instructions below.
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
 
-Fedora 20
----------
+.. _digitalocean-install:
+
+Using DigitalOcean
+------------------
+
+Another way to get a Flocker cluster running is to use DigitalOcean.
+You'll probably want to setup at least two nodes.
+
+#. Create a new Droplet running Fedora 20
+
+   * Visit https://cloud.digitalocean.com/droplets/new
+   * Choose a minimum of 8GB of RAM
+   * Choose the Fedora 20 x64 Linux distribution as your image
+   * You may choose to add an SSH key, or DigitalOcean will email you the root SSH password
+
+#. Look up the public IP address of the new Droplet, and SSH in
+
+   You can find the IP in the Droplet page after it is created, to the left of the green "Active" text near the top.
+
+   .. code-block:: sh
+
+      yourlaptop$ ssh root@203.0.113.109
+
+#. Install a supported Linux kernel
+
+   Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
+   At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
+   To switch to that kernel, follow these steps:
+
+   #. Upgrade the kernel package inside the virtual machine:
+
+      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
+
+      .. code-block:: sh
+
+         [root@digitalocean]# yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+
+   #. Configure the Droplet to boot with the desired kernel:
+
+      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
+      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+
+   #. Power Cycle the Droplet
+
+      Droplet kernel changes only take effect after *power cycling* the virtual machine.
+
+      * Shut down the virtual machine:
+
+      .. code-block:: sh
+
+         [root@digitalocean]# shutdown -h now
+
+      * On the "Power" administration page, click "Boot".
+
+   #. SSH back in and check the running kernel
+
+      .. code-block:: sh
+
+         [root@digitalocean]# uname -r
+         3.16.6-203.fc20.x86_64
+
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+
+
+.. _rackspace-install:
+
+Using Rackspace
+---------------
+
+Another way to get a Flocker cluster running is to use Rackspace.
+You'll probably want to setup at least two nodes.
+
+#. Create a new Cloud Server running Fedora 20
+
+   * Visit https://mycloud.rackspace.com
+   * Click "Create Server".
+   * Choose the Fedora 20 Linux distribution as your image.
+   * Choose a Flavor. We recommend at least "8 GB General Purpose v1".
+   * Add your SSH key
+
+#. SSH in
+
+   You can find the IP in the Server Details page after it is created.
+
+   .. code-block:: sh
+
+      yourlaptop$  ssh root@203.0.113.109
+
+#. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
+
+.. _fedora-20-install:
+
+Installing on Fedora 20
+-----------------------
 
 .. note:: The following commands all need to be run as root on the machine where ``flocker-node`` will be running.
 
@@ -247,6 +355,16 @@ To enable and start Docker, run the following commands in a root console:
    systemctl start docker
    systemctl enable docker
 
+To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
+On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
+(Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
+The following commands will configure firewalld to enable forwarding:
+
+.. code-block:: sh
+
+  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
@@ -265,6 +383,11 @@ The Flocker command line client (``flocker-deploy``) must be able to establish a
 Additionally, every node must be able to establish an SSH connection to all other nodes.
 So ensure that the firewall allows access to TCP port 22 on each node; from your IP address and from the nodes' IP addresses.
 Your firewall will also need to allow access to the ports your applications are exposing.
+
+.. warning::
+
+   Keep in mind the consequences of exposing unsecured services to the Internet.
+   Both applications with exposed ports and applications accessed via links will be accessible by anyone on the Internet.
 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.

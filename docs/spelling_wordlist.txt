@@ -3,6 +3,7 @@ app
 apps
 behaviour
 Btrfs
+bugfix
 Buildbot
 checksum
 chmod
@@ -10,11 +11,13 @@ Copr
 dataset
 Deis
 devel
+DigitalOcean
 dropdown
 failover
 filename
 filesystem
 filesystems
+firewalld
 Flocker
 Freenode
 handoff
@@ -22,6 +25,7 @@ handoffs
 hoc
 Homebrew
 hostname
+installable
 internet
 Kubernetes
 libswarm
@@ -29,8 +33,8 @@ Mesos
 metadata
 multi
 mv
-NAT'd
 namespace
+NAT'd
 pem
 petabyte
 petabytes
@@ -38,6 +42,7 @@ pre
 programmatically
 proxied
 proxying
+Rackspace
 snapshotting
 stateful
 sysadmin
