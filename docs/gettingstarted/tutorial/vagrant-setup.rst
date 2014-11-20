@@ -18,6 +18,8 @@ To replicate the steps demonstrated in this tutorial, you will need:
 You will also need ``flocker-cli`` installed (providing the ``flocker-deploy`` command).
 See :ref:`installing-flocker-cli`.
 
+.. note:: If you already have a version of ``flocker-cli`` older than |version| installed, delete the install script and directory before installing the latest version.
+
 Setup
 =====
 
@@ -63,7 +65,7 @@ Other Systems
 
 See the official `MongoDB installation guide`_ for your system.
 
-.. _VagrantSetup:
+.. _vagrant-setup:
 
 Creating Vagrant VMs Needed for Flocker
 ---------------------------------------

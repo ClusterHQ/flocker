@@ -16,6 +16,7 @@ from docker.errors import APIError
 from characteristic import attributes, Attribute
 
 from twisted.python.components import proxyForInterface
+from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
@@ -60,7 +61,9 @@ class Volume(object):
              Attribute("container_image", default_value=None),
              Attribute("ports", default_value=()),
              Attribute("environment", default_value=None),
-             Attribute("volumes", default_value=())])
+             Attribute("volumes", default_value=()),
+             Attribute("mem_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None)])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -91,8 +94,20 @@ class Unit(object):
         will be supplied to the Docker container or ``None`` if there are no
         environment variables for this container.
 
-    :ivar volumes: A ``tuple`` of ``Volume`` instances, the container's
+    :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
         volumes.
+
+    :ivar int mem_limit: The number of bytes to which to limit the in-core
+        memory allocations of this unit.  Or ``None`` to apply no limits.  The
+        behavior when the limit is encountered depends on the container
+        execution driver but the likely behavior is for the container process
+        to be killed (and therefore the container to exit).  Docker most likely
+        maps this value onto the cgroups ``memory.limit_in_bytes`` value.
+
+    :ivar int cpu_shares: The number of CPU shares to allocate to this unit.
+        Or ``None`` to let it have the default number of shares.  Docker maps
+        this value onto the cgroups ``cpu.shares`` value (the default of which
+        is probably 1024).
     """
 
 
@@ -106,7 +121,8 @@ class IDockerClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, environment=None, volumes=()):
+    def add(unit_name, image_name, ports=None, environment=None, volumes=(),
+            mem_limit=None, cpu_shares=None):
         """
         Install and start a new unit.
 
@@ -130,6 +146,15 @@ class IDockerClient(Interface):
             variables will be supplied to the unit.
 
         :param volumes: A sequence of ``Volume`` instances to mount.
+
+        :param int mem_limit: The number of bytes to which to limit the in-core
+            memory allocations of the new unit.  Or ``None`` to apply no
+            limits.
+
+        :param int cpu_shares: The number of CPU shares to allocate to the new
+            unit.  Or ``None`` to let it have the default number of shares.
+            Docker maps this value onto the cgroups ``cpu.shares`` value (the
+            default of which is probably 1024).
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -187,17 +212,19 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=()):
+            volumes=frozenset(), mem_limit=None, cpu_shares=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
             name=unit_name,
             container_name=unit_name,
             container_image=image_name,
-            ports=ports,
+            ports=frozenset(ports),
             environment=environment,
-            volumes=volumes,
-            activation_state=u'active'
+            volumes=frozenset(volumes),
+            activation_state=u'active',
+            mem_limit=mem_limit,
+            cpu_shares=cpu_shares,
         )
         return succeed(None)
 
@@ -210,18 +237,8 @@ class FakeDockerClient(object):
         return succeed(None)
 
     def list(self):
-        # XXX: This is a hack so that functional and unit tests that use
-        # DockerClient.list can pass until the real DockerClient.list can also
-        # return volumes information.
-        # See https://github.com/ClusterHQ/flocker/issues/289
-        incomplete_units = set()
-        for unit in self._units.values():
-            incomplete_units.add(
-                Unit(name=unit.name, container_name=unit.name,
-                     activation_state=unit.activation_state,
-                     container_image=unit.container_image,
-                     ports=frozenset(unit.ports)))
-        return succeed(incomplete_units)
+        units = set(self._units.values())
+        return succeed(units)
 
 
 @attributes(['internal_port', 'external_port'])
@@ -237,6 +254,7 @@ class PortMap(object):
 
 # Basic namespace for Flocker containers:
 BASE_NAMESPACE = u"flocker--"
+BASE_DOCKER_API_URL = u'unix://var/run/docker.sock'
 
 
 @implementer(IDockerClient)
@@ -251,9 +269,10 @@ class DockerClient(object):
     :ivar unicode namespace: A namespace prefix to add to container names
         so we don't clobber other applications interacting with Docker.
     """
-    def __init__(self, namespace=BASE_NAMESPACE):
+    def __init__(self, namespace=BASE_NAMESPACE,
+                 base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.12")
+        self._client = Client(version="1.12", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -299,7 +318,7 @@ class DockerClient(object):
         return ports
 
     def add(self, unit_name, image_name, ports=None, environment=None,
-            volumes=()):
+            volumes=(), mem_limit=None, cpu_shares=None):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -313,7 +332,10 @@ class DockerClient(object):
                 name=container_name,
                 environment=environment,
                 volumes=list(volume.container_path.path for volume in volumes),
-                ports=[p.internal_port for p in ports])
+                ports=[p.internal_port for p in ports],
+                mem_limit=mem_limit,
+                cpu_shares=cpu_shares,
+            )
 
         def _add():
             try:
@@ -407,17 +429,34 @@ class DockerClient(object):
                     ports = self._parse_container_ports(port_mappings)
                 else:
                     ports = list()
+                volumes = []
+                for container_path, node_path in data[u"Volumes"].items():
+                    volumes.append(
+                        Volume(container_path=FilePath(container_path),
+                               node_path=FilePath(node_path))
+                    )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                # XXX to extract volume info from the inspect results:
-                # https://github.com/ClusterHQ/flocker/issues/289
-                result.add(Unit(name=name,
-                                container_name=self._to_container_name(name),
-                                activation_state=state,
-                                container_image=image,
-                                ports=frozenset(ports)))
+                # Our Unit model counts None as the value for cpu_shares and
+                # mem_limit in containers without specified limits, however
+                # Docker returns the values in these cases as zero, so we
+                # manually convert.
+                cpu_shares = data[u"Config"][u"CpuShares"]
+                cpu_shares = None if cpu_shares == 0 else cpu_shares
+                mem_limit = data[u"Config"][u"Memory"]
+                mem_limit = None if mem_limit == 0 else mem_limit
+                result.add(Unit(
+                    name=name,
+                    container_name=self._to_container_name(name),
+                    activation_state=state,
+                    container_image=image,
+                    ports=frozenset(ports),
+                    volumes=frozenset(volumes),
+                    mem_limit=mem_limit,
+                    cpu_shares=cpu_shares),
+                )
             return result
         return deferToThread(_list)
 
@@ -434,7 +473,7 @@ class NamespacedDockerClient(proxyForInterface(IDockerClient, "_client")):
     containers in ``/flocker/`` and this class would look at containers in
     in ``/flocker/<namespace>/``.
     """
-    def __init__(self, namespace):
+    def __init__(self, namespace, base_url=BASE_DOCKER_API_URL):
         """
         :param unicode namespace: Namespace to restrict containers to.
         """

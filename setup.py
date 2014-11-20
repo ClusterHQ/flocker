@@ -99,12 +99,15 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
+            'flocker-serve = flocker.node.script:flocker_serve_main',
         ],
     },
 
     install_requires=[
         # Any changes here must be reflected in ``python-flocker.spec.in`` so
         # that RPM dependencies match.
+        # They must also be reflected in the yumdownloader lines in
+        # "Appendix: Pre-populating RPM Repository" in the Release Process.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
@@ -121,7 +124,9 @@ setup(
         "netifaces >= 0.8",
         "ipaddr == 2.1.10",
 
-        "docker-py == 0.5.0"
+        "docker-py == 0.5.0",
+        "jsonschema == 2.4.0",
+        "klein == 0.2.3",
         ],
 
     extras_require={
@@ -155,6 +160,9 @@ setup(
 
             # The test suite uses network namespaces
             "nomenclature >= 0.1.0",
+
+            # The acceptance tests interact with MongoDB
+            "pymongo>=2.7.2"
             ],
 
         # This extra is for Flocker release engineers to set up their release

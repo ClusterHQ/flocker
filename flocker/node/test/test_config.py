@@ -407,6 +407,74 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(expected_result, environment)
 
+    def test_valid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse_mem_limit`` returns an ``int``
+        representing the bytes memory limit for a container when given a valid
+        configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': 100000000
+            }
+        }
+        parser = FigConfiguration(config)
+        limit = parser._parse_mem_limit(
+            'postgres',
+            config['postgres']['mem_limit']
+        )
+        self.assertEqual(limit, 100000000)
+
+    def test_invalid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` raises a ``ConfigurationError`` if a
+        mem_limit config is specified that is not an integer.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': b"100000000"
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._parse
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "mem_limit must be an integer; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_valid_fig_config_default_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` creates an ``Application`` instance with a
+        memory_limit of None if no mem_limit is specified in a valid Fig
+        configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+            }
+        }
+        parser = FigConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['postgres'].memory_limit, None)
+
     def test_valid_fig_config_volumes(self):
         """
         ``FigConfiguration._parse_app_volumes`` returns a ``AttachedVolume``
@@ -807,10 +875,85 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
-    def test_invalid_fig_config_environment_not_dict(self):
+    def test_fig_config_environment_list_item_empty_value(self):
+        """
+        An entry in a list of environment variables that is just a label is
+        mapped to its label and a value of an empty unicode string.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_fig_config_environment_list_item_value(self):
+        """
+        A list of environment variables supplied in the form of LABEL=VALUE are
+        parsed in to a ``frozenset`` mapping LABEL to VALUE.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD=admin'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'admin')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_invalid_fig_config_environment_list_item(self):
+        """
+        A ``ConfigurationError`` is raised if an entry in a list of
+        'environment' values is not a string.
+        """
+        config = {
+            'postgres': {
+                'environment': [27014],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' value '27014' must be a string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_format(self):
         """
         A ``ConfigurationError`` is raised if the "environments" key of a fig
-        application config is not a dictionary.
+        application config is not a dictionary or list.
         """
         config = {
             'postgres': {
@@ -828,7 +971,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'postgres' has a config error. "
-            "'environment' must be a dictionary; got type 'str'."
+            "'environment' must be a dictionary or list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -999,6 +1142,131 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             e.message,
             "Application configuration must be a dictionary, got str."
         )
+
+    def test_error_on_memory_limit_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a mem_limit entry that is not
+        an integer.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': b"abcdef"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "mem_limit must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
+
+    def test_error_on_cpu_shares_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a cpu_shares entry that is not
+        an integer.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': b"1024"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "cpu_shares must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
+
+    def test_default_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit of None if no limit was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].memory_limit)
+
+    def test_default_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares of None if no limit was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].cpu_shares)
+
+    def test_application_with_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit set to the value specified in the configuration.
+        """
+        MEMORY_100MB = 100000000
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': MEMORY_100MB
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].memory_limit,
+                         MEMORY_100MB)
+
+    def test_application_with_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares set to the value specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': 512
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].cpu_shares,
+                         512)
 
     def test_not_valid_on_application_not_dict(self):
         """
@@ -1651,8 +1919,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid volume specification. Mountpoint ./.././var// is not an "
-            "absolute path.",
+            "Invalid volume specification. Mountpoint \"./.././var//\" is not "
+            "an absolute path.",
             exception.message
         )
 
@@ -1675,7 +1943,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
-            "Invalid volume specification. Mountpoint {mount} contains "
+            "Invalid volume specification. Mountpoint \"{mount}\" contains "
             "non-ASCII (unsupported).".format(mount=mountpoint_unicode),
             exception.message
         )
@@ -1700,34 +1968,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Invalid volume specification. Unexpected value: a random string",
             exception.message
         )
-
-    def test_lenient_mode(self):
-        """
-        ``Configuration.applications`` in lenient mode
-        accepts a volume with a null mountpoint.
-        """
-        config = dict(
-            version=1,
-            applications={
-                'mysql-hybridcluster': dict(
-                    image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': None}
-                ),
-            }
-        )
-        parser = FlockerConfiguration(config, lenient=True)
-        applications = parser.applications()
-        expected_applications = {
-            'mysql-hybridcluster': Application(
-                name='mysql-hybridcluster',
-                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
-                ports=frozenset(),
-                links=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
-                    mountpoint=None)),
-        }
-        self.assertEqual(expected_applications, applications)
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
@@ -1965,8 +2205,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
-                                        'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
             },
             'version': 1,
         }
@@ -1994,11 +2233,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': []
+                    'image': u'flocker/wordpress:v1.0.0'
                 },
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0',
-                                        'ports': []}
+                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
             },
             'version': 1,
         }
@@ -2056,7 +2293,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [],
                     'links': [{'local_port': 3306, 'remote_port': 63306,
                                'alias': 'mysql'}]
                 },
@@ -2097,9 +2333,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': None},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'ports': []
+                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'image': u'flocker/mysql:v1.0.0'
                 }
             },
             'version': 1,
@@ -2139,9 +2374,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': None},
-                    'image': u'flocker/mysql:v1.0.0',
-                    'ports': []
+                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'image': u'flocker/mysql:v1.0.0'
                 }
             },
             'version': 1
@@ -2178,10 +2412,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
-                    # Mountpoint will only be available once
-                    # https://github.com/ClusterHQ/flocker/issues/289 is
-                    # fixed.
-                    mountpoint=None)
+                    mountpoint=FilePath(b"/var/lib/data"))
             ),
             Application(
                 name='site-hybridcluster',
@@ -2203,7 +2434,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 links=frozenset(),
                 volume=AttachedVolume(
                     name=b'mysql-hybridcluster',
-                    mountpoint=None,
+                    mountpoint=FilePath(b"/var/lib/data")
                 )
             ),
             b'site-hybridcluster': Application(
@@ -2219,7 +2450,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         result = marshal_configuration(
             NodeState(running=applications, not_running=[]))
-        config = FlockerConfiguration(result, lenient=True)
+        config = FlockerConfiguration(result)
         apps = config.applications()
         self.assertEqual(expected_applications, apps)
 
@@ -2302,11 +2533,10 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(expected,
                          current_from_configuration(config))
 
-    def test_lenient(self):
+    def test_error_on_mountpoint_none(self):
         """
-        Until https://github.com/ClusterHQ/flocker/issues/289 is fixed,
-        ``current_from_configuration`` accepts ``None`` for volume
-        mountpoints.
+        ``current_from_configuration`` rejects ``None`` for volume
+        mountpoints, raising a ``ConfigurationError``.
         """
         config = {'example.com': {
             'applications': {
@@ -2317,18 +2547,12 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
             },
             'version': 1
         }}
-        expected = Deployment(nodes=frozenset([
-            Node(hostname='example.com', applications=frozenset([
-                Application(
-                    name='mysql-hybridcluster',
-                    image=DockerImage.from_string('unknown'),
-                    ports=frozenset(),
-                    links=frozenset(),
-                    volume=AttachedVolume(
-                        name='mysql-hybridcluster',
-                        mountpoint=None,
-                    )
-                ),
-            ]))]))
-        self.assertEqual(expected,
-                         current_from_configuration(config))
+
+        e = self.assertRaises(ConfigurationError, current_from_configuration,
+                              config)
+        expected = (
+            "Application 'mysql-hybridcluster' has a config error. Invalid "
+            "volume specification. Mountpoint \"None\" contains non-ASCII "
+            "(unsupported)."
+        )
+        self.assertEqual(e.message, expected)

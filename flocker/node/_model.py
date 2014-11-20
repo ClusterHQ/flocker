@@ -49,7 +49,8 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["name", "mountpoint"])
+@attributes(["name", "mountpoint", "maximum_size"],
+            defaults=dict(maximum_size=None))
 class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
@@ -60,14 +61,40 @@ class AttachedVolume(object):
         https://github.com/ClusterHQ/flocker/issues/49).
 
     :ivar FilePath mountpoint: The path within the container where this
-        volume should be mounted, or ``None`` if unknown
-        (see https://github.com/ClusterHQ/flocker/issues/289).
+        volume should be mounted.
+
+    :ivar int maximum_size: The maximum size in bytes of this volume, or
+        ``None`` for no limit.
     """
 
+    @classmethod
+    def from_unit(cls, unit):
+        """
+        Given a Docker ``Unit``, return a :class:`AttachedVolume`.
 
-@attributes(["name", "image", "ports", "volume", "links", "environment"],
+        :param Unit unit: A Docker ``Unit`` from which to create an
+            ``AttachedVolume`` where the volume name will be the unit name
+            and the mountpoint will be the unit's volume's container path.
+
+        :returns: A set of ``AttachedVolume`` instances, or None if there
+            is no volume within the supplied ``Unit`` instance.
+        """
+        volumes = set(unit.volumes)
+        name = unit.name
+        # XXX we only support one data volume per container at this time
+        # https://github.com/ClusterHQ/flocker/issues/49
+        try:
+            volume = volumes.pop()
+            return {cls(name=name, mountpoint=volume.container_path)}
+        except KeyError:
+            return None
+
+
+@attributes(["name", "image", "ports", "volume", "links", "environment",
+             "memory_limit", "cpu_shares"],
             defaults=dict(ports=frozenset(), volume=None,
-                          links=None, environment=None))
+                          links=frozenset(), environment=None,
+                          memory_limit=None, cpu_shares=None))
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.

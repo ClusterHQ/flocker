@@ -4,9 +4,24 @@ What's New
 
 .. note:: If you already have a tutorial environment from a previous release see :ref:`upgrading-vagrant-environment`.
 
+.. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
-v0.3 (in development)
-=====================
+v0.3.2
+======
+
+* Documented how to :ref:`configure the Fedora firewall<fedora-20-install>` on certain cloud platforms.
+
+
+v0.3.1
+======
+
+* Applications can now be :ref:`configured with a CPU and memory limit<configuration>`.
+* Documentation now includes :ref:`instructions for installing flocker-node on Fedora20<fedora-20-install>`.
+* Documentation now includes instructions for deploying ``flocker-node`` on three popular cloud services: :ref:`Amazon EC2<aws-install>`, :ref:`Rackspace<rackspace-install>`, and :ref:`DigitalOcean<digitalocean-install>`.
+
+
+v0.3
+====
 
 * ``geard`` is no longer used to manage Docker containers.
 * Added support for `Fig`_ compatible :ref:`application configuration <fig-compatible-config>` files.
@@ -18,7 +33,6 @@ v0.2
 * Moving volumes between nodes is now done with a :doc:`two-phase push<./clustering>` that should dramatically decrease application downtime when moving large amounts of data.
 * Added support for environment variables in the :doc:`application configuration<./configuration>`.
 * Added basic support for links between containers in the :doc:`application configuration<./configuration>`.
-
 
 v0.1
 ====

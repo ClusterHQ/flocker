@@ -108,14 +108,26 @@ def make_idockerclient_tests(fixture):
                 PortMap(internal_port=80, external_port=8080),
                 PortMap(internal_port=5432, external_port=5432)
             )
+            volumes = (
+                Volume(node_path=FilePath(b'/tmp'),
+                       container_path=FilePath(b'/var/lib/data')),
+            )
             self.addCleanup(client.remove, name)
-            d = client.add(name, image, ports=portmaps)
+            d = client.add(
+                name,
+                image,
+                ports=portmaps,
+                volumes=volumes,
+                mem_limit=100000000,
+                cpu_shares=512
+            )
             d.addCallback(lambda _: client.list())
 
             expected = Unit(
                 name=name, container_name=name, activation_state=u"active",
                 container_image=image, ports=frozenset(portmaps),
-                environment=None, volumes=()
+                environment=None, volumes=frozenset(volumes),
+                mem_limit=100000000, cpu_shares=512,
             )
 
             def got_list(units):
@@ -284,7 +296,8 @@ class UnitTests(TestCase):
             "container_image=u'flocker/flocker:v1.0.0', ports=[], "
             "environment=None, "
             "volumes=[<Volume(node_path=FilePath('/tmp'), "
-            "container_path=FilePath('/blah'))>])>",
+            "container_path=FilePath('/blah'))>], "
+            "mem_limit=None, cpu_shares=None)>",
 
             repr(Unit(name=u'site-example.com',
                       container_name=u'flocker--site-example.com',

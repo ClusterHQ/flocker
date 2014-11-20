@@ -10,9 +10,10 @@ Source0:        http://archive.clusterhq.com/downloads/flocker/Flocker-%{flocker
 BuildRequires:  python-devel
 
 BuildRequires:  python
-BuildRequires:  python-setuptools
+BuildRequires:  python-setuptools >= 1.4
 # For tests
-BuildRequires:  python-eliot >= 0.4.0, python-eliot < 0.5.0
+BuildRequires:  python-eliot == 0.4.0
+BuildRequires:  python-zope-interface >= 4.0.5
 BuildRequires:  pytz
 BuildRequires:  python-psutil = 2.1.2
 BuildRequires:  python-characteristic >= 14.1.0
@@ -22,14 +23,17 @@ BuildRequires:  python-treq = 0.2.1
 BuildRequires:  python-netifaces >= 0.8.0
 BuildRequires:  python-ipaddr = 2.1.10
 BuildRequires:  python-docker-py = 0.5.0
+BuildRequires:  python-jsonschema = 2.4.0
+BuildRequires:  python-klein = 0.2.3
 # The test suite runs the ssh command-line client and uses other utilities such
 # as ssh-keygen.
-BuildRequires: openssh-clients
+BuildRequires:  openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
 BuildRequires:  docker-io
 
-Requires:       python-setuptools
-Requires:       python-eliot >= 0.4.0, python-eliot < 0.5.0
+Requires:       python-setuptools >= 1.4
+Requires:       python-eliot == 0.4.0
+Requires:       python-zope-interface >= 4.0.5
 Requires:       pytz
 Requires:       python-characteristic >= 14.1.0
 Requires:       python-twisted = 14.0.0
@@ -37,10 +41,13 @@ Requires:       PyYAML = 3.10
 Requires:       python-treq = 0.2.1
 Requires:       python-netifaces >= 0.8.0
 Requires:       python-ipaddr = 2.1.10
+Requires:       python-jsonschema = 2.4.0
+Requires:       python-klein = 0.2.3
 
 %package -n flocker-cli
 Summary:        Docker orchestration and volume management frontend
 Requires:       python-flocker = %{version}-%{release}
+Requires:       openssh-clients
 
 %package -n flocker-node
 Summary:        Node software for flocker
@@ -50,6 +57,7 @@ Requires:       python-psutil = 2.1.2
 Requires:       docker-io
 Requires:       /usr/sbin/iptables
 Requires:       zfs
+Requires:       openssh-clients
 
 %description
 Flocker is an open-source volume manager and multi-host Docker container
@@ -113,6 +121,7 @@ trial flocker
 %doc README.rst
 
 %{_bindir}/flocker-volume
+%{_bindir}/flocker-serve
 %{_bindir}/flocker-changestate
 %{_bindir}/flocker-reportstate
 

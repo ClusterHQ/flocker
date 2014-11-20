@@ -188,3 +188,98 @@ class DeployerTests(TestCase):
                          for k, v in expected_variables])
         d.addCallback(started)
         return d
+
+    @if_docker_configured
+    def test_memory_limit(self):
+        """
+        The memory limit number specified in an ``Application`` is passed to
+        the container.
+        """
+        EXPECTED_MEMORY_LIMIT = 100000000
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
+
+        application_name = random_name()
+
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service, docker_client,
+                            make_memory_network())
+
+        desired_state = Deployment(nodes=frozenset([
+            Node(hostname=u"localhost",
+                 applications=frozenset([Application(
+                     name=application_name,
+                     image=image,
+                     memory_limit=EXPECTED_MEMORY_LIMIT
+                     )]))]))
+
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
+        d.addCallback(lambda _: wait_for_unit_state(
+            docker_client,
+            application_name,
+            [u'active'])
+        )
+
+        def inspect_application(_):
+            deferred_list = docker_client.list()
+
+            def app_memory(units):
+                unit = units.pop()
+                self.assertEqual(unit.mem_limit, EXPECTED_MEMORY_LIMIT)
+                return deferred_list
+
+            deferred_list.addCallback(app_memory)
+        d.addCallback(inspect_application)
+        return d
+
+    @if_docker_configured
+    def test_cpu_shares(self):
+        """
+        The CPU shares number specified in an ``Application`` is passed to the
+        container.
+        """
+        EXPECTED_CPU_SHARES = 512
+
+        image = DockerImage.from_string(u"openshift/busybox-http-app")
+
+        application_name = random_name()
+
+        docker_client = DockerClient()
+        self.addCleanup(docker_client.remove, application_name)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service, docker_client,
+                            make_memory_network())
+
+        desired_state = Deployment(nodes=frozenset([
+            Node(hostname=u"localhost",
+                 applications=frozenset([Application(
+                     name=application_name,
+                     image=image,
+                     cpu_shares=EXPECTED_CPU_SHARES
+                     )]))]))
+
+        d = deployer.change_node_state(desired_state,
+                                       Deployment(nodes=frozenset()),
+                                       u"localhost")
+        d.addCallback(lambda _: wait_for_unit_state(
+            docker_client,
+            application_name,
+            [u'active'])
+        )
+
+        def inspect_application(_):
+            deferred_list = docker_client.list()
+
+            def app_memory(units):
+                unit = units.pop()
+                self.assertEqual(unit.cpu_shares, EXPECTED_CPU_SHARES)
+                return deferred_list
+
+            deferred_list.addCallback(app_memory)
+        d.addCallback(inspect_application)
+        return d

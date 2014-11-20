@@ -1,5 +1,17 @@
-Flocker 0.3.0dev1 (2014-10-08)
-==============================
+Flocker 0.3.2 (2014-11-19)
+==========================
+
+- Documented how to configure the firewall during ``flocker-node`` installation on certain cloud platforms. (FLOC-1007)
+
+Flocker 0.3.1 (2014-11-18)
+==========================
+
+- Applications can now be configured with a CPU and memory limit. (FLOC-963, FLOC-962)
+- Added instructions for installing ``flocker-node`` on Fedora20. (FLOC-970)
+- Added instructions for deploying ``flocker-node`` on three popular cloud services: Amazon EC2, Rackspace, and DigitalOcean. (FLOC-984, FLOC-985, FLOC-983)
+
+Flocker 0.3.0 (2014-10-21)
+==========================
 
 - ``geard`` has been removed in favour of direct interaction with the Docker API. (#774, #712)
 - Fig compatible application configuration support. (#649)

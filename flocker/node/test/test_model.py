@@ -79,7 +79,7 @@ class ApplicationInitTests(make_with_init_tests(
         ports=None, volume=None, environment=None,
         links=frozenset(),
     ),
-    expected_defaults={'links': None},
+    expected_defaults={'links': frozenset()},
 )):
     """
     Tests for ``Application.__init__``.
@@ -98,7 +98,8 @@ class ApplicationTests(SynchronousTestCase):
                                   ports=None, links=frozenset())
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
-            "volume=None, links=frozenset([]), environment=None)>",
+            "volume=None, links=frozenset([]), environment=None, "
+            "memory_limit=None, cpu_shares=None)>",
             repr(application)
         )
 
