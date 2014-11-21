@@ -482,20 +482,20 @@ class PACKAGE(Values):
 
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
+        'A Docker orchestration and volume management tool.\n'
         'This is the base package of scripts and libraries.')
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
+        'A Docker orchestration and volume management tool.\n'
         'This meta-package contains symlinks to the Flocker client utilities, '
         'and has only the dependencies required to run those tools')
 
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
+        'A Docker orchestration and volume management tool.\n'
         'This meta-package contains symlinks to the Flocker node utilities, '
         'and has only the dependencies required to run those tools')
 
