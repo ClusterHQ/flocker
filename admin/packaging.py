@@ -128,7 +128,8 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
-        # A hack to handle DelayedVersion nonsense.
+        # Remove this DelayedVersion nonsense.
+        # See https://clusterhq.atlassian.net/browse/FLOC-1020
         version = getattr(self.version, 'version', self.version)
         release = getattr(self.version, 'release', None)
         if release is not None:
