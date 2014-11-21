@@ -477,7 +477,7 @@ class PACKAGE(Values):
     LICENSE = ValueConstant(b'ASL 2.0')
     URL = ValueConstant(b'https://clusterhq.com')
     VENDOR = ValueConstant(b'ClusterHQ')
-    MAINTAINER = ValueConstant(b'contact@clusterhq.com')
+    MAINTAINER = ValueConstant(b'ClusterHQ <contact@clusterhq.com>')
 
 
 class PACKAGE_PYTHON(PACKAGE):
