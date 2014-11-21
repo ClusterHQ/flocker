@@ -27,7 +27,7 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=2)
 
         def deploy(node_ips):
             node_1, node_2 = node_ips

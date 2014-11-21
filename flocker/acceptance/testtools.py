@@ -10,12 +10,11 @@ from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._config import FlockerConfiguration
-from flocker.node._docker import DockerClient
 from flocker.node._model import Application, DockerImage
 from flocker.testtools import loop_until
 
@@ -31,9 +30,6 @@ __all__ = [
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
     'require_flocker_cli',
     ]
-
-# The port on which the acceptance testing nodes make docker available
-REMOTE_DOCKER_PORT = 2375
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
@@ -59,7 +55,7 @@ def get_mongo_application():
     """
     return Application(
         name=MONGO_APPLICATION,
-        container_image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
+        image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
     )
 
 
@@ -99,18 +95,19 @@ def _run_SSH(port, user, node, command, input, key=None):
     return result[0]
 
 
-def _clean_node(ip):
+def _clean_node(test_case, node):
     """
     Remove all containers and zfs volumes on a node, given the IP address of
-    the node. Returns a Deferred which fires when finished.
-    """
-    docker_client = DockerClient(base_url=u'tcp://' + ip + u':' +
-                                 unicode(REMOTE_DOCKER_PORT))
-    d = docker_client.list()
+    the node.
 
-    d = d.addCallback(lambda units:
-                      gatherResults(
-                          [docker_client.remove(unit.name) for unit in units]))
+    :param test_case: The ``TestCase`` running this unit test.
+    :param bytes node: The hostname or IP of the node.
+    """
+    clean_deploy = {u"version": 1,
+                    u"nodes": {node.decode("ascii"): []}}
+    clean_applications = {u"version": 1,
+                          u"applications": {}}
+    flocker_deploy(test_case, clean_deploy, clean_applications)
 
     # Without the below, deploying the same application with a data volume
     # twice fails. See the error given with the tutorial's yml files:
@@ -124,13 +121,11 @@ def _clean_node(ip):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://github.com/ClusterHQ/flocker/issues/682
-    d = d.addCallback(
-        lambda _: _run_SSH(22, 'root', ip, [b"zfs"] + [b"destroy"] + [b"-r"] +
-                           [b"flocker"], None))
-    return d
+    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+             [b"flocker"], None)
 
 
-def get_nodes(num_nodes):
+def get_nodes(test_case, num_nodes):
     """
     Create ``num_nodes`` nodes with no Docker containers on them.
 
@@ -143,25 +138,27 @@ def get_nodes(num_nodes):
     num_nodes Docker containers will be created instead to replace this, see
     https://github.com/ClusterHQ/flocker/issues/900
 
+    :param test_case: The ``TestCase`` running this unit test.
     :param int num_nodes: The number of nodes to start up.
+
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.240", b"172.16.255.241"])
+    nodes = set([b"172.16.255.250", b"172.16.255.251"])
 
     for node in nodes:
         sock = socket()
         sock.settimeout(0.1)
         try:
-            can_connect = not sock.connect_ex((node, REMOTE_DOCKER_PORT))
+            can_connect = not sock.connect_ex((node, 22))
         finally:
             sock.close()
 
     if not can_connect:
         raise SkipTest("Acceptance testing nodes must be running.")
 
-    d = gatherResults([_clean_node(node) for node in nodes])
-    d.addCallback(lambda _: nodes)
-    return d
+    for node in nodes:
+        _clean_node(test_case, node)
+    return succeed(nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
@@ -219,10 +216,9 @@ def assert_expected_deployment(test_case, expected_deployment):
     :param dict expected_deployment: A mapping of IP addresses to sets of
         ``Application`` expected on the nodes with those IP addresses.
     """
-    for node, expected in enumerate(expected_deployment.items()):
+    for node, expected in expected_deployment.items():
         yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
         test_case.assertEqual(
-            set(FlockerConfiguration(
-                state['applications']).applications().values()),
+            set(FlockerConfiguration(state).applications().values()),
             expected)

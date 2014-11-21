@@ -26,7 +26,7 @@ class PortsTests(TestCase):
         Deploy an application with an internal port mapped to a different
         external port.
         """
-        getting_nodes = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=2)
 
         def deploy_port_application(node_ips):
             self.node_1, self.node_2 = node_ips
