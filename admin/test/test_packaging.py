@@ -889,6 +889,9 @@ class OmnibusPackageBuilderTests(TestCase):
             set(f.basename() for f in output_dir.children())
         )
 
+        for f in output_dir.children():
+            assert_deb_lint(self, f)
+
 
 
 RPMLINT_IGNORED_WARNINGS = (
@@ -961,6 +964,17 @@ LINTIAN_IGNORED_WARNINGS = (
     'non-standard-file-perm',
     'extra-license-file',
     'non-standard-executable-perm',
+    'package-installs-python-bytecode',
+    'embedded-javascript-library',
+    'wrong-path-for-interpreter',
+    # Not sure about this one. We do have a python2.7 dependency.
+    # https://lintian.debian.org/tags/python-script-but-no-python-dep.html
+    'python-script-but-no-python-dep',
+    # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
+    'symlink-should-be-relative',
+    # Werkzeug installs various images with executable permissions.
+    # https://github.com/mitsuhiko/werkzeug/issues/629
+    'executable-not-elf-or-script',
 )
 
 
