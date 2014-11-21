@@ -9,7 +9,7 @@ import platform
 import sys
 from subprocess import check_output, check_call
 from tempfile import mkdtemp
-from textwrap import dedent
+from textwrap import dedent, fill
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
@@ -482,22 +482,27 @@ class PACKAGE(Values):
 
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool.\n'
-        'This is the base package of scripts and libraries.')
+        'Docker orchestration and volume management tool\n'
+        + fill('This is the base package of scripts and libraries.', 79)
+    )
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool.\n'
-        'This meta-package contains symlinks to the Flocker client utilities, '
-        'and has only the dependencies required to run those tools')
+        'Docker orchestration and volume management tool\n'
+        + fill('This meta-package contains links to the Flocker client '
+               'utilities, and has only the dependencies required to run those '
+               'tools', 79)
+    )
 
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'Docker orchestration and volume management tool.\n'
-        'This meta-package contains symlinks to the Flocker node utilities, '
-        'and has only the dependencies required to run those tools')
+        'Docker orchestration and volume management tool\n'
+        + fill('This meta-package contains links to the Flocker node '
+               'utilities, and has only the dependencies required to run those '
+               'tools', 79)
+    )
 
 
 def omnibus_package_builder(
