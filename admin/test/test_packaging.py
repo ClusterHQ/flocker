@@ -858,6 +858,7 @@ class OmnibusPackageBuilderTests(TestCase):
         )
 
 
+    @require_root
     def test_functional_ubuntu1404(self):
         """
         The expected deb files are generated on Ubuntu14.04.
