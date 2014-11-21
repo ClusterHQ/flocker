@@ -143,7 +143,7 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.250", b"172.16.255.251"])
+    nodes = set([b"172.16.255.240", b"172.16.255.241"])
 
     for node in nodes:
         sock = socket()
