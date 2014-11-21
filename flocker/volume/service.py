@@ -26,6 +26,7 @@ from twisted.internet.task import LoopingCall
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
 from .filesystems.zfs import StoragePool
+from ._model import VolumeSize
 from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
@@ -124,6 +125,10 @@ class VolumeService(Service):
         self.uuid = config[u"uuid"]
         self.pool.startService()
 
+    # Replace name with a volume model object that can describe many
+    # parameters.  The usage will be something like:
+    #     volume_service.create(volume_service.get(name, ...))
+    # FLOC-978
     def create(self, name):
         """Create a new volume.
 
@@ -131,6 +136,8 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
+        # This Volume instance will already exist so it won't need to be
+        # created here.  FLOC-978
         volume = Volume(uuid=self.uuid, name=name, service=self)
         d = self.pool.create(volume)
 
@@ -172,12 +179,14 @@ class VolumeService(Service):
             # 0o777 the long way:
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
-    def get(self, name):
+    def get(self, name, **kwargs):
         """
         Return a locally-owned ``Volume`` with the given name.
 
-        Whether or not this volume actually exists is not checked in any
-        way.
+        Whether or not this volume actually exists is not checked in any way.
+
+        :param **: Additional keyword arguments to pass on to the ``Volume``
+            initializer.
 
         :param VolumeName name: The name of the volume.
 
@@ -186,7 +195,7 @@ class VolumeService(Service):
 
         :return: A ``Volume``.
         """
-        return Volume(uuid=self.uuid, name=name, service=self)
+        return Volume(uuid=self.uuid, name=name, service=self, **kwargs)
 
     def wait_for_volume(self, name):
         """
@@ -198,6 +207,12 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
+        # Change this to not create the Volume instance right away.  Instead,
+        # try to find it by uuid/name in `check_for_volume`.  If a Volume
+        # instance there matches, use that object as the final result of the
+        # Deferred returned by this method (it will have its other attributes
+        # set correctly because they will be set correctly by enumerate).
+        # FLOC-976
         volume = Volume(uuid=self.uuid, name=name, service=self)
 
         def check_for_volume(volumes):
@@ -244,6 +259,9 @@ class VolumeService(Service):
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
+
+                # Add maximum size information here.  Take it from the
+                # filesystem object.  FLOC-976
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,
@@ -352,7 +370,8 @@ class VolumeService(Service):
         return changing_owner
 
 
-@attributes(["uuid", "name", "service"])
+@attributes(["uuid", "name", "service", "size"],
+            defaults=dict(size=VolumeSize(maximum_size=None)))
 class Volume(object):
     """
     A data volume's identifier.
@@ -360,6 +379,7 @@ class Volume(object):
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
     :ivar VolumeName name: The name of the volume.
+    :ivar VolumeSize size: The storage capacity of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
     def locally_owned(self):
@@ -380,6 +400,9 @@ class Volume(object):
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
+        # Preserve size field so that the new object reflects the same metadata
+        # as the original.  Only really necessary after it's possible to create
+        # volumes with size parameters, though.  FLOC-978.
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
                             service=self.service)
         d = self.service.pool.change_owner(self, new_volume)
