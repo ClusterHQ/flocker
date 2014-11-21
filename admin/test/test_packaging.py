@@ -956,7 +956,6 @@ LINTIAN_IGNORED_WARNINGS = (
     'unstripped-binary-or-object',
     'missing-dependency-on-libc',
     'no-copyright-file',
-    'description-synopsis-starts-with-article',
     'debian-revision-not-well-formed',
     'unknown-section',
     'non-standard-file-perm',
