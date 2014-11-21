@@ -185,6 +185,7 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         d = self.start_container(unit_name=name, image_name="busybox",
                                  expected_states=(u'inactive',))
+
         def remove_container(client):
             client.remove(name)
         d.addCallback(remove_container)
