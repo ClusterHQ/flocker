@@ -130,6 +130,10 @@ class Dependency(object):
         """
         # A hack to handle DelayedVersion nonsense.
         version = getattr(self.version, 'version', self.version)
+        release = getattr(self.version, 'release', None)
+        if release is not None:
+            version += '-' + release
+
         if package_type == PackageTypes.DEB:
             if self.version:
                 return "%s (%s %s)" % (
@@ -204,7 +208,7 @@ def make_dependencies(package_name, package_version, distribution):
         dependencies += (
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=package_version)
         ,)
     return dependencies
