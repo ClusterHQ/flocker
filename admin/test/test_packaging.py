@@ -1059,7 +1059,7 @@ class BuildInDockerFunctionTests(TestCase):
         ``DockerBuild`` and ``DockerRun`` instances.
         """
         supplied_distribution = 'Foo'
-        expected_tag = 'clusterhq/build_%s' % (supplied_distribution,)
+        expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
         supplied_top_level = FilePath('/foo/bar')
         expected_build_directory = supplied_top_level.descendant(
             ['admin', 'build_targets', supplied_distribution])

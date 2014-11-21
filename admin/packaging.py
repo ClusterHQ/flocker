@@ -663,7 +663,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     if package_uri == top_level.path:
         package_uri = '/flocker'
 
-    tag = "clusterhq/build_%s" % (distribution,)
+    tag = "clusterhq/build-%s" % (distribution,)
     build_directory = top_level.descendant(
         ['admin', 'build_targets', distribution])
 
