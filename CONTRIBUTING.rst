@@ -5,7 +5,7 @@ Contributing to Flocker
 Introduction
 ============
 
-ClusterHQ develops software using a variation of the `Ultimate Quality Development System`_.
+ClusterHQ develops software using test-driven development, code reviews and per-issue branches.
 
 * Each unit of work is defined in an issue in the issue tracker and developed on a branch.
 
@@ -28,7 +28,6 @@ ClusterHQ develops software using a variation of the `Ultimate Quality Developme
 
 * The code reviewer can approve the pull request for merging as is, with some changes, or request changes and an additional review.
 
-.. _Ultimate Quality Development System: https://twistedmatrix.com/trac/wiki/UltimateQualityDevelopmentSystem
 .. _PEP 8: http://legacy.python.org/dev/peps/pep-0008/
 .. _Buildbot: http://build.clusterhq.com/
 
@@ -39,10 +38,14 @@ Talk to Us
 ==========
 
 Have questions or need help?
-Besides filing a `GitHub issue`_ with feature requests or bug reports you can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
-.. _GitHub issue: https://github.com/ClusterHQ/flocker/issues
+* If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net.
+* You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports.
+* You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
+
+.. _GitHub issues: https://github.com/ClusterHQ/flocker/issues
 .. _flocker-users Google Group: https://groups.google.com/forum/?hl=en#!forum/flocker-users
+
 
 Development Environment
 =======================
@@ -102,8 +105,30 @@ You can view the result by opening ``docs/_build/html/index.html`` in your brows
 .. _Sphinx: http://sphinx-doc.org/
 
 
-Requirements for Contributions
-==============================
+Contributing to Flocker
+=======================
+
+At a minimum you can simply submit a GitHub Pull Request with your changes.
+In order to maximize your chances of getting your code accepted, and to keep you from wasting time:
+
+* Discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
+* Explain the purpose of your PR, and why these changes are necessary.
+* Limit your PR to fixing a single problem or adding a single feature.
+* See the merge requirements below for details about our testing and documentation requirements.
+
+Make sure your PR adds your name to ``AUTHORS.rst`` if you've never contributed to Flocker before.
+
+Once your pull request is merged, as a small thank you for contributing to Flocker we'd like to send you some ClusterHQ swag.
+Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
+We'll get something in the mail to you.
+
+.. _JIRA: https://clusterhq.atlassian.net
+
+
+Merge Requirements
+^^^^^^^^^^^^^^^^^^
+
+While we're happy to look at contributions in any state as GitHub PRs, the requirements below will need to be met before code is merged.
 
 1. All code must have unit test coverage and to the extent possible functional test coverage.
 
@@ -128,113 +153,41 @@ Requirements for Contributions
    Create alternative but equal documentation for the visually impaired, for example, by using alternative text on all images.
    If in doubt, particularly about markup changes, use http://achecker.ca/ and fix any "Known Problems" and "Likely Problems".
 
-4. Add your name (in alphabetical order) to the ``AUTHORS.rst`` file.
-
 
 Project Development Process
 ===========================
 
-The core development team uses GitHub issues to track planned work.
-Issues are organized by release milestones, and then by subcategories:
+The core development team uses a `JIRA workflow`_ to track planned work.
+Issues are organized by sprints, and can reside in various states:
 
 Backlog
-    Issues we don't expect to do in the release.
-    These issues don't have any particular category label.
     All issues start in the backlog when they are filed.
-    The requirements for an issue must be completely specified before it can move out of the backlog.
+
+Design Backlog
+    The issue requires a design, and will be worked on soon.
 
 Design
-    Issues that we expect to work on soon.
-    This is indicated by a ``design`` label.
-    A general plan for accomplishing the requirements must be specified on the issue before it can move to the *Ready* state.
-    The issue is assigned to the developer working on the plan.
-    When there is a proposed plan the ``review`` label is added to the issue (so that it has both ``design`` and ``review``).
+    The issue is currently being designed.
 
-Ready
-    Issues that are ready to be worked on.
-    This is indicated by a ``ready`` label.
-    Issues can only be *Ready* after they have been in *Design* so they include an implementation plan.
-    When someone starts work on an issue it is moved to the *In Progress* category
-    (the ``ready`` keyword is removed and the ``in progress`` label is added).
+Design Review Ready
+    The design is ready for review.
+    This often involves submitting a GitHub pull request with a sketch of the code.
 
-In Progress
-    Such issues are assigned to the developer who is currently working on them.
-    This is indicated by an ``in progress`` label.
-    When the code is ready for review a new pull request is opened.
-    The pull request is added to the *Review* category.
+Code Backlog
+    The design has been approved and is ready to code.
 
-Ready for Review
-    An issue or pull request that includes work that is ready to be reviewed.
-    This is indicated by a ``review`` label.
-    Issues can either be in design review (``design`` and ``review``) or final review (just ``review``).
-    A reviewer can move a design review issue to *Ready* (to indicate the design is acceptable) or back to *Design* (to indicate it needs more work).
-    A reviewer can move a final review issue to *Approved* (to indicate the work is acceptable) or back to *In Progress* (to indicate more work is needed).
+Coding
+    The issue is currently being coded.
 
-Passed Review
-    A pull request that has some minor problems that need addressing, and can be merged once those are dealt with and all tests pass.
-    This is indicated by an ``accepted`` label.
+Code Review Ready
+    The code is ready for review.
+    This typically involves submitting a GitHub pull request.
+
+Code Review
+    The code is being reviewed.
 
 Done
-    Closed issues and pull requests.
+    The issue has been closed.
+    Some final work may remain to address review comments; once this is done and the branch is merged the GitHub PR will be closed.
 
-Blocked
-    Issues that can't be worked on because they are waiting on some other work to be completed.
-    This is indicated by a ``blocked`` label.
-
-
-
-You can see the current status of all issues and pull requests by visiting https://waffle.io/clusterhq/flocker.
-In general issues will move from *Backlog* to *Design* to *Ready* to *In Progress*.
-An in-progress issue will have a branch with the issue number in its name.
-When the branch is ready for review a pull request will be created in the *Review* category.
-When the branch is merged the corresponding pull requests and issues will be closed.
-
-
-Steps to Contribute Code
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-GitHub collaborators can participate in the development workflow by changing the labels on an issue.
-GitHub lets non-collaborators create new issues and pull requests but it does not let them change labels.
-If you are not a collaborator you may seek out assistance from a collaborator to set issue labels to reflect the issue's stage.
-
-1. Pick the next issue in the *Ready* category.
-   Drag it to the *In Progress* column in Waffle (or change the label from ``ready`` to ``in progress`` in GitHub).
-
-2. Create a branch from master with a name including a few descriptive words and ending with the issue number, e.g. ``add-thingie-123``.
-
-3. Resolve the issue by making changes in the branch.
-
-4. Submit the issue/branch for review.
-   Create a pull request on GitHub for the branch.
-   The pull request should include a ``Fixes #123`` line referring to the issue that it resolves (to automatically close the issue when the branch is merged).
-   Make sure Buildbot indicates all tests pass.
-
-5. Address any points raised by the reviewer.
-   If a re-submission for review has been requested, change the label from ``in progress`` to ``review`` in GitHub (or drag it to the *Ready for Review* column in Waffle) and go back to step 4.
-
-6. Once it is approved, merge the branch into master by clicking the ``Merge`` button.
-
-7. As a small thank you for contributing to Flocker, we'd like to send you some ClusterHQ swag.  
-   Once your pull request has been merged, just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
-   We'll get something in the mail to you.
-
-
-Steps to Contribute Reviews
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-1. Pick a pull request in GitHub/Waffle that is ready for review (``review`` label/*Review* category).
-
-2. Use the continuous integration information in the PR to verify the test suite is passing.
-
-3. Verify the code satisfies the Requirements for Contribution (see above).
-
-4. Verify the change satisfies the requirements specified on the issue.
-
-5. Think hard about whether the code is good or bad.
-
-6. Leave comments on the GitHub PR page about any of these areas where you find problems.
-
-7. Leave a comment on the GitHub PR page explicitly approving or rejecting the change.
-   If you accept the PR and no final changes are required then use the GitHub merge button to merge the branch.
-   If you accept the PR but changes are needed move it to the *Review Passed* column in Waffle or change its label from ``review`` to ``approved``.
-   If you do not accept the PR move it to the *In Progress* column in Waffle or change its label from ``review`` to ``in progress``.
+.. _JIRA workflow: https://clusterhq.atlassian.net/
