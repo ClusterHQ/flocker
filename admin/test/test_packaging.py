@@ -857,6 +857,9 @@ class OmnibusPackageBuilderTests(TestCase):
             set(f.basename() for f in output_dir.children())
         )
 
+        for f in output_dir.children():
+            assert_rpm_lint(self, f)
+
 
     @require_root
     def test_functional_ubuntu1404(self):
@@ -918,6 +921,7 @@ RPMLINT_IGNORED_WARNINGS = (
     'no-binary',
     'python-bytecode-without-source',
     'python-bytecode-inconsistent-mtime',
+    'wrong-script-interpreter',
 )
 
 
