@@ -860,7 +860,6 @@ class OmnibusPackageBuilderTests(TestCase):
         for f in output_dir.children():
             assert_rpm_lint(self, f)
 
-
     @require_root
     def test_functional_ubuntu1404(self):
         """
@@ -894,7 +893,6 @@ class OmnibusPackageBuilderTests(TestCase):
 
         for f in output_dir.children():
             assert_deb_lint(self, f)
-
 
 
 RPMLINT_IGNORED_WARNINGS = (
@@ -1300,6 +1298,7 @@ class BuildInDockerFunctionTests(TestCase):
             )
         )
 
+
 class MakeDependenciesTests(TestCase):
     """
     Tests for ``make_dependencies``.
@@ -1318,7 +1317,6 @@ class MakeDependenciesTests(TestCase):
             ),
             make_dependencies('node', expected_version, 'fedora')
         )
-
 
     def test_cli(self):
         """

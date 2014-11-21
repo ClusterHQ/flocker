@@ -209,8 +209,7 @@ def make_dependencies(package_name, package_version, distribution):
             Dependency(
                 package='clusterhq-python-flocker',
                 compare='=',
-                version=package_version)
-        ,)
+                version=package_version),)
     return dependencies
 
 
@@ -491,17 +490,16 @@ class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
         'Docker orchestration and volume management tool\n'
         + fill('This meta-package contains links to the Flocker client '
-               'utilities, and has only the dependencies required to run those '
-               'tools', 79)
+               'utilities, and has only the dependencies required to run '
+               'those tools', 79)
     )
 
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
         'Docker orchestration and volume management tool\n'
-        + fill('This meta-package contains links to the Flocker node '
-               'utilities, and has only the dependencies required to run those '
-               'tools', 79)
+        + fill('This meta-package contains links to the Flocker node utilities'
+               'and has only the dependencies required to run those tools', 79)
     )
 
 
