@@ -11,7 +11,7 @@ from io import BytesIO
 
 from zope.interface import implementer
 
-from characteristic import attributes, with_init, with_cmp, with_repr
+from characteristic import with_init, with_cmp, with_repr
 
 from twisted.internet.defer import succeed, fail
 from twisted.application.service import Service
