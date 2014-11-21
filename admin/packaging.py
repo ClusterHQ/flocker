@@ -26,11 +26,13 @@ class PackageTypes(Values):
     Constants representing supported target packaging formats.
     """
     RPM = ValueConstant('rpm')
+    DEB = ValueConstant('deb')
 
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora',),
+    PackageTypes.RPM: ('fedora', 'centos'),
+    PackageTypes.DEB: ('ubuntu',),
 }
 
 
@@ -126,7 +128,15 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
-        if package_type == PackageTypes.RPM:
+        # A hack to handle DelayedVersion nonsense.
+        version = getattr(self.version, 'version', self.version)
+        if package_type == PackageTypes.DEB:
+            if self.version:
+                return "%s (%s %s)" % (
+                    self.package, self.compare, version)
+            else:
+                return self.package
+        elif package_type == PackageTypes.RPM:
             if self.version:
                 return "%s %s %s" % (self.package, self.compare, self.version)
             else:
@@ -146,6 +156,12 @@ DEPENDENCIES = {
         'fedora': (
             Dependency(package='python'),
         ),
+        'centos': (
+            Dependency(package='python'),
+        ),
+        'ubuntu': (
+            Dependency(package='python2.7'),
+        ),
     },
     'node': {
         'fedora': (
@@ -154,10 +170,29 @@ DEPENDENCIES = {
             Dependency(package='zfs', compare='>=', version='0.6.3'),
             Dependency(package='openssh-clients'),
         ),
+        'centos': (
+            Dependency(package='docker', compare='>=', version='1.2'),
+            Dependency(package='/usr/sbin/iptables'),
+            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            # trust-updates version
+            Dependency(package='docker.io', compare='>=', version='1.0.1'),
+            Dependency(package='iptables'),
+            Dependency(package='zfsutils', compare='>=', version='0.6.3'),
+            Dependency(package='openssh-client'),
+        ),
     },
     'cli': {
         'fedora': (
             Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            Dependency(package='openssh-client'),
         ),
     },
 }
@@ -182,7 +217,8 @@ def make_dependencies(package_name, package_version, distribution):
             Dependency(
                 package='clusterhq-python-flocker',
                 compare='==',
-                version=package_version),)
+                version=package_version)
+        ,)
     return dependencies
 
 
@@ -777,7 +813,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora20.'],
+         'The target distribution. One of fedora20, centos7, or ubuntu1404.'],
     ]
 
     longdesc = dedent("""\
