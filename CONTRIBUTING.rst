@@ -39,7 +39,7 @@ Talk to Us
 
 Have questions or need help?
 
-* If you want to follow along our development plans our main issue tracker is https://clusterhq.atlassian.net.
+* If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net.
 * You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
@@ -109,11 +109,16 @@ Contributing to Flocker
 =======================
 
 At a minimum you can simply submit a GitHub Pull Request with your changes.
-We would prefer however that you discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
+In order to maximize your chances of getting your code accepted, and to keep you from wasting time:
 
-If you've never contributed to Flocker before, make sure your PR adds your name to ``AUTHORS.rst``.
+* Discuss your ideas with us in advance in a `JIRA`_ or GitHub issue.
+* Explain the purpose of your PR, and why these changes are necessary.
+* Limit your PR to fixing a single problem or adding a single feature.
+* See the merge requirements below for details about our testing and documentation requirements.
 
-Once your pull request is merged, as a small thank you for contributing to Flocker we'd like to send you some ClusterHQ swag
+Make sure your PR adds your name to ``AUTHORS.rst`` if you've never contributed to Flocker before.
+
+Once your pull request is merged, as a small thank you for contributing to Flocker we'd like to send you some ClusterHQ swag.
 Just send an email to thankyou@clusterhq.com with your t-shirt size, mailing address and a phone number to be used only for filling out the shipping form.
 We'll get something in the mail to you.
 
