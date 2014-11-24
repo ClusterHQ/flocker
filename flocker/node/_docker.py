@@ -19,7 +19,7 @@ from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
-from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
+from twisted.web.http import NOT_FOUND
 
 
 class AlreadyExists(Exception):
@@ -272,7 +272,7 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.12", base_url=base_url)
+        self._client = Client(version="1.14", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -400,12 +400,9 @@ class DockerClient(object):
                 self._client.stop(container_name)
                 self._client.remove_container(container_name)
             except APIError as e:
-                # 500 error code is used for "this was already stopped" in
-                # older versions of Docker. Newer versions of Docker API
-                # give NOT_MODIFIED instead, so we can fix this when we
-                # upgrade: https://github.com/ClusterHQ/flocker/issues/721
-                if e.response.status_code in (
-                        NOT_FOUND, INTERNAL_SERVER_ERROR):
+                # If the container doesn't exist, we swallow the error,
+                # since this method is supposed to be idempotent.
+                if e.response.status_code == NOT_FOUND:
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:

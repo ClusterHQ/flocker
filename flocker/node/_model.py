@@ -85,7 +85,8 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
-            return {cls(name=name, mountpoint=volume.container_path)}
+            return {cls(name=name, mountpoint=volume.container_path,
+                        maximum_size=volume.size.maximum_size)}
         except KeyError:
             return None
 

@@ -11,13 +11,17 @@ import os
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.internet.error import ProcessDone, ProcessTerminated
 from twisted.python.failure import Failure
+from twisted.python.filepath import FilePath
 
 from eliot import Logger
 from eliot.testing import LoggedMessage, validateLogging, assertContainsFields
 
-from ...testtools import FakeProcessReactor
+from ...testtools import (
+    FakeProcessReactor, assert_equal_comparison, assert_not_equal_comparison
+)
 
 from ..filesystems.zfs import (
+    _DatasetInfo,
     zfs_command, CommandFailed, BadArguments, Filesystem, ZFSSnapshots,
     _sync_command_error_squashed, _latest_common_snapshot, ZFS_ERROR,
     Snapshot,
@@ -37,11 +41,67 @@ class FilesystemTests(SynchronousTestCase):
         self.assertEqual(filesystem.name, b"hpool/mydataset")
 
     def test_root_name(self):
-        """Given dataset ``None``, ``Filesystem.name`` returns the ZFS
-        filesystem name which is just the pool name.
+        """
+        Given dataset ``None``, ``Filesystem.name`` returns the ZFS filesystem
+        name which is just the pool name.
         """
         filesystem = Filesystem(b"hpool", None)
         self.assertEqual(filesystem.name, b"hpool")
+
+    def test_equality(self):
+        """
+        Two ``Filesystem`` instances are equal if they refer to the same pool
+        and dataset.
+        """
+        pool = b"zpool"
+        dataset = b"zdata"
+        assert_equal_comparison(
+            self,
+            Filesystem(
+                pool=pool, dataset=dataset, mountpoint=FilePath(b"foo"),
+                size=123, reactor=object()),
+            Filesystem(
+                pool=pool, dataset=dataset, mountpoint=FilePath(b"bar"),
+                size=321, reactor=object())
+        )
+
+    def test_inequality_pool(self):
+        """
+        If two ``Filesystem`` instances have different values for the ``pool``
+        attribute they are not equal.
+        """
+        dataset = b"zdata"
+        mountpoint = FilePath(b"/foo")
+        size = 123
+        reactor = object()
+        assert_not_equal_comparison(
+            self,
+            Filesystem(
+                pool=b"apool", dataset=dataset, mountpoint=mountpoint,
+                size=size, reactor=reactor),
+            Filesystem(
+                pool=b"bpool", dataset=dataset, mountpoint=mountpoint,
+                size=size, reactor=reactor)
+        )
+
+    def test_inequality_dataset(self):
+        """
+        If two ``Filesystem`` instances have different values for the ``pool``
+        attribute they are not equal.
+        """
+        pool = b"zpool"
+        mountpoint = FilePath(b"/foo")
+        size = 123
+        reactor = object()
+        assert_not_equal_comparison(
+            self,
+            Filesystem(
+                pool=pool, dataset=b"adataset", mountpoint=mountpoint,
+                size=size, reactor=reactor),
+            Filesystem(
+                pool=pool, dataset=b"bdataset", mountpoint=mountpoint,
+                size=size, reactor=reactor)
+        )
 
 
 class ZFSCommandTests(SynchronousTestCase):
@@ -325,3 +385,36 @@ class LatestCommonSnapshotTests(SynchronousTestCase):
         b = Snapshot(name=b"b")
         self.assertEqual(
             b, _latest_common_snapshot([a, b], [a, b]))
+
+
+class DatasetInfoTests(SynchronousTestCase):
+    """
+    Tests for ``_DatasetInfo``.
+    """
+    def setUp(self):
+        self.info = _DatasetInfo(
+            dataset=b"foo",
+            mountpoint=b"bar",
+            refquota=1234,
+        )
+
+    def test_immutable_dataset(self):
+        """
+        :class:`_DatasetInfo.dataset` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "dataset", b"bar")
+
+    def test_immutable_mountpoint(self):
+        """
+        :class:`_DatasetInfo.mountpoint` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "mountpoint", b"bar")
+
+    def test_immutable_refquota(self):
+        """
+        :class:`_DatasetInfo.refquota` cannot be rebound.
+        """
+        self.assertRaises(
+            AttributeError, setattr, self.info, "refquota", 321)

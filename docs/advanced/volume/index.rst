@@ -43,6 +43,14 @@ Cloning a volume relies on ZFS's underlying cloning functionality.
 * The cost of cloning is trivial because ZFS is a copy-on-write filesystem.
 * Any on-disk data in the parent volume that is referenced by the clone will not be freed so long as the clone exists.
 
+Sizes
+^^^^^
+
+Volumes may be configured with a maximum size.
+This functionality relies on ZFS's ``refquota`` feature.
+The maximum size of a volume is set as the value of the ``refquota`` property for the underlying ZFS filesystem.
+This does not allocate any space for the filesystem but it does prevent the filesystem from growing above that size.
+
 
 Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^

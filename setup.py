@@ -170,6 +170,9 @@ setup(
         "release": [
             "gsutil",
             "wheel",
+            "virtualenv",
+            "PyCrypto",
+            "pyasn1",
             ],
         },
 

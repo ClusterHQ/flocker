@@ -56,7 +56,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -66,7 +66,7 @@ You'll need to do this every time you start a new shell.
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -90,9 +90,9 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-0.3.0
+   alice@mercury:~$ brew install flocker-0.3.2
    ...
-   alice@mercury:~$ brew test flocker-0.3.0
+   alice@mercury:~$ brew test flocker-0.3.2
    ...
    alice@mercury:~$
 
@@ -103,7 +103,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
@@ -354,6 +354,16 @@ To enable and start Docker, run the following commands in a root console:
 
    systemctl start docker
    systemctl enable docker
+
+To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
+On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
+(Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
+The following commands will configure firewalld to enable forwarding:
+
+.. code-block:: sh
+
+  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
