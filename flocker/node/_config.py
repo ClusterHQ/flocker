@@ -7,7 +7,9 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import math
 import os
+import re
 import types
 
 from twisted.python.filepath import FilePath
@@ -86,6 +88,45 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+def parse_storage_string(value):
+    """
+    Converts a string representing a quantity and a unit identifier in to
+    an integer value representing the number of bytes in that quantity, e.g.
+    an input of "1G" is parsed to 1073741824. Raises ``ValueError`` if
+    value cannot be converted.
+
+    An int is always returned, so conversions resulting in a floating-point
+    are always rounded UP to ensure sufficient bytes for the specified storage
+    size, e.g. input of "2.1M" is converted to 2202010 bytes, not 2202009.
+
+    :param StringTypes value: The string value to convert to integer bytes.
+
+    :returns: ``int`` representing the supplied value converted to bytes, e.g.
+        input of "2G" (2 gigabytes) returns 2147483648.
+    """
+    byte_multipliers = {
+        'K': 1024, 'M': 1048576,
+        'G': 1073741824, 'T': 1099511627776
+    }
+    if not isinstance(value, types.StringTypes):
+        raise ValueError("Value must be string, got {type}.".format(
+            type=type(value).__name__))
+    pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
+    parsed = pattern.match(value)
+    if not parsed:
+        raise ValueError(
+            "Value '{value}' could not be parsed as a storage quantity.".
+            format(value=value)
+        )
+    quantity, unit = parsed.groups()
+    quantity = float(quantity)
+    if unit is not None:
+        unit = unit.upper()
+        quantity = quantity * byte_multipliers[unit]
+    quantity = int(math.ceil(quantity))
+    return quantity
 
 
 class ApplicationMarshaller(object):
@@ -873,6 +914,70 @@ class FlockerConfiguration(object):
 
         return frozenset(links)
 
+    def _parse_volume(self, configured_volume, application_name):
+        """
+        Validate and parse the volume portion of a Flocker configuration.
+
+        :param dict configured_volume: The 'volume' portion of the parsed
+            application config.
+
+        :param unicode application_name: The name of the current application.
+
+        :returns ``AttachedVolume`` instance representing the parsed volume.
+
+        :raises: ValueError on any parsing error.
+        """
+        try:
+            maximum_size = configured_volume.pop('maximum_size')
+        except KeyError:
+            maximum_size = None
+        except AttributeError:
+            raise ValueError(
+                "Unexpected value: " + str(configured_volume)
+            )
+        else:
+            try:
+                maximum_size = parse_storage_string(maximum_size)
+                if maximum_size < 1:
+                    raise ValueError("Must be greater than zero.")
+            except ValueError as e:
+                raise ValueError('maximum_size: {msg}'.format(msg=e.message))
+        try:
+            mountpoint = configured_volume['mountpoint']
+        except KeyError:
+            raise ValueError("Missing mountpoint.")
+
+        if not isinstance(mountpoint, str):
+            raise ValueError(
+                "Mountpoint \"{path}\" contains non-ASCII "
+                "(unsupported).".format(
+                    path=mountpoint
+                )
+            )
+        if not os.path.isabs(mountpoint):
+            raise ValueError(
+                "Mountpoint \"{path}\" is not an absolute path."
+                .format(
+                    path=mountpoint
+                )
+            )
+        configured_volume.pop('mountpoint')
+        if configured_volume:
+            raise ValueError(
+                "Unrecognised keys: {keys}.".format(
+                    keys=', '.join(sorted(
+                        configured_volume.keys()))
+                ))
+        mountpoint = FilePath(mountpoint)
+
+        volume = AttachedVolume(
+            name=application_name,
+            mountpoint=mountpoint,
+            maximum_size=maximum_size
+            )
+
+        return volume
+
     def _parse(self):
         """
         Validate and parse a given application configuration from flocker's
@@ -926,45 +1031,8 @@ class FlockerConfiguration(object):
             if "volume" in config:
                 try:
                     configured_volume = config.pop('volume')
-                    try:
-                        mountpoint = configured_volume['mountpoint']
-                    except TypeError:
-                        raise ValueError(
-                            "Unexpected value: " + str(configured_volume)
-                        )
-                    except KeyError:
-                        raise ValueError("Missing mountpoint.")
-
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
-                            )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" is not an absolute path."
-                            .format(
-                                path=mountpoint
-                            )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError(
-                            "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(sorted(
-                                    configured_volume.keys()))
-                            ))
-                    mountpoint = FilePath(mountpoint)
-
-                    # Grab the (optional) maximum_size value from the volume
-                    # configuration and use it to initialize AttachedVolume.
-                    # FLOC-979
-                    volume = AttachedVolume(
-                        name=application_name,
-                        mountpoint=mountpoint,
-                        )
+                    volume = self._parse_volume(configured_volume,
+                                                application_name)
                 except ValueError as e:
                     raise ConfigurationError(
                         ("Application '{application_name}' has a config "
