@@ -19,7 +19,7 @@ Then run the following command from a clean checkout of the Flocker repository:
 
 .. code-block:: sh
 
-   ./admin/build-package --distribution=fedora20 $PWD
+   ./admin/build-package --distribution=fedora-20 $PWD
 
 This will generate three RPM files in the current working directory. E.g.
 

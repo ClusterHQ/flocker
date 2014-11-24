@@ -777,7 +777,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora20.'],
+         'The target distribution. One of fedora-20.'],
     ]
 
     longdesc = dedent("""\
