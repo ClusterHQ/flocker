@@ -128,6 +128,54 @@ def assertNoFDsLeaked(test_case):
         test_case.assertEqual(process_fds(), fds)
 
 
+def assert_equal_comparison(case, a, b):
+    """
+    Assert that ``a`` equals ``b``.
+
+    :param a: Any object to compare to ``b``.
+    :param b: Any object to compare to ``a``.
+
+    :raise: If ``a == b`` evaluates to ``False`` or if ``a != b`` evaluates to
+        ``True``, ``case.failureException`` is raised.
+    """
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if not equal:
+        messages.append("a == b evaluated to False")
+    if unequal:
+        messages.append("a != b evaluated to True")
+
+    if messages:
+        case.fail(
+            "Expected a and b to be equal: " + "; ".join(messages))
+
+
+def assert_not_equal_comparison(case, a, b):
+    """
+    Assert that ``a`` does not equal ``b``.
+
+    :param a: Any object to compare to ``b``.
+    :param b: Any object to compare to ``a``.
+
+    :raise: If ``a == b`` evaluates to ``True`` or if ``a != b`` evaluates to
+        ``False``, ``case.failureException`` is raised.
+    """
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if equal:
+        messages.append("a == b evaluated to True")
+    if not unequal:
+        messages.append("a != b evaluated to False")
+
+    if messages:
+        case.fail(
+            "Expected a and b to be not-equal: " + "; ".join(messages))
+
+
 def loop_until(predicate):
     """Call predicate every 0.1 seconds, until it returns something ``Truthy``.
 

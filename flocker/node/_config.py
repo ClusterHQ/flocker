@@ -7,7 +7,9 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import math
 import os
+import re
 import types
 
 from twisted.python.filepath import FilePath
@@ -71,7 +73,7 @@ def _check_type(value, types, description, application_name):
     Checks ``value`` has type in ``types``.
 
     :param value: Value whose type is to be checked
-    :param tuple types: Tuple of types value can be.
+    :param mixed types: A single type or tuple of types that value can be.
     :param str description: Description of expected type.
     :param application_name unicode: Name of application whose config
         contains ``value``.
@@ -86,6 +88,45 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+def parse_storage_string(value):
+    """
+    Converts a string representing a quantity and a unit identifier in to
+    an integer value representing the number of bytes in that quantity, e.g.
+    an input of "1G" is parsed to 1073741824. Raises ``ValueError`` if
+    value cannot be converted.
+
+    An int is always returned, so conversions resulting in a floating-point
+    are always rounded UP to ensure sufficient bytes for the specified storage
+    size, e.g. input of "2.1M" is converted to 2202010 bytes, not 2202009.
+
+    :param StringTypes value: The string value to convert to integer bytes.
+
+    :returns: ``int`` representing the supplied value converted to bytes, e.g.
+        input of "2G" (2 gigabytes) returns 2147483648.
+    """
+    byte_multipliers = {
+        'K': 1024, 'M': 1048576,
+        'G': 1073741824, 'T': 1099511627776
+    }
+    if not isinstance(value, types.StringTypes):
+        raise ValueError("Value must be string, got {type}.".format(
+            type=type(value).__name__))
+    pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
+    parsed = pattern.match(value)
+    if not parsed:
+        raise ValueError(
+            "Value '{value}' could not be parsed as a storage quantity.".
+            format(value=value)
+        )
+    quantity, unit = parsed.groups()
+    quantity = float(quantity)
+    if unit is not None:
+        unit = unit.upper()
+        quantity = quantity * byte_multipliers[unit]
+    quantity = int(math.ceil(quantity))
+    return quantity
 
 
 class ApplicationMarshaller(object):
@@ -194,8 +235,8 @@ class ApplicationMarshaller(object):
         logic will need refactoring in future if this changes.
         """
         if self._application.volume:
-            # Include the maximum size here, if there is one.  This gets the
-            # info into the reportstate output.
+            # Include the maximum size here, if there is one
+            # FLOC-976
             return {u'mountpoint': self._application.volume.mountpoint.path}
         return None
 
@@ -273,12 +314,12 @@ class FigConfiguration(object):
         self._possible_identifiers = {'image', 'build'}
         self._unsupported_keys = {
             "working_dir", "entrypoint", "user", "hostname",
-            "domainname", "mem_limit", "privileged", "dns", "net",
+            "domainname", "privileged", "dns", "net",
             "volumes_from", "expose", "command"
         }
         self._allowed_keys = {
             "image", "environment", "ports",
-            "links", "volumes"
+            "links", "volumes", "mem_limit",
         }
 
     def applications(self):
@@ -330,7 +371,7 @@ class FigConfiguration(object):
         Checks that a single application definition contains no invalid
         or unsupported keys.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param dict config: A single application definition from
@@ -373,11 +414,12 @@ class FigConfiguration(object):
         Validate and parse the environment portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param dict environment: A dictionary of environment variable
-            names and values.
+            names and values or a list of strings representing key/value
+            pairs in the form KEY=VALUE (or just KEY for an empty value)
 
         :raises ConfigurationError: if the environment config does
             not validate.
@@ -385,24 +427,41 @@ class FigConfiguration(object):
         :returns: A ``frozenset`` of environment variable name/value
             pairs.
         """
-        _check_type(environment, dict,
-                    "'environment' must be a dictionary",
+        _check_type(environment, (dict, list),
+                    "'environment' must be a dictionary or list",
                     application)
-        for var, val in environment.items():
+        if isinstance(environment, list):
+            environment_dict = dict()
+            for item in environment:
+                _check_type(
+                    item, (str, unicode,),
+                    ("'environment' value '{item}' must be a string"
+                     .format(item=item)),
+                    application
+                )
+                try:
+                    label, value = item.split('=')
+                except ValueError:
+                    label = item
+                    value = ''
+                environment_dict[label] = value
+        else:
+            environment_dict = environment
+        for var, val in environment_dict.items():
             _check_type(
                 val, (str, unicode,),
                 ("'environment' value for '{var}' must be a string"
                  .format(var=var)),
                 application
             )
-        return frozenset(environment.items())
+        return frozenset(environment_dict.items())
 
     def _parse_app_volumes(self, application, volumes):
         """
         Validate and parse the volumes portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list volumes: A list of ``str`` values giving absolute
@@ -442,7 +501,7 @@ class FigConfiguration(object):
         Validate and parse the ports portion of an application
         configuration.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list ports: A list of ``str`` values mapping ports that
@@ -485,12 +544,31 @@ class FigConfiguration(object):
             )
         return return_ports
 
+    def _parse_mem_limit(self, application, limit):
+        """
+        Validate and parse the mem_limit portion of an application
+        configuration.
+
+        :param unicode application: The name of the application this config
+            is mapped to.
+
+        :param int limit: The parsed configuration value for mem_limit.
+
+        :raises ConfigurationError: if the mem_limit config is not an int.
+
+        :returns: An ``int`` representing the memory limit in bytes.
+        """
+        _check_type(value=limit, types=(int,),
+                    description="mem_limit must be an integer",
+                    application_name=application)
+        return limit
+
     def _parse_app_links(self, application, links):
         """
         Validate and parse the links portion of an application
         configuration and store the links in the internal links map.
 
-        :param bytes application: The name of the application this config
+        :param unicode application: The name of the application this config
             is mapped to.
 
         :param list links: A list of ``str`` values specifying the names
@@ -579,6 +657,7 @@ class FigConfiguration(object):
                 environment = None
                 ports = []
                 volume = None
+                mem_limit = None
                 self._application_links[application_name] = []
                 if 'environment' in config:
                     environment = self._parse_app_environment(
@@ -600,13 +679,18 @@ class FigConfiguration(object):
                         application_name,
                         config['links']
                     )
+                if 'mem_limit' in config:
+                    mem_limit = self._parse_mem_limit(
+                        application_name, config['mem_limit']
+                    )
                 self._applications[application_name] = Application(
                     name=application_name,
                     image=image,
                     volume=volume,
                     ports=frozenset(ports),
                     links=frozenset(),
-                    environment=environment
+                    environment=environment,
+                    memory_limit=mem_limit
                 )
             except ValueError as e:
                 raise ConfigurationError(
@@ -640,7 +724,7 @@ class FlockerConfiguration(object):
         self._application_configuration = application_configuration
         self._allowed_keys = {
             "image", "environment", "ports",
-            "links", "volume"
+            "links", "volume", "mem_limit", "cpu_shares",
         }
         self._applications = {}
 
@@ -830,6 +914,70 @@ class FlockerConfiguration(object):
 
         return frozenset(links)
 
+    def _parse_volume(self, configured_volume, application_name):
+        """
+        Validate and parse the volume portion of a Flocker configuration.
+
+        :param dict configured_volume: The 'volume' portion of the parsed
+            application config.
+
+        :param unicode application_name: The name of the current application.
+
+        :returns ``AttachedVolume`` instance representing the parsed volume.
+
+        :raises: ValueError on any parsing error.
+        """
+        try:
+            maximum_size = configured_volume.pop('maximum_size')
+        except KeyError:
+            maximum_size = None
+        except AttributeError:
+            raise ValueError(
+                "Unexpected value: " + str(configured_volume)
+            )
+        else:
+            try:
+                maximum_size = parse_storage_string(maximum_size)
+                if maximum_size < 1:
+                    raise ValueError("Must be greater than zero.")
+            except ValueError as e:
+                raise ValueError('maximum_size: {msg}'.format(msg=e.message))
+        try:
+            mountpoint = configured_volume['mountpoint']
+        except KeyError:
+            raise ValueError("Missing mountpoint.")
+
+        if not isinstance(mountpoint, str):
+            raise ValueError(
+                "Mountpoint \"{path}\" contains non-ASCII "
+                "(unsupported).".format(
+                    path=mountpoint
+                )
+            )
+        if not os.path.isabs(mountpoint):
+            raise ValueError(
+                "Mountpoint \"{path}\" is not an absolute path."
+                .format(
+                    path=mountpoint
+                )
+            )
+        configured_volume.pop('mountpoint')
+        if configured_volume:
+            raise ValueError(
+                "Unrecognised keys: {keys}.".format(
+                    keys=', '.join(sorted(
+                        configured_volume.keys()))
+                ))
+        mountpoint = FilePath(mountpoint)
+
+        volume = AttachedVolume(
+            name=application_name,
+            mountpoint=mountpoint,
+            maximum_size=maximum_size
+            )
+
+        return volume
+
     def _parse(self):
         """
         Validate and parse a given application configuration from flocker's
@@ -883,42 +1031,8 @@ class FlockerConfiguration(object):
             if "volume" in config:
                 try:
                     configured_volume = config.pop('volume')
-                    try:
-                        mountpoint = configured_volume['mountpoint']
-                    except TypeError:
-                        raise ValueError(
-                            "Unexpected value: " + str(configured_volume)
-                        )
-                    except KeyError:
-                        raise ValueError("Missing mountpoint.")
-
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
-                            )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" is not an absolute path."
-                            .format(
-                                path=mountpoint
-                            )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError(
-                            "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(sorted(
-                                    configured_volume.keys()))
-                            ))
-                    mountpoint = FilePath(mountpoint)
-
-                    volume = AttachedVolume(
-                        name=application_name,
-                        mountpoint=mountpoint
-                        )
+                    volume = self._parse_volume(configured_volume,
+                                                application_name)
                 except ValueError as e:
                     raise ConfigurationError(
                         ("Application '{application_name}' has a config "
@@ -932,13 +1046,31 @@ class FlockerConfiguration(object):
             environment = self._parse_environment_config(
                 application_name, config)
 
+            if "mem_limit" in config:
+                mem_limit = config["mem_limit"]
+                _check_type(value=mem_limit, types=(int,),
+                            description="mem_limit must be an integer",
+                            application_name=application_name)
+            else:
+                mem_limit = None
+
+            if "cpu_shares" in config:
+                cpu_shares = config["cpu_shares"]
+                _check_type(value=cpu_shares, types=(int,),
+                            description="cpu_shares must be an integer",
+                            application_name=application_name)
+            else:
+                cpu_shares = None
+
             self._applications[application_name] = Application(
                 name=application_name,
                 image=image,
                 volume=volume,
                 ports=frozenset(ports),
                 links=links,
-                environment=environment)
+                environment=environment,
+                memory_limit=mem_limit,
+                cpu_shares=cpu_shares)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):

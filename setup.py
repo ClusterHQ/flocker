@@ -106,6 +106,8 @@ setup(
     install_requires=[
         # Any changes here must be reflected in ``python-flocker.spec.in`` so
         # that RPM dependencies match.
+        # They must also be reflected in the yumdownloader lines in
+        # "Appendix: Pre-populating RPM Repository" in the Release Process.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
@@ -168,6 +170,9 @@ setup(
         "release": [
             "gsutil",
             "wheel",
+            "virtualenv",
+            "PyCrypto",
+            "pyasn1",
             ],
         },
 

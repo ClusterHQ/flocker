@@ -19,7 +19,7 @@ from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
-from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
+from twisted.web.http import NOT_FOUND
 
 
 class AlreadyExists(Exception):
@@ -61,7 +61,9 @@ class Volume(object):
              Attribute("container_image", default_value=None),
              Attribute("ports", default_value=()),
              Attribute("environment", default_value=None),
-             Attribute("volumes", default_value=())])
+             Attribute("volumes", default_value=()),
+             Attribute("mem_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None)])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -94,6 +96,18 @@ class Unit(object):
 
     :ivar volumes: A ``frozenset`` of ``Volume`` instances, the container's
         volumes.
+
+    :ivar int mem_limit: The number of bytes to which to limit the in-core
+        memory allocations of this unit.  Or ``None`` to apply no limits.  The
+        behavior when the limit is encountered depends on the container
+        execution driver but the likely behavior is for the container process
+        to be killed (and therefore the container to exit).  Docker most likely
+        maps this value onto the cgroups ``memory.limit_in_bytes`` value.
+
+    :ivar int cpu_shares: The number of CPU shares to allocate to this unit.
+        Or ``None`` to let it have the default number of shares.  Docker maps
+        this value onto the cgroups ``cpu.shares`` value (the default of which
+        is probably 1024).
     """
 
 
@@ -107,7 +121,8 @@ class IDockerClient(Interface):
     down).
     """
 
-    def add(unit_name, image_name, ports=None, environment=None, volumes=()):
+    def add(unit_name, image_name, ports=None, environment=None, volumes=(),
+            mem_limit=None, cpu_shares=None):
         """
         Install and start a new unit.
 
@@ -131,6 +146,15 @@ class IDockerClient(Interface):
             variables will be supplied to the unit.
 
         :param volumes: A sequence of ``Volume`` instances to mount.
+
+        :param int mem_limit: The number of bytes to which to limit the in-core
+            memory allocations of the new unit.  Or ``None`` to apply no
+            limits.
+
+        :param int cpu_shares: The number of CPU shares to allocate to the new
+            unit.  Or ``None`` to let it have the default number of shares.
+            Docker maps this value onto the cgroups ``cpu.shares`` value (the
+            default of which is probably 1024).
 
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
@@ -188,7 +212,7 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=frozenset()):
+            volumes=frozenset(), mem_limit=None, cpu_shares=None):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -198,7 +222,9 @@ class FakeDockerClient(object):
             ports=frozenset(ports),
             environment=environment,
             volumes=frozenset(volumes),
-            activation_state=u'active'
+            activation_state=u'active',
+            mem_limit=mem_limit,
+            cpu_shares=cpu_shares,
         )
         return succeed(None)
 
@@ -246,7 +272,7 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.12", base_url=base_url)
+        self._client = Client(version="1.14", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -292,7 +318,7 @@ class DockerClient(object):
         return ports
 
     def add(self, unit_name, image_name, ports=None, environment=None,
-            volumes=()):
+            volumes=(), mem_limit=None, cpu_shares=None):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -306,7 +332,10 @@ class DockerClient(object):
                 name=container_name,
                 environment=environment,
                 volumes=list(volume.container_path.path for volume in volumes),
-                ports=[p.internal_port for p in ports])
+                ports=[p.internal_port for p in ports],
+                mem_limit=mem_limit,
+                cpu_shares=cpu_shares,
+            )
 
         def _add():
             try:
@@ -371,12 +400,9 @@ class DockerClient(object):
                 self._client.stop(container_name)
                 self._client.remove_container(container_name)
             except APIError as e:
-                # 500 error code is used for "this was already stopped" in
-                # older versions of Docker. Newer versions of Docker API
-                # give NOT_MODIFIED instead, so we can fix this when we
-                # upgrade: https://github.com/ClusterHQ/flocker/issues/721
-                if e.response.status_code in (
-                        NOT_FOUND, INTERNAL_SERVER_ERROR):
+                # If the container doesn't exist, we swallow the error,
+                # since this method is supposed to be idempotent.
+                if e.response.status_code == NOT_FOUND:
                     return
                 # Can't figure out how to get test coverage for this, but
                 # it's definitely necessary:
@@ -410,12 +436,24 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
-                result.add(Unit(name=name,
-                                container_name=self._to_container_name(name),
-                                activation_state=state,
-                                container_image=image,
-                                ports=frozenset(ports),
-                                volumes=frozenset(volumes)))
+                # Our Unit model counts None as the value for cpu_shares and
+                # mem_limit in containers without specified limits, however
+                # Docker returns the values in these cases as zero, so we
+                # manually convert.
+                cpu_shares = data[u"Config"][u"CpuShares"]
+                cpu_shares = None if cpu_shares == 0 else cpu_shares
+                mem_limit = data[u"Config"][u"Memory"]
+                mem_limit = None if mem_limit == 0 else mem_limit
+                result.add(Unit(
+                    name=name,
+                    container_name=self._to_container_name(name),
+                    activation_state=state,
+                    container_image=image,
+                    ports=frozenset(ports),
+                    volumes=frozenset(volumes),
+                    mem_limit=mem_limit,
+                    cpu_shares=cpu_shares),
+                )
             return result
         return deferToThread(_list)
 

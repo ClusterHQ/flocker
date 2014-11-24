@@ -21,7 +21,7 @@ from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name, if_root)
+    random_name)
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
@@ -71,7 +71,8 @@ class GenericDockerClientTests(TestCase):
     def start_container(self, unit_name,
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
-                        environment=None, volumes=()):
+                        environment=None, volumes=(),
+                        mem_limit=None, cpu_shares=None):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -82,6 +83,8 @@ class GenericDockerClientTests(TestCase):
         :param expected_states: A sequence of activation states to wait for.
         :param environment: See ``IDockerClient.add``.
         :param volumes: See ``IDockerClient.add``.
+        :param mem_limit: See ``IDockerClient.add``.
+        :param cpu_shares: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -93,6 +96,8 @@ class GenericDockerClientTests(TestCase):
             ports=ports,
             environment=environment,
             volumes=volumes,
+            mem_limit=mem_limit,
+            cpu_shares=cpu_shares
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -124,7 +129,6 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         return self.start_container(name)
 
-    @if_root
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
@@ -169,6 +173,22 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         d = self.start_container(unit_name=name, image_name="busybox",
                                  expected_states=(u'inactive',))
+        return d
+
+    def test_dead_is_removed(self):
+        """
+        ``DockerClient.remove()`` removes dead units without error.
+
+        We use a `busybox` image here, because it will exit immediately and
+        reach an `inactive` substate of `dead`.
+        """
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name="busybox",
+                                 expected_states=(u'inactive',))
+
+        def remove_container(client):
+            client.remove(name)
+        d.addCallback(remove_container)
         return d
 
     def request_until_response(self, port):
@@ -256,7 +276,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -390,6 +409,61 @@ CMD sh -c "trap \"\" 2; sleep 3"
                 else:
                     time.sleep(0.1)
             self.fail("Files never created.")
+        d.addCallback(started)
+        return d
+
+    def test_add_with_memory_limit(self):
+        """
+        ``DockerClient.add`` accepts an integer mem_limit parameter which is
+        passed to Docker when creating a container as the maximum amount of RAM
+        available to that container.
+        """
+        MEMORY_100MB = 100000000
+        name = random_name()
+        d = self.start_container(name, mem_limit=MEMORY_100MB)
+
+        def started(_):
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"Memory"],
+                             MEMORY_100MB)
+        d.addCallback(started)
+        return d
+
+    def test_add_with_cpu_shares(self):
+        """
+        ``DockerClient.add`` accepts an integer cpu_shares parameter which is
+        passed to Docker when creating a container as the CPU shares weight
+        for that container. This is a relative weight for CPU time versus other
+        containers and does not directly constrain CPU usage, i.e. a CPU share
+        constrained container can still use 100% CPU if other containers are
+        idle. Default shares when unspecified is 1024.
+        """
+        name = random_name()
+        d = self.start_container(name, cpu_shares=512)
+
+        def started(_):
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"CpuShares"], 512)
+        d.addCallback(started)
+        return d
+
+    def test_add_without_cpu_or_mem_limits(self):
+        """
+        ``DockerClient.add`` when creating a container with no mem_limit or
+        cpu_shares specified will create a container without these resource
+        limits, returning integer 0 as the values for Memory and CpuShares from
+        its API when inspecting such a container.
+        """
+        name = random_name()
+        d = self.start_container(name)
+
+        def started(_):
+            docker = Client()
+            data = docker.inspect_container(self.namespacing_prefix + name)
+            self.assertEqual(data[u"Config"][u"Memory"], 0)
+            self.assertEqual(data[u"Config"][u"CpuShares"], 0)
         d.addCallback(started)
         return d
 

@@ -15,7 +15,7 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml
+    applications_to_flocker_yaml, parse_storage_string
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -406,6 +406,74 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
             config['postgres']['environment']
         )
         self.assertEqual(expected_result, environment)
+
+    def test_valid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse_mem_limit`` returns an ``int``
+        representing the bytes memory limit for a container when given a valid
+        configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': 100000000
+            }
+        }
+        parser = FigConfiguration(config)
+        limit = parser._parse_mem_limit(
+            'postgres',
+            config['postgres']['mem_limit']
+        )
+        self.assertEqual(limit, 100000000)
+
+    def test_invalid_fig_config_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` raises a ``ConfigurationError`` if a
+        mem_limit config is specified that is not an integer.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+                'mem_limit': b"100000000"
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser._parse
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "mem_limit must be an integer; got type 'str'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_valid_fig_config_default_mem_limit(self):
+        """
+        ``FigConfiguration._parse`` creates an ``Application`` instance with a
+        memory_limit of None if no mem_limit is specified in a valid Fig
+        configuration.
+        """
+        config = {
+            'postgres': {
+                'image': 'sample/postgres',
+                'environment': {
+                    'PG_SCHEMA_NAME': 'example_database',
+                    'PG_PGUSER_PASSWORD': 'clusterhq'
+                },
+            }
+        }
+        parser = FigConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['postgres'].memory_limit, None)
 
     def test_valid_fig_config_volumes(self):
         """
@@ -807,10 +875,85 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         self.assertEqual(exception.message, error_message)
 
-    def test_invalid_fig_config_environment_not_dict(self):
+    def test_fig_config_environment_list_item_empty_value(self):
+        """
+        An entry in a list of environment variables that is just a label is
+        mapped to its label and a value of an empty unicode string.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_fig_config_environment_list_item_value(self):
+        """
+        A list of environment variables supplied in the form of LABEL=VALUE are
+        parsed in to a ``frozenset`` mapping LABEL to VALUE.
+        """
+        config = {
+            'postgres': {
+                'environment': ['PGSQL_PORT_EXTERNAL=54320',
+                                'PGSQL_USER_PASSWORD=admin'],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+            }
+        }
+        parser = FigConfiguration(config)
+        result = parser._parse_app_environment(
+            'postgres',
+            config['postgres']['environment']
+        )
+        expected = frozenset([
+            (u'PGSQL_PORT_EXTERNAL', u'54320'),
+            (u'PGSQL_USER_PASSWORD', u'admin')
+        ])
+        self.assertEqual(expected, result)
+
+    def test_invalid_fig_config_environment_list_item(self):
+        """
+        A ``ConfigurationError`` is raised if an entry in a list of
+        'environment' values is not a string.
+        """
+        config = {
+            'postgres': {
+                'environment': [27014],
+                'image': 'sample/postgres',
+                'ports': ['54320:5432'],
+                'volumes': ['/var/lib/postgres'],
+                'links': ['wordpress'],
+            }
+        }
+        parser = FigConfiguration(config)
+        exception = self.assertRaises(
+            ConfigurationError,
+            parser.applications,
+        )
+        error_message = (
+            "Application 'postgres' has a config error. "
+            "'environment' value '27014' must be a string; got type 'int'."
+        )
+        self.assertEqual(exception.message, error_message)
+
+    def test_invalid_fig_config_environment_format(self):
         """
         A ``ConfigurationError`` is raised if the "environments" key of a fig
-        application config is not a dictionary.
+        application config is not a dictionary or list.
         """
         config = {
             'postgres': {
@@ -828,7 +971,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         )
         error_message = (
             "Application 'postgres' has a config error. "
-            "'environment' must be a dictionary; got type 'str'."
+            "'environment' must be a dictionary or list; got type 'str'."
         )
         self.assertEqual(exception.message, error_message)
 
@@ -999,6 +1142,131 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             e.message,
             "Application configuration must be a dictionary, got str."
         )
+
+    def test_error_on_memory_limit_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a mem_limit entry that is not
+        an integer.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': b"abcdef"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "mem_limit must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
+
+    def test_error_on_cpu_shares_not_int(self):
+        """
+        ``FlockerConfiguration._parse`` raises a ``ConfigurationError``
+        if the supplied configuration contains a cpu_shares entry that is not
+        an integer.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': b"1024"
+                }
+            },
+            'version': 1
+        }
+        error_message = (
+            "Application 'mysql-hybridcluster' has a config error. "
+            "cpu_shares must be an integer; got type 'str'.")
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser._parse)
+        self.assertEqual(
+            exception.message,
+            error_message
+        )
+
+    def test_default_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit of None if no limit was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].memory_limit)
+
+    def test_default_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares of None if no limit was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertIsNone(applications['mysql-hybridcluster'].cpu_shares)
+
+    def test_application_with_memory_limit(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        memory_limit set to the value specified in the configuration.
+        """
+        MEMORY_100MB = 100000000
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'mem_limit': MEMORY_100MB
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].memory_limit,
+                         MEMORY_100MB)
+
+    def test_application_with_cpu_shares(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        cpu_shares set to the value specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql',
+                    'cpu_shares': 512
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(applications['mysql-hybridcluster'].cpu_shares,
+                         512)
 
     def test_not_valid_on_application_not_dict(self):
         """
@@ -1323,6 +1591,284 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         applications_set = frozenset(applications.values())
         expected_applications_set = frozenset(expected_applications.values())
         self.assertEqual(applications_set, expected_applications_set)
+
+    def test_invalid_volume_max_size_negative_bytes(self):
+        """
+        A volume maximum_size config value given as a string cannot include
+        a sign symbol (and therefore cannot be negative).
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': "-10M"},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: "
+             "Value '-10M' could not be parsed as a storage quantity.")
+        )
+
+    def test_invalid_volume_max_size_zero_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a quantity of zero.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'0M'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Must be greater than zero.")
+        )
+
+    def test_invalid_volume_max_size_unit_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a unit that is not K, M, G or T.
+        A ``ConfigurationError`` is raised.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'100F'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Value '100F' could not be "
+             "parsed as a storage quantity.")
+        )
+
+    def test_invalid_volume_max_size_invalid_string(self):
+        """
+        ``parse_storage_string`` raises a ``ValueError`` when given a
+        string which is not in a valid format for parsing in to a quantity of
+        bytes.
+        """
+        exception = self.assertRaises(ValueError,
+                                      parse_storage_string,
+                                      "abcdef")
+        self.assertEqual(
+            exception.message,
+            "Value 'abcdef' could not be parsed as a storage quantity."
+        )
+
+    def test_parse_storage_string_invalid_not_string(self):
+        """
+        ``parse_storage_string`` raises a ``ValueError`` when given a
+        value which is not a string or unicode.
+        """
+        exception = self.assertRaises(ValueError,
+                                      parse_storage_string,
+                                      610.25)
+        self.assertEqual(
+            exception.message,
+            "Value must be string, got float."
+        )
+
+    def test_volume_max_size_bytes_integer(self):
+        """
+        A volume maximum_size config value given as an integer raises a
+        ``ConfigurationError`` in ``FlockerConfiguration.applications``.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': 1000000},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            exception.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Value must be string, "
+             "got int.")
+        )
+
+    def test_volume_max_size_bytes(self):
+        """
+        A volume maximum_size config value given as a string when parsed
+        creates an ``AttachedVolume`` instance with the corresponding
+        maximum_size.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'100M'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 104857600)
+
+    def test_volume_max_size_string_bytes(self):
+        """
+        A volume maximum_size config value given as a string containing only an
+        integer when parsed creates an ``AttachedVolume`` instance with the
+        corresponding maximum_size in bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1000000'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1000000)
+
+    def test_volume_max_size_kilobytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1000K'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1024000)
+
+    def test_volume_max_size_gigabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and G as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from gigabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1073741824)
+
+    def test_volume_max_size_terabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from terabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1T'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1099511627776)
+
+    def test_volume_max_size_fractional(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and unit where quantity is not an integer when parsed creates
+        an ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'1.5G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.maximum_size, 1610612736)
+
+    def test_volume_max_size_parse_valid_unit(self):
+        """
+        ``parse_storage_string`` returns the integer number of bytes
+        converted from a string specifying a quantity and unit in a valid
+        format. Valid format is a number followed by a unit identifier,
+        which is one of K, M, G or T.
+        """
+        ps = parse_storage_string
+        self.assertEqual((1099511627776,) * 4,
+                         (ps("1073741824K"),
+                          ps("1048576M"),
+                          ps("1024G"),
+                          ps("1T")))
 
     def test_ports_missing_internal(self):
         """
