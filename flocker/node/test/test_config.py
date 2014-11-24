@@ -2653,7 +2653,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'ports': [{'internal': 80, 'external': 8080}]
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'volume': {'mountpoint': b'/var/mysql/data',
+                               'maximum_size': 100000000},
                     'image': u'flocker/mysql:v1.0.0'
                 }
             },
