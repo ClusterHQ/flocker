@@ -17,10 +17,10 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import maybeDeferred
+from twisted.internet.task import deferLater
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import fail
-from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
@@ -207,28 +207,22 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        # Change this to not create the Volume instance right away.  Instead,
-        # try to find it by uuid/name in `check_for_volume`.  If a Volume
-        # instance there matches, use that object as the final result of the
-        # Deferred returned by this method (it will have its other attributes
-        # set correctly because they will be set correctly by enumerate).
-        # FLOC-976
-        volume = Volume(uuid=self.uuid, name=name, service=self)
-
-        def check_for_volume(volumes):
-            if volume in volumes:
-                call.stop()
-
-        def loop():
+        def check_for_volume(uuid):
             d = self.enumerate()
-            d.addCallback(check_for_volume)
+            d.addCallback(compare_volumes_by_uuid, uuid)
             return d
 
-        call = LoopingCall(loop)
-        call.clock = self._reactor
-        d = call.start(WAIT_FOR_VOLUME_INTERVAL)
-        d.addCallback(lambda _: volume)
-        return d
+        def compare_volumes_by_uuid(volumes, uuid):
+            for volume in volumes:
+                if volume.uuid == uuid:
+                    return volume
+            # If we didn't fall out of the loop, try again
+            return deferLater(
+                self._reactor, WAIT_FOR_VOLUME_INTERVAL,
+                check_for_volume, uuid
+            )
+
+        return check_for_volume(self.uuid)
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
