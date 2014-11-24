@@ -216,7 +216,6 @@ class VolumeService(Service):
             for volume in volumes:
                 if volume.uuid == uuid:
                     return volume
-            # If we didn't fall out of the loop, try again
             return deferLater(
                 self._reactor, WAIT_FOR_VOLUME_INTERVAL,
                 check_for_volume, uuid
@@ -254,12 +253,11 @@ class VolumeService(Service):
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
 
-                # Add maximum size information here.  Take it from the
-                # filesystem object.  FLOC-976
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,
-                    service=self)
+                    service=self,
+                    size=filesystem.size)
         enumerating.addCallback(enumerated)
         return enumerating
 

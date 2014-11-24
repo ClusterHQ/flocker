@@ -486,6 +486,27 @@ class VolumeServiceAPITests(TestCase):
         volumes = self.successResultOf(service.enumerate())
         self.assertEqual([], list(volumes))
 
+    def test_enumerate_with_size(self):
+        """
+        ``enumerate()`` includes a ``VolumeSize`` object in the size attribute
+        of volumes previously ``create()``ed.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        names = set(VolumeName(namespace=u"ns", id=i)
+                    for i in (u"somevolume", u"anotherone", u"lastone"))
+        expected = {
+            self.successResultOf(service.create(name))
+            for name in names}
+        service2 = VolumeService(FilePath(self.mktemp()), pool,
+                                 reactor=Clock())
+        service2.startService()
+        actual = self.successResultOf(service2.enumerate())
+        self.assertEqual(
+            set((volume.uuid, volume.size) for volume in expected),
+            set((volume.uuid, volume.size) for volume in actual))
+
     def test_enumerate_some_volumes(self):
         """``enumerate()`` returns all volumes previously ``create()``ed."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
