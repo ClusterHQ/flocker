@@ -2341,6 +2341,48 @@ class MarshalConfigurationTests(SynchronousTestCase):
         }
         self.assertEqual(expected, result)
 
+    def test_application_with_volume_includes_max_size(self):
+        """
+        If the supplied applications have a volume, the resulting yaml will
+        also include the volume maximum_size if present in the
+        ``AttachedVolume`` instance.
+        """
+        applications = [
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    name='mysql-hybridcluster',
+                    mountpoint=FilePath(b'/var/mysql/data'),
+                    maximum_size=100000000)
+            ),
+            Application(
+                name='site-hybridcluster',
+                image=DockerImage(repository='flocker/wordpress',
+                                  tag='v1.0.0'),
+                ports=frozenset([Port(internal_port=80,
+                                      external_port=8080)])
+            )
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        expected = {
+            'used_ports': [],
+            'applications': {
+                'site-hybridcluster': {
+                    'image': u'flocker/wordpress:v1.0.0',
+                    'ports': [{'internal': 80, 'external': 8080}]
+                },
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'image': u'flocker/mysql:v1.0.0'
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
     def test_running_and_not_running_applications(self):
         """
         Both the ``running`` and ``not_running`` application lists are
