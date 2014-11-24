@@ -663,7 +663,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     if package_uri == top_level.path:
         package_uri = '/flocker'
 
-    tag = "clusterhq/build_%s" % (distribution,)
+    tag = "clusterhq/build-%s" % (distribution,)
     build_directory = top_level.descendant(
         ['admin', 'build_targets', distribution])
 
@@ -777,7 +777,7 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora20.'],
+         'The target distribution. One of fedora-20.'],
     ]
 
     longdesc = dedent("""\
