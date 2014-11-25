@@ -105,7 +105,8 @@ class IRestartPolicy(Interface):
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True)
+@attributes([], apply_immutable=True,
+            apply_with_init=False) # https://github.com/hynek/characteristic/pull/22
 class RestartNever(object):
     """
     A restart policy that never restarts an application.
@@ -116,7 +117,8 @@ class RestartNever(object):
 
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True)
+@attributes([], apply_immutable=True,
+            apply_with_init=False) # https://github.com/hynek/characteristic/pull/22
 class RestartAlways(object):
     """
     A restart policy that always restarts an application.
