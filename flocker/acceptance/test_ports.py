@@ -62,8 +62,7 @@ class PortsTests(TestCase):
 
     def test_deployment_with_ports(self):
         """
-        Ports are exposed as specified in the application configuration.
-        Docker has internal representations of the port mappings given by the
+        Flocker has internal representations of the port mappings given by the
         configuration files supplied to flocker-deploy.
         """
         ports = frozenset([
@@ -80,6 +79,25 @@ class PortsTests(TestCase):
         })
 
         return d
+
+    @require_mongo
+    def test_mongo_accessible(self):
+        """
+        The port is exposed on the host where Mongo was configured.
+        """
+        getting_client = get_mongo_client(self.node_1, self.external_port)
+
+        def verify_traffic_routed(client_1):
+            posts_1 = client_1.example.posts
+            posts_1.insert({u"the data": u"it moves"})
+
+            self.assertEqual(
+                u"it moves",
+                client_1.example.posts.find_one()[u"the data"]
+            )
+
+        getting_client.addCallback(verify_traffic_routed)
+        return getting_client
 
     @require_mongo
     def test_traffic_routed(self):

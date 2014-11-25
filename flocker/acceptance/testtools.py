@@ -215,6 +215,14 @@ def assert_expected_deployment(test_case, expected_deployment):
     nodes is the same as the actual set of ``Application`` instance on
     those nodes.
 
+    The tutorial looks at Docker output, but the acceptance tests are
+    intended to test high-level external behaviors. Since this is looking
+    at the output of ``flocker-reportstate`` it merely verifies what
+    Flocker believes the system configuration is, not the actual
+    setup. The latter should be verified separately with additional tests
+    for external side-effects (applications being available on ports,
+    say).
+
     :param test_case: The ``TestCase`` running this unit test.
     :param dict expected_deployment: A mapping of IP addresses to set of
         ``Application`` instances expected on the nodes with those IP
