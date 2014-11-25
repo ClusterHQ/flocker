@@ -492,8 +492,9 @@ class PACKAGE_CLI(PACKAGE):
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
         'Docker orchestration and volume management tool\n'
-        + fill('This meta-package contains links to the Flocker node utilities'
-               'and has only the dependencies required to run those tools', 79)
+        + fill('This meta-package contains links to the Flocker node '
+               'utilities, and has only the dependencies required to run '
+               'those tools', 79)
     )
 
 
