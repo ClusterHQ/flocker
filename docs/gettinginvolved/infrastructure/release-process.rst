@@ -122,6 +122,8 @@ Preparing For a Release
 
         git commit -am "Bumped version numbers"
 
+   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
+
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
