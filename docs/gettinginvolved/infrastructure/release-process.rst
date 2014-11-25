@@ -58,7 +58,7 @@ Preparing For a Release
 
 #. Create an issue:
 
-   #. Set the title to "Release flocker $VERSION"
+   #. Set the title to "Release Flocker $VERSION"
    #. Assign it to yourself
 
 #. Create a clean, local Flocker release branch with no modifications:
@@ -205,7 +205,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
    - Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
 
-     The URL can be found by examining the "upload-base-box" step of the "flocker-vagrant-tutorial-box" builder.
+     The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
      The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
    - Add the downloaded ``.box`` file to ``vagrant``:
