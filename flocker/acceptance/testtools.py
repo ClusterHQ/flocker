@@ -51,7 +51,9 @@ MONGO_IMAGE = u"clusterhq/mongodb"
 def get_mongo_application():
     """
     Return a new ``Application`` with a name and image corresponding to
-    the MongoDB tutorial example.
+    the MongoDB tutorial example:
+
+    http://doc-dev.clusterhq.com/gettingstarted/tutorial/index.html
     """
     return Application(
         name=MONGO_APPLICATION,
