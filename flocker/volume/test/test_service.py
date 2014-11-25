@@ -499,10 +499,7 @@ class VolumeServiceAPITests(TestCase):
         expected = {
             self.successResultOf(service.create(name))
             for name in names}
-        service2 = VolumeService(FilePath(self.mktemp()), pool,
-                                 reactor=Clock())
-        service2.startService()
-        actual = self.successResultOf(service2.enumerate())
+        actual = self.successResultOf(service.enumerate())
         self.assertEqual(
             set((volume.uuid, volume.size) for volume in expected),
             set((volume.uuid, volume.size) for volume in actual))

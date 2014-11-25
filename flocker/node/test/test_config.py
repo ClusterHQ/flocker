@@ -2625,6 +2625,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
         also include the volume maximum_size if present in the
         ``AttachedVolume`` instance.
         """
+        EXPECTED_MAX_SIZE = 100000000
         applications = [
             Application(
                 name='mysql-hybridcluster',
@@ -2633,7 +2634,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     name='mysql-hybridcluster',
                     mountpoint=FilePath(b'/var/mysql/data'),
-                    maximum_size=100000000)
+                    maximum_size=EXPECTED_MAX_SIZE)
             ),
             Application(
                 name='site-hybridcluster',
@@ -2654,7 +2655,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
-                               'maximum_size': 100000000},
+                               'maximum_size': EXPECTED_MAX_SIZE},
                     'image': u'flocker/mysql:v1.0.0'
                 }
             },
