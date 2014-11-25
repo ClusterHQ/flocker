@@ -136,7 +136,7 @@ def get_nodes(test_case, num_nodes):
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
     XXX This is a temporary solution which ignores num_nodes and returns the IP
-    addresses of the acceptance testing VMs which must already be started.
+    addresses of the tutorial VMs which must already be started.
     num_nodes Docker containers will be created instead to replace this, see
     https://clusterhq.atlassian.net/browse/FLOC-900
 
@@ -145,7 +145,7 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.240", b"172.16.255.241"])
+    nodes = set([b"172.16.255.250", b"172.16.255.251"])
 
     for node in nodes:
         sock = socket()
