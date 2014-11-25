@@ -989,6 +989,9 @@ class FlockerConfiguration(object):
             else:
                 cpu_shares = None
 
+            if 'restart_policy' in config:
+                pass
+
             self._applications[application_name] = Application(
                 name=application_name,
                 image=image,

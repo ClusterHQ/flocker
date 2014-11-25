@@ -19,7 +19,7 @@ from .._config import (
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
-    NodeState,
+    NodeState, RestartNever, RestartAlways, RestartOnFailure
 )
 
 
@@ -292,6 +292,82 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         self.assertEqual(
             parsed['applications']['postgres']['volume'],
             {'mountpoint': '/var/lib/data'}
+        )
+
+    def test_has_restart(self):
+        """
+        The YAML for a single application entry returned by
+        ``applications_to_flocker_yaml`` contains a restart policy
+        that matches the Flocker-format.
+        """
+        config = {
+            'version': 1,
+            'applications': {
+                'postgres': {
+                    'image': 'sample/postgres',
+                    'restart_policy': {
+                        'name': 'never'
+                    },
+                }
+            }
+        }
+        applications = FlockerConfiguration(config).applications()
+        yaml = applications_to_flocker_yaml(applications)
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['restart_policy'],
+            {'name': 'never'}
+        )
+
+    def test_has_restart_on_failure_with_retry_count(self):
+        """
+        The YAML for an application entry with an ``on-failure`` with a retry
+        count returned by ``applications_to_flocker_yaml`` contains a restart
+        policy that matches the Flocker-format.
+        """
+        config = {
+            'version': 1,
+            'applications': {
+                'postgres': {
+                    'image': 'sample/postgres',
+                    'restart_policy': {
+                        'name': 'on-failure',
+                        'max_retry_count': 10,
+                    },
+                }
+            }
+        }
+        applications = FlockerConfiguration(config).applications()
+        yaml = applications_to_flocker_yaml(applications)
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['restart_policy'],
+            {'name': 'on-failure', 'max_retry_count': 10}
+        )
+
+    def test_has_restart_on_failure_without_retry_count(self):
+        """
+        The YAML for an application entry with an ``on-failure`` without a
+        retry count returned by ``applications_to_flocker_yaml`` contains a
+        restart policy that matches the Flocker-format.
+        """
+        config = {
+            'version': 1,
+            'applications': {
+                'postgres': {
+                    'image': 'sample/postgres',
+                    'restart_policy': {
+                        'name': 'on-failure',
+                    },
+                }
+            }
+        }
+        applications = FlockerConfiguration(config).applications()
+        yaml = applications_to_flocker_yaml(applications)
+        parsed = safe_load(yaml)
+        self.assertEqual(
+            parsed['applications']['postgres']['restart_policy'],
+            {'name': 'on-failure'}
         )
 
 
@@ -1968,6 +2044,239 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "Invalid volume specification. Unexpected value: a random string",
             exception.message
         )
+
+    def test_default_retry_policy(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of never if no policy was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'cube': {
+                    'image': 'twisted/plutonium',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['cube'].cpu_shares,
+            RestartNever())
+
+    def test_retry_policy_never(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of never if that policy was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'wolfwood': {
+                    'image': 'twisted/code',
+                    'retry_policy': {
+                        'name': 'never',
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['wolfwood'].cpu_shares,
+            RestartNever())
+
+    def test_retry_policy_always(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of always if that policy was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'darmstadtium': {
+                    'image': 'atomic/110',
+                    'retry_policy': {
+                        'name': 'always',
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['darmstadtium'].cpu_shares,
+            RestartAlways())
+
+    def test_retry_policy_on_failure(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of on-failure if that policy was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'boron': {
+                    'image': 'atomic/5',
+                    'retry_policy': {
+                        'name': 'on-failure',
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['boron'].cpu_shares,
+            RestartOnFailure(maximum_retry_count=None))
+
+    def test_retry_policy_on_failure_with_retry_count(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of on-failure if that policy was specified in the configuration.
+        """
+        config = {
+            'applications': {
+                'yttrium': {
+                    'image': 'atomic/39',
+                    'retry_policy': {
+                        'name': 'on-failure',
+                        'max_retry_count': 10,
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['yttrium'].cpu_shares,
+            RestartOnFailure(max_retry_count=10))
+
+    def test_error_on_retry_policy_always_with_retry_count(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if maximum retry count is specified with a policy other than on-failure.
+        """
+        config = {
+            'applications': {
+                'molybdenum': {
+                    'image': 'atomic/42',
+                    'retry_policy': {
+                        'name': 'always',
+                        'max_retry_count': 10,
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['molybdenum'].cpu_shares,
+            RestartOnFailure(max_retry_count=10))
+
+    def test_error_on_retry_policy_on_failure_with_retry_count(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if maximum retry count is specified with a policy other than on-failure.
+        """
+        config = {
+            'applications': {
+                'red-fish': {
+                    'image': 'seuss/one-fish-two-fish',
+                    'retry_policy': {
+                        'name': 'on-failure',
+                        'max_retry_count': 10,
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'redfish' has a config error. "
+            "MESSAGE-TEXT",
+            exception.message
+        )
+
+    def test_error_on_retry_policy_with_retry_count_not_integer(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if a maximum retry count is not an integer.
+        """
+        config = {
+            'applications': {
+                'lorax': {
+                    'image': 'seuss/lorax',
+                    'retry_policy': {
+                        'name': 'on-failure',
+                        'max_retry_count': "fifty",
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'lorax' has a config error. "
+            "MESSAGE-TEXT",
+            exception.message
+        )
+
+    def test_error_on_retry_policy_with_extra_keys(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if extra keys are specified for a retry policy.
+        """
+        config = {
+            'applications': {
+                'one-fish': {
+                    'image': 'seuss/one-fish-two-fish',
+                    'retry_policy': {
+                        'name': 'on-failure',
+                        'extra': "key",
+                    },
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'one-fish' has a config error. "
+            "MESSAGE-TEXT",
+            exception.message
+        )
+
+    def test_error_on_retry_policy_not_a_dictionary(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if extra keys are specified for a retry policy.
+        """
+        config = {
+            'applications': {
+                'green-eggs': {
+                    'image': 'seuss/green-eggs-ham',
+                    'retry_policy': 'pretend-i-am-a-dictionary',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'green-egss' has a config error. "
+            "MESSAGE-TEXT",
+            exception.message
+        )
+
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
