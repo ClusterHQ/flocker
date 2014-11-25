@@ -827,15 +827,15 @@ class OmnibusPackageBuilderTests(TestCase):
                                     target_dir=target_path))
 
     @require_root
-    def test_functional_fedora20(self):
+    def test_functional_fedora_20(self):
         """
-        The expected RPM files are built for Fedora20
+        The expected RPM files are built for Fedora 20
         """
         output_dir = FilePath(self.mktemp())
         check_call([
             FLOCKER_PATH.descendant(['admin', 'build-package']).path,
             '--destination-path', output_dir.path,
-            '--distribution', 'fedora20',
+            '--distribution', 'fedora-20',
             FLOCKER_PATH.path
         ])
         python_version = __version__
@@ -1264,7 +1264,7 @@ class BuildInDockerFunctionTests(TestCase):
         ``DockerBuild`` and ``DockerRun`` instances.
         """
         supplied_distribution = 'Foo'
-        expected_tag = 'clusterhq/build_%s' % (supplied_distribution,)
+        expected_tag = 'clusterhq/build-%s' % (supplied_distribution,)
         supplied_top_level = FilePath('/foo/bar')
         expected_build_directory = supplied_top_level.descendant(
             ['admin', 'build_targets', supplied_distribution])

@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import
 
-from zope.interface import Interface
+from zope.interface import Attribute, Interface
 
 
 class FilesystemAlreadyExists(Exception):
@@ -42,7 +42,15 @@ class IFilesystemSnapshots(Interface):
 
 
 class IFilesystem(Interface):
-    """A filesystem that is part of a pool."""
+    """
+    A filesystem that is part of a pool.
+    """
+
+    size = Attribute("""
+    A ``VolumeSize`` instance giving capacity information for this filesystem.
+    This value is not necessarily up-to-date but represents information that
+    was correct when this ``IFilesystem`` provider was created.
+    """)
 
     def get_path():
         """Retrieve the filesystem's local path.
@@ -109,7 +117,9 @@ class IFilesystem(Interface):
 
 
 class IStoragePool(Interface):
-    """Pool of on-disk storage where filesystems are stored."""
+    """
+    Pool of on-disk storage where filesystems are stored.
+    """
 
     def create(volume):
         """
@@ -119,7 +129,10 @@ class IStoragePool(Interface):
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: Deferred that fires on filesystem creation with a
-            :class:`IFilesystem` provider, or errbacks if creation failed.
+            :class:`IFilesystem` provider, or errbacks if creation failed.  The
+            reason passed to the errback may be a ``MaximumSizeTooSmall``
+            exception or an implementation-specific exception for other
+            problems.
         """
 
     def clone_to(parent, volume):

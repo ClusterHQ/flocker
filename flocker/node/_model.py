@@ -64,7 +64,7 @@ class AttachedVolume(object):
         volume should be mounted.
 
     :ivar int maximum_size: The maximum size in bytes of this volume, or
-        ``None`` for no limit.
+        ``None`` if there is no specified limit.
     """
 
     @classmethod
@@ -85,6 +85,8 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
+            # XXX Docker Volume objects do not contain size information
+            # at this time.
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
