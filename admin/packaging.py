@@ -128,12 +128,17 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
-        # Remove this DelayedVersion nonsense.
+        # This is to account for the fact that the ``clusterhq-python-flocker``
+        # dependency will have a ``DelayedVersion`` instance rather than a
+        # version string.
+        # This is not the correct place to handle this special case, but it has
+        # to be done here in order to wait for the DelayedVersion to be setup.
         # See https://clusterhq.atlassian.net/browse/FLOC-1020
-        version = getattr(self.version, 'version', self.version)
         release = getattr(self.version, 'release', None)
-        if release is not None:
-            version += '-' + release
+        if release is None:
+            version = self.version
+        else:
+            version = self.version.version + '-' + release
 
         if package_type == PackageTypes.DEB:
             if self.version:
