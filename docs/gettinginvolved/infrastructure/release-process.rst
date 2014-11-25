@@ -452,7 +452,12 @@ Post-Release Review Process
 #. Verify that the tutorial works on all supported platforms:
 
    * The client (``flocker-deploy``) should be installed and on all supported platforms.
+
+     XXX: This step should be automated. See (
+     `FLOC-1039<https://clusterhq.atlassian.net/browse/FLOC-1039>_`)
+
    * The node package (``flocker-node``) should be installed on all supported platforms.
+
      XXX: These steps should be automated. See (
      `FLOC-965<https://clusterhq.atlassian.net/browse/FLOC-965>_`,
       `FLOC-957<https://clusterhq.atlassian.net/browse/FLOC-957>_`,
