@@ -203,52 +203,53 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
 #. Do the acceptance tests:
 
-   Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
-   The URL can be found by examining the "upload-base-box" step of the "flocker-vagrant-tutorial-box" builder.
-   The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
+   - Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
 
-   Add the downloaded ``.box`` file to ``vagrant``:
+     The URL can be found by examining the "upload-base-box" step of the "flocker-vagrant-tutorial-box" builder.
+     The URL will look like https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
-   .. code-block:: console
+   - Add the downloaded ``.box`` file to ``vagrant``:
 
-         vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
+     .. code-block:: console
 
-   You should now see the ``flocker-tutorial`` box listed:
+        vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
-   .. code-block:: console
-      :emphasize-lines: 4
+     You should now see the ``flocker-tutorial`` box listed:
 
-      $ vagrant box list
-      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-      clusterhq/flocker-tutorial (virtualbox, 0)
+     .. code-block:: console
+        :emphasize-lines: 4
+
+        $ vagrant box list
+        clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+        clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+        clusterhq/flocker-tutorial (virtualbox, 0)
 
    .. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
 
-   Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
+   - Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
-   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
+   - Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
-   - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
-   - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
+     - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
+     - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
 
-   Clone Flocker on your local workstation and install all ``dev`` requirements:
+   - Clone Flocker on your local workstation and install all ``dev`` requirements:
 
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+     .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-   .. code-block:: console
+     .. code-block:: console
 
-   git clone git@github.com:ClusterHQ/flocker.git
-   cd flocker
-   git checkout -b *release branch*
-   mkvirtualenv flocker-release-${VERSION}
-   pip install --editable .[dev]
+        git clone git@github.com:ClusterHQ/flocker.git
+        cd flocker
+        git checkout -b *release branch*
+        mkvirtualenv flocker-release-${VERSION}
+        pip install --editable .[dev]
 
-   Run the automated acceptance tests and ensure that they all pass, with no skips:
+   - Run the automated acceptance tests and ensure that they all pass, with no skips:
 
-   .. code-block:: console
+     .. code-block:: console
 
-      $ trial flocker.acceptance
+        $ trial flocker.acceptance
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
