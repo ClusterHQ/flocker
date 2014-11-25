@@ -840,6 +840,19 @@ class WaitForVolumeTests(TestCase):
         wait = self.service.wait_for_volume(MY_VOLUME)
         self.assertEqual(self.successResultOf(wait), volume)
 
+    def test_created_named_volume(self):
+        """
+        ``VolumeService.wait_for_volume`` fires with a ``Volume`` of matching
+        name to the name passed as a parameter.
+        """
+        wait = self.service.wait_for_volume(MY_VOLUME)
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
+        volume2 = self.successResultOf(self.service.create(MY_VOLUME2))
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        found_volume = self.successResultOf(wait)
+        self.assertEqual(found_volume, volume)
+
     def test_created_volume(self):
         """
         The ``Deferred`` returned by ``VolumeService.wait_for_volume`` fires

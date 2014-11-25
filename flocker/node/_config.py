@@ -238,7 +238,7 @@ class ApplicationMarshaller(object):
             volume_dict = {
                 u'mountpoint': self._application.volume.mountpoint.path
             }
-            if self._application.volume.maximum_size:
+            if self._application.volume.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
                     self._application.volume.maximum_size
                 )

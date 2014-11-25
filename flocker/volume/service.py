@@ -207,21 +207,26 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        def check_for_volume(uuid):
+        def check_for_volume(uuid, name):
             d = self.enumerate()
-            d.addCallback(compare_volumes_by_uuid, uuid)
+            d.addCallback(compare_volumes_by_name_uuid, uuid, name)
             return d
 
-        def compare_volumes_by_uuid(volumes, uuid):
+        def compare_volumes_by_name_uuid(volumes, uuid, name):
+            """
+            Iterate the volumes managed by this service and compare the
+            UUID and the ``VolumeName`` to determine if we have found the
+            ``Volume`` instance requested by name.
+            """
             for volume in volumes:
-                if volume.uuid == uuid:
+                if volume.uuid == uuid and volume.name == name:
                     return volume
             return deferLater(
                 self._reactor, WAIT_FOR_VOLUME_INTERVAL,
-                check_for_volume, uuid
+                check_for_volume, uuid, name
             )
 
-        return check_for_volume(self.uuid)
+        return check_for_volume(self.uuid, name)
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
