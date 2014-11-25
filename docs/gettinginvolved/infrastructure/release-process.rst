@@ -129,9 +129,9 @@ Preparing For a Release
    XXX: Process to be decided.
    See https://github.com/ClusterHQ/flocker/issues/523
 
-   The NEWS date format is YYYY-MM-DD.
-   The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
-   This means that in doing a release, you may have to change the NEWS heading from a previous Weekly Development Release or pre-release.
+   - The NEWS date format is YYYY-MM-DD.
+   - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
+   - This means that in doing a release, you may have to change the NEWS heading from a previous Weekly Development Release or pre-release.
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
@@ -147,12 +147,12 @@ Preparing For a Release
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
-   Update the "What's New" document.
-   Refer to the appropriate internal release planning document for a list of features that were scheduled for this release,
+   - Update the "What's New" document.
+   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release,
    e.g. Product Development > Releases > Release 0.3.1,
    and add bullet points for those features that have been completed.
-   Add bullet points for any other *important* new features and improvements from the NEWS file above.
-   And add links (where appropriate) to documentation that has been added for those features.
+   - Add bullet points for any other *important* new features and improvements from the NEWS file above,
+   - and add links (where appropriate) to documentation that has been added for those features.
    Finally, commit the changes:
 
    .. code-block:: console
