@@ -116,7 +116,7 @@ Preparing For a Release
    - the "Next Release" line in
      `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
 
-   Check and commit the changes:
+   Commit the changes:
 
      .. code-block:: console
 
