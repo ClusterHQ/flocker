@@ -272,7 +272,7 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.14", base_url=base_url)
+        self._client = Client(version="1.15", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -327,15 +327,26 @@ class DockerClient(object):
             ports = []
 
         def _create():
-            self._client.create_container(
+            config = self._client._container_config(
                 image_name,
-                name=container_name,
+                command=None,
                 environment=environment,
                 volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
             )
+            binds = [
+                volume.node_path.path + ':' + volume.container_path.path
+                for volume in volumes]
+
+            config['HostConfig'] = {
+                'Binds': binds
+            }
+            self._client.create_container_from_config(
+                config=config, name=container_name)
+            # info = self._client.inspect_container(container_name)
+            # import pdb; pdb.set_trace()
 
         def _add():
             try:
@@ -356,10 +367,6 @@ class DockerClient(object):
                 sleep(0.001)
                 continue
             self._client.start(container_name,
-                               binds={volume.node_path.path:
-                                      {u"bind": volume.container_path.path,
-                                       u"ro": False}
-                                      for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
@@ -427,11 +434,14 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
-                for container_path, node_path in data[u"Volumes"].items():
-                    volumes.append(
-                        Volume(container_path=FilePath(container_path),
-                               node_path=FilePath(node_path))
-                    )
+                binds = data[u"HostConfig"].get('Binds')
+                if binds:
+                    for bind_config in binds:
+                        node_path, container_path = bind_config.split(':', 1)
+                        volumes.append(
+                            Volume(container_path=FilePath(container_path),
+                                   node_path=FilePath(node_path))
+                        )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
