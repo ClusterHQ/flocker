@@ -5,7 +5,8 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
+from zope.interface import Interface, implementer
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -90,8 +91,45 @@ class AttachedVolume(object):
             return None
 
 
+class IRestartPolicy(Interface):
+    """
+    Restart policy for an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True)
+class RestartNever(object):
+    """
+    A restart policy that never restarts an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True)
+class RestartAlways(object):
+    """
+    A restart policy that always restarts an application.
+    """
+    def __init__(self):
+        pass # Check model conditions
+
+
+@implementer(IRestartPolicy)
+@attributes(["maximum_retry_count"], apply_immutable=True)
+class RestartOnFailre(object):
+    """
+    A restart policy that restarts an application when it fails.
+
+    :ivar int maximum_retry_count: The number of times the application is
+        allowed to fail, before the giving up.
+    """
+
+
+
 @attributes(["name", "image", "ports", "volume", "links", "environment",
-             "memory_limit", "cpu_shares"],
+             "memory_limit", "cpu_shares",
+             Attribute("restart_policy", default=RestartNever())],
             defaults=dict(ports=frozenset(), volume=None,
                           links=frozenset(), environment=None,
                           memory_limit=None, cpu_shares=None))
@@ -123,6 +161,9 @@ class Application(object):
         that should be exposed in the ``Application`` container, or ``None``
         if no environment variables are specified. A ``frozenset`` of
         variables contains a ``tuple`` series mapping (key, value).
+
+    :ivar IRestartPolicy restart_policy: The restart policy for this
+        application.
     """
 
 

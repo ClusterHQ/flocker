@@ -6,7 +6,10 @@ Tests for ``flocker.node._model``.
 from twisted.trial.unittest import SynchronousTestCase
 
 from ...testtools import make_with_init_tests
-from .._model import Application, DockerImage, Node, Deployment
+from .._model import (
+    Application, DockerImage, Node, Deployment,
+    RestartOnFailure, RestartAlways, RestartNever,
+)
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -77,9 +80,9 @@ class ApplicationInitTests(make_with_init_tests(
     kwargs=dict(
         name=u'site-example.com', image=object(),
         ports=None, volume=None, environment=None,
-        links=frozenset(),
+        links=frozenset(), restart_policy=RestartAlways(),
     ),
-    expected_defaults={'links': frozenset()},
+    expected_defaults={'links': frozenset(), 'restart_policy': RestartNever()},
 )):
     """
     Tests for ``Application.__init__``.
@@ -126,3 +129,42 @@ class DeploymentInitTests(make_with_init_tests(
     """
     Tests for ``Deployment.__init__``.
     """
+
+
+class RestartOnFailureTests(SynchronousTestCase):
+    """
+    Tests for ``RestartOnFailure``.
+    """
+
+    def test_maximum_retry_count_not_zero(self):
+        """
+        ``RestartOnFailure.__init__`` raises ``ValueError`` if the specified
+        maximum retry count is 0.
+        """
+        self.assertRaises(
+            ValueError,
+            RestartOnFailure, maximum_restart_count=0)
+
+
+    def test_maximum_retry_count_not_negative(self):
+        """
+        ``RestartOnFailure.__init__`` raises ``ValueError`` if the specified
+        maximum retry count is negative.
+        """
+        self.assertRaises(
+            ValueError,
+            RestartOnFailure, maximum_restart_count=-1)
+
+    def test_maximum_retry_count_postive(self):
+        """
+        ``RestartOnFailure.__init__`` does not raise if the specified
+        maximum retry count is positive.
+        """
+        RestartOnFailure(maximum_restart_count=1)
+
+    def test_maximum_retry_count_none(self):
+        """
+        ``RestartOnFailure.__init__`` does not raise if the specified
+        maximum retry count is ``None``.
+        """
+        RestartOnFailure(maximum_restart_count=None)
