@@ -12,6 +12,8 @@ from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
     Environment, Volume)
 
+from .._model import RestartAlways, RestartNever
+
 
 def make_idockerclient_tests(fixture):
     """
@@ -119,7 +121,8 @@ def make_idockerclient_tests(fixture):
                 ports=portmaps,
                 volumes=volumes,
                 mem_limit=100000000,
-                cpu_shares=512
+                cpu_shares=512,
+                restart_policy=RestartAlways(),
             )
             d.addCallback(lambda _: client.list())
 
@@ -128,6 +131,7 @@ def make_idockerclient_tests(fixture):
                 container_image=image, ports=frozenset(portmaps),
                 environment=None, volumes=frozenset(volumes),
                 mem_limit=100000000, cpu_shares=512,
+                restart_policy=RestartAlways(),
             )
 
             def got_list(units):
@@ -265,10 +269,12 @@ class UnitInitTests(
                 activation_state=u'active',
                 container_image=u'flocker/flocker:v1.0.0',
                 ports=(PortMap(internal_port=80, external_port=8080),),
-                environment=Environment(variables={u'foo': u'bar'})
+                environment=Environment(variables={u'foo': u'bar'}),
+                restart_policy=RestartAlways(),
             ),
             expected_defaults=dict(
-                ports=(), container_image=None, environment=None)
+                ports=(), container_image=None, environment=None,
+                restart_policy=RestartNever())
         )
 ):
     """

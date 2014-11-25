@@ -21,6 +21,8 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
+from flocker.node._model import RestartNever
+
 
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
@@ -63,7 +65,9 @@ class Volume(object):
              Attribute("environment", default_value=None),
              Attribute("volumes", default_value=()),
              Attribute("mem_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None)])
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=None),
+            ])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -108,6 +112,8 @@ class Unit(object):
         Or ``None`` to let it have the default number of shares.  Docker maps
         this value onto the cgroups ``cpu.shares`` value (the default of which
         is probably 1024).
+
+    :ivar IRestartPolicy restart_policy: The restart policy of the container.
     """
 
 
@@ -122,7 +128,7 @@ class IDockerClient(Interface):
     """
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
-            mem_limit=None, cpu_shares=None):
+            mem_limit=None, cpu_shares=None, restart_policy=RestartNever()):
         """
         Install and start a new unit.
 
@@ -156,8 +162,12 @@ class IDockerClient(Interface):
             Docker maps this value onto the cgroups ``cpu.shares`` value (the
             default of which is probably 1024).
 
+        :param IRestartPolicy restart_policy: The restart policy of the
+            container.
+
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
+
         """
 
     def exists(unit_name):
@@ -212,7 +222,8 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=frozenset(), mem_limit=None, cpu_shares=None):
+            volumes=frozenset(), mem_limit=None, cpu_shares=None,
+            restart_policy=RestartNever()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -225,6 +236,7 @@ class FakeDockerClient(object):
             activation_state=u'active',
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
+            restart_policy=restart_policy,
         )
         return succeed(None)
 
@@ -317,8 +329,23 @@ class DockerClient(object):
                     ports.append(portmap)
         return ports
 
+    def _parse_docker_restart_policy(self, data):
+        """
+        Parse the restart policy from the configuration of a Docker container
+        in the format returned by ``self._client.inspect_container`` and return
+        an ``IRestartPolicy``.
+
+        :param dict data: The data structure represting the restart policy of a
+            container, e.g.
+
+            {"Name": "policy-name", "MaximumRetryCount": 0}
+
+        :return IRestartPolicy: The model of the restart policy.
+        """
+
     def add(self, unit_name, image_name, ports=None, environment=None,
-            volumes=(), mem_limit=None, cpu_shares=None):
+            volumes=(), mem_limit=None, cpu_shares=None,
+            restart_policy=RestartNever()):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -361,7 +388,8 @@ class DockerClient(object):
                                        u"ro": False}
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
-                                              for p in ports})
+                                              for p in ports},
+                               restart_policy=restart_policy.serialize_to_docker_api())
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -447,6 +475,8 @@ class DockerClient(object):
                 cpu_shares = None if cpu_shares == 0 else cpu_shares
                 mem_limit = data[u"Config"][u"Memory"]
                 mem_limit = None if mem_limit == 0 else mem_limit
+                restart_policy = self._parse_docker_restart_policy(
+                    data[U"Config"][u"RestartPolicy"])
                 result.add(Unit(
                     name=name,
                     container_name=self._to_container_name(name),
@@ -455,7 +485,8 @@ class DockerClient(object):
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
                     mem_limit=mem_limit,
-                    cpu_shares=cpu_shares),
+                    cpu_shares=cpu_shares,
+                    restart_policy=restart_policy)
                 )
             return result
         return deferToThread(_list)
