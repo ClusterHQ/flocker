@@ -127,7 +127,7 @@ Preparing For a Release
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
-   See https://github.com/ClusterHQ/flocker/issues/523
+   See https://clusterhq.atlassian.net/browse/FLOC-523
 
    - The NEWS date format is YYYY-MM-DD.
    - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
