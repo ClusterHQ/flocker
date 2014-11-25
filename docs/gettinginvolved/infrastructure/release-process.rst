@@ -453,10 +453,14 @@ Post-Release Review Process
 
    * The client (``flocker-deploy``) should be installed and on all supported platforms.
 
+     Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`
+
      XXX: This step should be automated. See (
      `FLOC-1039<https://clusterhq.atlassian.net/browse/FLOC-1039>_`)
 
    * The node package (``flocker-node``) should be installed on all supported platforms.
+
+     Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`
 
      XXX: These steps should be automated. See (
      `FLOC-965<https://clusterhq.atlassian.net/browse/FLOC-965>_`,
