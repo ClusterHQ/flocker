@@ -232,6 +232,18 @@ This review step is to ensure that all acceptance tests pass on the release bran
    - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
    - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
 
+   Clone Flocker on your local workstation and install all ``dev`` requirements:
+
+   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+
+   .. code-block:: console
+
+   git clone git@github.com:ClusterHQ/flocker.git
+   cd flocker
+   git checkout -b *release branch*
+   mkvirtualenv flocker-release-${VERSION}
+   pip install --editable .[dev]
+
    Run the automated acceptance tests and ensure that they all pass, with no skips:
 
    .. code-block:: console
