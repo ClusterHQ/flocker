@@ -479,6 +479,15 @@ Post-Release Review Process
 
 .. _back-porting-changes:
 
+
+Improving the Release Process
+-----------------------------
+
+The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
+If there is no existing issue for the planned improvements then a new one should be made.
+The issue(s) for the planned improvements should be put into the next sprint.
+
+
 Appendix: Back Porting Changes From Master
 ------------------------------------------
 
