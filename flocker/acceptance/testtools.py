@@ -33,7 +33,7 @@ __all__ = [
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901.
+# See https://clusterhq.atlassian.net/browse/FLOC-901.
 require_flocker_cli = skipUnless(which("flocker-deploy"),
                                  "flocker-deploy not installed")
 
@@ -43,7 +43,7 @@ require_mongo = skipUnless(
 
 # XXX The MONGO_APPLICATION will have to be removed because it does not match
 # the tutorial yml files, and the yml should be testably the same:
-# https://github.com/ClusterHQ/flocker/issues/947
+# https://clusterhq.atlassian.net/browse/FLOC-947
 MONGO_APPLICATION = u"mongodb-example-application"
 MONGO_IMAGE = u"clusterhq/mongodb"
 
@@ -120,7 +120,7 @@ def _clean_node(test_case, node):
     #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
-    # not yet exist. See https://github.com/ClusterHQ/flocker/issues/682
+    # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
     _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
              [b"flocker"], None)
 
@@ -136,7 +136,7 @@ def get_nodes(test_case, num_nodes):
     XXX This is a temporary solution which ignores num_nodes and returns the IP
     addresses of the acceptance testing VMs which must already be started.
     num_nodes Docker containers will be created instead to replace this, see
-    https://github.com/ClusterHQ/flocker/issues/900
+    https://clusterhq.atlassian.net/browse/FLOC-900
 
     :param test_case: The ``TestCase`` running this unit test.
     :param int num_nodes: The number of nodes to start up.
