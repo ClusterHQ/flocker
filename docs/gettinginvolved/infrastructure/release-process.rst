@@ -118,9 +118,9 @@ Preparing For a Release
 
    Commit the changes:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        git commit -am "Bumped version numbers"
+      git commit -am "Bumped version numbers"
 
    .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
 
