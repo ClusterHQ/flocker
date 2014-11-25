@@ -459,6 +459,7 @@ Post-Release Review Process
      )
 
    * The node package (``flocker-node``) should be installed on all supported platforms.
+     You can use the :doc:`Flocker development machine <vagrant>` in place of "any Fedora 20 machine".
 
      Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`
 
