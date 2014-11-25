@@ -130,8 +130,8 @@ Preparing For a Release
    See https://github.com/ClusterHQ/flocker/issues/523
 
    The NEWS date format is YYYY-MM-DD.
-   The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
-   This means that in doing a release, you may have to change the NEWS heading from a previous weekly or pre-release.
+   The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
+   This means that in doing a release, you may have to change the NEWS heading from a previous Weekly Development Release or pre-release.
 
    .. note:: ``git log`` can be used to see all merges between two versions.
 
