@@ -38,11 +38,11 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
 require_rpm = skipIf(
-    None in (which('rpm'), which('rpmlint')),
+    [] in (which('rpm'), which('rpmlint')),
     "Tests require the `rpm` and `rpmlint` commands."
 )
 require_dpkg = skipIf(
-    None in (which('dpkg'), which('lintian')),
+    [] in (which('dpkg'), which('lintian')),
     "Tests require the `dpkg` and `lintian` commands."
 )
 require_root = skipIf(os.getuid() != 0, "Must run as root.")
