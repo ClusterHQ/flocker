@@ -209,12 +209,14 @@ def get_mongo_client(host, port=27017):
 
 def assert_expected_deployment(test_case, expected_deployment):
     """
-    Assert that the expected set of ``Application`` on a set of nodes is the
-    same as the actual set of ``Application`` on those nodes.
+    Assert that the expected set of ``Application`` instances on a set of
+    nodes is the same as the actual set of ``Application`` instance on
+    those nodes.
 
     :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected_deployment: A mapping of IP addresses to sets of
-        ``Application`` expected on the nodes with those IP addresses.
+    :param dict expected_deployment: A mapping of IP addresses to set of
+        ``Application`` instances expected on the nodes with those IP
+        addresses.
     """
     for node, expected in expected_deployment.items():
         yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
