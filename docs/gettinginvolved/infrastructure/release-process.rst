@@ -151,6 +151,7 @@ Preparing For a Release
    - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
+
    Finally, commit the changes:
 
    .. code-block:: console
@@ -454,18 +455,20 @@ Post-Release Review Process
      Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`
 
      XXX: This step should be automated. See (
-     `FLOC-1039<https://clusterhq.atlassian.net/browse/FLOC-1039>_`)
+     `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_
+     )
 
    * The node package (``flocker-node``) should be installed on all supported platforms.
 
      Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`
 
      XXX: These steps should be automated. See (
-     `FLOC-965, <https://clusterhq.atlassian.net/browse/FLOC-965>_`
-     `FLOC-957, <https://clusterhq.atlassian.net/browse/FLOC-957>_`
-     `FLOC-958<https://clusterhq.atlassian.net/browse/FLOC-958>)
+     `FLOC-965 <https://clusterhq.atlassian.net/browse/FLOC-965>`_,
+     `FLOC-957 <https://clusterhq.atlassian.net/browse/FLOC-957>`_,
+     `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
+     )
    * Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>`_ using a Linux client installation and Rackspace Fedora20 nodes.
+   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
