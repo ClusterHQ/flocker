@@ -67,7 +67,7 @@ class Volume(object):
              Attribute("volumes", default_value=()),
              Attribute("mem_limit", default_value=None),
              Attribute("cpu_shares", default_value=None),
-             Attribute("restart_policy", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever()),
             ])
 class Unit(object):
     """
