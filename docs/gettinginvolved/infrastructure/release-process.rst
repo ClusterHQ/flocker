@@ -454,7 +454,7 @@ Post-Release Review Process
    * The client (``flocker-deploy``) should be installed and on all supported platforms.
    * The node package (``flocker-node``) should be installed on all supported platforms.
    * Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Perform the "ELK Example" documentation using a Linux client installation and a Rackspace Fedora20 nodes.
+   * Perform the "ELK Example" documentation using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
