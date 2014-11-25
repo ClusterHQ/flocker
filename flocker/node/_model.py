@@ -130,12 +130,14 @@ class RestartOnFailre(object):
         Check that ``maximum_retry_count`` is positive or ``None``.
         """
 
-@attributes(["name", "image", "ports", "volume", "links", "environment",
-             "memory_limit", "cpu_shares",
-             Attribute("restart_policy", default=RestartNever())],
-            defaults=dict(ports=frozenset(), volume=None,
-                          links=frozenset(), environment=None,
-                          memory_limit=None, cpu_shares=None))
+@attributes(["name", "image",
+             Attribute("ports", default_value=frozenset()),
+             Attribute("volume", default_value=None),
+             Attribute("links", default_value=frozenset()),
+             Attribute("environment", default_value=None),
+             Attribute("memory_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever())])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
