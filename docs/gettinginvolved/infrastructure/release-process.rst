@@ -186,8 +186,10 @@ Preparing For a Release
    .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
+.. _pre-tag-review:
+
 Pre-tag Review Process
---------------------------
+----------------------
 
 A tag cannot be deleted once it has been pushed to GitHub.
 So it is important to check that the code in the release branch is working before it is tagged.
@@ -434,7 +436,7 @@ Release
 Post-Release Review Process
 ---------------------------
 
-#. Remove the Vagrant box which was added as part of the "Pre-Release Review Process":
+#. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
 
    .. code-block:: console
 
