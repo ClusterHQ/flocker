@@ -1312,7 +1312,7 @@ class MakeDependenciesTests(TestCase):
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=expected_version
             ),
             make_dependencies('node', expected_version, 'fedora')
@@ -1327,7 +1327,7 @@ class MakeDependenciesTests(TestCase):
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=expected_version
             ),
             make_dependencies('cli', expected_version, 'fedora')
