@@ -861,7 +861,7 @@ class OmnibusPackageBuilderTests(TestCase):
             assert_rpm_lint(self, f)
 
     @require_root
-    def test_functional_ubuntu1404(self):
+    def test_functional_ubuntu_1404(self):
         """
         The expected deb files are generated on Ubuntu14.04.
         """
@@ -869,7 +869,7 @@ class OmnibusPackageBuilderTests(TestCase):
         check_call([
             FLOCKER_PATH.descendant(['admin', 'build-package']).path,
             '--destination-path', output_dir.path,
-            '--distribution', 'ubuntu1404',
+            '--distribution', 'ubuntu-14.04',
             FLOCKER_PATH.path
         ])
         python_version = __version__
