@@ -96,13 +96,6 @@ class IRestartPolicy(Interface):
     Restart policy for an application.
     """
 
-    def serialize_to_docker_api(self):
-        """
-        Serialize this policy to the format expected by the docker API.
-
-        :returns: A dictionary suitable to pass to docker.
-        """
-
 
 @implementer(IRestartPolicy)
 @attributes([], apply_immutable=True,
@@ -112,9 +105,6 @@ class RestartNever(object):
     A restart policy that never restarts an application.
     """
 
-    def serialize_to_docker_api(self):
-        pass
-
 
 @implementer(IRestartPolicy)
 @attributes([], apply_immutable=True,
@@ -123,11 +113,6 @@ class RestartAlways(object):
     """
     A restart policy that always restarts an application.
     """
-    def __init__(self):
-        pass # Check model conditions
-
-    def serialize_to_docker_api(self):
-        pass
 
 
 @implementer(IRestartPolicy)
@@ -140,10 +125,10 @@ class RestartOnFailre(object):
         allowed to fail, before the giving up.
     """
 
-    def serialize_to_docker_api(self):
-        pass
-
-
+    def __init__(self):
+        """
+        Check that ``maximum_retry_count`` is positive or ``None``.
+        """
 
 @attributes(["name", "image", "ports", "volume", "links", "environment",
              "memory_limit", "cpu_shares",
