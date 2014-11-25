@@ -102,7 +102,7 @@ class ApplicationTests(SynchronousTestCase):
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
             "volume=None, links=frozenset([]), environment=None, "
-            "memory_limit=None, cpu_shares=None)>",
+            "memory_limit=None, cpu_shares=None, restart_policy=<RestartNever()>)>",
             repr(application)
         )
 
@@ -143,7 +143,7 @@ class RestartOnFailureTests(SynchronousTestCase):
         """
         self.assertRaises(
             ValueError,
-            RestartOnFailure, maximum_restart_count=0)
+            RestartOnFailure, maximum_retry_count=0)
 
 
     def test_maximum_retry_count_not_negative(self):
@@ -153,18 +153,18 @@ class RestartOnFailureTests(SynchronousTestCase):
         """
         self.assertRaises(
             ValueError,
-            RestartOnFailure, maximum_restart_count=-1)
+            RestartOnFailure, maximum_retry_count=-1)
 
     def test_maximum_retry_count_postive(self):
         """
         ``RestartOnFailure.__init__`` does not raise if the specified
         maximum retry count is positive.
         """
-        RestartOnFailure(maximum_restart_count=1)
+        RestartOnFailure(maximum_retry_count=1)
 
     def test_maximum_retry_count_none(self):
         """
         ``RestartOnFailure.__init__`` does not raise if the specified
         maximum retry count is ``None``.
         """
-        RestartOnFailure(maximum_restart_count=None)
+        RestartOnFailure(maximum_retry_count=None)

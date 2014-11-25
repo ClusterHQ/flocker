@@ -117,7 +117,7 @@ class RestartAlways(object):
 
 @implementer(IRestartPolicy)
 @attributes(["maximum_retry_count"], apply_immutable=True)
-class RestartOnFailre(object):
+class RestartOnFailure(object):
     """
     A restart policy that restarts an application when it fails.
 
@@ -127,8 +127,15 @@ class RestartOnFailre(object):
 
     def __init__(self):
         """
-        Check that ``maximum_retry_count`` is positive or ``None``.
+        Check that ``maximum_retry_count`` is positive or None
+
+        :raises ValueError: If maximum_retry_count is invalid.
         """
+        if not (self.maximum_retry_count is None or
+                self.maximum_retry_count > 0):
+            raise ValueError("maximum_retry_count must be postive or None, "
+                             "got %r" % (self.maximum_retry_count,))
+
 
 @attributes(["name", "image",
              Attribute("ports", default_value=frozenset()),
