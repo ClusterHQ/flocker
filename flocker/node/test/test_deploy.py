@@ -548,6 +548,12 @@ class StartApplicationTests(SynchronousTestCase):
             fake_docker._units[application_name].cpu_shares
         )
 
+    def test_restart_policy(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s restart_policy to
+        ``DockerClient.add`` which is used when creating a Unit.
+        """
+
 
 class LinkEnviromentTests(SynchronousTestCase):
     """
