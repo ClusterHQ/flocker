@@ -116,17 +116,6 @@ Preparing For a Release
    - the "Next Release" line in
      `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
 
-   The following ``sed`` command can be used or adapted for this process:
-
-   .. code-block:: console
-                   export PREVIOUS_VERSION="0\.3\.1"
-
-                   sed --regexp-extended --in-place \
-                       "s/${PREVIOUS_VERSION}/${VERSION}/g" \
-                       docs/gettingstarted/linux-install.sh \
-                       docs/gettingstarted/tutorial/Vagrantfile \
-                       docs/gettingstarted/installation.rst
-
    Check and commit the changes:
 
      .. code-block:: console
