@@ -187,8 +187,12 @@ Preparing For a Release
    .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
-Pre-release Review Process
+Pre-tag Review Process
 --------------------------
+
+A tag cannot be deleted once it has been pushed to GitHub.
+So it is important to check that the code in the release branch is working before it is tagged.
+This review step is to ensure that all acceptance tests pass on the release branch before it is tagged.
 
 .. note::
 
