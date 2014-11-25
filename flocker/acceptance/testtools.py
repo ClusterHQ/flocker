@@ -221,6 +221,6 @@ def assert_expected_deployment(test_case, expected_deployment):
     for node, expected in expected_deployment.items():
         yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
         state = safe_load(yaml)
-        test_case.assertEqual(
+        test_case.assertSetEqual(
             set(FlockerConfiguration(state).applications().values()),
             expected)
