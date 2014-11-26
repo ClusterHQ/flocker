@@ -331,7 +331,6 @@ class DockerClient(object):
                 image_name,
                 command=None,
                 environment=environment,
-                volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
