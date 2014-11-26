@@ -486,6 +486,28 @@ class VolumeServiceAPITests(TestCase):
         volumes = self.successResultOf(service.enumerate())
         self.assertEqual([], list(volumes))
 
+    def test_enumerate_with_size(self):
+        """
+        ``enumerate()`` includes a ``VolumeSize`` object in the size attribute
+        of volumes previously ``create()``ed.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        names = set(VolumeName(namespace=u"ns", id=i)
+                    for i in (u"somevolume", u"anotherone", u"lastone"))
+        expected = {
+            self.successResultOf(service.create(name))
+            for name in names}
+        actual = self.successResultOf(service.enumerate())
+        self.assertEqual(
+            set(
+                (volume.uuid, volume.size, volume.name) for volume in expected
+            ),
+            set(
+                (volume.uuid, volume.size, volume.name) for volume in actual
+            ))
+
     def test_enumerate_some_volumes(self):
         """``enumerate()`` returns all volumes previously ``create()``ed."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
@@ -818,6 +840,20 @@ class WaitForVolumeTests(TestCase):
         volume = self.successResultOf(self.service.create(MY_VOLUME))
         wait = self.service.wait_for_volume(MY_VOLUME)
         self.assertEqual(self.successResultOf(wait), volume)
+
+    def test_created_named_volume(self):
+        """
+        ``VolumeService.wait_for_volume`` fires with a ``Volume`` of matching
+        name to the name passed as a parameter.
+        """
+        wait = self.service.wait_for_volume(MY_VOLUME)
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        volume = self.successResultOf(self.service.create(MY_VOLUME))
+        volume2 = self.successResultOf(self.service.create(MY_VOLUME2))
+        self.clock.advance(WAIT_FOR_VOLUME_INTERVAL)
+        found_volume = self.successResultOf(wait)
+        self.assertEqual(found_volume, volume)
+        self.assertNotEqual(found_volume, volume2)
 
     def test_created_volume(self):
         """
