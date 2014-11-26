@@ -21,7 +21,6 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND
 
-
 class AlreadyExists(Exception):
     """A unit with the given name already exists."""
 
@@ -424,14 +423,7 @@ class DockerClient(object):
             ids = [d[u"Id"] for d in
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
-                try:
-                    data = self._client.inspect_container(i)
-                except APIError as e:
-                    # The container ID returned by the list API call above, may
-                    # have been removed in another thread.
-                    if e.response.status_code == NOT_FOUND:
-                        continue
-
+                data = self._client.inspect_container(i)
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
