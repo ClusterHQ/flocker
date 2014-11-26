@@ -339,8 +339,14 @@ class DockerClient(object):
                 volume.node_path.path + ':' + volume.container_path.path
                 for volume in volumes]
 
+            port_bindings = {}
+            for p in ports:
+                key = '%s/tcp' % (p.internal_port,)
+                port_bindings[key] = [{"HostPort": bytes(p.external_port)}]
+
             config['HostConfig'] = {
-                'Binds': binds
+                'Binds': binds,
+                'PortBindings': port_bindings,
             }
             self._client.create_container_from_config(
                 config=config, name=container_name)
@@ -429,9 +435,9 @@ class DockerClient(object):
                          else u"inactive")
                 name = data[u"Name"]
                 image = data[u"Config"][u"Image"]
-                port_mappings = data[u"NetworkSettings"][u"Ports"]
-                if port_mappings is not None:
-                    ports = self._parse_container_ports(port_mappings)
+                port_bindings = data[u"HostConfig"][u"PortBindings"]
+                if port_bindings is not None:
+                    ports = self._parse_container_ports(port_bindings)
                 else:
                     ports = list()
                 volumes = []
