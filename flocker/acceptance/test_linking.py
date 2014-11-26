@@ -85,24 +85,6 @@ class LinkingTests(TestCase):
 
     Similar to:
     http://doc-dev.clusterhq.com/gettingstarted/examples/linking.html
-
-    # TODO (Note for submission)
-    # This has the flaw of not actually testing that the data shows up in
-    # Kibana. It does test the linking feature - between Elasticsearch and
-    # logstash, and Kibana needs to be set up (these test verifies that it
-    # is running). We could e.g. use selenium and check that there is no error
-    # saying that Kibana cannot find Elasticsearch, and trust that if it can
-    # find the data store then it will display it as in the tutorial.
-    #
-    # This script avoids so many race conditions. Once this has been reviewed,
-    # try / make an issue for manually running the tutorial as fast as possible
-    # and see if there are places where that should be warned against.
-
-    # If this is suitable, I will add the new dependencies (currently just the
-    # latest https://pypi.python.org/pypi/elasticsearch) to setup.py, and
-    # create a @skipUnless decorator for each of the dependencies, similar to
-    # require_mongo in testtools.py. Each dependency must also go in the
-    # internal documentation for packages used.
     """
     @require_flocker_cli
     def setUp(self):
