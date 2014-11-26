@@ -55,9 +55,9 @@ if rpm_version:
     # so strip that.
     if rpm_version.endswith('.dirty'):
         rpm_version = rpm_version[:-len('.dirty')]
-    package = 'flocker-node-%s%s' % (rpm_version, rpm_dist)
+    package = 'clusterhq-flocker-node-%s%s' % (rpm_version, rpm_dist)
 else:
-    package = 'flocker-node'
+    package = 'clusterhq-flocker-node'
 
 # Install flocker-node
 check_call(['yum', 'install', '-y'] + branch_opt + [package])
