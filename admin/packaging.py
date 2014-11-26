@@ -149,7 +149,8 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
-            Dependency(package='docker-io', compare='>=', version='1.2'),
+            # Require v1.3.0 for its 1.15 API
+            Dependency(package='docker-io', compare='>=', version='1.3.0'),
             Dependency(package='/usr/sbin/iptables'),
             Dependency(package='zfs', compare='>=', version='0.6.3'),
             Dependency(package='openssh-clients'),
