@@ -47,18 +47,6 @@ class PostgresTests(TestCase):
 
     Similar to:
     http://doc-dev.clusterhq.com/gettingstarted/examples/postgres.html
-
-    # TODO (Note for submission)
-    # If this is suitable, I will add the new dependencies (currently just the
-    # latest https://pypi.python.org/pypi/psycopg2) to setup.py. Each
-    # dependency must also go in the internal documentation for packages used.
-    #
-    # This uses psycopg2 which requires, on OS X for example
-    # ``brew install postgresql``. Perhaps it would be better to use
-    # http://python.projects.pgfoundry.org, a pure Python implementation. If
-    # not, should this just document that you need to install PostgreSQL?.
-
-    http://python.projects.pgfoundry.org/docs/1.1/
     """
     @require_flocker_cli
     def setUp(self):
