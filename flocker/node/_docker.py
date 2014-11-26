@@ -445,9 +445,8 @@ class DockerClient(object):
                 binds = data[u"HostConfig"]['Binds']
                 if binds is not None:
                     for bind_config in binds:
-                        (node_path,
-                         container_path,
-                         readwrite) = bind_config.split(':', 2)
+                        parts = bind_config.split(':', 2)
+                        node_path, container_path = parts[:2]
                         volumes.append(
                             Volume(container_path=FilePath(container_path),
                                    node_path=FilePath(node_path))
