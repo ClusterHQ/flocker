@@ -237,6 +237,7 @@ Reviewing "Preparing For a Release"
    Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial to start the necessary virtual machines.
 
    Run the automated acceptance tests; they will connect to the tutorial VMs.
+   All containers on the tutorial VMs will be destroyed by running the tests.
    Ensure that they all pass, with no skips:
 
    .. code-block:: console
