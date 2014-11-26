@@ -116,7 +116,8 @@ class RestartAlways(object):
 
 
 @implementer(IRestartPolicy)
-@attributes(["maximum_retry_count"], apply_immutable=True)
+@attributes([Attribute("maximum_retry_count", default_value=None)],
+            apply_immutable=True)
 class RestartOnFailure(object):
     """
     A restart policy that restarts an application when it fails.

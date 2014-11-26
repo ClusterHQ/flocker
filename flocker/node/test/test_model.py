@@ -167,4 +167,4 @@ class RestartOnFailureTests(SynchronousTestCase):
         ``RestartOnFailure.__init__`` does not raise if the specified
         maximum retry count is ``None``.
         """
-        RestartOnFailure(maximum_retry_count=None)
+        RestartOnFailure()
