@@ -441,7 +441,9 @@ class DockerClient(object):
                     import pdb; pdb.set_trace()
                 else:
                     for bind_config in binds:
-                        node_path, container_path = bind_config.split(':', 1)
+                        (node_path,
+                         container_path,
+                         readwrite) = bind_config.split(':', 2)
                         volumes.append(
                             Volume(container_path=FilePath(container_path),
                                    node_path=FilePath(node_path))
