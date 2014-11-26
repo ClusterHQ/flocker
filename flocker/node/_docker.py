@@ -416,6 +416,9 @@ class DockerClient(object):
             ids = [d[u"Id"] for d in
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
+                while not self._blocking_exists(i):
+                    sleep(0.001)
+                    continue
                 data = self._client.inspect_container(i)
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
@@ -427,11 +430,12 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
-                for container_path, node_path in data[u"Volumes"].items():
-                    volumes.append(
-                        Volume(container_path=FilePath(container_path),
-                               node_path=FilePath(node_path))
-                    )
+                if state == u"active":
+                    for container_path, node_path in data[u"Volumes"].items():
+                        volumes.append(
+                            Volume(container_path=FilePath(container_path),
+                                   node_path=FilePath(node_path))
+                        )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
