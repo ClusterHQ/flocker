@@ -12,7 +12,7 @@ from .._docker import (
     IDockerClient, FakeDockerClient, AlreadyExists, PortMap, Unit,
     Environment, Volume)
 
-from .._model import RestartAlways, RestartNever
+from .._model import RestartAlways, RestartNever, RestartOnFailure
 
 
 def make_idockerclient_tests(fixture):
@@ -177,6 +177,54 @@ def make_idockerclient_tests(fixture):
                 self.assertIsInstance(unit.container_name, unicode)
             d.addCallback(got_list)
             return d
+
+        def assert_restart_policy_round_trips(self, restart_policy):
+            """
+            Creating a container with the given restart policy creates a
+            container that reports that same policy.
+
+            :param IRestartPolicy restart_policy: The restart policy to test.
+            """
+            client = fixture(self)
+            name = random_name()
+            self.addCleanup(client.remove, name)
+            d = client.add(name, u"busybox", restart_policy=restart_policy)
+            d.addCallback(lambda _: client.list())
+
+            def got_list(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertEqual(unit.restart_policy, restart_policy)
+            d.addCallback(got_list)
+            return d
+
+
+        def test_add_with_restart_never(self):
+            """
+            ``DockerClient.add`` when creating a container with a restart policy,
+            of never will create a container with this policy.
+            """
+            return self.assert_restart_policy_round_trips(RestartNever())
+
+        def test_add_with_restart_always(self):
+            """
+            ``DockerClient.add`` when creating a container with a restart policy,
+            of always will create a container with this policy.
+            """
+            return self.assert_restart_policy_round_trips(RestartAlways())
+
+        def test_add_with_restart_on_failure(self):
+            """
+            ``DockerClient.add`` when creating a container with a restart policy,
+            of on failure will create a container with this policy.
+            """
+            return self.assert_restart_policy_round_trips(RestartOnFailure())
+
+        def test_add_with_restart_on_failure_with_maximum_retry(self):
+            """
+            ``DockerClient.add`` when creating a container with a restart policy,
+            of on failure with a retry count will create a container with this policy.
+            """
+            return self.assert_restart_policy_round_trips(RestartOnFailure(maximum_retry_count=5))
 
     return IDockerClientTests
 

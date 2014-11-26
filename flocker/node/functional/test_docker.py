@@ -453,13 +453,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
-    def test_add_with_restart_policy(self):
-        """
-        ``DockerClient.add`` when creating a container with a restart policy,
-        will create a container with this policy.
-        """
-        # This should have variants for the never, always, on-failure (with and without a count)
-
 
 class DockerClientTests(TestCase):
     """
