@@ -405,7 +405,8 @@ class DockerClient(object):
 
         def _remove():
             try:
-                self._client.remove_container(container_name, force=True)
+                self._client.stop(container_name)
+                self._client.remove_container(container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
