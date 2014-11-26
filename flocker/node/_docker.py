@@ -345,8 +345,6 @@ class DockerClient(object):
             }
             self._client.create_container_from_config(
                 config=config, name=container_name)
-            # info = self._client.inspect_container(container_name)
-            # import pdb; pdb.set_trace()
 
         def _add():
             try:
@@ -367,6 +365,10 @@ class DockerClient(object):
                 sleep(0.001)
                 continue
             self._client.start(container_name,
+                               binds={volume.node_path.path:
+                                      {u"bind": volume.container_path.path,
+                                       u"ro": False}
+                                      for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports})
         d = deferToThread(_add)
@@ -435,7 +437,9 @@ class DockerClient(object):
                     ports = list()
                 volumes = []
                 binds = data[u"HostConfig"].get('Binds')
-                if binds:
+                if binds is None:
+                    import pdb; pdb.set_trace()
+                else:
                     for bind_config in binds:
                         node_path, container_path = bind_config.split(':', 1)
                         volumes.append(
