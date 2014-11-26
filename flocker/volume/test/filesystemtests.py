@@ -549,6 +549,28 @@ def make_istoragepool_tests(fixture):
                 self.assertEqual(expected, result)
             return enumerating.addCallback(enumerated)
 
+        def test_enumerate_provides_null_size(self):
+            """
+            The ``IStoragePool.enumerate`` implementation produces
+            ``IFilesystem`` results which specify a None maximum_size
+            when the filesystem was created with no maximum size.
+            """
+            size = VolumeSize(maximum_size=None)
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME, size=size)
+            creating = pool.create(volume)
+
+            def created(ignored):
+                return pool.enumerate()
+            enumerating = creating.addCallback(created)
+
+            def enumerated(result):
+                [filesystem] = result
+                self.assertEqual(size, filesystem.size)
+            enumerating.addCallback(enumerated)
+            return enumerating
+
         def test_enumerate_provides_size(self):
             """
             The ``IStoragePool.enumerate`` implementation produces
