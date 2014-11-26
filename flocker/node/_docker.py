@@ -412,12 +412,11 @@ class DockerClient(object):
             except APIError as e:
                 reraise = True
                 if e.response.status_code == INTERNAL_SERVER_ERROR:
-                    message = str(e.message)
-                    if message.startswith('Could not stop container'):
+                    if e.explanation.startswith('Could not stop container'):
                         # And even `stop` seems to return 500 for the short
                         # lived busybox containers that we create in our tests.
                         reraise = False
-                    elif message.startswith('Cannot stop container'):
+                    elif e.explanation.startswith('Cannot stop container'):
                         # With two subtly different error messages.
                         reraise = False
 
