@@ -2635,13 +2635,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     name='mysql-hybridcluster',
                     mountpoint=FilePath(b'/var/mysql/data'),
                     maximum_size=EXPECTED_MAX_SIZE)
-            ),
-            Application(
-                name='site-hybridcluster',
-                image=DockerImage(repository='flocker/wordpress',
-                                  tag='v1.0.0'),
-                ports=frozenset([Port(internal_port=80,
-                                      external_port=8080)])
             )
         ]
         result = marshal_configuration(
@@ -2649,10 +2642,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
-                },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
                                'maximum_size': EXPECTED_MAX_SIZE},

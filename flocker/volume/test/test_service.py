@@ -501,8 +501,8 @@ class VolumeServiceAPITests(TestCase):
             for name in names}
         actual = self.successResultOf(service.enumerate())
         self.assertEqual(
-            set((volume.uuid, volume.size) for volume in expected),
-            set((volume.uuid, volume.size) for volume in actual))
+            set((volume.uuid, volume.size, volume.name) for volume in expected),
+            set((volume.uuid, volume.size, volume.name) for volume in actual))
 
     def test_enumerate_some_volumes(self):
         """``enumerate()`` returns all volumes previously ``create()``ed."""
