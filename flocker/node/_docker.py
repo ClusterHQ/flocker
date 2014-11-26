@@ -19,7 +19,7 @@ from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
-from twisted.web.http import NOT_FOUND
+from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 
 class AlreadyExists(Exception):
@@ -406,7 +406,30 @@ class DockerClient(object):
 
         def _remove():
             try:
-                self._client.remove_container(container_name, force=True)
+                # I'd use `remove_container(force=True...)` but there's a bug.
+                # https://github.com/docker/docker/issues/6435#issuecomment-56383248
+                self._client.stop(container_name)
+            except APIError as e:
+                reraise = True
+                if e.response.status_code == INTERNAL_SERVER_ERROR:
+                    message = str(e.message)
+                    if message.startswith('Could not stop container'):
+                        # And even `stop` seems to return 500 for the short
+                        # lived busybox containers that we create in our tests.
+                        reraise = False
+                    elif message.startswith('Cannot stop container'):
+                        # With two subtly different error messages.
+                        reraise = False
+
+                elif e.response.status_code == NOT_FOUND:
+                    # If the container doesn't exist, we swallow the error,
+                    # since this method is supposed to be idempotent.
+                    reraise = False
+                if reraise:
+                    raise
+
+            try:
+                self._client.remove_container(container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
                 # since this method is supposed to be idempotent.
