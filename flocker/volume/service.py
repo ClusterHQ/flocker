@@ -255,11 +255,6 @@ class VolumeService(Service):
                     # created it, so we just ignore it.
                     continue
 
-                if filesystem.size.maximum_size == 0:
-                    size = VolumeSize(maximum_size=None)
-                else:
-                    size = filesystem.size
-
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
 
@@ -267,7 +262,7 @@ class VolumeService(Service):
                     uuid=unicode(uuid),
                     name=name,
                     service=self,
-                    size=size)
+                    size=filesystem.size)
         enumerating.addCallback(enumerated)
         return enumerating
 
