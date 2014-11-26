@@ -103,7 +103,7 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
 def main(options):
     version = options['version']
 
-    scratch_directory = FilePath(tempfile.mkdtemp())
+    scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
 
     try:
         upload_rpms(scratch_directory, version,
