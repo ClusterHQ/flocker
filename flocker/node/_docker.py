@@ -436,10 +436,8 @@ class DockerClient(object):
                 else:
                     ports = list()
                 volumes = []
-                binds = data[u"HostConfig"].get('Binds')
-                if binds is None:
-                    import pdb; pdb.set_trace()
-                else:
+                binds = data[u"HostConfig"]['Binds']
+                if binds is not None:
                     for bind_config in binds:
                         (node_path,
                          container_path,
