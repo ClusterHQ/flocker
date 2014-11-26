@@ -22,7 +22,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from flocker.node._model import RestartNever
+from flocker.node._model import RestartNever, RestartAlways, RestartOnFailure
 
 
 class AlreadyExists(Exception):
@@ -342,7 +342,47 @@ class DockerClient(object):
             {"Name": "policy-name", "MaximumRetryCount": 0}
 
         :return IRestartPolicy: The model of the restart policy.
+
+        :raises ValueError: if an unknown policy is passed.
         """
+        POLICIES = {
+            u"never": lambda data:
+                RestartNever(),
+            u"always": lambda data:
+                RestartAlways(),
+            u"on-failure": lambda data:
+                RestartOnFailure(
+                    maximum_retry_count=data[u"MaximumRetryCount"] or None)
+        }
+        try:
+            return POLICIES[data[u"Name"]](data)
+        except KeyError:
+            raise ValueError("Unknown restart policy: %r" % (data[u"Name"],))
+
+    def _serialize_docker_restart_policy(self, restart_policy):
+        """
+        Serialize the restart policy from an ``IRestartPolicy`` to the format
+        expected by the docker API.
+
+        :param IRestartPolicy restart_policy: The model of the restart policy.
+
+        :returns: A dictionary suitable to pass to docker
+
+        :raises ValueError: if an unknown policy is passed.
+        """
+        SERIALIZERS = {
+            RestartNever: lambda policy:
+                {u"Name": u"never"},
+            RestartAlways: lambda policy:
+                {u"Name": u"always"},
+            RestartOnFailure: lambda policy:
+                {u"Name": u"on-failure",
+                 u"MaximumRetryCount": policy.maximum_retry_count or 0},
+        }
+        try:
+            return SERIALIZERS[restart_policy.__class__](restart_policy)
+        except KeyError:
+            raise ValueError("Unknown restart policy: %r" % (restart_policy,))
 
     def add(self, unit_name, image_name, ports=None, environment=None,
             volumes=(), mem_limit=None, cpu_shares=None,
@@ -390,7 +430,7 @@ class DockerClient(object):
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports},
-                               restart_policy=restart_policy.serialize_to_docker_api())
+                               restart_policy=self._serialize_docker_restart_policy(restart_policy))
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -477,7 +517,7 @@ class DockerClient(object):
                 mem_limit = data[u"Config"][u"Memory"]
                 mem_limit = None if mem_limit == 0 else mem_limit
                 restart_policy = self._parse_docker_restart_policy(
-                    data[U"Config"][u"RestartPolicy"])
+                    data[U"HostConfig"][u"RestartPolicy"])
                 result.add(Unit(
                     name=name,
                     container_name=self._to_container_name(name),
