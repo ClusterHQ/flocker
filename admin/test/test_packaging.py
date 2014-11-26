@@ -7,6 +7,7 @@ Tests for ``admin.packaging``.
 from glob import glob
 import os
 from subprocess import check_output, CalledProcessError, check_call
+import sys
 from textwrap import dedent
 from unittest import skipIf
 
@@ -24,7 +25,7 @@ from .. import packaging
 from ..packaging import (
     omnibus_package_builder, InstallVirtualEnv, InstallApplication,
     BuildPackage, BuildSequence, BuildOptions, BuildScript, DockerBuildOptions,
-    DockerBuildScript, GetPackageVersion, DelayedRpmVersion, CreateLinks,
+    DockerBuildScript, CreateLinks,
     PythonPackage, create_virtualenv, VirtualEnv, PackageTypes, Distribution,
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
@@ -454,53 +455,6 @@ def canned_package(root):
     return PythonPackage(name=name, version=version)
 
 
-class GetPackageVersionTests(TestCase):
-    """
-    Tests for ``GetPackageVersion``.
-    """
-    def test_version_default(self):
-        """
-        ``GetPackageVersion.version`` is ``None`` by default.
-        """
-        step = GetPackageVersion(virtualenv=None, package_name=None)
-        self.assertIs(None, step.version)
-
-    def test_version_found(self):
-        """
-        ``GetPackageVersion`` assigns the version of a found package to its
-        ``version`` attribute.
-        """
-        test_env = FilePath(self.mktemp())
-        virtualenv = VirtualEnv(root=test_env)
-        InstallVirtualEnv(virtualenv=virtualenv).run()
-        package_root = FilePath(self.mktemp())
-        test_package = canned_package(root=package_root)
-        InstallApplication(
-            virtualenv=virtualenv, package_uri=package_root.path).run()
-
-        step = GetPackageVersion(
-            virtualenv=virtualenv, package_name=test_package.name)
-        step.run()
-        self.assertEqual(test_package.version, step.version)
-
-    def test_version_not_found(self):
-        """
-        ``GetPackageVersion.run`` leaves the ``version`` attribute set to
-        ``None`` if the supplied ``package_name`` is not installed in the
-        supplied ``virtual_env``.
-        """
-        test_env = FilePath(self.mktemp())
-        virtualenv = VirtualEnv(root=test_env)
-        InstallVirtualEnv(virtualenv=virtualenv).run()
-
-        step = GetPackageVersion(
-            virtualenv=virtualenv,
-            package_name='PackageWhichIsNotInstalled'
-        )
-        step.run()
-        self.assertIs(None, step.version)
-
-
 class BuildPackageTests(TestCase):
     """
     Tests for `BuildPackage`.
@@ -611,14 +565,9 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_virtualenv_path = FilePath('/opt/flocker')
         expected_prefix = FilePath('/')
         expected_epoch = PACKAGE.EPOCH.value
-        expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
-        expected_package_version_step = GetPackageVersion(
-            virtualenv=VirtualEnv(root=expected_virtualenv_path),
-            package_name='Flocker'
-        )
-        expected_version = DelayedRpmVersion(
-            package_version_step=expected_package_version_step
-        )
+        expected_source_path = FilePath(self.mktemp())
+        expected_version = make_rpm_version(
+            canned_package(expected_source_path).version)
         expected_license = PACKAGE.LICENSE.value
         expected_url = PACKAGE.URL.value
         expected_vendor = PACKAGE.VENDOR.value
@@ -631,9 +580,8 @@ class OmnibusPackageBuilderTests(TestCase):
                     virtualenv=VirtualEnv(root=expected_virtualenv_path)),
                 InstallApplication(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path),
-                    package_uri=b'https://www.example.com/foo/Bar-1.2.3.whl',
+                    package_uri=expected_source_path.path,
                 ),
-                expected_package_version_step,
                 BuildPackage(
                     package_type=expected_package_type,
                     destination_path=expected_destination_path,
@@ -710,7 +658,7 @@ class OmnibusPackageBuilderTests(TestCase):
             expected,
             omnibus_package_builder(package_type=expected_package_type,
                                     destination_path=expected_destination_path,
-                                    package_uri=expected_package_uri,
+                                    source_path=expected_source_path,
                                     target_dir=target_path))
 
     @require_root
@@ -720,10 +668,10 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
+            sys.executable,
             FLOCKER_PATH.descendant(['admin', 'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'fedora-20',
-            FLOCKER_PATH.path
         ])
         python_version = __version__
         rpm_version = make_rpm_version(python_version)
@@ -835,25 +783,25 @@ class DockerBuildOptionsTests(TestCase):
             ['--package-type=native', 'http://example.com/fake/uri'])
         self.assertEqual(self.native_package_type, options['package-type'])
 
-    def test_package_uri_missing(self):
+    def test_source_path_missing(self):
         """
         ``DockerBuildOptions`` requires a single positional argument containing
-        the URI of the Python package which is being packaged.
+        the Flocker path that is being packaged.
         """
         exception = self.assertRaises(
             UsageError, DockerBuildOptions().parseOptions, [])
         self.assertEqual('Wrong number of arguments.', str(exception))
 
-    def test_package_uri_supplied(self):
+    def test_source_path_supplied(self):
         """
-        ``DockerBuildOptions`` saves the supplied ``package-uri``.
+        ``DockerBuildOptions`` saves the supplied ``source_path``.
         """
-        expected_uri = 'http://www.example.com/foo-bar.whl'
+        expected_source_path = FilePath(self.mktemp())
 
         options = DockerBuildOptions()
-        options.parseOptions([expected_uri])
+        options.parseOptions([expected_source_path.path])
 
-        self.assertEqual(expected_uri, options['package-uri'])
+        self.assertEqual(expected_source_path, options['source_path'])
 
 
 class DockerBuildScriptTests(TestCase):
@@ -899,13 +847,13 @@ class DockerBuildScriptTests(TestCase):
         ``build_command``.
         """
         expected_destination_path = FilePath(self.mktemp())
-        expected_package_uri = 'http://www.example.com/foo/bar.whl'
+        expected_source_path = FilePath(self.mktemp())
         fake_sys_module = FakeSysModule(
             argv=[
                 'build-command-name',
                 '--destination-path=%s' % (expected_destination_path.path,),
                 '--package-type=rpm',
-                expected_package_uri]
+                expected_source_path.path]
         )
         script = DockerBuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
@@ -919,7 +867,7 @@ class DockerBuildScriptTests(TestCase):
         expected_build_arguments = [(
             (),
             dict(destination_path=expected_destination_path,
-                 package_uri=expected_package_uri,
+                 source_path=expected_source_path,
                  package_type=PackageTypes.RPM)
         )]
         self.assertEqual(expected_build_arguments, arguments)
@@ -948,34 +896,20 @@ class BuildOptionsTests(TestCase):
         ``--distribution`` is not supplied.
         """
         options = BuildOptions()
-        self.assertRaises(
-            UsageError,
-            options.parseOptions,
-            ['http://example.com/fake/uri'])
-
-    def test_package_uri_missing(self):
-        """
-        ``DockerBuildOptions`` requires a single positional argument containing
-        the URI of the Python package which is being packaged.
-        """
         exception = self.assertRaises(
-            UsageError, BuildOptions().parseOptions, [])
-        self.assertEqual('Wrong number of arguments.', str(exception))
+            UsageError, options.parseOptions, [])
+        self.assertEqual('Must specify --distribution.', str(exception))
 
     def test_package_options_supplied(self):
         """
         ``BuildOptions`` saves the supplied options.
         """
-        expected_uri = 'http://www.example.com/foo-bar.whl'
         expected_distribution = 'ubuntu1404'
         options = BuildOptions()
         options.parseOptions(
-            ['--distribution', expected_distribution, expected_uri])
+            ['--distribution', expected_distribution])
 
-        self.assertEqual(
-            (expected_distribution, expected_uri),
-            (options['distribution'], options['package-uri'])
-        )
+        self.assertEqual(expected_distribution, options['distribution'])
 
 
 class BuildScriptTests(TestCase):
@@ -1004,7 +938,7 @@ class BuildScriptTests(TestCase):
         except SystemExit:
             pass
         self.assertEqual(
-            'Wrong number of arguments.',
+            'Must specify --distribution.',
             fake_sys_module.stderr.getvalue().splitlines()[-1]
         )
 
@@ -1021,13 +955,12 @@ class BuildScriptTests(TestCase):
         """
         expected_destination_path = FilePath(self.mktemp())
         expected_distribution = 'centos7'
-        expected_package_uri = 'http://www.example.com/foo/bar.whl'
         fake_sys_module = FakeSysModule(
             argv=[
                 'build-command-name',
                 '--destination-path', expected_destination_path.path,
                 '--distribution=%s' % (expected_distribution,),
-                expected_package_uri]
+            ]
         )
         script = BuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
@@ -1042,7 +975,6 @@ class BuildScriptTests(TestCase):
             (),
             dict(destination_path=expected_destination_path,
                  distribution=expected_distribution,
-                 package_uri=expected_package_uri,
                  top_level=None)
         )]
         self.assertEqual(expected_build_arguments, arguments)
@@ -1068,7 +1000,7 @@ class BuildInDockerFunctionTests(TestCase):
             FilePath('/output'): supplied_destination_path,
             FilePath('/flocker'): supplied_top_level,
         }
-        expected_package_uri = 'http://www.example.com/foo/bar/whl'
+        expected_package_uri = '/flocker'
 
         assert_equal_steps(
             test_case=self,
@@ -1088,8 +1020,7 @@ class BuildInDockerFunctionTests(TestCase):
             actual=build_in_docker(
                 destination_path=supplied_destination_path,
                 distribution=supplied_distribution,
-                top_level=supplied_top_level,
-                package_uri=expected_package_uri
+                top_level=supplied_top_level
             )
         )
 
@@ -1103,7 +1034,7 @@ class MakeDependenciesTests(TestCase):
         ``make_dependencies`` includes the supplied ``version`` of
         ``python-flocker`` for ``flocker-node``.
         """
-        expected_version = '1.2.3'
+        expected_version = make_rpm_version('1.2.3')
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',
@@ -1118,7 +1049,7 @@ class MakeDependenciesTests(TestCase):
         ``make_dependencies`` includes the supplied ``version`` of
         ``python-flocker`` for ``flocker-cli``.
         """
-        expected_version = '1.2.3'
+        expected_version = make_rpm_version('1.2.3')
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',

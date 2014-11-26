@@ -126,9 +126,15 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
+        release = getattr(self.version, 'release', None)
+        if release is None:
+            version = self.version
+        else:
+            version = self.version.version + '-' + self.version.release
+
         if package_type == PackageTypes.RPM:
             if self.version:
-                return "%s %s %s" % (self.package, self.compare, self.version)
+                return "%s %s %s" % (self.package, self.compare, version)
             else:
                 return self.package
         else:
@@ -182,7 +188,8 @@ def make_dependencies(package_name, package_version, distribution):
             Dependency(
                 package='clusterhq-python-flocker',
                 compare='==',
-                version=package_version),)
+                version=package_version
+            ),)
     return dependencies
 
 
@@ -294,43 +301,6 @@ class CreateLinks(object):
             target.linkTo(name)
 
 
-@attributes(['virtualenv', 'package_name'])
-class GetPackageVersion(object):
-    """
-    Record the version of ``package_name`` installed in ``virtualenv_path`` by
-    parsing the output of ``pip show``.
-
-    XXX: This wouldn't be necessary if pip had a way to report the version of
-    the package that it is about to install eg
-    ``pip install --dry-run http://www.example.com/my/wheel.whl``
-    See: https://github.com/pypa/pip/issues/53
-
-    :ivar VirtualEnv virtualenv: The ``virtualenv`` containing the package.
-    :ivar bytes package_name: The name of the package whose version will be
-        recorded.
-    :ivar version: The version string of the supplied package. Default is
-        ``None`` until the step has been run or if the supplied
-        ``package_name`` is not found.
-    """
-    version = None
-
-    def run(self):
-        # We can't just call pip directly, because in the virtualenvs created
-        # in tests, the shebang line becomes too long and triggers an
-        # error. See http://www.in-ulm.de/~mascheck/various/shebang/#errors
-        python_path = self.virtualenv.root.child('bin').child('python').path
-        output = check_output(
-            [python_path, '-m', 'pip', 'show', self.package_name])
-
-        for line in output.splitlines():
-            parts = [part.strip() for part in line.split(':', 1)]
-            if len(parts) == 2:
-                key, value = parts
-                if key.lower() == 'version':
-                    self.version = value
-                    return
-
-
 @attributes(
     ['package_type', 'destination_path', 'source_paths', 'name', 'prefix',
      'epoch', 'rpm_version', 'license', 'url', 'vendor', 'maintainer',
@@ -396,50 +366,6 @@ class BuildPackage(object):
         )
 
 
-@attributes(['package_version_step'])
-class DelayedRpmVersion(object):
-    """
-    Pretend to be an ``rpm_version`` instance providing a ``version`` and
-    ``release`` attribute.
-
-    The values of these attributes will be calculated from the Python version
-    string read from a previous ``GetPackageVersion`` build step.
-
-    :ivar GetPackageVersion package_version_step: An instance of
-        ``GetPackageVersion`` whose ``run`` method will have been called and
-        from which the version string will be read.
-    """
-    _rpm_version = None
-
-    @property
-    def rpm_version(self):
-        """
-        :return: An ``rpm_version`` and cache it.
-        """
-        if self._rpm_version is None:
-            self._rpm_version = make_rpm_version(
-                self.package_version_step.version
-            )
-        return self._rpm_version
-
-    @property
-    def version(self):
-        """
-        :return: The ``version`` string.
-        """
-        return self.rpm_version.version
-
-    @property
-    def release(self):
-        """
-        :return: The ``release`` string.
-        """
-        return self.rpm_version.release
-
-    def __str__(self):
-        return self.rpm_version.version + '-' + self.rpm_version.release
-
-
 class PACKAGE(Values):
     """
     Constants for ClusterHQ specific metadata that we add to all three
@@ -473,7 +399,7 @@ class PACKAGE_NODE(PACKAGE):
 
 
 def omnibus_package_builder(
-        package_type, destination_path, package_uri, target_dir=None):
+        package_type, destination_path, source_path, target_dir=None):
     """
     Build a sequence of build steps which when run will generate a package in
     ``destination_path``, containing the package installed from ``package_uri``
@@ -494,8 +420,8 @@ def omnibus_package_builder(
     :param package_type: A package type constant from ``PackageTypes``.
     :param FilePath destination_path: The path to a directory in which to save
         the resulting RPM file.
-    :param Package package: A ``Package`` instance with a ``pip install``
-        compatible package URI.
+    :param FilePath source_path: The Flocker source directory to be installed
+        and packaged.
     :param FilePath target_dir: An optional path in which to create the
         virtualenv from which the package will be generated. Default is a
         temporary directory created using ``mkdtemp``.
@@ -515,19 +441,16 @@ def omnibus_package_builder(
 
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
-    get_package_version_step = GetPackageVersion(
-        virtualenv=virtualenv, package_name='Flocker')
-    rpm_version = DelayedRpmVersion(
-        package_version_step=get_package_version_step)
+    python_version = check_output(
+        [sys.executable, 'setup.py', '--version'],
+        cwd=source_path.path).strip()
+    rpm_version = make_rpm_version(python_version)
 
     return BuildSequence(
         steps=(
             InstallVirtualEnv(virtualenv=virtualenv),
             InstallApplication(virtualenv=virtualenv,
-                               package_uri=package_uri),
-            # get_package_version_step must be run before steps that reference
-            # rpm_version
-            get_package_version_step,
+                               package_uri=source_path.path),
             BuildPackage(
                 package_type=package_type,
                 destination_path=destination_path,
@@ -639,7 +562,7 @@ class DockerRun(object):
             + volume_options + [self.tag] + self.command)
 
 
-def build_in_docker(destination_path, distribution, top_level, package_uri):
+def build_in_docker(destination_path, distribution, top_level):
     """
     Build a flocker package for a given ``distribution`` inside a clean docker
     container of that ``distribution``.
@@ -649,7 +572,6 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
     :param bytes distribution: The distribution name for which to build a
         package.
     :param FilePath top_level: The Flocker source code directory.
-    :param bytes package_uri: The ``pip`` style python package URI to install.
     """
     if destination_path.exists() and not destination_path.isdir():
         raise ValueError("go away")
@@ -658,10 +580,6 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
         FilePath('/output'): destination_path,
         FilePath('/flocker'): top_level,
     }
-
-    # Special case to allow building the currently checked out Flocker code.
-    if package_uri == top_level.path:
-        package_uri = '/flocker'
 
     tag = "clusterhq/build-%s" % (distribution,)
     build_directory = top_level.descendant(
@@ -676,7 +594,7 @@ def build_in_docker(destination_path, distribution, top_level, package_uri):
             DockerRun(
                 tag=tag,
                 volumes=volumes,
-                command=[package_uri]
+                command=['/flocker']
             ),
         ])
 
@@ -685,7 +603,7 @@ class DockerBuildOptions(usage.Options):
     """
     Command line options for the ``build-package-entrypoint`` tool.
     """
-    synopsis = 'build-package-entrypoint [options] <package-uri>'
+    synopsis = 'build-package-entrypoint [options] <source-path>'
 
     optParameters = [
         ['destination-path', 'd', '.',
@@ -698,14 +616,14 @@ class DockerBuildOptions(usage.Options):
     longdesc = dedent("""\
     Arguments:
 
-    <package-uri>: The Python package url or path to install using ``pip``.
+    <source-path>: The Flocker source directory to install using ``pip``.
     """)
 
-    def parseArgs(self, package_uri):
+    def parseArgs(self, source_path):
         """
         The Python package to install.
         """
-        self['package-uri'] = package_uri
+        self['source_path'] = FilePath(source_path)
 
     def postOptions(self):
         """
@@ -760,7 +678,7 @@ class DockerBuildScript(object):
         self.build_command(
             package_type=options['package-type'],
             destination_path=options['destination-path'],
-            package_uri=options['package-uri'],
+            source_path=options['source_path'],
         ).run()
 
 docker_main = DockerBuildScript().main
@@ -770,7 +688,7 @@ class BuildOptions(usage.Options):
     """
     Command line options for the ``build-package`` tool.
     """
-    synopsis = 'build-package [options] <package-uri>'
+    synopsis = 'build-package [options]'
 
     optParameters = [
         ['destination-path', 'd', '.',
@@ -779,18 +697,6 @@ class BuildOptions(usage.Options):
         ['distribution', None, None,
          'The target distribution. One of fedora-20.'],
     ]
-
-    longdesc = dedent("""\
-    Arguments:
-
-    <package-uri>: The Python package url or path to install using ``pip``.
-    """)
-
-    def parseArgs(self, package_uri):
-        """
-        The Python package to install.
-        """
-        self['package-uri'] = package_uri
 
     def postOptions(self):
         """
@@ -842,7 +748,6 @@ class BuildScript(object):
 
         self.build_command(
             destination_path=options['destination-path'],
-            package_uri=options['package-uri'],
             top_level=top_level,
             distribution=options['distribution'],
         ).run()
