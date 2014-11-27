@@ -166,9 +166,7 @@ class EnvironmentVariableTests(TestCase):
         added is available on the second node.
         """
         user = b'root'
-        data = b'flocker test'
         database = b'example'
-        table = b'testtable'
 
         getting_mysql = self._get_mysql_connection(
             host=self.node_1,
@@ -179,17 +177,18 @@ class EnvironmentVariableTests(TestCase):
 
         def add_data_node_1(connection):
             cursor = connection.cursor()
-            cursor.execute("CREATE DATABASE {database};".format(
-                database=database))
-            cursor.execute("USE {database};".format(database=database))
+            cursor.execute("CREATE DATABASE example;")
+            cursor.execute("USE example;")
             cursor.execute(
-                "CREATE TABLE `{table}` ".format(table=table) +
-                "(`id` INT NOT NULL AUTO_INCREMENT,`name` VARCHAR(45) " +
-                "NULL,PRIMARY KEY (`id`)) ENGINE = MyISAM;",
+                "CREATE TABLE `testtable` (" +
+                "`id` INT NOT NULL AUTO_INCREMENT," +
+                "`name` VARCHAR(45) NULL," +
+                "PRIMARY KEY (`id`)) " +
+                "ENGINE = MyISAM;",
             )
 
-            cursor.execute("INSERT INTO `{table}` VALUES('','{data}');".format(
-                table=table, data=data))
+            cursor.execute(
+                "INSERT INTO `testtable` VALUES('','flocker test');")
             cursor.close()
             connection.close()
 
@@ -219,8 +218,8 @@ class EnvironmentVariableTests(TestCase):
             self.addCleanup(connection_2.close)
             cursor_2 = connection_2.cursor()
             self.addCleanup(cursor_2.close)
-            cursor_2.execute("SELECT * FROM `{table}`;".format(table=table))
-            self.assertEqual(cursor_2.fetchall(), ((1, data),))
+            cursor_2.execute("SELECT * FROM `testtable`;")
+            self.assertEqual(cursor_2.fetchall(), ((1, b'flocker test'),))
 
         verifying_data_moves = getting_mysql_2.addCallback(verify_data_moves)
         return verifying_data_moves
