@@ -5,9 +5,14 @@ Tests for linking containers.
 """
 from socket import error
 from telnetlib import Telnet
+from unittest import skipUnless
 
-from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import TransportError
+try:
+    from elasticsearch import Elasticsearch
+    from elasticsearch.exceptions import TransportError
+    ELASTICSEARCH_INSTALLED = True
+except ImportError:
+    ELASTICSEARCH_INSTALLED = False
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -75,6 +80,9 @@ MESSAGES = set([
     str({"firstname": "Joe", "lastname": "Bloggs"}),
     str({"firstname": "Fred", "lastname": "Bloggs"}),
 ])
+
+require_elasticsearch = skipUnless(
+    ELASTICSEARCH_INSTALLED, "elasticsearch not installed")
 
 
 class LinkingTests(TestCase):
@@ -162,25 +170,22 @@ class LinkingTests(TestCase):
         The test setUp deploys Elasticsearch, logstash and Kibana to the same
         node.
         """
-        d = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([ELASTICSEARCH_APPLICATION, LOGSTASH_APPLICATION,
                               KIBANA_APPLICATION]),
             self.node_2: set([]),
         })
 
-        return d
-
+    @require_elasticsearch
     def test_elasticsearch_empty(self):
         """
         By default there are no log messages in Elasticsearch.
         """
-        checking_no_messages = self._assert_expected_log_messages(
+        return self._assert_expected_log_messages(
             ignored=None,
             node=self.node_1,
             expected_messages=set([]),
         )
-
-        return checking_no_messages
 
     def test_moving_just_elasticsearch(self):
         """
@@ -189,13 +194,12 @@ class LinkingTests(TestCase):
         """
         flocker_deploy(self, self.elk_deployment_moved, self.elk_application)
 
-        asserting_es_moved = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([LOGSTASH_APPLICATION, KIBANA_APPLICATION]),
             self.node_2: set([ELASTICSEARCH_APPLICATION]),
         })
 
-        return asserting_es_moved
-
+    @require_elasticsearch
     def test_logstash_messages_in_elasticsearch(self):
         """
         After sending messages to logstash, those messages can be found by
@@ -214,6 +218,7 @@ class LinkingTests(TestCase):
 
         return checking_messages
 
+    @require_elasticsearch
     def test_moving_data(self):
         """
         After sending messages to logstash and then moving Elasticsearch to
@@ -230,12 +235,12 @@ class LinkingTests(TestCase):
             expected_messages=MESSAGES,
         )
 
-        moving_elasticsearch = checking_messages.addCallback(
-            lambda _: flocker_deploy(self, self.elk_deployment_moved,
+        checking_messages.addCallback(
+             lambda _: flocker_deploy(self, self.elk_deployment_moved,
                                      self.elk_application),
         )
 
-        asserting_messages_moved = moving_elasticsearch.addCallback(
+        asserting_messages_moved = checking_messages.addCallback(
             self._assert_expected_log_messages,
             node=self.node_2,
             expected_messages=MESSAGES,
@@ -272,7 +277,9 @@ class LinkingTests(TestCase):
         at first show that there are zero messages, then later one, then later
         two. Therefore this waits for the expected number of search results
         before making an assertion that the search results have the expected
-        contents.
+        contents. This means that if the message never arrives, tests calling
+        this method may fail due to a timeout error instead of something more
+        clear.
 
         :param node: The node hosting, or soon-to-be hosting, an Elasticsearch
             instance.
