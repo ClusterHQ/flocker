@@ -126,6 +126,9 @@ class EnvironmentVariableTests(TestCase):
 
         Parameters are passed directly to PyMySQL:
         https://github.com/PyMySQL/PyMySQL
+
+        Raise any exceptions thrown when failing to connect if they indicate
+        that MySQL has started.
         """
         def connect_to_mysql():
             try:
@@ -136,17 +139,31 @@ class EnvironmentVariableTests(TestCase):
                     passwd=passwd,
                     db=db,
                 )
-            except OperationalError:
-                return False
+            except OperationalError as e:
+                if "[Errno 61] Connection refused" in str(e):
+                    return False
+                else:
+                    raise
 
         d = loop_until(connect_to_mysql)
         return d
 
+    def test_environment_variable_used(self):
+        """
+        MySQL can be accessed using the root password passed in as an
+        environment variable.
+        """
+        return self._get_mysql_connection(
+            host=self.node_1,
+            port=MYSQL_EXTERNAL_PORT,
+            user=b'root',
+            passwd=MYSQL_PASSWORD,
+        )
+
     def test_moving_data(self):
         """
         After adding data to MySQL and then moving it to another node, the data
-        added is available on the second node. The database can be accessed
-        using the root password passed in as an environment variable.
+        added is available on the second node.
         """
         user = b'root'
         data = b'flocker test'
