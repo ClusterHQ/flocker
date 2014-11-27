@@ -468,6 +468,60 @@ CMD sh -c "trap \"\" 2; sleep 3"
         return d
 
 
+    def test_list_removed_containers(self):
+        """
+        ``DockerClient.list`` does not list containers which are removed,
+        during its operation, from another thread.
+        """
+        flocker_docker_client = self.make_client()
+
+        name1 = random_name()
+        adding_unit1 = flocker_docker_client.add(
+            name1, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name1)
+
+        name2 = random_name()
+        adding_unit2 = flocker_docker_client.add(
+            name2, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name2)
+
+        docker_client = flocker_docker_client._client
+        docker_client_containers = flocker_docker_client._client.containers
+
+        def simulate_missing_containers(*args, **kwargs):
+            """
+            Remove a container before returning the original list.
+            """
+            containers = docker_client_containers(*args, **kwargs)
+            container_name1 = flocker_docker_client._to_container_name(name1)
+            docker_client.remove_container(
+                container=container_name1, force=True)
+            return containers
+
+        adding_units = gatherResults([adding_unit1, adding_unit2])
+        patches = []
+        def get_list(ignored):
+            patch = self.patch(
+                flocker_docker_client._client,
+                'containers',
+                simulate_missing_containers
+            )
+            patches.append(patch)
+            return flocker_docker_client.list()
+
+        listing_units = adding_units.addCallback(get_list)
+
+        def check_list(units):
+            for patch in patches:
+                patch.restore()
+            self.assertEqual(
+                [name2], sorted([unit.name for unit in units])
+            )
+        running_assertions = listing_units.addCallback(check_list)
+
+        return running_assertions
+
+
 class DockerClientTests(TestCase):
     """
     Tests for ``DockerClient`` specifically.
@@ -517,46 +571,3 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
         return d
-
-
-class RegressionTests(TestCase):
-    """
-    Tests that demonstrate
-    """
-    def test_list_removed_containers(self):
-        """
-        ``DockerClient.list`` does not list containers which are removed, during
-        its operation, from another thread.
-        """
-        flocker_docker_client = DockerClient()
-        docker_client = flocker_docker_client._client
-        docker_client_containers = flocker_docker_client._client.containers
-
-        def simulate_missing_containers(*args, **kwargs):
-            """
-            Remove a container before returning the original list.
-            """
-            containers = docker_client_containers(*args, **kwargs)
-            docker_client.remove_container(
-                container=containers[0]['Id'], force=True)
-            return containers
-
-        self.patch(
-            flocker_docker_client._client,
-            'containers',
-            simulate_missing_containers
-        )
-        name1 = random_name()
-        adding_unit1 = flocker_docker_client.add(
-            name1, u'openshift/busybox-http-app')
-        self.addCleanup(flocker_docker_client.remove, name1)
-
-        name2 = random_name()
-        adding_unit2 = flocker_docker_client.add(
-            name2, u'openshift/busybox-http-app')
-        self.addCleanup(flocker_docker_client.remove, name2)
-
-        adding_units = gatherResults([adding_unit1, adding_unit2])
-        listing_units = adding_units.addCallback(
-            lambda ignored: flocker_docker_client.list())
-        return listing_units
