@@ -4,6 +4,7 @@
 Testing utilities for ``flocker.acceptance``.
 """
 
+from os import getenv
 from pipes import quote as shell_quote
 from socket import socket
 from subprocess import check_call, PIPE, Popen
@@ -145,7 +146,12 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.250", b"172.16.255.251"])
+    nodes_env_var = getenv(
+        "ACCEPTANCE_TESTING_NODES", "172.16.255.250:172.16.255.251")
+
+    # Split on colon, removing any empty strings, for example if the list has
+    # ended with a colon.
+    nodes = set(filter(None, nodes_env_var.split(':')))
 
     for node in nodes:
         sock = socket()
@@ -156,7 +162,10 @@ def get_nodes(test_case, num_nodes):
             sock.close()
 
     if not can_connect:
-        raise SkipTest("Acceptance testing nodes must be running.")
+        raise SkipTest(
+            "Acceptance testing nodes must be running. " +
+            "Set IP addresses using the ACCEPTANCE_TESTING_NODES " +
+            "environment variable and a colon separated list.")
 
     for node in nodes:
         _clean_node(test_case, node)
