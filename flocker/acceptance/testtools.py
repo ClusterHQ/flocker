@@ -147,11 +147,18 @@ def get_nodes(test_case, num_nodes):
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
     nodes_env_var = getenv(
-        "ACCEPTANCE_TESTING_NODES", "172.16.255.250:172.16.255.251")
+        "FLOCKER_ACCEPTANCE_NODES", "172.16.255.250:172.16.255.251")
 
-    # Split on colon, removing any empty strings, for example if the list has
-    # ended with a colon.
+    # Remove any empty strings, for example if the list has ended with a colon
     nodes = set(filter(None, nodes_env_var.split(':')))
+
+    if len(nodes) < num_nodes:
+        raise SkipTest("This test requires a minimum of {necessary} nodes, "
+            "{existing} node(s) are set.".format(
+                necessary=num_nodes, existing=len(nodes)))
+
+    # Only check the desired number of nodes
+    nodes = set(sorted(nodes)[:num_nodes])
 
     for node in nodes:
         sock = socket()
@@ -164,7 +171,7 @@ def get_nodes(test_case, num_nodes):
     if not can_connect:
         raise SkipTest(
             "Acceptance testing nodes must be running. " +
-            "Set IP addresses using the ACCEPTANCE_TESTING_NODES " +
+            "Set IP addresses using the FLOCKER_ACCEPTANCE_NODES " +
             "environment variable and a colon separated list.")
 
     for node in nodes:
