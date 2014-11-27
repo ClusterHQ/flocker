@@ -13,7 +13,7 @@ from docker import Client
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
 
@@ -517,3 +517,58 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         d.addCallback(lambda _: client2.list())
         d.addCallback(self.assertEqual, set())
         return d
+
+
+class DockerPyWrapper(object):
+    def __init__(self, original_client):
+        self.original_client = original_client
+
+    def create_container(self, *args, **kwargs):
+        return self.original_client.create_container(*args, **kwargs)
+
+    def inspect_container(self, *args, **kwargs):
+        return self.original_client.inspect_container(*args, **kwargs)
+
+    def start(self, *args, **kwargs):
+        return self.original_client.start(*args, **kwargs)
+
+    def containers(self, *args, **kwargs):
+        """
+        Remove a container before returning the original list.
+        """
+        containers = self.original_client.containers(*args, **kwargs)
+        self.original_client.remove_container(
+            container=containers[0]['Id'], force=True)
+        return containers
+
+    def stop(self, *args, **kwargs):
+        return self.original_client.stop(*args, **kwargs)
+
+    def remove_container(self, *args, **kwargs):
+        return self.original_client.remove_container(*args, **kwargs)
+
+
+class RegressionTests(TestCase):
+    """
+    Tests that demonstrate
+    """
+    def test_list_removed_containers(self):
+        """
+        ``DockerClient.list`` does not list containers which are removed, during
+        its operation, from another thread.
+        """
+        client = DockerClient()
+
+        wrapping_client = DockerPyWrapper(client._client)
+        self.patch(client, '_client', wrapping_client)
+        name1 = random_name()
+        adding_unit1 = client.add(name1, u'openshift/busybox-http-app')
+        self.addCleanup(client.remove, name1)
+
+        name2 = random_name()
+        adding_unit2 = client.add(name2, u'openshift/busybox-http-app')
+        self.addCleanup(client.remove, name2)
+
+        adding_units = gatherResults([adding_unit1, adding_unit2])
+        listing_units = adding_units.addCallback(lambda ignored: client.list())
+        return listing_units
