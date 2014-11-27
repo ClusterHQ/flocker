@@ -519,35 +519,6 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         return d
 
 
-class DockerPyWrapper(object):
-    def __init__(self, original_client):
-        self.original_client = original_client
-
-    def create_container(self, *args, **kwargs):
-        return self.original_client.create_container(*args, **kwargs)
-
-    def inspect_container(self, *args, **kwargs):
-        return self.original_client.inspect_container(*args, **kwargs)
-
-    def start(self, *args, **kwargs):
-        return self.original_client.start(*args, **kwargs)
-
-    def containers(self, *args, **kwargs):
-        """
-        Remove a container before returning the original list.
-        """
-        containers = self.original_client.containers(*args, **kwargs)
-        self.original_client.remove_container(
-            container=containers[0]['Id'], force=True)
-        return containers
-
-    def stop(self, *args, **kwargs):
-        return self.original_client.stop(*args, **kwargs)
-
-    def remove_container(self, *args, **kwargs):
-        return self.original_client.remove_container(*args, **kwargs)
-
-
 class RegressionTests(TestCase):
     """
     Tests that demonstrate
@@ -557,18 +528,35 @@ class RegressionTests(TestCase):
         ``DockerClient.list`` does not list containers which are removed, during
         its operation, from another thread.
         """
-        client = DockerClient()
+        flocker_docker_client = DockerClient()
+        docker_client = flocker_docker_client._client
+        docker_client_containers = flocker_docker_client._client.containers
 
-        wrapping_client = DockerPyWrapper(client._client)
-        self.patch(client, '_client', wrapping_client)
+        def simulate_missing_containers(*args, **kwargs):
+            """
+            Remove a container before returning the original list.
+            """
+            containers = docker_client_containers(*args, **kwargs)
+            docker_client.remove_container(
+                container=containers[0]['Id'], force=True)
+            return containers
+
+        self.patch(
+            flocker_docker_client._client,
+            'containers',
+            simulate_missing_containers
+        )
         name1 = random_name()
-        adding_unit1 = client.add(name1, u'openshift/busybox-http-app')
-        self.addCleanup(client.remove, name1)
+        adding_unit1 = flocker_docker_client.add(
+            name1, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name1)
 
         name2 = random_name()
-        adding_unit2 = client.add(name2, u'openshift/busybox-http-app')
-        self.addCleanup(client.remove, name2)
+        adding_unit2 = flocker_docker_client.add(
+            name2, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name2)
 
         adding_units = gatherResults([adding_unit1, adding_unit2])
-        listing_units = adding_units.addCallback(lambda ignored: client.list())
+        listing_units = adding_units.addCallback(
+            lambda ignored: flocker_docker_client.list())
         return listing_units
