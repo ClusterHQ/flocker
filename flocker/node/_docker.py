@@ -416,7 +416,15 @@ class DockerClient(object):
             ids = [d[u"Id"] for d in
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
-                data = self._client.inspect_container(i)
+
+                try:
+                    data = self._client.inspect_container(i)
+                except APIError as e:
+                    # The container ID returned by the list API call above, may
+                    # have been removed in another thread.
+                    if e.response.status_code == NOT_FOUND:
+                        continue
+
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
