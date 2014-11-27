@@ -216,10 +216,10 @@ class EnvironmentVariableTests(TestCase):
         getting_mysql_2 = getting_mysql.addCallback(get_mysql_node_2)
 
         def verify_data_moves(connection_2):
-            cursor_2 = connection_2.cursor()
-            cursor_2.execute("SELECT * FROM `{table}`;".format(table=table))
-            self.addCleanup(cursor_2.close)
             self.addCleanup(connection_2.close)
+            cursor_2 = connection_2.cursor()
+            self.addCleanup(cursor_2.close)
+            cursor_2.execute("SELECT * FROM `{table}`;".format(table=table))
             self.assertEqual(cursor_2.fetchall(), ((1, data),))
 
         verifying_data_moves = getting_mysql_2.addCallback(verify_data_moves)
