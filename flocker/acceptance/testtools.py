@@ -150,7 +150,7 @@ def get_nodes(test_case, num_nodes):
         "FLOCKER_ACCEPTANCE_NODES", "172.16.255.250:172.16.255.251")
 
     # Remove any empty strings, for example if the list has ended with a colon
-    nodes = set(filter(None, nodes_env_var.split(':')))
+    nodes = filter(None, nodes_env_var.split(':'))
 
     if len(nodes) < num_nodes:
         raise SkipTest("This test requires a minimum of {necessary} nodes, "
