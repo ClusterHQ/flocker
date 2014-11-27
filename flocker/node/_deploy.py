@@ -18,6 +18,7 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
@@ -196,10 +197,11 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        # Fix this somehow so as not to destroy the maximum_size information on
-        # self.volume when creating the object to pass to create.
-        return deployer.volume_service.create(
-            _to_volume_name(self.volume.name))
+        volume = deployer.volume_service.get(
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
+        )
+        return deployer.volume_service.create(volume)
 
 
 @implementer(IStateChange)
