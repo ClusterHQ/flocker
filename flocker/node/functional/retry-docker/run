@@ -1,0 +1,44 @@
+#!/usr/local/bin/python -u
+
+import sys
+import os
+import time
+
+mode = os.environ["mode"]
+
+
+def sleep_forever():
+    while True:
+        pass
+        time.sleep(3600)
+
+
+def mark_done():
+    with open('marker', "w") as f:
+        f.write("done")
+
+
+with open('count', 'r') as f:
+    count = int(f.read())
+
+count += 1
+
+with open('count', 'w') as f:
+    f.write("%d" % (count,))
+
+if mode == "failure":
+    # Always exit with failure
+    sys.exit(1)
+elif mode == "success-then-sleep":
+    # Exit with success then sleep forever
+    if count == 1:
+        sys.exit(0)
+    else:
+        mark_done()
+        sleep_forever()
+elif mode == "failure-then-success":
+    # Exit with failure then success
+    if count == 1:
+        sys.exit(1)
+    else:
+        sys.exit(0)

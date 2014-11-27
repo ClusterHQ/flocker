@@ -27,6 +27,7 @@ from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume)
+from .._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
@@ -72,7 +73,8 @@ class GenericDockerClientTests(TestCase):
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
-                        mem_limit=None, cpu_shares=None):
+                        mem_limit=None, cpu_shares=None,
+                        restart_policy=RestartNever()):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -85,6 +87,7 @@ class GenericDockerClientTests(TestCase):
         :param volumes: See ``IDockerClient.add``.
         :param mem_limit: See ``IDockerClient.add``.
         :param cpu_shares: See ``IDockerClient.add``.
+        :param restart_policy: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -97,7 +100,8 @@ class GenericDockerClientTests(TestCase):
             environment=environment,
             volumes=volumes,
             mem_limit=mem_limit,
-            cpu_shares=cpu_shares
+            cpu_shares=cpu_shares,
+            restart_policy=restart_policy,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -452,6 +456,101 @@ CMD sh -c "trap \"\" 2; sleep 3"
             self.assertEqual(data[u"Config"][u"CpuShares"], 0)
         d.addCallback(started)
         return d
+
+    def start_restart_policy_container(self, mode, restart_policy):
+        """
+        Start a container for testing restart policies.
+
+        :param unicode mode: Mode of container. One of
+            - ``"failure"``: The container will always exit with a failure.
+            - ``"success-then-sleep"``: The container will exit with success
+              once, then sleep forever.
+            - ``"failure-then-sucess"``: The container will exit with failure
+              once, then with failure.
+        :param IRestartPolicy restart_policy: The restart policy to use for
+            the container.
+
+        :returns Deferred: A deferred that fires with the number of times the
+            container was started.
+        """
+        docker_dir = FilePath(__file__).sibling('retry-docker')
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
+        name = random_name()
+
+        data = FilePath(self.mktemp())
+        data.makedirs()
+        count = data.child('count')
+        count.setContent("0")
+        marker = data.child('marker')
+
+        if mode == u"success-then-sleep":
+            expected_states = (u'active',)
+        else:
+            expected_states = (u'inactive',)
+
+        d = self.start_container(
+            name, image_name=image_name,
+            restart_policy=restart_policy,
+            environment=Environment(variables={u'mode': mode}),
+            volumes=[
+                Volume(node_path=data, container_path=FilePath(b"/data"))],
+            expected_states=expected_states)
+
+        if mode == u"success-then-sleep":
+            def wait_for_marker(_):
+                while not marker.exists():
+                    time.sleep(0.01)
+            d.addCallback(wait_for_marker)
+
+        d.addCallback(lambda ignored: count.getContent())
+        return d
+
+    def test_restart_policy_never(self):
+        """
+        An ``Application`` with a restart policy of never isn't restarted
+        after it exits.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure", restart_policy=RestartNever())
+
+        d.addCallback(self.assertEqual, "1")
+        return d
+
+    def test_restart_policy_always(self):
+        """
+        An ``Application`` with a restart policy of always is restarted
+        after it exits.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"success-then-sleep", restart_policy=RestartAlways())
+
+        d.addCallback(self.assertEqual, "2")
+        return d
+
+    def test_restart_policy_on_failure(self):
+        """
+        An ``Application`` with a restart policy of on-failure is restarted
+        after it exits with a non-zero result.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure-then-success", restart_policy=RestartOnFailure())
+
+        d.addCallback(self.assertEqual, "2")
+        return d
+
+    def test_restart_policy_on_failure_maximum_count(self):
+        """
+        An ``Application`` with a restart policy of on-failure and a maximum
+        retry count is not restarted if it fails more times than the specified
+        maximum.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure",
+            restart_policy=RestartOnFailure(maximum_retry_count=5))
+
+        d.addCallback(self.assertEqual, "5")
 
 
 class DockerClientTests(TestCase):
