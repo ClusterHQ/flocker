@@ -68,7 +68,7 @@ class Volume(object):
              Attribute("mem_limit", default_value=None),
              Attribute("cpu_shares", default_value=None),
              Attribute("restart_policy", default_value=RestartNever()),
-            ])
+             ])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -330,7 +330,7 @@ class DockerClient(object):
                     ports.append(portmap)
         return ports
 
-    def _parse_docker_restart_policy(self, data):
+    def _parse_restart_policy(self, data):
         """
         Parse the restart policy from the configuration of a Docker container
         in the format returned by ``self._client.inspect_container`` and return
@@ -359,7 +359,7 @@ class DockerClient(object):
         except KeyError:
             raise ValueError("Unknown restart policy: %r" % (data[u"Name"],))
 
-    def _serialize_docker_restart_policy(self, restart_policy):
+    def _serialize_restart_policy(self, restart_policy):
         """
         Serialize the restart policy from an ``IRestartPolicy`` to the format
         expected by the docker API.
@@ -430,7 +430,8 @@ class DockerClient(object):
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports},
-                               restart_policy=self._serialize_docker_restart_policy(restart_policy))
+                               restart_policy=self._serialize_restart_policy(
+                                   restart_policy))
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -516,7 +517,7 @@ class DockerClient(object):
                 cpu_shares = None if cpu_shares == 0 else cpu_shares
                 mem_limit = data[u"Config"][u"Memory"]
                 mem_limit = None if mem_limit == 0 else mem_limit
-                restart_policy = self._parse_docker_restart_policy(
+                restart_policy = self._parse_restart_policy(
                     data[U"HostConfig"][u"RestartPolicy"])
                 result.add(Unit(
                     name=name,

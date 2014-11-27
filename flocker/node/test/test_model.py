@@ -102,7 +102,8 @@ class ApplicationTests(SynchronousTestCase):
         self.assertEqual(
             "<Application(name=u'site-example.com', image=None, ports=None, "
             "volume=None, links=frozenset([]), environment=None, "
-            "memory_limit=None, cpu_shares=None, restart_policy=<RestartNever()>)>",
+            "memory_limit=None, cpu_shares=None, "
+            "restart_policy=<RestartNever()>)>",
             repr(application)
         )
 
@@ -144,7 +145,6 @@ class RestartOnFailureTests(SynchronousTestCase):
         self.assertRaises(
             ValueError,
             RestartOnFailure, maximum_retry_count=0)
-
 
     def test_maximum_retry_count_not_negative(self):
         """

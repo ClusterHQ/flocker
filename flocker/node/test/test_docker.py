@@ -197,34 +197,35 @@ def make_idockerclient_tests(fixture):
             d.addCallback(got_list)
             return d
 
-
         def test_add_with_restart_never(self):
             """
-            ``DockerClient.add`` when creating a container with a restart policy,
-            of never will create a container with this policy.
+            ``DockerClient.add`` when creating a container with a restart
+            policy, of never will create a container with this policy.
             """
             return self.assert_restart_policy_round_trips(RestartNever())
 
         def test_add_with_restart_always(self):
             """
-            ``DockerClient.add`` when creating a container with a restart policy,
-            of always will create a container with this policy.
+            ``DockerClient.add`` when creating a container with a restart
+            policy, of always will create a container with this policy.
             """
             return self.assert_restart_policy_round_trips(RestartAlways())
 
         def test_add_with_restart_on_failure(self):
             """
-            ``DockerClient.add`` when creating a container with a restart policy,
-            of on failure will create a container with this policy.
+            ``DockerClient.add`` when creating a container with a restart
+            policy, of on failure will create a container with this policy.
             """
             return self.assert_restart_policy_round_trips(RestartOnFailure())
 
         def test_add_with_restart_on_failure_with_maximum_retry(self):
             """
-            ``DockerClient.add`` when creating a container with a restart policy,
-            of on failure with a retry count will create a container with this policy.
+            ``DockerClient.add`` when creating a container with a restart
+            policy, of on failure with a retry count will create a container
+            with this policy.
             """
-            return self.assert_restart_policy_round_trips(RestartOnFailure(maximum_retry_count=5))
+            return self.assert_restart_policy_round_trips(
+                RestartOnFailure(maximum_retry_count=5))
 
     return IDockerClientTests
 
