@@ -180,10 +180,10 @@ class PostgresTests(TestCase):
 
         def add_data_node_1(db_connection_node_1):
             db_node_1_cursor = db_connection_node_1.cursor()
-            db_node_1_cursor.execute("CREATE TABLE testtable " +
-                                     "(testcolumn int);")
-            db_node_1_cursor.execute("INSERT INTO testtable (testcolumn) " +
-                                     "VALUES (3);")
+            db_node_1_cursor.execute(
+                "CREATE TABLE testtable (testcolumn int);")
+            db_node_1_cursor.execute(
+                "INSERT INTO testtable (testcolumn) VALUES (3);")
             db_node_1_cursor.execute("SELECT * FROM testtable;")
             db_connection_node_1.commit()
             fetched_data = db_node_1_cursor.fetchone()[0]
