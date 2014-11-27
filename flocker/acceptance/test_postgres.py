@@ -14,11 +14,12 @@ from flocker.testtools import loop_until
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         require_flocker_cli)
 
+
 try:
-    from psycopg2 import connect, OperationalError
-    PSYCOPG2_INSTALLED = True
+    from pg8000 import connect, InterfaceError
+    PG8000_INSTALLED = True
 except ImportError:
-    PSYCOPG2_INSTALLED = False
+    PG8000_INSTALLED = False
 
 POSTGRES_INTERNAL_PORT = 5432
 POSTGRES_EXTERNAL_PORT = 5432
@@ -124,23 +125,23 @@ class PostgresTests(TestCase):
 
     def _get_postgres_connection(self, host, user, port, database=None):
         """
-        Returns a ``Deferred`` which fires with a psycopg2 connection when one
+        Returns a ``Deferred`` which fires with a pg800 connection when one
         has been created.
 
-        See http://pythonhosted.org//psycopg2/module.html#psycopg2.connect for
+        See http://pythonhosted.org//pg8000/dbapi.html#pg8000.connect for
         parameter information.
         """
         def connect_to_postgres():
             try:
                 return connect(host=host, user=user, port=port,
                                database=database)
-            except OperationalError:
+            except InterfaceError:
                 return False
 
         d = loop_until(connect_to_postgres)
         return d
 
-    @skipUnless(PSYCOPG2_INSTALLED, "Psycopg2 not installed")
+    @skipUnless(PG8000_INSTALLED, "pg8000 not installed")
     def test_moving_postgres_data(self):
         """
         PostgreSQL and its data can be deployed and moved with Flocker. In
@@ -148,22 +149,21 @@ class PostgresTests(TestCase):
         and then the application is moved to another node, the data remains
         available.
         """
-        # SQL injection is not a real concern here, and it seems impossible
-        # to pass some these variables via psycopg2 so string concatenation
-        # is used.
         database = b'flockertest'
-        table = b'testtable'
         user = b'postgres'
-        column = b'testcolumn'
-        data = 3
 
         connecting_to_application = self._get_postgres_connection(
-            host=self.node_1, user=user, port=POSTGRES_EXTERNAL_PORT)
+            host=self.node_1,
+            user=user,
+            port=POSTGRES_EXTERNAL_PORT,
+        )
 
         def create_database(connection_to_application):
             connection_to_application.autocommit = True
-            with connection_to_application.cursor() as application_cursor:
-                application_cursor.execute("CREATE DATABASE " + database + ";")
+            application_cursor = connection_to_application.cursor()
+            application_cursor.execute("CREATE DATABASE flockertest;")
+            application_cursor.close()
+            connection_to_application.close()
 
         connecting_to_application.addCallback(create_database)
 
@@ -178,17 +178,18 @@ class PostgresTests(TestCase):
         connecting_to_database = connecting_to_application.addCallback(
             connect_to_database)
 
-        def add_data_node_1(connection_to_db):
-            with connection_to_db as db_connection_node_1:
-                with db_connection_node_1.cursor() as db_node_1_cursor:
-                    db_node_1_cursor.execute(
-                        "CREATE TABLE " + table + " (" + column + " int);")
-                    db_node_1_cursor.execute(
-                        "INSERT INTO " + table + " (" + column +
-                        ") VALUES (%(data)s);", {'data': data})
-                    db_node_1_cursor.execute("SELECT * FROM " + table + ";")
-                    db_connection_node_1.commit()
-                    self.assertEqual(db_node_1_cursor.fetchone()[0], data)
+        def add_data_node_1(db_connection_node_1):
+            db_node_1_cursor = db_connection_node_1.cursor()
+            db_node_1_cursor.execute("CREATE TABLE testtable " +
+                                     "(testcolumn int);")
+            db_node_1_cursor.execute("INSERT INTO testtable (testcolumn) " +
+                                     "VALUES (3);")
+            db_node_1_cursor.execute("SELECT * FROM testtable;")
+            db_connection_node_1.commit()
+            fetched_data = db_node_1_cursor.fetchone()[0]
+            db_node_1_cursor.close()
+            db_connection_node_1.close()
+            self.assertEqual(fetched_data, 3)
 
         connecting_to_database.addCallback(add_data_node_1)
 
@@ -210,11 +211,13 @@ class PostgresTests(TestCase):
         getting_postgres_2 = connecting_to_database.addCallback(
             get_postgres_node_2)
 
-        def verify_data_moves(connection_2):
-            with connection_2 as db_connection_node_2:
-                with db_connection_node_2.cursor() as db_node_2_cursor:
-                    db_node_2_cursor.execute("SELECT * FROM " + table + ";")
-                    self.assertEqual(db_node_2_cursor.fetchone()[0], data)
+        def verify_data_moves(db_connection_node_2):
+            db_node_2_cursor = db_connection_node_2.cursor()
+            db_node_2_cursor.execute("SELECT * FROM testtable;")
+            fetched_data = db_node_2_cursor.fetchone()[0]
+            db_node_2_cursor.close()
+            db_connection_node_2.close()
+            self.assertEqual(fetched_data, 3)
 
         verifying_data_moves = getting_postgres_2.addCallback(
             verify_data_moves)
