@@ -265,7 +265,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
