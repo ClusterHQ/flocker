@@ -336,17 +336,19 @@ class DockerClient(object):
                 cpu_shares=cpu_shares,
             )
             binds = [
-                volume.node_path.path + ':' + volume.container_path.path
-                for volume in volumes]
-
+                u'{}:{}'.format(volume.node_path.path,
+                                volume.container_path.path)
+                for volume in volumes
+            ]
             port_bindings = {}
             for p in ports:
-                key = '%s/tcp' % (p.internal_port,)
-                port_bindings[key] = [{"HostPort": bytes(p.external_port)}]
-
-            config['HostConfig'] = {
-                'Binds': binds,
-                'PortBindings': port_bindings,
+                key = u'%s/tcp' % (p.internal_port,)
+                port_bindings[key] = [
+                    {u"HostPort": unicode(p.external_port)},
+                ]
+            config[u'HostConfig'] = {
+                u'Binds': binds,
+                u'PortBindings': port_bindings,
             }
             self._client.create_container_from_config(
                 config=config, name=container_name)
