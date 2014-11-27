@@ -162,7 +162,10 @@ setup(
             "nomenclature >= 0.1.0",
 
             # The acceptance tests interact with MongoDB
-            "pymongo>=2.7.2"
+            "pymongo>=2.7.2",
+
+            # The acceptance tests interact with elasticsearch
+            "elasticsearch==1.2.0",
             ],
 
         # This extra is for Flocker release engineers to set up their release
