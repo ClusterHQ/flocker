@@ -154,8 +154,8 @@ def get_nodes(test_case, num_nodes):
 
     if len(nodes) < num_nodes:
         raise SkipTest("This test requires a minimum of {necessary} nodes, "
-            "{existing} node(s) are set.".format(
-                necessary=num_nodes, existing=len(nodes)))
+                       "{existing} node(s) are set.".format(
+                           necessary=num_nodes, existing=len(nodes)))
 
     # Only check the desired number of nodes
     nodes = set(sorted(nodes)[:num_nodes])
