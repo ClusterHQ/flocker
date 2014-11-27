@@ -55,7 +55,7 @@ if rpm_version:
     # so strip that.
     if rpm_version.endswith('.dirty'):
         rpm_version = rpm_version[:-len('.dirty')]
-    package = 'clusterhq-flocker-node-%s%s' % (rpm_version, rpm_dist)
+    package = 'clusterhq-flocker-node-%s' % (rpm_version,)
 else:
     package = 'clusterhq-flocker-node'
 
