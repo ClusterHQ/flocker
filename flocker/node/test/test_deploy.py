@@ -27,6 +27,7 @@ from .._docker import (
 from ...route import Proxy, make_memory_network
 from ...route._iptables import HostNetwork
 from ...volume.service import Volume, VolumeName
+from ...volume._model import VolumeSize
 from ...volume.testtools import create_volume_service
 from ...volume._ipc import RemoteVolumeManager, standard_node
 
@@ -829,9 +830,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit1.name: unit1, unit2.name: unit2}
 
         self.successResultOf(self.volume_service.create(
-            _to_volume_name(u"site-example.com")))
+            self.volume_service.get(_to_volume_name(u"site-example.com"))
+        ))
         self.successResultOf(self.volume_service.create(
-            _to_volume_name(u"site-example.net")))
+            self.volume_service.get(_to_volume_name(u"site-example.net"))
+        ))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
@@ -1376,7 +1379,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         volume_service = create_volume_service(self)
         self.successResultOf(volume_service.create(
-            _to_volume_name(APPLICATION_WITH_VOLUME_NAME))
+            volume_service.get(
+                _to_volume_name(APPLICATION_WITH_VOLUME_NAME))
+            )
         )
 
         api = Deployer(
@@ -2078,6 +2083,33 @@ class CreateVolumeTests(SynchronousTestCase):
         self.assertIn(
             volume_service.get(_to_volume_name(u"myvol")),
             list(self.successResultOf(volume_service.enumerate())))
+
+    def test_creates_respecting_size(self):
+        """
+        ``CreateVolume.run()`` creates the named volume with a ``VolumeSize``
+        instance respecting the maximum_size passed in from the
+        ``AttachedVolume``.
+        """
+        EXPECTED_SIZE_BYTES = 100000000
+        EXPECTED_SIZE = VolumeSize(maximum_size=EXPECTED_SIZE_BYTES)
+
+        volume_service = create_volume_service(self)
+        deployer = Deployer(volume_service,
+                            docker_client=FakeDockerClient(),
+                            network=make_memory_network())
+        create = CreateVolume(
+            volume=AttachedVolume(name=u"myvol",
+                                  mountpoint=FilePath(u"/var"),
+                                  maximum_size=EXPECTED_SIZE_BYTES))
+        create.run(deployer)
+        enumerated_volumes = list(
+            self.successResultOf(volume_service.enumerate())
+        )
+        expected_volume = volume_service.get(
+            _to_volume_name(u"myvol"), size=EXPECTED_SIZE
+        )
+        self.assertIn(expected_volume, enumerated_volumes)
+        self.assertEqual(expected_volume.size, EXPECTED_SIZE)
 
     def test_return(self):
         """
