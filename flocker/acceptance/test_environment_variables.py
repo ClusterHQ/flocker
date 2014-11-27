@@ -3,8 +3,7 @@
 """
 Tests for environment variables.
 """
-from pymysql import connect
-from pymysql.err import OperationalError
+from unittest import skipUnless
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -14,6 +13,13 @@ from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         require_flocker_cli)
+
+try:
+    from pymysql import connect
+    from pymysql.err import OperationalError
+    PYMYSQL_INSTALLED = True
+except ImportError:
+    PYMYSQL_INSTALLED = False
 
 MYSQL_INTERNAL_PORT = 3306
 MYSQL_EXTERNAL_PORT = 3306
@@ -36,6 +42,9 @@ MYSQL_APPLICATION = Application(
         mountpoint=FilePath(MYSQL_VOLUME_MOUNTPOINT),
     ),
 )
+
+require_pymysql = skipUnless(
+    PYMYSQL_INSTALLED, "PyMySQL not installed")
 
 
 class EnvironmentVariableTests(TestCase):
@@ -148,6 +157,7 @@ class EnvironmentVariableTests(TestCase):
         d = loop_until(connect_to_mysql)
         return d
 
+    @require_pymysql
     def test_environment_variable_used(self):
         """
         MySQL can be accessed using the root password passed in as an
@@ -160,6 +170,7 @@ class EnvironmentVariableTests(TestCase):
             passwd=MYSQL_PASSWORD,
         )
 
+    @require_pymysql
     def test_moving_data(self):
         """
         After adding data to MySQL and then moving it to another node, the data
