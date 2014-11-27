@@ -508,7 +508,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_never(self):
         """
-        An ``Application`` with a restart policy of never isn't restarted
+        An container with a restart policy of never isn't restarted
         after it exits.
         """
         d = self.start_restart_policy_container(
@@ -519,7 +519,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_always(self):
         """
-        An ``Application`` with a restart policy of always is restarted
+        An container with a restart policy of always is restarted
         after it exits.
         """
         d = self.start_restart_policy_container(
@@ -530,7 +530,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_on_failure(self):
         """
-        An ``Application`` with a restart policy of on-failure is restarted
+        An container with a restart policy of on-failure is restarted
         after it exits with a non-zero result.
         """
         d = self.start_restart_policy_container(
@@ -541,7 +541,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
 
     def test_restart_policy_on_failure_maximum_count(self):
         """
-        An ``Application`` with a restart policy of on-failure and a maximum
+        An container with a restart policy of on-failure and a maximum
         retry count is not restarted if it fails more times than the specified
         maximum.
         """
