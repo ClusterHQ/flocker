@@ -29,7 +29,7 @@ BuildRequires:  python-klein = 0.2.3
 # as ssh-keygen.
 BuildRequires:  openssh-clients
 # See https://github.com/ClusterHQ/flocker/issues/85
-BuildRequires:  docker-io >= 1.2.0
+BuildRequires:  docker-io >= 1.3.0
 
 Requires:       python-setuptools >= 1.4
 Requires:       python-eliot == 0.4.0
