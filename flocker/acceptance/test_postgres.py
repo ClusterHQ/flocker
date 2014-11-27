@@ -105,12 +105,10 @@ class PostgresTests(TestCase):
         Verify that Docker reports that PostgreSQL is running on one node and
         not another.
         """
-        d = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([POSTGRES_APPLICATION]),
             self.node_2: set([]),
         })
-
-        return d
 
     def test_moving_postgres(self):
         """
@@ -119,12 +117,10 @@ class PostgresTests(TestCase):
         flocker_deploy(self, self.postgres_deployment_moved,
                        self.postgres_application)
 
-        asserting_postgres_moved = assert_expected_deployment(self, {
+        return assert_expected_deployment(self, {
             self.node_1: set([]),
             self.node_2: set([POSTGRES_APPLICATION]),
         })
-
-        return asserting_postgres_moved
 
     def _get_postgres_connection(self, host, user, port, database=None):
         """
@@ -172,14 +168,12 @@ class PostgresTests(TestCase):
         connecting_to_application.addCallback(create_database)
 
         def connect_to_database(ignored):
-            getting_postgres = self._get_postgres_connection(
+            return self._get_postgres_connection(
                 host=self.node_1,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
             )
-
-            return getting_postgres
 
         connecting_to_database = connecting_to_application.addCallback(
             connect_to_database)
@@ -206,14 +200,12 @@ class PostgresTests(TestCase):
             flocker_deploy(self, self.postgres_deployment_moved,
                            self.postgres_application)
 
-            getting_postgres = self._get_postgres_connection(
+            return self._get_postgres_connection(
                 host=self.node_2,
                 user=user,
                 port=POSTGRES_EXTERNAL_PORT,
                 database=database,
             )
-
-            return getting_postgres
 
         getting_postgres_2 = connecting_to_database.addCallback(
             get_postgres_node_2)
