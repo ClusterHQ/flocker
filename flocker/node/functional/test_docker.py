@@ -550,6 +550,7 @@ CMD sh -c "trap \"\" 2; sleep 3"
             restart_policy=RestartOnFailure(maximum_retry_count=5))
 
         d.addCallback(self.assertEqual, "5")
+        return d
 
 
 class DockerClientTests(TestCase):
