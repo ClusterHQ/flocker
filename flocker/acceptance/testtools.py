@@ -136,9 +136,8 @@ def get_nodes(test_case, num_nodes):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
-    XXX This is a temporary solution which ignores num_nodes and returns the IP
-    addresses of the tutorial VMs which must already be started.
-    num_nodes Docker containers will be created instead to replace this, see
+    XXX This pretends to be asynchronous because num_nodes Docker containers
+    will be created instead to replace this in some circumstances, see
     https://clusterhq.atlassian.net/browse/FLOC-900
 
     :param test_case: The ``TestCase`` running this unit test.
