@@ -89,7 +89,11 @@ setup(
     packages=find_packages(exclude=('admin', 'admin.*')),
 
     package_data={
-        'flocker.node.functional': ['sendbytes-docker/*', 'env-docker/*'],
+        'flocker.node.functional': [
+            'sendbytes-docker/*',
+            'env-docker/*',
+            'retry-docker/*'
+        ],
     },
 
     entry_points = {
