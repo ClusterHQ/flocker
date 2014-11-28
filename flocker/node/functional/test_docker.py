@@ -468,12 +468,33 @@ CMD sh -c "trap \"\" 2; sleep 3"
         return d
 
 
+class DockerClientTests(TestCase):
+    """
+    Tests for ``DockerClient`` specifically.
+    """
+    @if_docker_configured
+    def setUp(self):
+        pass
+
+    def test_default_namespace(self):
+        """
+        The default namespace is `u"flocker--"`.
+        """
+        docker = Client()
+        name = random_name()
+        client = DockerClient()
+        self.addCleanup(client.remove, name)
+        d = client.add(name, u"busybox")
+        d.addCallback(lambda _: self.assertTrue(
+            docker.inspect_container(u"flocker--" + name)))
+        return d
+
     def test_list_removed_containers(self):
         """
         ``DockerClient.list`` does not list containers which are removed,
         during its operation, from another thread.
         """
-        flocker_docker_client = self.make_client()
+        flocker_docker_client = DockerClient()
 
         name1 = random_name()
         adding_unit1 = flocker_docker_client.add(
@@ -520,28 +541,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         running_assertions = listing_units.addCallback(check_list)
 
         return running_assertions
-
-
-class DockerClientTests(TestCase):
-    """
-    Tests for ``DockerClient`` specifically.
-    """
-    @if_docker_configured
-    def setUp(self):
-        pass
-
-    def test_default_namespace(self):
-        """
-        The default namespace is `u"flocker--"`.
-        """
-        docker = Client()
-        name = random_name()
-        client = DockerClient()
-        self.addCleanup(client.remove, name)
-        d = client.add(name, u"busybox")
-        d.addCallback(lambda _: self.assertTrue(
-            docker.inspect_container(u"flocker--" + name)))
-        return d
 
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
