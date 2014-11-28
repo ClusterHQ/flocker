@@ -242,7 +242,7 @@ Reviewing "Preparing For a Release"
 
    .. code-block:: console
 
-      $ FLOCKER_ACCEPTANCE_NODES=172.16.255.250:172.16.255.251 trial flocker.acceptance.test_deployment trial flocker.acceptance
+      $ FLOCKER_ACCEPTANCE_NODES=172.16.255.250:172.16.255.251 trial flocker.acceptance
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
