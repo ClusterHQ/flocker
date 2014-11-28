@@ -5,7 +5,7 @@
 #
 
 FROM ubuntu:14.04
-MAINTAINER Richard Wall <richard.wall@clusterhq.com>
+MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["apt-get", "update"]
 RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "build-essential", "python-twisted", "python-pip", "python-virtualenv", "python2.7-dev"]
 # XXX: Characteristic isn't packaged for Ubuntu.
