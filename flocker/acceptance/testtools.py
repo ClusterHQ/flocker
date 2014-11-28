@@ -4,8 +4,9 @@
 Testing utilities for ``flocker.acceptance``.
 """
 
+from os import environ
 from pipes import quote as shell_quote
-from socket import socket
+from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
@@ -129,15 +130,14 @@ def _clean_node(test_case, node):
 
 def get_nodes(test_case, num_nodes):
     """
-    Create ``num_nodes`` nodes with no Docker containers on them.
+    Create or get ``num_nodes`` nodes with no Docker containers on them.
 
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
-    XXX This is a temporary solution which ignores num_nodes and returns the IP
-    addresses of the tutorial VMs which must already be started.
-    num_nodes Docker containers will be created instead to replace this, see
+    XXX This pretends to be asynchronous because num_nodes Docker containers
+    will be created instead to replace this in some circumstances, see
     https://clusterhq.atlassian.net/browse/FLOC-900
 
     :param test_case: The ``TestCase`` running this unit test.
@@ -145,22 +145,54 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.250", b"172.16.255.251"])
+    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
+
+    if nodes_env_var is None:
+        raise SkipTest(
+            "Set acceptance testing node IP addresses using the " +
+            "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
+            "separated list.")
+
+    # Remove any empty strings, for example if the list has ended with a colon
+    nodes = filter(None, nodes_env_var.split(':'))
+
+    if len(nodes) < num_nodes:
+        raise SkipTest("This test requires a minimum of {necessary} nodes, "
+                       "{existing} node(s) are set.".format(
+                           necessary=num_nodes, existing=len(nodes)))
+
+    reachable_nodes = set()
 
     for node in nodes:
         sock = socket()
         sock.settimeout(0.1)
         try:
             can_connect = not sock.connect_ex((node, 22))
+        except gaierror:
+            can_connect = False
         finally:
+            if can_connect:
+                reachable_nodes.add(node)
             sock.close()
 
-    if not can_connect:
-        raise SkipTest("Acceptance testing nodes must be running.")
+    if len(reachable_nodes) < num_nodes:
+        unreachable_nodes = set(nodes) - reachable_nodes
+        raise SkipTest(
+            "At least {min} node(s) must be running and reachable on port 22. "
+            "The following node(s) are reachable: {reachable}. "
+            "The following node(s) are not reachable: {unreachable}.".format(
+                min=num_nodes,
+                reachable=", ".join(str(node) for node in reachable_nodes),
+                unreachable=", ".join(str(node) for node in unreachable_nodes),
+            )
+        )
 
-    for node in nodes:
+    # Only return the desired number of nodes
+    reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
+
+    for node in reachable_nodes:
         _clean_node(test_case, node)
-    return succeed(nodes)
+    return succeed(reachable_nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
