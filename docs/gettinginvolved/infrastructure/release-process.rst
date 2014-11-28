@@ -243,9 +243,9 @@ This review step is to ensure that all acceptance tests pass on the release bran
    All containers on the tutorial VMs will be destroyed by running the tests.
    Ensure that they all pass, with no skips:
 
-     .. code-block:: console
+   .. code-block:: console
 
-        $ trial flocker.acceptance
+      $ trial flocker.acceptance
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
