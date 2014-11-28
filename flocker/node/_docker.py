@@ -346,7 +346,7 @@ class DockerClient(object):
         :raises ValueError: if an unknown policy is passed.
         """
         POLICIES = {
-            u"never": lambda data:
+            u"": lambda data:
                 RestartNever(),
             u"always": lambda data:
                 RestartAlways(),
@@ -355,6 +355,8 @@ class DockerClient(object):
                     maximum_retry_count=data[u"MaximumRetryCount"] or None)
         }
         try:
+            # docker will treat an unknown plolicy as "never".
+            # We error out here, in case new policies are added.
             return POLICIES[data[u"Name"]](data)
         except KeyError:
             raise ValueError("Unknown restart policy: %r" % (data[u"Name"],))
@@ -372,7 +374,7 @@ class DockerClient(object):
         """
         SERIALIZERS = {
             RestartNever: lambda policy:
-                {u"Name": u"never"},
+                {u"Name": u""},
             RestartAlways: lambda policy:
                 {u"Name": u"always"},
             RestartOnFailure: lambda policy:
