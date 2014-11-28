@@ -178,9 +178,10 @@ def get_nodes(test_case, num_nodes):
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
         raise SkipTest(
-            "Nodes must be running and reachable on port 22. "
-            "The following nodes are reachable: {reachable}. "
-            "The following nodes are not reachable: {unreachable}.".format(
+            "At least {min} node(s) must be running and reachable on port 22. "
+            "The following node(s) are reachable: {reachable}. "
+            "The following node(s) are not reachable: {unreachable}.".format(
+                min=num_nodes,
                 reachable=", ".join(str(node) for node in reachable_nodes),
                 unreachable=", ".join(str(node) for node in unreachable_nodes),
             )
