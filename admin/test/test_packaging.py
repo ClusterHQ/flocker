@@ -896,6 +896,41 @@ class OmnibusPackageBuilderTests(TestCase):
             assert_rpm_lint(self, f)
 
     @require_docker_access
+    @require_rpm
+    def test_functional_centos_7(self):
+        """
+        The expected RPM files are built for Centos 7
+        """
+        output_dir = FilePath(self.mktemp())
+        check_call([
+            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            '--destination-path', output_dir.path,
+            '--distribution', 'centos-7',
+            FLOCKER_PATH.path
+        ])
+        python_version = __version__
+        rpm_version = make_rpm_version(python_version)
+
+        expected_basenames = (
+            ('clusterhq-python-flocker', 'x86_64'),
+            ('clusterhq-flocker-cli', 'noarch'),
+            ('clusterhq-flocker-node', 'noarch'),
+        )
+        expected_filenames = []
+        for basename, arch in expected_basenames:
+            f = '{}-{}-{}.{}.rpm'.format(
+                basename, rpm_version.version, rpm_version.release, arch)
+            expected_filenames.append(f)
+
+        self.assertEqual(
+            set(expected_filenames),
+            set(f.basename() for f in output_dir.children())
+        )
+
+        for f in output_dir.children():
+            assert_rpm_lint(self, f)
+
+    @require_docker_access
     @require_dpkg
     def test_functional_ubuntu_1404(self):
         """
