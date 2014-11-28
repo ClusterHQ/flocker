@@ -862,7 +862,6 @@ class OmnibusPackageBuilderTests(TestCase):
 
     @require_docker_access
     @require_rpm
-    @require_rpmlint
     def test_functional_fedora_20(self):
         """
         The expected RPM files are built for Fedora 20
@@ -898,7 +897,6 @@ class OmnibusPackageBuilderTests(TestCase):
 
     @require_docker_access
     @require_dpkg
-    @require_lintian
     def test_functional_ubuntu_1404(self):
         """
         The expected deb files are generated on Ubuntu14.04.
@@ -961,6 +959,7 @@ RPMLINT_IGNORED_WARNINGS = (
 )
 
 
+@require_rpmlint
 def assert_rpm_lint(test_case, rpm_path):
     """
     Fail for certain rpmlint warnings on a supplied RPM file.
@@ -1015,6 +1014,7 @@ LINTIAN_IGNORED_WARNINGS = (
 )
 
 
+@require_lintian
 def assert_deb_lint(test_case, package_path):
     """
     Fail for certain lintian warnings on a supplied ``package_path``.
