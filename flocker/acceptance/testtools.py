@@ -4,7 +4,7 @@
 Testing utilities for ``flocker.acceptance``.
 """
 
-from os import getenv
+from os import environ
 from pipes import quote as shell_quote
 from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
@@ -146,8 +146,13 @@ def get_nodes(test_case, num_nodes):
 
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes_env_var = getenv(
-        "FLOCKER_ACCEPTANCE_NODES", "172.16.255.250:172.16.255.251")
+    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
+
+    if nodes_env_var is None:
+        raise SkipTest(
+            "Set acceptance testing node IP addresses using the  " +
+            "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
+            "separated list.")
 
     # Remove any empty strings, for example if the list has ended with a colon
     nodes = filter(None, nodes_env_var.split(':'))
