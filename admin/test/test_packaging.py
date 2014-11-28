@@ -4,8 +4,10 @@
 Tests for ``admin.packaging``.
 """
 
+import errno
 from glob import glob
 import os
+import socket
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
@@ -45,8 +47,34 @@ require_dpkg = skipIf(
     [] in (which('dpkg'), which('lintian')),
     "Tests require the `dpkg` and `lintian` commands."
 )
-require_root = skipIf(os.getuid() != 0, "Must run as root.")
 
+DOCKER_SOCK = '/var/run/docker.sock'
+
+
+def docker_accessible():
+    """
+    Attempt to connect to the Docker control socket.
+
+    This may address https://clusterhq.atlassian.net/browse/FLOC-85 and could
+    perhaps be moved to ``flocker.node.testtools``.
+
+    :return: ``True`` if the current user has permission to connect, else
+        ``False``.
+    """
+    try:
+        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCK)
+    except socket.error as e:
+        if e.errno == errno.EACCES:
+            return False
+        raise
+    else:
+        return True
+
+require_docker_access = skipIf(
+    not docker_accessible(),
+    "User '{}' does not have permission "
+    "to access the Docker server socket '{}'".format(os.getlogin(), DOCKER_SOCK)
+)
 
 def assert_equal_steps(test_case, expected, actual):
     """
@@ -832,7 +860,7 @@ class OmnibusPackageBuilderTests(TestCase):
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
 
-    @require_root
+    @require_docker_access
     @require_rpm
     def test_functional_fedora_20(self):
         """
@@ -867,7 +895,7 @@ class OmnibusPackageBuilderTests(TestCase):
         for f in output_dir.children():
             assert_rpm_lint(self, f)
 
-    @require_root
+    @require_docker_access
     @require_dpkg
     def test_functional_ubuntu_1404(self):
         """
