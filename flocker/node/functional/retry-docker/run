@@ -9,7 +9,6 @@ mode = os.environ["mode"]
 
 def sleep_forever():
     while True:
-        pass
         time.sleep(3600)
 
 
