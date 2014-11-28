@@ -7,6 +7,7 @@ Tests for ``admin.packaging``.
 import errno
 from glob import glob
 import os
+import pwd
 import socket
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
@@ -71,7 +72,8 @@ def docker_accessible():
 require_docker_access = skipIf(
     not docker_accessible(),
     "User '{}' does not have permission "
-    "to access the Docker server socket '{}'".format(os.getlogin(), DOCKER_SOCK)
+    "to access the Docker server socket '{}'".format(
+        pwd.getpwuid(os.getuid())[0], DOCKER_SOCK)
 )
 
 def assert_equal_steps(test_case, expected, actual):
