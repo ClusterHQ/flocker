@@ -171,15 +171,13 @@ def get_nodes(test_case, num_nodes):
             can_connect = not sock.connect_ex((node, 22))
         except gaierror:
             can_connect = False
-            break
         finally:
+            if not can_connect:
+                raise SkipTest(
+                    "Acceptance testing nodes must be running. " +
+                    "Set IP addresses using the FLOCKER_ACCEPTANCE_NODES " +
+                    "environment variable and a colon separated list.")
             sock.close()
-
-    if not can_connect:
-        raise SkipTest(
-            "Acceptance testing nodes must be running. " +
-            "Set IP addresses using the FLOCKER_ACCEPTANCE_NODES " +
-            "environment variable and a colon separated list.")
 
     for node in nodes:
         _clean_node(test_case, node)
