@@ -135,7 +135,7 @@ class PostgresTests(TestCase):
             try:
                 return connect(host=host, user=user, port=port,
                                database=database)
-            except InterfaceError, ProgrammingError:
+            except (InterfaceError, ProgrammingError):
                 return False
 
         d = loop_until(connect_to_postgres)
