@@ -6,7 +6,7 @@ Testing utilities for ``flocker.acceptance``.
 
 from os import getenv
 from pipes import quote as shell_quote
-from socket import socket
+from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
 from yaml import safe_dump, safe_load
@@ -165,6 +165,9 @@ def get_nodes(test_case, num_nodes):
         sock.settimeout(0.1)
         try:
             can_connect = not sock.connect_ex((node, 22))
+        except gaierror:
+            can_connect = False
+            break
         finally:
             sock.close()
 
