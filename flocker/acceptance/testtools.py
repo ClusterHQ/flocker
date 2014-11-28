@@ -161,8 +161,7 @@ def get_nodes(test_case, num_nodes):
                        "{existing} node(s) are set.".format(
                            necessary=num_nodes, existing=len(nodes)))
 
-    # Only check the desired number of nodes
-    nodes = set(sorted(nodes)[:num_nodes])
+    reachable_nodes = set()
 
     for node in nodes:
         sock = socket()
@@ -172,16 +171,27 @@ def get_nodes(test_case, num_nodes):
         except gaierror:
             can_connect = False
         finally:
-            if not can_connect:
-                raise SkipTest(
-                    "Acceptance testing nodes must be running. " +
-                    "Set IP addresses using the FLOCKER_ACCEPTANCE_NODES " +
-                    "environment variable and a colon separated list.")
+            if can_connect:
+                reachable_nodes.add(node)
             sock.close()
 
-    for node in nodes:
+    if len(reachable_nodes) < num_nodes:
+        unreachable_nodes = set(nodes) - reachable_nodes
+        raise SkipTest(
+            "Nodes must be running and reachable on port 22. "
+            "The following nodes are reachable: {reachable}. "
+            "The following nodes are not reachable: {unreachable}.".format(
+                reachable=", ".join(str(node) for node in reachable_nodes),
+                unreachable=", ".join(str(node) for node in unreachable_nodes),
+            )
+        )
+
+    # Only return the desired number of nodes
+    reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
+
+    for node in reachable_nodes:
         _clean_node(test_case, node)
-    return succeed(nodes)
+    return succeed(reachable_nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
