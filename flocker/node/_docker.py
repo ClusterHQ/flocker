@@ -336,8 +336,8 @@ class DockerClient(object):
         in the format returned by ``self._client.inspect_container`` and return
         an ``IRestartPolicy``.
 
-        :param dict data: The data structure represting the restart policy of a
-            container, e.g.
+        :param dict data: The data structure representing the restart policy of
+            a container, e.g.
 
             {"Name": "policy-name", "MaximumRetryCount": 0}
 
