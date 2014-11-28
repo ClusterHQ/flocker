@@ -130,7 +130,7 @@ def _clean_node(test_case, node):
 
 def get_nodes(test_case, num_nodes):
     """
-    Create ``num_nodes`` nodes with no Docker containers on them.
+    Create or get ``num_nodes`` nodes with no Docker containers on them.
 
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
@@ -149,7 +149,7 @@ def get_nodes(test_case, num_nodes):
 
     if nodes_env_var is None:
         raise SkipTest(
-            "Set acceptance testing node IP addresses using the  " +
+            "Set acceptance testing node IP addresses using the " +
             "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
             "separated list.")
 
