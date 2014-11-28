@@ -494,8 +494,8 @@ class DockerClientTests(TestCase):
         ``DockerClient.list`` does not list containers which are removed,
         during its operation, from another thread.
         """
-        # Assign a test specific namespace, so that we don't see containers left
-        # behind by other tests.
+        # Assign a test specific namespace, so that we don't see containers
+        # left behind by other tests.
         flocker_docker_client = DockerClient(namespace=random_name())
 
         name1 = random_name()
@@ -523,6 +523,7 @@ class DockerClientTests(TestCase):
 
         adding_units = gatherResults([adding_unit1, adding_unit2])
         patches = []
+
         def get_list(ignored):
             patch = self.patch(
                 flocker_docker_client._client,
