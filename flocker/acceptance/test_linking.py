@@ -236,7 +236,7 @@ class LinkingTests(TestCase):
         )
 
         checking_messages.addCallback(
-             lambda _: flocker_deploy(self, self.elk_deployment_moved,
+            lambda _: flocker_deploy(self, self.elk_deployment_moved,
                                      self.elk_application),
         )
 
