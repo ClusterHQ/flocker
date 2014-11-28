@@ -26,7 +26,7 @@ class MovingDataTests(TestCase):
         and then the application is moved to another node, the data remains
         available.
         """
-        getting_nodes = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=2)
 
         volume_application = {
             u"version": 1,

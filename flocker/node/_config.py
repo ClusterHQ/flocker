@@ -235,9 +235,14 @@ class ApplicationMarshaller(object):
         logic will need refactoring in future if this changes.
         """
         if self._application.volume:
-            # Include the maximum size here, if there is one
-            # FLOC-976
-            return {u'mountpoint': self._application.volume.mountpoint.path}
+            volume_dict = {
+                u'mountpoint': self._application.volume.mountpoint.path
+            }
+            if self._application.volume.maximum_size is not None:
+                volume_dict[u'maximum_size'] = (
+                    self._application.volume.maximum_size
+                )
+            return volume_dict
         return None
 
 
