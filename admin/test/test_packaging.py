@@ -38,15 +38,13 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 # XXX: Get fpm installed on the build slaves.
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
-require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
-require_rpm = skipIf(
-    [] in (which('rpm'), which('rpmlint')),
-    "Tests require the `rpm` and `rpmlint` commands."
-)
-require_dpkg = skipIf(
-    [] in (which('dpkg'), which('lintian')),
-    "Tests require the `dpkg` and `lintian` commands."
-)
+require_fpm = skipIf(not which('fpm'), "Tests require the ``fpm`` command.")
+require_rpm = skipIf(not which('rpm'), "Tests require the ``rpm`` command.")
+require_rpmlint = skipIf(not which('rpmlint'),
+                         "Tests require the ``rpmlint`` command.")
+require_dpkg = skipIf(not which('dpkg'), "Tests require the ``dpkg`` command.")
+require_lintian = skipIf(not which('lintian'),
+                         "Tests require the ``lintian`` command.")
 
 DOCKER_SOCK = '/var/run/docker.sock'
 
@@ -862,6 +860,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
     @require_docker_access
     @require_rpm
+    @require_rpmlint
     def test_functional_fedora_20(self):
         """
         The expected RPM files are built for Fedora 20
@@ -897,6 +896,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
     @require_docker_access
     @require_dpkg
+    @require_lintian
     def test_functional_ubuntu_1404(self):
         """
         The expected deb files are generated on Ubuntu14.04.
