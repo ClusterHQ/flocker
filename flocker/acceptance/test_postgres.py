@@ -16,7 +16,7 @@ from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
 
 
 try:
-    from pg8000 import connect, InterfaceError
+    from pg8000 import connect, InterfaceError, ProgrammingError
     PG8000_INSTALLED = True
 except ImportError:
     PG8000_INSTALLED = False
@@ -135,7 +135,7 @@ class PostgresTests(TestCase):
             try:
                 return connect(host=host, user=user, port=port,
                                database=database)
-            except InterfaceError:
+            except InterfaceError, ProgrammingError:
                 return False
 
         d = loop_until(connect_to_postgres)
