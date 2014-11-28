@@ -225,15 +225,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
         clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
         clusterhq/flocker-tutorial (virtualbox, 0)
 
-   .. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
-
-   - Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
-
-   - Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
-
-     - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
-     - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
-
    - Clone Flocker on your local workstation and install all ``dev`` requirements:
 
      .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
@@ -246,7 +237,11 @@ This review step is to ensure that all acceptance tests pass on the release bran
         mkvirtualenv flocker-release-${VERSION}
         pip install --editable .[dev]
 
-   - Run the automated acceptance tests and ensure that they all pass, with no skips:
+   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial to start the necessary virtual machines.
+
+   Run the automated acceptance tests; they will connect to the tutorial VMs.
+   All containers on the tutorial VMs will be destroyed by running the tests.
+   Ensure that they all pass, with no skips:
 
      .. code-block:: console
 

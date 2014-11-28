@@ -21,7 +21,7 @@ from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name, if_root)
+    random_name)
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
@@ -129,7 +129,6 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         return self.start_container(name)
 
-    @if_root
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
@@ -174,6 +173,22 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         d = self.start_container(unit_name=name, image_name="busybox",
                                  expected_states=(u'inactive',))
+        return d
+
+    def test_dead_is_removed(self):
+        """
+        ``DockerClient.remove()`` removes dead units without error.
+
+        We use a `busybox` image here, because it will exit immediately and
+        reach an `inactive` substate of `dead`.
+        """
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name="busybox",
+                                 expected_states=(u'inactive',))
+
+        def remove_container(client):
+            client.remove(name)
+        d.addCallback(remove_container)
         return d
 
     def request_until_response(self, port):
@@ -261,7 +276,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and

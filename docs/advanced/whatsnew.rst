@@ -6,6 +6,12 @@ What's New
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
+v0.3.2
+======
+
+* Documented how to :ref:`configure the Fedora firewall<fedora-20-install>` on certain cloud platforms.
+
+
 v0.3.1
 ======
 
