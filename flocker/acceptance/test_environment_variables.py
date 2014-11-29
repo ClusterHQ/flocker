@@ -149,7 +149,7 @@ class EnvironmentVariableTests(TestCase):
                     db=db,
                 )
             except OperationalError as e:
-                if "[Errno 61] Connection refused" in str(e):
+                if "Connection refused" in str(e):
                     return False
                 else:
                     raise
