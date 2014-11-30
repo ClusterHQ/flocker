@@ -30,6 +30,13 @@ from .._docker import (
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 
+def namespace_for_test(test_case):
+    namespace = u"%s-%s-%s" % (
+        test_case.__class__.__name__, test_case.id(), random_name())
+    namespace = namespace.replace(u".", u"-")
+    return namespace
+
+
 class IDockerClientTests(make_idockerclient_tests(
         lambda test_case: DockerClient(namespace=random_name()))):
     """
@@ -489,41 +496,13 @@ class DockerClientTests(TestCase):
             docker.inspect_container(u"flocker--" + name)))
         return d
 
-
-class NamespacedDockerClientTests(GenericDockerClientTests):
-    """
-    Functional tests for ``NamespacedDockerClient``.
-    """
-    @if_docker_configured
-    def setUp(self):
-        self.namespace = u"%s-%s-%s" % (
-            self.__class__.__name__, self.id(), random_name())
-        self.namespace = self.namespace.replace(u".", u"-")
-        self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
-
-    def make_client(self):
-        return NamespacedDockerClient(self.namespace)
-
-    def test_isolated_namespaces(self):
-        """
-        Containers in one namespace are not visible in another namespace.
-        """
-        client = NamespacedDockerClient(random_name())
-        client2 = NamespacedDockerClient(random_name())
-        name = random_name()
-
-        d = client.add(name, u"busybox")
-        self.addCleanup(client.remove, name)
-        d.addCallback(lambda _: client2.list())
-        d.addCallback(self.assertEqual, set())
-        return d
-
     def test_list_removed_containers(self):
         """
         ``DockerClient.list`` does not list containers which are removed,
         during its operation, from another thread.
         """
-        flocker_docker_client = DockerClient(namespace=self.namespace)
+        namespace = namespace_for_test(self)
+        flocker_docker_client = DockerClient(namespace=namespace)
 
         name1 = random_name()
         adding_unit1 = flocker_docker_client.add(
@@ -571,3 +550,30 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         running_assertions = listing_units.addCallback(check_list)
 
         return running_assertions
+
+
+class NamespacedDockerClientTests(GenericDockerClientTests):
+    """
+    Functional tests for ``NamespacedDockerClient``.
+    """
+    @if_docker_configured
+    def setUp(self):
+        self.namespace = namespace_for_test(self)
+        self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
+
+    def make_client(self):
+        return NamespacedDockerClient(self.namespace)
+
+    def test_isolated_namespaces(self):
+        """
+        Containers in one namespace are not visible in another namespace.
+        """
+        client = NamespacedDockerClient(random_name())
+        client2 = NamespacedDockerClient(random_name())
+        name = random_name()
+
+        d = client.add(name, u"busybox")
+        self.addCleanup(client.remove, name)
+        d.addCallback(lambda _: client2.list())
+        d.addCallback(self.assertEqual, set())
+        return d
