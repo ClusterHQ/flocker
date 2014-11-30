@@ -197,14 +197,14 @@ class EnvironmentVariableTests(TestCase):
                 cursor.execute("USE example;")
                 cursor.execute(
                     "CREATE TABLE `testtable` (" +
-                    "`id` INT NOT NULL AUTO_INCREMENT," +
+                    "`id` INT NOT NULL," +
                     "`name` VARCHAR(45) NULL," +
                     "PRIMARY KEY (`id`)) " +
                     "ENGINE = MyISAM;",
                 )
 
                 cursor.execute(
-                    "INSERT INTO `testtable` VALUES('','flocker test');")
+                    "INSERT INTO `testtable` VALUES('42','flocker test');")
                 # Note the MySQL doesn't have cursors, so PyMySQL's cursors
                 # are fake. Thus we don't bother to protect this in a
                 # finally block.
@@ -239,7 +239,7 @@ class EnvironmentVariableTests(TestCase):
             cursor_2 = connection_2.cursor()
             self.addCleanup(cursor_2.close)
             cursor_2.execute("SELECT * FROM `testtable`;")
-            self.assertEqual(cursor_2.fetchall(), ((1, b'flocker test'),))
+            self.assertEqual(cursor_2.fetchall(), ((42, b'flocker test'),))
 
         verifying_data_moves = getting_mysql_2.addCallback(verify_data_moves)
         return verifying_data_moves
