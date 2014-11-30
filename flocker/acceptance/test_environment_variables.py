@@ -191,21 +191,26 @@ class EnvironmentVariableTests(TestCase):
         )
 
         def add_data_node_1(connection):
-            cursor = connection.cursor()
-            cursor.execute("CREATE DATABASE example;")
-            cursor.execute("USE example;")
-            cursor.execute(
-                "CREATE TABLE `testtable` (" +
-                "`id` INT NOT NULL AUTO_INCREMENT," +
-                "`name` VARCHAR(45) NULL," +
-                "PRIMARY KEY (`id`)) " +
-                "ENGINE = MyISAM;",
-            )
+            try:
+                cursor = connection.cursor()
+                cursor.execute("CREATE DATABASE example;")
+                cursor.execute("USE example;")
+                cursor.execute(
+                    "CREATE TABLE `testtable` (" +
+                    "`id` INT NOT NULL AUTO_INCREMENT," +
+                    "`name` VARCHAR(45) NULL," +
+                    "PRIMARY KEY (`id`)) " +
+                    "ENGINE = MyISAM;",
+                )
 
-            cursor.execute(
-                "INSERT INTO `testtable` VALUES('','flocker test');")
-            cursor.close()
-            connection.close()
+                cursor.execute(
+                    "INSERT INTO `testtable` VALUES('','flocker test');")
+                # Note the MySQL doesn't have cursors, so PyMySQL's cursors
+                # are fake. Thus we don't bother to protect this in a
+                # finally block.
+                cursor.close()
+            finally:
+                connection.close()
 
         getting_mysql.addCallback(add_data_node_1)
 
