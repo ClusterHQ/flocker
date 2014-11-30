@@ -170,6 +170,9 @@ setup(
 
             # The acceptance tests interact with PostgreSQL
             "pg8000==1.10.1",
+
+            # The acceptance tests interact with MySQL
+            "PyMySQL==0.6.2",
             ],
 
         # This extra is for Flocker release engineers to set up their release
