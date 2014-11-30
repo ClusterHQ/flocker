@@ -536,7 +536,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
         self.addCleanup(flocker_docker_client.remove, name2)
 
         docker_client = flocker_docker_client._client
-        docker_client_containers = flocker_docker_client._client.containers
+        docker_client_containers = docker_client.containers
 
         def simulate_missing_containers(*args, **kwargs):
             """
@@ -553,7 +553,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
 
         def get_list(ignored):
             patch = self.patch(
-                flocker_docker_client._client,
+                docker_client,
                 'containers',
                 simulate_missing_containers
             )
