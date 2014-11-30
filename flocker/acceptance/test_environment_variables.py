@@ -149,6 +149,8 @@ class EnvironmentVariableTests(TestCase):
                     db=db,
                 )
             except OperationalError as e:
+                # PyMySQL doesn't provided a structured way to get this.
+                # https://github.com/PyMySQL/PyMySQL/issues/274
                 if "Connection refused" in str(e):
                     return False
                 else:
@@ -169,6 +171,8 @@ class EnvironmentVariableTests(TestCase):
             user=b'root',
             passwd=MYSQL_PASSWORD,
         )
+        # No assetion, since _get_mysql_connection will fire with a failure,
+        # if the credentials are incorrect.
 
     @require_pymysql
     def test_moving_data(self):
