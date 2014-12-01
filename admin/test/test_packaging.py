@@ -4,11 +4,7 @@
 Tests for ``admin.packaging``.
 """
 
-import errno
 from glob import glob
-import os
-import pwd
-import socket
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
