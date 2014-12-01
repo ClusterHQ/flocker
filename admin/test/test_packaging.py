@@ -4,8 +4,11 @@
 Tests for ``admin.packaging``.
 """
 
+import errno
 from glob import glob
 import os
+import pwd
+import socket
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
@@ -18,6 +21,7 @@ from twisted.trial.unittest import TestCase
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
+from flocker.node.testtools import if_docker_configured
 from flocker import __version__
 
 from .. import packaging
@@ -36,9 +40,15 @@ FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
 # XXX: Get fpm installed on the build slaves.
 # See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
-require_fpm = skipIf(not which('fpm'), "Tests require the `fpm` command.")
-require_rpm = skipIf(not which('rpm'), "Tests require the `rpm` command.")
-require_root = skipIf(os.getuid() != 0, "Must run as root.")
+require_fpm = skipIf(not which('fpm'), "Tests require the ``fpm`` command.")
+require_rpm = skipIf(not which('rpm'), "Tests require the ``rpm`` command.")
+require_rpmlint = skipIf(not which('rpmlint'),
+                         "Tests require the ``rpmlint`` command.")
+require_dpkg = skipIf(not which('dpkg'), "Tests require the ``dpkg`` command.")
+require_lintian = skipIf(not which('lintian'),
+                         "Tests require the ``lintian`` command.")
+
+DOCKER_SOCK = '/var/run/docker.sock'
 
 
 def assert_equal_steps(test_case, expected, actual):
@@ -171,6 +181,47 @@ def assert_rpm_content(test_case, expected_paths, package_path):
     )
     actual_paths = set(map(FilePath, output.splitlines()))
     test_case.assertEqual(expected_paths, actual_paths)
+
+
+def assert_deb_content(test_case, expected_paths, package_path):
+    """
+    Fail unless the ``deb`` file at ``package_path`` contains all the
+    ``expected_paths``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param set expected_paths: A set of ``FilePath`` s
+    :param FilePath package_path: The path to the package under test.
+    """
+    output_dir = FilePath(test_case.mktemp())
+    output_dir.makedirs()
+    check_output(['dpkg', '--extract', package_path.path, output_dir.path])
+
+    actual_paths = set()
+    for f in output_dir.walk():
+        if f.isdir():
+            continue
+        actual_paths.add(FilePath('/').descendant(f.segmentsFrom(output_dir)))
+
+    test_case.assertEqual(expected_paths, actual_paths)
+
+
+def assert_deb_headers(test_case, expected_headers, package_path):
+    """
+    Fail unless the ``deb`` file at ``package_path`` contains all the
+    ``expected_headers``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param dict expected_headers: A dictionary of header key / value pairs.
+    :param FilePath package_path: The path to the deb file under test.
+    """
+    output = check_output(
+        ['dpkg', '--info', package_path.path]
+    )
+    actual_headers = parse_colon_dict(output)
+
+    assert_dict_contains(
+        test_case, expected_headers, actual_headers, 'Missing dpkg Headers: '
+    )
 
 
 def assert_rpm_requires(test_case, expected_requirements, rpm_path):
@@ -577,6 +628,80 @@ class BuildPackageTests(TestCase):
         assert_rpm_headers(self, expected_headers, rpm_path)
         assert_rpm_content(self, expected_paths, rpm_path)
 
+    @require_dpkg
+    def test_deb(self):
+        """
+        ``BuildPackage.run`` creates a .deb package from the supplied
+        ``source_path``.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        source_path.child('Foo').touch()
+        source_path.child('Bar').touch()
+        expected_prefix = FilePath('/foo/bar')
+        expected_paths = set([
+            expected_prefix.child('Foo'),
+            expected_prefix.child('Bar'),
+            FilePath('/other/file'),
+            # This is added automatically by fpm despite not supplying the
+            # --deb-changelog option
+            FilePath('/usr/share/doc/foobar/changelog.Debian.gz'),
+        ])
+        expected_name = 'FooBar'.lower()
+        expected_epoch = b'3'
+        expected_rpm_version = rpm_version('0.3', '0.dev.1')
+        expected_license = 'My Test License'
+        expected_url = 'https://www.example.com/foo/bar'
+        expected_vendor = 'Acme Corporation'
+        expected_maintainer = 'noreply@example.com'
+        expected_architecture = 'i386'
+        expected_description = 'Explosive Tennis Balls'
+        BuildPackage(
+            package_type=PackageTypes.DEB,
+            destination_path=destination_path,
+            source_paths={
+                source_path: FilePath('/foo/bar'),
+                source_path.child('Foo'): FilePath('/other/file'),
+            },
+            name=expected_name,
+            prefix=FilePath("/"),
+            epoch=expected_epoch,
+            rpm_version=expected_rpm_version,
+            license=expected_license,
+            url=expected_url,
+            vendor=expected_vendor,
+            maintainer=expected_maintainer,
+            architecture=expected_architecture,
+            description=expected_description,
+            dependencies=[
+                Dependency(package='test-dep'),
+                Dependency(package='version-dep', compare='>=', version='42')],
+        ).run()
+        packages = glob('{}*.deb'.format(
+            destination_path.child(expected_name.lower()).path))
+        self.assertEqual(1, len(packages))
+
+        expected_headers = dict(
+            Package=expected_name,
+            Version=(
+                expected_epoch
+                + b':'
+                + expected_rpm_version.version
+                + '-'
+                + expected_rpm_version.release
+            ),
+            License=expected_license,
+            Vendor=expected_vendor,
+            Architecture=expected_architecture,
+            Maintainer=expected_maintainer,
+            Homepage=expected_url,
+            Depends=', '.join(['test-dep', 'version-dep (>= 42)'])
+        )
+        assert_deb_headers(self, expected_headers, FilePath(packages[0]))
+        assert_deb_content(self, expected_paths, FilePath(packages[0]))
+
 
 class OmnibusPackageBuilderTests(TestCase):
     """
@@ -713,7 +838,8 @@ class OmnibusPackageBuilderTests(TestCase):
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
 
-    @require_root
+    @if_docker_configured
+    @require_rpm
     def test_functional_fedora_20(self):
         """
         The expected RPM files are built for Fedora 20
@@ -744,6 +870,44 @@ class OmnibusPackageBuilderTests(TestCase):
             set(f.basename() for f in output_dir.children())
         )
 
+        for f in output_dir.children():
+            assert_rpm_lint(self, f)
+
+    @if_docker_configured
+    @require_dpkg
+    def test_functional_ubuntu_1404(self):
+        """
+        The expected deb files are generated on Ubuntu14.04.
+        """
+        output_dir = FilePath(self.mktemp())
+        check_call([
+            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            '--destination-path', output_dir.path,
+            '--distribution', 'ubuntu-14.04',
+            FLOCKER_PATH.path
+        ])
+        python_version = __version__
+        rpm_version = make_rpm_version(python_version)
+
+        expected_basenames = (
+            ('clusterhq-python-flocker', 'amd64'),
+            ('clusterhq-flocker-cli', 'all'),
+            ('clusterhq-flocker-node', 'all'),
+        )
+        expected_filenames = []
+        for basename, arch in expected_basenames:
+            f = '{}_{}-{}_{}.deb'.format(
+                basename, rpm_version.version, rpm_version.release, arch)
+            expected_filenames.append(f)
+
+        self.assertEqual(
+            set(expected_filenames),
+            set(f.basename() for f in output_dir.children())
+        )
+
+        for f in output_dir.children():
+            assert_deb_lint(self, f)
+
 
 RPMLINT_IGNORED_WARNINGS = (
     # This isn't an distribution package, so we deliberately install in /opt
@@ -769,9 +933,11 @@ RPMLINT_IGNORED_WARNINGS = (
     'no-binary',
     'python-bytecode-without-source',
     'python-bytecode-inconsistent-mtime',
+    'wrong-script-interpreter',
 )
 
 
+@require_rpmlint
 def assert_rpm_lint(test_case, rpm_path):
     """
     Fail for certain rpmlint warnings on a supplied RPM file.
@@ -797,6 +963,61 @@ def assert_rpm_lint(test_case, rpm_path):
         # warnings.
         if len(output) > 1:
             test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
+
+
+# See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian
+LINTIAN_IGNORED_WARNINGS = (
+    'script-not-executable',
+    'binary-without-manpage',
+    'dir-or-file-in-opt',
+    'unstripped-binary-or-object',
+    'missing-dependency-on-libc',
+    'no-copyright-file',
+    'debian-revision-not-well-formed',
+    'unknown-section',
+    'non-standard-file-perm',
+    'extra-license-file',
+    'non-standard-executable-perm',
+    'package-installs-python-bytecode',
+    'embedded-javascript-library',
+    'wrong-path-for-interpreter',
+    # Not sure about this one. We do have a python2.7 dependency.
+    # https://lintian.debian.org/tags/python-script-but-no-python-dep.html
+    'python-script-but-no-python-dep',
+    # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
+    'symlink-should-be-relative',
+    # Werkzeug installs various images with executable permissions.
+    # https://github.com/mitsuhiko/werkzeug/issues/629
+    'executable-not-elf-or-script',
+)
+
+
+@require_lintian
+def assert_deb_lint(test_case, package_path):
+    """
+    Fail for certain lintian warnings on a supplied ``package_path``.
+
+    :param test_case: The ``TestCase`` whose assert methods will be called.
+    :param FilePath package_path: The path to the deb file to check.
+    """
+    try:
+        check_output(['lintian', package_path.path])
+    except CalledProcessError as e:
+        output = []
+        for line in e.output.splitlines():
+            # Ignore certain warning lines
+            show_line = True
+            for ignored in LINTIAN_IGNORED_WARNINGS:
+                if ignored in line:
+                    show_line = False
+                    break
+            if show_line:
+                output.append(line)
+
+        # Don't print out the summary line unless there are some unfiltered
+        # warnings.
+        if len(output) > 1:
+            test_case.fail('lintian warnings:\n{}'.format('\n'.join(output)))
 
 
 class DockerBuildOptionsTests(TestCase):
@@ -1107,7 +1328,7 @@ class MakeDependenciesTests(TestCase):
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=expected_version
             ),
             make_dependencies('node', expected_version, 'fedora')
@@ -1122,7 +1343,7 @@ class MakeDependenciesTests(TestCase):
         self.assertIn(
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=expected_version
             ),
             make_dependencies('cli', expected_version, 'fedora')
