@@ -645,6 +645,9 @@ class BuildPackageTests(TestCase):
             expected_prefix.child('Foo'),
             expected_prefix.child('Bar'),
             FilePath('/other/file'),
+            # This is added automatically by fpm despite not supplying the
+            # --deb-changelog option
+            FilePath('/usr/share/doc/foobar/changelog.Debian.gz'),
         ])
         expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
