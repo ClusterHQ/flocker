@@ -13,7 +13,7 @@ from docker import Client
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
 
@@ -29,6 +29,13 @@ from .._docker import (
     BASE_NAMESPACE, Volume)
 from .._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
+
+
+def namespace_for_test(test_case):
+    namespace = u"%s-%s-%s" % (
+        test_case.__class__.__name__, test_case.id(), random_name())
+    namespace = namespace.replace(u".", u"-")
+    return namespace
 
 
 class IDockerClientTests(make_idockerclient_tests(
@@ -589,6 +596,61 @@ class DockerClientTests(TestCase):
             docker.inspect_container(u"flocker--" + name)))
         return d
 
+    def test_list_removed_containers(self):
+        """
+        ``DockerClient.list`` does not list containers which are removed,
+        during its operation, from another thread.
+        """
+        namespace = namespace_for_test(self)
+        flocker_docker_client = DockerClient(namespace=namespace)
+
+        name1 = random_name()
+        adding_unit1 = flocker_docker_client.add(
+            name1, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name1)
+
+        name2 = random_name()
+        adding_unit2 = flocker_docker_client.add(
+            name2, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name2)
+
+        docker_client = flocker_docker_client._client
+        docker_client_containers = docker_client.containers
+
+        def simulate_missing_containers(*args, **kwargs):
+            """
+            Remove a container before returning the original list.
+            """
+            containers = docker_client_containers(*args, **kwargs)
+            container_name1 = flocker_docker_client._to_container_name(name1)
+            docker_client.remove_container(
+                container=container_name1, force=True)
+            return containers
+
+        adding_units = gatherResults([adding_unit1, adding_unit2])
+        patches = []
+
+        def get_list(ignored):
+            patch = self.patch(
+                docker_client,
+                'containers',
+                simulate_missing_containers
+            )
+            patches.append(patch)
+            return flocker_docker_client.list()
+
+        listing_units = adding_units.addCallback(get_list)
+
+        def check_list(units):
+            for patch in patches:
+                patch.restore()
+            self.assertEqual(
+                [name2], sorted([unit.name for unit in units])
+            )
+        running_assertions = listing_units.addCallback(check_list)
+
+        return running_assertions
+
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
     """
@@ -596,9 +658,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     @if_docker_configured
     def setUp(self):
-        self.namespace = u"%s-%s-%s" % (
-            self.__class__.__name__, self.id(), random_name())
-        self.namespace = self.namespace.replace(u".", u"-")
+        self.namespace = namespace_for_test(self)
         self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
 
     def make_client(self):
