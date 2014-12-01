@@ -89,7 +89,11 @@ setup(
     packages=find_packages(exclude=('admin', 'admin.*')),
 
     package_data={
-        'flocker.node.functional': ['sendbytes-docker/*', 'env-docker/*'],
+        'flocker.node.functional': [
+            'sendbytes-docker/*',
+            'env-docker/*',
+            'retry-docker/*'
+        ],
     },
 
     entry_points = {
@@ -162,7 +166,13 @@ setup(
             "nomenclature >= 0.1.0",
 
             # The acceptance tests interact with MongoDB
-            "pymongo>=2.7.2"
+            "pymongo>=2.7.2",
+
+            # The acceptance tests interact with PostgreSQL
+            "pg8000==1.10.1",
+
+            # The acceptance tests interact with MySQL
+            "PyMySQL==0.6.2",
             ],
 
         # This extra is for Flocker release engineers to set up their release

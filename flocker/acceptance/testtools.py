@@ -4,17 +4,19 @@
 Testing utilities for ``flocker.acceptance``.
 """
 
+from os import environ
 from pipes import quote as shell_quote
-from socket import socket
+from socket import gaierror, socket
 from subprocess import check_call, PIPE, Popen
 from unittest import SkipTest, skipUnless
-from yaml import safe_dump
+from yaml import safe_dump, safe_load
 
-from twisted.internet.defer import gatherResults
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._docker import DockerClient
+from flocker.node._config import FlockerConfiguration
+from flocker.node._model import Application, DockerImage
 from flocker.testtools import loop_until
 
 try:
@@ -26,26 +28,38 @@ except ImportError:
 
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
-    'MONGO_APPLICATION', 'MONGO_IMAGE', 'require_flocker_cli',
+    'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
+    'require_flocker_cli',
     ]
-
-# The port on which the acceptance testing nodes make docker available
-REMOTE_DOCKER_PORT = 2375
-
-# XXX The MONGO_APPLICATION will have to be removed because it does not match
-# the tutorial yml files, and the yml should be testably the same:
-# https://github.com/ClusterHQ/flocker/issues/947
-MONGO_APPLICATION = u"mongodb-example-application"
-MONGO_IMAGE = u"clusterhq/mongodb"
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
 # Instead, the testing environment should do this automatically.
-# See https://github.com/ClusterHQ/flocker/issues/901.
+# See https://clusterhq.atlassian.net/browse/FLOC-901.
 require_flocker_cli = skipUnless(which("flocker-deploy"),
                                  "flocker-deploy not installed")
 
 require_mongo = skipUnless(
     PYMONGO_INSTALLED, "PyMongo not installed")
+
+
+# XXX The MONGO_APPLICATION will have to be removed because it does not match
+# the tutorial yml files, and the yml should be testably the same:
+# https://clusterhq.atlassian.net/browse/FLOC-947
+MONGO_APPLICATION = u"mongodb-example-application"
+MONGO_IMAGE = u"clusterhq/mongodb"
+
+
+def get_mongo_application():
+    """
+    Return a new ``Application`` with a name and image corresponding to
+    the MongoDB tutorial example:
+
+    http://doc-dev.clusterhq.com/gettingstarted/tutorial/index.html
+    """
+    return Application(
+        name=MONGO_APPLICATION,
+        image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
+    )
 
 
 def _run_SSH(port, user, node, command, input, key=None):
@@ -84,18 +98,19 @@ def _run_SSH(port, user, node, command, input, key=None):
     return result[0]
 
 
-def _clean_node(ip):
+def _clean_node(test_case, node):
     """
     Remove all containers and zfs volumes on a node, given the IP address of
-    the node. Returns a Deferred which fires when finished.
-    """
-    docker_client = DockerClient(base_url=u'tcp://' + ip + u':' +
-                                 unicode(REMOTE_DOCKER_PORT))
-    d = docker_client.list()
+    the node.
 
-    d = d.addCallback(lambda units:
-                      gatherResults(
-                          [docker_client.remove(unit.name) for unit in units]))
+    :param test_case: The ``TestCase`` running this unit test.
+    :param bytes node: The hostname or IP of the node.
+    """
+    clean_deploy = {u"version": 1,
+                    u"nodes": {node.decode("ascii"): []}}
+    clean_applications = {u"version": 1,
+                          u"applications": {}}
+    flocker_deploy(test_case, clean_deploy, clean_applications)
 
     # Without the below, deploying the same application with a data volume
     # twice fails. See the error given with the tutorial's yml files:
@@ -108,45 +123,76 @@ def _clean_node(ip):
     #
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
-    # not yet exist. See https://github.com/ClusterHQ/flocker/issues/682
-    d = d.addCallback(
-        lambda _: _run_SSH(22, 'root', ip, [b"zfs"] + [b"destroy"] + [b"-r"] +
-                           [b"flocker"], None))
-    return d
+    # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
+    _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
+             [b"flocker"], None)
 
 
-def get_nodes(num_nodes):
+def get_nodes(test_case, num_nodes):
     """
-    Create ``num_nodes`` nodes with no Docker containers on them.
+    Create or get ``num_nodes`` nodes with no Docker containers on them.
 
     This is an alternative to
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     vagrant-setup.html#creating-vagrant-vms-needed-for-flocker
 
-    XXX This is a temporary solution which ignores num_nodes and returns the IP
-    addresses of the acceptance testing VMs which must already be started.
-    num_nodes Docker containers will be created instead to replace this, see
-    https://github.com/ClusterHQ/flocker/issues/900
+    XXX This pretends to be asynchronous because num_nodes Docker containers
+    will be created instead to replace this in some circumstances, see
+    https://clusterhq.atlassian.net/browse/FLOC-900
 
+    :param test_case: The ``TestCase`` running this unit test.
     :param int num_nodes: The number of nodes to start up.
+
     :return: A ``Deferred`` which fires with a set of IP addresses.
     """
-    nodes = set([b"172.16.255.240", b"172.16.255.241"])
+    nodes_env_var = environ.get("FLOCKER_ACCEPTANCE_NODES")
+
+    if nodes_env_var is None:
+        raise SkipTest(
+            "Set acceptance testing node IP addresses using the " +
+            "FLOCKER_ACCEPTANCE_NODES environment variable and a colon " +
+            "separated list.")
+
+    # Remove any empty strings, for example if the list has ended with a colon
+    nodes = filter(None, nodes_env_var.split(':'))
+
+    if len(nodes) < num_nodes:
+        raise SkipTest("This test requires a minimum of {necessary} nodes, "
+                       "{existing} node(s) are set.".format(
+                           necessary=num_nodes, existing=len(nodes)))
+
+    reachable_nodes = set()
 
     for node in nodes:
         sock = socket()
         sock.settimeout(0.1)
         try:
-            can_connect = not sock.connect_ex((node, REMOTE_DOCKER_PORT))
+            can_connect = not sock.connect_ex((node, 22))
+        except gaierror:
+            can_connect = False
         finally:
+            if can_connect:
+                reachable_nodes.add(node)
             sock.close()
 
-    if not can_connect:
-        raise SkipTest("Acceptance testing nodes must be running.")
+    if len(reachable_nodes) < num_nodes:
+        unreachable_nodes = set(nodes) - reachable_nodes
+        raise SkipTest(
+            "At least {min} node(s) must be running and reachable on port 22. "
+            "The following node(s) are reachable: {reachable}. "
+            "The following node(s) are not reachable: {unreachable}.".format(
+                min=num_nodes,
+                reachable=", ".join(str(node) for node in reachable_nodes),
+                unreachable=", ".join(str(node) for node in unreachable_nodes),
+            )
+        )
 
-    d = gatherResults([_clean_node(node) for node in nodes])
-    d.addCallback(lambda _: nodes)
-    return d
+    # Only return the desired number of nodes
+    reachable_nodes = set(sorted(reachable_nodes)[:num_nodes])
+
+    for node in reachable_nodes:
+        _clean_node(test_case, node)
+    return succeed(reachable_nodes)
 
 
 def flocker_deploy(test_case, deployment_config, application_config):
@@ -197,30 +243,26 @@ def get_mongo_client(host, port=27017):
 
 def assert_expected_deployment(test_case, expected_deployment):
     """
-    Assert that the set of units expected on a set of nodes is the same as
-    the set of units on those nodes.
+    Assert that the expected set of ``Application`` instances on a set of
+    nodes is the same as the actual set of ``Application`` instance on
+    those nodes.
+
+    The tutorial looks at Docker output, but the acceptance tests are
+    intended to test high-level external behaviors. Since this is looking
+    at the output of ``flocker-reportstate`` it merely verifies what
+    Flocker believes the system configuration is, not the actual
+    setup. The latter should be verified separately with additional tests
+    for external side-effects (applications being available on ports,
+    say).
 
     :param test_case: The ``TestCase`` running this unit test.
-    :param dict expected_deployment: A mapping of IP addresses to sets of units
-        expected on the nodes with those IP addresses.
-
-    :return: A ``Deferred`` which fires with an assertion that the set of units
-        on a group of nodes is the same as ``expected_deployment``.
+    :param dict expected_deployment: A mapping of IP addresses to set of
+        ``Application`` instances expected on the nodes with those IP
+        addresses.
     """
-    sorted_nodes = sorted(expected_deployment.keys())
-
-    d = gatherResults(
-        [DockerClient(base_url=u'tcp://' + node + u':' +
-                      unicode(REMOTE_DOCKER_PORT)).list() for node in
-         sorted_nodes])
-
-    # XXX Wait for the unit states to be as expected using wait_for_unit_state
-    # github.com/ClusterHQ/flocker/pull/897#discussion_r19024193
-    # See https://github.com/ClusterHQ/flocker/issues/937
-
-    d.addCallback(lambda units_sorted_by_node: test_case.assertEqual(
-        dict(zip(sorted_nodes, units_sorted_by_node)),
-        expected_deployment
-    ))
-
-    return d
+    for node, expected in expected_deployment.items():
+        yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+        state = safe_load(yaml)
+        test_case.assertSetEqual(
+            set(FlockerConfiguration(state).applications().values()),
+            expected)

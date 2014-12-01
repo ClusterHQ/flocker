@@ -4,7 +4,7 @@
 #
 
 FROM fedora:20
-MAINTAINER Richard Wall <richard.wall@clusterhq.com>
+MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["curl", "--output", "/etc/yum.repos.d/hybridlogic.repo", "https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo"]
 RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "python-twisted", "python-characteristic", "python-virtualenv", "ruby-devel"]
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
