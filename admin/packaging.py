@@ -5,6 +5,7 @@
 Helper utilities for Flocker packaging.
 """
 
+from functools import partial
 import platform
 import sys
 from subprocess import check_output, check_call
@@ -143,6 +144,11 @@ class Dependency(object):
             raise ValueError("Unknown package type.")
 
 
+# The minimum required versions of Docker and ZFS. The package names vary
+# between operating systems and are supplied later.
+DockerDependency = partial(Dependency, compare='>=', version='1.2')
+ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
+
 # We generate three packages.  ``python-flocker`` contains the entire code
 # base.  ``flocker-cli`` and ``flocker-node`` are meta packages which symlink
 # only the cli or node specific scripts and load only the dependencies required
@@ -163,9 +169,9 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
-            Dependency(package='docker-io', compare='>=', version='1.2'),
+            DockerDependency(package='docker-io'),
             Dependency(package='/usr/sbin/iptables'),
-            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
@@ -176,9 +182,9 @@ DEPENDENCIES = {
         ),
         'ubuntu': (
             # trust-updates version
-            Dependency(package='docker.io', compare='>=', version='1.0.1'),
+            DockerDependency(package='docker.io'),
             Dependency(package='iptables'),
-            Dependency(package='zfsutils', compare='>=', version='0.6.3'),
+            ZFSDependency(package='zfsutils'),
             Dependency(package='openssh-client'),
         ),
     },

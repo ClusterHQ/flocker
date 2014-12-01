@@ -5,7 +5,8 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
+from zope.interface import Interface, implementer
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -92,11 +93,63 @@ class AttachedVolume(object):
             return None
 
 
-@attributes(["name", "image", "ports", "volume", "links", "environment",
-             "memory_limit", "cpu_shares"],
-            defaults=dict(ports=frozenset(), volume=None,
-                          links=frozenset(), environment=None,
-                          memory_limit=None, cpu_shares=None))
+class IRestartPolicy(Interface):
+    """
+    Restart policy for an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
+class RestartNever(object):
+    """
+    A restart policy that never restarts an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
+class RestartAlways(object):
+    """
+    A restart policy that always restarts an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([Attribute("maximum_retry_count", default_value=None)],
+            apply_immutable=True)
+class RestartOnFailure(object):
+    """
+    A restart policy that restarts an application when it fails.
+
+    :ivar int maximum_retry_count: The number of times the application is
+        allowed to fail, before the giving up.
+    """
+
+    def __init__(self):
+        """
+        Check that ``maximum_retry_count`` is positive or None
+
+        :raises ValueError: If maximum_retry_count is invalid.
+        """
+        if not (self.maximum_retry_count is None or
+                self.maximum_retry_count > 0):
+            raise ValueError("maximum_retry_count must be postive or None, "
+                             "got %r" % (self.maximum_retry_count,))
+
+
+@attributes(["name", "image",
+             Attribute("ports", default_value=frozenset()),
+             Attribute("volume", default_value=None),
+             Attribute("links", default_value=frozenset()),
+             Attribute("environment", default_value=None),
+             Attribute("memory_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever())])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -125,6 +178,9 @@ class Application(object):
         that should be exposed in the ``Application`` container, or ``None``
         if no environment variables are specified. A ``frozenset`` of
         variables contains a ``tuple`` series mapping (key, value).
+
+    :ivar IRestartPolicy restart_policy: The restart policy for this
+        application.
     """
 
 

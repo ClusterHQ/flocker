@@ -21,6 +21,7 @@ from twisted.trial.unittest import TestCase
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
+from flocker.node.testtools import if_docker_configured
 from flocker import __version__
 
 from .. import packaging
@@ -49,32 +50,6 @@ require_lintian = skipIf(not which('lintian'),
 
 DOCKER_SOCK = '/var/run/docker.sock'
 
-
-def docker_accessible():
-    """
-    Attempt to connect to the Docker control socket.
-
-    This may address https://clusterhq.atlassian.net/browse/FLOC-85 and could
-    perhaps be moved to ``flocker.node.testtools``.
-
-    :return: ``True`` if the current user has permission to connect, else
-        ``False``.
-    """
-    try:
-        socket.socket(family=socket.AF_UNIX).connect(DOCKER_SOCK)
-    except socket.error as e:
-        if e.errno == errno.EACCES:
-            return False
-        raise
-    else:
-        return True
-
-require_docker_access = skipIf(
-    not docker_accessible(),
-    "User '{}' does not have permission "
-    "to access the Docker server socket '{}'".format(
-        pwd.getpwuid(os.getuid())[0], DOCKER_SOCK)
-)
 
 def assert_equal_steps(test_case, expected, actual):
     """
@@ -670,6 +645,9 @@ class BuildPackageTests(TestCase):
             expected_prefix.child('Foo'),
             expected_prefix.child('Bar'),
             FilePath('/other/file'),
+            # This is added automatically by fpm despite not supplying the
+            # --deb-changelog option
+            FilePath('/usr/share/doc/foobar/changelog.Debian.gz'),
         ])
         expected_name = 'FooBar'.lower()
         expected_epoch = b'3'
@@ -860,7 +838,7 @@ class OmnibusPackageBuilderTests(TestCase):
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
 
-    @require_docker_access
+    @if_docker_configured
     @require_rpm
     def test_functional_fedora_20(self):
         """
@@ -895,7 +873,7 @@ class OmnibusPackageBuilderTests(TestCase):
         for f in output_dir.children():
             assert_rpm_lint(self, f)
 
-    @require_docker_access
+    @if_docker_configured
     @require_rpm
     def test_functional_centos_7(self):
         """
@@ -930,7 +908,7 @@ class OmnibusPackageBuilderTests(TestCase):
         for f in output_dir.children():
             assert_rpm_lint(self, f)
 
-    @require_docker_access
+    @if_docker_configured
     @require_dpkg
     def test_functional_ubuntu_1404(self):
         """
