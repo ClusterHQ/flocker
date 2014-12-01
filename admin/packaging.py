@@ -175,9 +175,9 @@ DEPENDENCIES = {
             Dependency(package='openssh-clients'),
         ),
         'centos': (
-            Dependency(package='docker', compare='>=', version='1.2'),
+            DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
-            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
