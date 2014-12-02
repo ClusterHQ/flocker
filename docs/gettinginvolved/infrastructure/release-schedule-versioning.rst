@@ -53,7 +53,7 @@ and will have a significant collection of new functionality.
 
 Major marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-These releases will typically be preceeded by at least one pre-release which should be tested for one week before the final release is made.
+These releases should be preceeded by at least one pre-release which should be tested for one week before the final release is made.
 
 The version of a major marketing release will have the minor version number incremented from the previous marketing release, the micro version reset to 0.
 
@@ -65,7 +65,7 @@ These release will typically be made in preparation for a blog post or other ann
 
 Minor marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-These releases will typically be preceeded by at least one pre-release which should be tested for one week before the final release is made.
+These releases should be preceeded by at least one pre-release which should be tested for one week before the final release is made.
 
 The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
 
