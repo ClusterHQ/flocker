@@ -134,6 +134,8 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
+        # XXX Consider changing the type of volume to a volume model object.
+        # FLOC-1062
         d = self.pool.create(volume)
 
         def created(filesystem):
