@@ -239,6 +239,8 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
    Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial to start the necessary virtual machines.
 
+   Install `PhantomJS`_.
+
    Run the automated acceptance tests; they will connect to the tutorial VMs.
    All containers on the tutorial VMs will be destroyed by running the tests.
    Ensure that they all pass, with no skips:
@@ -252,6 +254,8 @@ This review step is to ensure that all acceptance tests pass on the release bran
    - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
+
+.. _PhantomJS: http://phantomjs.org/download.html
 
 .. _release:
 

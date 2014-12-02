@@ -4,6 +4,9 @@
 Linking Containers
 ==================
 
+.. This section is tested in flocker.acceptance.test_linking.LinkingTests.
+   Reflect any relevant changes here in those tests.
+
 ``Elasticsearch``, ``Logstash`` & ``Kibana``
 ============================================
 
