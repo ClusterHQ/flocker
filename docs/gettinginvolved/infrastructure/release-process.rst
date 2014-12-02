@@ -454,7 +454,15 @@ Post-Release Review Process
      XXX: This step should be automated. See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
 
    * The node package (``flocker-node``) should be installed on all supported platforms.
-     You can use the :doc:`Flocker development machine <vagrant>` in place of "any Fedora 20 machine".
+     You can use vagrant to boot a clean Fedora 20 machine as follows:
+
+     .. code-block:: console
+
+        mkdir /tmp/fedora20
+        cd /tmp/fedora20
+        vagrant init clusterhq/fedora20-updated
+        vagrant up
+        vagrant ssh
 
      Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`.
 
