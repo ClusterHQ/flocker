@@ -447,7 +447,7 @@ Post-Release Review Process
 
 #. Verify that the tutorial works on all supported platforms:
 
-   * The client (``flocker-deploy``) should be installed and on all supported platforms.
+   * The client (``flocker-deploy``) should be installed on all supported platforms.
 
      Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
 
