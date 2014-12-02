@@ -247,40 +247,41 @@ class VolumeServiceAPITests(TestCase):
             self.successResultOf(d),
             Volume(uuid=service.uuid, name=MY_VOLUME, service=service))
 
+    def _creation_test(self, volume):
+        """
+        Assert that the creation of a volume using ``VolumeService.create``
+        results in the associated filesystem also being created and the size
+        parameters being set according to the given ``Volume`` instance.
+
+        :param Volume volume: An object describing the volume to create.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        created_volume = self.successResultOf(service.create(volume))
+        created_fs = pool.get(volume)
+        fs_path = created_fs.get_path()
+        self.assertEqual(
+            (True, volume.size, volume.size),
+            (fs_path.isdir(), created_volume.size, created_fs.size)
+        )
+
     def test_create_filesystem_with_size(self):
         """
         ``create()`` creates the volume's filesystem respecting the specified
         ``VolumeSize`` maximum_size.
         """
-        EXPECTED_SIZE = VolumeSize(maximum_size=100000000)
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(
-            service.create(service.get(MY_VOLUME, size=EXPECTED_SIZE))
-        )
-        created_volume = pool.get(volume)
-        fs_path = created_volume.get_path()
-        self.assertEqual(
-            (True, EXPECTED_SIZE, EXPECTED_SIZE),
-            (fs_path.isdir(), created_volume.size, volume.size)
-        )
+        size = VolumeSize(maximum_size=100000000)
+        volume = service.get(MY_VOLUME, size=size)
+        self._creation_test(volume)
 
     def test_create_filesystem(self):
         """
         ``create()`` creates the volume's filesystem.
         """
-        EXPECTED_SIZE = VolumeSize(maximum_size=None)
-        pool = FilesystemStoragePool(FilePath(self.mktemp()))
-        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
-        service.startService()
-        volume = self.successResultOf(service.create(service.get(MY_VOLUME)))
-        created_volume = pool.get(volume)
-        fs_path = created_volume.get_path()
-        self.assertEqual(
-            (True, EXPECTED_SIZE, EXPECTED_SIZE),
-            (fs_path.isdir(), created_volume.size, volume.size)
-        )
+        size = VolumeSize(maximum_size=None)
+        volume = service.get(MY_VOLUME, size=size)
+        self._creation_test(volume)
 
     @skip_on_broken_permissions
     def test_create_mode(self):
