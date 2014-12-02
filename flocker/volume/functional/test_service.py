@@ -22,7 +22,10 @@ class RealisticTests(TestCase):
         service_pair = create_realistic_servicepair(self)
 
         d = service_pair.from_service.create(
-            VolumeName(namespace=u"myns", id=u"myvolume"))
+            service_pair.from_service.get(
+                VolumeName(namespace=u"myns", id=u"myvolume")
+            )
+        )
 
         def created(volume):
             return service_pair.from_service.handoff(
@@ -39,7 +42,10 @@ class RealisticTests(TestCase):
         service_pair = create_realistic_servicepair(self)
 
         d = service_pair.from_service.create(
-            VolumeName(namespace=u"myns", id=u"myvolume"))
+            service_pair.from_service.get(
+                VolumeName(namespace=u"myns", id=u"myvolume")
+            )
+        )
 
         def created(volume):
             return service_pair.from_service.handoff(

@@ -125,20 +125,17 @@ class VolumeService(Service):
         self.uuid = config[u"uuid"]
         self.pool.startService()
 
-    # Replace name with a volume model object that can describe many
-    # parameters.  The usage will be something like:
-    #     volume_service.create(volume_service.get(name, ...))
-    # FLOC-978
-    def create(self, name):
-        """Create a new volume.
+    def create(self, volume):
+        """
+        Create a new volume.
 
-        :param VolumeName name: The name of the volume.
+        :param Volume volume: The ``Volume`` instance to create in the service
+            storage pool.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        # This Volume instance will already exist so it won't need to be
-        # created here.  FLOC-978
-        volume = Volume(uuid=self.uuid, name=name, service=self)
+        # XXX Consider changing the type of volume to a volume model object.
+        # FLOC-1062
         d = self.pool.create(volume)
 
         def created(filesystem):
@@ -397,11 +394,8 @@ class Volume(object):
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
-        # Preserve size field so that the new object reflects the same metadata
-        # as the original.  Only really necessary after it's possible to create
-        # volumes with size parameters, though.  FLOC-978.
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
-                            service=self.service)
+                            service=self.service, size=self.size)
         d = self.service.pool.change_owner(self, new_volume)
 
         def filesystem_changed(_):
