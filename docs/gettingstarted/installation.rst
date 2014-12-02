@@ -109,6 +109,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
+.. _installing-flocker-node:
 
 Installing ``flocker-node``
 ===========================
