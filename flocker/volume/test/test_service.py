@@ -267,12 +267,20 @@ class VolumeServiceAPITests(TestCase):
         )
 
     def test_create_filesystem(self):
-        """``create()`` creates the volume's filesystem."""
+        """
+        ``create()`` creates the volume's filesystem.
+        """
+        EXPECTED_SIZE = VolumeSize(maximum_size=None)
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         volume = self.successResultOf(service.create(service.get(MY_VOLUME)))
-        self.assertTrue(pool.get(volume).get_path().isdir())
+        created_volume = pool.get(volume)
+        fs_path = created_volume.get_path()
+        self.assertEqual(
+            (True, EXPECTED_SIZE, EXPECTED_SIZE),
+            (fs_path.isdir(), created_volume.size, volume.size)
+        )
 
     @skip_on_broken_permissions
     def test_create_mode(self):
