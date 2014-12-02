@@ -247,17 +247,19 @@ class VolumeServiceAPITests(TestCase):
             self.successResultOf(d),
             Volume(uuid=service.uuid, name=MY_VOLUME, service=service))
 
-    def _creation_test(self, volume):
+    def _creation_test(self, get_volume):
         """
         Assert that the creation of a volume using ``VolumeService.create``
         results in the associated filesystem also being created and the size
         parameters being set according to the given ``Volume`` instance.
 
-        :param Volume volume: An object describing the volume to create.
+        :param get_volume: A function which accepts a started ``VolumeService``
+            instance and returns a ``Volume`` instance to create.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
+        volume = get_volume(service)
         created_volume = self.successResultOf(service.create(volume))
         created_fs = pool.get(volume)
         fs_path = created_fs.get_path()
@@ -272,16 +274,14 @@ class VolumeServiceAPITests(TestCase):
         ``VolumeSize`` maximum_size.
         """
         size = VolumeSize(maximum_size=100000000)
-        volume = service.get(MY_VOLUME, size=size)
-        self._creation_test(volume)
+        self._creation_test(lambda service: service.get(MY_VOLUME, size=size))
 
     def test_create_filesystem(self):
         """
         ``create()`` creates the volume's filesystem.
         """
         size = VolumeSize(maximum_size=None)
-        volume = service.get(MY_VOLUME, size=size)
-        self._creation_test(volume)
+        self._creation_test(lambda service: service.get(MY_VOLUME, size=size))
 
     @skip_on_broken_permissions
     def test_create_mode(self):
