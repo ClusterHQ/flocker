@@ -396,6 +396,8 @@ class DockerClient(object):
         if ports is None:
             ports = []
 
+        restart_policy_dict = self._serialize_restart_policy(restart_policy)
+
         def _create():
             config = self._client._container_config(
                 image_name,
@@ -419,6 +421,7 @@ class DockerClient(object):
             config[u'HostConfig'] = {
                 u'Binds': binds,
                 u'PortBindings': port_bindings,
+                u'RestartPolicy': restart_policy_dict,
             }
             self._client.create_container_from_config(
                 config=config, name=container_name)
@@ -448,8 +451,7 @@ class DockerClient(object):
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports},
-                               restart_policy=self._serialize_restart_policy(
-                                   restart_policy))
+                               restart_policy=restart_policy_dict)
         d = deferToThread(_add)
 
         def _extract_error(failure):
