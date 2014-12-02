@@ -126,10 +126,11 @@ class VolumeService(Service):
         self.pool.startService()
 
     def create(self, volume):
-        """Create a new volume.
+        """
+        Create a new volume.
 
         :param Volume volume: The ``Volume`` instance to create in the service
-        storage pool.
+            storage pool.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
