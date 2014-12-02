@@ -146,6 +146,7 @@ class StartApplication(object):
             volumes=volumes,
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
+            restart_policy=application.restart_policy,
         )
 
 
@@ -358,7 +359,8 @@ class Deployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
-                    links=frozenset(links)
+                    links=frozenset(links),
+                    restart_policy=unit.restart_policy,
                 )
                 if unit.activation_state == u"active":
                     running.append(application)
