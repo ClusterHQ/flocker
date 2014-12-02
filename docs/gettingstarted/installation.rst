@@ -348,6 +348,45 @@ Paste them into a root console on the target node:
    yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
    yum install -y flocker-node
 
+
+Installing on Centos 7
+----------------------
+
+.. Proposed installation instructions copied from https://github.com/ClusterHQ/flocker/pull/1005#issue-50371235
+
+Upgrade the kernel and reboot.
+We need to install kernel-headers, but those will match the latest available kernel, so first we have to upgrade the kernel and reboot.
+
+.. code-block:: sh
+
+   yum upgrade kernel
+   shutdown -r now
+
+Install the kernel headers.
+These are required to compile the zfs dkms kernel modules.
+
+.. code-block:: sh
+
+   yum install kernel-devel
+
+Now install the ``flocker-node`` package.
+To install ``flocker-node`` on Centos 7 you must install the RPM provided by the ClusterHQ repository.
+You must also install the ZFS package repository.
+The following commands will install the two repositories and the ``flocker-node`` package.
+Paste them into a root console on the target node:
+
+.. code-block:: sh
+
+   yum install --nogpgcheck https://download.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-2.noarch.rpm
+   yum install --nogpgcheck http://archive.zfsonlinux.org/epel/zfs-release.el7.noarch.rpm
+
+   # We'll need a separate repo for for our centos7 packages
+   # yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
+   yum install -y flocker-node
+
+Post installation configuration for Fedora 20 and Centos 7
+----------------------------------------------------------
+
 Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
