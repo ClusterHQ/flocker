@@ -542,7 +542,7 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         hostname=u"node1.example.com").run(deployer)
 
         self.assertEqual(
             EXPECTED_CPU_SHARES,
@@ -568,9 +568,9 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         hostname=u"node1.example.com").run(deployer)
 
-        self.assertEqual(
+        self.assertIs(
             policy,
             fake_docker._units[application_name].restart_policy,
         )
