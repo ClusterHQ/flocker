@@ -542,11 +542,37 @@ class StartApplicationTests(SynchronousTestCase):
         )
 
         StartApplication(application=application,
-                         hostname="node1.example.com").run(deployer)
+                         hostname=u"node1.example.com").run(deployer)
 
         self.assertEqual(
             EXPECTED_CPU_SHARES,
             fake_docker._units[application_name].cpu_shares
+        )
+
+    def test_restart_policy(self):
+        """
+        ``StartApplication.run()`` passes an ``Application``'s restart_policy
+        to ``DockerClient.add`` which is used when creating a Unit.
+        """
+        policy = object()
+        volume_service = create_volume_service(self)
+        fake_docker = FakeDockerClient()
+        deployer = Deployer(volume_service, fake_docker)
+
+        application_name = u'site-example.com'
+        application = Application(
+            name=application_name,
+            image=DockerImage(repository=u'clusterhq/postgresql',
+                              tag=u'9.3.5'),
+            restart_policy=policy,
+        )
+
+        StartApplication(application=application,
+                         hostname=u"node1.example.com").run(deployer)
+
+        self.assertIs(
+            policy,
+            fake_docker._units[application_name].restart_policy,
         )
 
 
@@ -940,6 +966,37 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
             NodeState(running=[], not_running=[], used_ports=used_ports),
             state
         )
+
+    def test_discover_application_restart_policy(self):
+        """
+        An ``Application`` with the appropriate ``IRestartPolicy`` is
+        discovered from the corresponding restart policy of the ``Unit``.
+        """
+        policy = object()
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     restart_policy=policy,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                restart_policy=policy,
+            )
+        ]
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
 
 
 # A deployment with no information:
