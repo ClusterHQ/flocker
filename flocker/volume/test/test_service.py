@@ -260,10 +260,10 @@ class VolumeServiceAPITests(TestCase):
             service.create(service.get(MY_VOLUME, size=EXPECTED_SIZE))
         )
         created_volume = pool.get(volume)
-        self.assertTrue(created_volume.get_path().isdir())
+        fs_path = created_volume.get_path()
         self.assertEqual(
-            (EXPECTED_SIZE, EXPECTED_SIZE),
-            (created_volume.size, volume.size)
+            (True, EXPECTED_SIZE, EXPECTED_SIZE),
+            (fs_path.isdir(), created_volume.size, volume.size)
         )
 
     def test_create_filesystem(self):
