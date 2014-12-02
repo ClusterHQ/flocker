@@ -5,7 +5,7 @@ Tests for linking containers.
 """
 from socket import error
 from telnetlib import Telnet
-from unittest import skipUnless
+from unittest import SkipTest, skipUnless
 
 try:
     from elasticsearch import Elasticsearch
@@ -13,6 +13,13 @@ try:
     ELASTICSEARCH_INSTALLED = True
 except ImportError:
     ELASTICSEARCH_INSTALLED = False
+
+try:
+    from selenium import webdriver
+    from selenium.common.exceptions import WebDriverException
+    SELENIUM_INSTALLED = True
+except ImportError:
+    SELENIUM_INSTALLED = False
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
@@ -83,6 +90,9 @@ MESSAGES = set([
 
 require_elasticsearch = skipUnless(
     ELASTICSEARCH_INSTALLED, "elasticsearch not installed")
+
+require_selenium = skipUnless(
+    SELENIUM_INSTALLED, "Selenium not installed")
 
 
 class LinkingTests(TestCase):
@@ -174,6 +184,42 @@ class LinkingTests(TestCase):
                               KIBANA_APPLICATION]),
             self.node_2: set([]),
         })
+
+    @require_selenium
+    def test_kibana_connects_es(self):
+        """
+        Kibana can connect to Elasticsearch.
+        """
+        try:
+            driver = webdriver.PhantomJS()
+            self.addCleanup(driver.quit)
+        except WebDriverException:
+            raise SkipTest("PhantomJS must be installed.")
+
+        url = "http://{ip}:{port}".format(
+            ip=self.node_1,
+            port=KIBANA_EXTERNAL_PORT)
+        no_connect_error = "Could not contact Elasticsearch"
+        success = "No results"
+
+        waiting_for_es = self._get_elasticsearch(self.node_1)
+
+        def wait_for_banner():
+            """
+            After a short amount of time, a banner will be displayed either
+            saying that there are no results, or that Kibana cannot connect
+            to Elasticsearch. This test can succeed or fail when this
+            banner is shown.
+            """
+            source = driver.page_source
+            if no_connect_error in source:
+                self.fail("Kibana cannot connect to Elasticsearch.")
+            elif success in source:
+                return True
+
+        waiting_for_es.addCallback(lambda _: driver.get(url))
+        return waiting_for_es.addCallback(
+            lambda _: loop_until(wait_for_banner))
 
     @require_elasticsearch
     def test_elasticsearch_empty(self):
