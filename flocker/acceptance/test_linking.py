@@ -162,8 +162,7 @@ class LinkingTests(TestCase):
 
             flocker_deploy(self, elk_deployment, self.elk_application)
 
-        deploying_elk = getting_nodes.addCallback(deploy_elk)
-        return deploying_elk
+        return getting_nodes.addCallback(deploy_elk)
 
     def test_deploy(self):
         """
@@ -210,13 +209,11 @@ class LinkingTests(TestCase):
             messages=MESSAGES,
         )
 
-        checking_messages = sending_messages.addCallback(
+        return sending_messages.addCallback(
             self._assert_expected_log_messages,
             node=self.node_1,
             expected_messages=MESSAGES,
         )
-
-        return checking_messages
 
     @require_elasticsearch
     def test_moving_data(self):
@@ -240,13 +237,11 @@ class LinkingTests(TestCase):
                                      self.elk_application),
         )
 
-        asserting_messages_moved = checking_messages.addCallback(
+        return checking_messages.addCallback(
             self._assert_expected_log_messages,
             node=self.node_2,
             expected_messages=MESSAGES,
         )
-
-        return asserting_messages_moved
 
     def _get_elasticsearch(self, node):
         """
@@ -308,8 +303,7 @@ class LinkingTests(TestCase):
             messages = set([hit[u'_source'][u'message'] for hit in hits])
             self.assertEqual(messages, expected_messages)
 
-        checking_messages = waiting_for_messages.addCallback(check_messages)
-        return checking_messages
+        return waiting_for_messages.addCallback(check_messages)
 
     def _send_messages_to_logstash(self, node, messages):
         """
@@ -332,5 +326,4 @@ class LinkingTests(TestCase):
             for message in messages:
                 telnet.write(message + "\n")
 
-        sending_messages = waiting_for_logstash.addCallback(send_messages)
-        return sending_messages
+        return waiting_for_logstash.addCallback(send_messages)
