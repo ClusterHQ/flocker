@@ -3,7 +3,7 @@
 # A Docker image for building RPMs in a clean Centos 7 build environment.
 #
 
-FROM centos
+FROM centos:centos7
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["yum", "groupinstall", "--assumeyes", "Development Tools"]
 RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel"]
