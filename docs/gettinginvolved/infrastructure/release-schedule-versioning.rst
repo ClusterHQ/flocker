@@ -32,6 +32,20 @@ The current value of ``X`` is 0 until the project is ready for production.
 ``Y`` is the minor version.
 ``Z`` is the micro version.
 
+Pre-release
+^^^^^^^^^^^
+Pre-releases are made as part of ClusterHQ's internal release process.
+We don't currently solicit external feedback on pre-releases.
+
+Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
+
+There is a feature-freeze at the time that first pre-release for a given release is made.
+The eventual final release is based on the last pre-release, including only bug fixes discovered during testing of the pre-release.
+This means that if a hard release deadline is approaching but feature development is behind schedule the ClusterHQ marketing team should be offered the choice between slipping the final release date or dropping features.
+Either the pre-release (and thus the release) will be pushed back or planned features will be dropped.
+
+There must be at least one pre-release which should be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
+
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
 The content of major marketing releases will typically be planned significantly in advance
@@ -39,7 +53,7 @@ and will have a significant collection of new functionality.
 
 Major marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-These releases will typically get thorough pre-release testing.
+These releases will typically be preceeded by at least one pre-release which should be tested for one week before the final release is made.
 
 The version of a major marketing release will have the minor version number incremented from the previous marketing release, the micro version reset to 0.
 
@@ -51,6 +65,8 @@ These release will typically be made in preparation for a blog post or other ann
 
 Minor marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
+These releases will typically be preceeded by at least one pre-release which should be tested for one week before the final release is made.
+
 The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
 
 Weekly Development Release
@@ -60,14 +76,6 @@ Weekly releases are made primarily to facilitate the testing and automation of t
 If the previous release was a marketing release (either major or minor), the version of the following weekly release will increment the micro version
 and append a ``dev1`` suffix.
 Otherwise, if the previous release was a weekly development release, the ``devX`` suffix will be incremented.
-
-
-Pre-release
-^^^^^^^^^^^
-Pre-releases are made as part of ClusterHQ's internal release process.
-We don't currently solicit external feedback on pre-releases.
-
-Pre-releases will have the version number of the next release with a ``preX`` suffix, where ``X`` starts at ``1`` and is incremented for each pre-release.
 
 Examples
 ^^^^^^^^
