@@ -44,7 +44,7 @@ The eventual final release is based on the last pre-release, including only bug 
 This means that if a hard release deadline is approaching but feature development is behind schedule the ClusterHQ marketing team should be offered the choice between slipping the final release date or dropping features.
 Either the pre-release (and thus the release) will be pushed back or planned features will be dropped.
 
-There must be at least one pre-release which should be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
+There should be at least one pre-release which should be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
 
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
