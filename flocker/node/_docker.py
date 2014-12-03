@@ -285,7 +285,7 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.14", base_url=base_url)
+        self._client = Client(version="1.15", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -396,16 +396,35 @@ class DockerClient(object):
         if ports is None:
             ports = []
 
+        restart_policy_dict = self._serialize_restart_policy(restart_policy)
+
         def _create():
-            self._client.create_container(
+            config = self._client._container_config(
                 image_name,
-                name=container_name,
+                command=None,
                 environment=environment,
-                volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
             )
+            binds = [
+                u'{}:{}'.format(volume.node_path.path,
+                                volume.container_path.path)
+                for volume in volumes
+            ]
+            port_bindings = {}
+            for p in ports:
+                key = u'%s/tcp' % (p.internal_port,)
+                port_bindings[key] = [
+                    {u"HostPort": unicode(p.external_port)},
+                ]
+            config[u'HostConfig'] = {
+                u'Binds': binds,
+                u'PortBindings': port_bindings,
+                u'RestartPolicy': restart_policy_dict,
+            }
+            self._client.create_container_from_config(
+                config=config, name=container_name)
 
         def _add():
             try:
@@ -432,8 +451,7 @@ class DockerClient(object):
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
                                               for p in ports},
-                               restart_policy=self._serialize_restart_policy(
-                                   restart_policy))
+                               restart_policy=restart_policy_dict)
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -501,17 +519,21 @@ class DockerClient(object):
                          else u"inactive")
                 name = data[u"Name"]
                 image = data[u"Config"][u"Image"]
-                port_mappings = data[u"NetworkSettings"][u"Ports"]
-                if port_mappings is not None:
-                    ports = self._parse_container_ports(port_mappings)
+                port_bindings = data[u"HostConfig"][u"PortBindings"]
+                if port_bindings is not None:
+                    ports = self._parse_container_ports(port_bindings)
                 else:
                     ports = list()
                 volumes = []
-                for container_path, node_path in data[u"Volumes"].items():
-                    volumes.append(
-                        Volume(container_path=FilePath(container_path),
-                               node_path=FilePath(node_path))
-                    )
+                binds = data[u"HostConfig"]['Binds']
+                if binds is not None:
+                    for bind_config in binds:
+                        parts = bind_config.split(':', 2)
+                        node_path, container_path = parts[:2]
+                        volumes.append(
+                            Volume(container_path=FilePath(container_path),
+                                   node_path=FilePath(node_path))
+                        )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:

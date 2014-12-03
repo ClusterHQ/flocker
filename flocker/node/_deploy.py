@@ -18,6 +18,7 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
@@ -145,6 +146,7 @@ class StartApplication(object):
             volumes=volumes,
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
+            restart_policy=application.restart_policy,
         )
 
 
@@ -196,10 +198,11 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        # Update this when VolumeService.create signature changes.  It will be
-        # simplified to only pass in the volume object.  FLOC-978
-        return deployer.volume_service.create(
-            _to_volume_name(self.volume.name))
+        volume = deployer.volume_service.get(
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
+        )
+        return deployer.volume_service.create(volume)
 
 
 @implementer(IStateChange)
@@ -356,7 +359,8 @@ class Deployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
-                    links=frozenset(links)
+                    links=frozenset(links),
+                    restart_policy=unit.restart_policy,
                 )
                 if unit.activation_state == u"active":
                     running.append(application)

@@ -173,6 +173,12 @@ setup(
 
             # The acceptance tests interact with MySQL
             "PyMySQL==0.6.2",
+
+            # The acceptance tests interact with elasticsearch
+            "elasticsearch==1.2.0",
+
+            # The acceptance tests interact with Kibana via WebKit
+            "selenium==2.44.0",
             ],
 
         # This extra is for Flocker release engineers to set up their release
