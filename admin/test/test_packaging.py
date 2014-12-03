@@ -842,7 +842,7 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
-            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'fedora-20',
             FLOCKER_PATH.path
@@ -873,7 +873,7 @@ class OmnibusPackageBuilderTests(TestCase):
     @require_rpm
     def test_functional_centos_7(self):
         """
-        The expected RPM files are built for Centos 7
+        The expected RPM files are built for CentOS 7
         """
         output_dir = FilePath(self.mktemp())
         check_call([
@@ -959,7 +959,7 @@ RPMLINT_IGNORED_WARNINGS = (
     'backup-file-in-package',
     'no-manual-page-for-binary',
     'unstripped-binary-or-object',
-    # Only on Centos7 (not Fedora)
+    # Only on CentOS 7 (not Fedora)
     # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
     'no-binary',
     'python-bytecode-without-source',

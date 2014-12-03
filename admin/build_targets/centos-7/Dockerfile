@@ -12,7 +12,7 @@ RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "pyth
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
 # The pip from CentOS packaged virtualenv doesn't like dangling symlinks (such
-# as _trial_temp.locki). Install it from PyPI instead.
+# as _trial_temp.lock). Install it from PyPI instead.
 RUN ["pip", "install", "twisted", "characteristic", "virtualenv"]
 VOLUME /flocker
 WORKDIR /
