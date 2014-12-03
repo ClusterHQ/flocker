@@ -1,7 +1,6 @@
 Flocker 0.3.3dev1 (2014-12-02)
 ==============================
 
-- Weekly dev release.
 - Small bug fixes when examining containers from Docker API.
 
 Flocker 0.3.2 (2014-11-19)
