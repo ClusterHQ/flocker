@@ -3,7 +3,7 @@
 """
 Run the acceptance tests.
 """
-from subprocess import check_call
+from subprocess import call, check_call
 
 import sys
 import os
@@ -23,7 +23,7 @@ def extend_environ(**kwargs):
 def run_tests(nodes, trial_args):
     if not trial_args:
         trial_args = ['flocker.acceptance']
-    check_call(
+    return call(
         ['trial'] + trial_args,
         env=extend_environ(
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
@@ -79,6 +79,10 @@ class RunOptions(usage.Options):
          'One of vagrant.'],
     ]
 
+    optFlags = [
+        ["keep", "k", "Keep VMs around, if the tests fail."],
+    ]
+
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
@@ -120,5 +124,6 @@ def main(args, base_path, top_level):
         distribution=options['distribution'])
 
     nodes = runner.start_nodes()
-    run_tests(nodes, options['trial-args'])
-    runner.stop_nodes()
+    result = run_tests(nodes, options['trial-args'])
+    if result == 0 or not options['keep']:
+        runner.stop_nodes()
