@@ -31,34 +31,39 @@ def run_tests(nodes, trial_args):
 
 @attributes(['distribution', 'top_level'], apply_immutable=True)
 class VagrantRunner(object):
-    def run(self, trial_args):
-
-        VAGRANT_PATH = self.top_level.descendant([
+    def __init__(self):
+        self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
 
+    def start_nodes(self):
+        """
+        Start nodes for running acceptance tests.
+
+        :return list: List of nodes to run tests against.
+        """
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
         check_call(
             ['vagrant', 'destroy', '-f'],
-            cwd=VAGRANT_PATH.path)
+            cwd=self.vagrant_path.path)
 
         # Boot the VMs
         check_call(
             ['vagrant', 'up'],
-            cwd=VAGRANT_PATH.path,
+            cwd=self.vagrant_path.path,
             env=extend_environ(
                 FLOCKER_BOX_VERSION=vagrant_version(flocker.__version__)))
 
-        # Run the tests
-        run_tests(nodes=["172.16.255.240", "172.16.255.241"],
-                  trial_args=trial_args)
+        return ["172.16.255.240", "172.16.255.241"]
 
-        # And destroy at the end to save space.  If one of the above commands
-        # fail, this will be skipped, so the image can still be debugged.
+    def stop_nodes(self):
+        """
+        Stop the nodes started by `start_nodes`.
+        """
         check_call(
             ['vagrant', 'destroy', '-f'],
-            cwd=VAGRANT_PATH.path)
+            cwd=self.vagrant_path.path)
 
 
 PROVIDERS = {'vagrant': VagrantRunner}
@@ -114,4 +119,6 @@ def main(args, base_path, top_level):
         top_level=top_level,
         distribution=options['distribution'])
 
-    runner.run(options['trial-args'])
+    nodes = runner.start_nodes()
+    run_tests(nodes, options['trial-args'])
+    runner.stop_nodes()
