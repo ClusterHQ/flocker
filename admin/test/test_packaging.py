@@ -877,7 +877,7 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
-            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'centos-7',
             FLOCKER_PATH.path
@@ -912,7 +912,7 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
-            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'ubuntu-14.04',
             FLOCKER_PATH.path
