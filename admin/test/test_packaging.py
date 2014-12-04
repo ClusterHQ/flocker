@@ -4,11 +4,7 @@
 Tests for ``admin.packaging``.
 """
 
-import errno
 from glob import glob
-import os
-import pwd
-import socket
 from subprocess import check_output, CalledProcessError, check_call
 from textwrap import dedent
 from unittest import skipIf
@@ -846,9 +842,44 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
-            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'fedora-20',
+            FLOCKER_PATH.path
+        ])
+        python_version = __version__
+        rpm_version = make_rpm_version(python_version)
+
+        expected_basenames = (
+            ('clusterhq-python-flocker', 'x86_64'),
+            ('clusterhq-flocker-cli', 'noarch'),
+            ('clusterhq-flocker-node', 'noarch'),
+        )
+        expected_filenames = []
+        for basename, arch in expected_basenames:
+            f = '{}-{}-{}.{}.rpm'.format(
+                basename, rpm_version.version, rpm_version.release, arch)
+            expected_filenames.append(f)
+
+        self.assertEqual(
+            set(expected_filenames),
+            set(f.basename() for f in output_dir.children())
+        )
+
+        for f in output_dir.children():
+            assert_rpm_lint(self, f)
+
+    @if_docker_configured
+    @require_rpm
+    def test_functional_centos_7(self):
+        """
+        The expected RPM files are built for CentOS 7
+        """
+        output_dir = FilePath(self.mktemp())
+        check_call([
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
+            '--destination-path', output_dir.path,
+            '--distribution', 'centos-7',
             FLOCKER_PATH.path
         ])
         python_version = __version__
@@ -881,7 +912,7 @@ class OmnibusPackageBuilderTests(TestCase):
         """
         output_dir = FilePath(self.mktemp())
         check_call([
-            FLOCKER_PATH.descendant(['admin', 'build-package']).path,
+            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
             '--destination-path', output_dir.path,
             '--distribution', 'ubuntu-14.04',
             FLOCKER_PATH.path
@@ -928,7 +959,7 @@ RPMLINT_IGNORED_WARNINGS = (
     'backup-file-in-package',
     'no-manual-page-for-binary',
     'unstripped-binary-or-object',
-    # Only on Centos7 (not Fedora)
+    # Only on CentOS 7 (not Fedora)
     # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
     'no-binary',
     'python-bytecode-without-source',

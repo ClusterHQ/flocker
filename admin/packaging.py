@@ -32,7 +32,7 @@ class PackageTypes(Values):
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora',),
+    PackageTypes.RPM: ('fedora', 'centos'),
     PackageTypes.DEB: ('ubuntu',),
 }
 
@@ -160,6 +160,9 @@ DEPENDENCIES = {
         'fedora': (
             Dependency(package='python'),
         ),
+        'centos': (
+            Dependency(package='python'),
+        ),
         'ubuntu': (
             Dependency(package='python2.7'),
         ),
@@ -167,6 +170,12 @@ DEPENDENCIES = {
     'node': {
         'fedora': (
             DockerDependency(package='docker-io'),
+            Dependency(package='/usr/sbin/iptables'),
+            ZFSDependency(package='zfs'),
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
             ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
@@ -181,6 +190,9 @@ DEPENDENCIES = {
     },
     'cli': {
         'fedora': (
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
@@ -809,7 +821,8 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora-20 or ubuntu-14.04.'],
+         'The target distribution. '
+         'One of fedora-20, centos-7, or ubuntu-14.04.'],
     ]
 
     longdesc = dedent("""\
