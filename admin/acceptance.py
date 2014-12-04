@@ -66,7 +66,31 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path)
 
 
-PROVIDERS = {'vagrant': VagrantRunner}
+@attributes(['distribution', 'top_level'], apply_immutable=True)
+class RackspaceRunner(object):
+
+    def start_nodes(self):
+        from flocker.provision._rackspace import create_node, driver
+        from flocker.provision._install import install
+        self.nodes = []
+        for index in range(2):
+            print "creating", index
+            self.nodes.append(create_node(
+                name="test-accept-%d" % (index,),
+                image_name=u'Fedora 20 (Heisenbug) (PVHVM)',
+            ))
+
+        result = driver.wait_until_running(self.nodes)
+        addresses = [address[0] for node, address in result]
+        install(addresses, "root")
+        return addresses
+
+    def stop_nodes(self):
+        for node in self.nodes:
+            node.destroy()
+
+
+PROVIDERS = {'vagrant': VagrantRunner, 'rackspace': RackspaceRunner}
 
 
 class RunOptions(usage.Options):
