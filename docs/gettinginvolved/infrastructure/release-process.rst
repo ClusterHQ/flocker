@@ -207,7 +207,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
    - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
      The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH/flocker-tutorial.json``.
+     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH>/flocker-tutorial.json``.
 
      .. code-block:: console
 
