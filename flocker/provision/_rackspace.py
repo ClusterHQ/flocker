@@ -1,14 +1,14 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 from libcloud.compute.providers import get_driver, Provider
-from characteristic import attributes
+from characteristic import attributes, Attribute
 from ._libcloud import get_size, get_image
 from ._install import install
 
 
 # _node isn't immutable, since libcloud provides new instances
 # with updated data.
-@attributes(['_node', 'address'])
+@attributes([Attribute('_node'), 'address'])
 class RackspaceNode(object):
     def destroy(self):
         self._node.destroy()
@@ -17,7 +17,7 @@ class RackspaceNode(object):
         return self._address
 
 
-@attributes(['_keyname'], apply_immutable=True)
+@attributes([Attribute('_keyname')], apply_immutable=True)
 class Rackspace(object):
 
     def __init__(self, username, key, region):
