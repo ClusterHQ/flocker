@@ -14,7 +14,7 @@ class RackspaceNode(object):
         self._node.destroy()
 
     def provision(self, distribution, version, branch):
-        if self.distribution != 'fedora-20':
+        if distribution != 'fedora-20':
             raise ValueError("Distirubtion not supported: %r."
                              % (distribution,))
         install([self.address], username="root", version=version,
