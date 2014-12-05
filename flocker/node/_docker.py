@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.node.test.test_docker -*-
 
 """
 Docker API client.
@@ -20,6 +21,8 @@ from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND
+
+from flocker.node._model import RestartNever, RestartAlways, RestartOnFailure
 
 
 class AlreadyExists(Exception):
@@ -63,7 +66,9 @@ class Volume(object):
              Attribute("environment", default_value=None),
              Attribute("volumes", default_value=()),
              Attribute("mem_limit", default_value=None),
-             Attribute("cpu_shares", default_value=None)])
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever()),
+             ])
 class Unit(object):
     """
     Information about a unit managed by Docker.
@@ -108,6 +113,8 @@ class Unit(object):
         Or ``None`` to let it have the default number of shares.  Docker maps
         this value onto the cgroups ``cpu.shares`` value (the default of which
         is probably 1024).
+
+    :ivar IRestartPolicy restart_policy: The restart policy of the container.
     """
 
 
@@ -122,7 +129,7 @@ class IDockerClient(Interface):
     """
 
     def add(unit_name, image_name, ports=None, environment=None, volumes=(),
-            mem_limit=None, cpu_shares=None):
+            mem_limit=None, cpu_shares=None, restart_policy=RestartNever()):
         """
         Install and start a new unit.
 
@@ -156,8 +163,12 @@ class IDockerClient(Interface):
             Docker maps this value onto the cgroups ``cpu.shares`` value (the
             default of which is probably 1024).
 
+        :param IRestartPolicy restart_policy: The restart policy of the
+            container.
+
         :return: ``Deferred`` that fires on success, or errbacks with
             :class:`AlreadyExists` if a unit by that name already exists.
+
         """
 
     def exists(unit_name):
@@ -212,7 +223,8 @@ class FakeDockerClient(object):
         self._units = units
 
     def add(self, unit_name, image_name, ports=frozenset(), environment=None,
-            volumes=frozenset(), mem_limit=None, cpu_shares=None):
+            volumes=frozenset(), mem_limit=None, cpu_shares=None,
+            restart_policy=RestartNever()):
         if unit_name in self._units:
             return fail(AlreadyExists(unit_name))
         self._units[unit_name] = Unit(
@@ -225,6 +237,7 @@ class FakeDockerClient(object):
             activation_state=u'active',
             mem_limit=mem_limit,
             cpu_shares=cpu_shares,
+            restart_policy=restart_policy,
         )
         return succeed(None)
 
@@ -272,7 +285,7 @@ class DockerClient(object):
     def __init__(self, namespace=BASE_NAMESPACE,
                  base_url=BASE_DOCKER_API_URL):
         self.namespace = namespace
-        self._client = Client(version="1.14", base_url=base_url)
+        self._client = Client(version="1.15", base_url=base_url)
 
     def _to_container_name(self, unit_name):
         """
@@ -317,8 +330,65 @@ class DockerClient(object):
                     ports.append(portmap)
         return ports
 
+    def _parse_restart_policy(self, data):
+        """
+        Parse the restart policy from the configuration of a Docker container
+        in the format returned by ``self._client.inspect_container`` and return
+        an ``IRestartPolicy``.
+
+        :param dict data: The data structure representing the restart policy of
+            a container, e.g.
+
+            {"Name": "policy-name", "MaximumRetryCount": 0}
+
+        :return IRestartPolicy: The model of the restart policy.
+
+        :raises ValueError: if an unknown policy is passed.
+        """
+        POLICIES = {
+            u"": lambda data:
+                RestartNever(),
+            u"always": lambda data:
+                RestartAlways(),
+            u"on-failure": lambda data:
+                RestartOnFailure(
+                    maximum_retry_count=data[u"MaximumRetryCount"] or None)
+        }
+        try:
+            # docker will treat an unknown plolicy as "never".
+            # We error out here, in case new policies are added.
+            return POLICIES[data[u"Name"]](data)
+        except KeyError:
+            raise ValueError("Unknown restart policy: %r" % (data[u"Name"],))
+
+    def _serialize_restart_policy(self, restart_policy):
+        """
+        Serialize the restart policy from an ``IRestartPolicy`` to the format
+        expected by the docker API.
+
+        :param IRestartPolicy restart_policy: The model of the restart policy.
+
+        :returns: A dictionary suitable to pass to docker
+
+        :raises ValueError: if an unknown policy is passed.
+        """
+        SERIALIZERS = {
+            RestartNever: lambda policy:
+                {u"Name": u""},
+            RestartAlways: lambda policy:
+                {u"Name": u"always"},
+            RestartOnFailure: lambda policy:
+                {u"Name": u"on-failure",
+                 u"MaximumRetryCount": policy.maximum_retry_count or 0},
+        }
+        try:
+            return SERIALIZERS[restart_policy.__class__](restart_policy)
+        except KeyError:
+            raise ValueError("Unknown restart policy: %r" % (restart_policy,))
+
     def add(self, unit_name, image_name, ports=None, environment=None,
-            volumes=(), mem_limit=None, cpu_shares=None):
+            volumes=(), mem_limit=None, cpu_shares=None,
+            restart_policy=RestartNever()):
         container_name = self._to_container_name(unit_name)
 
         if environment is not None:
@@ -326,16 +396,35 @@ class DockerClient(object):
         if ports is None:
             ports = []
 
+        restart_policy_dict = self._serialize_restart_policy(restart_policy)
+
         def _create():
-            self._client.create_container(
+            config = self._client._container_config(
                 image_name,
-                name=container_name,
+                command=None,
                 environment=environment,
-                volumes=list(volume.container_path.path for volume in volumes),
                 ports=[p.internal_port for p in ports],
                 mem_limit=mem_limit,
                 cpu_shares=cpu_shares,
             )
+            binds = [
+                u'{}:{}'.format(volume.node_path.path,
+                                volume.container_path.path)
+                for volume in volumes
+            ]
+            port_bindings = {}
+            for p in ports:
+                key = u'%s/tcp' % (p.internal_port,)
+                port_bindings[key] = [
+                    {u"HostPort": unicode(p.external_port)},
+                ]
+            config[u'HostConfig'] = {
+                u'Binds': binds,
+                u'PortBindings': port_bindings,
+                u'RestartPolicy': restart_policy_dict,
+            }
+            self._client.create_container_from_config(
+                config=config, name=container_name)
 
         def _add():
             try:
@@ -361,7 +450,8 @@ class DockerClient(object):
                                        u"ro": False}
                                       for volume in volumes},
                                port_bindings={p.internal_port: p.external_port
-                                              for p in ports})
+                                              for p in ports},
+                               restart_policy=restart_policy_dict)
         d = deferToThread(_add)
 
         def _extract_error(failure):
@@ -416,22 +506,34 @@ class DockerClient(object):
             ids = [d[u"Id"] for d in
                    self._client.containers(quiet=True, all=True)]
             for i in ids:
-                data = self._client.inspect_container(i)
+
+                try:
+                    data = self._client.inspect_container(i)
+                except APIError as e:
+                    # The container ID returned by the list API call above, may
+                    # have been removed in another thread.
+                    if e.response.status_code == NOT_FOUND:
+                        continue
+
                 state = (u"active" if data[u"State"][u"Running"]
                          else u"inactive")
                 name = data[u"Name"]
                 image = data[u"Config"][u"Image"]
-                port_mappings = data[u"NetworkSettings"][u"Ports"]
-                if port_mappings is not None:
-                    ports = self._parse_container_ports(port_mappings)
+                port_bindings = data[u"HostConfig"][u"PortBindings"]
+                if port_bindings is not None:
+                    ports = self._parse_container_ports(port_bindings)
                 else:
                     ports = list()
                 volumes = []
-                for container_path, node_path in data[u"Volumes"].items():
-                    volumes.append(
-                        Volume(container_path=FilePath(container_path),
-                               node_path=FilePath(node_path))
-                    )
+                binds = data[u"HostConfig"]['Binds']
+                if binds is not None:
+                    for bind_config in binds:
+                        parts = bind_config.split(':', 2)
+                        node_path, container_path = parts[:2]
+                        volumes.append(
+                            Volume(container_path=FilePath(container_path),
+                                   node_path=FilePath(node_path))
+                        )
                 if name.startswith(u"/" + self.namespace):
                     name = name[1 + len(self.namespace):]
                 else:
@@ -444,6 +546,8 @@ class DockerClient(object):
                 cpu_shares = None if cpu_shares == 0 else cpu_shares
                 mem_limit = data[u"Config"][u"Memory"]
                 mem_limit = None if mem_limit == 0 else mem_limit
+                restart_policy = self._parse_restart_policy(
+                    data[U"HostConfig"][u"RestartPolicy"])
                 result.add(Unit(
                     name=name,
                     container_name=self._to_container_name(name),
@@ -452,7 +556,8 @@ class DockerClient(object):
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
                     mem_limit=mem_limit,
-                    cpu_shares=cpu_shares),
+                    cpu_shares=cpu_shares,
+                    restart_policy=restart_policy)
                 )
             return result
         return deferToThread(_list)

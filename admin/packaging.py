@@ -5,11 +5,12 @@
 Helper utilities for Flocker packaging.
 """
 
+from functools import partial
 import platform
 import sys
 from subprocess import check_output, check_call
 from tempfile import mkdtemp
-from textwrap import dedent
+from textwrap import dedent, fill
 
 from twisted.python.constants import ValueConstant, Values
 from twisted.python.filepath import FilePath
@@ -26,11 +27,13 @@ class PackageTypes(Values):
     Constants representing supported target packaging formats.
     """
     RPM = ValueConstant('rpm')
+    DEB = ValueConstant('deb')
 
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora',),
+    PackageTypes.RPM: ('fedora', 'centos'),
+    PackageTypes.DEB: ('ubuntu',),
 }
 
 
@@ -126,7 +129,13 @@ class Dependency(object):
         :raises: ``ValueError`` if supplied with an unrecognised
             ``package_type``.
         """
-        if package_type == PackageTypes.RPM:
+        if package_type == PackageTypes.DEB:
+            if self.version:
+                return "%s (%s %s)" % (
+                    self.package, self.compare, self.version)
+            else:
+                return self.package
+        elif package_type == PackageTypes.RPM:
             if self.version:
                 return "%s %s %s" % (self.package, self.compare, self.version)
             else:
@@ -134,6 +143,11 @@ class Dependency(object):
         else:
             raise ValueError("Unknown package type.")
 
+
+# The minimum required versions of Docker and ZFS. The package names vary
+# between operating systems and are supplied later.
+DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
+ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
 # code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
@@ -146,18 +160,43 @@ DEPENDENCIES = {
         'fedora': (
             Dependency(package='python'),
         ),
+        'centos': (
+            Dependency(package='python'),
+        ),
+        'ubuntu': (
+            Dependency(package='python2.7'),
+        ),
     },
     'node': {
         'fedora': (
-            Dependency(package='docker-io', compare='>=', version='1.2'),
+            DockerDependency(package='docker-io'),
             Dependency(package='/usr/sbin/iptables'),
-            Dependency(package='zfs', compare='>=', version='0.6.3'),
+            ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            DockerDependency(package='docker'),
+            Dependency(package='/usr/sbin/iptables'),
+            ZFSDependency(package='zfs'),
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            # trust-updates version
+            DockerDependency(package='docker.io'),
+            Dependency(package='iptables'),
+            ZFSDependency(package='zfsutils'),
+            Dependency(package='openssh-client'),
         ),
     },
     'cli': {
         'fedora': (
             Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            Dependency(package='openssh-clients'),
+        ),
+        'ubuntu': (
+            Dependency(package='openssh-client'),
         ),
     },
 }
@@ -181,7 +220,7 @@ def make_dependencies(package_name, package_version, distribution):
         dependencies += (
             Dependency(
                 package='clusterhq-python-flocker',
-                compare='==',
+                compare='=',
                 version=package_version),)
     return dependencies
 
@@ -449,27 +488,32 @@ class PACKAGE(Values):
     LICENSE = ValueConstant(b'ASL 2.0')
     URL = ValueConstant(b'https://clusterhq.com')
     VENDOR = ValueConstant(b'ClusterHQ')
-    MAINTAINER = ValueConstant(b'contact@clusterhq.com')
+    MAINTAINER = ValueConstant(b'ClusterHQ <contact@clusterhq.com>')
 
 
 class PACKAGE_PYTHON(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
-        'This is the base package of scripts and libraries.')
+        'Docker orchestration and volume management tool\n'
+        + fill('This is the base package of scripts and libraries.', 79)
+    )
 
 
 class PACKAGE_CLI(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
-        'This meta-package contains symlinks to the Flocker client utilities, '
-        'and has only the dependencies required to run those tools')
+        'Docker orchestration and volume management tool\n'
+        + fill('This meta-package contains links to the Flocker client '
+               'utilities, and has only the dependencies required to run '
+               'those tools', 79)
+    )
 
 
 class PACKAGE_NODE(PACKAGE):
     DESCRIPTION = ValueConstant(
-        'A Docker orchestration and volume management tool. '
-        'This meta-package contains symlinks to the Flocker node utilities, '
-        'and has only the dependencies required to run those tools')
+        'Docker orchestration and volume management tool\n'
+        + fill('This meta-package contains links to the Flocker node '
+               'utilities, and has only the dependencies required to run '
+               'those tools', 79)
+    )
 
 
 def omnibus_package_builder(
@@ -777,7 +821,8 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora-20.'],
+         'The target distribution. '
+         'One of fedora-20, centos-7, or ubuntu-14.04.'],
     ]
 
     longdesc = dedent("""\

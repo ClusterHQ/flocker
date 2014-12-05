@@ -5,11 +5,9 @@ Tests for deploying applications.
 """
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, Unit
-
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
-                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
-                        require_mongo)
+                        MONGO_APPLICATION, MONGO_IMAGE, get_mongo_application,
+                        require_flocker_cli, require_mongo)
 
 
 class DeploymentTests(TestCase):
@@ -29,7 +27,7 @@ class DeploymentTests(TestCase):
         representations of the data given by the configuration files supplied
         to flocker-deploy.
         """
-        getting_nodes = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=2)
 
         def deploy(node_ips):
             node_1, node_2 = node_ips
@@ -53,14 +51,8 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, minimal_deployment, minimal_application)
 
-            unit = Unit(name=MONGO_APPLICATION,
-                        container_name=BASE_NAMESPACE + MONGO_APPLICATION,
-                        activation_state=u'active',
-                        container_image=MONGO_IMAGE + u':latest',
-                        ports=frozenset([]))
-
             d = assert_expected_deployment(self, {
-                node_1: set([unit]),
+                node_1: set([get_mongo_application()]),
                 node_2: set([]),
             })
 

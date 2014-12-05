@@ -37,13 +37,18 @@ Access
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 - Access to `Google Cloud Storage`_ using `gsutil`_.
-- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_
+- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_.
 
 
 Preparing For a Release
 -----------------------
 
-#. Choose a version number according to :ref:`the Flocker version numbering policy <version-numbers>`.
+#. Confirm that the release and the proposed version number have been approved.
+
+   The release must have been approved.
+   Refer to the ClusterHQ `Flocker Releases and Versioning <https://docs.google.com/a/clusterhq.com/document/d/1xYbcU6chShgQQtqjFPcU1rXzDbi6ZsIg1n0DZpw6FfQ>`_ policy document.
+
+   The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
 #. Export the version number as an environment variable for later use:
 
@@ -53,7 +58,7 @@ Preparing For a Release
 
 #. Create an issue:
 
-   #. Set the title to "Release flocker $VERSION"
+   #. Set the title to "Release Flocker $VERSION"
    #. Assign it to yourself
 
 #. Create a clean, local Flocker release branch with no modifications:
@@ -79,44 +84,48 @@ Preparing For a Release
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
    - the "Next Release" line in
      `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
-   - Commit the changes:
 
-     .. code-block:: console
-
-        git commit -am "Bumped version numbers"
-
-#. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
-
-   ``git log`` can be used to see all merges between two versions.
+   Commit the changes:
 
    .. code-block:: console
 
-      # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
-      $ export OLD_VERSION=0.3.0
-      $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+      $ git commit -am "Bumped version numbers"
 
-   Save the result of the previous command to create a "What's New" entry and NEWS entry with later.
-
-   Update "What's New" and commit changes:
-
-   .. code-block:: console
-
-      $ git commit -am "Updated What's New"
+   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
-   See https://github.com/ClusterHQ/flocker/issues/523
+   See https://clusterhq.atlassian.net/browse/FLOC-523
 
-   The NEWS date format is YYYY-MM-DD.
-   The NEWS file should be updated for each pre-release and weekly release, however there should be only one NEWS entry for each major release.
-   This means that in doing a release, you may have to change the NEWS heading from a previous weekly or pre-release.
+   - The NEWS date format is YYYY-MM-DD.
+   - The NEWS file should also be updated for each pre-release and Weekly Development Release, however there should be only one NEWS entry for each Major Marketing Release and Minor Marketing Release.
+   - This means that in doing a release, you may have to change the NEWS heading from a previous Weekly Development Release or pre-release.
 
-   Use the previously-saved logs to update "NEWS" and commit changes:
+   .. note:: ``git log`` can be used to see all merges between two versions.
+
+             .. code-block:: console
+
+                # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
+                $ export OLD_VERSION=0.3.0
+                $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
 
    .. code-block:: console
 
-      $ git commit -am "Updated What's NEWS"
+      $ git commit -am "Updated NEWS"
+
+#. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
+
+   - Update the "What's New" document.
+   - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
+   - Add bullet points for any other *important* new features and improvements from the NEWS file above,
+   - and add links (where appropriate) to documentation that has been added for those features.
+
+   Finally, commit the changes:
+
+   .. code-block:: console
+
+      $ git commit -am "Updated What's New"
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
@@ -139,15 +148,21 @@ Preparing For a Release
 
 #. Make a pull request on GitHub
 
-   The pull request should be for the release branch against ``master``, with a ``Fixes #123`` line in the description referring to the release issue that it resolves.
+   The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
 
    Wait for an accepted code review before continuing.
 
    .. warning:: Add a note to the pull request description explaining that the branch should not be merged until the release process is complete.
 
 
-Reviewing "Preparing For a Release"
------------------------------------
+.. _pre-tag-review:
+
+Pre-tag Review Process
+----------------------
+
+A tag cannot be deleted once it has been pushed to GitHub (this is a policy and not a technical limitation).
+So it is important to check that the code in the release branch is working before it is tagged.
+This review step is to ensure that all acceptance tests pass on the release branch before it is tagged.
 
 .. note::
 
@@ -158,71 +173,58 @@ Reviewing "Preparing For a Release"
 
 #. Do the acceptance tests:
 
-   You'll need to build a tutorial vagrant image using the BuildBot RPM packages from the release branch.
+   - Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
 
-   The RPM version will not yet correspond to the release version, because we haven't yet created a tag.
+     The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
+     The URL will look like ``https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box``.
 
-   To find the version, visit the BuildBot build results page and navigate to the ``flocker-rpms`` build, then click on ``stdio`` from the ``build-sdist`` step.
+   - Add the downloaded ``.box`` file to ``vagrant``:
 
-   At the top, you should find a line beginning ``got version`` which contains the version string.
+     .. code-block:: console
 
-   Export the ``final`` and ``got`` version numbers as an environment variable for later use:
+        vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
 
-   .. code-block:: console
+     You should now see the ``flocker-tutorial`` box listed:
 
-      export VERSION=0.1.2
-      export GOT_VERSION=0.2.1-378-gb59b886
+     .. code-block:: console
+        :emphasize-lines: 4
 
-   Clone Flocker on your local workstation and install all ``dev`` requirements:
+        $ vagrant box list
+        clusterhq/fedora20-updated (virtualbox, 2014.09.19)
+        clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
+        clusterhq/flocker-tutorial (virtualbox, 0)
 
-   .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
+   - Clone Flocker on your local workstation and install all ``dev`` requirements:
 
-   .. code-block:: console
+     .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
-     git clone git@github.com:ClusterHQ/flocker.git
-     cd flocker
-     git checkout -b *release branch*
-     mkvirtualenv flocker-release-${VERSION}
-     pip install --editable .[dev]
+     .. code-block:: console
 
-   Then build the tutorial image and add the resulting box to ``vagrant``:
+        git clone git@github.com:ClusterHQ/flocker.git
+        cd flocker
+        git checkout -b *release branch*
+        mkvirtualenv flocker-release-${VERSION}
+        pip install --editable .[dev]
 
-   .. code-block:: console
+   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial to start the necessary virtual machines.
 
-         cd vagrant/tutorial
-         ./build --flocker-version=${GOT_VERSION} --branch=release/flocker-${VERSION}
-         vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-${GOT_VERSION}.box
+   Install `PhantomJS`_.
 
-      You should now see the ``flocker-tutorial`` box listed:
-
-   .. code-block:: console
-      :emphasize-lines: 4
-
-      $ vagrant box list
-      clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-      clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-      clusterhq/flocker-tutorial (virtualbox, 0)
-
-   .. Renaming the file is necessary because Sphinx does not deal well with two files named the same, and there is already the tutorial Vagrantfile. See https://bitbucket.org/birkenfeld/sphinx/issue/823/i-wish-download-would-keep-the-paths-not
-
-   Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
-
-   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
-
-   - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
-   - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).
-
-   Run the automated acceptance tests and ensure that they all pass, with no skips:
+   Run the automated acceptance tests; they will connect to the tutorial VMs.
+   All containers on the tutorial VMs will be destroyed by running the tests.
+   Ensure that they all pass, with no skips:
 
    .. code-block:: console
 
-      $ trial flocker.acceptance
+      $ FLOCKER_ACCEPTANCE_NODES=172.16.255.250:172.16.255.251 trial flocker.acceptance
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
    - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
 
    - If rejecting the issue, any problems must be resolved before repeating the review process.
+
+.. _PhantomJS: http://phantomjs.org/download.html
 
 .. _release:
 
@@ -236,6 +238,12 @@ Release
 
                 vagrant ssh -- -A
 
+#. Export the version number as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
+
 #. Create a clean, local copy of the Flocker release branch with no modifications:
 
    .. code-block:: console
@@ -243,12 +251,6 @@ Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout release/flocker-${VERSION}
-
-#. Export the version number as an environment variable for later use:
-
-   .. code-block:: console
-
-      export VERSION=0.1.2
 
 #. Create (if necessary) and activate the Flocker release virtual environment:
 
@@ -345,7 +347,7 @@ Release
 
        .. code-block:: console
 
-          git add *new recipe*
+          git add flocker-${VERSION}.rb
           git commit -m "New Homebrew recipe with bumped version number and checksum"
           git push
 
@@ -360,7 +362,7 @@ Release
 
    - Make a pull request:
 
-     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``Refs #123`` line in the description referring to the release issue that it resolves.
+     Make a `homebrew-tap`_ pull request for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
 
      Include the ``brew install`` line from the previous step, so that the reviewer knows how to test the new recipe.
 
@@ -399,22 +401,52 @@ Release
 
 #. Submit the release pull request for review again.
 
-Reviewing "Release"
--------------------
+Post-Release Review Process
+---------------------------
 
-#. When the Release section has been completed, there will be a ``Homebrew`` pull request to review.
-   See the "Update the Homebrew recipe" step in the Release section which explains how to test the new ``Homebrew`` recipe from a branch.
-
-#. Remove the Vagrant box which was added as part of testing the "Preparing For a Release" section:
+#. Remove the Vagrant box which was added as part of :ref:`pre-tag-review`:
 
    .. code-block:: console
 
       $ vagrant box remove clusterhq/flocker-tutorial
 
-#. Check that Read The Docs is set up correctly.
-   https://docs.clusterhq.com/en/latest and https://docs.clusterhq.com/ should both point to the latest release which is not a weekly release or pre-release.
+#. Check that Read The Docs is set up correctly:
 
-#. Follow the Vagrant setup part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   The following links should both point to the latest release.
+   (Except in the case of weekly release or pre-release)
+
+   * https://docs.clusterhq.com/en/latest and
+   * https://docs.clusterhq.com/
+
+#. Verify that the tutorial works on all supported platforms:
+
+   * The client (``flocker-deploy``) should be installed on all supported platforms.
+
+     Follow the :ref:`Flocker client installation documentation<installing-flocker-cli>`.
+
+     XXX: This step should be automated. See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
+
+   * The node package (``flocker-node``) should be installed on all supported platforms.
+     You can use vagrant to boot a clean Fedora 20 machine as follows:
+
+     .. code-block:: console
+
+        mkdir /tmp/fedora20
+        cd /tmp/fedora20
+        vagrant init clusterhq/fedora20-updated
+        vagrant up
+        vagrant ssh
+
+     Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`.
+
+     XXX: These steps should be automated. See (
+     `FLOC-965 <https://clusterhq.atlassian.net/browse/FLOC-965>`_,
+     `FLOC-957 <https://clusterhq.atlassian.net/browse/FLOC-957>`_,
+     `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
+     ).
+
+   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
@@ -422,6 +454,15 @@ Reviewing "Release"
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
 .. _back-porting-changes:
+
+
+Improving the Release Process
+-----------------------------
+
+The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
+If there is no existing issue for the planned improvements then a new one should be made.
+The issue(s) for the planned improvements should be put into the next sprint.
+
 
 Appendix: Back Porting Changes From Master
 ------------------------------------------
