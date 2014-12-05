@@ -165,7 +165,7 @@ def get_nodes(test_case, num_nodes):
 
     for node in nodes:
         sock = socket()
-        sock.settimeout(0.1)
+        sock.settimeout(5)
         try:
             can_connect = not sock.connect_ex((node, 22))
         except gaierror:
