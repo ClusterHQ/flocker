@@ -7,11 +7,14 @@ from subprocess import call, check_call
 
 import sys
 import os
+import yaml
 
 from twisted.python import usage
+from twisted.python.filepath import FilePath
+from characteristic import attributes
+
 from admin.vagrant import vagrant_version
 import flocker
-from characteristic import attributes
 
 
 def extend_environ(**kwargs):
@@ -29,7 +32,7 @@ def run_tests(nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
 
 
-@attributes(['distribution', 'top_level'], apply_immutable=True)
+@attributes(['distribution', 'top_level', 'config'], apply_immutable=True)
 class VagrantRunner(object):
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
@@ -66,24 +69,21 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path)
 
 
-@attributes(['distribution', 'top_level'], apply_immutable=True)
+@attributes(['distribution', 'top_level', 'config'], apply_immutable=True)
 class RackspaceRunner(object):
 
     def start_nodes(self):
-        from flocker.provision._rackspace import create_node, driver
-        from flocker.provision._install import install
+        from flocker.provision._rackspace import Rackspace
+        rackspace = Rackspace(**self.config['rackspace'])
+
         self.nodes = []
         for index in range(2):
             print "creating", index
-            self.nodes.append(create_node(
+            self.nodes.append(rackspace.create_node(
                 name="test-accept-%d" % (index,),
                 image_name=u'Fedora 20 (Heisenbug) (PVHVM)',
             ))
-
-        result = driver.wait_until_running(self.nodes)
-        addresses = [address[0] for node, address in result]
-        install(addresses, "root")
-        return addresses
+        return [node.address for node in self.nodes]
 
     def stop_nodes(self):
         for node in self.nodes:
@@ -101,6 +101,8 @@ class RunOptions(usage.Options):
         ['provider', None, 'vagrant',
          'The target provider to test against. '
          'One of vagrant.'],
+        ['config-file', None, None,
+         'Configuration for providers.'],
     ]
 
     optFlags = [
@@ -114,6 +116,12 @@ class RunOptions(usage.Options):
         if self['distribution'] is None:
             if self['distribution'] not in PROVIDERS:
                 raise usage.UsageError("Distribution required.")
+
+        if self['config-file'] is not None:
+            config_file = FilePath(self['config-file'])
+            self['config'] = yaml.safe_load(config_file.getContent())
+        else:
+            self['config'] = {}
 
         if self['provider'] not in PROVIDERS:
             raise usage.UsageError(
@@ -144,6 +152,7 @@ def main(args, base_path, top_level):
                ', '.join(options['providers'].keys())))
 
     runner = options.provider_factory(
+        config=options['config'],
         top_level=top_level,
         distribution=options['distribution'])
 
