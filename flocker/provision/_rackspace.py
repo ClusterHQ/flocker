@@ -48,7 +48,9 @@ class Rackspace(object):
             ex_config_drive="true",
         )
 
-        node, address = self._driver.wait_until_running([node])[0]
+        node, addresses = self._driver.wait_until_running([node])[0]
 
-        install([address], "root")
-        return RackspaceNode(node=node, address=address)
+        public_address = addresses[0]
+
+        install([public_address], "root")
+        return RackspaceNode(node=node, address=public_address)
