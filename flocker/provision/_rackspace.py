@@ -13,8 +13,17 @@ class RackspaceNode(object):
     def destroy(self):
         self._node.destroy()
 
-    def provision(self):
-        return self._address
+    def provision(self, distribution, version, branch):
+        if self.distribution != 'fedora-20':
+            raise ValueError("Distirubtion not supported: %r."
+                             % (distribution,))
+        install([self.address], username="root", version=version,
+                kwargs={
+                    'version': version,
+                    'distribution': distribution,
+                    'branch': branch,
+                    })
+        return self.address
 
 
 @attributes([Attribute('_keyname')], apply_immutable=True)
@@ -52,5 +61,4 @@ class Rackspace(object):
 
         public_address = addresses[0]
 
-        install([public_address], "root")
         return RackspaceNode(node=node, address=public_address)

@@ -32,8 +32,15 @@ def run_tests(nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
 
 
-@attributes(['distribution', 'top_level', 'config'], apply_immutable=True)
+RUNNER_ATTRIBUTES = [
+    'distribution', 'top_level', 'config', 'flocker_version', 'branch']
+
+
+@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
 class VagrantRunner(object):
+    # FIXME? Should this automatically build a box locally, or download from
+    # buildbot?
+
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
@@ -56,7 +63,7 @@ class VagrantRunner(object):
             ['vagrant', 'up'],
             cwd=self.vagrant_path.path,
             env=extend_environ(
-                FLOCKER_BOX_VERSION=vagrant_version(flocker.__version__)))
+                FLOCKER_BOX_VERSION=vagrant_version(self.flocker_version)))
 
         return ["172.16.255.240", "172.16.255.241"]
 
@@ -69,7 +76,7 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path)
 
 
-@attributes(['distribution', 'top_level', 'config'], apply_immutable=True)
+@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
 class RackspaceRunner(object):
 
     def __init__(self):
@@ -84,10 +91,18 @@ class RackspaceRunner(object):
         self.nodes = []
         for index in range(2):
             print "creating", index
-            self.nodes.append(rackspace.create_node(
+            node = rackspace.create_node(
                 name="test-accept-%d" % (index,),
                 image_name=u'Fedora 20 (Heisenbug) (PVHVM)',
-            ))
+            )
+            node.provision(
+                distribution=self.distribution,
+                version=self.flocker_version,
+                branch=self.branch,
+            )
+            self.nodes.append(node)
+            del node
+
         return [node.address for node in self.nodes]
 
     def stop_nodes(self):
@@ -108,6 +123,9 @@ class RunOptions(usage.Options):
          'One of vagrant.'],
         ['config-file', None, None,
          'Configuration for providers.'],
+        ['branch', None, None, 'Branch to grab RPMS from'],
+        ['flocker-version', None, flocker.__version__,
+         'Version of flocker to install'],
     ]
 
     optFlags = [
@@ -159,7 +177,10 @@ def main(args, base_path, top_level):
     runner = options.provider_factory(
         config=options['config'],
         top_level=top_level,
-        distribution=options['distribution'])
+        distribution=options['distribution'],
+        flocker_version=options['flocker-version'],
+        branch=options['branch'],
+    )
 
     nodes = runner.start_nodes()
     result = run_tests(nodes, options['trial-args'])
