@@ -72,6 +72,11 @@ class VagrantRunner(object):
 @attributes(['distribution', 'top_level', 'config'], apply_immutable=True)
 class RackspaceRunner(object):
 
+    def __init__(self):
+        if self.distribution != 'fedora-20':
+            raise ValueError("Distirubtion not supported: %r."
+                             % (self.distribution,))
+
     def start_nodes(self):
         from flocker.provision._rackspace import Rackspace
         rackspace = Rackspace(**self.config['rackspace'])
