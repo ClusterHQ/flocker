@@ -51,7 +51,9 @@ def make_iremote_volume_manager(fixture):
             list of snapshots is returned.
             """
             service_pair = fixture(self)
-            creating = service_pair.from_service.create(MY_VOLUME)
+            creating = service_pair.from_service.create(
+                service_pair.from_service.get(MY_VOLUME)
+            )
 
             def created(volume):
                 return service_pair.remote.snapshots(volume)
@@ -68,7 +70,9 @@ def make_iremote_volume_manager(fixture):
             swallowed.
             """
             service_pair = fixture(self)
-            created = service_pair.from_service.create(MY_VOLUME)
+            created = service_pair.from_service.create(
+                service_pair.from_service.get(MY_VOLUME)
+            )
 
             def got_volume(volume):
                 with service_pair.remote.receive(volume):
@@ -81,7 +85,9 @@ def make_iremote_volume_manager(fixture):
             ``receive`` creates a volume.
             """
             service_pair = fixture(self)
-            created = service_pair.from_service.create(MY_VOLUME)
+            created = service_pair.from_service.create(
+                service_pair.from_service.get(MY_VOLUME)
+            )
 
             def do_push(volume):
                 with volume.get_filesystem().reader() as reader:
@@ -106,7 +112,9 @@ def make_iremote_volume_manager(fixture):
         def test_creates_files(self):
             """``receive`` recreates files pushed from origin."""
             service_pair = fixture(self)
-            created = service_pair.from_service.create(MY_VOLUME)
+            created = service_pair.from_service.create(
+                service_pair.from_service.get(MY_VOLUME)
+            )
 
             def do_push(volume):
                 root = volume.get_filesystem().get_path()
@@ -137,7 +145,9 @@ def make_iremote_volume_manager(fixture):
 
             :return: The ``Volume`` instance on the origin service.
             """
-            created = service_pair.from_service.create(MY_VOLUME)
+            created = service_pair.from_service.create(
+                service_pair.from_service.get(MY_VOLUME)
+            )
 
             def got_volume(volume):
                 pushing = service_pair.from_service.push(
@@ -219,7 +229,7 @@ def make_iremote_volume_manager(fixture):
             service_pair = fixture(self)
             service = service_pair.to_service
 
-            d = service.create(MY_VOLUME)
+            d = service.create(service.get(MY_VOLUME))
 
             def created(parent):
                 parent.get_filesystem().get_path().child(b"f").setContent(
@@ -278,7 +288,9 @@ class LocalVolumeManagerInterfaceTests(
         ``[]`` because ``DirectoryFilesystem`` does not support snapshots.
         """
         pair = create_local_servicepair(self)
-        volume = self.successResultOf(pair.from_service.create(MY_VOLUME))
+        volume = self.successResultOf(pair.from_service.create(
+            pair.from_service.get(MY_VOLUME)
+        ))
         self.assertEqual(
             [], self.successResultOf(pair.remote.snapshots(volume)))
 
@@ -292,7 +304,9 @@ class RemoteVolumeManagerTests(TestCase):
         self.service = VolumeService(
             FilePath(self.mktemp()), self.pool, reactor=Clock())
         self.service.startService()
-        self.volume = self.successResultOf(self.service.create(MY_VOLUME))
+        self.volume = self.successResultOf(self.service.create(
+            self.service.get(MY_VOLUME)
+        ))
 
     def test_snapshots_destination_run(self):
         """
