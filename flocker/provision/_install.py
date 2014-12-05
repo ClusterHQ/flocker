@@ -74,9 +74,11 @@ def _task_install_flocker(
     run(" ".join(map(shell_quote, command)))
 
 
-def _task_install():
+def _task_install(
+        version=None, branch=None, distribution=None):
     _task_install_kernel()
-    _task_install_flocker()
+    _task_install_flocker(
+        version=version, branch=branch, distribution=distribution)
     _task_enable_docker()
     _task_disable_firewall()
     _task_create_flocker_pool_file()
