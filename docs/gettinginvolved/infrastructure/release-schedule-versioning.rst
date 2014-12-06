@@ -42,7 +42,7 @@ Pre-releases will have the version number of the next release with a ``preX`` su
 There is a feature-freeze at the time that first pre-release for a given release is made.
 The eventual final release is based on the last pre-release, including only bug fixes discovered during testing of the pre-release.
 
-There should be at least one pre-release which should be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
+There must be at least one pre-release which will be tested for one week before the final release (a Major Marketing Release or Minor Marketing Release) is made.
 
 Major Marketing Release
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -51,7 +51,7 @@ and will have a significant collection of new functionality.
 
 Major marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-These releases should be preceded by at least one pre-release which should be tested for one week before the final release is made.
+These releases must be preceded by at least one pre-release which will be tested for one week before the final release is made.
 
 The version of a major marketing release will have the minor version number incremented from the previous marketing release, the micro version reset to 0.
 
@@ -63,7 +63,7 @@ These release will typically be made in preparation for a blog post or other ann
 
 Minor marketing releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-These releases should be preceded by at least one pre-release which should be tested for one week before the final release is made.
+These releases must be preceded by at least one pre-release which will be tested for one week before the final release is made.
 
 The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
 
