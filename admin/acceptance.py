@@ -78,6 +78,9 @@ class VagrantRunner(object):
 
 @attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
 class RackspaceRunner(object):
+    """
+    Runn the tests against rackspace nodes.
+    """
 
     def __init__(self):
         if self.distribution != 'fedora-20':
@@ -85,6 +88,12 @@ class RackspaceRunner(object):
                              % (self.distribution,))
 
     def start_nodes(self):
+        """
+        Provision rackspace nodes for acceptance tests.
+
+        :return list: List of addresses of nodes to connect to, for acceptance
+            tests.
+        """
         from flocker.provision._rackspace import Rackspace
         rackspace = Rackspace(**self.config['rackspace'])
 
@@ -106,6 +115,9 @@ class RackspaceRunner(object):
         return [node.address for node in self.nodes]
 
     def stop_nodes(self):
+        """
+        Deprovision the nodes provisioned by ``start_nodes``.
+        """
         for node in self.nodes:
             node.destroy()
 

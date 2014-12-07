@@ -1,3 +1,9 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""
+Install flocker on a remote node.
+"""
+
 from fabric.api import run, execute, env, put
 from pipes import quote as shell_quote
 from cStringIO import StringIO
@@ -24,16 +30,25 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 
 
 def _task_enable_docker():
+    """
+    Fabric Task. Start docker and configure it to start automatically.
+    """
     run("systemctl enable docker.service")
     run("systemctl start docker.service")
 
 
 def _task_disable_firewall():
+    """
+    Fabric Task. Disable the firewall.
+    """
     run('firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
     run('firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')
 
 
 def _task_create_flocker_pool_file():
+    """
+    Create a file-back zfs pool for flocker.
+    """
     run('mkdir /opt/flocker')
     run('truncate --size 1G /opt/flocker/pool-vdev')
     run('zpool create flocker /opt/flocker/pool-vdev')
@@ -41,6 +56,14 @@ def _task_create_flocker_pool_file():
 
 def _task_install_flocker(
         version=None, branch=None, distribution=None):
+    """
+    Fabric Task. Install flocker.
+
+    :param str version: The version of flocker to install.
+    :param str branch: The branch from which to install flocker.  If this isn't
+        provided, install from the release repository.
+    :param str distribution: The distribution the node is running.
+    """
     run("yum install -y " + ZFS_REPO)
     run("yum install -y " + CLUSTERHQ_REPO)
 
@@ -76,6 +99,9 @@ def _task_install_flocker(
 
 def _task_install(
         version=None, branch=None, distribution=None):
+    """
+    Fabric Task. Configure a node to run flocker.
+    """
     _task_install_kernel()
     _task_install_flocker(
         version=version, branch=branch, distribution=distribution)
@@ -84,7 +110,13 @@ def _task_install(
     _task_create_flocker_pool_file()
 
 
-def install(nodes, username, version, kwargs):
+def install(nodes, username, kwargs):
+    """
+    Install flocker on the given nodes.
+
+    :param username: Username to connect as.
+    :param dict kwargs: Addtional arguments to pass to ``_task_install``.
+    """
     env.connection_attempts = 24
     env.timeout = 5
     env.pty = False

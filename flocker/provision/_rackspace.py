@@ -14,10 +14,13 @@ class RackspaceNode(object):
         self._node.destroy()
 
     def provision(self, distribution, version, branch):
+        """
+        Provision flocker on this node.
+        """
         if distribution != 'fedora-20':
             raise ValueError("Distirubtion not supported: %r."
                              % (distribution,))
-        install([self.address], username="root", version=version,
+        install([self.address], username="root",
                 kwargs={
                     'version': version,
                     'distribution': distribution,

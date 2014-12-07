@@ -5,17 +5,24 @@ Helpers for libcloud.
 """
 
 
-def get_size(driver, size_name):
+def get_size(driver, size_id):
     """
-    Return a ``NodeSize`` corresponding to the name of size.
+    Return a ``NodeSize`` corresponding to a given id.
+
+    :param driver: The libcloud driver to query for sizes.
     """
     try:
-        return [s for s in driver.list_sizes() if s.id == size_name][0]
+        return [s for s in driver.list_sizes() if s.id == size_id][0]
     except IndexError:
-        raise ValueError("Unknown size.", size_name)
+        raise ValueError("Unknown size.", size_id)
 
 
 def get_image(driver, image_name):
+    """
+    Return a ``NodeImage`` corresponding to a given name of size.
+
+    :param driver: The libcloud driver to query for images.
+    """
     try:
         return [s for s in driver.list_images() if s.name == image_name][0]
     except IndexError:
