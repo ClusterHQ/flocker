@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Run the acceptance tests.
