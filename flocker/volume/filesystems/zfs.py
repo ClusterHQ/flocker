@@ -88,7 +88,6 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
-    #import pdb;pdb.set_trace()
     endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments,
                                os.environ)
     d = connectProtocol(endpoint, _AccumulatingProtocol())
