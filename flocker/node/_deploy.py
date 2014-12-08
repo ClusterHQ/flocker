@@ -612,5 +612,4 @@ def find_volume_changes(hostname, current_state, desired_state):
         local_current_volume_names | remote_current_volume_names)
     creating = set(volume for volume in local_desired_volumes
                    if volume.name in creating_names)
-
     return VolumeChanges(going=going, coming=coming, creating=creating)
