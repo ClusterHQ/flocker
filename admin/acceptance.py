@@ -67,7 +67,11 @@ class INodeRunner(Interface):
 class VagrantRunner(object):
     """
     Start and stop vagrant nodes for acceptance testing.
+
+    :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
     """
+
+    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
 
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
@@ -91,7 +95,7 @@ class VagrantRunner(object):
             env=extend_environ(
                 FLOCKER_BOX_VERSION=vagrant_version(flocker.__version__)))
 
-        return ["172.16.255.240", "172.16.255.241"]
+        return self.NODE_ADDRESSES
 
     def stop_nodes(self):
         check_call(
