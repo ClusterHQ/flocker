@@ -88,6 +88,7 @@ def zfs_command(reactor, arguments):
         exit code 0), or errbacking with :class:`CommandFailed` or
         :class:`BadArguments` depending on the exit code (1 or 2).
     """
+    #import pdb;pdb.set_trace()
     endpoint = ProcessEndpoint(reactor, b"zfs", [b"zfs"] + arguments,
                                os.environ)
     d = connectProtocol(endpoint, _AccumulatingProtocol())
@@ -510,6 +511,22 @@ class StoragePool(Service):
             ])
         d = zfs_command(self._reactor,
                         [b"create"] + properties + [filesystem.name])
+        d.addErrback(self._check_for_out_of_space)
+        d.addCallback(lambda _: filesystem)
+        return d
+
+    def resize(self, volume):
+        filesystem = self.get(volume)
+        properties = []
+        if volume.size.maximum_size is not None:
+            properties.extend([
+                u"refquota={0}".format(
+                    volume.size.maximum_size).encode("ascii")
+            ])
+        else:
+            properties.extend([u"refquota=none"])
+        d = zfs_command(self._reactor,
+                        [b"set"] + properties + [filesystem.name])
         d.addErrback(self._check_for_out_of_space)
         d.addCallback(lambda _: filesystem)
         return d

@@ -25,6 +25,7 @@ from ..filesystems.interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists,
     )
+from ..filesystems.errors import MaximumSizeTooSmall
 from ..service import Volume, VolumeName
 from .._model import VolumeSize
 
@@ -231,6 +232,108 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 self.assertEqual(size, filesystem.size)
             d.addCallback(created_filesystem)
+            return d
+
+        def test_resize_volume_new_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size, the
+            resulting ``IFilesystem`` provider has the same new size
+            information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=1024 * 1024 * 10)
+            volume_with_size = Volume(
+                uuid=volume.uuid,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.resize(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            d.addCallback(created_filesystem)
+            d.addCallback(resized_filesystem)
+            return d
+
+        def test_resize_volume_unlimited_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size of None, the
+            resulting ``IFilesystem`` provider has the same new size
+            information.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=None)
+            volume_with_size = Volume(
+                uuid=volume.uuid,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.resize(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            d.addCallback(created_filesystem)
+            d.addCallback(resized_filesystem)
+            return d
+
+        def test_resize_volume_invalid_max_size(self):
+            """
+            If an existing volume is resized to a new maximum size which is
+            less than the used size of the existing filesystem, a
+            ``MaximumSizeTooSmall`` error is raised.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+
+            size = VolumeSize(maximum_size=1024 * 1024 * 1024)
+            resized = VolumeSize(maximum_size=1)
+            volume_with_size = Volume(
+                uuid=volume.uuid,
+                name=volume.name,
+                service=volume.service,
+                size=size,
+            )
+
+            d = pool.create(volume_with_size)
+
+            def created_filesystem(filesystem):
+                self.assertEqual(size, filesystem.size)
+                volume_with_size.size = resized
+                return pool.resize(volume_with_size)
+
+            def resized_filesystem(filesystem):
+                self.assertEqual(resized, filesystem.size)
+
+            def maximum_too_small(reason):
+                self.assertTrue(isinstance(reason.value, MaximumSizeTooSmall))
+
+            d.addCallback(created_filesystem)
+            d.addErrback(maximum_too_small)
             return d
 
         def test_two_names_create_different_filesystems(self):
