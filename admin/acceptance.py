@@ -107,6 +107,8 @@ PROVIDERS = {'vagrant': VagrantRunner}
 
 
 class RunOptions(Options):
+    description = "Run the acceptance tests."
+
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
@@ -119,6 +121,9 @@ class RunOptions(Options):
     optFlags = [
         ["keep", "k", "Keep VMs around, if the tests fail."],
     ]
+
+    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
+                '[--provider <provider>] [<test-cases>]')
 
     def __init__(self, top_level):
         """
