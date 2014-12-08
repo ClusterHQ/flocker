@@ -10,15 +10,13 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
-begin
-  BOX_VERSION = ENV.fetch('FLOCKER_BOX_VERSION')
-rescue KeyError
-  raise Vagrant::Errors::VagrantError.new, "Please specify FLOCKER_BOX_VERSION."
-end
-
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
-  config.vm.box_version = "= " + BOX_VERSION
+
+  begin
+    config.vm.box_version = "= " + ENV.fetch('FLOCKER_BOX_VERSION')
+  rescue KeyError
+  end
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
