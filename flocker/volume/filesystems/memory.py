@@ -168,6 +168,16 @@ class FilesystemStoragePool(Service):
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
         return succeed(filesystem)
 
+    def resize(self, volume):
+        filesystem = self.get(volume)
+        root = filesystem.get_path()
+        if volume.size.maximum_size is not None:
+            root.child(b".size").setContent(
+                u"{0}".format(volume.size.maximum_size).encode("ascii"))
+        else:
+            root.child(b".size").remove()
+        return succeed(filesystem)
+
     def clone_to(self, parent, volume):
         parent = self.get(parent)
         child = self.get(volume)
