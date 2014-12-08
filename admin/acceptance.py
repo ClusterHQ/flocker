@@ -8,7 +8,7 @@ from subprocess import call, check_call
 import sys
 import os
 
-from twisted.python import usage
+from twisted.python.usage import Options, UsageError
 from admin.vagrant import vagrant_version
 import flocker
 from characteristic import attributes
@@ -35,6 +35,9 @@ class VagrantRunner(object):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
         ])
+        if not self.vagrant_path.exists():
+            raise UsageError("Distribution not found: %s."
+                             % (self.distribution,))
 
     def start_nodes(self):
         """
@@ -69,7 +72,7 @@ class VagrantRunner(object):
 PROVIDERS = {'vagrant': VagrantRunner}
 
 
-class RunOptions(usage.Options):
+class RunOptions(Options):
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
@@ -83,20 +86,29 @@ class RunOptions(usage.Options):
         ["keep", "k", "Keep VMs around, if the tests fail."],
     ]
 
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        Options.__init__(self)
+        self.top_level = top_level
+
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
     def postOptions(self):
         if self['distribution'] is None:
-            if self['distribution'] not in PROVIDERS:
-                raise usage.UsageError("Distribution required.")
+            raise UsageError("Distribution required.")
 
         if self['provider'] not in PROVIDERS:
-            raise usage.UsageError(
+            raise UsageError(
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS.keys())))
 
-        self.provider_factory = PROVIDERS[self['provider']]
+        provider_factory = PROVIDERS[self['provider']]
+        self.runner = provider_factory(
+            top_level=self.top_level,
+            distribution=self['distribution'])
 
 
 def main(args, base_path, top_level):
@@ -105,23 +117,15 @@ def main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    options = RunOptions()
+    options = RunOptions(top_level=top_level)
 
     try:
         options.parseOptions(args)
-    except usage.UsageError as e:
+    except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    if options['provider'] not in PROVIDERS:
-        sys.stderr.write(
-            "%s: Provider %r not supported. Available providers: %s"
-            % (base_path.basename(), options['provider'],
-               ', '.join(options['providers'].keys())))
-
-    runner = options.provider_factory(
-        top_level=top_level,
-        distribution=options['distribution'])
+    runner = options.runner
 
     nodes = runner.start_nodes()
     result = run_tests(nodes, options['trial-args'])
