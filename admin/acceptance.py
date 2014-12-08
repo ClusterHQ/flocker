@@ -8,19 +8,35 @@ from subprocess import call, check_call
 import sys
 import os
 
+from zope.interface import Interface, implementer
+from characteristic import attributes
 from twisted.python.usage import Options, UsageError
+
 from admin.vagrant import vagrant_version
 import flocker
-from characteristic import attributes
 
 
 def extend_environ(**kwargs):
+    """
+    Return a copy of ``os.environ`` with some additional environment variables
+        added.
+
+    :param **kwargs: The enviroment variables to add.
+    :return dict: The new environment.
+    """
     env = os.environ.copy()
     env.update(kwargs)
     return env
 
 
 def run_tests(nodes, trial_args):
+    """
+    Run the acceptances tests.
+
+    :param list nodes: The list of nodes to run the acceptance tests against.
+    :param list trial_args: Arguments to pass to trial. If not
+        provided, defaults to ``['flocker.acceptance']``.
+    """
     if not trial_args:
         trial_args = ['flocker.acceptance']
     return call(
@@ -29,8 +45,31 @@ def run_tests(nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
 
 
+class INodeRunner(Interface):
+    """
+    Interface for starting and stopping nodes for acceptance testing.
+    """
+
+    def start_nodes():
+        """
+        Start nodes for running acceptance tests.
+
+        :return list: List of nodes to run tests against.
+        """
+
+    def stop_nodes(self):
+        """
+        Stop the nodes started by `start_nodes`.
+        """
+
+
+@implementer(INodeRunner)
 @attributes(['distribution', 'top_level'], apply_immutable=True)
 class VagrantRunner(object):
+    """
+    Start and stop vagrant nodes for acceptance testing.
+    """
+
     def __init__(self):
         self.vagrant_path = self.top_level.descendant([
             'admin', 'vagrant-acceptance-targets', self.distribution,
@@ -40,11 +79,6 @@ class VagrantRunner(object):
                              % (self.distribution,))
 
     def start_nodes(self):
-        """
-        Start nodes for running acceptance tests.
-
-        :return list: List of nodes to run tests against.
-        """
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
         check_call(
@@ -61,9 +95,6 @@ class VagrantRunner(object):
         return ["172.16.255.240", "172.16.255.241"]
 
     def stop_nodes(self):
-        """
-        Stop the nodes started by `start_nodes`.
-        """
         check_call(
             ['vagrant', 'destroy', '-f'],
             cwd=self.vagrant_path.path)
