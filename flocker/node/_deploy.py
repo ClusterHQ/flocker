@@ -515,7 +515,7 @@ class Deployer(object):
             if volumes.resizing:
                 phases.append(InParallel(changes=[
                     ResizeVolume(volume=volume)
-                    for volume in volumes.creating]))
+                    for volume in volumes.resizing]))
             if volumes.going:
                 phases.append(InParallel(changes=[
                     PushVolume(volume=handoff.volume,

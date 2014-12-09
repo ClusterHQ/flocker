@@ -19,7 +19,7 @@ from .. import (
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
-    _link_environment, _to_volume_name)
+    ResizeVolume, _link_environment, _to_volume_name)
 from .._model import AttachedVolume
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -1593,7 +1593,24 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = self.successResultOf(calculating)
-        #import pdb;pdb.set_trace()
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeVolume(
+                    volume=AttachedVolume(name='psql-clusterhq',
+                                          mountpoint='/var/lib/postgresql',
+                                          maximum_size=104857600)
+                    )]
+            ),
+            InParallel(
+                changes=[Sequentially(
+                    changes=[
+                        StopApplication(application=APPLICATION_WITH_VOLUME),
+                        StartApplication(
+                            application=APPLICATION_WITH_VOLUME_SIZE,
+                            hostname=u'node1.example.com')
+                    ])]
+            )])
+        self.assertEqual(expected, changes)
 
     def test_volume_invalid_resize(self):
         """
