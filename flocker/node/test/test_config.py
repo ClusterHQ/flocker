@@ -2323,7 +2323,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_default_retry_policy(self):
+    def test_default_restart_policy(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         restart_policy of never if no policy was specified in the configuration.
@@ -2342,7 +2342,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['cube'].cpu_shares,
             RestartNever())
 
-    def test_retry_policy_never(self):
+    def test_restart_policy_never(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         restart_policy of never if that policy was specified in the configuration.
@@ -2351,7 +2351,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'wolfwood': {
                     'image': 'twisted/code',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'never',
                     },
                 }
@@ -2364,7 +2364,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['wolfwood'].cpu_shares,
             RestartNever())
 
-    def test_retry_policy_always(self):
+    def test_restart_policy_always(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         restart_policy of always if that policy was specified in the configuration.
@@ -2373,7 +2373,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'darmstadtium': {
                     'image': 'atomic/110',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'always',
                     },
                 }
@@ -2386,7 +2386,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['darmstadtium'].cpu_shares,
             RestartAlways())
 
-    def test_retry_policy_on_failure(self):
+    def test_restart_policy_on_failure(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         restart_policy of on-failure if that policy was specified in the configuration.
@@ -2395,7 +2395,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'boron': {
                     'image': 'atomic/5',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'on-failure',
                     },
                 }
@@ -2408,7 +2408,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['boron'].cpu_shares,
             RestartOnFailure(maximum_retry_count=None))
 
-    def test_retry_policy_on_failure_with_retry_count(self):
+    def test_restart_policy_on_failure_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
         restart_policy of on-failure if that policy was specified in the configuration.
@@ -2417,7 +2417,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'yttrium': {
                     'image': 'atomic/39',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'on-failure',
                         'max_retry_count': 10,
                     },
@@ -2431,7 +2431,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['yttrium'].cpu_shares,
             RestartOnFailure(max_retry_count=10))
 
-    def test_error_on_retry_policy_always_with_retry_count(self):
+    def test_error_on_restart_policy_always_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
         if maximum retry count is specified with a policy other than on-failure.
@@ -2440,7 +2440,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'molybdenum': {
                     'image': 'atomic/42',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'always',
                         'max_retry_count': 10,
                     },
@@ -2454,7 +2454,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications['molybdenum'].cpu_shares,
             RestartOnFailure(max_retry_count=10))
 
-    def test_error_on_retry_policy_on_failure_with_retry_count(self):
+    def test_error_on_restart_policy_on_failure_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
         if maximum retry count is specified with a policy other than on-failure.
@@ -2463,7 +2463,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'red-fish': {
                     'image': 'seuss/one-fish-two-fish',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'on-failure',
                         'max_retry_count': 10,
                     },
@@ -2480,7 +2480,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_retry_policy_with_retry_count_not_integer(self):
+    def test_error_on_restart_policy_with_retry_count_not_integer(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
         if a maximum retry count is not an integer.
@@ -2489,7 +2489,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'lorax': {
                     'image': 'seuss/lorax',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'on-failure',
                         'max_retry_count': "fifty",
                     },
@@ -2506,7 +2506,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_retry_policy_with_extra_keys(self):
+    def test_error_on_restart_policy_with_extra_keys(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
         if extra keys are specified for a retry policy.
@@ -2515,7 +2515,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'one-fish': {
                     'image': 'seuss/one-fish-two-fish',
-                    'retry_policy': {
+                    'restart_policy': {
                         'name': 'on-failure',
                         'extra': "key",
                     },
@@ -2532,7 +2532,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_retry_policy_not_a_dictionary(self):
+    def test_error_on_restart_policy_not_a_dictionary(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
         if extra keys are specified for a retry policy.
@@ -2541,7 +2541,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'green-eggs': {
                     'image': 'seuss/green-eggs-ham',
-                    'retry_policy': 'pretend-i-am-a-dictionary',
+                    'restart_policy': 'pretend-i-am-a-dictionary',
                 }
             },
             'version': 1
