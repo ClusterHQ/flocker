@@ -13,7 +13,7 @@ from docker import Client
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, gatherResults
 from twisted.internet.error import ConnectionRefusedError
 from twisted.web.client import ResponseNeverReceived
 
@@ -21,13 +21,21 @@ from treq import request, content
 
 from ...testtools import (
     loop_until, find_free_port, DockerImageBuilder, assertContainsAll,
-    random_name, if_root)
+    random_name)
 
 from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume)
+from .._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
+
+
+def namespace_for_test(test_case):
+    namespace = u"%s-%s-%s" % (
+        test_case.__class__.__name__, test_case.id(), random_name())
+    namespace = namespace.replace(u".", u"-")
+    return namespace
 
 
 class IDockerClientTests(make_idockerclient_tests(
@@ -72,7 +80,8 @@ class GenericDockerClientTests(TestCase):
                         image_name=u"openshift/busybox-http-app",
                         ports=None, expected_states=(u'active',),
                         environment=None, volumes=(),
-                        mem_limit=None, cpu_shares=None):
+                        mem_limit=None, cpu_shares=None,
+                        restart_policy=RestartNever()):
         """
         Start a unit and wait until it reaches the `active` state or the
         supplied `expected_state`.
@@ -85,6 +94,7 @@ class GenericDockerClientTests(TestCase):
         :param volumes: See ``IDockerClient.add``.
         :param mem_limit: See ``IDockerClient.add``.
         :param cpu_shares: See ``IDockerClient.add``.
+        :param restart_policy: See ``IDockerClient.add``.
 
         :return: ``Deferred`` that fires with the ``DockerClient`` when
             the unit reaches the expected state.
@@ -97,7 +107,8 @@ class GenericDockerClientTests(TestCase):
             environment=environment,
             volumes=volumes,
             mem_limit=mem_limit,
-            cpu_shares=cpu_shares
+            cpu_shares=cpu_shares,
+            restart_policy=restart_policy,
         )
         self.addCleanup(client.remove, unit_name)
 
@@ -129,7 +140,6 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         return self.start_container(name)
 
-    @if_root
     def test_correct_image_used(self):
         """
         ``DockerClient.add`` creates a container with the specified image.
@@ -174,6 +184,22 @@ class GenericDockerClientTests(TestCase):
         name = random_name()
         d = self.start_container(unit_name=name, image_name="busybox",
                                  expected_states=(u'inactive',))
+        return d
+
+    def test_dead_is_removed(self):
+        """
+        ``DockerClient.remove()`` removes dead units without error.
+
+        We use a `busybox` image here, because it will exit immediately and
+        reach an `inactive` substate of `dead`.
+        """
+        name = random_name()
+        d = self.start_container(unit_name=name, image_name="busybox",
+                                 expected_states=(u'inactive',))
+
+        def remove_container(client):
+            client.remove(name)
+        d.addCallback(remove_container)
         return d
 
     def request_until_response(self, port):
@@ -261,7 +287,6 @@ CMD sh -c "trap \"\" 2; sleep 3"
         image = DockerImageBuilder(test=self, source_dir=path)
         return image.build()
 
-    @if_root
     def test_add_with_environment(self):
         """
         ``DockerClient.add`` accepts an environment object whose ID and
@@ -453,12 +478,101 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
-    def test_add_with_restart_policy(self):
+    def start_restart_policy_container(self, mode, restart_policy):
         """
-        ``DockerClient.add`` when creating a container with a restart policy,
-        will create a container with this policy.
+        Start a container for testing restart policies.
+
+        :param unicode mode: Mode of container. One of
+            - ``"failure"``: The container will always exit with a failure.
+            - ``"success-then-sleep"``: The container will exit with success
+              once, then sleep forever.
+            - ``"failure-then-sucess"``: The container will exit with failure
+              once, then with failure.
+        :param IRestartPolicy restart_policy: The restart policy to use for
+            the container.
+
+        :returns Deferred: A deferred that fires with the number of times the
+            container was started.
         """
-        # This should have variants for the never, always, on-failure (with and without a count)
+        docker_dir = FilePath(__file__).sibling('retry-docker')
+        image = DockerImageBuilder(test=self, source_dir=docker_dir)
+        image_name = image.build()
+
+        name = random_name()
+
+        data = FilePath(self.mktemp())
+        data.makedirs()
+        count = data.child('count')
+        count.setContent("0")
+        marker = data.child('marker')
+
+        if mode == u"success-then-sleep":
+            expected_states = (u'active',)
+        else:
+            expected_states = (u'inactive',)
+
+        d = self.start_container(
+            name, image_name=image_name,
+            restart_policy=restart_policy,
+            environment=Environment(variables={u'mode': mode}),
+            volumes=[
+                Volume(node_path=data, container_path=FilePath(b"/data"))],
+            expected_states=expected_states)
+
+        if mode == u"success-then-sleep":
+            def wait_for_marker(_):
+                while not marker.exists():
+                    time.sleep(0.01)
+            d.addCallback(wait_for_marker)
+
+        d.addCallback(lambda ignored: count.getContent())
+        return d
+
+    def test_restart_policy_never(self):
+        """
+        An container with a restart policy of never isn't restarted
+        after it exits.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure", restart_policy=RestartNever())
+
+        d.addCallback(self.assertEqual, "1")
+        return d
+
+    def test_restart_policy_always(self):
+        """
+        An container with a restart policy of always is restarted
+        after it exits.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"success-then-sleep", restart_policy=RestartAlways())
+
+        d.addCallback(self.assertEqual, "2")
+        return d
+
+    def test_restart_policy_on_failure(self):
+        """
+        An container with a restart policy of on-failure is restarted
+        after it exits with a non-zero result.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure-then-success", restart_policy=RestartOnFailure())
+
+        d.addCallback(self.assertEqual, "2")
+        return d
+
+    def test_restart_policy_on_failure_maximum_count(self):
+        """
+        An container with a restart policy of on-failure and a maximum
+        retry count is not restarted if it fails as many times than the
+        specified maximum.
+        """
+        d = self.start_restart_policy_container(
+            mode=u"failure",
+            restart_policy=RestartOnFailure(maximum_retry_count=5))
+
+        d.addCallback(self.assertEqual, "5")
+        return d
 
 
 class DockerClientTests(TestCase):
@@ -482,6 +596,61 @@ class DockerClientTests(TestCase):
             docker.inspect_container(u"flocker--" + name)))
         return d
 
+    def test_list_removed_containers(self):
+        """
+        ``DockerClient.list`` does not list containers which are removed,
+        during its operation, from another thread.
+        """
+        namespace = namespace_for_test(self)
+        flocker_docker_client = DockerClient(namespace=namespace)
+
+        name1 = random_name()
+        adding_unit1 = flocker_docker_client.add(
+            name1, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name1)
+
+        name2 = random_name()
+        adding_unit2 = flocker_docker_client.add(
+            name2, u'openshift/busybox-http-app')
+        self.addCleanup(flocker_docker_client.remove, name2)
+
+        docker_client = flocker_docker_client._client
+        docker_client_containers = docker_client.containers
+
+        def simulate_missing_containers(*args, **kwargs):
+            """
+            Remove a container before returning the original list.
+            """
+            containers = docker_client_containers(*args, **kwargs)
+            container_name1 = flocker_docker_client._to_container_name(name1)
+            docker_client.remove_container(
+                container=container_name1, force=True)
+            return containers
+
+        adding_units = gatherResults([adding_unit1, adding_unit2])
+        patches = []
+
+        def get_list(ignored):
+            patch = self.patch(
+                docker_client,
+                'containers',
+                simulate_missing_containers
+            )
+            patches.append(patch)
+            return flocker_docker_client.list()
+
+        listing_units = adding_units.addCallback(get_list)
+
+        def check_list(units):
+            for patch in patches:
+                patch.restore()
+            self.assertEqual(
+                [name2], sorted([unit.name for unit in units])
+            )
+        running_assertions = listing_units.addCallback(check_list)
+
+        return running_assertions
+
 
 class NamespacedDockerClientTests(GenericDockerClientTests):
     """
@@ -489,9 +658,7 @@ class NamespacedDockerClientTests(GenericDockerClientTests):
     """
     @if_docker_configured
     def setUp(self):
-        self.namespace = u"%s-%s-%s" % (
-            self.__class__.__name__, self.id(), random_name())
-        self.namespace = self.namespace.replace(u".", u"-")
+        self.namespace = namespace_for_test(self)
         self.namespacing_prefix = BASE_NAMESPACE + self.namespace + u"--"
 
     def make_client(self):

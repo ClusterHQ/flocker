@@ -6,11 +6,11 @@ As a user of Flocker you will need to install the ``flocker-cli`` package which 
 This should be installed on a machine with SSH credentials to control the cluster nodes
 (e.g., if you use our Vagrant setup then the machine which is running Vagrant).
 
-There is also a ``flocker-node`` package which is installed on each node in the cluster.
+There is also a ``clusterhq-flocker-node`` package which is installed on each node in the cluster.
 It contains the ``flocker-changestate``, ``flocker-reportstate``, and ``flocker-volume`` utilities.
 These utilities are called by ``flocker-deploy`` (via SSH) to install and migrate Docker containers and their data volumes.
 
-.. note:: The ``flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
+.. note:: The ``clusterhq-flocker-node`` package is pre-installed by the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 
 .. note:: If you're interested in developing Flocker (as opposed to simply using it) see :doc:`../gettinginvolved/contributing`.
 
@@ -56,7 +56,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -66,7 +66,7 @@ You'll need to do this every time you start a new shell.
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -90,9 +90,9 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-0.3.0
+   alice@mercury:~$ brew install flocker-0.3.2
    ...
-   alice@mercury:~$ brew test flocker-0.3.0
+   alice@mercury:~$ brew test flocker-0.3.2
    ...
    alice@mercury:~$
 
@@ -103,15 +103,16 @@ The ``flocker-deploy`` command line program will now be available:
 .. code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   0.3.0
+   0.3.2
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
 .. _homebrew-tap: https://github.com/ClusterHQ/homebrew-tap
 
+.. _installing-flocker-node:
 
-Installing ``flocker-node``
-===========================
+Installing ``clusterhq-flocker-node``
+=====================================
 
 There are a number of ways to install Flocker.
 
@@ -138,7 +139,7 @@ Vagrant
 The easiest way to get Flocker going on a cluster is to run it on local virtual machines using the :doc:`Vagrant configuration in the tutorial <./tutorial/vagrant-setup>`.
 You can therefore skip this section unless you want to run Flocker on a cluster you setup yourself.
 
-.. warning:: These instructions describe the installation of ``flocker-node`` on a Fedora 20 operating system.
+.. warning:: These instructions describe the installation of ``clusterhq-flocker-node`` on a Fedora 20 operating system.
              This is the only supported node operating system right now.
 
 
@@ -160,7 +161,7 @@ Using Amazon Web Services
    Complete the configuration wizard; in general the default configuration should suffice.
    However, we do recommend at least the ``m3.large`` instance size.
 
-   If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``flocker-node``.
+   If you wish to customize the instance's security settings make sure to permit SSH access both from the intended client machine (for example, your laptop) and from any other instances on which you plan to install ``clusterhq-flocker-node``.
    The ``flocker-deploy`` CLI requires SSH access to the Flocker nodes to control them and Flocker nodes need SSH access to each other for volume data transfers.
 
    .. warning::
@@ -317,10 +318,10 @@ You'll probably want to setup at least two nodes.
 Installing on Fedora 20
 -----------------------
 
-.. note:: The following commands all need to be run as root on the machine where ``flocker-node`` will be running.
+.. note:: The following commands all need to be run as root on the machine where ``clusterhq-flocker-node`` will be running.
 
 Flocker requires ``zfs`` which in turn requires the ``kernel-devel`` package to be installed.
-Before installing ``flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
+Before installing ``clusterhq-flocker-node``, you need to install a version of the ``kernel-devel`` package that matches the currently running kernel.
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
@@ -335,25 +336,35 @@ Copy and paste it into a root console on the target node:
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
-Now install the ``flocker-node`` package.
-To install ``flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
+Now install the ``clusterhq-flocker-node`` package.
+To install ``clusterhq-flocker-node`` on Fedora 20 you must install the RPM provided by the ClusterHQ repository.
 You must also install the ZFS package repository.
-The following commands will install the two repositories and the ``flocker-node`` package.
+The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
 .. code-block:: sh
 
    yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
    yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-   yum install -y flocker-node
+   yum install -y clusterhq-flocker-node
 
-Installing ``flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
+Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. code-block:: sh
 
    systemctl start docker
    systemctl enable docker
+
+To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
+On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
+(Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
+The following commands will configure firewalld to enable forwarding:
+
+.. code-block:: sh
+
+  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
@@ -382,7 +393,7 @@ Your firewall will also need to allow access to the ports your applications are 
 The Flocker command line client must also be able to log into each node as user ``root``.
 Add your public SSH key to the ``~/.ssh/authorized_keys`` file for the ``root`` user on each node if you haven't already done so.
 
-You have now installed ``flocker-node`` and created a ZFS for it.
+You have now installed ``clusterhq-flocker-node`` and created a ZFS for it.
 You have also ensured that the ``flocker-deploy`` command line tool is able to communicate with the node.
 
 Next you may want to perform the steps in :doc:`the tutorial <./tutorial/moving-applications>` , to ensure that your nodes are correctly configured.

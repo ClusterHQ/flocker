@@ -65,7 +65,7 @@ class AttachedVolume(object):
         volume should be mounted.
 
     :ivar int maximum_size: The maximum size in bytes of this volume, or
-        ``None`` for no limit.
+        ``None`` if there is no specified limit.
     """
 
     @classmethod
@@ -86,6 +86,8 @@ class AttachedVolume(object):
         # https://github.com/ClusterHQ/flocker/issues/49
         try:
             volume = volumes.pop()
+            # XXX Docker Volume objects do not contain size information
+            # at this time.
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
@@ -96,41 +98,31 @@ class IRestartPolicy(Interface):
     Restart policy for an application.
     """
 
-    def serialize_to_docker_api(self):
-        """
-        Serialize this policy to the format expected by the docker API.
-
-        :returns: A dictionary suitable to pass to docker.
-        """
-
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
 class RestartNever(object):
     """
     A restart policy that never restarts an application.
     """
 
-    def serialize_to_docker_api(self):
-        pass
-
 
 @implementer(IRestartPolicy)
-@attributes([], apply_immutable=True)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
 class RestartAlways(object):
     """
     A restart policy that always restarts an application.
     """
-    def __init__(self):
-        pass # Check model conditions
-
-    def serialize_to_docker_api(self):
-        pass
 
 
 @implementer(IRestartPolicy)
-@attributes(["maximum_retry_count"], apply_immutable=True)
-class RestartOnFailre(object):
+@attributes([Attribute("maximum_retry_count", default_value=None)],
+            apply_immutable=True)
+class RestartOnFailure(object):
     """
     A restart policy that restarts an application when it fails.
 
@@ -138,17 +130,26 @@ class RestartOnFailre(object):
         allowed to fail, before the giving up.
     """
 
-    def serialize_to_docker_api(self):
-        pass
+    def __init__(self):
+        """
+        Check that ``maximum_retry_count`` is positive or None
+
+        :raises ValueError: If maximum_retry_count is invalid.
+        """
+        if not (self.maximum_retry_count is None or
+                self.maximum_retry_count > 0):
+            raise ValueError("maximum_retry_count must be postive or None, "
+                             "got %r" % (self.maximum_retry_count,))
 
 
-
-@attributes(["name", "image", "ports", "volume", "links", "environment",
-             "memory_limit", "cpu_shares",
-             Attribute("restart_policy", default=RestartNever())],
-            defaults=dict(ports=frozenset(), volume=None,
-                          links=frozenset(), environment=None,
-                          memory_limit=None, cpu_shares=None))
+@attributes(["name", "image",
+             Attribute("ports", default_value=frozenset()),
+             Attribute("volume", default_value=None),
+             Attribute("links", default_value=frozenset()),
+             Attribute("environment", default_value=None),
+             Attribute("memory_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever())])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.

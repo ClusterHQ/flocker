@@ -17,15 +17,16 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 
 from twisted.internet.defer import maybeDeferred
+from twisted.internet.task import deferLater
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 from twisted.internet.defer import fail
-from twisted.internet.task import LoopingCall
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
 # part of https://github.com/ClusterHQ/flocker/issues/64
 from .filesystems.zfs import StoragePool
+from ._model import VolumeSize
 from ..common.script import ICommandLineScript
 
 DEFAULT_CONFIG_PATH = FilePath(b"/etc/flocker/volume.json")
@@ -124,14 +125,17 @@ class VolumeService(Service):
         self.uuid = config[u"uuid"]
         self.pool.startService()
 
-    def create(self, name):
-        """Create a new volume.
+    def create(self, volume):
+        """
+        Create a new volume.
 
-        :param VolumeName name: The name of the volume.
+        :param Volume volume: The ``Volume`` instance to create in the service
+            storage pool.
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        volume = Volume(uuid=self.uuid, name=name, service=self)
+        # XXX Consider changing the type of volume to a volume model object.
+        # FLOC-1062
         d = self.pool.create(volume)
 
         def created(filesystem):
@@ -172,12 +176,14 @@ class VolumeService(Service):
             # 0o777 the long way:
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
-    def get(self, name):
+    def get(self, name, **kwargs):
         """
         Return a locally-owned ``Volume`` with the given name.
 
-        Whether or not this volume actually exists is not checked in any
-        way.
+        Whether or not this volume actually exists is not checked in any way.
+
+        :param **: Additional keyword arguments to pass on to the ``Volume``
+            initializer.
 
         :param VolumeName name: The name of the volume.
 
@@ -186,7 +192,7 @@ class VolumeService(Service):
 
         :return: A ``Volume``.
         """
-        return Volume(uuid=self.uuid, name=name, service=self)
+        return Volume(uuid=self.uuid, name=name, service=self, **kwargs)
 
     def wait_for_volume(self, name):
         """
@@ -198,22 +204,26 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        volume = Volume(uuid=self.uuid, name=name, service=self)
-
-        def check_for_volume(volumes):
-            if volume in volumes:
-                call.stop()
-
-        def loop():
+        def check_for_volume(uuid, name):
             d = self.enumerate()
-            d.addCallback(check_for_volume)
+            d.addCallback(compare_volumes_by_name_uuid, uuid, name)
             return d
 
-        call = LoopingCall(loop)
-        call.clock = self._reactor
-        d = call.start(WAIT_FOR_VOLUME_INTERVAL)
-        d.addCallback(lambda _: volume)
-        return d
+        def compare_volumes_by_name_uuid(volumes, uuid, name):
+            """
+            Iterate the volumes managed by this service and compare the
+            UUID and the ``VolumeName`` to determine if we have found the
+            ``Volume`` instance requested by name.
+            """
+            for volume in volumes:
+                if volume.uuid == uuid and volume.name == name:
+                    return volume
+            return deferLater(
+                self._reactor, WAIT_FOR_VOLUME_INTERVAL,
+                check_for_volume, uuid, name
+            )
+
+        return check_for_volume(self.uuid, name)
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
@@ -244,10 +254,12 @@ class VolumeService(Service):
 
                 # Probably shouldn't yield this volume if the uuid doesn't
                 # match this service's uuid.
+
                 yield Volume(
                     uuid=unicode(uuid),
                     name=name,
-                    service=self)
+                    service=self,
+                    size=filesystem.size)
         enumerating.addCallback(enumerated)
         return enumerating
 
@@ -352,7 +364,8 @@ class VolumeService(Service):
         return changing_owner
 
 
-@attributes(["uuid", "name", "service"])
+@attributes(["uuid", "name", "service", "size"],
+            defaults=dict(size=VolumeSize(maximum_size=None)))
 class Volume(object):
     """
     A data volume's identifier.
@@ -360,6 +373,7 @@ class Volume(object):
     :ivar unicode uuid: The UUID of the volume manager that owns
         this volume.
     :ivar VolumeName name: The name of the volume.
+    :ivar VolumeSize size: The storage capacity of the volume.
     :ivar VolumeService service: The service that stores this volume.
     """
     def locally_owned(self):
@@ -381,7 +395,7 @@ class Volume(object):
             instance once the ownership has been changed.
         """
         new_volume = Volume(uuid=new_owner_uuid, name=self.name,
-                            service=self.service)
+                            service=self.service, size=self.size)
         d = self.service.pool.change_owner(self, new_volume)
 
         def filesystem_changed(_):

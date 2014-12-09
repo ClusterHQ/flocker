@@ -17,6 +17,7 @@ failover
 filename
 filesystem
 filesystems
+firewalld
 Flocker
 Freenode
 handoff
@@ -46,6 +47,7 @@ snapshotting
 stateful
 sysadmin
 timestamp
+versioning
 virtualization
 VMware
 webhook

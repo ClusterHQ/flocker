@@ -41,9 +41,11 @@ class UploadOptions(Options):
         self['version'] = version
 
 
-FLOCKER_PACKAGES = [b'python-flocker', b'flocker-cli', b'flocker-node']
-SOURCE_PACKAGES = [b'python-flocker']
-
+FLOCKER_PACKAGES = [
+    b'clusterhq-python-flocker',
+    b'clusterhq-flocker-cli',
+    b'clusterhq-flocker-node'
+]
 
 def update_repo(rpm_directory, target_repo, source_repo, packages):
     """
@@ -91,21 +93,17 @@ def upload_rpms(scratch_directory, version, target_server, build_server):
     """
     target_base = os.path.join(target_server, b'fedora/20/')
     source_repo = os.path.join(
-        build_server, b'results/fedora/20/x86_64', version)
+        build_server, b'results/omnibus', version, 'fedora-20')
     update_repo(rpm_directory=scratch_directory.child(b'x86_64'),
                 target_repo=os.path.join(target_base, b'x86_64'),
                 source_repo=source_repo,
                 packages=FLOCKER_PACKAGES)
-    update_repo(rpm_directory=scratch_directory.child(b'SRPMS'),
-                target_repo=os.path.join(target_base, b'SRPMS'),
-                source_repo=source_repo,
-                packages=[b'--source'] + SOURCE_PACKAGES)
 
 
 def main(options):
     version = options['version']
 
-    scratch_directory = FilePath(tempfile.mkdtemp())
+    scratch_directory = FilePath(tempfile.mkdtemp(prefix=b'flocker-upload-rpm-'))
 
     try:
         upload_rpms(scratch_directory, version,
