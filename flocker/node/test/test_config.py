@@ -2508,7 +2508,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'lorax' has a config error. "
-            "MESSAGE-TEXT",
+            "maximum_retry_count must be an integer or None, got u'fifty'",
             exception.message
         )
 

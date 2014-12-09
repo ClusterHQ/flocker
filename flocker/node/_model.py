@@ -143,7 +143,7 @@ class RestartOnFailure(object):
                     "got %r" % (self.maximum_retry_count,))
             if self.maximum_retry_count < 1:
                 raise ValueError(
-                    "maximum_retry_count must be postive, "
+                    "maximum_retry_count must be positive, "
                     "got %r" % (self.maximum_retry_count,))
 
 

@@ -1080,9 +1080,15 @@ class FlockerConfiguration(object):
             )
 
             if 'restart_policy' in config:
-                application_attributes['restart_policy'] = _parse_restart_policy(
-                    config.pop('restart_policy')
-                )
+                try:
+                    application_attributes['restart_policy'] = _parse_restart_policy(
+                        config.pop('restart_policy')
+                    )
+                except TypeError as e:
+                    raise ConfigurationError(
+                        "Application '{}' has a config error. "
+                        '{}'.format(application_name, e)
+                    )
 
             self._applications[application_name] = Application(
                 **application_attributes)
@@ -1095,7 +1101,8 @@ restart_policies = {
 }
 
 def _parse_restart_policy(config):
-    policy_factory = restart_policies[config.pop('name')]
+    policy_name = config.pop('name')
+    policy_factory = restart_policies[policy_name]
     return policy_factory(**config)
 
 
