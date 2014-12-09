@@ -1080,9 +1080,16 @@ class FlockerConfiguration(object):
             )
 
             if 'restart_policy' in config:
+                restart_policy = config.pop('restart_policy')
+                if not isinstance(restart_policy, dict):
+                    raise ConfigurationError(
+                        "Application '{}' has a config error. "
+                        "'restart_policy' must be a dict, "
+                        "got {}".format(application_name, restart_policy)
+                    )
                 try:
                     application_attributes['restart_policy'] = _parse_restart_policy(
-                        config.pop('restart_policy')
+                        restart_policy
                     )
                 except TypeError as e:
                     raise ConfigurationError(

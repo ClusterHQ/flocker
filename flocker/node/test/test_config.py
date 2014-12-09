@@ -2556,8 +2556,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'green-egss' has a config error. "
-            "MESSAGE-TEXT",
+            "Application 'green-eggs' has a config error. "
+            "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
             exception.message
         )
 
