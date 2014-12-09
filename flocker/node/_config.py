@@ -730,6 +730,7 @@ class FlockerConfiguration(object):
         self._allowed_keys = {
             "image", "environment", "ports",
             "links", "volume", "mem_limit", "cpu_shares",
+            "restart_policy",
         }
         self._applications = {}
 
