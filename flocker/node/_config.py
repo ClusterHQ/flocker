@@ -1068,10 +1068,7 @@ class FlockerConfiguration(object):
             else:
                 cpu_shares = None
 
-            if 'restart_policy' in config:
-                pass
-
-            self._applications[application_name] = Application(
+            application_attributes = dict(
                 name=application_name,
                 image=image,
                 volume=volume,
@@ -1079,7 +1076,14 @@ class FlockerConfiguration(object):
                 links=links,
                 environment=environment,
                 memory_limit=mem_limit,
-                cpu_shares=cpu_shares)
+                cpu_shares=cpu_shares,
+            )
+
+            if 'restart_policy' in config:
+                application_attributes['restart_policy'] = object()
+
+            self._applications[application_name] = Application(
+                **application_attributes)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):
