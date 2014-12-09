@@ -882,6 +882,74 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_discover_locally_owned_volume_with_size(self):
+        """
+        Locally owned volumes are added to ``Application`` with same name as
+        an ``AttachedVolume``, which contains a maximum_size corresponding to
+        the existing volume's maximum size.
+        """
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume1'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        unit2 = Unit(name=u'site-example.net',
+                     container_name=u'site-example.net',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=FilePath(b'/tmp/volume2'),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1, unit2.name: unit2}
+
+        self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(u"site-example.com"),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+        self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(u"site-example.net"))
+        ))
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                volume=AttachedVolume(
+                    name=unit1.name,
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    maximum_size = 1024 * 1024 * 100
+                    )
+            ),
+            Application(
+                name=unit2.name,
+                image=DockerImage.from_string(unit2.container_image),
+                volume=AttachedVolume(
+                    name=unit2.name,
+                    mountpoint=FilePath(b'/var/lib/data'),
+                    )
+            )]
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
     def test_discover_remotely_owned_volumes_ignored(self):
         """
         Remotely owned volumes are not added to the discovered ``Application``
@@ -1525,7 +1593,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = self.successResultOf(calculating)
-        import pdb;pdb.set_trace()
+        #import pdb;pdb.set_trace()
 
     def test_volume_invalid_resize(self):
         """

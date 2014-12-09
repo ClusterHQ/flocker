@@ -253,7 +253,7 @@ class VolumeHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating"])
+@attributes(["going", "coming", "creating", "resizing"])
 class VolumeChanges(object):
     """
     ``VolumeChanges`` describes the volume-related changes necessary to change
@@ -270,6 +270,11 @@ class VolumeChanges(object):
     :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
         node create any new volume-having applications meant to be hosted on
         this node.  These must be created.
+
+    :ivar frozenset resizing: The ``AttachedVolume``\ s necessary to let this
+        node resize any existing volumes that are desired somewhere on the
+        cluster and locally exist with a different maximum_size to the desired
+        maximum_size. These must be resized.
     """
 
 

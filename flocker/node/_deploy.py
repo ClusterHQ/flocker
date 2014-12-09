@@ -207,6 +207,22 @@ class CreateVolume(object):
 
 @implementer(IStateChange)
 @attributes(["volume"])
+class ResizeVolume(object):
+    """
+    Resize an existing locally-owned volume.
+
+    :ivar AttachedVolume volume: Volume to resize.
+    """
+    def run(self, deployer):
+        volume = deployer.volume_service.get(
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
+        )
+        return deployer.volume_service.resize(volume)
+
+
+@implementer(IStateChange)
+@attributes(["volume"])
 class WaitForVolume(object):
     """
     Wait for a volume to exist and be owned locally.
@@ -313,14 +329,19 @@ class Deployer(object):
         # https://github.com/ClusterHQ/flocker/issues/737; for now we just
         # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
-        volumes.addCallback(lambda volumes: set(
-            volume.name.id for volume in volumes
-            if volume.uuid == self.volume_service.uuid))
+        def map_volumes_to_size(volumes):
+            managed_volumes = []
+            for volume in volumes:
+                if volume.uuid == self.volume_service.uuid:
+                    managed_volumes.append(
+                        (volume.name.id, volume.size.maximum_size)
+                    )
+            return dict(managed_volumes)
+        volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result
-
             running = []
             not_running = []
             for unit in units:
@@ -329,6 +350,7 @@ class Deployer(object):
                     # XXX we only support one volume per container at this time
                     # https://github.com/ClusterHQ/flocker/issues/49
                     volume = AttachedVolume.from_unit(unit).pop()
+                    volume.maximum_size = available_volumes[unit.name]
                 else:
                     volume = None
                 ports = []
@@ -490,6 +512,10 @@ class Deployer(object):
             # incremental push. This should significantly reduces the
             # application downtime caused by the time it takes to copy
             # data.
+            if volumes.resizing:
+                phases.append(InParallel(changes=[
+                    ResizeVolume(volume=volume)
+                    for volume in volumes.creating]))
             if volumes.going:
                 phases.append(InParallel(changes=[
                     PushVolume(volume=handoff.volume,
@@ -586,6 +612,19 @@ def find_volume_changes(hostname, current_state, desired_state):
             remote_current_volume_names |= set(
                 volume.name for volume in current)
 
+    # If a volume exists locally and is desired anywhere on the cluster, and
+    # the desired volume is a different maximum_size to the existing volume,
+    # the existing local volume should be resized before any other action
+    # is taken on it.
+    resizing = set()
+    for volume_hostname, desired in desired_volumes.items():
+        for volume in desired:
+            if volume.name in local_current_volume_names:
+                for existing_volume in current_volumes[hostname]:
+                    if existing_volume.name == volume.name:
+                        if existing_volume.maximum_size != volume.maximum_size:
+                            resizing.add(volume)
+
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for
     # it to `going`.
@@ -612,4 +651,5 @@ def find_volume_changes(hostname, current_state, desired_state):
         local_current_volume_names | remote_current_volume_names)
     creating = set(volume for volume in local_desired_volumes
                    if volume.name in creating_names)
-    return VolumeChanges(going=going, coming=coming, creating=creating)
+    return VolumeChanges(going=going, coming=coming,
+                         creating=creating, resizing=resizing)
