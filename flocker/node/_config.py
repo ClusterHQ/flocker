@@ -19,7 +19,7 @@ from zope.interface import Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
-    DockerImage, Node, Port
+    DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
 )
 
 
@@ -1080,10 +1080,23 @@ class FlockerConfiguration(object):
             )
 
             if 'restart_policy' in config:
-                application_attributes['restart_policy'] = object()
+                application_attributes['restart_policy'] = _parse_restart_policy(
+                    config.pop('restart_policy')
+                )
 
             self._applications[application_name] = Application(
                 **application_attributes)
+
+
+restart_policies = {
+    'always': RestartAlways,
+    'never': RestartNever,
+    'on-failure': RestartOnFailure,
+}
+
+def _parse_restart_policy(config):
+    policy_factory = restart_policies[config.pop('name')]
+    return policy_factory(**config)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):
