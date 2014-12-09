@@ -2361,7 +2361,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         applications = parser.applications()
         self.assertEqual(
-            applications['wolfwood'].cpu_shares,
+            applications['wolfwood'].restart_policy,
             RestartNever())
 
     def test_restart_policy_always(self):
@@ -2383,7 +2383,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         applications = parser.applications()
         self.assertEqual(
-            applications['darmstadtium'].cpu_shares,
+            applications['darmstadtium'].restart_policy,
             RestartAlways())
 
     def test_restart_policy_on_failure(self):
@@ -2405,7 +2405,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         applications = parser.applications()
         self.assertEqual(
-            applications['boron'].cpu_shares,
+            applications['boron'].restart_policy,
             RestartOnFailure(maximum_retry_count=None))
 
     def test_restart_policy_on_failure_with_retry_count(self):
@@ -2428,7 +2428,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         applications = parser.applications()
         self.assertEqual(
-            applications['yttrium'].cpu_shares,
+            applications['yttrium'].restart_policy,
             RestartOnFailure(max_retry_count=10))
 
     def test_error_on_restart_policy_always_with_retry_count(self):
