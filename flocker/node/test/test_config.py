@@ -2539,7 +2539,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_restart_policy_not_a_dictionary(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if extra keys are specified for a retry policy.
+        unless the restart_policy value is a dictionary.
         """
         config = {
             'applications': {
