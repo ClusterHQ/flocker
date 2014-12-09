@@ -1177,6 +1177,8 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
+    """
+    """
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
@@ -2419,7 +2421,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'image': 'atomic/39',
                     'restart_policy': {
                         'name': 'on-failure',
-                        'max_retry_count': 10,
+                        'maximum_retry_count': 10,
                     },
                 }
             },
@@ -2429,7 +2431,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         applications = parser.applications()
         self.assertEqual(
             applications['yttrium'].restart_policy,
-            RestartOnFailure(max_retry_count=10))
+            RestartOnFailure(maximum_retry_count=10))
 
     def test_error_on_restart_policy_always_with_retry_count(self):
         """
@@ -2442,7 +2444,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'image': 'atomic/42',
                     'restart_policy': {
                         'name': 'always',
-                        'max_retry_count': 10,
+                        'maximum_retry_count': 10,
                     },
                 }
             },
@@ -2468,8 +2470,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'red-fish': {
                     'image': 'seuss/one-fish-two-fish',
                     'restart_policy': {
-                        'name': 'on-failure',
-                        'max_retry_count': 10,
+                        'name': 'never',
+                        'maximum_retry_count': 10,
                     },
                 }
             },
@@ -2495,7 +2497,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                     'image': 'seuss/lorax',
                     'restart_policy': {
                         'name': 'on-failure',
-                        'max_retry_count': "fifty",
+                        'maximum_retry_count': "fifty",
                     },
                 }
             },
