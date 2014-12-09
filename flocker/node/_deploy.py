@@ -329,6 +329,7 @@ class Deployer(object):
         # https://github.com/ClusterHQ/flocker/issues/737; for now we just
         # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
+
         def map_volumes_to_size(volumes):
             managed_volumes = []
             for volume in volumes:

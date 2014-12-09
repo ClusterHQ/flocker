@@ -929,7 +929,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 volume=AttachedVolume(
                     name=unit1.name,
                     mountpoint=FilePath(b'/var/lib/data'),
-                    maximum_size = 1024 * 1024 * 100
+                    maximum_size=1024 * 1024 * 100
                     )
             ),
             Application(
@@ -1611,17 +1611,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                     ])]
             )])
         self.assertEqual(expected, changes)
-
-    def test_volume_invalid_resize(self):
-        """
-        ``Deployer.calculate_necessary_state_changes`` logs an error message
-        and continues without resizing a volume if an application which was
-        previously running on this node continues to run on this node but
-        specifies a volume maximum_size that both differs to the existing
-        volume size and is smaller than the existing volume size.
-        The Application will not be restarted. ???
-        """
-        self.fail("Not implemented yet")
 
     def test_local_not_running_applications_restarted(self):
         """
