@@ -2339,7 +2339,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         applications = parser.applications()
         self.assertEqual(
-            applications['cube'].cpu_shares,
+            applications['cube'].restart_policy,
             RestartNever())
 
     def test_restart_policy_never(self):
