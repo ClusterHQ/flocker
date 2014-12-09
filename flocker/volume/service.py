@@ -158,6 +158,7 @@ class VolumeService(Service):
         def resized(filesystem):
             return volume
         d.addCallback(resized)
+        return d
 
     def clone_to(self, parent, name):
         """

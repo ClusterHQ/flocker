@@ -237,6 +237,24 @@ MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
 class VolumeServiceAPITests(TestCase):
     """Tests for the ``VolumeService`` API."""
 
+    def test_resize(self):
+        """
+        ``resize`` returns a ``Deferred` that fires with a ``Volume``.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        d = service.create(service.get(MY_VOLUME))
+        expected_volume = Volume(
+            uuid=service.uuid, name=MY_VOLUME, service=service)
+        created_volume = self.successResultOf(d)
+        volume_size = VolumeSize(maximum_size=1024 * 1024 * 10)
+        resized_volume = Volume(uuid=service.uuid, name=MY_VOLUME,
+                                service=service, size=volume_size)
+        self.assertEqual(created_volume, expected_volume)
+        d = service.resize(service.get(MY_VOLUME, size=volume_size))
+        self.assertEqual(self.successResultOf(d), resized_volume)
+
     def test_create_result(self):
         """``create()`` returns a ``Deferred`` that fires with a ``Volume``."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
