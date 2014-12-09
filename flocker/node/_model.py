@@ -136,11 +136,14 @@ class RestartOnFailure(object):
 
         :raises ValueError: If maximum_retry_count is invalid.
         """
-
         if self.maximum_retry_count is not None:
+            if not isinstance(self.maximum_retry_count, int):
+                raise TypeError(
+                    "maximum_retry_count must be an integer or None, "
+                    "got %r" % (self.maximum_retry_count,))
             if self.maximum_retry_count < 1:
                 raise ValueError(
-                    "maximum_retry_count must be postive or None, "
+                    "maximum_retry_count must be postive, "
                     "got %r" % (self.maximum_retry_count,))
 
 
