@@ -2449,10 +2449,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        applications = parser.applications()
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
         self.assertEqual(
-            applications['molybdenum'].cpu_shares,
-            RestartOnFailure(max_retry_count=10))
+            "Application 'molybdenum' has a config error. "
+            "MESSAGE-TEXT",
+            exception.message
+        )
+
 
     def test_error_on_restart_policy_on_failure_with_retry_count(self):
         """
