@@ -136,10 +136,12 @@ class RestartOnFailure(object):
 
         :raises ValueError: If maximum_retry_count is invalid.
         """
-        if not (self.maximum_retry_count is None or
-                self.maximum_retry_count > 0):
-            raise ValueError("maximum_retry_count must be postive or None, "
-                             "got %r" % (self.maximum_retry_count,))
+
+        if self.maximum_retry_count is not None:
+            if self.maximum_retry_count < 1:
+                raise ValueError(
+                    "maximum_retry_count must be postive or None, "
+                    "got %r" % (self.maximum_retry_count,))
 
 
 @attributes(["name", "image",
