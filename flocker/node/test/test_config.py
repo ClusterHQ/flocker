@@ -2455,7 +2455,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'molybdenum' has a config error. "
-            "MESSAGE-TEXT",
+            "Invalid 'restart_policy' arguments for RestartAlways. "
+            "Got {u'maximum_retry_count': 10}",
             exception.message
         )
 
@@ -2481,8 +2482,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         exception = self.assertRaises(ConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'redfish' has a config error. "
-            "MESSAGE-TEXT",
+            "Application 'red-fish' has a config error. "
+            "Invalid 'restart_policy' arguments for RestartNever. "
+            "Got {u'maximum_retry_count': 10}",
             exception.message
         )
 
@@ -2508,7 +2510,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'lorax' has a config error. "
-            "maximum_retry_count must be an integer or None, got u'fifty'",
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {u'maximum_retry_count': u'fifty'}",
             exception.message
         )
 
@@ -2534,7 +2537,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'one-fish' has a config error. "
-            "MESSAGE-TEXT",
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {u'extra': u'key'}",
             exception.message
         )
 

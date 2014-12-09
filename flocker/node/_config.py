@@ -1091,7 +1091,7 @@ class FlockerConfiguration(object):
                     application_attributes['restart_policy'] = _parse_restart_policy(
                         restart_policy
                     )
-                except TypeError as e:
+                except ParsingError as e:
                     raise ConfigurationError(
                         "Application '{}' has a config error. "
                         '{}'.format(application_name, e)
@@ -1107,10 +1107,22 @@ restart_policies = {
     'on-failure': RestartOnFailure,
 }
 
+class ParsingError(Exception):
+    """
+    A configuration parsing error.
+    """
+
 def _parse_restart_policy(config):
     policy_name = config.pop('name')
     policy_factory = restart_policies[policy_name]
-    return policy_factory(**config)
+    try:
+        policy = policy_factory(**config)
+    except TypeError:
+        raise ParsingError(
+            "Invalid 'restart_policy' arguments for {}. "
+            "Got {}".format(policy_factory.__name__, config))
+    else:
+        return policy
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):
