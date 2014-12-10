@@ -276,7 +276,8 @@ class Filesystem(object):
                 snapshot,
             ]
 
-        process = Popen([b"zfs", b"send"] + identifier, stdout=PIPE)
+        # Send with properties (-p) to preserve refquota
+        process = Popen([b"zfs", b"send", b"-p"] + identifier, stdout=PIPE)
         try:
             yield process.stdout
         finally:
