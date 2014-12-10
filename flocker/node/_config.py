@@ -167,7 +167,20 @@ class ApplicationMarshaller(object):
         volume = self.convert_volume()
         if volume:
             config['volume'] = volume
+        restart_policy = self.convert_restart_policy()
+        if restart_policy:
+            config['restart_policy'] = restart_policy
         return config
+
+    def convert_restart_policy(self):
+        """
+        """
+        policies = {
+            RestartNever: lambda policy: dict(name='never'),
+        }
+        policy = self._application.restart_policy
+        converter = policies[policy.__class__]
+        return converter(policy)
 
     def convert_image(self):
         """
