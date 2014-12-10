@@ -1137,6 +1137,12 @@ class ParsingError(Exception):
 
 
 def _parse_restart_policy(config):
+    """
+    :param dict config: The ``restart_policy`` configuration.
+    :returns: An ``IRestartPolicy`` provider chosen and initialised based on
+       the supplied ``restart_policy`` ``dict`` from a Flocker Application
+       configuration file.
+    """
     policy_name = config.pop('name')
     policy_factory = restart_policies[policy_name]
     try:
