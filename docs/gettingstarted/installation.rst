@@ -326,7 +326,6 @@ Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
 .. task:: flocker.provision._install._task_install_kernel
-   :prompt:
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
