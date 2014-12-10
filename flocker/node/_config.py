@@ -22,16 +22,19 @@ from ._model import (
     DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
 )
 
+# Map ``flocker.node.IRestartPolicy`` implementations to
+# ``restart_policy`` ``name`` strings found in Flocker's application.yml file.
 FLOCKER_RESTART_POLICY_POLICY_TO_NAME = {
     RestartNever: 'never',
     RestartAlways: 'always',
     RestartOnFailure: 'on-failure',
 }
-
+# And vice-versa.
 FLOCKER_RESTART_POLICY_NAME_TO_POLICY = {
     name: policy
     for policy, name in FLOCKER_RESTART_POLICY_POLICY_TO_NAME.items()
 }
+
 
 class IApplicationConfiguration(Interface):
     """
