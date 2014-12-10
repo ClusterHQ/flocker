@@ -47,7 +47,10 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                         {'local_port': 3307,
                          'remote_port': 3307,
                          'alias': 'db'}
-                    ]
+                    ],
+                    'restart_policy': {
+                        'name': 'never',
+                    },
                 },
                 'mysql': {
                     'image': 'sample/mysql:latest',
@@ -55,6 +58,9 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                         {'internal': 3306, 'external': 3306},
                         {'internal': 3307, 'external': 3307}
                     ],
+                    'restart_policy': {
+                        'name': 'never',
+                    },
                 }
             }
         }
