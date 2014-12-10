@@ -21,12 +21,10 @@ class TaskDirective(Directive):
     def run(self):
         task = self.arguments[0]
 
-        from flocker.provision import _install
-        fake = FakeRunner()
-        _install.run = fake.run
-        namedAny(task)()
+        runner = FakeRunner()
+        namedAny(task)(runner)
         lines = ['.. code-block:: bash', '']
-        lines += ['   %s' % (command,) for command in fake.commands]
+        lines += ['   %s' % (command,) for command in runner.commands]
         node = nodes.Element()
         text = StringList(lines)
         self.state.nested_parse(text, self.content_offset, node)

@@ -4,7 +4,6 @@
 Install flocker on a remote node.
 """
 
-from fabric.api import run, execute, env, put
 from pipes import quote as shell_quote
 from StringIO import StringIO
 import posixpath
@@ -17,8 +16,30 @@ CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
                   "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
 
 
-def _task_install_kernel():
-    run("""
+class FabricRunner(object):
+    def __init__(self, username, address):
+        self.host_string = "%s@%s" % (username, address)
+
+    def _run_in_context(self, f, *args, **kwargs):
+        from fabric.api import settings
+        with settings(
+                connection_attempts=24,
+                timeout=5,
+                pty=False,
+                host_string=self.host_string):
+            f(*args, **kwargs)
+
+    def run(self, command):
+        from fabric.api import run
+        self._run_in_context(run, command)
+
+    def put(self, file, path):
+        from fabric.api import put
+        self._run_in_context(put, file, path)
+
+
+def _task_install_kernel(runner):
+    runner.run("""
 UNAME_R=$(uname -r)
 PV=${UNAME_R%.*}
 KV=${PV%%-*}
@@ -29,32 +50,33 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 """)
 
 
-def _task_enable_docker():
+def _task_enable_docker(runner):
     """
     Fabric Task. Start docker and configure it to start automatically.
     """
-    run("systemctl enable docker.service")
-    run("systemctl start docker.service")
+    runner.run("systemctl enable docker.service")
+    runner.run("systemctl start docker.service")
 
 
-def _task_disable_firewall():
+def _task_disable_firewall(runner):
     """
     Fabric Task. Disable the firewall.
     """
-    run('firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
-    run('firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')
+    runner.run('firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
+    runner.run('firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
 
 
-def _task_create_flocker_pool_file():
+def _task_create_flocker_pool_file(runner):
     """
     Create a file-back zfs pool for flocker.
     """
-    run('mkdir -p /var/opt/flocker')
-    run('truncate --size 10G /var/opt/flocker/pool-vdev')
-    run('zpool create flocker /var/opt/flocker/pool-vdev')
+    runner.run('mkdir -p /var/opt/flocker')
+    runner.run('truncate --size 10G /var/opt/flocker/pool-vdev')
+    runner.run('zpool create flocker /var/opt/flocker/pool-vdev')
 
 
 def _task_install_flocker(
+        runner,
         version=None, branch=None, distribution=None):
     """
     Fabric Task. Install flocker.
@@ -64,8 +86,8 @@ def _task_install_flocker(
         provided, install from the release repository.
     :param str distribution: The distribution the node is running.
     """
-    run("yum install -y " + ZFS_REPO)
-    run("yum install -y " + CLUSTERHQ_REPO)
+    runner.run("yum install -y " + ZFS_REPO)
+    runner.run("yum install -y " + CLUSTERHQ_REPO)
 
     # FIXME: Suppport staging build server
     build_server = 'http://build.clusterhq.com/'
@@ -80,7 +102,7 @@ def _task_install_flocker(
             gpgcheck=0
             enabled=0
             """) % (base_url,)
-        put(StringIO(repo), '/etc/yum.repos.d/clusterhq-build.repo')
+        runner.put(StringIO(repo), '/etc/yum.repos.d/clusterhq-build.repo')
         branch_opt = ['--enablerepo=clusterhq-build']
     else:
         branch_opt = []
@@ -96,20 +118,22 @@ def _task_install_flocker(
         package = 'clusterhq-flocker-node'
 
     command = ["yum", "install"] + branch_opt + ["-y", package]
-    run(" ".join(map(shell_quote, command)))
+    runner.run(" ".join(map(shell_quote, command)))
 
 
 def _task_install(
+        runner,
         version=None, branch=None, distribution=None):
     """
     Fabric Task. Configure a node to run flocker.
     """
-    _task_install_kernel()
+    _task_install_kernel(runner)
     _task_install_flocker(
+        runner,
         version=version, branch=branch, distribution=distribution)
-    _task_enable_docker()
-    _task_disable_firewall()
-    _task_create_flocker_pool_file()
+    _task_enable_docker(runner)
+    _task_disable_firewall(runner)
+    _task_create_flocker_pool_file(runner)
 
 
 def install(nodes, username, kwargs):
@@ -119,13 +143,9 @@ def install(nodes, username, kwargs):
     :param username: Username to connect as.
     :param dict kwargs: Addtional arguments to pass to ``_task_install``.
     """
-    env.connection_attempts = 24
-    env.timeout = 5
-    env.pty = False
-    execute(
-        task=_task_install,
-        hosts=["%s@%s" % (username, address) for address in nodes],
-        **kwargs
-    )
+    for address in nodes:
+        runner = FabricRunner(username, address)
+        _task_install(runner, **kwargs)
+
     from fabric.network import disconnect_all
     disconnect_all()
