@@ -1,5 +1,5 @@
 # -*- mode: ruby -*-
-# vi: set ft=ruby :
+# vi: set ft=ruby sw=2 :
 
 # This requires Vagrant 1.6.2 or newer (earlier versions can't reliably
 # configure the Fedora 20 network stack).
@@ -12,7 +12,11 @@ ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
-  config.vm.box_version = "= " + ENV.fetch('FLOCKER_BOX_VERSION', '0')
+
+  begin
+    config.vm.box_version = "= " + ENV.fetch('FLOCKER_BOX_VERSION')
+  rescue KeyError
+  end
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box

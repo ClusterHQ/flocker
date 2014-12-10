@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
 Run the acceptance tests.
@@ -9,21 +8,36 @@ import sys
 import os
 import yaml
 
-from twisted.python import usage
-from twisted.python.filepath import FilePath
+from zope.interface import Interface, implementer
 from characteristic import attributes
+from twisted.python.usage import Options, UsageError
+from twisted.python.filepath import FilePath
 
 from admin.vagrant import vagrant_version
 import flocker
 
 
 def extend_environ(**kwargs):
+    """
+    Return a copy of ``os.environ`` with some additional environment variables
+        added.
+
+    :param **kwargs: The enviroment variables to add.
+    :return dict: The new environment.
+    """
     env = os.environ.copy()
     env.update(kwargs)
     return env
 
 
 def run_tests(nodes, trial_args):
+    """
+    Run the acceptances tests.
+
+    :param list nodes: The list of nodes to run the acceptance tests against.
+    :param list trial_args: Arguments to pass to trial. If not
+        provided, defaults to ``['flocker.acceptance']``.
+    """
     if not trial_args:
         trial_args = ['flocker.acceptance']
     return call(
@@ -32,26 +46,50 @@ def run_tests(nodes, trial_args):
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
 
 
-RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'flocker_version', 'branch']
+class INodeRunner(Interface):
+    """
+    Interface for starting and stopping nodes for acceptance testing.
+    """
 
-
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class VagrantRunner(object):
-    # FIXME? Should this automatically build a box locally, or download from
-    # buildbot?
-
-    def __init__(self):
-        self.vagrant_path = self.top_level.descendant([
-            'admin', 'vagrant-acceptance-targets', self.distribution,
-        ])
-
-    def start_nodes(self):
+    def start_nodes():
         """
         Start nodes for running acceptance tests.
 
         :return list: List of nodes to run tests against.
         """
+
+    def stop_nodes(self):
+        """
+        Stop the nodes started by `start_nodes`.
+        """
+
+
+RUNNER_ATTRIBUTES = [
+    'distribution', 'top_level', 'config', 'flocker_version', 'branch']
+
+
+@implementer(INodeRunner)
+@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
+class VagrantRunner(object):
+    """
+    Start and stop vagrant nodes for acceptance testing.
+
+    :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
+    """
+    # FIXME? Should this automatically build a box locally, or download from
+    # buildbot?
+
+    NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
+
+    def __init__(self):
+        self.vagrant_path = self.top_level.descendant([
+            'admin', 'vagrant-acceptance-targets', self.distribution,
+        ])
+        if not self.vagrant_path.exists():
+            raise UsageError("Distribution not found: %s."
+                             % (self.distribution,))
+
+    def start_nodes(self):
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
         check_call(
@@ -65,12 +103,9 @@ class VagrantRunner(object):
             env=extend_environ(
                 FLOCKER_BOX_VERSION=vagrant_version(self.flocker_version)))
 
-        return ["172.16.255.240", "172.16.255.241"]
+        return self.NODE_ADDRESSES
 
     def stop_nodes(self):
-        """
-        Stop the nodes started by `start_nodes`.
-        """
         check_call(
             ['vagrant', 'destroy', '-f'],
             cwd=self.vagrant_path.path)
@@ -125,7 +160,9 @@ class RackspaceRunner(object):
 PROVIDERS = {'vagrant': VagrantRunner, 'rackspace': RackspaceRunner}
 
 
-class RunOptions(usage.Options):
+class RunOptions(Options):
+    description = "Run the acceptance tests."
+
     optParameters = [
         ['distribution', None, None,
          'The target distribution. '
@@ -144,13 +181,22 @@ class RunOptions(usage.Options):
         ["keep", "k", "Keep VMs around, if the tests fail."],
     ]
 
+    synopsis = ('Usage: run-acceptance-tests --distribution <distribution> '
+                '[--provider <provider>] [<test-cases>]')
+
+    def __init__(self, top_level):
+        """
+        :param FilePath top_level: The top-level of the flocker repository.
+        """
+        Options.__init__(self)
+        self.top_level = top_level
+
     def parseArgs(self, *trial_args):
         self['trial-args'] = trial_args
 
     def postOptions(self):
         if self['distribution'] is None:
-            if self['distribution'] not in PROVIDERS:
-                raise usage.UsageError("Distribution required.")
+            raise UsageError("Distribution required.")
 
         if self['config-file'] is not None:
             config_file = FilePath(self['config-file'])
@@ -159,11 +205,18 @@ class RunOptions(usage.Options):
             self['config'] = {}
 
         if self['provider'] not in PROVIDERS:
-            raise usage.UsageError(
+            raise UsageError(
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS.keys())))
 
-        self.provider_factory = PROVIDERS[self['provider']]
+        provider_factory = PROVIDERS[self['provider']]
+        self.runner = provider_factory(
+            top_level=self.top_level,
+            config=self['config'],
+            distribution=self['distribution'],
+            flocker_version=self['flocker-version'],
+            branch=self['branch'],
+        )
 
 
 def main(args, base_path, top_level):
@@ -172,29 +225,19 @@ def main(args, base_path, top_level):
     :param FilePath base_path: The executable being run.
     :param FilePath top_level: The top-level of the flocker repository.
     """
-    options = RunOptions()
+    options = RunOptions(top_level=top_level)
 
     try:
         options.parseOptions(args)
-    except usage.UsageError as e:
+    except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    if options['provider'] not in PROVIDERS:
-        sys.stderr.write(
-            "%s: Provider %r not supported. Available providers: %s"
-            % (base_path.basename(), options['provider'],
-               ', '.join(options['providers'].keys())))
-
-    runner = options.provider_factory(
-        config=options['config'],
-        top_level=top_level,
-        distribution=options['distribution'],
-        flocker_version=options['flocker-version'],
-        branch=options['branch'],
-    )
+    runner = options.runner
 
     nodes = runner.start_nodes()
     result = run_tests(nodes, options['trial-args'])
-    if result == 0 or not options['keep']:
+    # Unless the tests failed, and the user asked to keep the nodes, we delete
+    # them.
+    if not (result != 0 and options['keep']):
         runner.stop_nodes()

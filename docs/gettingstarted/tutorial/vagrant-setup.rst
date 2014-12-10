@@ -190,8 +190,8 @@ This completes the Vagrant-related setup.
 Upgrading the Vagrant Environment
 =================================
 
-The ``Vagrantfile`` used in this tutorial installs an RPM package called ``flocker-node`` on both the nodes.
-If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``flocker-node`` before continuing with the following tutorials.
+The ``Vagrantfile`` used in this tutorial installs an RPM package called ``clusterhq-flocker-node`` on both the nodes.
+If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``clusterhq-flocker-node`` before continuing with the following tutorials.
 
 First check the current Flocker version on the nodes.
 You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.

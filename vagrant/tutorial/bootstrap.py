@@ -35,7 +35,7 @@ if branch:
     # buildserver repository corresponding to that branch.
     # This repo will be disabled by default.
     with open('/etc/yum.repos.d/clusterhq-build.repo', 'w') as repo:
-        result_path = os.path.join('/results/fedora/$releasever/x86_64', branch)
+        result_path = os.path.join('/results/omnibus', branch, 'fedora-$releasever')
         base_url = urljoin(build_server, result_path)
         repo.write(dedent(b"""
             [clusterhq-build]
@@ -55,9 +55,9 @@ if rpm_version:
     # so strip that.
     if rpm_version.endswith('.dirty'):
         rpm_version = rpm_version[:-len('.dirty')]
-    package = 'flocker-node-%s%s' % (rpm_version, rpm_dist)
+    package = 'clusterhq-flocker-node-%s' % (rpm_version,)
 else:
-    package = 'flocker-node'
+    package = 'clusterhq-flocker-node'
 
 # Install flocker-node
 check_call(['yum', 'install', '-y'] + branch_opt + [package])
@@ -82,6 +82,6 @@ check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 # Create a ZFS storage pool backed by a normal filesystem file.  This
 # is a bad way to configure ZFS for production use but it is
 # convenient for a demo in a VM.
-check_call(['mkdir', '-p', '/opt/flocker'])
-check_call(['truncate', '--size', '1G', '/opt/flocker/pool-vdev'])
-check_call(['zpool', 'create', 'flocker', '/opt/flocker/pool-vdev'])
+check_call(['mkdir', '-p', '/var/opt/flocker'])
+check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
+check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])

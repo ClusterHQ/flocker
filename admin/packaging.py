@@ -32,7 +32,7 @@ class PackageTypes(Values):
 
 # Associate package formats with platform operating systems.
 PACKAGE_TYPE_MAP = {
-    PackageTypes.RPM: ('fedora',),
+    PackageTypes.RPM: ('fedora', 'centos'),
     PackageTypes.DEB: ('ubuntu',),
 }
 
@@ -149,15 +149,18 @@ class Dependency(object):
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
 ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
-# We generate three packages.  ``python-flocker`` contains the entire code
-# base.  ``flocker-cli`` and ``flocker-node`` are meta packages which symlink
-# only the cli or node specific scripts and load only the dependencies required
-# to satisfy those scripts.  This map represents the dependencies for each of
-# those three packages and accounts for differing dependency package names and
-# versions on various platforms.
+# We generate three packages.  ``clusterhq-python-flocker`` contains the entire
+# code base.  ``clusterhq-flocker-cli`` and ``clusterhq-flocker-node`` are meta
+# packages which symlink only the cli or node specific scripts and load only
+# the dependencies required to satisfy those scripts.  This map represents the
+# dependencies for each of those three packages and accounts for differing
+# dependency package names and versions on various platforms.
 DEPENDENCIES = {
     'python': {
         'fedora': (
+            Dependency(package='python'),
+        ),
+        'centos': (
             Dependency(package='python'),
         ),
         'ubuntu': (
@@ -167,6 +170,12 @@ DEPENDENCIES = {
     'node': {
         'fedora': (
             DockerDependency(package='docker-io'),
+            Dependency(package='/usr/sbin/iptables'),
+            ZFSDependency(package='zfs'),
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
+            DockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
             ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
@@ -181,6 +190,9 @@ DEPENDENCIES = {
     },
     'cli': {
         'fedora': (
+            Dependency(package='openssh-clients'),
+        ),
+        'centos': (
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
@@ -809,7 +821,8 @@ class BuildOptions(usage.Options):
          'The path to a directory in which to create package files and '
          'artifacts.'],
         ['distribution', None, None,
-         'The target distribution. One of fedora-20 or ubuntu-14.04.'],
+         'The target distribution. '
+         'One of fedora-20, centos-7, or ubuntu-14.04.'],
     ]
 
     longdesc = dedent("""\

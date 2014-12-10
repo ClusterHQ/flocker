@@ -52,6 +52,9 @@ class BuildOptions(usage.Options):
 
 
 def vagrant_version(version):
+    """
+    Convert a python version to a version number acceptable to vagrant.
+    """
     # Vagrant doesn't like - in version numbers.
     # It also doesn't like _ but we don't generate that.
     return version.replace('-', '.')
