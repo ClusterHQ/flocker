@@ -496,19 +496,15 @@ class DockerClient(object):
                 try:
                     self._client.stop(container_name)
                 except APIError as e:
-                    from twisted.python import log
                     if e.response.status_code == NOT_FOUND:
                         # If the container doesn't exist, we swallow the error,
                         # since this method is supposed to be idempotent.
-                        log.msg("BREAK")
                         break
                     elif e.response.status_code == INTERNAL_SERVER_ERROR:
                         # Docker returns this if the process had died, but
                         # hasn't noticed it yet.
-                        log.msg("CONTINUE")
                         continue
                     else:
-                        log.msg("RAISE")
                         raise
                 else:
                     break
