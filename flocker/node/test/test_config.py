@@ -2808,7 +2808,10 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'}
+                }
             },
             'version': 1,
         }
@@ -2836,9 +2839,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0'
+                    'image': u'flocker/wordpress:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 },
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
             },
             'version': 1,
         }
@@ -2866,7 +2873,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1,
@@ -2897,7 +2905,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
                     'links': [{'local_port': 3306, 'remote_port': 63306,
-                               'alias': 'mysql'}]
+                               'alias': 'mysql'}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1
@@ -2933,11 +2942,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1,
@@ -2970,7 +2981,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
                                'maximum_size': EXPECTED_MAX_SIZE},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1,
@@ -3007,11 +3019,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1
