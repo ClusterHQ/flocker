@@ -119,7 +119,7 @@ class RackspaceRunner(object):
 
     def __init__(self):
         if self.distribution != 'fedora-20':
-            raise ValueError("Distirubtion not supported: %r."
+            raise ValueError("Distribution not supported: %r."
                              % (self.distribution,))
 
     def start_nodes(self):

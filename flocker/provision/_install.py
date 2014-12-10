@@ -6,7 +6,7 @@ Install flocker on a remote node.
 
 from fabric.api import run, execute, env, put
 from pipes import quote as shell_quote
-from cStringIO import StringIO
+from StringIO import StringIO
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin
@@ -67,7 +67,8 @@ def _task_install_flocker(
     run("yum install -y " + ZFS_REPO)
     run("yum install -y " + CLUSTERHQ_REPO)
 
-    build_server = 'http://build.clusterhq.com/'  # FIXME
+    # FIXME: Suppport staging build server
+    build_server = 'http://build.clusterhq.com/'
     if branch:
         result_path = posixpath.join(
             '/results/omnibus/', branch, distribution)
@@ -85,7 +86,8 @@ def _task_install_flocker(
         branch_opt = []
 
     if version:
-        from admin.release import make_rpm_version  # FIXME
+        # FIXME flocker -> admin dependency
+        from admin.release import make_rpm_version
         rpm_version = "%s-%s" % make_rpm_version(version)
         if rpm_version.endswith('.dirty'):
             rpm_version = rpm_version[:-len('.dirty')]
