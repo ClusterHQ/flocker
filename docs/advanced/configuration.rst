@@ -126,6 +126,20 @@ The following parameters are optional when defining an application:
 
      "cpu_shares": 512
 
+- ``restart_policy``
+
+  This specifies the restart policy for this Application.
+  There must be a ``name`` sub-key whose value may be one of: ``never``, ``always``, or ``on-failure``.
+  The ``on-failure`` restart policy accepts an optional ``maximum_retry_count`` sub-key, which specifies how many times Docker will attempt to restart the application container in the event of repeated failures.
+  See the `Docker Restart Policy reference <https://docs.docker.com/reference/commandline/cli/#restart-policies>`_ for more information on restart policies.
+
+  .. code-block:: yaml
+
+     "restart_policy":
+       "name": "on-failure"
+       "maximum_retry_count": 10
+
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml
@@ -143,6 +157,9 @@ Here's an example of a simple but complete configuration defining one applicatio
       "mem_limit": 100000000
       "volume":
         "mountpoint": "/var/mysql/data"
+     "restart_policy":
+       "name": "on-failure"
+       "maximum_retry_count": 10
 
 
 .. _fig-compatible-config:
