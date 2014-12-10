@@ -1184,6 +1184,8 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
     """
+    Tests for ``FlockerConfiguration.applications`` and the private methods
+    that it calls.
     """
     def test_error_on_environment_var_not_stringtypes(self):
         """
