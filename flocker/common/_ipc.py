@@ -116,6 +116,7 @@ class ProcessNode(object):
             # On some Ubuntu versions (and perhaps elsewhere) not
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
+            b"-o", b"IgnoreUnknown=GSSAPIAuthentication",
             b"-o", b"GSSAPIAuthentication=no",
             b"-p", b"%d" % (port,), host), quote=quote)
 
