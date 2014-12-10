@@ -175,13 +175,19 @@ class ApplicationMarshaller(object):
     def convert_restart_policy(self):
         """
         """
-        policies = {
-            RestartNever: lambda policy: dict(name='never'),
-            RestartOnFailure: lambda policy: dict(name='on-failure'),
-        }
         policy = self._application.restart_policy
-        converter = policies[policy.__class__]
-        return converter(policy)
+        policy_type = policy.__class__
+        policy_names = {
+            RestartNever: 'never',
+            RestartAlways: 'always',
+            RestartOnFailure: 'on-failure',
+        }
+        output = dict(name=policy_names[policy_type])
+        if policy_type in (RestartAlways, RestartOnFailure):
+            maximum_retry_count = policy.maximum_retry_count
+            if maximum_retry_count is not None:
+                output['maximum_retry_count'] = maximum_retry_count
+        return output
 
     def convert_image(self):
         """
