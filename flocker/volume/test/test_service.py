@@ -246,13 +246,10 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         d = service.create(service.get(MY_VOLUME))
-        expected_volume = Volume(
-            uuid=service.uuid, name=MY_VOLUME, service=service)
-        created_volume = self.successResultOf(d)
+        self.successResultOf(d)
         volume_size = VolumeSize(maximum_size=1024 * 1024 * 10)
         resized_volume = Volume(uuid=service.uuid, name=MY_VOLUME,
                                 service=service, size=volume_size)
-        self.assertEqual(created_volume, expected_volume)
         d = service.set_maximum_size(service.get(MY_VOLUME, size=volume_size))
         self.assertEqual(self.successResultOf(d), resized_volume)
 
