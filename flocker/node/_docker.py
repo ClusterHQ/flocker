@@ -20,7 +20,7 @@ from twisted.python.components import proxyForInterface
 from twisted.python.filepath import FilePath
 from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
-from twisted.web.http import NOT_FOUND
+from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
 from flocker.node._model import RestartNever, RestartAlways, RestartOnFailure
 
@@ -486,8 +486,30 @@ class DockerClient(object):
         container_name = self._to_container_name(unit_name)
 
         def _remove():
+            while True:
+                # There is a race condition between a process dying and
+                # docker noticing that fact.
+                # https://github.com/docker/docker/issues/5165#issuecomment-65753753  # noqa
+                # We loop here to let docker notice that the process is dead.
+                # Docker will return NOT_MODIFIED (which isn't an error) in
+                # that case.
+                try:
+                    self._client.stop(container_name)
+                except APIError as e:
+                    if e.response.status_code == NOT_FOUND:
+                        # If the container doesn't exist, we swallow the error,
+                        # since this method is supposed to be idempotent.
+                        break
+                    elif e.response.status_code == INTERNAL_SERVER_ERROR:
+                        # Docker returns this if the process had died, but
+                        # hasn't noticed it yet.
+                        continue
+                    else:
+                        raise
+                else:
+                    break
+
             try:
-                self._client.stop(container_name)
                 self._client.remove_container(container_name)
             except APIError as e:
                 # If the container doesn't exist, we swallow the error,
