@@ -82,6 +82,6 @@ check_call(['grub2-mkconfig', '-o', '/boot/grub2/grub.cfg'])
 # Create a ZFS storage pool backed by a normal filesystem file.  This
 # is a bad way to configure ZFS for production use but it is
 # convenient for a demo in a VM.
-check_call(['mkdir', '-p', '/opt/flocker'])
-check_call(['truncate', '--size', '1G', '/opt/flocker/pool-vdev'])
-check_call(['zpool', 'create', 'flocker', '/opt/flocker/pool-vdev'])
+check_call(['mkdir', '-p', '/var/opt/flocker'])
+check_call(['truncate', '--size', '1G', '/var/opt/flocker/pool-vdev'])
+check_call(['zpool', 'create', 'flocker', '/var/opt/flocker/pool-vdev'])
