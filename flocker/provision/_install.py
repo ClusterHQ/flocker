@@ -49,9 +49,9 @@ def _task_create_flocker_pool_file():
     """
     Create a file-back zfs pool for flocker.
     """
-    run('mkdir /opt/flocker')
-    run('truncate --size 1G /opt/flocker/pool-vdev')
-    run('zpool create flocker /opt/flocker/pool-vdev')
+    run('mkdir -p /var/opt/flocker')
+    run('truncate --size 10G /var/opt/flocker/pool-vdev')
+    run('zpool create flocker /var/opt/flocker/pool-vdev')
 
 
 def _task_install_flocker(
