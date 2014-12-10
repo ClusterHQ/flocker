@@ -1091,7 +1091,7 @@ class FlockerConfiguration(object):
             else:
                 cpu_shares = None
 
-            application_attributes = dict(
+            attributes = dict(
                 name=application_name,
                 image=image,
                 volume=volume,
@@ -1111,7 +1111,7 @@ class FlockerConfiguration(object):
                         "got {}".format(application_name, restart_policy)
                     )
                 try:
-                    application_attributes['restart_policy'] = _parse_restart_policy(
+                    attributes['restart_policy'] = _parse_restart_policy(
                         restart_policy
                     )
                 except ParsingError as e:
@@ -1120,8 +1120,7 @@ class FlockerConfiguration(object):
                         '{}'.format(application_name, e)
                     )
 
-            self._applications[application_name] = Application(
-                **application_attributes)
+            self._applications[application_name] = Application(**attributes)
 
 
 restart_policies = {
@@ -1130,10 +1129,12 @@ restart_policies = {
     'on-failure': RestartOnFailure,
 }
 
+
 class ParsingError(Exception):
     """
     A configuration parsing error.
     """
+
 
 def _parse_restart_policy(config):
     policy_name = config.pop('name')
