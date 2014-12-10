@@ -177,6 +177,7 @@ class ApplicationMarshaller(object):
         """
         policies = {
             RestartNever: lambda policy: dict(name='never'),
+            RestartOnFailure: lambda policy: dict(name='on-failure'),
         }
         policy = self._application.restart_policy
         converter = policies[policy.__class__]
