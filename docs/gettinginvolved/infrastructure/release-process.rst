@@ -238,6 +238,12 @@ This review step is to ensure that all acceptance tests pass on the release bran
    Install `PhantomJS`_.
 
    Run the automated acceptance tests; they will start the appropriate VMs.
+   You will need to add the Vagrant key to your agent:
+
+   .. code-block:: console
+
+      ssh-add ~/.vagrant.d/insecure_private_key
+
    Ensure that they all pass, with no skips:
 
    .. code-block:: console
