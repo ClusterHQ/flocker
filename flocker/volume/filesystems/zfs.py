@@ -514,7 +514,7 @@ class StoragePool(Service):
         d.addCallback(lambda _: filesystem)
         return d
 
-    def resize(self, volume):
+    def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         properties = []
         if volume.size.maximum_size is not None:

@@ -168,7 +168,7 @@ class FilesystemStoragePool(Service):
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
         return succeed(filesystem)
 
-    def resize(self, volume):
+    def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         root = filesystem.get_path()
         if volume.size.maximum_size is not None:

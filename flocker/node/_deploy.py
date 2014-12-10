@@ -218,7 +218,7 @@ class ResizeVolume(object):
             name=_to_volume_name(self.volume.name),
             size=VolumeSize(maximum_size=self.volume.maximum_size)
         )
-        return deployer.volume_service.resize(volume)
+        return deployer.volume_service.set_maximum_size(volume)
 
 
 @implementer(IStateChange)
@@ -331,13 +331,11 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            managed_volumes = []
+            managed_volumes = dict()
             for volume in volumes:
                 if volume.uuid == self.volume_service.uuid:
-                    managed_volumes.append(
-                        (volume.name.id, volume.size.maximum_size)
-                    )
-            return dict(managed_volumes)
+                    managed_volumes[volume.name.id] = volume.size.maximum_size
+            return managed_volumes
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
@@ -508,15 +506,16 @@ class Deployer(object):
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
 
+            if volumes.resizing:
+                phases.append(InParallel(changes=[
+                    ResizeVolume(volume=volume)
+                    for volume in volumes.resizing]))
+
             # Do an initial push of all volumes that are going to move, so
             # that the final push which happens during handoff is a quick
             # incremental push. This should significantly reduces the
             # application downtime caused by the time it takes to copy
             # data.
-            if volumes.resizing:
-                phases.append(InParallel(changes=[
-                    ResizeVolume(volume=volume)
-                    for volume in volumes.resizing]))
             if volumes.going:
                 phases.append(InParallel(changes=[
                     PushVolume(volume=handoff.volume,
@@ -618,7 +617,7 @@ def find_volume_changes(hostname, current_state, desired_state):
     # the existing local volume should be resized before any other action
     # is taken on it.
     resizing = set()
-    for volume_hostname, desired in desired_volumes.items():
+    for _, desired in desired_volumes.items():
         for volume in desired:
             if volume.name in local_current_volume_names:
                 for existing_volume in current_volumes[hostname]:

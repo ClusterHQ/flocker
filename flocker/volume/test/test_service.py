@@ -237,9 +237,10 @@ MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
 class VolumeServiceAPITests(TestCase):
     """Tests for the ``VolumeService`` API."""
 
-    def test_resize(self):
+    def test_set_maximum_size(self):
         """
-        ``resize`` returns a ``Deferred` that fires with a ``Volume``.
+        ``set_maximum_size`` returns a ``Deferred` that fires with a
+        ``Volume``.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -252,7 +253,7 @@ class VolumeServiceAPITests(TestCase):
         resized_volume = Volume(uuid=service.uuid, name=MY_VOLUME,
                                 service=service, size=volume_size)
         self.assertEqual(created_volume, expected_volume)
-        d = service.resize(service.get(MY_VOLUME, size=volume_size))
+        d = service.set_maximum_size(service.get(MY_VOLUME, size=volume_size))
         self.assertEqual(self.successResultOf(d), resized_volume)
 
     def test_create_result(self):

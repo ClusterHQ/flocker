@@ -144,7 +144,7 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
-    def resize(self, volume):
+    def set_maximum_size(self, volume):
         """
         Resize an existing volume.
 
@@ -153,7 +153,7 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :clas:`Volume`.
         """
-        d = self.pool.resize(volume)
+        d = self.pool.set_maximum_size(volume)
 
         def resized(filesystem):
             return volume

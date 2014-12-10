@@ -129,7 +129,7 @@ def create_and_copy(test, fixture):
         copying = copy(volume, volume2)
         copying.addCallback(
             lambda ignored:
-                CopyVolumes(from_volume=volume, to_volume=volume2)
+            CopyVolumes(from_volume=volume, to_volume=volume2)
         )
         return copying
     d.addCallback(created_filesystem)
@@ -258,7 +258,7 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 self.assertEqual(size, filesystem.size)
                 volume_with_size.size = resized
-                return pool.resize(volume_with_size)
+                return pool.set_maximum_size(volume_with_size)
 
             def resized_filesystem(filesystem):
                 self.assertEqual(resized, filesystem.size)
@@ -291,7 +291,7 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 self.assertEqual(size, filesystem.size)
                 volume_with_size.size = resized
-                return pool.resize(volume_with_size)
+                return pool.set_maximum_size(volume_with_size)
 
             def resized_filesystem(filesystem):
                 self.assertEqual(resized, filesystem.size)
@@ -324,7 +324,7 @@ def make_istoragepool_tests(fixture):
             def created_filesystem(filesystem):
                 self.assertEqual(size, filesystem.size)
                 volume_with_size.size = resized
-                return pool.resize(volume_with_size)
+                return pool.set_maximum_size(volume_with_size)
 
             def resized_filesystem(filesystem):
                 self.assertEqual(resized, filesystem.size)
