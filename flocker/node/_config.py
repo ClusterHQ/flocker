@@ -174,6 +174,8 @@ class ApplicationMarshaller(object):
 
     def convert_restart_policy(self):
         """
+        :returns: A ``dict`` ``IRestartPolicy`` attributes in a format suitable
+            for serialising to a Flocker Application configuration file.
         """
         policy = self._application.restart_policy
         policy_type = policy.__class__
