@@ -168,5 +168,7 @@ def main(args, base_path, top_level):
 
     nodes = runner.start_nodes()
     result = run_tests(nodes, options['trial-args'])
-    if result == 0 or not options['keep']:
+    # Unless the tests failed, and the user asked to keep the nodes, we delete
+    # them.
+    if not (result != 0 and options['keep']):
         runner.stop_nodes()
