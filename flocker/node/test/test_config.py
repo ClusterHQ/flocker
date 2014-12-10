@@ -338,7 +338,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                     'image': 'sample/postgres',
                     'restart_policy': {
                         'name': 'on-failure',
-                        'max_retry_count': 10,
+                        'maximum_retry_count': 10,
                     },
                 }
             }
@@ -348,7 +348,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         parsed = safe_load(yaml)
         self.assertEqual(
             parsed['applications']['postgres']['restart_policy'],
-            {'name': 'on-failure', 'max_retry_count': 10}
+            {'name': 'on-failure', 'maximum_retry_count': 10}
         )
 
     def test_has_restart_on_failure_without_retry_count(self):
