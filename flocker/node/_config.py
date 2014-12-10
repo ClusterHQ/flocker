@@ -22,6 +22,16 @@ from ._model import (
     DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
 )
 
+FLOCKER_RESTART_POLICY_POLICY_TO_NAME = {
+    RestartNever: 'never',
+    RestartAlways: 'always',
+    RestartOnFailure: 'on-failure',
+}
+
+FLOCKER_RESTART_POLICY_NAME_TO_POLICY = {
+    name: policy
+    for policy, name in FLOCKER_RESTART_POLICY_POLICY_TO_NAME.items()
+}
 
 class IApplicationConfiguration(Interface):
     """
@@ -180,12 +190,7 @@ class ApplicationMarshaller(object):
         """
         policy = self._application.restart_policy
         policy_type = policy.__class__
-        policy_names = {
-            RestartNever: 'never',
-            RestartAlways: 'always',
-            RestartOnFailure: 'on-failure',
-        }
-        output = dict(name=policy_names[policy_type])
+        output = dict(name=FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type])
         if policy_type in (RestartAlways, RestartOnFailure):
             maximum_retry_count = policy.maximum_retry_count
             if maximum_retry_count is not None:
@@ -1123,13 +1128,6 @@ class FlockerConfiguration(object):
             self._applications[application_name] = Application(**attributes)
 
 
-restart_policies = {
-    'always': RestartAlways,
-    'never': RestartNever,
-    'on-failure': RestartOnFailure,
-}
-
-
 class ParsingError(Exception):
     """
     A configuration parsing error.
@@ -1144,7 +1142,7 @@ def _parse_restart_policy(config):
        configuration file.
     """
     policy_name = config.pop('name')
-    policy_factory = restart_policies[policy_name]
+    policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
     try:
         policy = policy_factory(**config)
     except TypeError:
