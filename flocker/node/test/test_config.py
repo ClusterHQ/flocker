@@ -2334,7 +2334,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_default_restart_policy(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of never if no policy was specified in the configuration.
+        restart_policy of never if no policy was specified in the
+        configuration.
         """
         config = {
             'applications': {
@@ -2353,7 +2354,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_restart_policy_never(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of never if that policy was specified in the configuration.
+        restart_policy of never if that policy was specified in the
+        configuration.
         """
         config = {
             'applications': {
@@ -2375,7 +2377,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_restart_policy_always(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of always if that policy was specified in the configuration.
+        restart_policy of always if that policy was specified in the
+        configuration.
         """
         config = {
             'applications': {
@@ -2397,7 +2400,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_restart_policy_on_failure(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of on-failure if that policy was specified in the configuration.
+        restart_policy of on-failure if that policy was specified in the
+        configuration.
         """
         config = {
             'applications': {
@@ -2419,7 +2423,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_restart_policy_on_failure_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of on-failure if that policy was specified in the configuration.
+        restart_policy of on-failure if that policy was specified in the
+        configuration.
         """
         config = {
             'applications': {
@@ -2442,7 +2447,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_restart_policy_always_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy other than on-failure.
+        if maximum retry count is specified with a policy other than
+        on-failure.
         """
         config = {
             'applications': {
@@ -2466,11 +2472,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-
     def test_error_on_restart_policy_on_failure_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy other than on-failure.
+        if maximum retry count is specified with a policy other than
+        on-failure.
         """
         config = {
             'applications': {
@@ -2570,7 +2576,6 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
             exception.message
         )
-
 
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
