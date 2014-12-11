@@ -15,7 +15,8 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml, parse_storage_string
+    applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
+    FLOCKER_RESTART_POLICY_POLICY_TO_NAME,
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -3211,3 +3212,63 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
             "(unsupported)."
         )
         self.assertEqual(e.message, expected)
+
+
+def marshalled_restart_policy(policy):
+    """
+    :param IRestartPolicy policy: The ``IRestartPolicy`` provider to be
+        converted.
+    :returns: The ``restart_policy`` ``dict`` of an ``Application`` converted
+        using ``ApplicationMarshaller``.
+    """
+    application = Application(
+        name=None, image=None, restart_policy=policy)
+    return ApplicationMarshaller(application).convert()['restart_policy']
+
+
+def check_marshalled_restart_policy(test_case, policy_type, **attributes):
+    """
+    Assert that the supplied ``policy_type`` can be marshalled to a ``dict``
+    and that the ``dict`` contains all the supplied policy ``attributes``.
+
+    :param TestCase test_case: The ``TestCase`` for making assertions.
+    :param IRestartPolicy policy_type: A class implementing ``IRestartPolicy``.
+    :param dict attributes: Optional extra attributes which will be supplied
+         when initialising ``policy_type`` and which will be expected to be
+         included in the marshalled result.
+    """
+    expected_name = FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type]
+    test_case.assertEqual(
+        dict(name=expected_name, **attributes),
+        marshalled_restart_policy(policy_type(**attributes))
+    )
+
+
+class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
+    """
+    Tests for ``ApplicationMarshaller.convert_restart_policy``.
+    """
+    def test_never(self):
+        """
+        ``RestartNever`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartNever)
+
+    def test_always(self):
+        """
+        ``RestartAlways`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartAlways)
+
+    def test_onfailure(self):
+        """
+        ``RestartOnFailure`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartOnFailure)
+
+    def test_onfailure_with_maximum_retry_count(self):
+        """
+        ``RestartOnFailure`` with attributes can be marshalled.
+        """
+        check_marshalled_restart_policy(
+            self, RestartOnFailure, maximum_retry_count=10)
