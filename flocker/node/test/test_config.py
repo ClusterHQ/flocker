@@ -2440,26 +2440,16 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_restart_policy_always(self):
         """
-        ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of always if that policy was specified in the
-        configuration.
+        ``_parse_restart_policy`` returns an ``RestartAlways`` if that policy
+        was specified in the configuration.
         """
-        config = {
-            'applications': {
-                'darmstadtium': {
-                    'image': 'atomic/110',
-                    'restart_policy': {
-                        'name': 'always',
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        applications = parser.applications()
         self.assertEqual(
-            applications['darmstadtium'].restart_policy,
-            RestartAlways())
+            RestartAlways(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'always')
+            )
+        )
 
     def test_restart_policy_on_failure(self):
         """
