@@ -2334,6 +2334,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+
+class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
+    """
+    Tests for the parsing of Flocker restart policy configuration.
+    """
     def test_error_on_unknown_restart_policy_name(self):
         """
         ``FlockerConfiguration.applications`` raises a
