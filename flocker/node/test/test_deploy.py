@@ -1727,7 +1727,62 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         maximum_size that differs to the existing volume size. The volume on
         the new target node will be resized after it has been received.
         """
-        self.fail("Not implemented yet")
+        APPLICATION_WITH_VOLUME_SIZE = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=APPLICATION_WITH_VOLUME_NAME,
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                maximum_size=1024 * 1024 * 100,
+            ),
+            links=frozenset(),
+        )
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
+        )
+
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset({APPLICATION_WITH_VOLUME_SIZE})),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+        volume = AttachedVolume(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+            maximum_size=1024 * 1024 * 100
+        )
+        expected = Sequentially(changes=[
+            InParallel(changes=[WaitForVolume(volume=volume)]),
+            InParallel(changes=[ResizeVolume(volume=volume)]),
+            InParallel(changes=[StartApplication(
+                application=APPLICATION_WITH_VOLUME_SIZE,
+                hostname="node1.example.com")])])
+        self.assertEqual(expected, changes)
 
     def test_local_not_running_applications_restarted(self):
         """

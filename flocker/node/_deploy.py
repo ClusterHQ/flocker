@@ -546,7 +546,6 @@ class Deployer(object):
             start_restart = start_containers + restart_containers
             if start_restart:
                 phases.append(InParallel(changes=start_restart))
-            #import pdb;pdb.set_trace()
 
         d.addCallback(find_differences)
         d.addCallback(lambda _: Sequentially(changes=phases))
