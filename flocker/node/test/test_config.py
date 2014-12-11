@@ -2386,6 +2386,26 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
             applications[expected_application_name].restart_policy
         )
 
+    def test_default_restart_policy(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of ``RestartNever`` if no policy was specified in the
+        configuration.
+        """
+        config = {
+            'applications': {
+                'cube': {
+                    'image': 'twisted/plutonium',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['cube'].restart_policy,
+            RestartNever())
+
     def test_error_on_unknown_restart_policy_name(self):
         """
         ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
@@ -2404,26 +2424,6 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
                 expected_restart_policy_name),
             exception.message
         )
-
-    def test_default_restart_policy(self):
-        """
-        ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of never if no policy was specified in the
-        configuration.
-        """
-        config = {
-            'applications': {
-                'cube': {
-                    'image': 'twisted/plutonium',
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        applications = parser.applications()
-        self.assertEqual(
-            applications['cube'].restart_policy,
-            RestartNever())
 
     def test_restart_policy_never(self):
         """
