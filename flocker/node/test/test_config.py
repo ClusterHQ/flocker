@@ -2500,28 +2500,18 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_never_with_retry_count(self):
         """
-        ``FlockerConfiguration.applications`` raises
-        ``ApplicationConfigurationError`` if maximum retry count is specified
-        with a policy of ``never``.
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        ``maximum_retry_count`` is combined with a policy of ``never``.
         """
-        config = {
-            'applications': {
-                'red-fish': {
-                    'image': 'seuss/one-fish-two-fish',
-                    'restart_policy': {
-                        'name': 'never',
-                        'maximum_retry_count': 10,
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ApplicationConfigurationError,
-                                      parser.applications)
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'never', maximum_retry_count=10)
+        )
         self.assertEqual(
             "Invalid 'restart_policy' arguments for RestartNever. "
-            "Got {u'maximum_retry_count': 10}",
+            "Got {'maximum_retry_count': 10}",
             exception.message
         )
 
