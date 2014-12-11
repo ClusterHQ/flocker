@@ -100,6 +100,7 @@ def get_node_state(node, applications=False):
     else:
         return state
 
+
 def _run_SSH(port, user, node, command, input, key=None):
     """
     Run a command via SSH.
