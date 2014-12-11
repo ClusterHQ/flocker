@@ -135,6 +135,20 @@ class IStoragePool(Interface):
             problems.
         """
 
+    def set_maximum_size(volume):
+        """
+        Set the maximum size of a filesystem for the given volume.
+
+        :param volume: The volume whose filesystem quota should be modified.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem modification with a
+            :class:`IFilesystem` provider, or errbacks if setting the quota
+            failed.  The reason passed to the errback may be a
+            ``MaximumSizeTooSmall`` exception or an implementation-specific
+            exception for other problems.
+        """
+
     def clone_to(parent, volume):
         """
         Clone an existing volume to create a new one.
