@@ -6,8 +6,9 @@ What's New
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
-v0.4.0 (Draft)
-==============
+Next Release
+============
+
 * Applications can now be :ref:`configured with a restart policy<configuration>`.
 
 
