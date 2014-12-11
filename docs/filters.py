@@ -12,7 +12,7 @@ from enchant.tokenize import Filter
 
 
 # See http://doughellmann.com/2011/05/26/creating-a-spelling-checker-for-restructuredtext-documents.html
-@attributes(['word_set'])
+@attributes(['words'])
 class IgnoreWordsFilter(Filter):
     """
     Given a set of words ignore them all.
@@ -21,7 +21,7 @@ class IgnoreWordsFilter(Filter):
         Filter.__init__(self, tokenizer)
 
     def _skip(self, word):
-        return word in self.word_set
+        return word in self.words
 
 
 @attributes(['words'])
@@ -31,4 +31,4 @@ class IgnoreWordsFilterFactory(object):
     """
 
     def __call__(self, tokenizer):
-        return IgnoreWordsFilter(tokenizer, self.words)
+        return IgnoreWordsFilter(tokenizer, words=self.words)
