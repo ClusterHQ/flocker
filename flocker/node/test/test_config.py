@@ -2466,27 +2466,20 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_restart_policy_on_failure_with_retry_count(self):
         """
-        ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of on-failure if that policy was specified in the
-        configuration.
+        ``_parse_restart_policy`` returns ``RestartOnFailure`` having the same
+        ``maximum_retry_count`` value as supplied in the configuration.
         """
-        config = {
-            'applications': {
-                'yttrium': {
-                    'image': 'atomic/39',
-                    'restart_policy': {
-                        'name': 'on-failure',
-                        'maximum_retry_count': 10,
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        applications = parser.applications()
+        expected_maximum_retry_count = 10
         self.assertEqual(
-            applications['yttrium'].restart_policy,
-            RestartOnFailure(maximum_retry_count=10))
+            RestartOnFailure(maximum_retry_count=expected_maximum_retry_count),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(
+                    name=u'on-failure',
+                    maximum_retry_count=expected_maximum_retry_count
+                )
+            )
+        )
 
     def test_error_on_restart_policy_always_with_retry_count(self):
         """
