@@ -1116,27 +1116,17 @@ class FlockerConfiguration(object):
                         "'restart_policy' must be a dict, "
                         "got {}".format(application_name, restart_policy)
                     )
-                try:
-                    attributes['restart_policy'] = _parse_restart_policy(
-                        restart_policy
-                    )
-                except ParsingError as e:
-                    raise ConfigurationError(
-                        "Application '{}' has a config error. "
-                        '{}'.format(application_name, e)
-                    )
+                attributes['restart_policy'] = _parse_restart_policy(
+                    application_name, restart_policy)
 
             self._applications[application_name] = Application(**attributes)
 
 
-class ParsingError(Exception):
+def _parse_restart_policy(application_name, config):
     """
-    A configuration parsing error.
-    """
-
-
-def _parse_restart_policy(config):
-    """
+    :param unicode application_name: The name of the ``Application`` that has
+        the configured restart policy (supplied in order to identify the
+        location of ``ConfigurationError``).
     :param dict config: The ``restart_policy`` configuration.
     :returns: An ``IRestartPolicy`` provider chosen and initialised based on
        the supplied ``restart_policy`` ``dict`` from a Flocker Application
@@ -1147,9 +1137,11 @@ def _parse_restart_policy(config):
     try:
         policy = policy_factory(**config)
     except TypeError:
-        raise ParsingError(
+        raise ConfigurationError(
+            "Application '{}' has a config error. "
             "Invalid 'restart_policy' arguments for {}. "
-            "Got {}".format(policy_factory.__name__, config))
+            "Got {}".format(application_name, policy_factory.__name__, config)
+        )
     else:
         return policy
 
