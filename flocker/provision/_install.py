@@ -5,7 +5,6 @@ Install flocker on a remote node.
 """
 
 from pipes import quote as shell_quote
-from StringIO import StringIO
 import posixpath
 from textwrap import dedent
 from urlparse import urljoin
@@ -17,10 +16,20 @@ CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
 
 
 class FabricRunner(object):
+    """
+    Wrapper around fabric, to make removing it easier.
+    """
     def __init__(self, username, address):
+        """
+        :param username: User to connect as.
+        :param address: Address to connect to.
+        """
         self.host_string = "%s@%s" % (username, address)
 
     def _run_in_context(self, f, *args, **kwargs):
+        """
+        Run a function with fabric environment populated.
+        """
         from fabric.api import settings
         with settings(
                 connection_attempts=24,
@@ -30,11 +39,23 @@ class FabricRunner(object):
             f(*args, **kwargs)
 
     def run(self, command):
+        """
+        Run a shell command on a remote host.
+
+        :param bytes command: The command to run.
+        """
         from fabric.api import run
         self._run_in_context(run, command)
 
     def put(self, content, path):
+        """
+        Create a file with the given content on a remote host.
+
+        :param bytes content: The desired contests.
+        :param bytes path: The remote path to create.
+        """
         from fabric.api import put
+        from StringIO import StringIO
         self._run_in_context(StringIO(put), content, path)
 
 
