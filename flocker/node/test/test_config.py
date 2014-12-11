@@ -2517,29 +2517,20 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_with_retry_count_not_integer(self):
         """
-        ``FlockerConfiguration.applications`` raises
-        ``ApplicationConfigurationError`` if a maximum retry count is not an
-        integer.
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if a
+        maximum retry count is not an integer.
         """
-        config = {
-            'applications': {
-                'lorax': {
-                    'image': 'seuss/lorax',
-                    'restart_policy': {
-                        'name': 'on-failure',
-                        'maximum_retry_count': "fifty",
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ApplicationConfigurationError,
-                                      parser.applications)
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', maximum_retry_count=u'fifty')
+        )
         self.assertEqual(
             "Invalid 'restart_policy' arguments for RestartOnFailure. "
-            "Got {u'maximum_retry_count': u'fifty'}",
+            "Got {'maximum_retry_count': u'fifty'}",
             exception.message
+
         )
 
     def test_error_on_restart_policy_with_extra_keys(self):
