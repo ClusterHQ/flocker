@@ -1689,7 +1689,33 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         changes = self.successResultOf(calculating)
         # expected is: resize volume, push, stop application, handoff
-        expected = None
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeVolume(
+                    volume=AttachedVolume(name='psql-clusterhq',
+                                          mountpoint='/var/lib/postgresql',
+                                          maximum_size=104857600)
+                    )]
+            ),
+            InParallel(
+                changes=[PushVolume(
+                    volume=AttachedVolume(name='psql-clusterhq',
+                                          mountpoint='/var/lib/postgresql',
+                                          maximum_size=104857600),
+                    hostname=u'node2.example.com')]
+            ),
+            InParallel(
+                changes=[
+                    StopApplication(application=APPLICATION_WITH_VOLUME)
+                ]
+            ),
+            InParallel(
+                changes=[HandoffVolume(
+                    volume=AttachedVolume(name='psql-clusterhq',
+                                          mountpoint='/var/lib/postgresql',
+                                          maximum_size=104857600),
+                    hostname=u'node2.example.com')]
+            )])
         self.assertEqual(expected, changes)
 
     def test_volume_max_size_preserved_after_move(self):
