@@ -779,8 +779,13 @@ def _parse_restart_policy(application_name, config):
             "'restart_policy' must be a dict, "
             "got {}".format(config)
         )
-
-    policy_name = config.pop('name')
+    try:
+        policy_name = config.pop('name')
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must include a 'name'."
+        )
     try:
         policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
     except KeyError:

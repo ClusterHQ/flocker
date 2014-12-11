@@ -2564,6 +2564,22 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_missing_name(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless there is a ``name`` in the supplied configuration.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config={}
+        )
+        self.assertEqual(
+            "'restart_policy' must include a 'name'.",
+            exception.message
+        )
+
 
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
