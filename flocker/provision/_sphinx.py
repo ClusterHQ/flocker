@@ -11,6 +11,9 @@ class FakeRunner(object):
     def run(self, command):
         self.commands.extend(command.splitlines())
 
+    def put(self, content, path):
+        raise NotImplementedError("put not supported.")
+
 
 class TaskDirective(Directive):
     """
@@ -22,7 +25,10 @@ class TaskDirective(Directive):
         task = self.arguments[0]
 
         runner = FakeRunner()
-        namedAny(task)(runner)
+        try:
+            namedAny(task)(runner)
+        except NotImplementedError as e:
+            raise self.error("task: %s" % (e.args[0],))
         lines = ['.. code-block:: bash', '']
         lines += ['   %s' % (command,) for command in runner.commands]
         node = nodes.Element()
