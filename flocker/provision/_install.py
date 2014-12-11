@@ -56,7 +56,7 @@ class FabricRunner(object):
         """
         from fabric.api import put
         from StringIO import StringIO
-        self._run_in_context(put, StringIO(content, path)
+        self._run_in_context(put, StringIO(content), path)
 
 
 def _task_install_kernel(runner):
