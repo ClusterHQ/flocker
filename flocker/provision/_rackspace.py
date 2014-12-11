@@ -18,7 +18,7 @@ class RackspaceNode(object):
         Provision flocker on this node.
         """
         if distribution != 'fedora-20':
-            raise ValueError("Distirubtion not supported: %r."
+            raise ValueError("Distribution not supported: %r."
                              % (distribution,))
         install([self.address], username="root",
                 kwargs={
