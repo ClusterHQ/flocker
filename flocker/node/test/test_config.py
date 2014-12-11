@@ -2415,7 +2415,7 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
         exception = self.assertRaises(
             ApplicationConfigurationError,
             _parse_restart_policy,
-            application_name='application_name',
+            application_name='foobar',
             config={'name': expected_restart_policy_name}
         )
         self.assertEqual(
@@ -2427,26 +2427,16 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_restart_policy_never(self):
         """
-        ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of never if that policy was specified in the
-        configuration.
+        ``_parse_restart_policy`` returns ``RestartNever`` if that policy was
+        specified in the configuration.
         """
-        config = {
-            'applications': {
-                'wolfwood': {
-                    'image': 'twisted/code',
-                    'restart_policy': {
-                        'name': 'never',
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        applications = parser.applications()
         self.assertEqual(
-            applications['wolfwood'].restart_policy,
-            RestartNever())
+            RestartNever(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'never')
+            )
+        )
 
     def test_restart_policy_always(self):
         """
