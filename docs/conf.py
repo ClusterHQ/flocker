@@ -98,7 +98,7 @@ if not on_rtd:
     sys.path.insert(0, FilePath(__file__).parent().path)
     from filters import IgnoreWordsFilterFactory
     # Don't spell check the version:
-    spelling_filters = [IgnoreWordsFilterFactory({version})]
+    spelling_filters = [IgnoreWordsFilterFactory(words={version})]
     del sys.path[0]
 
 # There are two options for replacing |today|: either, you set today to some
