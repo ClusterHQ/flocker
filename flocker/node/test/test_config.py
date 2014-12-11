@@ -2388,9 +2388,8 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_error_on_unknown_restart_policy_name(self):
         """
-        ``FlockerConfiguration.applications`` raises a
-        ``ApplicationConfigurationError`` if the supplied ``restart_policy``
-        name is not recognised.
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        the supplied ``restart_policy`` name is not recognised.
         """
         expected_restart_policy_name = 'unknown-restart-policy'
         exception = self.assertRaises(
