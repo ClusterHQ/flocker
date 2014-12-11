@@ -180,9 +180,7 @@ class ApplicationMarshaller(object):
         volume = self.convert_volume()
         if volume:
             config['volume'] = volume
-        restart_policy = self.convert_restart_policy()
-        if restart_policy:
-            config['restart_policy'] = restart_policy
+        config['restart_policy'] = self.convert_restart_policy()
         return config
 
     def convert_restart_policy(self):
