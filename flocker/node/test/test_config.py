@@ -2449,8 +2449,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
     def test_error_on_restart_policy_always_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy other than
-        on-failure.
+        if maximum retry count is specified with a policy of ``always``.
         """
         config = {
             'applications': {
@@ -2474,11 +2473,10 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
-    def test_error_on_restart_policy_on_failure_with_retry_count(self):
+    def test_error_on_restart_policy_never_with_retry_count(self):
         """
         ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy other than
-        on-failure.
+        if maximum retry count is specified with a policy of ``never``.
         """
         config = {
             'applications': {
