@@ -101,6 +101,9 @@ class ApplicationConfigurationError(ConfigurationError):
         return self.message_template.format(
             application_name=self.application_name, message=self.message)
 
+    def __str__(self):
+        return unicode(self).encode('ascii')
+
 
 def _check_type(value, types, description, application_name):
     """
@@ -760,6 +763,48 @@ class FigConfiguration(object):
         self._link_applications()
 
 
+def _parse_restart_policy(application_name, config):
+    """
+    :param unicode application_name: The name of the ``Application`` that has
+        the configured restart policy (supplied in order to identify the
+        location of ``ConfigurationError``).
+    :param dict config: The ``restart_policy`` configuration.
+    :returns: An ``IRestartPolicy`` provider chosen and initialised based on
+       the supplied ``restart_policy`` ``dict`` from a Flocker Application
+       configuration file.
+    """
+    if not isinstance(config, dict):
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must be a dict, "
+            "got {}".format(config)
+        )
+
+    policy_name = config.pop('name')
+    try:
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: {}".format(
+                policy_name,
+                ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
+            )
+        )
+
+    try:
+        policy = policy_factory(**config)
+    except TypeError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' arguments for {}. "
+            "Got {}".format(policy_factory.__name__, config)
+        )
+    else:
+        return policy
+
+
 @implementer(IApplicationConfiguration)
 class FlockerConfiguration(object):
     """
@@ -1034,6 +1079,8 @@ class FlockerConfiguration(object):
 
         return volume
 
+    _parse_restart_policy = staticmethod(_parse_restart_policy)
+
     def _parse(self):
         """
         Validate and parse a given application configuration from flocker's
@@ -1130,53 +1177,12 @@ class FlockerConfiguration(object):
             )
 
             if 'restart_policy' in config:
-                attributes['restart_policy'] = _parse_restart_policy(
-                    application_name, config.pop('restart_policy')
+                attributes['restart_policy'] = self._parse_restart_policy(
+                    application_name=application_name,
+                    config=config.pop('restart_policy')
                 )
 
             self._applications[application_name] = Application(**attributes)
-
-
-def _parse_restart_policy(application_name, config):
-    """
-    :param unicode application_name: The name of the ``Application`` that has
-        the configured restart policy (supplied in order to identify the
-        location of ``ConfigurationError``).
-    :param dict config: The ``restart_policy`` configuration.
-    :returns: An ``IRestartPolicy`` provider chosen and initialised based on
-       the supplied ``restart_policy`` ``dict`` from a Flocker Application
-       configuration file.
-    """
-    if not isinstance(config, dict):
-        raise ApplicationConfigurationError(
-            application_name,
-            "'restart_policy' must be a dict, "
-            "got {}".format(config)
-        )
-
-    policy_name = config.pop('name')
-    try:
-        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
-    except KeyError:
-        raise ApplicationConfigurationError(
-            application_name,
-            "Invalid 'restart_policy' name '{}'. "
-            "Use one of: {}".format(
-                policy_name,
-                ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
-            )
-        )
-
-    try:
-        policy = policy_factory(**config)
-    except TypeError:
-        raise ApplicationConfigurationError(
-            application_name,
-            "Invalid 'restart_policy' arguments for {}. "
-            "Got {}".format(policy_factory.__name__, config)
-        )
-    else:
-        return policy
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):

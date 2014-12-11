@@ -2339,6 +2339,44 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
     """
     Tests for the parsing of Flocker restart policy configuration.
     """
+    def test_parse_restart_policy_is_called(self):
+        """
+        If the supplied application configuration has a ``restart_policy`` key,
+        ``_parse_restart_policy`` is called with the value of that key.
+        """
+        expected_application_name = 'red-fish'
+        expected_restart_policy_configuration = object()
+        expected_restart_policy = object()
+        config = {
+            'applications': {
+                expected_application_name: {
+                    'image': 'seuss/one-fish-two-fish',
+                    'restart_policy': expected_restart_policy_configuration,
+                }
+            },
+            'version': 1
+        }
+
+        parser = FlockerConfiguration(config)
+        recorded_arguments = []
+        def spy_parse_restart_policy(*args, **kwargs):
+            recorded_arguments.append((args, kwargs))
+            return expected_restart_policy
+        self.patch(parser, '_parse_restart_policy', spy_parse_restart_policy)
+        applications = parser.applications()
+
+        self.assertEqual(
+            [(tuple(), dict(application_name=expected_application_name,
+                       config=expected_restart_policy_configuration))],
+            recorded_arguments
+        )
+
+        self.assertEqual(
+            expected_restart_policy,
+            applications[expected_application_name].restart_policy
+        )
+
+
     def test_error_on_unknown_restart_policy_name(self):
         """
         ``FlockerConfiguration.applications`` raises a
