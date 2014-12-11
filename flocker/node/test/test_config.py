@@ -2353,8 +2353,8 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                                       parser.applications)
         self.assertEqual(
             "Application 'red-fish' has a config error. "
-            "Invalid 'restart_policy' name 'unknown-restart-policy'"
-            "Must be one of: never, always, on-failure",
+            "Invalid 'restart_policy' name 'unknown-restart-policy'. "
+            "Use one of: always, never, on-failure",
             exception.message
         )
 

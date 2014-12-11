@@ -1133,7 +1133,19 @@ def _parse_restart_policy(application_name, config):
        configuration file.
     """
     policy_name = config.pop('name')
-    policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+    try:
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+    except KeyError:
+        raise ConfigurationError(
+            "Application '{}' has a config error. "
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: {}".format(
+                application_name,
+                policy_name,
+                ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
+            )
+        )
+
     try:
         policy = policy_factory(**config)
     except TypeError:
