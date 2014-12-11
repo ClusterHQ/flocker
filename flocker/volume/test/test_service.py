@@ -240,7 +240,7 @@ class VolumeServiceAPITests(TestCase):
     def test_set_maximum_size(self):
         """
         ``set_maximum_size`` returns a ``Deferred` that fires with a
-        ``Volume``.
+        ``Volume`` that has the new size set on it.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
