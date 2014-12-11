@@ -2551,22 +2551,14 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_not_a_dictionary(self):
         """
-        ``FlockerConfiguration.applications`` raises
-        ``ApplicationConfigurationError`` unless the restart_policy value is a
-        dictionary.
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless the restart_policy value is a dictionary.
         """
-        config = {
-            'applications': {
-                'green-eggs': {
-                    'image': 'seuss/green-eggs-ham',
-                    'restart_policy': 'pretend-i-am-a-dictionary',
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ApplicationConfigurationError,
-                                      parser.applications)
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=u'pretend-i-am-a-dictionary')
         self.assertEqual(
             "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
             exception.message
