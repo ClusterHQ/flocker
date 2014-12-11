@@ -1612,6 +1612,96 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             )])
         self.assertEqual(expected, changes)
 
+    def test_volume_resized_before_move(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a volume
+        will be resized if an application which was previously running on this
+        node is to be relocated to a different node but specifies a volume
+        maximum_size that differs to the existing volume size. The volume will
+        be resized before moving.
+        """
+        APPLICATION_WITH_VOLUME_SIZE = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                # XXX For now we require volume names match application names,
+                # see https://github.com/ClusterHQ/flocker/issues/49
+                name=APPLICATION_WITH_VOLUME_NAME,
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                maximum_size=1024 * 1024 * 100,
+            ),
+            links=frozenset(),
+        )
+        unit = Unit(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            container_name=APPLICATION_WITH_VOLUME_NAME,
+            container_image=APPLICATION_WITH_VOLUME_IMAGE,
+            volumes=frozenset([DockerVolume(
+                container_path=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+                node_path=b'/tmp')]),
+            activation_state=u'active'
+        )
+        docker = FakeDockerClient(units={unit.name: unit})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                applications=frozenset({APPLICATION_WITH_VOLUME}),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                applications=frozenset(),
+            )
+        ]
+        desired_nodes = [
+            Node(
+                hostname=u"node2.example.com",
+                applications=frozenset({APPLICATION_WITH_VOLUME_SIZE}),
+            ),
+            Node(
+                hostname=u"node1.example.com",
+                applications=frozenset(),
+            )
+        ]
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(APPLICATION_WITH_VOLUME_NAME))
+            )
+        )
+
+        api = Deployer(
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=u"node1.example.com",
+        )
+
+        changes = self.successResultOf(calculating)
+        # expected is: resize volume, push, stop application, handoff
+        expected = None
+        self.assertEqual(expected, changes)
+
+    def test_volume_max_size_preserved_after_move(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a volume
+        will be resized if an application which was previously running on this
+        node is to be relocated to a different node but specifies a volume
+        maximum_size that differs to the existing volume size. The volume on
+        the new target node will be resized after it has been received.
+        """
+        self.fail("Not implemented yet")
+
     def test_local_not_running_applications_restarted(self):
         """
         Applications that are not running but are supposed to be on the local
