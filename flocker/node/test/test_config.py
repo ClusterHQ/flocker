@@ -2369,15 +2369,17 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
         parser = FlockerConfiguration(config)
         recorded_arguments = []
+
         def spy_parse_restart_policy(*args, **kwargs):
             recorded_arguments.append((args, kwargs))
             return expected_restart_policy
         self.patch(parser, '_parse_restart_policy', spy_parse_restart_policy)
+
         applications = parser.applications()
 
         self.assertEqual(
             [(tuple(), dict(application_name=expected_application_name,
-                       config=expected_restart_policy_configuration))],
+                            config=expected_restart_policy_configuration))],
             recorded_arguments
         )
 
@@ -3308,6 +3310,7 @@ class ApplicationConfigurationErrorTests(SynchronousTestCase):
         )
         self.assertEqual(
             "Application '{}' has a configuration error. {}".format(
-                expected_application_name, expected_message) ,
+                expected_application_name, expected_message
+            ),
             unicode(e)
         )
