@@ -33,9 +33,9 @@ class FabricRunner(object):
         from fabric.api import run
         self._run_in_context(run, command)
 
-    def put(self, file, path):
+    def put(self, content, path):
         from fabric.api import put
-        self._run_in_context(put, file, path)
+        self._run_in_context(StringIO(put), content, path)
 
 
 def _task_install_kernel(runner):
@@ -102,7 +102,7 @@ def _task_install_flocker(
             gpgcheck=0
             enabled=0
             """) % (base_url,)
-        runner.put(StringIO(repo), '/etc/yum.repos.d/clusterhq-build.repo')
+        runner.put(repo, '/etc/yum.repos.d/clusterhq-build.repo')
         branch_opt = ['--enablerepo=clusterhq-build']
     else:
         branch_opt = []
