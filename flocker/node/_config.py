@@ -1130,15 +1130,9 @@ class FlockerConfiguration(object):
             )
 
             if 'restart_policy' in config:
-                restart_policy = config.pop('restart_policy')
-                if not isinstance(restart_policy, dict):
-                    raise ConfigurationError(
-                        "Application '{}' has a config error. "
-                        "'restart_policy' must be a dict, "
-                        "got {}".format(application_name, restart_policy)
-                    )
                 attributes['restart_policy'] = _parse_restart_policy(
-                    application_name, restart_policy)
+                    application_name, config.pop('restart_policy')
+                )
 
             self._applications[application_name] = Application(**attributes)
 
@@ -1153,15 +1147,21 @@ def _parse_restart_policy(application_name, config):
        the supplied ``restart_policy`` ``dict`` from a Flocker Application
        configuration file.
     """
+    if not isinstance(config, dict):
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must be a dict, "
+            "got {}".format(config)
+        )
+
     policy_name = config.pop('name')
     try:
         policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
     except KeyError:
-        raise ConfigurationError(
-            "Application '{}' has a config error. "
+        raise ApplicationConfigurationError(
+            application_name,
             "Invalid 'restart_policy' name '{}'. "
             "Use one of: {}".format(
-                application_name,
                 policy_name,
                 ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
             )
@@ -1170,10 +1170,10 @@ def _parse_restart_policy(application_name, config):
     try:
         policy = policy_factory(**config)
     except TypeError:
-        raise ConfigurationError(
-            "Application '{}' has a config error. "
+        raise ApplicationConfigurationError(
+            application_name,
             "Invalid 'restart_policy' arguments for {}. "
-            "Got {}".format(application_name, policy_factory.__name__, config)
+            "Got {}".format(policy_factory.__name__, config)
         )
     else:
         return policy

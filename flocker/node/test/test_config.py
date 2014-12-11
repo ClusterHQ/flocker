@@ -2336,8 +2336,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_unknown_restart_policy_name(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if the supplied ``restart_policy`` name is not recognised.
+        ``FlockerConfiguration.applications`` raises a
+        ``ApplicationConfigurationError`` if the supplied ``restart_policy``
+        name is not recognised.
         """
         config = {
             'applications': {
@@ -2349,10 +2350,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'red-fish' has a config error. "
             "Invalid 'restart_policy' name 'unknown-restart-policy'. "
             "Use one of: always, never, on-failure",
             exception.message
@@ -2473,8 +2473,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_always_with_retry_count(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy of ``always``.
+        ``FlockerConfiguration.applications`` raises
+        ``ApplicationConfigurationError`` if maximum retry count is specified
+        with a policy of ``always``.
         """
         config = {
             'applications': {
@@ -2489,10 +2490,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'molybdenum' has a config error. "
             "Invalid 'restart_policy' arguments for RestartAlways. "
             "Got {u'maximum_retry_count': 10}",
             exception.message
@@ -2500,8 +2500,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_never_with_retry_count(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if maximum retry count is specified with a policy of ``never``.
+        ``FlockerConfiguration.applications`` raises
+        ``ApplicationConfigurationError`` if maximum retry count is specified
+        with a policy of ``never``.
         """
         config = {
             'applications': {
@@ -2516,10 +2517,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'red-fish' has a config error. "
             "Invalid 'restart_policy' arguments for RestartNever. "
             "Got {u'maximum_retry_count': 10}",
             exception.message
@@ -2527,8 +2527,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_with_retry_count_not_integer(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if a maximum retry count is not an integer.
+        ``FlockerConfiguration.applications`` raises
+        ``ApplicationConfigurationError`` if a maximum retry count is not an
+        integer.
         """
         config = {
             'applications': {
@@ -2543,10 +2544,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'lorax' has a config error. "
             "Invalid 'restart_policy' arguments for RestartOnFailure. "
             "Got {u'maximum_retry_count': u'fifty'}",
             exception.message
@@ -2554,8 +2554,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_with_extra_keys(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        if extra keys are specified for a retry policy.
+        ``FlockerConfiguration.applications`` raises a
+        ``ApplicationConfigurationError`` if extra keys are specified for a
+        retry policy.
         """
         config = {
             'applications': {
@@ -2570,10 +2571,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'one-fish' has a config error. "
             "Invalid 'restart_policy' arguments for RestartOnFailure. "
             "Got {u'extra': u'key'}",
             exception.message
@@ -2581,8 +2581,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
 
     def test_error_on_restart_policy_not_a_dictionary(self):
         """
-        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
-        unless the restart_policy value is a dictionary.
+        ``FlockerConfiguration.applications`` raises
+        ``ApplicationConfigurationError`` unless the restart_policy value is a
+        dictionary.
         """
         config = {
             'applications': {
@@ -2594,10 +2595,9 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'version': 1
         }
         parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ConfigurationError,
+        exception = self.assertRaises(ApplicationConfigurationError,
                                       parser.applications)
         self.assertEqual(
-            "Application 'green-eggs' has a config error. "
             "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
             exception.message
         )
