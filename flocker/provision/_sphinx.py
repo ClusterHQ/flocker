@@ -1,7 +1,11 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+from inspect import getsourcefile
 from docutils.parsers.rst import Directive
-from twisted.python.reflect import namedAny
 from docutils import nodes
 from docutils.statemachine import StringList
+
+from twisted.python.reflect import namedAny
 
 
 class FakeRunner(object):
@@ -22,15 +26,24 @@ class TaskDirective(Directive):
     required_arguments = 1
 
     def run(self):
-        task = self.arguments[0]
+        task = namedAny(self.arguments[0])
 
         runner = FakeRunner()
         try:
-            namedAny(task)(runner)
+            task(runner)
         except NotImplementedError as e:
             raise self.error("task: %s" % (e.args[0],))
+
         lines = ['.. code-block:: bash', '']
         lines += ['   %s' % (command,) for command in runner.commands]
+
+        # The following three lines record (some?) of the dependencies of the
+        # directive, so automatic regeneration happens.  Specifically, it
+        # records this file, and the file where the task is declared.
+        task_file = getsourcefile(task)
+        self.state.document.settings.record_dependencies.add(task_file)
+        self.state.document.settings.record_dependencies.add(__file__)
+
         node = nodes.Element()
         text = StringList(lines)
         self.state.nested_parse(text, self.content_offset, node)
