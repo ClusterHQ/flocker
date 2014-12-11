@@ -16,7 +16,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._config import FlockerConfiguration
-from flocker.node._model import Application, DockerImage
+from flocker.node._model import Application, AttachedVolume, DockerImage
 from flocker.testtools import loop_until
 
 try:
@@ -29,7 +29,8 @@ except ImportError:
 __all__ = [
     'assert_expected_deployment', 'flocker_deploy', 'get_nodes',
     'MONGO_APPLICATION', 'MONGO_IMAGE', 'get_mongo_application',
-    'require_flocker_cli',
+    'require_flocker_cli', 'get_node_state', 'create_application',
+    'create_attached_volume'
     ]
 
 # XXX This assumes that the desired version of flocker-cli has been installed.
@@ -61,6 +62,43 @@ def get_mongo_application():
         image=DockerImage.from_string(MONGO_IMAGE + u':latest'),
     )
 
+
+def create_application(name, image, ports=frozenset(), volume=None,
+                       links=frozenset(), environment=None, memory_limit=None,
+                       cpu_shares=None):
+    """
+    Instantiate an ``Application`` with the supplied parameters and return it.
+    """
+    return Application(
+        name=name, image=DockerImage.from_string(image + u':latest'),
+        ports=ports, volume=volume, links=links, environment=environment,
+        memory_limit=memory_limit, cpu_shares=cpu_shares
+    )
+
+
+def create_attached_volume(name, mountpoint, maximum_size=None):
+    """
+    Create an ``AttachedVolume`` instance with the supplied parameters and
+    return it.
+    """
+    return AttachedVolume(
+        name=name, mountpoint=FilePath(mountpoint), maximum_size=maximum_size)
+
+
+def get_node_state(node, applications=False):
+    """
+    Call flocker-reportstate on the specified node and return its output,
+    either as parsed YAML or optionally as ``Application`` instances.
+
+    :param bool applications: Whether to parse the returned state in to
+        ``Application`` instances via the Flocker configuration parser.
+    """
+    yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
+    state = safe_load(yaml)
+    if applications:
+        return FlockerConfiguration(state).applications()
+    else:
+        return state
 
 def _run_SSH(port, user, node, command, input, key=None):
     """
