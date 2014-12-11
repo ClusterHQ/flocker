@@ -810,6 +810,8 @@ class FlockerConfiguration(object):
     """
     Validate and parse native Flocker-formatted configurations.
     """
+    _parse_restart_policy = staticmethod(_parse_restart_policy)
+
     def __init__(self, application_configuration):
         """
         :param dict application_configuration: The native parsed YAML
@@ -1078,8 +1080,6 @@ class FlockerConfiguration(object):
             )
 
         return volume
-
-    _parse_restart_policy = staticmethod(_parse_restart_policy)
 
     def _parse(self):
         """
