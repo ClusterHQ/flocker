@@ -137,9 +137,6 @@ class RackspaceRunner(object):
             print "creating", index
             node = rackspace.create_node(
                 name="test-accept-%d" % (index,),
-                image_name=u'Fedora 20 (Heisenbug) (PVHVM)',
-            )
-            node.provision(
                 distribution=self.distribution,
                 version=self.flocker_version,
                 branch=self.branch,

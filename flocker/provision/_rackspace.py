@@ -29,6 +29,11 @@ class RackspaceNode(object):
         return self.address
 
 
+IMAGE_NAMES = {
+    'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
+}
+
+
 @attributes([Attribute('_keyname')], apply_immutable=True)
 class Rackspace(object):
 
@@ -38,10 +43,12 @@ class Rackspace(object):
             secret=key,
             region=region)
 
-    def create_node(self, name, image_name,
+    def create_node(self, name,
+                    distribution, version, branch,
                     userdata=None,
                     size="performance1-2", disk_size=8,
-                    keyname=None):
+                    keyname=None,
+                    ):
         """
         :param str name: The name of the node.
         :param str base_ami: The name of the ami to use.
@@ -51,6 +58,9 @@ class Rackspace(object):
         """
         if keyname is None:
             keyname = self._keyname
+
+        image_name = IMAGE_NAMES[distribution]
+
         node = self._driver.create_node(
             name=name,
             image=get_image(self._driver, image_name),
@@ -64,4 +74,6 @@ class Rackspace(object):
 
         public_address = addresses[0]
 
-        return RackspaceNode(node=node, address=public_address)
+        node = RackspaceNode(node=node, address=public_address)
+        node.provision(distribution, version, branch)
+        return node
