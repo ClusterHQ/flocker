@@ -81,6 +81,27 @@ class ConfigurationError(Exception):
     """
 
 
+class ApplicationConfigurationError(ConfigurationError):
+    """
+    Part of the ``Application`` configuration was wrong.
+    """
+
+    message_template = (
+        "Application '{application_name}' has a configuration error. "
+        "{message}"
+    )
+
+    def __init__(self, application_name, message):
+        """
+        """
+        self.application_name = application_name
+        self.message = message
+
+    def __unicode__(self):
+        return self.message_template.format(
+            application_name=self.application_name, message=self.message)
+
+
 def _check_type(value, types, description, application_name):
     """
     Checks ``value`` has type in ``types``.

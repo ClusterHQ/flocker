@@ -16,7 +16,7 @@ from .._config import (
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
-    FLOCKER_RESTART_POLICY_POLICY_TO_NAME,
+    FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -3296,3 +3296,40 @@ class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
         """
         check_marshalled_restart_policy(
             self, RestartOnFailure, maximum_retry_count=10)
+
+
+class ApplicationConfigurationErrorTests(SynchronousTestCase):
+    """
+    """
+    def test_attributes(self):
+        """
+        ``ApplicationConfigurationError`` is initialised with an
+        ``application_name`` and a ``message`` which are exposed as public
+        attributes.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            (expected_application_name, expected_message),
+            (e.application_name, e.message)
+        )
+
+    def test_unicode(self):
+        """
+        ``ApplicationConfigurationError`` can be converted to unicode.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            "Application '{}' has a configuration error. {}".format(
+                expected_application_name, expected_message) ,
+            unicode(e)
+        )
