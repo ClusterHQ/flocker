@@ -2343,7 +2343,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             'applications': {
                 'red-fish': {
                     'image': 'seuss/one-fish-two-fish',
-                    'restart_policy': {'name': 'unknown-restart-policy',},
+                    'restart_policy': {'name': 'unknown-restart-policy'},
                 }
             },
             'version': 1
