@@ -529,6 +529,9 @@ class Deployer(object):
                     HandoffVolume(volume=handoff.volume,
                                   hostname=handoff.hostname)
                     for handoff in volumes.going]))
+            # any volumes coming to this node should also be
+            # resized to the appropriate quota max size once they
+            # have been received
             if volumes.coming:
                 phases.append(InParallel(changes=[
                     WaitForVolume(volume=volume)

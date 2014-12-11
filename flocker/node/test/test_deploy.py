@@ -1395,6 +1395,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         expected = Sequentially(changes=[
             InParallel(changes=[WaitForVolume(volume=volume)]),
+            InParallel(changes=[ResizeVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname="node1.example.com")])])
@@ -1880,6 +1881,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             InParallel(changes=[HandoffVolume(
                 volume=volume, hostname=another_node.hostname)]),
             InParallel(changes=[WaitForVolume(volume=volume2)]),
+            InParallel(changes=[ResizeVolume(volume=volume2)]),
             InParallel(changes=[
                 StartApplication(application=another_application,
                                  hostname="node1.example.com")]),
