@@ -2530,33 +2530,22 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
             "Invalid 'restart_policy' arguments for RestartOnFailure. "
             "Got {'maximum_retry_count': u'fifty'}",
             exception.message
-
         )
 
     def test_error_on_restart_policy_with_extra_keys(self):
         """
-        ``FlockerConfiguration.applications`` raises a
-        ``ApplicationConfigurationError`` if extra keys are specified for a
-        retry policy.
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        extra keys are specified for a retry policy.
         """
-        config = {
-            'applications': {
-                'one-fish': {
-                    'image': 'seuss/one-fish-two-fish',
-                    'restart_policy': {
-                        'name': 'on-failure',
-                        'extra': "key",
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        exception = self.assertRaises(ApplicationConfigurationError,
-                                      parser.applications)
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', extra=u'key')
+        )
         self.assertEqual(
             "Invalid 'restart_policy' arguments for RestartOnFailure. "
-            "Got {u'extra': u'key'}",
+            "Got {'extra': u'key'}",
             exception.message
         )
 
