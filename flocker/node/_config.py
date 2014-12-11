@@ -293,7 +293,7 @@ class ApplicationMarshaller(object):
             }
             if self._application.volume.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
-                    self._application.volume.maximum_size
+                    unicode(self._application.volume.maximum_size)
                 )
             return volume_dict
         return None

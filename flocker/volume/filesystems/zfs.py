@@ -514,6 +514,22 @@ class StoragePool(Service):
         d.addCallback(lambda _: filesystem)
         return d
 
+    def set_maximum_size(self, volume):
+        filesystem = self.get(volume)
+        properties = []
+        if volume.size.maximum_size is not None:
+            properties.extend([
+                u"refquota={0}".format(
+                    volume.size.maximum_size).encode("ascii")
+            ])
+        else:
+            properties.extend([u"refquota=none"])
+        d = zfs_command(self._reactor,
+                        [b"set"] + properties + [filesystem.name])
+        d.addErrback(self._check_for_out_of_space)
+        d.addCallback(lambda _: filesystem)
+        return d
+
     def clone_to(self, parent, volume):
         parent_filesystem = self.get(parent)
         new_filesystem = self.get(volume)

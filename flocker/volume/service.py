@@ -144,6 +144,22 @@ class VolumeService(Service):
         d.addCallback(created)
         return d
 
+    def set_maximum_size(self, volume):
+        """
+        Resize an existing volume.
+
+        :param Volume volume: The ``Volume`` instance to resize in the storage
+            pool.
+
+        :return: A ``Deferred`` that fires with a :clas:`Volume`.
+        """
+        d = self.pool.set_maximum_size(volume)
+
+        def resized(filesystem):
+            return volume
+        d.addCallback(resized)
+        return d
+
     def clone_to(self, parent, name):
         """
         Clone a parent ``Volume`` to create a new one.

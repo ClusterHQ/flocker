@@ -2990,7 +2990,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
-                               'maximum_size': EXPECTED_MAX_SIZE},
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }

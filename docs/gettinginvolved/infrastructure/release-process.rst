@@ -173,16 +173,14 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
 #. Do the acceptance tests:
 
-   - Download the tutorial vagrant ``.box`` file that BuildBot has created from the release branch.
+   - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
      The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-     The URL will look like ``https://storage.googleapis.com/clusterhq-vagrant-buildbot/tutorial/flocker-tutorial-<RELEASE_BRANCH_VERSION>.box``.
-
-   - Add the downloaded ``.box`` file to ``vagrant``:
+     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH>/flocker-tutorial.json``.
 
      .. code-block:: console
 
-        vagrant box add --name='clusterhq/flocker-tutorial'  flocker-tutorial-<RELEASE_BRANCH_VERSION>.box
+        vagrant box add <URL>
 
      You should now see the ``flocker-tutorial`` box listed:
 
@@ -192,7 +190,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
         $ vagrant box list
         clusterhq/fedora20-updated (virtualbox, 2014.09.19)
         clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-        clusterhq/flocker-tutorial (virtualbox, 0)
+        clusterhq/flocker-tutorial (virtualbox, <RELEASE_BRANCH_VERSION>)
 
    - Clone Flocker on your local workstation and install all ``dev`` requirements:
 
@@ -206,17 +204,20 @@ This review step is to ensure that all acceptance tests pass on the release bran
         mkvirtualenv flocker-release-${VERSION}
         pip install --editable .[dev]
 
-   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial to start the necessary virtual machines.
-
    Install `PhantomJS`_.
 
-   Run the automated acceptance tests; they will connect to the tutorial VMs.
-   All containers on the tutorial VMs will be destroyed by running the tests.
+   Run the automated acceptance tests; they will start the appropriate VMs.
+   You will need to add the Vagrant key to your agent:
+
+   .. code-block:: console
+
+      ssh-add ~/.vagrant.d/insecure_private_key
+
    Ensure that they all pass, with no skips:
 
    .. code-block:: console
 
-      $ FLOCKER_ACCEPTANCE_NODES=172.16.255.250:172.16.255.251 trial flocker.acceptance
+      $ admin/run-acceptance-tests --distribution fedora-20
 
 #. Accept or reject the release issue depending on whether everything has worked.
 

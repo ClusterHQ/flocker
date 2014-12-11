@@ -372,9 +372,9 @@ Paste them into a root console:
 
 .. code-block:: sh
 
-   mkdir /opt/flocker
-   truncate --size 10G /opt/flocker/pool-vdev
-   zpool create flocker /opt/flocker/pool-vdev
+   mkdir -p /var/opt/flocker
+   truncate --size 10G /var/opt/flocker/pool-vdev
+   zpool create flocker /var/opt/flocker/pool-vdev
 
 .. note:: It is also possible to create the pool on a block device.
 
