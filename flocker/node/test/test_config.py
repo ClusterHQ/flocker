@@ -17,6 +17,7 @@ from .._config import (
     model_from_configuration, FigConfiguration,
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
+    _parse_restart_policy,
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -2339,6 +2340,15 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
     """
     Tests for the parsing of Flocker restart policy configuration.
     """
+
+    def test_parse_restart_policy_identity(self):
+        """
+        ``FlockerConfiguration._parse_restart_policy`` is
+        ``_parse_restart_policy``.
+        """
+        self.assertIs(
+            _parse_restart_policy, FlockerConfiguration._parse_restart_policy)
+
     def test_parse_restart_policy_is_called(self):
         """
         If the supplied application configuration has a ``restart_policy`` key,
