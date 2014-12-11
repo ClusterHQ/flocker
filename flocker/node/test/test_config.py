@@ -2334,6 +2334,30 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             exception.message
         )
 
+    def test_error_on_unknown_restart_policy_name(self):
+        """
+        ``FlockerConfiguration.applications`` raises a ``ConfigurationError``
+        if the supplied ``restart_policy`` name is not recognised.
+        """
+        config = {
+            'applications': {
+                'red-fish': {
+                    'image': 'seuss/one-fish-two-fish',
+                    'restart_policy': {'name': 'unknown-restart-policy',},
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            "Application 'red-fish' has a config error. "
+            "Invalid 'restart_policy' name 'unknown-restart-policy'"
+            "Must be one of: never, always, on-failure",
+            exception.message
+        )
+
     def test_default_restart_policy(self):
         """
         ``FlockerConfiguration.applications`` returns an ``Application`` with a
