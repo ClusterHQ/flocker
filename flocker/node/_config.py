@@ -194,7 +194,7 @@ class ApplicationMarshaller(object):
         policy = self._application.restart_policy
         policy_type = policy.__class__
         output = dict(name=FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type])
-        if policy_type in (RestartAlways, RestartOnFailure):
+        if policy_type is RestartOnFailure:
             maximum_retry_count = policy.maximum_retry_count
             if maximum_retry_count is not None:
                 output['maximum_retry_count'] = maximum_retry_count
