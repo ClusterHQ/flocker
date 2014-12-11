@@ -252,6 +252,24 @@ class VolumeServiceAPITests(TestCase):
         d = service.set_maximum_size(service.get(MY_VOLUME, size=volume_size))
         self.assertEqual(self.successResultOf(d), resized_volume)
 
+    def test_set_maximum_size_applied(self):
+        """
+        ``set_maximum_size`` results in the associated filesystem having a
+        new maximum size quota applied according to the given ``Volume``.
+        """
+        pool = FilesystemStoragePool(FilePath(self.mktemp()))
+        service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
+        service.startService()
+        d = service.create(service.get(MY_VOLUME))
+        created_volume = self.successResultOf(d)
+        created_fs = pool.get(created_volume)
+        volume_size = VolumeSize(maximum_size=1024 * 1024 * 10)
+        d = service.set_maximum_size(service.get(MY_VOLUME, size=volume_size))
+        resized_volume = self.successResultOf(d)
+        resized_fs = pool.get(resized_volume)
+        self.assertEqual(created_fs.size, VolumeSize(maximum_size=None))
+        self.assertEqual(resized_volume.size, resized_fs.size)
+
     def test_create_result(self):
         """``create()`` returns a ``Deferred`` that fires with a ``Volume``."""
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
