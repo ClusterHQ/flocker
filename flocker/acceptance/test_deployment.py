@@ -61,7 +61,7 @@ class DeploymentTests(TestCase):
             }
 
             flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_1, True)
+            state = get_node_state(node_1)
             self.assertEqual(state[MONGO_APPLICATION], application)
             # now we've verified the initial deployment has succeeded
             # with the expected result, we will redeploy the same application
@@ -74,7 +74,7 @@ class DeploymentTests(TestCase):
             app_config[u"volume"][u"maximum_size"] = SIZE_100_MB
 
             flocker_deploy(self, config_deployment, config_application)
-            state = get_node_state(node_2, True)
+            state = get_node_state(node_2)
 
             application = create_application(
                 MONGO_APPLICATION, MONGO_IMAGE,

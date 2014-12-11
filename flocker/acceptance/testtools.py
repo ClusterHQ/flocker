@@ -85,20 +85,14 @@ def create_attached_volume(name, mountpoint, maximum_size=None):
         name=name, mountpoint=FilePath(mountpoint), maximum_size=maximum_size)
 
 
-def get_node_state(node, applications=False):
+def get_node_state(node):
     """
     Call flocker-reportstate on the specified node and return its output,
-    either as parsed YAML or optionally as ``Application`` instances.
-
-    :param bool applications: Whether to parse the returned state in to
-        ``Application`` instances via the Flocker configuration parser.
+    as ``Application`` instances parsed via class ``FlockerConfiguration``.
     """
     yaml = _run_SSH(22, 'root', node, [b"flocker-reportstate"], None)
     state = safe_load(yaml)
-    if applications:
-        return FlockerConfiguration(state).applications()
-    else:
-        return state
+    return FlockerConfiguration(state).applications()
 
 
 def _run_SSH(port, user, node, command, input, key=None):
