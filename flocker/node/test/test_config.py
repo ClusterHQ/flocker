@@ -2440,7 +2440,7 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_restart_policy_always(self):
         """
-        ``_parse_restart_policy`` returns an ``RestartAlways`` if that policy
+        ``_parse_restart_policy`` returns ``RestartAlways`` if that policy
         was specified in the configuration.
         """
         self.assertEqual(
@@ -2453,26 +2453,16 @@ class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
 
     def test_restart_policy_on_failure(self):
         """
-        ``FlockerConfiguration.applications`` returns an ``Application`` with a
-        restart_policy of on-failure if that policy was specified in the
-        configuration.
+        ``_parse_restart_policy`` returns an ``RestartOnFailure`` if that
+        policy was specified in the configuration.
         """
-        config = {
-            'applications': {
-                'boron': {
-                    'image': 'atomic/5',
-                    'restart_policy': {
-                        'name': 'on-failure',
-                    },
-                }
-            },
-            'version': 1
-        }
-        parser = FlockerConfiguration(config)
-        applications = parser.applications()
         self.assertEqual(
-            applications['boron'].restart_policy,
-            RestartOnFailure(maximum_retry_count=None))
+            RestartOnFailure(maximum_retry_count=None),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'on-failure')
+            )
+        )
 
     def test_restart_policy_on_failure_with_retry_count(self):
         """
