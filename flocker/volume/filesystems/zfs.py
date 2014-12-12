@@ -665,7 +665,8 @@ def _list_filesystems(reactor, pool):
             name = name[len(pool) + 1:]
             if name:
                 refquota = int(refquota.decode("ascii"))
-                refquota = None if refquota == 0 else refquota
+                if refquota == 0:
+                    refquota = None
                 yield _DatasetInfo(
                     dataset=name, mountpoint=mountpoint, refquota=refquota)
 
