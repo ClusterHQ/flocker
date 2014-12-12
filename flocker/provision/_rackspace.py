@@ -8,22 +8,19 @@ from ._install import install
 
 # _node isn't immutable, since libcloud provides new instances
 # with updated data.
-@attributes([Attribute('_node'), 'address'])
+@attributes([Attribute('_node'), 'address', 'distribution'])
 class RackspaceNode(object):
     def destroy(self):
         self._node.destroy()
 
-    def provision(self, distribution, version, branch):
+    def provision(self, version, branch):
         """
         Provision flocker on this node.
         """
-        if distribution != 'fedora-20':
-            raise ValueError("Distribution not supported: %r."
-                             % (distribution,))
         install([self.address], username="root",
                 kwargs={
                     'version': version,
-                    'distribution': distribution,
+                    'distribution': self.distribution,
                     'branch': branch,
                     })
         return self.address
@@ -43,12 +40,10 @@ class Rackspace(object):
             secret=key,
             region=region)
 
-    def create_node(self, name,
-                    distribution, version, branch,
+    def create_node(self, name, distribution,
                     userdata=None,
                     size="performance1-2", disk_size=8,
-                    keyname=None,
-                    ):
+                    keyname=None):
         """
         :param str name: The name of the node.
         :param str base_ami: The name of the ami to use.
@@ -74,6 +69,5 @@ class Rackspace(object):
 
         public_address = addresses[0]
 
-        node = RackspaceNode(node=node, address=public_address)
-        node.provision(distribution, version, branch)
-        return node
+        return RackspaceNode(node=node, address=public_address,
+                             distribution=distribution)

@@ -138,10 +138,12 @@ class RackspaceRunner(object):
             node = rackspace.create_node(
                 name="test-accept-%d" % (index,),
                 distribution=self.distribution,
+            )
+            self.nodes.append(node)
+            node.provision(
                 version=self.flocker_version,
                 branch=self.branch,
             )
-            self.nodes.append(node)
             del node
 
         return [node.address for node in self.nodes]
@@ -151,7 +153,10 @@ class RackspaceRunner(object):
         Deprovision the nodes provisioned by ``start_nodes``.
         """
         for node in self.nodes:
-            node.destroy()
+            try:
+                node.destroy()
+            except Exception:
+                print "Failed to destroy %s." % (node,)
 
 
 PROVIDERS = {'vagrant': VagrantRunner, 'rackspace': RackspaceRunner}
@@ -232,9 +237,15 @@ def main(args, base_path, top_level):
 
     runner = options.runner
 
-    nodes = runner.start_nodes()
-    result = run_tests(nodes, options['trial-args'])
-    # Unless the tests failed, and the user asked to keep the nodes, we delete
-    # them.
-    if not (result != 0 and options['keep']):
-        runner.stop_nodes()
+    try:
+        nodes = runner.start_nodes()
+        result = run_tests(nodes, options['trial-args'])
+    except Exception:
+        result = 1
+        raise
+    finally:
+        # Unless the tests failed, and the user asked to keep the nodes, we
+        # delete them.
+        if not (result != 0 and options['keep']):
+            runner.stop_nodes()
+    raise SystemExit(result)
