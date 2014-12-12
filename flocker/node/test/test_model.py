@@ -168,3 +168,13 @@ class RestartOnFailureTests(SynchronousTestCase):
         maximum retry count is ``None``.
         """
         RestartOnFailure()
+
+    def test_maximum_retry_count_not_integer(self):
+        """
+        ``RestartOnFailure.__init__`` raises ``TypeError`` if the supplied
+        ``maximum_retry_count`` is not an ``int``
+        """
+        self.assertRaises(
+            TypeError,
+            RestartOnFailure, maximum_retry_count='foo'
+        )

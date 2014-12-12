@@ -19,8 +19,21 @@ from zope.interface import Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
-    DockerImage, Node, Port
+    DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
 )
+
+# Map ``flocker.node.IRestartPolicy`` implementations to
+# ``restart_policy`` ``name`` strings found in Flocker's application.yml file.
+FLOCKER_RESTART_POLICY_POLICY_TO_NAME = {
+    RestartNever: 'never',
+    RestartAlways: 'always',
+    RestartOnFailure: 'on-failure',
+}
+# And vice-versa.
+FLOCKER_RESTART_POLICY_NAME_TO_POLICY = {
+    name: policy
+    for policy, name in FLOCKER_RESTART_POLICY_POLICY_TO_NAME.items()
+}
 
 
 class IApplicationConfiguration(Interface):
@@ -66,6 +79,30 @@ class ConfigurationError(Exception):
 
     The exception message will include some details about what.
     """
+
+
+class ApplicationConfigurationError(ConfigurationError):
+    """
+    Part of the ``Application`` configuration was wrong.
+    """
+
+    message_template = (
+        "Application '{application_name}' has a configuration error. "
+        "{message}"
+    )
+
+    def __init__(self, application_name, message):
+        """
+        """
+        self.application_name = application_name
+        self.message = message
+
+    def __unicode__(self):
+        return self.message_template.format(
+            application_name=self.application_name, message=self.message)
+
+    def __str__(self):
+        return unicode(self).encode('ascii')
 
 
 def _check_type(value, types, description, application_name):
@@ -167,7 +204,23 @@ class ApplicationMarshaller(object):
         volume = self.convert_volume()
         if volume:
             config['volume'] = volume
+        config['restart_policy'] = self.convert_restart_policy()
         return config
+
+    def convert_restart_policy(self):
+        """
+        :returns: A ``dict`` of ``IRestartPolicy`` attributes in a format
+            suitable for serialising to a Flocker Application configuration
+            file.
+        """
+        policy = self._application.restart_policy
+        policy_type = policy.__class__
+        output = dict(name=FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type])
+        if policy_type is RestartOnFailure:
+            maximum_retry_count = policy.maximum_retry_count
+            if maximum_retry_count is not None:
+                output['maximum_retry_count'] = maximum_retry_count
+        return output
 
     def convert_image(self):
         """
@@ -710,11 +763,60 @@ class FigConfiguration(object):
         self._link_applications()
 
 
+def _parse_restart_policy(application_name, config):
+    """
+    :param unicode application_name: The name of the ``Application`` that has
+        the configured restart policy (supplied in order to identify the
+        location of ``ConfigurationError``).
+    :param dict config: The ``restart_policy`` configuration.
+    :returns: An ``IRestartPolicy`` provider chosen and initialised based on
+       the supplied ``restart_policy`` ``dict`` from a Flocker Application
+       configuration file.
+    """
+    if not isinstance(config, dict):
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must be a dict, "
+            "got {}".format(config)
+        )
+    try:
+        policy_name = config.pop('name')
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must include a 'name'."
+        )
+    try:
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: {}".format(
+                policy_name,
+                ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
+            )
+        )
+
+    try:
+        policy = policy_factory(**config)
+    except TypeError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' arguments for {}. "
+            "Got {}".format(policy_factory.__name__, config)
+        )
+    else:
+        return policy
+
+
 @implementer(IApplicationConfiguration)
 class FlockerConfiguration(object):
     """
     Validate and parse native Flocker-formatted configurations.
     """
+    _parse_restart_policy = staticmethod(_parse_restart_policy)
+
     def __init__(self, application_configuration):
         """
         :param dict application_configuration: The native parsed YAML
@@ -730,6 +832,7 @@ class FlockerConfiguration(object):
         self._allowed_keys = {
             "image", "environment", "ports",
             "links", "volume", "mem_limit", "cpu_shares",
+            "restart_policy",
         }
         self._applications = {}
 
@@ -1067,7 +1170,7 @@ class FlockerConfiguration(object):
             else:
                 cpu_shares = None
 
-            self._applications[application_name] = Application(
+            attributes = dict(
                 name=application_name,
                 image=image,
                 volume=volume,
@@ -1075,7 +1178,16 @@ class FlockerConfiguration(object):
                 links=links,
                 environment=environment,
                 memory_limit=mem_limit,
-                cpu_shares=cpu_shares)
+                cpu_shares=cpu_shares,
+            )
+
+            if 'restart_policy' in config:
+                attributes['restart_policy'] = self._parse_restart_policy(
+                    application_name=application_name,
+                    config=config.pop('restart_policy')
+                )
+
+            self._applications[application_name] = Application(**attributes)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):
