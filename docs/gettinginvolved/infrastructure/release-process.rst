@@ -209,18 +209,20 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      On Linux you will need to ensure that that the ``phantomjs`` binary is on your ``PATH`` before running the acceptance tests below.
 
-   Run the automated acceptance tests; they will start the appropriate VMs.
-   You will need to add the Vagrant key to your agent:
+   - Add the Vagrant key to your agent:
 
-   .. code-block:: console
+     .. code-block:: console
 
-      ssh-add ~/.vagrant.d/insecure_private_key
+        ssh-add ~/.vagrant.d/insecure_private_key
 
-   Ensure that they all pass, with no skips:
+   - Run the automated acceptance tests.
 
-   .. code-block:: console
+     They will start the appropriate VMs.
+     Ensure that they all pass, with no skips:
 
-      $ admin/run-acceptance-tests --distribution fedora-20
+     .. code-block:: console
+
+        $ admin/run-acceptance-tests --distribution fedora-20
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
