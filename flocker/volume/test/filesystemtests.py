@@ -655,7 +655,7 @@ def make_istoragepool_tests(fixture):
         def test_enumerate_provides_null_size(self):
             """
             The ``IStoragePool.enumerate`` implementation produces
-            ``IFilesystem`` results which specify a None maximum_size
+            ``IFilesystem`` results which specify a ``None`` ``maximum_size``
             when the filesystem was created with no maximum size.
             """
             size = VolumeSize(maximum_size=None)
