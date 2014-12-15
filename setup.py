@@ -189,6 +189,7 @@ setup(
             "virtualenv",
             "PyCrypto",
             "pyasn1",
+            "tl.eggdeps",
             ],
         },
 

@@ -324,33 +324,64 @@ Release
         git checkout -b release/flocker-${VERSION} origin/master
         git push origin --set-upstream release/flocker-${VERSION}
 
-   - Create a ``flocker-${VERSION}.rb`` file by copying the last recipe file and renaming it for this release.
+   - Create a ``flocker-${VERSION}.rb`` file.
 
-   - Update recipe file:
+     XXX This should be automated: FLOC-XXX
 
-     - Update the version number:
+     The starting contents of the file should be similar to the following:
 
-       The version number is included in the class name with all dots and dashes removed.
-       e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
+     .. code-block:: ruby
 
-     - Update the URL:
+       require "formula"
 
-       The version number is also included in the ``url`` part of the recipe.
+       class Flocker030dev1 < Formula
+         homepage "https://clusterhq.com"
+         url "http://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.0dev1.tar.gz"
+         sha1 "227dc898121b46670631c4eeaeb7424f218925c1"
+         depends_on :python if MacOS.version <= :snow_leopard
 
-     - Update the ``sha1`` checksum. Retrieve it with ``sha1sum``:
+     The version number is included in the class name with all dots and dashes removed,
+     e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2.
+     This should be changed.
 
-       .. code-block:: console
+     The version number is also included in the ``url`` part of the recipe and should be changed as appropriate.
 
-          sha1sum "dist/Flocker-${VERSION}.tar.gz"
-          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
+     Update the ``sha1`` checksum. Retrieve it with ``sha1sum``:
 
-     - Commit the changes and push:
+     .. code-block:: console
 
-       .. code-block:: console
+         sha1sum "dist/Flocker-${VERSION}.tar.gz"
+         ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
 
-          git add flocker-${VERSION}.rb
-          git commit -m "New Homebrew recipe with bumped version number and checksum"
-          git push
+     Download and run the `mkpydeps`_ script.
+
+     Compare each generated resource to its equivalent in Flocker's ``setup.py``.
+     If there is an ``==`` equivalent in ``setup.py`` replace the URL and sha1 as appropriate for the necessary version.
+     This is because the script gives the latest version of each package, even if that is not appropriate.
+
+     The end of the script should be:
+
+     .. code-block:: ruby
+
+         ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
+             system "python", *Language::Python.setup_install_args(libexec)
+
+             bin.install Dir["#{libexec}/bin/*"]
+             bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
+           end
+
+           test do
+             system "#{bin}/flocker-deploy", "--version"
+           end
+         end
+
+   - Commit the changes and push:
+
+     .. code-block:: console
+
+        git add flocker-${VERSION}.rb
+        git commit -m "New Homebrew recipe with bumped version number and checksum"
+        git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed:
 
@@ -401,6 +432,8 @@ Release
         Wait for the new HTML build to pass.
 
 #. Submit the release pull request for review again.
+
+.. _`mkpydeps`: https://raw.githubusercontent.com/tdsmith/labmisc/master/mkpydeps
 
 Post-Release Review Process
 ---------------------------
