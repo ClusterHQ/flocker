@@ -115,6 +115,9 @@ Preparing For a Release
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
    - Update the "What's New" document.
+   - (optional) Add a version heading.
+     If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
+     If this is a weekly development release, add a "Next Release" heading instead.
    - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
