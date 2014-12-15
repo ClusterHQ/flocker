@@ -324,11 +324,11 @@ Release
         git checkout -b release/flocker-${VERSION} origin/master
         git push origin --set-upstream release/flocker-${VERSION}
 
-   - Create a ``flocker-${VERSION}.rb`` file.
+   - Create a ``flocker-${VERSION}.rb`` recipe file.
 
      XXX This should be automated: FLOC-XXX
 
-     The starting contents of the file should be similar to the following:
+     The starting contents of the recipe should be similar to the following:
 
      .. code-block:: ruby
 
@@ -358,8 +358,9 @@ Release
      Compare each generated resource to its equivalent in Flocker's ``setup.py``.
      If there is an ``==`` equivalent in ``setup.py`` replace the URL and sha1 as appropriate for the necessary version.
      This is because the script gives the latest version of each package, even if that is not appropriate.
+     The middle of the recipe should be the this modified ``mkpydeps`` output.
 
-     The end of the script should be:
+     The end of the recipe should be:
 
      .. code-block:: ruby
 
