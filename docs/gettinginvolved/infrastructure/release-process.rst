@@ -326,7 +326,7 @@ Release
 
    - Create a ``flocker-${VERSION}.rb`` recipe file.
 
-     XXX This should be automated: FLOC-XXX
+     XXX This should be automated: https://clusterhq.atlassian.net/browse/FLOC-1150
 
      The starting contents of the recipe should be similar to the following:
 
