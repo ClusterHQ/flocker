@@ -531,6 +531,7 @@ class FilesystemTests(TestCase):
         volume = service.get(
             MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
         creating = pool.create(volume)
+
         def created(filesystem):
             path = filesystem.get_path()
             # Try to write more than 64MB of data.
