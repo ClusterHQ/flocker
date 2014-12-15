@@ -32,8 +32,8 @@ from twisted.internet.protocol import Factory, Protocol
 
 from characteristic import attributes
 
-from . import __version__
-from .common.script import (
+from .. import __version__
+from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 

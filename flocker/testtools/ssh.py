@@ -22,7 +22,7 @@ except ImportError:
     SSHPublicKeyDatabase = UnixConchUser = object
     have_conch = False
 
-if_conch = skipIf(have_conch, "twisted.conch must be useable.")
+if_conch = skipIf(not have_conch, "twisted.conch must be useable.")
 
 
 class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
