@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 
 from .. import ProcessNode
 from ..test.test_ipc import make_inode_tests
-from ...testtools import create_ssh_server
+from ...testtools.ssh import create_ssh_server
 
 
 def make_prefixless_processnode(test_case):

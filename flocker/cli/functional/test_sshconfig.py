@@ -15,7 +15,7 @@ from twisted.internet.threads import deferToThread
 
 from .. import configure_ssh
 from .._sshconfig import OpenSSHConfiguration
-from ...testtools import create_ssh_server, create_ssh_agent
+from ...testtools.ssh import create_ssh_server, create_ssh_agent
 
 
 def goodlines(path):
