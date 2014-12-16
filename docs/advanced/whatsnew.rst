@@ -9,8 +9,8 @@ What's New
 Next Release
 ============
 
-* Applications can now be :ref:`configured with a restart policy<configuration>`.
-
+* Applications can now be configured with a :ref:`restart policy<restart configuration>`.
+* Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
 
 v0.3.2
 ======

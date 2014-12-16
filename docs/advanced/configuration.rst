@@ -73,6 +73,8 @@ The following parameters are optional when defining an application:
   .. note::
      Only TCP links are supported by Flocker, therefore the ``TCP`` portion of the environment variable names and the ``tcp`` value of the ``_PROTO`` and ``_TCP`` variables are not configurable.
 
+.. _volume configuration:
+
 - ``volume``
 
   This specifies that the application container requires a volume.
@@ -125,6 +127,8 @@ The following parameters are optional when defining an application:
   .. code-block:: yaml
 
      "cpu_shares": 512
+
+.. _restart configuration:
 
 - ``restart_policy``
 
