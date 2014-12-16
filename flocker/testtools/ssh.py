@@ -1,3 +1,7 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
+"""Utilities to help with unit and functional testing of ssh."""
+
 import os
 from operator import setitem, delitem
 from signal import SIGKILL
@@ -17,12 +21,12 @@ try:
     from twisted.conch.checkers import SSHPublicKeyDatabase
     from twisted.conch.openssh_compat.factory import OpenSSHFactory
     from twisted.conch.unix import UnixConchUser
-    have_conch = True
+    _have_conch = True
 except ImportError:
     SSHPublicKeyDatabase = UnixConchUser = object
-    have_conch = False
+    _have_conch = False
 
-if_conch = skipIf(not have_conch, "twisted.conch must be useable.")
+if_conch = skipIf(not _have_conch, "twisted.conch must be useable.")
 
 
 class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
