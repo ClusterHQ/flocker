@@ -11,6 +11,10 @@ Next Release
 
 * Applications can now be :ref:`configured with a restart policy<configuration>`.
 
+v0.3.3dev2
+==========
+
+* Applications can now :ref:`specify a maximum size for volumes<configuration>`.
 
 v0.3.2
 ======

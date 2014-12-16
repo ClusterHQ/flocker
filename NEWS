@@ -1,3 +1,8 @@
+Flocker 0.3.3dev2 (2014-12-16)
+==============================
+
+- Applications can now be configured with a maximum size for volumes. (FLOC-729) 
+
 Flocker 0.3.2 (2014-11-19)
 ==========================
 
