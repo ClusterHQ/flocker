@@ -156,8 +156,8 @@ class RackspaceRunner(object):
         for node in self.nodes:
             try:
                 node.destroy()
-            except Exception:
-                print "Failed to destroy %s." % (node,)
+            except Exception as e:
+                print "Failed to destroy %s: %s" % (node, e)
 
 
 PROVIDERS = {'vagrant': VagrantRunner, 'rackspace': RackspaceRunner}
