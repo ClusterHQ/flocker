@@ -82,8 +82,6 @@ Preparing For a Release
    - the ``box_version`` in
      `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
-   - the "Next Release" line in
-     `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
 
    Commit the changes:
 
@@ -117,6 +115,9 @@ Preparing For a Release
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
    - Update the "What's New" document.
+   - (optional) Add a version heading.
+     If this is a Major or Minor Marketing (pre-)release, the "What's New" document should have a heading corresponding to the release version.
+     If this is a weekly development release, add a "Next Release" heading instead.
    - Refer to the appropriate internal release planning document for a list of features that were scheduled for this release, e.g. Product Development > Releases > Release 0.3.1, and add bullet points for those features that have been completed.
    - Add bullet points for any other *important* new features and improvements from the NEWS file above,
    - and add links (where appropriate) to documentation that has been added for those features.
@@ -204,20 +205,24 @@ This review step is to ensure that all acceptance tests pass on the release bran
         mkvirtualenv flocker-release-${VERSION}
         pip install --editable .[dev]
 
-   Install `PhantomJS`_.
+   - Install `PhantomJS`_:
 
-   Run the automated acceptance tests; they will start the appropriate VMs.
-   You will need to add the Vagrant key to your agent:
+     On Linux you will need to ensure that that the ``phantomjs`` binary is on your ``PATH`` before running the acceptance tests below.
 
-   .. code-block:: console
+   - Add the Vagrant key to your agent:
 
-      ssh-add ~/.vagrant.d/insecure_private_key
+     .. code-block:: console
 
-   Ensure that they all pass, with no skips:
+        ssh-add ~/.vagrant.d/insecure_private_key
 
-   .. code-block:: console
+   - Run the automated acceptance tests.
 
-      $ admin/run-acceptance-tests --distribution fedora-20
+     They will start the appropriate VMs.
+     Ensure that they all pass, with no skips:
+
+     .. code-block:: console
+
+        $ admin/run-acceptance-tests --distribution fedora-20
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
