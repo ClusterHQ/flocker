@@ -114,7 +114,7 @@ class VagrantRunner(object):
 @attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
 class RackspaceRunner(object):
     """
-    Runn the tests against rackspace nodes.
+    Run the tests against rackspace nodes.
     """
 
     def __init__(self):
