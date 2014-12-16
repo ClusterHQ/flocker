@@ -76,8 +76,9 @@ class VagrantRunner(object):
 
     :cvar list NODE_ADDRESSES: List of address of vagrant nodes created.
     """
-    # FIXME? Should this automatically build a box locally, or download from
-    # buildbot?
+    # TODO: This should acquire the vagrant image automatically,
+    # rather than assuming it is available.
+    # https://clusterhq.atlassian.net/browse/FLOC-1163
 
     NODE_ADDRESSES = ["172.16.255.240", "172.16.255.241"]
 
