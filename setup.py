@@ -141,6 +141,7 @@ setup(
             "sphinx-rtd-theme==0.1.6",
             "pyenchant==1.6.6",
             "sphinxcontrib-spelling==2.1.1",
+            "sphinx-prompt=0.2.2",
             ],
         # This extra is for developers who need to work on Flocker itself.
         "dev": [

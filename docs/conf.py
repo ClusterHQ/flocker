@@ -29,6 +29,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
+    'sphinx-prompt',
 ]
 
 if not on_rtd:

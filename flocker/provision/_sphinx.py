@@ -34,7 +34,7 @@ class TaskDirective(Directive):
         except NotImplementedError as e:
             raise self.error("task: %s" % (e.args[0],))
 
-        lines = ['.. code-block:: bash', '']
+        lines = ['.. prompt:: bash $', '']
         lines += ['   %s' % (command,) for command in runner.commands]
 
         # The following three lines record (some?) of the dependencies of the
