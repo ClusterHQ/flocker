@@ -325,7 +325,7 @@ Before installing ``clusterhq-flocker-node``, you need to install a version of t
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
-.. task:: flocker.provision._install.task_install_kernel
+.. task:: install_kernel
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -335,25 +335,25 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. task:: flocker.provision._install.task_install_flocker
+.. task:: install_flocker
 
 Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
-.. task:: flocker.provision._install.task_enable_docker
+.. task:: enable_docker
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
 On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
 (Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
 The following commands will configure firewalld to enable forwarding:
 
-.. task:: flocker.provision._install.task_disable_firewall
+.. task:: disable_firewall
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
 
-.. task:: flocker.provision._install.task_create_flocker_pool_file
+.. task:: create_flocker_pool_file
 
 .. note:: It is also possible to create the pool on a block device.
 

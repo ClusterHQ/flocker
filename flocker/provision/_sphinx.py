@@ -5,7 +5,7 @@ from docutils.parsers.rst import Directive
 from docutils import nodes
 from docutils.statemachine import StringList
 
-from twisted.python.reflect import namedAny
+from . import _tasks as tasks
 
 
 class FakeRunner(object):
@@ -26,7 +26,7 @@ class TaskDirective(Directive):
     required_arguments = 1
 
     def run(self):
-        task = namedAny(self.arguments[0])
+        task = getattr(tasks, 'task_%s' % (self.arguments[0],))
 
         runner = FakeRunner()
         try:
