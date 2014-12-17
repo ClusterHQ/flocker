@@ -37,7 +37,7 @@ class TestInstallFlocker(SynchronousTestCase):
         ])
 
     def test_with_version(self):
-        source = PackageSource(version="1.2.3")
+        source = PackageSource(version="1.2.3-1")
         commands = task_install_flocker(package_source=source)
         self.assertEqual(commands, [
             Run(command="yum install -y %s" % ZFS_REPO),
@@ -87,7 +87,7 @@ enabled=0
         ])
 
     def test_with_branch_and_version(self):
-        source = PackageSource(branch="branch", version='0.3.2-693-g8ad1bda')
+        source = PackageSource(branch="branch", version='1.2.3-1')
         commands = task_install_flocker(
             package_source=source,
             distribution="fedora-20")
@@ -103,5 +103,5 @@ enabled=0
 """,
                 path="/etc/yum.repos.d/clusterhq-build.repo"),
             Run(command="yum install --enablerepo=clusterhq-build "
-                        "-y clusterhq-flocker-node-0.3.2-1.693.g8ad1bda")
+                        "-y clusterhq-flocker-node-1.2.3-1")
         ])
