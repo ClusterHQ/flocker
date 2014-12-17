@@ -6,7 +6,7 @@ Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
-from zope.interface import Interface, implementer
+from zope.interface import Interface, implementer, Attribute as IAttribute
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -50,15 +50,15 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["name", "mountpoint", "maximum_size"],
+@attributes(["mount", "mountpoint", "maximum_size"],
             defaults=dict(maximum_size=None))
 class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
 
-    :ivar unicode name: A short, human-readable identifier for this
-        volume. For now this is always the same as the name of the
-        application it is attached to (see
+    :ivar Mount mount: The ``Mount`` that is being attached as a
+        volume. For now this is always from a ``Dataset`` with the same as
+        the name of the application it is attached to (see
         https://github.com/ClusterHQ/flocker/issues/49).
 
     :ivar FilePath mountpoint: The path within the container where this
@@ -189,7 +189,29 @@ class Application(object):
     """
 
 
-@attributes(["hostname", "applications"])
+@attributes(["dataset", "primary"])
+class Mount(object):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+
+
+@attributes(["uuid", "name"])
+class Dataset(object):
+    """
+    The filesystem data for a particular application.
+
+    :ivar unicode uuid: A unique identifier.
+
+    :ivar unicode name: A human-readable name, e.g. ``"main-postgres"``.
+    """
+
+
+@attributes(["hostname", "applications", "mounts"])
 class Node(object):
     """
     A single node on which applications will be managed (deployed,
@@ -201,6 +223,9 @@ class Node(object):
 
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
+
+    :ivar frozenset mounts: The ``Mount`` instances describing datasets
+        mounted on this node.
     """
 
 
@@ -213,6 +238,9 @@ class Deployment(object):
 
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
+
+    :ivar frozenset datasets: A ``frozenset`` containing ``Dataset``
+        instances describing the datasets in a deployment.
     """
 
 
