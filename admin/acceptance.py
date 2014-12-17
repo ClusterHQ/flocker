@@ -235,7 +235,7 @@ class RunOptions(Options):
             top_level=self.top_level,
             config=self['config'],
             distribution=self['distribution'],
-            pacakge_source=package_source,
+            package_source=package_source,
         )
 
 
