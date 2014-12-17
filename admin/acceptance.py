@@ -225,12 +225,16 @@ class RunOptions(Options):
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS.keys())))
 
-        rpm_version = "%s-%s" % make_rpm_version(self['flocker-version'])
-        if rpm_version.endswith('.dirty'):
-            rpm_version = rpm_version[:-len('.dirty')]
+        if self['flocker-version']:
+            os_version = "%s-%s" % make_rpm_version(self['flocker-version'])
+            if os_version.endswith('.dirty'):
+                os_version = os_version[:-len('.dirty')]
+        else:
+            os_version = None
 
         package_source = PackageSource(
-            version=rpm_version,
+            version=self['flocker-version'],
+            os_version=os_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )

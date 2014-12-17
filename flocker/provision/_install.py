@@ -143,8 +143,8 @@ def task_install_flocker(package_source=PackageSource(),
     else:
         branch_opt = []
 
-    if package_source.version:
-        package = 'clusterhq-flocker-node-%s' % (package_source.version,)
+    if package_source.os_version:
+        package = 'clusterhq-flocker-node-%s' % (package_source.os_version,)
     else:
         package = 'clusterhq-flocker-node'
 
