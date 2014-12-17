@@ -134,8 +134,9 @@ class RackspaceRunner(object):
         from flocker.provision import Rackspace
         rackspace = Rackspace(**self.config['rackspace'])
 
+        creator = self.config['rackspace']['username']
         metadata = {
-            'creator': self.config['rackspace']['username'],
+            'creator': creator,
             'purpose': 'acceptance-testing',
             'distribution': self.distribution,
         }
@@ -144,9 +145,9 @@ class RackspaceRunner(object):
 
         self.nodes = []
         for index in range(2):
-            print "creating", index
+            print "Creating node", index
             node = rackspace.create_node(
-                name="test-accept-%d" % (index,),
+                name="acceptance-test-%s-%d" % (creator, index),
                 distribution=self.distribution,
                 metadata=metadata,
             )
