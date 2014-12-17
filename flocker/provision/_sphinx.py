@@ -1,5 +1,18 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
+"""
+Sphinx extension to add a ``task`` directive
+
+This directive allows sharing code between documentation and provisioning code.
+
+.. code-block:: rest
+
+   .. task:: name_of_task
+
+``name_of_task`` must the name of a task in ``flocker.provision._tasks``,
+without the ``task_`` prefix. A task must take a single runner argument.
+"""
+
 from inspect import getsourcefile
 from docutils.parsers.rst import Directive
 from docutils import nodes
@@ -9,6 +22,9 @@ from . import _tasks as tasks
 
 
 class FakeRunner(object):
+    """
+    Task runner that records the executed commands.
+    """
     def __init__(self):
         self.commands = []
 
@@ -21,7 +37,7 @@ class FakeRunner(object):
 
 class TaskDirective(Directive):
     """
-    Implementation of the C{frameimage} directive.
+    Implementation of the C{task} directive.
     """
     required_arguments = 1
 
