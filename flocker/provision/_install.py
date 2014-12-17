@@ -60,7 +60,7 @@ class FabricRunner(object):
         from StringIO import StringIO
         self._run_in_context(put, StringIO(content), path)
 
-    def disconnect():
+    def disconnect(self):
         """
         Disconnect from the remote host.
         """
@@ -159,9 +159,9 @@ def provision(node, username, distribution, package_source):
     runner = FabricRunner(username, node)
 
     task_install_kernel(runner)
-    task_install_flocker(
-        runner,
-        package_source=package_source)
+    task_install_flocker(runner,
+                         package_source=package_source,
+                         distribution=distribution)
     task_enable_docker(runner)
     task_disable_firewall(runner)
     task_create_flocker_pool_file(runner)
