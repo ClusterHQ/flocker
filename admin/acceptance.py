@@ -263,7 +263,7 @@ def main(args, base_path, top_level):
     try:
         nodes = runner.start_nodes()
         result = run_tests(nodes, options['trial-args'])
-    except Exception:
+    except:
         result = 1
         raise
     finally:
