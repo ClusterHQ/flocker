@@ -9,6 +9,8 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 
+from . import PackageSource
+
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
 CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
@@ -103,7 +105,8 @@ def task_create_flocker_pool_file(runner):
     runner.run('zpool create flocker /var/opt/flocker/pool-vdev')
 
 
-def task_install_flocker(runner, package_source, distribution=None):
+def task_install_flocker(runner, package_source=PackageSource(),
+                         distribution=None):
     """
     Install flocker.
 
