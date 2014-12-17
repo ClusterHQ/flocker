@@ -316,6 +316,7 @@ Release
      .. code-block:: console
 
         git clone git@github.com:ClusterHQ/homebrew-tap.git
+        cd homebrew-tap
 
    - Create a release branch:
 
