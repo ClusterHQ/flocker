@@ -144,12 +144,7 @@ def task_install_flocker(package_source=PackageSource(),
         branch_opt = []
 
     if package_source.version:
-        # FIXME flocker -> admin dependency
-        from admin.release import make_rpm_version
-        rpm_version = "%s-%s" % make_rpm_version(package_source.version)
-        if rpm_version.endswith('.dirty'):
-            rpm_version = rpm_version[:-len('.dirty')]
-        package = 'clusterhq-flocker-node-%s' % (rpm_version,)
+        package = 'clusterhq-flocker-node-%s' % (package_source.version,)
     else:
         package = 'clusterhq-flocker-node'
 

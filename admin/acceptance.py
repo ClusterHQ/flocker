@@ -14,6 +14,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 
 from admin.vagrant import vagrant_version
+from admin.release import make_rpm_version
 from flocker.provision import PackageSource
 import flocker
 
@@ -224,8 +225,12 @@ class RunOptions(Options):
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS.keys())))
 
+        rpm_version = "%s-%s" % make_rpm_version(self['flocker-version'])
+        if rpm_version.endswith('.dirty'):
+            rpm_version = rpm_version[:-len('.dirty')]
+
         package_source = PackageSource(
-            version=self['flocker-version'],
+            version=rpm_version,
             branch=self['branch'],
             build_server=self['build-server'],
         )
