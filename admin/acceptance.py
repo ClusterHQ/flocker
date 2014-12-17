@@ -172,7 +172,7 @@ class RunOptions(Options):
          'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
-         'One of vagrant.'],
+         'One of vagrant, rackspace.'],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab RPMS from'],
