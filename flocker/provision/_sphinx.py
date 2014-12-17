@@ -19,9 +19,10 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 from . import _tasks as tasks
+from ._install import Run
 
 
-class FakeRunner(object):
+class DocRunner(object):
     """
     Task runner that records the executed commands.
     """
@@ -44,20 +45,22 @@ class TaskDirective(Directive):
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
 
-        runner = FakeRunner()
-        try:
-            task(runner)
-        except NotImplementedError as e:
-            raise self.error("task: %s" % (e.args[0],))
-
+        commands = task()
         lines = ['.. prompt:: bash $', '']
-        lines += ['   %s' % (command,) for command in runner.commands]
+
+        for command in commands:
+            if type(command) != Run:
+                raise self.error("task: %s not supported"
+                                 % (type(command).__name__,))
+            lines += ['   %s' % (command.command,)]
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.  Specifically, it
         # records this file, and the file where the task is declared.
         task_file = getsourcefile(task)
+        tasks_file = getsourcefile(tasks)
         self.state.document.settings.record_dependencies.add(task_file)
+        self.state.document.settings.record_dependencies.add(tasks_file)
         self.state.document.settings.record_dependencies.add(__file__)
 
         node = nodes.Element()
