@@ -1,4 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# -*- test-case-name: flocker.provision.test.test_install -*-
 
 """
 Install flocker on a remote node.

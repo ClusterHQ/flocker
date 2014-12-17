@@ -37,7 +37,7 @@ class TestInstallFlocker(SynchronousTestCase):
         ])
 
     def test_with_version(self):
-        source = PackageSource(version="1.2.3-1")
+        source = PackageSource(os_version="1.2.3-1")
         commands = task_install_flocker(package_source=source)
         self.assertEqual(commands, [
             Run(command="yum install -y %s" % ZFS_REPO),
@@ -87,7 +87,7 @@ enabled=0
         ])
 
     def test_with_branch_and_version(self):
-        source = PackageSource(branch="branch", version='1.2.3-1')
+        source = PackageSource(branch="branch", os_version='1.2.3-1')
         commands = task_install_flocker(
             package_source=source,
             distribution="fedora-20")
