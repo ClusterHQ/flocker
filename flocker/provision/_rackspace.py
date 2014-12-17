@@ -42,13 +42,14 @@ class RackspaceProvider(object):
     def create_node(self, name, distribution,
                     userdata=None,
                     size="performance1-2", disk_size=8,
-                    keyname=None):
+                    keyname=None, metadata={}):
         """
         :param str name: The name of the node.
         :param str base_ami: The name of the ami to use.
         :param bytes userdata: User data to pass to the instance.
         :param bytes size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
+        :param dict metadata: Metadata to associate with the node.
         """
         if keyname is None:
             keyname = self._keyname
@@ -62,6 +63,7 @@ class RackspaceProvider(object):
             ex_keyname=keyname,
             ex_userdata=userdata,
             ex_config_drive="true",
+            ex_metadata=metadata,
         )
 
         node, addresses = self._driver.wait_until_running([node])[0]

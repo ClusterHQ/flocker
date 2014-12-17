@@ -48,6 +48,9 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    Specifies a YAML configuration file that contains provider specific configuration.
    See below for the required configuration options.
+   If the configuration contains a ``metadata`` key,
+   the contents will be added as metadata of the created nodes,
+   if the provider supports it.
 
 
 Vagrant
