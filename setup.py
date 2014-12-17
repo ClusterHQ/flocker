@@ -180,6 +180,10 @@ setup(
 
             # The acceptance tests interact with Kibana via WebKit
             "selenium==2.44.0",
+
+            # The cloud acceptance test runner needs these
+            "fabric==1.10.0",
+            "apache-libcloud==0.16.0",
             ],
 
         # This extra is for Flocker release engineers to set up their release
