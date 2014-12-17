@@ -131,7 +131,7 @@ class RackspaceRunner(object):
         :return list: List of addresses of nodes to connect to, for acceptance
             tests.
         """
-        from flocker.provision._rackspace import Rackspace
+        from flocker.provision import Rackspace
         rackspace = Rackspace(**self.config['rackspace'])
 
         self.nodes = []

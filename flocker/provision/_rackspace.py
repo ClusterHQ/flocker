@@ -3,7 +3,7 @@
 from libcloud.compute.providers import get_driver, Provider
 from characteristic import attributes, Attribute
 from ._libcloud import get_size, get_image
-from ._install import provision
+from . import provision
 
 
 # _node isn't immutable, since libcloud provides new instances
@@ -31,7 +31,7 @@ IMAGE_NAMES = {
 
 
 @attributes([Attribute('_keyname')], apply_immutable=True)
-class Rackspace(object):
+class RackspaceProvider(object):
 
     def __init__(self, username, key, region):
         self._driver = get_driver(Provider.RACKSPACE)(
