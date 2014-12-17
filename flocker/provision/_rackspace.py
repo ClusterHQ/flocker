@@ -17,7 +17,7 @@ class RackspaceNode(object):
         """
         Provision flocker on this node.
         """
-        install([self.address], username="root",
+        install(self.address, username="root",
                 kwargs={
                     'package_source': package_source,
                     'distribution': self.distribution,

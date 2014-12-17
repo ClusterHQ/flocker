@@ -152,16 +152,15 @@ def _task_install(
     _task_create_flocker_pool_file(runner)
 
 
-def install(nodes, username, kwargs):
+def install(node, username, kwargs):
     """
     Install flocker on the given nodes.
 
     :param username: Username to connect as.
     :param dict kwargs: Addtional arguments to pass to ``_task_install``.
     """
-    for address in nodes:
-        runner = FabricRunner(username, address)
-        _task_install(runner, **kwargs)
+    runner = FabricRunner(username, node)
+    _task_install(runner, **kwargs)
 
     from fabric.network import disconnect_all
     disconnect_all()
