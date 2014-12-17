@@ -9,7 +9,7 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 
-from . import PackageSource
+from ._common import PackageSource
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
