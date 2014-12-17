@@ -96,26 +96,21 @@ def _task_create_flocker_pool_file(runner):
     runner.run('zpool create flocker /var/opt/flocker/pool-vdev')
 
 
-def _task_install_flocker(
-        runner,
-        version=None, branch=None, distribution=None):
+def _task_install_flocker(runner, package_source, distribution=None):
     """
     Fabric Task. Install flocker.
 
-    :param str version: The version of flocker to install.
-    :param str branch: The branch from which to install flocker.  If this isn't
-        provided, install from the release repository.
     :param str distribution: The distribution the node is running.
+    :param PackageSource package_source: The source from which to install the
+        package.
     """
     runner.run("yum install -y " + ZFS_REPO)
     runner.run("yum install -y " + CLUSTERHQ_REPO)
 
-    # FIXME: Suppport staging build server
-    build_server = 'http://build.clusterhq.com/'
-    if branch:
+    if package_source.branch:
         result_path = posixpath.join(
-            '/results/omnibus/', branch, distribution)
-        base_url = urljoin(build_server, result_path)
+            '/results/omnibus/', package_source.branch, distribution)
+        base_url = urljoin(package_source.build_server, result_path)
         repo = dedent(b"""
             [clusterhq-build]
             name=clusterhq-build
@@ -128,10 +123,10 @@ def _task_install_flocker(
     else:
         branch_opt = []
 
-    if version:
+    if package_source.version:
         # FIXME flocker -> admin dependency
         from admin.release import make_rpm_version
-        rpm_version = "%s-%s" % make_rpm_version(version)
+        rpm_version = "%s-%s" % make_rpm_version(package_source.version)
         if rpm_version.endswith('.dirty'):
             rpm_version = rpm_version[:-len('.dirty')]
         package = 'clusterhq-flocker-node-%s' % (rpm_version,)

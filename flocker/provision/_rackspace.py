@@ -13,15 +13,14 @@ class RackspaceNode(object):
     def destroy(self):
         self._node.destroy()
 
-    def provision(self, version, branch):
+    def provision(self, package_source):
         """
         Provision flocker on this node.
         """
         install([self.address], username="root",
                 kwargs={
-                    'version': version,
+                    'package_source': package_source,
                     'distribution': self.distribution,
-                    'branch': branch,
                     })
         return self.address
 

@@ -14,6 +14,7 @@ from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
 
 from admin.vagrant import vagrant_version
+from flocker.provision import PackageSource
 import flocker
 
 
@@ -65,7 +66,7 @@ class INodeRunner(Interface):
 
 
 RUNNER_ATTRIBUTES = [
-    'distribution', 'top_level', 'config', 'flocker_version', 'branch']
+    'distribution', 'top_level', 'config', 'package_source']
 
 
 @implementer(INodeRunner)
@@ -97,12 +98,12 @@ class VagrantRunner(object):
             ['vagrant', 'destroy', '-f'],
             cwd=self.vagrant_path.path)
 
+        box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
         check_call(
             ['vagrant', 'up'],
             cwd=self.vagrant_path.path,
-            env=extend_environ(
-                FLOCKER_BOX_VERSION=vagrant_version(self.flocker_version)))
+            env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
         return self.NODE_ADDRESSES
 
@@ -141,10 +142,7 @@ class RackspaceRunner(object):
                 distribution=self.distribution,
             )
             self.nodes.append(node)
-            node.provision(
-                version=self.flocker_version,
-                branch=self.branch,
-            )
+            node.provision(package_source=self.package_source)
             del node
 
         return [node.address for node in self.nodes]
@@ -178,6 +176,10 @@ class RunOptions(Options):
         ['branch', None, None, 'Branch to grab RPMS from'],
         ['flocker-version', None, flocker.__version__,
          'Version of flocker to install'],
+        ['flocker-version', None, flocker.__version__,
+         'Version of flocker to install'],
+        ['build-server', None, 'http://build.clusterhq.com/',
+         'Base URL of build server to download RPMs from'],
     ]
 
     optFlags = [
@@ -212,13 +214,18 @@ class RunOptions(Options):
                 "Provider %r not supported. Available providers: %s"
                 % (self['provider'], ', '.join(PROVIDERS.keys())))
 
+        package_source = PackageSource(
+            version=self['flocker-version'],
+            branch=self['branch'],
+            build_server=self['build-server'],
+        )
+
         provider_factory = PROVIDERS[self['provider']]
         self.runner = provider_factory(
             top_level=self.top_level,
             config=self['config'],
             distribution=self['distribution'],
-            flocker_version=self['flocker-version'],
-            branch=self['branch'],
+            pacakge_source=package_source,
         )
 
 
