@@ -3,7 +3,7 @@
 from libcloud.compute.providers import get_driver, Provider
 from characteristic import attributes, Attribute
 from ._libcloud import get_size, get_image
-from ._install import install
+from ._install import provision
 
 
 # _node isn't immutable, since libcloud provides new instances
@@ -17,11 +17,11 @@ class RackspaceNode(object):
         """
         Provision flocker on this node.
         """
-        install(self.address, username="root",
-                kwargs={
-                    'package_source': package_source,
-                    'distribution': self.distribution,
-                    })
+        provision(
+            self.address, username="root",
+            package_source=package_source,
+            distribution=self.distribution,
+        )
         return self.address
 
 

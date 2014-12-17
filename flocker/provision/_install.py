@@ -58,8 +58,15 @@ class FabricRunner(object):
         from StringIO import StringIO
         self._run_in_context(put, StringIO(content), path)
 
+    def disconnect():
+        """
+        Disconnect from the remote host.
+        """
+        from fabric.network import disconnect_all
+        disconnect_all()
 
-def _task_install_kernel(runner):
+
+def task_install_kernel(runner):
     runner.run("""
 UNAME_R=$(uname -r)
 PV=${UNAME_R%.*}
@@ -71,23 +78,23 @@ ${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
 """)
 
 
-def _task_enable_docker(runner):
+def task_enable_docker(runner):
     """
-    Fabric Task. Start docker and configure it to start automatically.
+    Start docker and configure it to start automatically.
     """
     runner.run("systemctl enable docker.service")
     runner.run("systemctl start docker.service")
 
 
-def _task_disable_firewall(runner):
+def task_disable_firewall(runner):
     """
-    Fabric Task. Disable the firewall.
+    Disable the firewall.
     """
     runner.run('firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
     runner.run('firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT')  # noqa
 
 
-def _task_create_flocker_pool_file(runner):
+def task_create_flocker_pool_file(runner):
     """
     Create a file-back zfs pool for flocker.
     """
@@ -96,9 +103,9 @@ def _task_create_flocker_pool_file(runner):
     runner.run('zpool create flocker /var/opt/flocker/pool-vdev')
 
 
-def _task_install_flocker(runner, package_source, distribution=None):
+def task_install_flocker(runner, package_source, distribution=None):
     """
-    Fabric Task. Install flocker.
+    Install flocker.
 
     :param str distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
@@ -137,30 +144,23 @@ def _task_install_flocker(runner, package_source, distribution=None):
     runner.run(" ".join(map(shell_quote, command)))
 
 
-def _task_install(
-        runner,
-        version=None, branch=None, distribution=None):
+def provision(node, username, distribution, package_source):
     """
-    Fabric Task. Configure a node to run flocker.
-    """
-    _task_install_kernel(runner)
-    _task_install_flocker(
-        runner,
-        version=version, branch=branch, distribution=distribution)
-    _task_enable_docker(runner)
-    _task_disable_firewall(runner)
-    _task_create_flocker_pool_file(runner)
+    Provison the node for running flocker.
 
-
-def install(node, username, kwargs):
-    """
-    Install flocker on the given nodes.
-
+    :param node: Node to provision.
     :param username: Username to connect as.
-    :param dict kwargs: Addtional arguments to pass to ``_task_install``.
+    :param distribution: See func:`task_install`
+    :param package_source: See func:`task_install`
     """
     runner = FabricRunner(username, node)
-    _task_install(runner, **kwargs)
 
-    from fabric.network import disconnect_all
-    disconnect_all()
+    task_install_kernel(runner)
+    task_install_flocker(
+        runner,
+        package_source=package_source)
+    task_enable_docker(runner)
+    task_disable_firewall(runner)
+    task_create_flocker_pool_file(runner)
+
+    runner.disconnect()
