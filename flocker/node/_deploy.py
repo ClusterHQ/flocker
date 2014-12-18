@@ -427,6 +427,7 @@ class Deployer(object):
         :return: A ``Deferred`` which fires with a ``IStateChange``
             provider.
         """
+        # XXX would be updated to deal with datasets/manifestations in calculation.
         phases = []
 
         desired_proxies = set()
