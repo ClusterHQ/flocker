@@ -30,7 +30,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    .. note::
 
-      The build server merges forward before bulding packages, except on release branches.
+      The build server merges forward before building packages, except on release branches.
       If you want to run the acceptance tests against a branch in development,
       you probably only want to specify the branch.
 
