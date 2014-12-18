@@ -6,7 +6,7 @@ Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
-from zope.interface import Interface, implementer, Attribute as IAttribute
+from zope.interface import Interface, implementer
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -50,22 +50,18 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["mount", "mountpoint", "maximum_size"],
-            defaults=dict(maximum_size=None))
+@attributes(["manifestation", "mountpoint"])
 class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
 
-    :ivar Mount mount: The ``Mount`` that is being attached as a
-        volume. For now this is always from a ``Dataset`` with the same as
-        the name of the application it is attached to (see
-        https://github.com/ClusterHQ/flocker/issues/49).
+    :ivar Manifestation manifestation: The ``Manifestation`` that is being
+        attached as a volume. For now this is always from a ``Dataset``
+        with the same as the name of the application it is attached to
+        (see https://github.com/ClusterHQ/flocker/issues/49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
-
-    :ivar int maximum_size: The maximum size in bytes of this volume, or
-        ``None`` if there is no specified limit.
     """
 
     @classmethod
@@ -190,7 +186,7 @@ class Application(object):
 
 
 @attributes(["dataset", "primary"])
-class Mount(object):
+class Manifestation(object):
     """
     A dataset that is mounted on a node.
 
@@ -200,15 +196,25 @@ class Mount(object):
     """
 
 
-@attributes(["uuid", "name"])
+@attributes(["uuid", "name", "maximum_size"],
+            defaults=dict(maximum_size=None))
 class Dataset(object):
     """
     The filesystem data for a particular application.
 
-    :ivar unicode uuid: A unique identifier.
+    :ivar uuid: A unique identifier, as ``unicode``. May also be ``None``
+        if this is coming out of human-supplied configuration, in which
+        case it will need to be looked up from actual state for existing
+        datasets, or a new one generated if a new dataset will need tbe
+        created.
 
     :ivar unicode name: A human-readable name, e.g. ``"main-postgres"``.
+
+    :ivar int maximum_size: The maximum size in bytes of this dataset, or
+        ``None`` if there is no specified limit.
     """
+    # If uuid is None we might want to error on comparisons to ensure
+    # UUID gets filled in before comparisons are done?
 
 
 @attributes(["hostname", "applications", "mounts"])
@@ -224,8 +230,8 @@ class Node(object):
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
 
-    :ivar frozenset mounts: The ``Mount`` instances describing datasets
-        mounted on this node.
+    :ivar frozenset manifestations: The ``Manifestation`` instances
+        for datasets exposed on this node.
     """
 
 
@@ -311,8 +317,9 @@ class VolumeChanges(object):
     """
 
 
-@attributes(["running", "not_running", "used_ports"],
-            defaults={"used_ports": frozenset()})
+@attributes(["running", "not_running", "used_ports", "manifestations"],
+            defaults={"used_ports": frozenset(),
+                      "manifestations": frozenset()})
 class NodeState(object):
     """
     The current state of a node.
@@ -323,4 +330,6 @@ class NodeState(object):
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
+    :ivar frozenset manifestations: The ``Manifestation`` instances
+        for datasets exposed on this node.
     """
