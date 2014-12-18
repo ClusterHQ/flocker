@@ -427,7 +427,6 @@ class Deployer(object):
         :return: A ``Deferred`` which fires with a ``IStateChange``
             provider.
         """
-        # XXX would be updated to deal with datasets/manifestations in calculation.
         phases = []
 
         desired_proxies = set()
@@ -604,6 +603,11 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
+    # XXX would be updated to deal with datasets/manifestations in
+    # calculation.  Among other issues, this or some previous function
+    # need to deal with the fact that the desired state may well lack
+    # UUIDs for many of the datasets, and they will need to be looked
+    # up/generated as necessary.
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)
