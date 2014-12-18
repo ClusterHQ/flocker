@@ -1,5 +1,9 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
+"""
+Rackspace provisioner.
+"""
+
 from libcloud.compute.providers import get_driver, Provider
 from characteristic import attributes, Attribute
 from ._libcloud import get_size, get_image
