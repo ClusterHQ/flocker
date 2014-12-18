@@ -101,9 +101,10 @@ def task_disable_firewall():
     """
     Disable the firewall.
     """
+    rule = ['--add-rule', '"ipv4', 'filter', 'FORWARD', '0', '-j', 'ACCEPT']
     return [
-        Run(command='firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT'),  # noqa
-        Run(command='firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT'),  # noqa
+        Run.from_args(['firewall-cmd', '--permanent', '--direct'] + rule),
+        Run.from_args(['firewall-cmd', '--direct'] + rule),
     ]
 
 
