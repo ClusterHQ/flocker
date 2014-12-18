@@ -62,7 +62,7 @@ class IApplicationConfiguration(Interface):
         Returns the ``Application`` instances parsed from the supplied
         configuration.
 
-        This method should only be called after valdiating the format
+        This method should only be called after validating the format
         with a call to ``is_valid_format``.
 
         This method should only be called once, in that calling it
@@ -70,6 +70,22 @@ class IApplicationConfiguration(Interface):
 
         :returns: A ``dict`` mapping application names to ``Application``
             instances.
+        """
+
+    def datasets():
+        """
+        Returns the ``Dataset`` instances parsed from the supplied
+        configuration.
+
+        This method should only be called after validating the format
+        with a call to ``is_valid_format``.
+
+        This method should only be called once, in that calling it
+        multiple times will re-parse an already parsed config XXX Maybe
+        dunno.
+
+        :returns: A ``dict`` mapping dataset names to ``Dataset``
+            instances. XXX or something.
         """
 
 
@@ -299,7 +315,8 @@ class ApplicationMarshaller(object):
         return None
 
 
-def applications_to_flocker_yaml(applications):
+# XXX add datasets somehow?
+def applications_to_flocker_yaml(applications, datasets):
     """
     Converts a ``dict`` of ``Application`` instances to Flocker's
     application configuration YAML.
@@ -840,6 +857,20 @@ class FlockerConfiguration(object):
         self._parse()
         return self._applications
 
+    def datasets(self):
+        # Datasets are optional, and may be implicitly described by having
+        # an application with an attached volume, so:
+        # 1. Parse applications
+        # 2. Parse datasets, if any
+        # 3. If there are manifestations in application config that are
+        # not mentioned explicitly in datasets config, add them to
+        # datasets list
+        # 4. return datasets
+        # Similar functionality is necessary for FigConfiguration, so
+        # probably a bunch of above goes somewhere else where it can be
+        # shared.
+        pass
+
     def is_valid_format(self):
         """
         Detect if the supplied application configuration is a Flocker
@@ -851,6 +882,7 @@ class FlockerConfiguration(object):
         """
         valid = False
         flocker_keys = set(['version', 'applications'])
+        # XXX and 'datasets' which is optional
         present_keys = set(self._application_configuration)
         if flocker_keys.issubset(present_keys):
             valid = True
@@ -1245,7 +1277,7 @@ def deployment_from_configuration(deployment_configuration, all_applications):
     return set(nodes)
 
 
-def model_from_configuration(applications, deployment_configuration):
+def model_from_configuration(applications, datasets, deployment_configuration):
     """
     Validate and coerce the supplied application configuration and
     deployment configuration dictionaries into a ``Deployment`` instance.
@@ -1261,11 +1293,11 @@ def model_from_configuration(applications, deployment_configuration):
     :returns: A ``Deployment`` object.
     """
     nodes = deployment_from_configuration(
-        deployment_configuration, applications)
-    return Deployment(nodes=frozenset(nodes))
+        deployment_configuration, applications, datasetes)
+    return Deployment(nodes=frozenset(nodes), datasets=frozenset(datasets))
 
 
-def current_from_configuration(current_configuration):
+def current_from_configuration(current_configuration, datasets):
     """
     Validate and coerce the supplied current cluster configuration into a
     ``Deployment`` instance.
@@ -1276,17 +1308,20 @@ def current_from_configuration(current_configuration):
     :param dict current_configuration: Map of node names to list of
         application maps.
 
+    :param dict datasets: Map of dataset names to dataset maps.
+
     :raises ConfigurationError: if there are validation errors.
 
     :returns: A ``Deployment`` object.
     """
     nodes = []
     for hostname, applications in current_configuration.items():
-        configuration = FlockerConfiguration(applications)
+        configuration = FlockerConfiguration(applications, datasets)
         node_applications = configuration.applications()
         nodes.append(Node(hostname=hostname,
                           applications=frozenset(node_applications.values())))
-    return Deployment(nodes=frozenset(nodes))
+    return Deployment(nodes=frozenset(nodes),
+                      datasets=frozenset(configuration.datasets.values()))
 
 
 def marshal_configuration(state):
@@ -1311,4 +1346,5 @@ def marshal_configuration(state):
         "version": 1,
         "applications": result,
         "used_ports": sorted(state.used_ports),
+        # XXX "manifestations": ...
     }
