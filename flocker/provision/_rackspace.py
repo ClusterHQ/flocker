@@ -5,7 +5,7 @@ Rackspace provisioner.
 """
 
 from characteristic import attributes, Attribute
-from ._libcloud import get_size, get_image
+from ._libcloud import get_size, get_image, monkeypatch
 from ._install import provision
 
 
@@ -40,6 +40,7 @@ class Rackspace(object):
         # Import these here, so that this can be imported without
         # installng libcloud.
         from libcloud.compute.providers import get_driver, Provider
+        monkeypatch()
         self._driver = get_driver(Provider.RACKSPACE)(
             key=username,
             secret=key,
