@@ -139,12 +139,6 @@ def _clean_node(test_case, node):
     :param test_case: The ``TestCase`` running this unit test.
     :param bytes node: The hostname or IP of the node.
     """
-    clean_deploy = {u"version": 1,
-                    u"nodes": {node.decode("ascii"): []}}
-    clean_applications = {u"version": 1,
-                          u"applications": {}}
-    flocker_deploy(test_case, clean_deploy, clean_applications)
-
     # Without the below, deploying the same application with a data volume
     # twice fails. See the error given with the tutorial's yml files:
     #
@@ -157,6 +151,10 @@ def _clean_node(test_case, node):
     # http://doc-dev.clusterhq.com/advanced/cleanup.html#removing-zfs-volumes
     # A tool or flocker-deploy option to purge the state of a node does
     # not yet exist. See https://clusterhq.atlassian.net/browse/FLOC-682
+    containers = _run_SSH(22, 'root', node, ['docker', 'ps', '-aq'], None)
+    containers = containers.split(b"\n")[:-1]
+    for c in containers:
+        _run_SSH(22, 'root', node, ['docker', 'rm', '-f', c], None)
     _run_SSH(22, 'root', node, [b"zfs"] + [b"destroy"] + [b"-r"] +
              [b"flocker"], None)
 
