@@ -64,30 +64,6 @@ class AttachedVolume(object):
         volume should be mounted.
     """
 
-    @classmethod
-    def from_unit(cls, unit):
-        """
-        Given a Docker ``Unit``, return a :class:`AttachedVolume`.
-
-        :param Unit unit: A Docker ``Unit`` from which to create an
-            ``AttachedVolume`` where the volume name will be the unit name
-            and the mountpoint will be the unit's volume's container path.
-
-        :returns: A set of ``AttachedVolume`` instances, or None if there
-            is no volume within the supplied ``Unit`` instance.
-        """
-        volumes = set(unit.volumes)
-        name = unit.name
-        # XXX we only support one data volume per container at this time
-        # https://github.com/ClusterHQ/flocker/issues/49
-        try:
-            volume = volumes.pop()
-            # XXX Docker Volume objects do not contain size information
-            # at this time.
-            return {cls(name=name, mountpoint=volume.container_path)}
-        except KeyError:
-            return None
-
 
 class IRestartPolicy(Interface):
     """
