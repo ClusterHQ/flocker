@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage, Port, Link
+    NodeState, DockerImage, Port, Link, Manifestation, Dataset
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -331,25 +331,28 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            managed_volumes = dict()
+            manifestations = dict()
             for volume in volumes:
-                if volume.uuid == self.volume_service.uuid:
-                    managed_volumes[volume.name.id] = volume.size.maximum_size
-            return managed_volumes
+                manifestations[volume.name.id] = Manifestation(
+                    dataset=Dataset(uuid=volume.uuid, name=volume.name.id,
+                                    maximum_size=volume.size.maximum_size),
+                    primary=(volume.uuid == self.volume_service.uuid))
+            return manifestations
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
-            units, available_volumes = result
+            units, available_manifestations = result
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
-                if unit.name in available_volumes:
+                if unit.name in available_manifestations and unit.volumes:
                     # XXX we only support one volume per container at this time
                     # https://github.com/ClusterHQ/flocker/issues/49
-                    volume = AttachedVolume.from_unit(unit).pop()
-                    volume.maximum_size = available_volumes[unit.name]
+                    volume = AttachedVolume(
+                        manifestation=available_manifestations[unit.name],
+                        mountpoint=list(unit.volumes)[0].container_path)
                 else:
                     volume = None
                 ports = []
@@ -390,7 +393,8 @@ class Deployer(object):
             return NodeState(
                 running=running,
                 not_running=not_running,
-                used_ports=self.network.enumerate_used_ports()
+                used_ports=self.network.enumerate_used_ports(),
+                manifestations=available_manifestations,
             )
         d.addCallback(applications_from_units)
         return d
