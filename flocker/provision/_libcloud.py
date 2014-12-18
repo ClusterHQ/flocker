@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Helpers for libcloud.
+Helpers for using libcloud.
 """
 
 

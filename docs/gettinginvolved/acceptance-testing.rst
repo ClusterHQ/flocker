@@ -6,7 +6,7 @@ It is called like this:
 
 .. prompt:: bash $
 
-   admin/run-acceptance-tests <options> [<test-cases>
+   admin/run-acceptance-tests <options> [<test-cases>]
 
 
 The :program:`admin/run-acceptance-tests` script has several options:

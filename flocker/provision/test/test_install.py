@@ -23,9 +23,9 @@ class FakeRunner(object):
         self.commands.append(Put(content=content, path=path))
 
 
-class TestInstallFlocker(SynchronousTestCase):
+class InstallFlockerTests(SynchronousTestCase):
     """
-    Tests for ``test_install_flocker``.
+    Tests for ``task_install_flocker``.
     """
 
     def test_no_arguments(self):

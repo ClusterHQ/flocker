@@ -45,8 +45,8 @@ def run_with_fabric(username, address, commands):
     """
     Run a series of commands on a remote host.
 
-    :param username: User to connect as.
-    :param address: Address to connect to
+    :param bytes username: User to connect as.
+    :param bytes address: Address to connect to
     :param list commands: List of commands to run.
     """
     from fabric.api import settings, run, put
@@ -71,6 +71,11 @@ def run_with_fabric(username, address, commands):
 
 
 def task_install_kernel():
+    """
+    Install development headers corresponding to running kernel.
+
+    This is so we can compile zfs.
+    """
     return [Run(command="""
 UNAME_R=$(uname -r)
 PV=${UNAME_R%.*}
@@ -118,7 +123,7 @@ def task_install_flocker(package_source=PackageSource(),
     """
     Install flocker.
 
-    :param str distribution: The distribution the node is running.
+    :param bytes distribution: The distribution the node is running.
     :param PackageSource package_source: The source from which to install the
         package.
     """
@@ -159,10 +164,10 @@ def provision(node, username, distribution, package_source):
     """
     Provison the node for running flocker.
 
-    :param node: Node to provision.
-    :param username: Username to connect as.
-    :param distribution: See func:`task_install`
-    :param package_source: See func:`task_install`
+    :param bytes node: Node to provision.
+    :param bytes username: Username to connect as.
+    :param bytes distribution: See func:`task_install`
+    :param PackageSource package_source: See func:`task_install`
     """
     commands = []
     commands += task_install_kernel()

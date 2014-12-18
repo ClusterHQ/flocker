@@ -13,12 +13,12 @@ class PackageSource(object):
     """
     Source for the installation of a flocker package.
 
-    :ivar version: The version of flocker to install. If not specified,
+    :ivar bytes version: The version of flocker to install. If not specified,
         install the most recent version.
-    :ivar os_version: The version of the OS package of flocker to install.
-        If not specified, install the most recent version.
-    :ivar branch: The branch from which to install flocker.
+    :ivar bytes os_version: The version of the OS package of flocker to
+        install.  If not specified, install the most recent version.
+    :ivar bytes branch: The branch from which to install flocker.
         If not specified, install from the release repository.
-    :ivar build_server: The builderver to install from.
+    :ivar bytes build_server: The builderver to install from.
         Only meaningful if a branch is specified.
     """
