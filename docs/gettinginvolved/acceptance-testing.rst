@@ -15,7 +15,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
 .. option:: --distribution <distribution>
 
-   Specifies what distirubtion to use on the created nodes.
+   Specifies what distribution to use on the created nodes.
 
 .. option:: --provider <provider>
 
@@ -30,7 +30,7 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
    .. note::
 
-      The buildserver merges forward before bulding packages, except on release branches.
+      The build server merges forward before bulding packages, except on release branches.
       If you want to run the acceptance tests against a branch in development,
       you probably only want to specify the branch.
 
@@ -41,8 +41,8 @@ The :program:`admin/run-acceptance-tests` script has several options:
 
 .. option:: --buildserver <buildserver>
 
-   Specifies the base URL of the buildserver to install from.
-   This is probably only useful when testing changes to the buildserver.
+   Specifies the base URL of the build server to install from.
+   This is probably only useful when testing changes to the build server.
 
 .. option:: --config-file <config-file>
 
@@ -89,7 +89,7 @@ To run the acceptance on Rackspace, you need
 - a Rackspace account and the associated API key
 - an ssh-key registered with the Rackspace account.
 
-The config file for the Rackspace provider looks like:
+The configuration file for the Rackspace provider looks like:
 
 .. code-block:: yaml
 
