@@ -4,7 +4,6 @@
 Rackspace provisioner.
 """
 
-from libcloud.compute.providers import get_driver, Provider
 from characteristic import attributes, Attribute
 from ._libcloud import get_size, get_image
 from ._install import provision
@@ -38,6 +37,9 @@ IMAGE_NAMES = {
 class Rackspace(object):
 
     def __init__(self, username, key, region):
+        # Import these here, so that this can be imported without
+        # installng libcloud.
+        from libcloud.compute.providers import get_driver, Provider
         self._driver = get_driver(Provider.RACKSPACE)(
             key=username,
             secret=key,
