@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Functional tests for ZFS filesystem implementation.
+"""
+Functional tests for ZFS filesystem implementation.
 
 These tests require the ability to create a new ZFS storage pool (using
 ``zpool``) and the ability to interact with that pool (using ``zfs``).
@@ -516,3 +517,26 @@ class FilesystemTests(TestCase):
         volume = service.get(MY_VOLUME, size=VolumeSize(maximum_size=10))
         creating = pool.create(volume)
         return self.assertFailure(creating, MaximumSizeTooSmall)
+
+    def test_maximum_size_enforced(self):
+        """
+        The maximum size specified for a filesystem is enforced by the ZFS
+        implementation.  Attempts to write more data than the maximum size
+        fail.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        # There is a lower-bound on the value of refquota in ZFS.  It seems to
+        # be 64MB (but perhaps this isn't universal).
+        volume = service.get(
+            MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            path = filesystem.get_path()
+            # Try to write more than 64MB of data.
+            with path.child(b"ok").open("w") as fObj:
+                self.assertRaises(
+                    IOError, fObj.write, b"x" * 64 * 1024 * 1024)
+        creating.addCallback(created)
+        return creating

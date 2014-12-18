@@ -15,11 +15,13 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml, parse_storage_string
+    applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
+    FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
+    _parse_restart_policy,
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
-    NodeState,
+    NodeState, RestartNever, RestartAlways, RestartOnFailure
 )
 
 
@@ -47,7 +49,10 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                         {'local_port': 3307,
                          'remote_port': 3307,
                          'alias': 'db'}
-                    ]
+                    ],
+                    'restart_policy': {
+                        'name': 'never',
+                    },
                 },
                 'mysql': {
                     'image': 'sample/mysql:latest',
@@ -55,6 +60,9 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                         {'internal': 3306, 'external': 3306},
                         {'internal': 3307, 'external': 3307}
                     ],
+                    'restart_policy': {
+                        'name': 'never',
+                    },
                 }
             }
         }
@@ -1101,6 +1109,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``FlockerConfiguration.applications`` and the private methods
+    that it calls.
+    """
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
@@ -2248,6 +2260,253 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         )
 
 
+class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
+    """
+    Tests for the parsing of Flocker restart policy configuration.
+    """
+
+    def test_parse_restart_policy_identity(self):
+        """
+        ``FlockerConfiguration._parse_restart_policy`` is
+        ``_parse_restart_policy``.
+        """
+        self.assertIs(
+            _parse_restart_policy, FlockerConfiguration._parse_restart_policy)
+
+    def test_parse_restart_policy_is_called(self):
+        """
+        If the supplied application configuration has a ``restart_policy`` key,
+        ``_parse_restart_policy`` is called with the value of that key.
+        """
+        expected_application_name = 'red-fish'
+        expected_restart_policy_configuration = object()
+        expected_restart_policy = object()
+        config = {
+            'applications': {
+                expected_application_name: {
+                    'image': 'seuss/one-fish-two-fish',
+                    'restart_policy': expected_restart_policy_configuration,
+                }
+            },
+            'version': 1
+        }
+
+        parser = FlockerConfiguration(config)
+        recorded_arguments = []
+
+        def spy_parse_restart_policy(*args, **kwargs):
+            recorded_arguments.append((args, kwargs))
+            return expected_restart_policy
+        self.patch(parser, '_parse_restart_policy', spy_parse_restart_policy)
+
+        applications = parser.applications()
+
+        self.assertEqual(
+            [(tuple(), dict(application_name=expected_application_name,
+                            config=expected_restart_policy_configuration))],
+            recorded_arguments
+        )
+
+        self.assertEqual(
+            expected_restart_policy,
+            applications[expected_application_name].restart_policy
+        )
+
+    def test_default_restart_policy(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of ``RestartNever`` if no policy was specified in the
+        configuration.
+        """
+        config = {
+            'applications': {
+                'cube': {
+                    'image': 'twisted/plutonium',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['cube'].restart_policy,
+            RestartNever())
+
+    def test_error_on_unknown_restart_policy_name(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        the supplied ``restart_policy`` name is not recognised.
+        """
+        expected_restart_policy_name = 'unknown-restart-policy'
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config={'name': expected_restart_policy_name}
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: always, never, on-failure".format(
+                expected_restart_policy_name),
+            exception.message
+        )
+
+    def test_restart_policy_never(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartNever`` if that policy was
+        specified in the configuration.
+        """
+        self.assertEqual(
+            RestartNever(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'never')
+            )
+        )
+
+    def test_restart_policy_always(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartAlways`` if that policy
+        was specified in the configuration.
+        """
+        self.assertEqual(
+            RestartAlways(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'always')
+            )
+        )
+
+    def test_restart_policy_on_failure(self):
+        """
+        ``_parse_restart_policy`` returns an ``RestartOnFailure`` if that
+        policy was specified in the configuration.
+        """
+        self.assertEqual(
+            RestartOnFailure(maximum_retry_count=None),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'on-failure')
+            )
+        )
+
+    def test_restart_policy_on_failure_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartOnFailure`` having the same
+        ``maximum_retry_count`` value as supplied in the configuration.
+        """
+        expected_maximum_retry_count = 10
+        self.assertEqual(
+            RestartOnFailure(maximum_retry_count=expected_maximum_retry_count),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(
+                    name=u'on-failure',
+                    maximum_retry_count=expected_maximum_retry_count
+                )
+            )
+        )
+
+    def test_error_on_restart_policy_always_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        ``maximum_retry_count`` is combined with a policy of ``always``.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'always', maximum_retry_count=10)
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartAlways. "
+            "Got {'maximum_retry_count': 10}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_never_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        ``maximum_retry_count`` is combined with a policy of ``never``.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'never', maximum_retry_count=10)
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartNever. "
+            "Got {'maximum_retry_count': 10}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_with_retry_count_not_integer(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if a
+        maximum retry count is not an integer.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', maximum_retry_count=u'fifty')
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {'maximum_retry_count': u'fifty'}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_with_extra_keys(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        extra keys are specified for a retry policy.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', extra=u'key')
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {'extra': u'key'}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_not_a_dictionary(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless the restart_policy value is a dictionary.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=u'pretend-i-am-a-dictionary')
+        self.assertEqual(
+            "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
+            exception.message
+        )
+
+    def test_error_on_missing_name(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless there is a ``name`` in the supplied configuration.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config={}
+        )
+        self.assertEqual(
+            "'restart_policy' must include a 'name'.",
+            exception.message
+        )
+
+
 class DeploymentFromConfigurationTests(SynchronousTestCase):
     """
     Tests for ``Configuration._deployment_from_configuration``.
@@ -2483,7 +2742,10 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'}
+                }
             },
             'version': 1,
         }
@@ -2511,9 +2773,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0'
+                    'image': u'flocker/wordpress:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 },
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
             },
             'version': 1,
         }
@@ -2541,7 +2807,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1,
@@ -2572,7 +2839,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
                     'links': [{'local_port': 3306, 'remote_port': 63306,
-                               'alias': 'mysql'}]
+                               'alias': 'mysql'}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1
@@ -2608,11 +2876,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1,
@@ -2644,8 +2914,9 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
-                               'maximum_size': EXPECTED_MAX_SIZE},
-                    'image': u'flocker/mysql:v1.0.0'
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1,
@@ -2682,11 +2953,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1
@@ -2867,3 +3140,101 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
             "(unsupported)."
         )
         self.assertEqual(e.message, expected)
+
+
+def marshalled_restart_policy(policy):
+    """
+    :param IRestartPolicy policy: The ``IRestartPolicy`` provider to be
+        converted.
+    :returns: The ``restart_policy`` ``dict`` of an ``Application`` converted
+        using ``ApplicationMarshaller``.
+    """
+    application = Application(
+        name=None, image=None, restart_policy=policy)
+    return ApplicationMarshaller(application).convert()['restart_policy']
+
+
+def check_marshalled_restart_policy(test_case, policy_type, **attributes):
+    """
+    Assert that the supplied ``policy_type`` can be marshalled to a ``dict``
+    and that the ``dict`` contains all the supplied policy ``attributes``.
+
+    :param TestCase test_case: The ``TestCase`` for making assertions.
+    :param IRestartPolicy policy_type: A class implementing ``IRestartPolicy``.
+    :param dict attributes: Optional extra attributes which will be supplied
+         when initialising ``policy_type`` and which will be expected to be
+         included in the marshalled result.
+    """
+    expected_name = FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type]
+    test_case.assertEqual(
+        dict(name=expected_name, **attributes),
+        marshalled_restart_policy(policy_type(**attributes))
+    )
+
+
+class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
+    """
+    Tests for ``ApplicationMarshaller.convert_restart_policy``.
+    """
+    def test_never(self):
+        """
+        ``RestartNever`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartNever)
+
+    def test_always(self):
+        """
+        ``RestartAlways`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartAlways)
+
+    def test_onfailure(self):
+        """
+        ``RestartOnFailure`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartOnFailure)
+
+    def test_onfailure_with_maximum_retry_count(self):
+        """
+        ``RestartOnFailure`` with attributes can be marshalled.
+        """
+        check_marshalled_restart_policy(
+            self, RestartOnFailure, maximum_retry_count=10)
+
+
+class ApplicationConfigurationErrorTests(SynchronousTestCase):
+    """
+    """
+    def test_attributes(self):
+        """
+        ``ApplicationConfigurationError`` is initialised with an
+        ``application_name`` and a ``message`` which are exposed as public
+        attributes.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            (expected_application_name, expected_message),
+            (e.application_name, e.message)
+        )
+
+    def test_unicode(self):
+        """
+        ``ApplicationConfigurationError`` can be converted to unicode.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            "Application '{}' has a configuration error. {}".format(
+                expected_application_name, expected_message
+            ),
+            unicode(e)
+        )

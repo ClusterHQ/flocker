@@ -136,10 +136,15 @@ class RestartOnFailure(object):
 
         :raises ValueError: If maximum_retry_count is invalid.
         """
-        if not (self.maximum_retry_count is None or
-                self.maximum_retry_count > 0):
-            raise ValueError("maximum_retry_count must be postive or None, "
-                             "got %r" % (self.maximum_retry_count,))
+        if self.maximum_retry_count is not None:
+            if not isinstance(self.maximum_retry_count, int):
+                raise TypeError(
+                    "maximum_retry_count must be an integer or None, "
+                    "got %r" % (self.maximum_retry_count,))
+            if self.maximum_retry_count < 1:
+                raise ValueError(
+                    "maximum_retry_count must be positive, "
+                    "got %r" % (self.maximum_retry_count,))
 
 
 @attributes(["name", "image",
@@ -253,7 +258,7 @@ class VolumeHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating"])
+@attributes(["going", "coming", "creating", "resizing"])
 class VolumeChanges(object):
     """
     ``VolumeChanges`` describes the volume-related changes necessary to change
@@ -270,6 +275,11 @@ class VolumeChanges(object):
     :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
         node create any new volume-having applications meant to be hosted on
         this node.  These must be created.
+
+    :ivar frozenset resizing: The ``AttachedVolume``\ s necessary to let this
+        node resize any existing volumes that are desired somewhere on the
+        cluster and locally exist with a different maximum_size to the desired
+        maximum_size. These must be resized.
     """
 
 
