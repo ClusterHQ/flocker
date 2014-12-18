@@ -125,6 +125,8 @@ class RackspaceRunner(object):
             raise ValueError("Distribution not supported: %r."
                              % (self.distribution,))
 
+        self.nodes = []
+
     def start_nodes(self):
         """
         Provision rackspace nodes for acceptance tests.
@@ -144,14 +146,20 @@ class RackspaceRunner(object):
 
         metadata.update(self.config.get('metadata', {}).copy())
 
-        self.nodes = []
         for index in range(2):
-            print "Creating node", index
-            node = rackspace.create_node(
-                name="acceptance-test-%s-%d" % (creator, index),
-                distribution=self.distribution,
-                metadata=metadata,
-            )
+            name = "acceptance-test-%s-%d" % (creator, index),
+            try:
+                print "Creating node %d: %s" % (index, name)
+                node = rackspace.create_node(
+                    name=name,
+                    distribution=self.distribution,
+                    metadata=metadata,
+                )
+            except:
+                print "Error creating node %d: %s" % (index, name)
+                print "It may have leaked into the cloud."
+                raise
+
             self.nodes.append(node)
             node.provision(package_source=self.package_source)
             del node
