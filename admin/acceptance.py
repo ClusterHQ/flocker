@@ -147,7 +147,7 @@ class RackspaceRunner(object):
         metadata.update(self.config.get('metadata', {}).copy())
 
         for index in range(2):
-            name = "acceptance-test-%s-%d" % (creator, index),
+            name = "acceptance-test-%s-%d" % (creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)
                 node = rackspace.create_node(

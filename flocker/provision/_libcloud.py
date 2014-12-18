@@ -95,9 +95,8 @@ def monkeypatch():
     """
     from libcloud import __version__
     if __version__ == "0.16.0":
-        from libcloud.compute.drivers.openstack import OpenStackNodeDriver
-        OpenStackNodeDriver._to_node = fixed_OpenStackNodeDriver_to_node
-        raise ImportError("apcahe-libcloud version too old.")
+        from libcloud.compute.drivers.openstack import OpenStack_1_1_NodeDriver
+        OpenStack_1_1_NodeDriver._to_node = fixed_OpenStackNodeDriver_to_node
 
 
 def get_size(driver, size_id):
