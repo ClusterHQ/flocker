@@ -36,7 +36,8 @@ class InstallFlockerTests(SynchronousTestCase):
 
     def test_no_arguments(self):
         """
-        With no arguments, ``task_install_flocker`` installs the latest release.
+        With no arguments, ``task_install_flocker`` installs the latest
+        release.
         """
         commands = task_install_flocker()
         self.assertEqual(commands, [
