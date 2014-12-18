@@ -56,9 +56,9 @@ The :program:`admin/run-acceptance-tests` script has several options:
 Vagrant
 -------
 
-A configuration file is not required, for the vagrant provider.
+A configuration file is not required for the vagrant provider.
 
-You will need a ssh agent running, with access to the insecure vagrant private key:
+You will need a ssh agent running with access to the insecure vagrant private key:
 
 .. prompt:: bash $
 
@@ -86,8 +86,8 @@ Rackspace
 
 To run the acceptance on Rackspace, you need
 
-- a Rackspace account, and the associated API key
-- a ssh-key registered with the Rackspace account.
+- a Rackspace account and the associated API key
+- an ssh-key registered with the Rackspace account.
 
 The config file for the Rackspace provider looks like:
 
@@ -99,7 +99,7 @@ The config file for the Rackspace provider looks like:
      key: <access key>
      keyname: <ssh-key-name>
 
-You will need a ssh agent running, with access to the corresponding private key.
+You will need a ssh agent running with access to the corresponding private key.
 
 .. prompt:: bash $
 
