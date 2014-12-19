@@ -325,14 +325,7 @@ Before installing ``clusterhq-flocker-node``, you need to install a version of t
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
-.. code-block:: sh
-
-  UNAME_R=$(uname -r)
-  PV=${UNAME_R%.*}
-  KV=${PV%%-*}
-  SV=${PV##*-}
-  ARCH=$(uname -m)
-  yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
+.. task:: install_kernel
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -342,39 +335,25 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. code-block:: sh
-
-   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
-   yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-   yum install -y clusterhq-flocker-node
+.. task:: install_flocker
 
 Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
-.. code-block:: sh
-
-   systemctl start docker
-   systemctl enable docker
+.. task:: enable_docker
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
 On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
 (Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
 The following commands will configure firewalld to enable forwarding:
 
-.. code-block:: sh
-
-  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
-  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+.. task:: disable_firewall
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
 
-.. code-block:: sh
-
-   mkdir -p /var/opt/flocker
-   truncate --size 10G /var/opt/flocker/pool-vdev
-   zpool create flocker /var/opt/flocker/pool-vdev
+.. task:: create_flocker_pool_file
 
 .. note:: It is also possible to create the pool on a block device.
 
