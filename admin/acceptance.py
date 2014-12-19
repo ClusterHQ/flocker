@@ -177,7 +177,72 @@ class RackspaceRunner(object):
                 print "Failed to destroy %s: %s" % (node, e)
 
 
-PROVIDERS = {'vagrant': VagrantRunner, 'rackspace': RackspaceRunner}
+@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
+class AWSRunner(object):
+    """
+    Run the tests against aws nodes.
+    """
+
+    def __init__(self):
+        if self.distribution != 'fedora-20':
+            raise ValueError("Distribution not supported: %r."
+                             % (self.distribution,))
+
+        self.nodes = []
+
+    def start_nodes(self):
+        """
+        Provision aws nodes for acceptance tests.
+
+        :return list: List of addresses of nodes to connect to, for acceptance
+            tests.
+        """
+        from flocker.provision import AWS
+        aws = AWS(**self.config['aws'])
+
+        metadata = {
+            'purpose': 'acceptance-testing',
+            'distribution': self.distribution,
+        }
+
+        metadata.update(self.config.get('metadata', {}).copy())
+
+        for index in range(2):
+            name = "acceptance-test-%s" % (index,)
+            try:
+                print "Creating node %d: %s" % (index, name)
+                node = aws.create_node(
+                    name=name,
+                    distribution=self.distribution,
+                    metadata=metadata,
+                )
+            except:
+                print "Error creating node %d: %s" % (index, name)
+                print "It may have leaked into the cloud."
+                raise
+
+            self.nodes.append(node)
+            node.provision(package_source=self.package_source)
+            del node
+
+        return [node.address for node in self.nodes]
+
+    def stop_nodes(self):
+        """
+        Deprovision the nodes provisioned by ``start_nodes``.
+        """
+        for node in self.nodes:
+            try:
+                node.destroy()
+            except Exception as e:
+                print "Failed to destroy %s: %s" % (node, e)
+
+
+PROVIDERS = {
+    'vagrant': VagrantRunner,
+    'rackspace': RackspaceRunner,
+    'aws': AWSRunner,
+}
 
 
 class RunOptions(Options):
