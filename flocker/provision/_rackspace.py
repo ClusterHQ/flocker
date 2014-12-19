@@ -29,7 +29,7 @@ class RackspaceNode(object):
 
     @property
     def name(self):
-        self._node.name
+        return self._node.name
 
 
 IMAGE_NAMES = {
