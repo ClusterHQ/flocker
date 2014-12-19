@@ -27,6 +27,10 @@ class RackspaceNode(object):
         )
         return self.address
 
+    @property
+    def name(self):
+        self._node.name
+
 
 IMAGE_NAMES = {
     'fedora-20': u'Fedora 20 (Heisenbug) (PVHVM)',
