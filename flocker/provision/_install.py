@@ -200,12 +200,17 @@ def provision(address, username, distribution, package_source):
     :param bytes distribution: See func:`task_install`
     :param PackageSource package_source: See func:`task_install`
     """
-    commands = []
+    commands = [Run.from_args(['setenforce', '0'])]
     commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
-    commands += task_disable_firewall()
+    # commands += task_disable_firewall()
     commands += task_create_flocker_pool_file()
+    commands += [
+        Run.from_args(['docker', 'pull', image]) for image in
+        "clusterhq/elasticsearch", "clusterhq/logstash", "clusterhq/kibana",
+        "postgres:latest", "clusterhq/mongodb:latest",
+    ]
 
     run_with_fabric(username=username, address=address, commands=commands)

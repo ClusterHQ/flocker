@@ -43,7 +43,7 @@ def run_tests(nodes, trial_args):
     if not trial_args:
         trial_args = ['flocker.acceptance']
     return call(
-        ['trial'] + trial_args,
+        ['trial'] + list(trial_args),
         env=extend_environ(
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
 
