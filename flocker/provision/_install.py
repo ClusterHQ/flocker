@@ -191,6 +191,12 @@ def task_install_flocker(package_source=PackageSource(),
     return commands
 
 
+def task_upgrade_selinux():
+    return [
+        Run.from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
+    ]
+
+
 def provision(address, username, distribution, package_source):
     """
     Provison the node for running flocker.
@@ -200,12 +206,11 @@ def provision(address, username, distribution, package_source):
     :param bytes distribution: See func:`task_install`
     :param PackageSource package_source: See func:`task_install`
     """
-    commands = [Run.from_args(['setenforce', '0'])]
+    commands = []
     commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
-    # commands += task_disable_firewall()
     commands += task_create_flocker_pool_file()
     commands += [
         Run.from_args(['docker', 'pull', image]) for image in

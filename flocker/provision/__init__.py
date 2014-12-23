@@ -6,7 +6,10 @@ Provisioning for acceptance tests.
 
 from ._common import PackageSource
 from ._install import provision
-from ._rackspace import Rackspace
-from ._aws import AWS
+from ._rackspace import rackspace_provisioner
+from ._aws import aws_provisioner
 
-__all__ = ['PackageSource', 'provision', 'Rackspace', 'AWS']
+__all__ = [
+    'PackageSource', 'provision',
+    'rackspace_provisioner', 'aws_provisioner'
+]

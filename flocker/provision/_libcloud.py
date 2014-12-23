@@ -4,6 +4,8 @@
 Helpers for using libcloud.
 """
 
+from characteristic import attributes, Attribute
+
 
 def fixed_OpenStackNodeDriver_to_node(self, api_node):
     from libcloud.utils.networking import is_public_subnet
@@ -121,3 +123,99 @@ def get_image(driver, image_name):
         return [s for s in driver.list_images() if s.name == image_name][0]
     except IndexError:
         raise ValueError("Unknown image.", image_name)
+
+
+# _node isn't immutable, since libcloud provides new instances
+# with updated data.
+@attributes([
+    Attribute('_node'),
+    Attribute('_provisioner'),
+    'address',
+    'distribution',
+])
+class LibcloudNode(object):
+    def destroy(self):
+        self._node.destroy()
+
+    def reboot(self):
+        self._node.reboot()
+
+        self._node, self.addresses = \
+            self._node.driver.wait_until_running([self._node])[0]
+
+    def provision(self, package_source):
+        """
+        Provision flocker on this node.
+        """
+        self._provisioner.provision(
+            node=self,
+            package_source=package_source,
+            distribution=self.distribution,
+        )
+        return self.address
+
+    @property
+    def name(self):
+        return self._node.name
+
+
+@attributes([
+    Attribute('_driver'),
+    Attribute('_keyname'),
+    Attribute('image_names'),
+    Attribute('_create_node_arguments'),
+    Attribute('provision'),
+    Attribute('default_size'),
+], apply_immutable=True)
+class LibcloudProvisioner(object):
+    """
+    :ivar keyname:
+    :ivar dict image_names: Dictionary mapping distributions to cloud image
+        names.
+    :ivar callable _create_arguments: Extra arguments to pass to
+        libcloud's ``create_node``.
+    :ivar callable provision: Function to call to provision a node.
+    :ivar default_size: Name of the default size of node to create.
+    """
+
+    def create_node(self, name, distribution,
+                    userdata=None,
+                    size=None, disk_size=8,
+                    keyname=None, metadata={}):
+        """
+        :param str name: The name of the node.
+        :param str base_ami: The name of the ami to use.
+        :param bytes userdata: User data to pass to the instance.
+        :param bytes size: The name of the size to use.
+        :param int disk_size: The size of disk to allocate.
+        :param dict metadata: Metadata to associate with the node.
+        """
+        if keyname is None:
+            keyname = self._keyname
+
+        if size is None:
+            size = self.default_size
+
+        image_name = self.image_names[distribution]
+
+        create_node_arguments = self._create_node_arguments(
+            disk_size=disk_size)
+
+        node = self._driver.create_node(
+            name=name,
+            image=get_image(self._driver, image_name),
+            size=get_size(self._driver, size),
+            ex_keyname=keyname,
+            ex_userdata=userdata,
+            ex_metadata=metadata,
+            **create_node_arguments
+        )
+
+        node, addresses = self._driver.wait_until_running([node])[0]
+
+        public_address = addresses[0]
+
+        return LibcloudNode(
+            provisioner=self,
+            node=node, address=public_address,
+            distribution=distribution)

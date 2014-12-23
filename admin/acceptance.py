@@ -134,8 +134,8 @@ class RackspaceRunner(object):
         :return list: List of addresses of nodes to connect to, for acceptance
             tests.
         """
-        from flocker.provision import Rackspace
-        rackspace = Rackspace(**self.config['rackspace'])
+        from flocker.provision import rackspace_provisioner
+        rackspace = rackspace_provisioner(**self.config['rackspace'])
 
         creator = self.config['rackspace']['username']
         metadata = {
@@ -198,8 +198,8 @@ class AWSRunner(object):
         :return list: List of addresses of nodes to connect to, for acceptance
             tests.
         """
-        from flocker.provision import AWS
-        aws = AWS(**self.config['aws'])
+        from flocker.provision import aws_provisioner
+        aws = aws_provisioner(**self.config['aws'])
 
         metadata = {
             'purpose': 'acceptance-testing',
