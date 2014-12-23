@@ -172,9 +172,10 @@ class RackspaceRunner(object):
         """
         for node in self.nodes:
             try:
+                print "Destroying %s" % (node.name,)
                 node.destroy()
             except Exception as e:
-                print "Failed to destroy %s: %s" % (node, e)
+                print "Failed to destroy %s: %s" % (node.name, e)
 
 
 @attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
@@ -348,4 +349,6 @@ def main(args, base_path, top_level):
         # delete them.
         if not (result != 0 and options['keep']):
             runner.stop_nodes()
+        elif options['keep']:
+            print "--keep specified, not destroying nodes."
     raise SystemExit(result)
