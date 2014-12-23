@@ -83,6 +83,9 @@ def run_with_fabric(username, address, commands):
     disconnect_all()
 
 
+run = run_with_fabric
+
+
 def task_install_ssh_key():
     return [
         Sudo.from_args(['cp', '.ssh/authorized_keys',
@@ -197,7 +200,7 @@ def task_upgrade_selinux():
     ]
 
 
-def provision(address, username, distribution, package_source):
+def provision(distribution, package_source):
     """
     Provison the node for running flocker.
 
@@ -217,5 +220,4 @@ def provision(address, username, distribution, package_source):
         "clusterhq/elasticsearch", "clusterhq/logstash", "clusterhq/kibana",
         "postgres:latest", "clusterhq/mongodb:latest",
     ]
-
-    run_with_fabric(username=username, address=address, commands=commands)
+    return commands

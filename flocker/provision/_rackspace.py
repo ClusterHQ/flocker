@@ -5,23 +5,24 @@ Rackspace provisioner.
 """
 
 from ._libcloud import monkeypatch, LibcloudProvisioner
-from ._install import provision, run_with_fabric, task_disable_firewall
+from ._install import provision, run, task_disable_firewall
 
 
 def provision_rackspace(node, package_source, distribution):
     """
     Provision flocker on this node.
     """
-    run_with_fabric(
+    commands = (
+        task_disable_firewall()
+        + provision(
+            package_source=package_source,
+            distribution=node.distribution,
+        )
+    )
+    run(
         username='root',
         address=node.address,
-        commands=task_disable_firewall(),
-    )
-
-    provision(
-        node.address, username="root",
-        package_source=package_source,
-        distribution=distribution,
+        commands=commands,
     )
     return node.address
 

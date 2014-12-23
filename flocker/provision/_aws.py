@@ -6,7 +6,7 @@ AWS provisioner.
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
-    provision, run_with_fabric,
+    provision, run,
     task_install_ssh_key,
     task_upgrade_kernel,
     task_upgrade_selinux,
@@ -17,12 +17,12 @@ def provision_aws(node, package_source, distribution):
     """
     Provision flocker on this node.
     """
-    run_with_fabric(
+    run(
         username='fedora',
         address=node.address,
         commands=task_install_ssh_key(),
     )
-    run_with_fabric(
+    run(
         username='root',
         address=node.address,
         commands=task_upgrade_kernel() + task_upgrade_selinux(),
@@ -30,11 +30,13 @@ def provision_aws(node, package_source, distribution):
 
     node.reboot()
 
-    provision(
-        username="root",
+    run(
+        username='root',
         address=node.address,
-        package_source=package_source,
-        distribution=node.distribution,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+        )
     )
     return node.address
 
