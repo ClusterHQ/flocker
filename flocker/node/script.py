@@ -10,6 +10,9 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import Deferred, maybeDeferred
+from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.application.service import MultiService
+
 
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
@@ -20,6 +23,7 @@ from ._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
+from ..volume.httpapi import create_api_service
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner)
@@ -254,8 +258,9 @@ class ServeOptions(Options):
     """
     Command line options for ``flocker-serve`` cluster management process.
     """
-    # Maybe options for things like what port to listen on or perhaps where to
-    # find certificate material to use for TLS.
+    optParameters = [
+        ["port", "p", "The port to listen on.", int],
+        ]
 
 
 @implementer(ICommandLineVolumeScript)
@@ -265,6 +270,11 @@ class ServeScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
+        #parent_service = MultiService()
+        #volume_service.setServiceParent(parent_service) 
+        #api_service = create_api_service(TCP4ServerEndpoint(reactor, options["port"]))
+        #api_service.setServiceParent(parent_service) 
+        # XXX Switch to parent_service:
         return _main_for_service(reactor, volume_service)
 
 
