@@ -16,7 +16,7 @@ from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
 from flocker.node._config import FlockerConfiguration
-from flocker.node._model import Application, AttachedVolume, DockerImage
+from flocker.node._model import Application, AttachedVolume, DockerImage, Port
 from flocker.testtools import loop_until
 
 try:
@@ -69,8 +69,10 @@ def create_application(name, image, ports=frozenset(), volume=None,
     """
     Instantiate an ``Application`` with the supplied parameters and return it.
     """
+    if not ':' in image:
+        image = image + u':latest'
     return Application(
-        name=name, image=DockerImage.from_string(image + u':latest'),
+        name=name, image=DockerImage.from_string(image),
         ports=ports, volume=volume, links=links, environment=environment,
         memory_limit=memory_limit, cpu_shares=cpu_shares
     )
@@ -83,6 +85,23 @@ def create_attached_volume(name, mountpoint, maximum_size=None):
     """
     return AttachedVolume(
         name=name, mountpoint=FilePath(mountpoint), maximum_size=maximum_size)
+
+
+def create_port_set(port_mappings):
+    """
+    Create and return a frozenset of ``Port`` instances to be used in an
+    ``Application``.
+
+    :param list port_mappings: A ``list`` of ``dict`` instances containing
+        internal and external keys with port numbers.
+    """
+    return frozenset(
+        Port(
+            internal_port=port_map['internal'],
+            external_port=port_map['external']
+        )
+        for port_map in port_mappings
+    )
 
 
 def get_node_state(node):

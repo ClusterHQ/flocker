@@ -8,7 +8,8 @@ from twisted.trial.unittest import TestCase
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
                         MONGO_APPLICATION, MONGO_IMAGE, get_mongo_application,
                         require_flocker_cli, require_mongo, create_application,
-                        create_attached_volume, get_node_state)
+                        create_attached_volume, create_port_set,
+                        get_node_state)
 
 
 class DeploymentTests(TestCase):
@@ -31,7 +32,52 @@ class DeploymentTests(TestCase):
         configured image will result in the application being restarted with
         the new image when the configuration is deployed again.
         """
-        self.fail("Not implemented yet.")
+        nodes = get_nodes(self, num_nodes=2)
+
+        def deploy_with_image(nodes):
+            node_1, node_2 = nodes
+            MYSQL_APPLICATION = u"mysql-example-application"
+            MYSQL_PORT_MAPPINGS = [{'internal': 3306, 'external': 3306}]
+            application = create_application(
+                MYSQL_APPLICATION,
+                u"mysql:5.6.17",
+                environment=frozenset([('MYSQL_ROOT_PASSWORD', 'clusterhq')]),
+                ports=create_port_set(MYSQL_PORT_MAPPINGS),
+                volume=create_attached_volume(
+                    name=MYSQL_APPLICATION,
+                    mountpoint=b'/var/lib/mysql',
+                    maximum_size=None
+                )
+            )
+            config_deployment = {
+                u"version": 1,
+                u"nodes": {
+                    node_1: [MYSQL_APPLICATION],
+                    node_2: [],
+                }
+            }
+            config_application = {
+                u"version": 1,
+                u"applications": {
+                    MYSQL_APPLICATION: {
+                        u"image": u"mysql:5.6.17",
+                        u"environment": {u"MYSQL_ROOT_PASSWORD": "clusterhq"},
+                        u"ports": MYSQL_PORT_MAPPINGS,
+                        u"volume": {
+                            u"mountpoint": b"/var/lib/mysql",
+                        }
+                    }
+                }
+            }
+
+            flocker_deploy(self, config_deployment, config_application)
+            state = get_node_state(node_1)
+            self.assertEqual(state[MYSQL_APPLICATION], application)
+
+            # continue from here
+
+        nodes.addCallback(deploy_with_image)
+        return nodes
 
     @require_flocker_cli
     def test_application_ports_changed(self):
