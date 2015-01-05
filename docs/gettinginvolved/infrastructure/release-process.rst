@@ -389,8 +389,6 @@ Release
 
 #. Submit the release pull request for review again.
 
-.. _`mkpydeps`: https://raw.githubusercontent.com/tdsmith/labmisc/master/mkpydeps
-
 Post-Release Review Process
 ---------------------------
 
