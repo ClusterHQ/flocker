@@ -7,7 +7,7 @@ Helpers for using libcloud.
 from characteristic import attributes, Attribute
 
 
-def fixed_OpenStackNodeDriver_to_node(self, api_node):
+def _fixed_OpenStackNodeDriver_to_node(self, api_node):
     from libcloud.utils.networking import is_public_subnet
     from libcloud.compute.base import Node
     from libcloud.compute.types import NodeState
@@ -98,7 +98,7 @@ def monkeypatch():
     from libcloud import __version__
     if __version__ == "0.16.0":
         from libcloud.compute.drivers.openstack import OpenStack_1_1_NodeDriver
-        OpenStack_1_1_NodeDriver._to_node = fixed_OpenStackNodeDriver_to_node
+        OpenStack_1_1_NodeDriver._to_node = _fixed_OpenStackNodeDriver_to_node
 
 
 def get_size(driver, size_id):
@@ -134,10 +134,27 @@ def get_image(driver, image_name):
     'distribution',
 ])
 class LibcloudNode(object):
+    """
+    A node created with libcloud.
+
+    :ivar Node _node: The libcloud node object.
+    :ivar LibcloudProvisioner _provisioner: The provisioner that created this
+        node.
+    :ivar bytes address: The IP address of the node.
+    :ivar str distribution: The distribution installed on the node.
+    :ivar bytes name: The name of the node.
+    """
+
     def destroy(self):
+        """
+        Destroy the node.
+        """
         self._node.destroy()
 
     def reboot(self):
+        """
+        Reboot the node.
+        """
         self._node.reboot()
 
         self._node, self.addresses = \
@@ -169,7 +186,9 @@ class LibcloudNode(object):
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    :ivar keyname:
+    :ivar bytes keyname: The name of an existing ssh public key configured with
+       the cloud provider. The provision step assumes the corresponding private
+       key is available from an agent.
     :ivar dict image_names: Dictionary mapping distributions to cloud image
         names.
     :ivar callable _create_arguments: Extra arguments to pass to
@@ -183,12 +202,16 @@ class LibcloudProvisioner(object):
                     size=None, disk_size=8,
                     keyname=None, metadata={}):
         """
+        Create a node.
+
         :param str name: The name of the node.
         :param str base_ami: The name of the ami to use.
         :param bytes userdata: User data to pass to the instance.
         :param bytes size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
+
+        :return LibcloudNode: The created node.
         """
         if keyname is None:
             keyname = self._keyname

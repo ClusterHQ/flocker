@@ -37,6 +37,16 @@ IMAGE_NAMES = {
 
 
 def rackspace_provisioner(username, key, region, keyname):
+    """
+    Create a LibCloudProvisioner for provisioning nodes on rackspace.
+
+    :param bytes username: The user to connect to rackspace with.
+    :param bytes key: The API key associated with the user.
+    :param bytes region: The rackspace region in which to launch the instance.
+    :param bytes keyname: The name of an existing ssh public key configured in
+       rackspace. The provision step assumes the corresponding private key is
+       available from an agent.
+    """
     # Import these here, so that this can be imported without
     # installng libcloud.
     from libcloud.compute.providers import get_driver, Provider
