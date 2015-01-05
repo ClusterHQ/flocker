@@ -6,7 +6,7 @@ This module implements tools for exposing Python methods as API endpoints.
 from __future__ import absolute_import
 
 __all__ = [
-    "EndpointResponse", "structured", "userDocumentation",
+    "EndpointResponse", "structured", "user_documentation",
     ]
 
 from functools import wraps
