@@ -126,7 +126,7 @@ setup(
 
         "psutil == 2.1.2",
         "netifaces >= 0.8",
-        "ipaddr == 2.1.10",
+        "ipaddr == 2.1.11",
 
         "docker-py == 0.5.0",
         "jsonschema == 2.4.0",
