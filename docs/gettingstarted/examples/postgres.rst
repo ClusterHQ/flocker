@@ -19,20 +19,6 @@ If you have since shutdown or destroyed those VMs, boot them up again:
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
 
-Download the Docker Image
-=========================
-
-The Docker image used by this example is quite large, so you should pre-fetch it to your nodes.
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull postgres
-   ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull postgres
-   ...
-   alice@mercury:~/flocker-tutorial$
-
-
 Launch PostgreSQL
 =================
 
@@ -47,14 +33,14 @@ Download and save the following configuration files to your ``flocker-tutorial``
 
 .. literalinclude:: postgres-deployment.yml
    :language: yaml
-   
+
 Now run ``flocker-deploy`` to deploy the PostgreSQL application to the target Virtual Machine.
 
 .. code-block:: console
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy postgres-deployment.yml postgres-application.yml
    alice@mercury:~/flocker-tutorial$
-   
+
 Confirm the container is running in its destination host:
 
 .. code-block:: console
@@ -85,22 +71,22 @@ Insert a Row into the Database
 ==============================
 
 .. code-block:: console
- 
+
    postgres=# CREATE DATABASE flockertest;
    CREATE DATABASE
    postgres=# \connect flockertest;
    psql (9.3.5)
    You are now connected to database "flockertest" as user "postgres".
-   flockertest=# CREATE TABLE testtable (testcolumn int); 
+   flockertest=# CREATE TABLE testtable (testcolumn int);
    CREATE TABLE
    flockertest=# INSERT INTO testtable (testcolumn) VALUES (3);
    INSERT 0 1
    flockertest=# SELECT * FROM testtable;
-    testcolumn 
+    testcolumn
    ------------
              3
    (1 row)
-   
+
    flockertest=# \quit
 
 
@@ -113,7 +99,7 @@ Download and save the following configuration file to your ``flocker-tutorial`` 
 
 .. literalinclude:: postgres-deployment-moved.yml
    :language: yaml
-   
+
 Then run ``flocker-deploy`` to move the PostgreSQL application along with its data to the new destination host:
 
 .. code-block:: console
@@ -140,7 +126,7 @@ And is no longer running on the original host:
    alice@mercury:~/flocker-tutorial$ ssh root@172.16.255.250 docker ps
    CONTAINER ID        IMAGE                       COMMAND             CREATED             STATUS              PORTS                    NAMES
    alice@mercury:~/flocker-tutorial$
-   
+
 You can now connect to PostgreSQL on its host and confirm the sample data has also moved:
 
 .. code-block:: console
@@ -153,7 +139,7 @@ You can now connect to PostgreSQL on its host and confirm the sample data has al
    psql (9.3.5)
    You are now connected to database "flockertest" as user "postgres".
    flockertest=# select * from testtable;
-    testcolumn 
+    testcolumn
    ------------
              3
    (1 row)

@@ -31,32 +31,6 @@ If you have since shutdown or destroyed those VMs, boot them up again:
    Bringing machine 'node1' up with 'virtualbox' provider...
    ==> node1: Importing base box 'clusterhq/flocker-dev'...
 
-Download the Docker Images
-==========================
-
-The Docker images used by this example are quite large, so you should pre-fetch them to your nodes.
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/elasticsearch
-   ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/logstash
-   ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.250 docker pull clusterhq/kibana
-   ...
-   alice@mercury:~/flocker-tutorial$
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/elasticsearch
-   ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/logstash
-   ...
-   alice@mercury:~/flocker-tutorial$ ssh -t root@172.16.255.251 docker pull clusterhq/kibana
-   ...
-   alice@mercury:~/flocker-tutorial$
-
-
 Deploy on Node1
 ===============
 
@@ -125,7 +99,7 @@ Then run ``flocker-deploy`` to move the ``Elasticsearch`` application along with
 
    alice@mercury:~/flocker-tutorial$ flocker-deploy elk-deployment.yml elk-application.yml
    alice@mercury:~/flocker-tutorial$
-   
+
 Now verify that the ``ElasticSearch`` application has moved to the other VM:
 
 .. code-block:: console
