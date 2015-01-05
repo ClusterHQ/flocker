@@ -17,7 +17,7 @@ try:
 except ImportError:
     skip = "Sphinx not installed."
 else:
-    from ..xpublicapi import (
+    from ..publicapi import (
         Example, KleinRoute, getRoutes, _loadExamples, _formatExample, makeRst)
 
 from ..._infrastructure import userDocumentation, structured
@@ -76,7 +76,7 @@ class MakeRstTests(SynchronousTestCase):
         def g():
             pass
 
-        rest = list(makeRst(b"/prefix", app, None))
+        rest = list(makeRst(b"/prefix", app, None, {}))
 
         self.assertEqual(rest, [
             '',
@@ -126,7 +126,7 @@ class MakeRstTests(SynchronousTestCase):
                 },
             }
 
-        rest = list(makeRst(b"/prefix", app, examples.get))
+        rest = list(makeRst(b"/prefix", app, examples.get, {}))
         self.assertEqual(
             ['',
              # This line introduces the endpoint
@@ -162,40 +162,40 @@ class MakeRstTests(SynchronousTestCase):
              '',
              ], rest)
 
+    INPUT_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'object',
+                'properties': {
+                    'param': {'$ref': 'test.json#/type'},
+                    'optional': {'$ref': 'test.json#/type'},
+                },
+                'required': ['param'],
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+            },
+        }}
 
     def test_inputSchema(self):
         """
         The generated API documentation includes the input schema.
         """
-        from .. import publicapi
-        self.patch(publicapi, "SCHEMAS", {
-            b'/v0/test.json':{
-                'endpoint': {
-                    'type': 'object',
-                    'properties': {
-                        'param': {'$ref': 'test.json#/type'},
-                        'optional': {'$ref': 'test.json#/type'},
-                    },
-                    'required' : ['param'],
-                },
-                'type': {
-                    'title': 'TITLE',
-                    'description': 'one\ntwo',
-                },
-            }})
         app = Klein()
 
         @app.route(b"/", methods=[b"GET"])
         @structured(
             inputSchema={'$ref': '/v0/test.json#/endpoint'},
             outputSchema={},
+            schema_store=self.INPUT_SCHEMAS,
         )
         def f():
             """
             Developer docs,
             """
 
-        rest = list(makeRst(b"/prefix", app, None))
+        rest = list(makeRst(b"/prefix", app, None, self.INPUT_SCHEMAS))
 
         self.assertEqual(rest, [
             '',
@@ -239,39 +239,39 @@ class MakeRstTests(SynchronousTestCase):
             '',
             ])
 
+    OUTPUT_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'object',
+                'properties': {
+                    'param': {'$ref': '#/type'},
+                },
+                'required': ['param'],
+            },
+            'type': {
+                'title': 'TITLE',
+                'description': 'one\ntwo',
+            },
+        }}
 
     def test_ouputSchema(self):
         """
         The generated API documentation includes the output schema.
         """
-        from hybridcluster.docs import publicapi
-        self.patch(publicapi, "SCHEMAS", {
-            b'/v0/test.json':{
-                'endpoint': {
-                    'type': 'object',
-                    'properties': {
-                        'param': {'$ref': '#/type'},
-                    },
-                    'required' : ['param'],
-                },
-                'type': {
-                    'title': 'TITLE',
-                    'description': 'one\ntwo',
-                },
-            }})
         app = Klein()
 
         @app.route(b"/", methods=[b"GET"])
         @structured(
             inputSchema={},
             outputSchema={'$ref': '/v0/test.json#/endpoint'},
+            schema_store=self.OUTPUT_SCHEMAS,
         )
         def f():
             """
             Developer docs,
             """
 
-        rest = list(makeRst(b"/prefix", app, None))
+        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
 
         self.assertEqual(rest, [
             '',

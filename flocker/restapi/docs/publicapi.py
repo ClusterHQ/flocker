@@ -22,14 +22,11 @@ from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 
 from twisted.python.reflect import namedAny
+from twisted.python.filepath import FilePath
 
-from hybridcluster.common import HYBRIDCLUSTER_ROOT
-from hybridcluster.publicapi._schema import (
-    LocalRefResolver, SCHEMAS, resolveSchema,
-    )
+from .._schema import LocalRefResolver, resolveSchema
 
 # sphinxcontrib-httpdomain only supports a limited way of describing JSON
-# https://www.pivotaltracker.com/story/show/67579818
 # The following is monkey-patching part of
 # https://bitbucket.org/birkenfeld/sphinx-contrib/pull-request/54/issue-41-describe-response-json-with/diff
 # but I think perhaps we will want to go with a richer presentation
@@ -106,11 +103,14 @@ def getRoutes(app):
 
 
 
-def _parseSchema(schema):
+def _parseSchema(schema, schema_store):
     """
     Parse a JSON Schema and return some information to document it.
 
     @param schema: L{dict} representing a JSON Schema.
+
+    @param dict schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure.
 
     @return: A L{dict} representing the information needed to
         document the schema.
@@ -119,7 +119,7 @@ def _parseSchema(schema):
 
     resolver = LocalRefResolver(
             base_uri=b'',
-            referrer=schema, store=SCHEMAS)
+            referrer=schema, store=schema_store)
 
     if schema.get(u'$ref') is None:
         raise Exception('Non-$ref top-level definitions not supported.')
@@ -139,7 +139,7 @@ def _parseSchema(schema):
 
 
 
-def _introspectRoute(route, exampleByIdentifier):
+def _introspectRoute(route, exampleByIdentifier, schema_store):
     """
     Given a L{KleinRoute}, extract the information to generate documentation.
 
@@ -148,6 +148,9 @@ def _introspectRoute(route, exampleByIdentifier):
 
     @param exampleByIdentifier: A one-argument callable that accepts an example
         identifier and returns an HTTP session example.
+
+    @param dict schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure.
 
     @return: Information about the route
     @rtype: L{dict} with the following keys.
@@ -182,26 +185,21 @@ def _introspectRoute(route, exampleByIdentifier):
         # _parseSchema doesn't handle all JSON Schema yet
         # Fail softly by simply not including the documentation
         # for it.
-        # https://www.pivotaltracker.com/story/show/67579818
+        # https://clusterhq.atlassian.net/browse/FLOC-1171
         try:
-            result['input'] = _parseSchema(inputSchema)
+            result['input'] = _parseSchema(inputSchema, schema_store)
         except:
             pass
         result["input_schema"] = inputSchema
 
     if outputSchema:
         # See above
-        # https://www.pivotaltracker.com/story/show/67579818
+        # https://clusterhq.atlassian.net/browse/FLOC-1171
         try:
-            result['output'] = _parseSchema(outputSchema)
+            result['output'] = _parseSchema(outputSchema, schema_store)
         except:
             pass
         result["output_schema"] = outputSchema
-
-    paged = route.attributes.get("paged", False)
-    if paged:
-        keys = [key.apiName for key in route.attributes.get("sortKeys", [])]
-        result['paged'] = {'defaultKey': keys[0], 'otherKeys': keys[1:]}
 
     examples = route.attributes.get("examples") or []
     result['examples'] = list(
@@ -232,12 +230,22 @@ def _formatSchema(data, param):
 
 
 
-def _formatActualSchema(schema, title):
+def _formatActualSchema(schema, title, schema_store):
+    """
+    Format a schema to reStructuredText.
+
+    :param dict schema: The JSON Schema to validate against.
+
+    :param dict schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure.
+
+    :return: Iterable of strings creating reStructuredText.
+    """
     yield ".. hidden-code-block:: json"
     yield "    :label: " + title
     yield "    :starthidden: True"
     yield ""
-    schema = resolveSchema(schema, SCHEMAS)
+    schema = resolveSchema(schema, schema_store)
     lines = json.dumps(schema, indent=4, separators=(',', ': '),
                        sort_keys=True).splitlines()
     for line in lines:
@@ -286,14 +294,17 @@ def _formatExample(example, substitutions):
 
 
 
-def _formatRouteBody(data):
+def _formatRouteBody(data, schema_store):
     """
     Generate the description of a L{klein} route.
 
     @param data: Result of L{_introspectRoute}.
 
+    @param dict schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure.
+
     @return: The lines of sphinx representing the generated documentation.
-    @rtype: A generator of L{str}s.
+    @rtype: A generator of L{unicode}s.
     """
     baseSubstitutions = {
         u"DOMAIN": u"example.com",
@@ -315,11 +326,13 @@ def _formatRouteBody(data):
 
     if 'input' in data:
         for line in _formatActualSchema(data['input_schema'],
-                                        "+ Request JSON Schema"):
+                                        "+ Request JSON Schema",
+                                        schema_store):
             yield line
     if 'output' in data:
         for line in _formatActualSchema(data['output_schema'],
-                                        "+ Response JSON Schema"):
+                                        "+ Response JSON Schema",
+                                        schema_store):
             yield line
 
     for example in data['examples']:
@@ -337,7 +350,7 @@ def _formatRouteBody(data):
 
 
 
-def makeRst(prefix, app, exampleByIdentifier):
+def makeRst(prefix, app, exampleByIdentifier, schema_store):
     """
     Generate the sphinx documentation associated with a L{klein} application.
 
@@ -350,14 +363,17 @@ def makeRst(prefix, app, exampleByIdentifier):
     @param exampleByIdentifier: A one-argument callable that accepts an example
         identifier and returns an HTTP session example.
 
+    @param dict schema_store: A mapping between schema paths
+        (e.g. ``b/v1/types.json``) and the JSON schema structure.
+
     @return: The lines of sphinx representing the generated documentation.
     @rtype: A generator of L{str}s.
     """
     # Adapted from sphinxcontrib.autohttp.flask
     for route in sorted(getRoutes(app)):
-        data = _introspectRoute(route, exampleByIdentifier)
+        data = _introspectRoute(route, exampleByIdentifier, schema_store)
         for method in route.methods:
-            body = _formatRouteBody(data)
+            body = _formatRouteBody(data, schema_store)
             for line in http_directive(method, prefix + route.path, body):
                 yield line
 
@@ -400,19 +416,25 @@ class AutoKleinDirective(Directive):
     has_content = True
     required_arguments = 1
 
-    option_spec = {'prefix': directives.unchanged}
-
-    EXAMPLE_PATH = HYBRIDCLUSTER_ROOT.descendant([
-            b"doc", b"06-integrate", b"hybridcluster-api-examples.yml"])
+    option_spec = {
+        # The URL prefix of the URLs in this application.
+        'prefix': directives.unchanged,
+        # Path to examples YAML file.
+        'examples_path': directives.unchanged,
+        # Python import path of schema store.
+        'schema_store_fqpn': directives.unchanged}
 
     def run(self):
+        schema_store = namedAny(self.options["schema_store_fqpn"])
+
         appContainer = namedAny(self.arguments[0])
 
-        self._examples = _loadExamples(self.EXAMPLE_PATH)
+        examples_path = FilePath(self.options["examples_path"])
+        self._examples = _loadExamples(examples_path)
 
         # The contents of the example file are included in the output so the
         # example file is a dependency of the document.
-        self.state.document.settings.record_dependencies.add(self.EXAMPLE_PATH.path)
+        self.state.document.settings.record_dependencies.add(examples_path.path)
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.
@@ -430,7 +452,8 @@ class AutoKleinDirective(Directive):
         result = ViewList()
         restLines = makeRst(
             prefix=self.options['prefix'], app=appContainer.app,
-            exampleByIdentifier=self._exampleByIdentifier)
+            exampleByIdentifier=self._exampleByIdentifier,
+            schema_store=schema_store)
         for line in restLines:
             result.append(line, '<autoklein>')
         nested_parse_with_titles(self.state, result, node)
@@ -439,7 +462,7 @@ class AutoKleinDirective(Directive):
 
     def _exampleByIdentifier(self, identifier):
         """
-        Get one of the examples defined in C{self.EXAMPLE_PATH}.
+        Get one of the examples defined in the examples file.
         """
         return self._examples[identifier]
 
