@@ -99,6 +99,7 @@ def task_upgrade_kernel():
     """
     return [
         Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
+        Run("# The upgrade doesn't make the new kernel default."),
         Run.from_args(['grubby', '--set-default-index', '0']),
     ]
 
@@ -200,6 +201,25 @@ def task_upgrade_selinux():
     ]
 
 
+ACCEPTANCE_IMAGES = [
+    "clusterhq/elasticsearch",
+    "clusterhq/logstash",
+    "clusterhq/kibana",
+    "postgres:latest",
+    "clusterhq/mongodb:latest",
+]
+
+
+def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
+    """
+    Pull docker images.
+
+    :param list images: List of images to pull. Defaults to images used in
+        accepance tests.
+    """
+    return [Run.from_args(['docker', 'pull', image]) for image in images]
+
+
 def provision(distribution, package_source):
     """
     Provison the node for running flocker.
@@ -215,9 +235,5 @@ def provision(distribution, package_source):
                                      distribution=distribution)
     commands += task_enable_docker()
     commands += task_create_flocker_pool_file()
-    commands += [
-        Run.from_args(['docker', 'pull', image]) for image in
-        "clusterhq/elasticsearch", "clusterhq/logstash", "clusterhq/kibana",
-        "postgres:latest", "clusterhq/mongodb:latest",
-    ]
+    commands += task_pull_docker_images()
     return commands

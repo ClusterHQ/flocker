@@ -189,16 +189,7 @@ Using Amazon Web Services
 
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
-   .. code-block:: sh
-
-      [fedora@aws]$ sudo yum upgrade -y kernel
-
-   The upgrade doesn't make the new kernel default.
-   Fix that:
-
-   .. code-block:: sh
-
-      [fedora@aws]$ sudo grubby --set-default-index 0
+   .. task:: upgrade_kernel
 
    And now reboot the machine to make use of the new kernel.
 
@@ -206,11 +197,15 @@ Using Amazon Web Services
 
       [fedora@aws]$ sudo shutdown -r now
 
+#. Update the SELinux policies.
+
+   Old SELinux policies stop docker from starting containers.
+
+   .. task:: upgrade_selinux
+
 #. Allow SSH access for the ``root`` user
 
-   .. code-block:: sh
-
-      [fedora@aws]$ sudo cp ~/.ssh/authorized_keys /root/.ssh/authorized_keys
+   .. task:: install_ssh_key
 
    You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
 
