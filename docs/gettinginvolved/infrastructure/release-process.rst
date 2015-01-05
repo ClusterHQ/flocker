@@ -325,64 +325,18 @@ Release
         git checkout -b release/flocker-${VERSION} origin/master
         git push origin --set-upstream release/flocker-${VERSION}
 
-   - Create a ``flocker-${VERSION}.rb`` recipe file.
-
-     XXX This should be automated: https://clusterhq.atlassian.net/browse/FLOC-1150
-
-     The starting contents of the recipe should be similar to the following:
-
-     .. code-block:: ruby
-
-       require "formula"
-
-       class Flocker030dev1 < Formula
-         homepage "https://clusterhq.com"
-         url "http://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.0dev1.tar.gz"
-         sha1 "227dc898121b46670631c4eeaeb7424f218925c1"
-         depends_on :python if MacOS.version <= :snow_leopard
-
-     The version number is included in the class name with all dots and dashes removed,
-     e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2.
-     This should be changed.
-
-     The version number is also included in the ``url`` part of the recipe and should be changed as appropriate.
-
-     Update the ``sha1`` checksum. Retrieve it with ``sha1sum``:
+   - Create a recipe file using a Flocker admin script:
 
      .. code-block:: console
 
-         sha1sum "dist/Flocker-${VERSION}.tar.gz"
-         ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
-
-     Download and run the `mkpydeps`_ script.
-
-     Compare each generated resource to its equivalent in Flocker's ``setup.py``.
-     If there is an ``==`` equivalent in ``setup.py`` replace the URL and sha1 as appropriate for the necessary version.
-     This is because the script gives the latest version of each package, even if that is not appropriate.
-     The middle of the recipe should be the this modified ``mkpydeps`` output.
-
-     The end of the recipe should be:
-
-     .. code-block:: ruby
-
-         ENV.prepend_create_path "PYTHONPATH", libexec/"lib/python2.7/site-packages"
-             system "python", *Language::Python.setup_install_args(libexec)
-
-             bin.install Dir["#{libexec}/bin/*"]
-             bin.env_script_all_files(libexec/"bin", :PYTHONPATH => ENV["PYTHONPATH"])
-           end
-
-           test do
-             system "#{bin}/flocker-deploy", "--version"
-           end
-         end
+        /path/to/flocker/admin/make_homebrew_recipe.py > flocker-${VERSION}.rb
 
    - Commit the changes and push:
 
      .. code-block:: console
 
         git add flocker-${VERSION}.rb
-        git commit -m "New Homebrew recipe with bumped version number and checksum"
+        git commit -m "New Homebrew recipe"
         git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed:
