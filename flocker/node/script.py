@@ -259,8 +259,29 @@ class ServeOptions(Options):
     Command line options for ``flocker-serve`` cluster management process.
     """
     optParameters = [
-        ["port", "p", "The port to listen on.", int],
+        ["port", "p", 4523, "The port to listen on.", int],
         ]
+
+
+class _ServeService(MultiService):
+    """
+    Service for running a ``VolumeService`` and HTTP API service.
+    """
+    def __init__(self, volume_service, http_service):
+        """
+        :param volume_service: The volume service to run.
+        """
+        MultiService.__init__(self)
+        volume_service.setServiceParent(self)
+        http_service.setServiceParent(self)
+
+    def stopService(self):
+        """
+        :return: result from stopping the volume service.
+        """
+        d = MultiService.stopService(self)
+        d.addCallback(lambda results: results[-1][1])
+        return d
 
 
 @implementer(ICommandLineVolumeScript)
@@ -270,12 +291,10 @@ class ServeScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        #parent_service = MultiService()
-        #volume_service.setServiceParent(parent_service) 
-        #api_service = create_api_service(TCP4ServerEndpoint(reactor, options["port"]))
-        #api_service.setServiceParent(parent_service) 
-        # XXX Switch to parent_service:
-        return _main_for_service(reactor, volume_service)
+        api_service = create_api_service(
+            TCP4ServerEndpoint(reactor, options["port"]))
+        parent_service = _ServeService(volume_service, api_service)
+        return _main_for_service(reactor, parent_service)
 
 
 def flocker_serve_main():
