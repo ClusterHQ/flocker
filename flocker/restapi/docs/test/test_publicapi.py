@@ -37,6 +37,7 @@ class GetRoutesTests(SynchronousTestCase):
         def f():
             pass
         f.attr = "attr"
+
         def g():
             pass
         g.attr = "G"
@@ -94,7 +95,6 @@ class MakeRstTests(SynchronousTestCase):
             '   ',
             '',
             ])
-
 
     def test_example(self):
         """
@@ -305,7 +305,6 @@ class MakeRstTests(SynchronousTestCase):
             ])
 
 
-
 class FormatExampleTests(SynchronousTestCase):
     """
     Tests for L{_formatExample}.
@@ -333,7 +332,6 @@ class FormatExampleTests(SynchronousTestCase):
              u'   200 OK',
              u'   Content-Type: application/json',
              u''], lines)
-
 
     def test_substitution(self):
         """
@@ -366,7 +364,6 @@ class FormatExampleTests(SynchronousTestCase):
              u''], lines)
 
 
-
 class LoadExamplesTests(SynchronousTestCase):
     """
     Tests for L{_loadExamples}.
@@ -382,7 +379,6 @@ class LoadExamplesTests(SynchronousTestCase):
         path.setContent(safe_dump([foo, bar]))
         examples = _loadExamples(path)
         self.assertEqual({foo[u"id"]: foo, bar[u"id"]: bar}, examples)
-
 
     def test_duplicate(self):
         """

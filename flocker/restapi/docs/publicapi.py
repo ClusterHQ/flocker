@@ -5,7 +5,6 @@ Sphinx extension for automatically documenting api endpoints.
 
 from inspect import getsourcefile
 from collections import namedtuple
-from base64 import b64encode
 import json
 
 from yaml import safe_load
@@ -33,25 +32,24 @@ from .._schema import LocalRefResolver, resolveSchema
 from sphinxcontrib.httpdomain import HTTPResource
 from sphinx.util.docfields import TypedField
 HTTPResource.doc_field_types.append(
-        TypedField('responsejsonparameter', label='Response JSON Parameters',
-                   names=('responsejsonparameter', 'responsejsonparam', 'responsejson'),
-                   typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
+    TypedField(
+        'responsejsonparameter', label='Response JSON Parameters',
+        names=('responsejsonparameter', 'responsejsonparam', 'responsejson'),
+        typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
 )
 del HTTPResource, TypedField
 
 
-
 class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
     """
-    A L{KleinRoute} instance represents a route in a L{klein.Klein} application,
-    along with the metadata associated to the route function.
+    A L{KleinRoute} instance represents a route in a L{klein.Klein}
+    application, along with the metadata associated to the route function.
 
     @ivar methods: The HTTP methods the route accepts.
     @ivar path: The path of this route.
     @ivar endpoint: The L{werkzeug} endpoint name.
     @ivar attributes: The attributes function associated with this route.
     """
-
 
 
 class Example(namedtuple("Example", "request response")):
@@ -71,7 +69,6 @@ class Example(namedtuple("Example", "request response")):
         C{u"response"} keys and L{unicode} values.
         """
         return cls(d[u"request"], d[u"response"])
-
 
 
 def getRoutes(app):
@@ -98,9 +95,8 @@ def getRoutes(app):
             del attributes['segment_count']
 
         yield KleinRoute(
-                methods=methods, path=path, endpoint=rule.endpoint,
-                attributes=attributes)
-
+            methods=methods, path=path, endpoint=rule.endpoint,
+            attributes=attributes)
 
 
 def _parseSchema(schema, schema_store):
@@ -118,8 +114,8 @@ def _parseSchema(schema, schema_store):
     result = {}
 
     resolver = LocalRefResolver(
-            base_uri=b'',
-            referrer=schema, store=schema_store)
+        base_uri=b'',
+        referrer=schema, store=schema_store)
 
     if schema.get(u'$ref') is None:
         raise Exception('Non-$ref top-level definitions not supported.')
@@ -133,10 +129,10 @@ def _parseSchema(schema, schema_store):
             attr = result['properties'][property] = {}
             with resolver.resolving(propSchema['$ref']) as propSchema:
                 attr['title'] = propSchema['title']
-                attr['description'] = prepare_docstring(propSchema['description'])
+                attr['description'] = prepare_docstring(
+                    propSchema['description'])
                 attr['required'] = property in schema.get('required', [])
     return result
-
 
 
 def _introspectRoute(route, exampleByIdentifier, schema_store):
@@ -176,7 +172,8 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     """
     result = {}
 
-    userDocumentation = route.attributes.get("userDocumentation", "Undocumented.")
+    userDocumentation = route.attributes.get(
+        "userDocumentation", "Undocumented.")
     result['description'] = prepare_docstring(userDocumentation)
 
     inputSchema = route.attributes.get('inputSchema', None)
@@ -209,7 +206,6 @@ def _introspectRoute(route, exampleByIdentifier, schema_store):
     return result
 
 
-
 def _formatSchema(data, param):
     """
     Generate the rst associated to a JSON schema.
@@ -227,7 +223,6 @@ def _formatSchema(data, param):
         yield ''
         for line in attr['description']:
             yield '   ' + line
-
 
 
 def _formatActualSchema(schema, title, schema_store):
@@ -251,7 +246,6 @@ def _formatActualSchema(schema, title, schema_store):
     for line in lines:
         yield "    " + line
     yield ""
-
 
 
 def _formatExample(example, substitutions):
@@ -290,7 +284,6 @@ def _formatExample(example, substitutions):
     yield u""
 
 
-
 def _formatRouteBody(data, schema_store):
     """
     Generate the description of a L{klein} route.
@@ -313,7 +306,9 @@ def _formatRouteBody(data, schema_store):
         yield line
 
     if 'paged' in data:
-        yield "This endpoint is a collection and supports the :ref:`common query parameters<api-collections>` associated to them."
+        yield ("This endpoint is a collection and supports the " +
+               ":ref:`common query parameters<api-collections>` " +
+               "associated to them.")
         yield "It supports the following sort keys:"
         yield ""
         yield "  * ``%s`` *(default)*" % (data['paged']['defaultKey'],)
@@ -346,7 +341,6 @@ def _formatRouteBody(data, schema_store):
             yield line
 
 
-
 def makeRst(prefix, app, exampleByIdentifier, schema_store):
     """
     Generate the sphinx documentation associated with a L{klein} application.
@@ -375,7 +369,6 @@ def makeRst(prefix, app, exampleByIdentifier, schema_store):
                 yield line
 
 
-
 def _loadExamples(path):
     """
     Read the YAML-format HTTP session examples from the file at the given path.
@@ -401,9 +394,9 @@ def _loadExamples(path):
             for (index, identifier)
             in enumerate(identifiers)
             if identifiers.index(identifier) != index)
-        raise Exception("Duplicate identifiers in example file: %r" % (duplicates,))
+        raise Exception(
+            "Duplicate identifiers in example file: %r" % (duplicates,))
     return examplesMap
-
 
 
 class AutoKleinDirective(Directive):
@@ -431,13 +424,15 @@ class AutoKleinDirective(Directive):
 
         # The contents of the example file are included in the output so the
         # example file is a dependency of the document.
-        self.state.document.settings.record_dependencies.add(examples_path.path)
+        self.state.document.settings.record_dependencies.add(
+            examples_path.path)
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.
-        # Specifically, it records this file, and the file where the app is declared.
-        # If we ever have routes for a single app declared across multiple files, this will
-        # need to be updated.
+
+        # Specifically, it records this file, and the file where the app
+        # is declared.  If we ever have routes for a single app declared
+        # across multiple files, this will need to be updated.
         appFileName = getsourcefile(appContainer)
         self.state.document.settings.record_dependencies.add(appFileName)
         self.state.document.settings.record_dependencies.add(__file__)
@@ -456,13 +451,11 @@ class AutoKleinDirective(Directive):
         nested_parse_with_titles(self.state, result, node)
         return node.children
 
-
     def _exampleByIdentifier(self, identifier):
         """
         Get one of the examples defined in the examples file.
         """
         return self._examples[identifier]
-
 
 
 def setup(app):
