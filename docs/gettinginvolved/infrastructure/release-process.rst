@@ -307,9 +307,7 @@ Release
                 **not** on a :doc:`Flocker development machine <vagrant>`.
                 This means that ``gsutil`` must be installed and configured on your workstation.
 
-#. Update the Homebrew recipe
-
-   The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
+#. Create a version specific ``Homebrew`` recipe for this release:
 
    - Checkout the `homebrew-tap`_ repository:
 
