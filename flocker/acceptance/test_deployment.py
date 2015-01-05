@@ -15,10 +15,67 @@ class DeploymentTests(TestCase):
     """
     Tests for deploying applications.
 
-    Similar to:
+    Scope includes actions taken in
+
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
+
+    and other tests relating to deployment configuration
+
+    http://docs.clusterhq.com/en/latest/advanced/configuration.html
     """
+    @require_flocker_cli
+    def test_application_image_changed(self):
+        """
+        Deploying an application to a node and then changing the application's
+        configured image will result in the application being restarted with
+        the new image when the configuration is deployed again.
+        """
+        self.fail("Not implemented yet.")
+
+    @require_flocker_cli
+    def test_application_ports_changed(self):
+        """
+        Deploying an application to a node and then changing the application's
+        configured ports will result in the application being restarted with
+        the new ports mapped when the configuration is deployed again.
+        """
+        self.fail("Not implemented yet.")
+
+    @require_flocker_cli
+    def test_application_links_changed(self):
+        """
+        Deploying linked applications to a node and then changing the
+        configured links will result in the applications being restarted with
+        the new link environment variables when the configuration is deployed
+        again.
+        """
+        self.fail("Not implemented yet.")
+
+    @require_flocker_cli
+    def test_application_image_changed_between_nodes(self):
+        """
+        As ``test_application_image_changed`` but when re-deploying an
+        application to a different host.
+        """
+        self.fail("Not implemented yet.")
+
+    @require_flocker_cli
+    def test_application_ports_changed_between_nodes(self):
+        """
+        As ``test_application_ports_changed`` but when re-deploying
+        applications to different hosts.
+        """
+        self.fail("Not implemented yet.")
+
+    @require_flocker_cli
+    def test_application_links_changed_between_nodes(self):
+        """
+        As ``test_application_links_changed`` but when re-deploying
+        applications to different hosts.
+        """
+        self.fail("Not implemented yet.")
+
     @require_flocker_cli
     def test_application_volume_quotas_changed(self):
         """
