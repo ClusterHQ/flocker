@@ -20,7 +20,7 @@ else:
     from ..publicapi import (
         Example, KleinRoute, getRoutes, _loadExamples, _formatExample, makeRst)
 
-from ..._infrastructure import userDocumentation, structured
+from ..._infrastructure import user_documentation, structured
 
 
 class GetRoutesTests(SynchronousTestCase):
@@ -69,7 +69,7 @@ class MakeRstTests(SynchronousTestCase):
             Developer docs.
             """
         @app.route(b"/g", methods=[b"PUT"])
-        @userDocumentation("""
+        @user_documentation("""
             Does G-like stuff.
 
             Like g, G and gg.
@@ -105,7 +105,7 @@ class MakeRstTests(SynchronousTestCase):
         app = Klein()
 
         @app.route("/", methods=["GET"])
-        @userDocumentation(
+        @user_documentation(
             """
             Demonstrates examples.
             """, ["example-example"])

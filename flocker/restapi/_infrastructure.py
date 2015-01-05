@@ -197,7 +197,7 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def userDocumentation(doc, examples=None):
+def user_documentation(doc, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 

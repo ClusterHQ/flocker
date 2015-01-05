@@ -5,8 +5,8 @@ Infrastructure for publishing a REST HTTP API.
 """
 
 from ._infrastructure import (
-    structured, EndpointResponse, userDocumentation,
+    structured, EndpointResponse, user_documentation,
     )
 
 
-__all__ = ["structured", "EndpointResponse", "userDocumentation"]
+__all__ = ["structured", "EndpointResponse", "user_documentation"]
