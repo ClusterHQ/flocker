@@ -114,43 +114,43 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path)
 
 
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class RackspaceRunner(object):
+@attributes(RUNNER_ATTRIBUTES + [
+    'provisioner'
+], apply_immutable=True)
+class LibcloudRunner(object):
     """
     Run the tests against rackspace nodes.
     """
-
     def __init__(self):
         if self.distribution != 'fedora-20':
             raise ValueError("Distribution not supported: %r."
                              % (self.distribution,))
-
         self.nodes = []
+
+        self.metadata = self.config.get('metadata', {})
+        try:
+            self.creator = self.metadata['creator']
+        except KeyError:
+            raise ValueError("Must specify creator metadata.")
 
     def start_nodes(self):
         """
-        Provision rackspace nodes for acceptance tests.
+        Provision cloud nodes for acceptance tests.
 
         :return list: List of addresses of nodes to connect to, for acceptance
             tests.
         """
-        from flocker.provision import rackspace_provisioner
-        rackspace = rackspace_provisioner(**self.config['rackspace'])
-
-        creator = self.config['rackspace']['username']
         metadata = {
-            'creator': creator,
             'purpose': 'acceptance-testing',
             'distribution': self.distribution,
         }
-
-        metadata.update(self.config.get('metadata', {}).copy())
+        metadata.update(self.metadata)
 
         for index in range(2):
-            name = "acceptance-test-%s-%d" % (creator, index)
+            name = "acceptance-test-%s-%d" % (self.creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)
-                node = rackspace.create_node(
+                node = self.provisioner.create_node(
                     name=name,
                     distribution=self.distribution,
                     metadata=metadata,
@@ -178,71 +178,28 @@ class RackspaceRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-@attributes(RUNNER_ATTRIBUTES, apply_immutable=True)
-class AWSRunner(object):
+def rackspace_runner(config, **kwargs):
+    """
+    Run the tests against rackspace nodes.
+    """
+    from flocker.provision import rackspace_provisioner
+    provisioner = rackspace_provisioner(**config['rackspace'])
+    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
+
+
+def aws_runner(config, **kwargs):
     """
     Run the tests against aws nodes.
     """
-
-    def __init__(self):
-        if self.distribution != 'fedora-20':
-            raise ValueError("Distribution not supported: %r."
-                             % (self.distribution,))
-
-        self.nodes = []
-
-    def start_nodes(self):
-        """
-        Provision aws nodes for acceptance tests.
-
-        :return list: List of addresses of nodes to connect to, for acceptance
-            tests.
-        """
-        from flocker.provision import aws_provisioner
-        aws = aws_provisioner(**self.config['aws'])
-
-        metadata = {
-            'purpose': 'acceptance-testing',
-            'distribution': self.distribution,
-        }
-
-        metadata.update(self.config.get('metadata', {}).copy())
-
-        for index in range(2):
-            name = "acceptance-test-%s" % (index,)
-            try:
-                print "Creating node %d: %s" % (index, name)
-                node = aws.create_node(
-                    name=name,
-                    distribution=self.distribution,
-                    metadata=metadata,
-                )
-            except:
-                print "Error creating node %d: %s" % (index, name)
-                print "It may have leaked into the cloud."
-                raise
-
-            self.nodes.append(node)
-            node.provision(package_source=self.package_source)
-            del node
-
-        return [node.address for node in self.nodes]
-
-    def stop_nodes(self):
-        """
-        Deprovision the nodes provisioned by ``start_nodes``.
-        """
-        for node in self.nodes:
-            try:
-                node.destroy()
-            except Exception as e:
-                print "Failed to destroy %s: %s" % (node, e)
+    from flocker.provision import aws_provisioner
+    provisioner = aws_provisioner(**config['aws'])
+    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
 
 PROVIDERS = {
     'vagrant': VagrantRunner,
-    'rackspace': RackspaceRunner,
-    'aws': AWSRunner,
+    'rackspace': rackspace_runner,
+    'aws': aws_runner,
 }
 
 
