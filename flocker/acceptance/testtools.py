@@ -69,7 +69,7 @@ def create_application(name, image, ports=frozenset(), volume=None,
     """
     Instantiate an ``Application`` with the supplied parameters and return it.
     """
-    if not ':' in image:
+    if ':' not in image:
         image = image + u':latest'
     return Application(
         name=name, image=DockerImage.from_string(image),
