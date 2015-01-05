@@ -98,9 +98,36 @@ The configuration file for the Rackspace provider looks like:
      username: <rackspace username>
      key: <access key>
      keyname: <ssh-key-name>
+   metadata:
+     creator: <your-name>
 
 You will need a ssh agent running with access to the corresponding private key.
 
 .. prompt:: bash $
 
   admin/run-acceptance-tests --distribution fedora-20 --provider rackspace --config-file config.yml
+
+
+AWS
+---
+
+To run the acceptance on AWS, you need
+
+- a AWS account and the associated API key
+- an ssh-key registered with the AWS account.
+
+.. code-block:: yaml
+
+   aws:
+     region: <aws region, e.g. "us-west-2">
+     access_key: <aws access key>
+     secret_access_token: <aws secret access token>
+     keyname: <ssh-key-name>
+   metadata:
+     creator: <your-name>
+
+You will need a ssh agent running with access to the corresponding private key.
+
+.. prompt:: bash $
+
+  admin/run-acceptance-tests --distribution fedora-20 --provider aws --config-file config.yml
