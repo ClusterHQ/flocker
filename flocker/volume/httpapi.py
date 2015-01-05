@@ -5,7 +5,7 @@ A HTTP REST API for controlling the Dataset Manager.
 
 from twisted.web.server import Site
 from twisted.web.resource import Resource
-from twisted.application.service import StreamServerEndpointService
+from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
