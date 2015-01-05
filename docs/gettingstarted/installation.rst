@@ -185,6 +185,24 @@ Using Amazon Web Services
 
       yourlaptop$ ssh fedora@ec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
 
+#. Allow SSH access for the ``root`` user
+
+   .. task:: install_ssh_key
+
+   You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
+
+   .. code-block:: sh
+
+      yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
+      [root@aws]# cat /root/.ssh/authorized_keys
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
+
+#. Log back into the instances as user "root", e.g.:
+
+   .. code-block:: sh
+
+      yourlaptop$ ssh rootec2-AA-BB-CC-DD.eu-west-1.compute.amazonaws.com
+
 #. Upgrade the Kernel
 
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
@@ -203,17 +221,6 @@ Using Amazon Web Services
 
    .. task:: upgrade_selinux
 
-#. Allow SSH access for the ``root`` user
-
-   .. task:: install_ssh_key
-
-   You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
-
-   .. code-block:: sh
-
-      yourlaptop$ ssh root@ec2-54-72-149-156.eu-west-1.compute.amazonaws.com
-      [root@aws]# cat /root/.ssh/authorized_keys
-      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCe6FJDenfTF23azfJ2OVaorp3AsRQzdDlgkx/j0LrvQVyh95yMKL1GwVKuk8mlMGUEQiKImU6++CzTPu5zB2fpX+P5NrRZyBrokwp2JMQQD8lOqvvF7hw5bq2+8D8pYz11HkfEt9m5CVhLc1lt57WYnAujeRgaUhy9gql6r9ZI5aE8a3dpzxjP6S22er1/1dfLbecQaVM3cqpZVA6oAm8I6kJFyjiK6roRpaB2GTXTdpeGGiyYh8ATgDfyZPkWhKfpEGF5xJtsKSS+kFrHNqfqzDiVFv6R3fVS3WhdrC/ClqI941GeIM7PoDm3+KWlnaHJrjBX1N6OEBS8iEsj+24D username
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
@@ -320,7 +327,7 @@ Before installing ``clusterhq-flocker-node``, you need to install a version of t
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
-.. task:: install_kernel
+.. task:: install_kernel_devel
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 

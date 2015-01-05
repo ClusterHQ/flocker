@@ -25,10 +25,16 @@ def provision_aws(node, package_source, distribution):
     run(
         username='root',
         address=node.address,
-        commands=task_upgrade_kernel() + task_upgrade_selinux(),
+        commands=task_upgrade_kernel(),
     )
 
     node.reboot()
+
+    run(
+        username='root',
+        address=node.address,
+        commands=task_upgrade_selinux(),
+    )
 
     run(
         username='root',

@@ -19,21 +19,21 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 from . import _tasks as tasks
-from ._install import Run
+from ._install import Run, Sudo
 
 
-class DocRunner(object):
-    """
-    Task runner that records the executed commands.
-    """
-    def __init__(self):
-        self.commands = []
+def run(command):
+    return [command.command]
 
-    def run(self, command):
-        self.commands.extend(command.splitlines())
 
-    def put(self, content, path):
-        raise NotImplementedError("put not supported.")
+def sudo(command):
+    return ["sudo %s" % (command.command,)]
+
+
+HANDLERS = {
+    Run: run,
+    Sudo: sudo,
+}
 
 
 class TaskDirective(Directive):
@@ -49,10 +49,12 @@ class TaskDirective(Directive):
         lines = ['.. prompt:: bash $', '']
 
         for command in commands:
-            if type(command) != Run:
+            try:
+                handler = HANDLERS[type(command)]
+            except KeyError:
                 raise self.error("task: %s not supported"
                                  % (type(command).__name__,))
-            lines += ['   %s' % (command.command,)]
+            lines += ['   %s' % (line,) for line in handler(command)]
 
         # The following three lines record (some?) of the dependencies of the
         # directive, so automatic regeneration happens.  Specifically, it

@@ -99,7 +99,7 @@ def task_upgrade_kernel():
     """
     return [
         Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
-        Run("# The upgrade doesn't make the new kernel default."),
+        Run(command="# The upgrade doesn't make the new kernel default."),
         Run.from_args(['grubby', '--set-default-index', '0']),
     ]
 
