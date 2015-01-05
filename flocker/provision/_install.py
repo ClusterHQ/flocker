@@ -53,6 +53,15 @@ class Put(object):
     """
 
 
+@attributes(["comment"])
+class Comment(object):
+    """
+    Record a comment to be shown in the documentation corresponding to a task.
+
+    :param bytes comment: The desired comment.
+    """
+
+
 def run_with_fabric(username, address, commands):
     """
     Run a series of commands on a remote host.
@@ -69,6 +78,7 @@ def run_with_fabric(username, address, commands):
         Run: lambda e: run(e.command),
         Sudo: lambda e: sudo(e.command),
         Put: lambda e: put(StringIO(e.content), e.path),
+        Comment: lambda e: None,
     }
 
     host_string = "%s@%s" % (username, address)
@@ -99,7 +109,7 @@ def task_upgrade_kernel():
     """
     return [
         Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
-        Run(command="# The upgrade doesn't make the new kernel default."),
+        Comment(comment="# The upgrade doesn't make the new kernel default."),
         Run.from_args(['grubby', '--set-default-index', '0']),
     ]
 

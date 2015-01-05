@@ -19,7 +19,7 @@ from docutils import nodes
 from docutils.statemachine import StringList
 
 from . import _tasks as tasks
-from ._install import Run, Sudo
+from ._install import Run, Sudo, Comment
 
 
 def run(command):
@@ -30,9 +30,14 @@ def sudo(command):
     return ["sudo %s" % (command.command,)]
 
 
+def comment(command):
+    return ["# %s" % (command.comment)]
+
+
 HANDLERS = {
     Run: run,
     Sudo: sudo,
+    Comment: comment,
 }
 
 
