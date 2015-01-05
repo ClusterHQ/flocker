@@ -47,11 +47,16 @@ class TaskDirective(Directive):
     """
     required_arguments = 1
 
+    option_spec = {
+        'prompt': str
+    }
+
     def run(self):
         task = getattr(tasks, 'task_%s' % (self.arguments[0],))
+        prompt = self.options.get('prompt', '$')
 
         commands = task()
-        lines = ['.. prompt:: bash $', '']
+        lines = ['.. prompt:: bash %s' % (prompt,), '']
 
         for command in commands:
             try:

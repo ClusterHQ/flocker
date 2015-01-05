@@ -188,6 +188,7 @@ Using Amazon Web Services
 #. Allow SSH access for the ``root`` user
 
    .. task:: install_ssh_key
+      :prompt: [fedora@aws]#
 
    You should now be able to log in as "root" and the ``authorized_keys`` file should look approximately like this:
 
@@ -208,6 +209,7 @@ Using Amazon Web Services
    Kernels older than ``3.16.4`` have a bug that affects Flocker's use of ZFS.
 
    .. task:: upgrade_kernel
+      :prompt: [root@aws]#
 
    And now reboot the machine to make use of the new kernel.
 
@@ -220,6 +222,7 @@ Using Amazon Web Services
    Old SELinux policies stop docker from starting containers.
 
    .. task:: upgrade_selinux
+      :prompt: [root@aws]#
 
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
@@ -328,6 +331,7 @@ Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
 .. task:: install_kernel_devel
+   :prompt: [root@node]#
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -338,11 +342,13 @@ The following commands will install the two repositories and the ``clusterhq-flo
 Paste them into a root console on the target node:
 
 .. task:: install_flocker
+   :prompt: [root@node]#
 
 Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
 .. task:: enable_docker
+   :prompt: [root@node]#
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
 On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
@@ -350,12 +356,14 @@ On a typical fedora installation, the firewall is configured by `firewalld <http
 The following commands will configure firewalld to enable forwarding:
 
 .. task:: disable_firewall
+   :prompt: [root@node]#
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
 
 .. task:: create_flocker_pool_file
+   :prompt: [root@node]#
 
 .. note:: It is also possible to create the pool on a block device.
 
