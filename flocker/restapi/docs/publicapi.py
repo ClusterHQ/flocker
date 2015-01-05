@@ -271,10 +271,7 @@ def _formatExample(example, substitutions):
     yield u".. sourcecode:: http"
     yield u""
 
-    credentials = b64encode(b'alice:password').decode('ascii')
-
     lines = (example.request % substitutions).splitlines()
-    lines.insert(1, u'Authorization: Basic ' + credentials)
     lines.insert(1, u"Content-Type: application/json")
     lines.insert(1, u"Host: api.%(DOMAIN)s" % substitutions)
     for line in lines:

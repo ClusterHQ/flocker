@@ -145,7 +145,6 @@ class MakeRstTests(SynchronousTestCase):
              '      GET /prefix/ HTTP/1.1',
              '      Host: api.example.com',
              '      Content-Type: application/json',
-             '      Authorization: Basic YWxpY2U6cGFzc3dvcmQ=',
              '      ',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
@@ -326,7 +325,6 @@ class FormatExampleTests(SynchronousTestCase):
              u'   GET FOO',
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
-             u'   Authorization: Basic YWxpY2U6cGFzc3dvcmQ=',
              u'',
              u'**example response**',
              u'',
@@ -358,7 +356,6 @@ class FormatExampleTests(SynchronousTestCase):
              u'   GET /some/path HTTP/1.1',
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
-             u'   Authorization: Basic YWxpY2U6cGFzc3dvcmQ=',
              u'',
              u'**example response**',
              u'',
