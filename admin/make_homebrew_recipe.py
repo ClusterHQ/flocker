@@ -7,7 +7,7 @@ Create a Homebrew recipe for Flocker, using the VERSION environment variable.
 
 Invoke using e.g.:
   $ export VERSION=0.1.2
-  $ ./make_homebrew_recipe.py > > flocker-${VERSION}.rb
+  $ ./make_homebrew_recipe.py > flocker-${VERSION}.rb
 
 Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 """
