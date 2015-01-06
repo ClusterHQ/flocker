@@ -39,32 +39,32 @@ dependencies = []
 for name, node in sorted(graph.iteritems()):
     if name == "flocker":
         continue
-    else:
-        requirement = node.dist.as_requirement()
-        operator, version = requirement.specs[0]
-        project_name = requirement.project_name
-        dependencies.append(project_name)
-        url = "http://pypi.python.org/pypi/{name}/{version}/json".format(
-                name=project_name,
-                version=version)
-        f = urlopen(url)
-        pypi_information = load(f)
-        f.close()
-        for release in pypi_information['urls']:
-            if release['packagetype'] == 'sdist':
-                url = release['url']
-                sdist = urlopen(url)
-                checksum = sha1(sdist.read()).hexdigest()
-                sdist.close()
 
-                resource = """
+    requirement = node.dist.as_requirement()
+    operator, version = requirement.specs[0]
+    project_name = requirement.project_name
+    dependencies.append(project_name)
+    url = "http://pypi.python.org/pypi/{name}/{version}/json".format(
+            name=project_name,
+            version=version)
+    f = urlopen(url)
+    pypi_information = load(f)
+    f.close()
+    for release in pypi_information['urls']:
+        if release['packagetype'] == 'sdist':
+            url = release['url']
+            sdist = urlopen(url)
+            checksum = sha1(sdist.read()).hexdigest()
+            sdist.close()
+
+            resource = """
   resource "{project_name}" do
     url "{url}"
     sha1 "{checksum}"
   end
 """.format(project_name=project_name, url=url, checksum=checksum)
-                resources.append(resource)
-                break
+            resources.append(resource)
+            break
 
 print """require "formula"
 
