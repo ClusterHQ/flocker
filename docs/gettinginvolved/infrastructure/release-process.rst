@@ -131,7 +131,7 @@ Preparing For a Release
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
    XXX: Process to be decided.
-   See https://github.com/ClusterHQ/flocker/issues/525
+   See https://clusterhq.atlassian.net/browse/FLOC-525
 
    .. code-block:: console
 
@@ -473,7 +473,7 @@ The issue(s) for the planned improvements should be put into the next sprint.
 Appendix: Back Porting Changes From Master
 ------------------------------------------
 
-XXX: This process needs documenting. See https://github.com/ClusterHQ/flocker/issues/877
+XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
 
 
 .. _pre-populating-rpm-repository:
@@ -503,7 +503,7 @@ These steps must be performed from a :doc:`Flocker development environment <vagr
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
-.. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
+.. note: XXX: Move or automate this documentation https://clusterhq.atlassian.net/browse/FLOC-327
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel

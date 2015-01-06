@@ -12,7 +12,7 @@ this, we download the current repository, add the new package, update the
 metadata, and then upload the repository.
 
 XXX This script is not automatically checked by buildbot. See
-https://github.com/ClusterHQ/flocker/issues/397
+https://clusterhq.atlassian.net/browse/FLOC-397
 """
 
 from __future__ import print_function

@@ -28,7 +28,7 @@ BuildRequires:  python-klein = 0.2.3
 # The test suite runs the ssh command-line client and uses other utilities such
 # as ssh-keygen.
 BuildRequires:  openssh-clients
-# See https://github.com/ClusterHQ/flocker/issues/85
+# See https://clusterhq.atlassian.net/browse/FLOC-85
 BuildRequires:  docker-io >= 1.3.0
 BuildRequires:  python-libcloud == 0.16.0
 

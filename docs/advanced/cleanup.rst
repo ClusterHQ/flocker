@@ -57,4 +57,4 @@ Alternatively if you wish to destroy **all** data sets created by Flocker, you c
    alice@mercury:~/flocker-mysql$ zfs destroy -r flocker
 
 
-.. _`on the Flocker development path`: https://github.com/ClusterHQ/flocker/issues/682
+.. _`on the Flocker development path`: https://clusterhq.atlassian.net/browse/FLOC-682

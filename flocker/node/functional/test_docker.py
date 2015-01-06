@@ -274,7 +274,7 @@ class GenericDockerClientTests(TestCase):
         Create a Docker image that takes a while to shut down.
 
         This should really use Python instead of shell:
-        https://github.com/ClusterHQ/flocker/issues/719
+        https://clusterhq.atlassian.net/browse/FLOC-719
 
         :return: The name of created Docker image.
         """

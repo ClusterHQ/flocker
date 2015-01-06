@@ -74,7 +74,7 @@ class Unit(object):
     Information about a unit managed by Docker.
 
     XXX "Unit" is geard terminology, and should be renamed. See
-    https://github.com/ClusterHQ/flocker/issues/819
+    https://clusterhq.atlassian.net/browse/FLOC-819
 
     :ivar unicode name: The name of the unit, which may not be the same as
         the container name.
@@ -85,7 +85,7 @@ class Unit(object):
     :ivar unicode activation_state: The state of the
         container. ``u"active"`` indicates it is running, ``u"inactive"``
         indicates it is not running. See
-        https://github.com/ClusterHQ/flocker/issues/187 about using
+        https://clusterhq.atlassian.net/browse/FLOC-187 about using
         constants instead of strings and other improvements.
 
     :ivar unicode container_image: The docker image name associated with this
@@ -276,7 +276,7 @@ class DockerClient(object):
     Talk to the real Docker server directly.
 
     Some operations can take a while (e.g. stopping a container), so we
-    use a thread pool. See https://github.com/ClusterHQ/flocker/issues/718
+    use a thread pool. See https://clusterhq.atlassian.net/browse/FLOC-718
     for using a custom thread pool.
 
     :ivar unicode namespace: A namespace prefix to add to container names

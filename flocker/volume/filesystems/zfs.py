@@ -144,7 +144,7 @@ class Snapshot(object):
     """
     # TODO: The name should probably be a structured object of some sort,
     # not just a wrapper for bytes.
-    # https://github.com/ClusterHQ/flocker/issues/668
+    # https://clusterhq.atlassian.net/browse/FLOC-668
 
 
 def _latest_common_snapshot(some, others):
@@ -473,7 +473,7 @@ class StoragePool(Service):
         # when Flocker is first installed, for example.  Then we could get rid
         # of these operations from this method (which eliminates the motivation
         # for StoragePool being an IService implementation).
-        # https://github.com/ClusterHQ/flocker/issues/635
+        # https://clusterhq.atlassian.net/browse/FLOC-635
 
         # Set the root dataset to be read only; IService.startService
         # doesn't support Deferred results, and in any case startup can be
@@ -582,7 +582,7 @@ class StoragePool(Service):
             if f.check(CommandFailed):
                 # This isn't the only reason the operation could fail. We
                 # should figure out why and report it appropriately.
-                # https://github.com/ClusterHQ/flocker/issues/199
+                # https://clusterhq.atlassian.net/browse/FLOC-199
                 raise FilesystemAlreadyExists()
             return f
         result.addErrback(creation_failed)

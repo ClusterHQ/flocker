@@ -237,7 +237,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [deployment_bad_yaml, b'', b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Deployment config could not be parsed as YAML')
@@ -254,7 +254,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', application_bad_yaml, b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
@@ -271,7 +271,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', b'', bad_yaml, b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Current config could not be parsed as YAML')

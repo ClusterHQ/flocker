@@ -24,7 +24,7 @@ def ssh(argv):
     # We capture stderr so that if there is a failure we will raise
     # exception that includes both stdout and stderr. This can then be
     # shown to the user for diagnostic purposes.
-    # See https://github.com/clusterhq/flocker/issues/192 for potentially
+    # See https://clusterhq.atlassian.net/browse/FLOC-192 for potentially
     # better error handling.
     check_output([b"ssh"] + argv, stderr=STDOUT)
 
@@ -71,7 +71,7 @@ class OpenSSHConfiguration(object):
 
         if not local_private_path.exists():
             with open(devnull, "w") as discard:
-                # See https://github.com/clusterhq/flocker/issues/192
+                # See https://clusterhq.atlassian.net/browse/FLOC-192
                 check_call(
                     [b"ssh-keygen", b"-N", b"", b"-f",
                      local_private_path.path],

@@ -27,7 +27,7 @@ def _to_volume_name(name):
     """
     Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
-    To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
+    To be replaced in https://clusterhq.atlassian.net/browse/FLOC-737 with
     real namespace support.
 
     :param unicode name: Volume name.
@@ -285,7 +285,7 @@ class SetProxies(object):
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
+        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
         for proxy in deployer.network.enumerate_proxies():
             try:
                 deployer.network.delete_proxy(proxy)
@@ -326,7 +326,7 @@ class Deployer(object):
             instance.
         """
         # Add real namespace support in
-        # https://github.com/ClusterHQ/flocker/issues/737; for now we just
+        # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
 
@@ -347,7 +347,7 @@ class Deployer(object):
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
                     # XXX we only support one volume per container at this time
-                    # https://github.com/ClusterHQ/flocker/issues/49
+                    # https://clusterhq.atlassian.net/browse/FLOC-49
                     volume = AttachedVolume.from_unit(unit).pop()
                     volume.maximum_size = available_volumes[unit.name]
                 else:
@@ -404,7 +404,7 @@ class Deployer(object):
         Currently this involves the following phases:
 
         1. Change proxies to point to new addresses (should really be
-           last, see https://github.com/ClusterHQ/flocker/issues/380)
+           last, see https://clusterhq.atlassian.net/browse/FLOC-380)
         2. Stop all relevant containers.
         3. Handoff volumes.
         4. Wait for volumes.
@@ -434,7 +434,7 @@ class Deployer(object):
                 for application in node.applications:
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
-                        # https://github.com/ClusterHQ/flocker/issues/322
+                        # https://clusterhq.atlassian.net/browse/FLOC-322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
         if desired_proxies != set(self.network.enumerate_proxies()):
@@ -581,15 +581,15 @@ def find_volume_changes(hostname, current_state, desired_state):
 
     XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
-    https://github.com/ClusterHQ/flocker/issues/351 for more details.
+    https://clusterhq.atlassian.net/browse/FLOC-351 for more details.
 
     XXX The logic here assumes volumes are never added or removed to
     existing applications, merely moved across nodes. As a result test
     coverage for those situations is not implemented. See
-    https://github.com/ClusterHQ/flocker/issues/352 for more details.
+    https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
     XXX Comparison is done via volume name, rather than AttachedVolume
-    objects, until https://github.com/ClusterHQ/flocker/issues/289 is fixed.
+    objects, until https://clusterhq.atlassian.net/browse/FLOC-289 is fixed.
 
     :param unicode hostname: The name of the node for which to find changes.
 
