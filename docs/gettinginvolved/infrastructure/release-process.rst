@@ -172,12 +172,18 @@ This review step is to ensure that all acceptance tests pass on the release bran
 .. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
             **not** on a :doc:`Flocker development machine <vagrant>`.
 
+#. Export the version number of the release being reviewed as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
+
 #. Do the acceptance tests:
 
    - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
      The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH>/flocker-tutorial.json``.
+     The URL will look like ``http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json``.
 
      .. code-block:: console
 
@@ -201,8 +207,8 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
         git clone git@github.com:ClusterHQ/flocker.git
         cd flocker
-        git checkout -b *release branch*
-        mkvirtualenv flocker-release-${VERSION}
+        git checkout "release/flocker-${VERSION}"
+        mkvirtualenv "flocker-release-${VERSION}"
         pip install --editable .[dev]
 
    - Install `PhantomJS`_:
