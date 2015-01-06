@@ -326,6 +326,28 @@ CMD sh -c "trap \"\" 2; sleep 3"
         d.addCallback(started)
         return d
 
+    def test_empty_environment(self):
+        """
+        When a container with no custom environment variables is launched via
+        ``DockerClient.add`` the environment in the resulting ``Unit`` returned
+        from ``DockerClient.list`` will ignore the default HOME and PATH
+        environment variables, leaving the ``Unit`` with an Environment of
+        None.
+        """
+        name = random_name()
+        d = self.start_container(name, image_name=u"ubuntu")
+
+        def started(client):
+            deferred_units = client.list()
+
+            def check_units(units):
+                unit = [unit for unit in units if unit.name == name][0]
+                self.assertIsNone(unit.environment)
+
+            deferred_units.addCallback(check_units)
+        d.addCallback(started)
+        return d
+
     def test_pull_image_if_necessary(self):
         """
         The Docker image is pulled if it is unavailable locally.

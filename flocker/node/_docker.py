@@ -560,6 +560,20 @@ class DockerClient(object):
                     name = name[1 + len(self.namespace):]
                 else:
                     continue
+                # Retrieve environment variables for this container,
+                # disregarding the HOME and PATH environment variables that are
+                # included in every container and do not translate back to the
+                # deployed Flocker applications.
+                unit_environment = []
+                environment_data = data[u"Config"][u"Env"]
+                for environment in environment_data:
+                    if not environment.startswith(("HOME", "PATH")):
+                        env_key, env_value = environment.split('=', 1)
+                        unit_environment.append((env_key, env_value))
+                unit_environment = (
+                    Environment(variables=frozenset(unit_environment))
+                    if unit_environment else None
+                )
                 # Our Unit model counts None as the value for cpu_shares and
                 # mem_limit in containers without specified limits, however
                 # Docker returns the values in these cases as zero, so we
@@ -577,6 +591,7 @@ class DockerClient(object):
                     container_image=image,
                     ports=frozenset(ports),
                     volumes=frozenset(volumes),
+                    environment=unit_environment,
                     mem_limit=mem_limit,
                     cpu_shares=cpu_shares,
                     restart_policy=restart_policy)

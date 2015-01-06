@@ -828,6 +828,41 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_discover_application_with_environment(self):
+        """
+        An ``Application`` with ``Environment`` objects is discovered from a
+        ``Unit`` with ``Environment`` objects.
+        """
+        environment_variables = (
+            ('CUSTOM_ENV_A', 'a value'),
+            ('CUSTOM_ENV_B', 'something else'),
+        )
+        environment = Environment(variables=frozenset(environment_variables))
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u'clusterhq/wordpress:latest',
+                     environment=environment,
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        applications = [
+            Application(
+                name=unit1.name,
+                image=DockerImage.from_string(unit1.container_image),
+                environment=frozenset(environment_variables)
+            )
+        ]
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
     def test_discover_locally_owned_volume(self):
         """
         Locally owned volumes are added to ``Application`` with same name as
