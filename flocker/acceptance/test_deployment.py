@@ -73,7 +73,6 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_1)
             self.assertEqual(state[MYSQL_APPLICATION], application)
-
             # continue from here
 
         nodes.addCallback(deploy_with_image)
