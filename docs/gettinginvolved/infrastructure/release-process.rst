@@ -50,7 +50,7 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being created as an environment variable for later use:
 
    .. code-block:: console
 
@@ -244,7 +244,7 @@ Release
 
                 vagrant ssh -- -A
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being completed as an environment variable for later use:
 
    .. code-block:: console
 
