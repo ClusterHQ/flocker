@@ -409,8 +409,8 @@ from twisted.internet.base import _ThreePhaseEvent
 @implementer(IReactorCore)
 class MemoryCoreReactor(MemoryReactor):
     """
-    Just enough of an implementation of IReactorCore to pass to
-    ``_main_for_service`` in the unit tests.
+    Fake reactor with listenTCP and just enough of an implementation of
+    IReactorCore to pass to ``_main_for_service`` in the unit tests.
     """
     def __init__(self):
         MemoryReactor.__init__(self)

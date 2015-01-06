@@ -270,6 +270,8 @@ class _ServeService(MultiService):
     def __init__(self, volume_service, http_service):
         """
         :param volume_service: The volume service to run.
+
+        :param http_service: The HTTP API service to run.
         """
         MultiService.__init__(self)
         volume_service.setServiceParent(self)
@@ -277,7 +279,15 @@ class _ServeService(MultiService):
 
     def stopService(self):
         """
-        :return: result from stopping the volume service.
+        Stop all services, return result of stopping the volume service.
+
+        The volume service is the service whose failure during stopping
+        matters (and therefore should result in non-zero exit code) since
+        it is the one likely to have significant code. By default a
+        MultiService returns a ``DeferredList``, though, so errors in
+        stopping the volume service will be swallowed.
+
+        :return: Result from stopping the volume service.
         """
         d = MultiService.stopService(self)
         d.addCallback(lambda results: results[-1][1])
