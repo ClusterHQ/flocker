@@ -166,7 +166,7 @@ class Manifestation(object):
     """
     A dataset that is mounted on a node.
 
-    :ivar Dataset dataset: The dataset being mounted.
+    :ivar unicode dataset_name: The name of the dataset being mounted.
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
@@ -189,11 +189,11 @@ class Dataset(object):
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
-    # If uuid is None we might want to error on comparisons to ensure
+    # XXX If uuid is None we might want to error on comparisons to ensure
     # UUID gets filled in before comparisons are done?
 
 
-@attributes(["hostname", "applications", "mounts"])
+@attributes(["hostname", "applications", "manifestations"])
 class Node(object):
     """
     A single node on which applications will be managed (deployed,
