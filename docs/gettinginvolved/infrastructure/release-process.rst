@@ -130,8 +130,8 @@ Preparing For a Release
 
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
-   XXX: Process to be decided.
-   See https://github.com/ClusterHQ/flocker/issues/525
+   - The list of years near the end of :file:`LICENSE` should include each year in which commits were made to the project.
+   - If any such years are not present in the list, add them and commit the changes:
 
    .. code-block:: console
 

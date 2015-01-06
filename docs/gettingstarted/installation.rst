@@ -151,12 +151,18 @@ Using Amazon Web Services
 .. note:: If you are not familiar with EC2 you may want to `read more about the terminology and concepts <https://fedoraproject.org/wiki/User:Gholms/EC2_Primer>`_ used in this document.
           You can also refer to `the full documentation for interacting with EC2 from Amazon Web Services <http://docs.amazonwebservices.com/AWSEC2/latest/GettingStartedGuide/>`_.
 
-#. Choose an AMI for your EC2 Instance
+#. Choose a nearby region and use the link to it below to access the EC2 Launch Wizard
 
-   * Visit https://fedoraproject.org/en/get-fedora#clouds
-   * In the EC2 **Fedora 20** section choose your local region and **64 Bit** and click the "Launch it!" button.
+   * `Asia Pacific (Singapore) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-1#LaunchInstanceWizard:ami=ami-6ceebe3e>`_
+   * `Asia Pacific (Sydney) <https://console.aws.amazon.com/ec2/v2/home?region=ap-southeast-2#LaunchInstanceWizard:ami=ami-eba038d1>`_
+   * `Asia Pacific (Tokyo) <https://console.aws.amazon.com/ec2/v2/home?region=ap-northeast-1#LaunchInstanceWizard:ami=ami-9583fd94>`_
+   * `EU (Ireland) <https://console.aws.amazon.com/ec2/v2/home?region=eu-west-1#LaunchInstanceWizard:ami=ami-a5ad56d2>`_
+   * `South America (Sao Paulo) <https://console.aws.amazon.com/ec2/v2/home?region=sa-east-1#LaunchInstanceWizard:ami=ami-2345e73e>`_
+   * `US East (Northern Virginia) <https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-21362b48>`_
+   * `US West (Northern California) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-1#LaunchInstanceWizard:ami=ami-f8f1c8bd>`_
+   * `US West (Oregon) <https://console.aws.amazon.com/ec2/v2/home?region=us-west-2#LaunchInstanceWizard:ami=ami-cc8de6fc>`_
 
-#. Configure the AMI
+#. Configure the instance
 
    Complete the configuration wizard; in general the default configuration should suffice.
    However, we do recommend at least the ``m3.large`` instance size.
@@ -325,14 +331,7 @@ Before installing ``clusterhq-flocker-node``, you need to install a version of t
 Here is a short script to help you install the correct ``kernel-devel`` package.
 Copy and paste it into a root console on the target node:
 
-.. code-block:: sh
-
-  UNAME_R=$(uname -r)
-  PV=${UNAME_R%.*}
-  KV=${PV%%-*}
-  SV=${PV##*-}
-  ARCH=$(uname -m)
-  yum install -y https://kojipkgs.fedoraproject.org/packages/kernel/${KV}/${SV}/${ARCH}/kernel-devel-${UNAME_R}.rpm
+.. task:: install_kernel
 
 .. note:: On some Fedora installations, you may find that the correct ``kernel-devel`` package is already installed.
 
@@ -342,39 +341,25 @@ You must also install the ZFS package repository.
 The following commands will install the two repositories and the ``clusterhq-flocker-node`` package.
 Paste them into a root console on the target node:
 
-.. code-block:: sh
-
-   yum install -y https://s3.amazonaws.com/archive.zfsonlinux.org/fedora/zfs-release$(rpm -E %dist).noarch.rpm
-   yum install -y http://archive.clusterhq.com/fedora/clusterhq-release$(rpm -E %dist).noarch.rpm
-   yum install -y clusterhq-flocker-node
+.. task:: install_flocker
 
 Installing ``clusterhq-flocker-node`` will automatically install Docker, but the ``docker`` service may not have been enabled or started.
 To enable and start Docker, run the following commands in a root console:
 
-.. code-block:: sh
-
-   systemctl start docker
-   systemctl enable docker
+.. task:: enable_docker
 
 To enable Flocker to forward ports between nodes, the firewall needs to be configured to allow forwarding.
 On a typical fedora installation, the firewall is configured by `firewalld <https://fedoraproject.org/wiki/FirewallD>`_.
 (Note: The Fedora AWS images don't have firewalld installed, as there is an external firewall configuration.)
 The following commands will configure firewalld to enable forwarding:
 
-.. code-block:: sh
-
-  firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
-  firewall-cmd --direct --add-rule ipv4 filter FORWARD 0 -j ACCEPT
+.. task:: disable_firewall
 
 Flocker requires a ZFS pool named ``flocker``.
 The following commands will create a 10 gigabyte ZFS pool backed by a file.
 Paste them into a root console:
 
-.. code-block:: sh
-
-   mkdir -p /var/opt/flocker
-   truncate --size 10G /var/opt/flocker/pool-vdev
-   zpool create flocker /var/opt/flocker/pool-vdev
+.. task:: create_flocker_pool_file
 
 .. note:: It is also possible to create the pool on a block device.
 

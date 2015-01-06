@@ -134,6 +134,7 @@ class OpenSSHConfiguration(object):
              # On some Ubuntu versions (and perhaps elsewhere) not disabling
              # this leads for mDNS lookups on every SSH, which can slow down
              # connections very noticeably
+             b"-o", b"IgnoreUnknown=GSSAPIAuthentication",
              b"-oGSSAPIAuthentication=no",
              # The tests hang if ControlMaster is set, since OpenSSH won't
              # ever close the connection to the test server.

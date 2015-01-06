@@ -198,7 +198,6 @@ def get_nodes(test_case, num_nodes):
 
     for node in nodes:
         sock = socket()
-        sock.settimeout(0.1)
         try:
             can_connect = not sock.connect_ex((node, 22))
         except gaierror:
@@ -210,7 +209,7 @@ def get_nodes(test_case, num_nodes):
 
     if len(reachable_nodes) < num_nodes:
         unreachable_nodes = set(nodes) - reachable_nodes
-        raise SkipTest(
+        test_case.fail(
             "At least {min} node(s) must be running and reachable on port 22. "
             "The following node(s) are reachable: {reachable}. "
             "The following node(s) are not reachable: {unreachable}.".format(
