@@ -73,7 +73,33 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_1)
             self.assertEqual(state[MYSQL_APPLICATION], application)
-            # continue from here
+            # We will now change the image in our config_application and
+            # re-deploy the otherwise identical configs, then verify that
+            # flocker-reportstate reports that the image in the application has
+            # changed. This version of the mysql image will also create two
+            # new environment variables that were not present in the previous
+            # application instance.
+            app_config = config_application[u'applications'][MYSQL_APPLICATION]
+            app_config[u'image'] = u"mysql:5.5.41"
+            flocker_deploy(self, config_deployment, config_application)
+            state = get_node_state(node_1)
+            new_environment = (
+                ('MYSQL_ROOT_PASSWORD', 'clusterhq'),
+                ('MYSQL_MAJOR', '5.5'),
+                ('MYSQL_VERSION', '5.5.41'),
+            )
+            application = create_application(
+                MYSQL_APPLICATION,
+                u"mysql:5.5.41",
+                environment=frozenset(new_environment),
+                ports=create_port_set(MYSQL_PORT_MAPPINGS),
+                volume=create_attached_volume(
+                    name=MYSQL_APPLICATION,
+                    mountpoint=b'/var/lib/mysql',
+                    maximum_size=None
+                )
+            )
+            self.assertEqual(state[MYSQL_APPLICATION], application)
 
         nodes.addCallback(deploy_with_image)
         return nodes
