@@ -8,6 +8,12 @@ from characteristic import attributes, Attribute
 
 
 def _fixed_OpenStackNodeDriver_to_node(self, api_node):
+    """
+    This is a copy of
+    libcloud.compute.drivers.openstack.OpenStack_1_1_NodeDriver._to_node
+    from libcloud 0.16.0 to fix
+    https://github.com/apache/libcloud/pull/411
+    """
     from libcloud.utils.networking import is_public_subnet
     from libcloud.compute.base import Node
     from libcloud.compute.types import NodeState
@@ -157,12 +163,15 @@ class LibcloudNode(object):
         """
         self._node.reboot()
 
-        self._node, self.addresses = \
-            self._node.driver.wait_until_running([self._node])[0]
+        self._node, self.addresses = (
+            self._node.driver.wait_until_running([self._node])[0])
 
     def provision(self, package_source):
         """
         Provision flocker on this node.
+
+        :param PackageSource package_source: The source from which to install
+            flocker.
         """
         self._provisioner.provision(
             node=self,
@@ -186,15 +195,16 @@ class LibcloudNode(object):
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    :ivar bytes keyname: The name of an existing ssh public key configured with
-       the cloud provider. The provision step assumes the corresponding private
-       key is available from an agent.
+    :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
+    :ivar bytes _keyname: The name of an existing ssh public key configured
+        with the cloud provider. The provision step assumes the corresponding
+        private key is available from an agent.
     :ivar dict image_names: Dictionary mapping distributions to cloud image
         names.
-    :ivar callable _create_arguments: Extra arguments to pass to
+    :ivar callable _create_node_arguments: Extra arguments to pass to
         libcloud's ``create_node``.
     :ivar callable provision: Function to call to provision a node.
-    :ivar default_size: Name of the default size of node to create.
+    :ivar str default_size: Name of the default size of node to create.
     """
 
     def create_node(self, name, distribution,
@@ -205,13 +215,17 @@ class LibcloudProvisioner(object):
         Create a node.
 
         :param str name: The name of the node.
-        :param str base_ami: The name of the ami to use.
+        :param str distribution: The name of the distribution to
+            install on the node.
         :param bytes userdata: User data to pass to the instance.
-        :param bytes size: The name of the size to use.
+        :param str size: The name of the size to use.
         :param int disk_size: The size of disk to allocate.
         :param dict metadata: Metadata to associate with the node.
+        :param bytes keyname: The name of an existing ssh public key configured
+            with the cloud provider. The provision step assumes the
+            corresponding private key is available from an agent.
 
-        :return LibcloudNode: The created node.
+        :return libcloud.compute.base.Node: The created node.
         """
         if keyname is None:
             keyname = self._keyname

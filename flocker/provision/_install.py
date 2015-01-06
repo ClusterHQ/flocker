@@ -225,14 +225,14 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     Pull docker images.
 
     :param list images: List of images to pull. Defaults to images used in
-        accepance tests.
+        acceptance tests.
     """
     return [Run.from_args(['docker', 'pull', image]) for image in images]
 
 
 def provision(distribution, package_source):
     """
-    Provison the node for running flocker.
+    Provision the node for running flocker.
 
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.

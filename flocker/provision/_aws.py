@@ -57,12 +57,14 @@ def aws_provisioner(access_key, secret_access_token, keyname,
     """
     Create a LibCloudProvisioner for provisioning nodes on AWS EC2.
 
-    :param bytes access_key: The access_key to connect to rackspace with.
-    :param bytes secret_access_token: The corresponding secrete token.
+    :param bytes access_key: The access_key to connect to AWS with.
+    :param bytes secret_access_token: The corresponding secret token.
     :param bytes region: The AWS region in which to launch the instance.
     :param bytes keyname: The name of an existing ssh public key configured in
        AWS. The provision step assumes the corresponding private key is
        available from an agent.
+    :param list security_groups: List of security groups to put created nodes
+        in.
     """
     # Import these here, so that this can be imported without
     # installng libcloud.
