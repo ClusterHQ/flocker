@@ -131,7 +131,7 @@ class LibcloudRunner(object):
         try:
             self.creator = self.metadata['creator']
         except KeyError:
-            raise ValueError("Must specify creator metadata.")
+            raise UsageError("Must specify creator metadata.")
 
     def start_nodes(self):
         """
@@ -183,7 +183,12 @@ def rackspace_runner(config, **kwargs):
     Run the tests against rackspace nodes.
     """
     from flocker.provision import rackspace_provisioner
-    provisioner = rackspace_provisioner(**config['rackspace'])
+    try:
+        rackspace_config = config['rackspace']
+    except KeyError:
+        raise UsageError("Must provided 'rackspace' config stanza.")
+
+    provisioner = rackspace_provisioner(**rackspace_config)
     return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
 
@@ -192,7 +197,12 @@ def aws_runner(config, **kwargs):
     Run the tests against aws nodes.
     """
     from flocker.provision import aws_provisioner
-    provisioner = aws_provisioner(**config['aws'])
+    try:
+        aws_config = config['aws']
+    except KeyError:
+        raise UsageError("Must provided 'aws' config stanza.")
+
+    provisioner = aws_provisioner(**aws_config)
     return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
 
