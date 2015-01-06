@@ -1,14 +1,18 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 """
-A HTTP REST API for controlling the Volume Manager.
+A HTTP REST API for controlling the Dataset Manager.
 """
+
+from twisted.web.server import Site
+from twisted.web.resource import Resource
+from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
 from ..restapi import structured
 
 
-class VolumeAPIUser(object):
+class DatasetAPIUser(object):
     """
     A user accessing the API.
     """
@@ -21,3 +25,12 @@ class VolumeAPIUser(object):
         Do nothing.
         """
         return None
+
+
+def create_api_service(endpoint):
+    """
+    Create a Twisted Service that serves the API on the given endpoint.
+    """
+    # FLOC-1162 should add an API version prefix and integration with
+    # DatasetAPIUser.
+    return StreamServerEndpointService(endpoint, Site(Resource()))
