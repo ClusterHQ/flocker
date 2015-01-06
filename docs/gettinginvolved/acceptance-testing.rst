@@ -115,6 +115,7 @@ To run the acceptance on AWS, you need
 
 - a AWS account and the associated API key
 - an ssh-key registered with the AWS account.
+- a permissive security group
 
 .. code-block:: yaml
 
@@ -123,6 +124,7 @@ To run the acceptance on AWS, you need
      access_key: <aws access key>
      secret_access_token: <aws secret access token>
      keyname: <ssh-key-name>
+     security_groups: ["<permissive security group>"]
    metadata:
      creator: <your-name>
 

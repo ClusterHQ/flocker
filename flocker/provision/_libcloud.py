@@ -131,9 +131,8 @@ def get_image(driver, image_name):
         raise ValueError("Unknown image.", image_name)
 
 
-# _node isn't immutable, since libcloud provides new instances
-# with updated data.
 @attributes([
+    # _node gets updated, so we can't make this immutable.
     Attribute('_node'),
     Attribute('_provisioner'),
     'address',
