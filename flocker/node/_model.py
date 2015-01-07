@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, Attribute
+from characteristic import attributes, Attribute, with_repr, with_init
 from zope.interface import Interface, implementer
 
 
@@ -166,17 +166,22 @@ class Manifestation(object):
     """
     A dataset that is mounted on a node.
 
-    :ivar unicode dataset_name: The name of the dataset being mounted.
+    :ivar Dataset: The dataset being mounted.
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
 
 
-@attributes(["uuid", "name", "maximum_size"],
-            defaults=dict(maximum_size=None))
+@with_init(["uuid", "maximum_size",
+            Attribute("metadata", default_factory=dict)],
+           defaults=dict(maximum_size=None),)
+@with_repr(["uuid", "maximum_size", "metadata"])
 class Dataset(object):
     """
     The filesystem data for a particular application.
+
+    Datasets have different comparison methods: often should be compared
+    by UUID, but may have different settings or metadata.
 
     :ivar uuid: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
@@ -184,13 +189,13 @@ class Dataset(object):
         datasets, or a new one generated if a new dataset will need tbe
         created.
 
-    :ivar unicode name: A human-readable name, e.g. ``"main-postgres"``.
+    :ivar dict metadata: Mapping between ``unicode`` keys and
+        corresponding values. Typically there will be a ``"name"`` key whose
+        value is a a human-readable name, e.g. ``"main-postgres"``.
 
     :ivar int maximum_size: The maximum size in bytes of this dataset, or
         ``None`` if there is no specified limit.
     """
-    # XXX If uuid is None we might want to error on comparisons to ensure
-    # UUID gets filled in before comparisons are done?
 
 
 @attributes(["hostname", "applications"])
@@ -291,8 +296,7 @@ class VolumeChanges(object):
 
 
 @attributes(["running", "not_running", "used_ports"],
-            defaults={"used_ports": frozenset(),
-                      "manifestations": frozenset()})
+            defaults={"used_ports": frozenset()})
 class NodeState(object):
     """
     The current state of a node.
