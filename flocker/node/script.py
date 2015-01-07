@@ -10,6 +10,9 @@ import sys
 
 from twisted.python.usage import Options, UsageError
 from twisted.internet.defer import Deferred, maybeDeferred
+from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.application.service import MultiService
+
 
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
@@ -20,6 +23,7 @@ from ._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
+from ..volume.httpapi import create_api_service
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner)
@@ -254,8 +258,40 @@ class ServeOptions(Options):
     """
     Command line options for ``flocker-serve`` cluster management process.
     """
-    # Maybe options for things like what port to listen on or perhaps where to
-    # find certificate material to use for TLS.
+    optParameters = [
+        ["port", "p", 4523, "The port to listen on.", int],
+        ]
+
+
+class _ServeService(MultiService):
+    """
+    Service for running a ``VolumeService`` and HTTP API service.
+    """
+    def __init__(self, volume_service, http_service):
+        """
+        :param volume_service: The volume service to run.
+
+        :param http_service: The HTTP API service to run.
+        """
+        MultiService.__init__(self)
+        volume_service.setServiceParent(self)
+        http_service.setServiceParent(self)
+
+    def stopService(self):
+        """
+        Stop all services, return result of stopping the volume service.
+
+        The volume service is the service whose failure during stopping
+        matters (and therefore should result in non-zero exit code) since
+        it is the one likely to have significant code. By default a
+        MultiService returns a ``DeferredList``, though, so errors in
+        stopping the volume service will be swallowed.
+
+        :return: Result from stopping the volume service.
+        """
+        d = MultiService.stopService(self)
+        d.addCallback(lambda results: results[-1][1])
+        return d
 
 
 @implementer(ICommandLineVolumeScript)
@@ -265,7 +301,10 @@ class ServeScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        return _main_for_service(reactor, volume_service)
+        api_service = create_api_service(
+            TCP4ServerEndpoint(reactor, options["port"]))
+        parent_service = _ServeService(volume_service, api_service)
+        return _main_for_service(reactor, parent_service)
 
 
 def flocker_serve_main():

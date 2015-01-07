@@ -8,12 +8,14 @@ from StringIO import StringIO
 
 from zope.interface import implementer
 
+from twisted.test.proto_helpers import MemoryReactor
 from twisted.internet.interfaces import IReactorCore
 from twisted.internet.defer import Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
+from twisted.web.server import Site
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
@@ -405,12 +407,13 @@ from twisted.internet.base import _ThreePhaseEvent
 
 
 @implementer(IReactorCore)
-class MemoryCoreReactor(object):
+class MemoryCoreReactor(MemoryReactor):
     """
-    Just enough of an implementation of IReactorCore to pass to
-    ``_main_for_service`` in the unit tests.
+    Fake reactor with listenTCP and just enough of an implementation of
+    IReactorCore to pass to ``_main_for_service`` in the unit tests.
     """
     def __init__(self):
+        MemoryReactor.__init__(self)
         self._triggers = {}
 
     def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
@@ -453,7 +456,9 @@ class ServeScriptMainTests(SynchronousTestCase):
         self.script = ServeScript()
 
     def main(self, reactor, service):
-        return self.script.main(reactor, {}, service)
+        options = ServeOptions()
+        options.parseOptions([])
+        return self.script.main(reactor, options, service)
 
     def _shutdown_reactor(self, reactor):
         """
@@ -518,9 +523,34 @@ class ServeScriptMainTests(SynchronousTestCase):
         async.callback(None)
         self.assertIs(None, self.successResultOf(result))
 
+    def test_starts_http_api_server(self):
+        """
+        ``ServeScript.main`` starts a HTTP server on the given port.
+        """
+        self.script.main(self.reactor, {"port": 8001}, self.service)
+        server = self.reactor.tcpServers[0]
+        port = server[0]
+        factory = server[1].__class__
+        self.assertEqual((port, factory), (8001, Site))
+
 
 class StandardServeOptionsTests(
         make_volume_options_tests(ServeOptions)):
     """
     Tests for the volume configuration arguments of ``ServeOptions``.
     """
+    def test_default_port(self):
+        """
+        The default port configured by ``ServeOptions`` is 4523.
+        """
+        options = ServeOptions()
+        options.parseOptions([])
+        self.assertEqual(options["port"], 4523)
+
+    def test_custom_port(self):
+        """
+        The ``--port`` command-line option allows configuring the port.
+        """
+        options = ServeOptions()
+        options.parseOptions(["--port", 1234])
+        self.assertEqual(options["port"], 1234)
