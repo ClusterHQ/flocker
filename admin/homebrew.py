@@ -14,21 +14,28 @@ from urllib2 import urlopen
 from hashlib import sha1
 from tl.eggdeps.graph import Graph
 
-# TODO return docs
 
-def get_dependency_graph(application_name):
+def get_dependency_graph(application):
     """
-    TODO
+    Get the dependencies of an application.
+
+    :param unicode application: The name of an application to get the
+        dependencies of.
+
+    :return tl.eggdeps.graph.Graph: Graph of Python dependencies, not
+        including ``application``.
     """
     dependency_graph = Graph()
-    dependency_graph.from_specifications([application_name])
-    dependency_graph.pop(application_name, None)
+    dependency_graph.from_specifications([application])
+    dependency_graph.pop(application, None)
     return dependency_graph
 
 
 def get_version():
     """
-    TODO
+    :return str: The contents of the "VERSION" environment variable.
+
+    :raises Exception: If $VERSION is not set.
     """
     version = environ.get("VERSION")
     if version is None:
@@ -40,7 +47,9 @@ def get_checksum(url):
     """
     Given the URL of a file, download that file and return its sha1 hash.
 
-    :param unicode url: The URL of a file.
+    :param unicode url: A URL of a file.
+
+    :return str checksum: The sha1 hash of the file at ``url``.
     """
     download = urlopen(url)
     checksum = sha1(download.read()).hexdigest()
@@ -53,7 +62,10 @@ def get_class_name(version):
     The ruby class name depends on the Flocker version. For example for version
     0.3.0dev1 the class name should be Flocker0.3.0dev1.
 
-    :param unicode version: The version of Flocker this recipe is for.
+    :param str version: The version of Flocker this recipe is for.
+
+    :return str: The name of the ruby class needed if the file being created
+        is called "flocker-$VERSION.rb".
     """
     class_name = 'Flocker' + version
     for disallowed_character in ['-', '.']:
@@ -63,25 +75,28 @@ def get_class_name(version):
 
 def get_formatted_dependency_list(dependency_graph):
     """
-    TODO
+    :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
+        dependencies.
+
+    :return unicode: Space separated list of dependency names.
     """
     dependencies = []
     for name, node in sorted(dependency_graph.iteritems()):
         requirement = node.dist.as_requirement()
         dependencies.append(requirement.project_name)
-    return ' '.join(dependencies)
+    return u' '.join(dependencies)
 
 
 def get_resource_stanzas(dependency_graph):
     """
-    Create the part of the Homebrew recipe which defines the python packages
-    to install.
-
     :param tl.eggdeps.graph.Graph dependency_graph: Graph of Python
         dependencies.
+
+    :return unicode: The part of the Homebrew recipe which defines the Python
+        packages to install.
     """
-    resources = ""
-    resource_template = """
+    resources = u""
+    resource_template = u"""
   resource "{project_name}" do
     url "{url}"
     sha1 "{checksum}"
@@ -91,7 +106,7 @@ def get_resource_stanzas(dependency_graph):
         requirement = node.dist.as_requirement()
         operator, version = requirement.specs[0]
         project_name = requirement.project_name
-        url = "http://pypi.python.org/pypi/{name}/{version}/json".format(
+        url = u"http://pypi.python.org/pypi/{name}/{version}/json".format(
               name=project_name,
               version=version)
         f = urlopen(url)
@@ -108,14 +123,18 @@ def get_resource_stanzas(dependency_graph):
 
 
 def main():
+    """
+    Print a Homebrew recipe for Flocker, using the VERSION environment
+    variable.
+    """
     version = get_version()
-    url = ("https://storage.googleapis.com/archive.clusterhq.com/"
+    url = (u"https://storage.googleapis.com/archive.clusterhq.com/"
            "downloads/flocker/Flocker-{version}.tar.gz").format(
            version=version)
 
-    dependency_graph = get_dependency_graph("flocker")
+    dependency_graph = get_dependency_graph(u"flocker")
 
-    print """require "formula"
+    print u"""require "formula"
 
 class {class_name} < Formula
   homepage "https://clusterhq.com"
