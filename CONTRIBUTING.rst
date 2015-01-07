@@ -191,3 +191,17 @@ Done
     Some final work may remain to address review comments; once this is done and the branch is merged the GitHub PR will be closed.
 
 .. _JIRA workflow: https://clusterhq.atlassian.net/
+
+
+.. _reporting-security-issues:
+
+Reporting Security Issues
+=========================
+
+Please report security issues by emailing security@clusterhq.com.
+
+Flocker bugs should normally be :ref:`reported publicly<talk-to-us>`, but due to the sensitive nature of security issues, we ask that they not be publicly reported in this fashion.
+
+Instead, if you believe you’ve found something in Flocker (or any other ClusterHQ software) which has security implications, please send a description of the issue via email to security@clusterhq.com.
+Your message will be forwarded to the ClusterHQ security team (a small group of trusted developers) for triage and it will not be publicly readable.
+Once you’ve submitted an issue via email, you should receive an acknowledgment from a member of the security team within 48 hours, and depending on the action to be taken, you may receive further follow up emails.
