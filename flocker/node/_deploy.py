@@ -331,28 +331,25 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            manifestations = dict()
+            managed_volumes = dict()
             for volume in volumes:
-                manifestations[volume.name.id] = Manifestation(
-                    dataset=Dataset(uuid=volume.uuid, name=volume.name.id,
-                                    maximum_size=volume.size.maximum_size),
-                    primary=(volume.uuid == self.volume_service.uuid))
-            return manifestations
+                if volume.uuid == self.volume_service.uuid:
+                    managed_volumes[volume.name.id] = volume.size.maximum_size
+            return managed_volumes
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
-            units, available_manifestations = result
+            units, available_volumes = result
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
-                if unit.name in available_manifestations and unit.volumes:
+                if unit.name in available_volumes:
                     # XXX we only support one volume per container at this time
                     # https://github.com/ClusterHQ/flocker/issues/49
-                    volume = AttachedVolume(
-                        manifestation=available_manifestations[unit.name],
-                        mountpoint=list(unit.volumes)[0].container_path)
+                    volume = AttachedVolume.from_unit(unit).pop()
+                    volume.maximum_size = available_volumes[unit.name]
                 else:
                     volume = None
                 ports = []
