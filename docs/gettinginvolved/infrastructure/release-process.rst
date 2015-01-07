@@ -245,15 +245,19 @@ Release
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker release branch with no modifications:
+#. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
    .. code-block:: console
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
+      git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
+      cd homebrew-tap-${VERSION}
+      git checkout -b release/flocker-${VERSION} origin/master
+      git push origin --set-upstream release/flocker-${VERSION}
+      cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
-#. Create (if necessary) and activate the Flocker release virtual environment:
+#. Create and activate the Flocker release virtual environment:
 
    .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
@@ -311,30 +315,12 @@ Release
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
-   - Checkout the `homebrew-tap`_ repository:
+   - Create and push recipe file in the homebrew-tap repository:
 
      .. code-block:: console
 
-        git clone git@github.com:ClusterHQ/homebrew-tap.git
-        cd homebrew-tap
-
-   - Create a release branch:
-
-     .. code-block:: console
-
-        git checkout -b release/flocker-${VERSION} origin/master
-        git push origin --set-upstream release/flocker-${VERSION}
-
-   - Create a recipe file using a Flocker admin script:
-
-     .. code-block:: console
-
-        /path/to/flocker/admin/homebrew.py > flocker-${VERSION}.rb
-
-   - Commit the changes and push:
-
-     .. code-block:: console
-
+        cd ../homebrew-tap-${VERSION}
+        ../flocker-${VERSION}/admin/homebrew.py > flocker-${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
         git push
@@ -345,7 +331,7 @@ Release
 
      .. code-block:: console
 
-        brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
+        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
 
    - Make a pull request:
