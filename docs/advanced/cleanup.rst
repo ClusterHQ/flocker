@@ -14,47 +14,46 @@ This will enable you to test, play around with Flocker or repeat the deployment 
    In addition, the verbatim commands documented below will destroy **all** Docker containers on the target node, regardless of whether or not they were deployed via Flocker.
    *Proceed at your own risk and only if you fully understand the effects of executing these commands.*
 
-You can run the necessary cleanup commands via SSH. The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251``.
+You can run the necessary cleanup commands via SSH.
+The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251``.
 Be sure to replace the example IP address in the commands below with the actual IP address of the node you wish to purge.
 
+The following sequence of steps must be performed in order:
 
-Stopping Containers
-===================
+#. **Stop Containers**
 
-Docker containers must be stopped before they can be removed.
+   Docker containers must be stopped before they can be removed.
 
-.. code-block:: console
+   .. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -q | xargs --no-run-if-empty docker stop'
-
-
-Removing Containers
-===================
-
-.. code-block:: console
-
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -aq | xargs --no-run-if-empty docker rm'
-   
-These commands list the ID numbers of all the Docker containers on each host, including stopped containers and then pipes each ID to the `docker rm` command to purge.
+      alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -q | xargs --no-run-if-empty docker stop'
 
 
-Removing ZFS Volumes
-====================
+#. **Remove Containers**
 
-To remove ZFS volumes created by Flocker, you can list the volumes on each host and then use the unique IDs in conjunction with the `zfs destroy` command.
+   .. code-block:: console
 
-.. code-block:: console
+      alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'docker ps -aq | xargs --no-run-if-empty docker rm'
 
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs list -H -o name'
-   flocker   
-   flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example
-   alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example'
-   
-Alternatively if you wish to destroy **all** data sets created by Flocker, you can run the following command:
+   These commands list the ID numbers of all the Docker containers on each host, including stopped containers and then pipes each ID to the `docker rm` command to purge.
 
-.. code-block:: console
 
-   alice@mercury:~/flocker-mysql$ zfs destroy -r flocker
+#. **Remove ZFS Volumes**
+
+   To remove ZFS volumes created by Flocker, you can list the volumes on each host and then use the unique IDs in conjunction with the `zfs destroy` command.
+
+   .. code-block:: console
+
+      alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs list -H -o name'
+      flocker
+      flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example
+      alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker/e16d5b2b-471d-4bbe-be23-d58bbc8f1b94.mysql-volume-example'
+
+   Alternatively if you wish to destroy **all** data sets created by Flocker, you can run the following command:
+
+   .. code-block:: console
+
+      alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker'
 
 
 .. _`on the Flocker development path`: https://github.com/ClusterHQ/flocker/issues/682
