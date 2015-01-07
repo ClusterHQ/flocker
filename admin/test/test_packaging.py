@@ -868,6 +868,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
         for f in output_dir.children():
             assert_rpm_lint(self, f)
+    test_functional_fedora_20.skip = "Takes too long."
 
     @if_docker_configured
     @require_rpm
@@ -903,6 +904,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
         for f in output_dir.children():
             assert_rpm_lint(self, f)
+    test_functional_centos_7.skip = "Takes too long."
 
     @if_docker_configured
     @require_dpkg
@@ -938,6 +940,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
         for f in output_dir.children():
             assert_deb_lint(self, f)
+    test_functional_ubuntu_1404.skip = "Takes too long."
 
 
 RPMLINT_IGNORED_WARNINGS = (
