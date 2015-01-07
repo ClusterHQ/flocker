@@ -327,7 +327,7 @@ Release
 
      .. code-block:: console
 
-        /path/to/flocker/admin/make_homebrew_recipe.py > flocker-${VERSION}.rb
+        /path/to/flocker/admin/homebrew.py > flocker-${VERSION}.rb
 
    - Commit the changes and push:
 
