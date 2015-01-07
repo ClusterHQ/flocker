@@ -5,7 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, Attribute, with_repr, with_init
+from characteristic import attributes, Attribute
 from zope.interface import Interface, implementer
 
 
@@ -169,16 +169,12 @@ class Manifestation(object):
     """
 
 
-@with_init(["dataset_id",
-            Attribute("maximum_size", default_value=None),
-            Attribute("metadata", default_factory=dict)])
-@with_repr(["dataset_id", "maximum_size", "metadata"])
+@attributes(["dataset_id",
+             Attribute("maximum_size", default_value=None),
+             Attribute("metadata", default_factory=dict)])
 class Dataset(object):
     """
     The filesystem data for a particular application.
-
-    Datasets have different comparison methods: often should be compared
-    by UUID, but may have different settings or metadata.
 
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which

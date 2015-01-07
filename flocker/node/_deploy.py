@@ -331,26 +331,38 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            managed_volumes = dict()
+            primary_manifestations = {}
             for volume in volumes:
                 if volume.node_id == self.volume_service.node_id:
-                    managed_volumes[volume.name.dataset_id] = (
-                        volume.size.maximum_size)
-            return managed_volumes
+                    # FLOC-1181 non-primaries should be added in too
+                    path = volume.get_filesystem().get_path()
+                    primary_manifestations[path] = (
+                        volume.name.dataset_id, volume.size.maximum_size)
+            return primary_manifestations
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
-            units, available_volumes = result
+            units, available_manifestations = result
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
-                if unit.name in available_volumes:
-                    # XXX we only support one volume per container at this time
-                    # https://github.com/ClusterHQ/flocker/issues/49
-                    volume = AttachedVolume.from_unit(unit).pop()
-                    volume.maximum_size = available_volumes[unit.name]
+                if unit.volumes:
+                    # XXX https://clusterhq.atlassian.net/browse/FLOC-49
+                    # we only support one volume per container
+                    # at this time
+                    # XXX https://clusterhq.atlassian.net/browse/FLOC-773
+                    # we assume all volumes are datasets
+                    docker_volume = list(unit.volumes)[0]
+                    dataset_id, max_size = available_manifestations[
+                        docker_volume.node_path]
+                    volume = AttachedVolume(
+                        manifestation=Manifestation(
+                            dataset=Dataset(dataset_id=dataset_id,
+                                            maximum_size=max_size),
+                            primary=True),
+                        mountpoint=docker_volume.container_path)
                 else:
                     volume = None
                 ports = []

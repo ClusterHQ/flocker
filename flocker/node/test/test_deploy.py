@@ -839,11 +839,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         an ``AttachedVolume``.
         """
         DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
         volume1 = self.successResultOf(self.volume_service.create(
             self.volume_service.get(_to_volume_name(DATASET_ID))
         ))
         volume2 = self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"uuid456"))
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
         ))
 
         unit1 = Unit(name=u'site-example.com',
@@ -875,12 +876,13 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID),
+                        dataset=Dataset(dataset_id=respective_id),
                         primary=True,
                     ),
                     mountpoint=FilePath(b'/var/lib/data')
                     )
-            ) for unit in units.values()]
+            ) for (unit, respective_id) in [(unit1, DATASET_ID),
+                                            (unit2, DATASET_ID2)]]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
