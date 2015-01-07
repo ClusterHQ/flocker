@@ -130,7 +130,7 @@ def main():
     version = get_version()
     url = (u"https://storage.googleapis.com/archive.clusterhq.com/"
            "downloads/flocker/Flocker-{version}.tar.gz").format(
-           version=version)
+               version=version)
 
     dependency_graph = get_dependency_graph(u"flocker")
 
