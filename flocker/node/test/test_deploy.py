@@ -20,7 +20,7 @@ from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
     ResizeVolume, _link_environment, _to_volume_name)
-from .._model import AttachedVolume
+from .._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -657,28 +657,19 @@ class StopApplicationTests(SynchronousTestCase):
 
 
 # This models an application that has a volume.
+
 APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+# XXX For now we require volume names match application names,
+# see https://github.com/ClusterHQ/flocker/issues/49
+DATASET = Dataset(dataset_id=u"xcdsdsa-1234",
+                  metadata={u"name": APPLICATION_WITH_VOLUME_NAME})
 APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
-        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-    ),
-    links=frozenset(),
-)
-
-DISCOVERED_APPLICATION_WITH_VOLUME = Application(
-    name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(b"psql-clusterhq"),
-    volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
+        manifestation=Manifestation(dataset=DATASET, primary=True),
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
@@ -1363,7 +1354,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1418,7 +1409,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1885,7 +1876,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
+            applications=frozenset({APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
