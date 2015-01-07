@@ -14,9 +14,11 @@ This will enable you to test, play around with Flocker or repeat the deployment 
    In addition, the verbatim commands documented below will destroy **all** Docker containers on the target node, regardless of whether or not they were deployed via Flocker.
    *Proceed at your own risk and only if you fully understand the effects of executing these commands.*
 
-You can run the necessary cleanup commands via SSH. The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251``.
+You can run the necessary cleanup commands via SSH.
+The tutorial's virtual machines are created with IP addresses ``172.16.255.250`` and ``172.16.255.251``.
 Be sure to replace the example IP address in the commands below with the actual IP address of the node you wish to purge.
 
+The following sequence of steps must be performed in order:
 
 #. **Stop Containers**
 
