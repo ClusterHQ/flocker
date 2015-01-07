@@ -851,7 +851,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=volume1.get_filesystem.get_path(),
+                             node_path=volume1.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -861,7 +861,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=volume2.get_filesystem.get_path(),
+                             node_path=volume2.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -939,11 +939,11 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit1.container_image),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID),
+                        dataset=Dataset(dataset_id=DATASET_ID,
+                                        maximum_size=1024 * 1024 * 100),
                         primary=True,
                     ),
                     mountpoint=FilePath(b'/var/lib/data'),
-                    maximum_size=1024 * 1024 * 100
                     )
             ),
             Application(
