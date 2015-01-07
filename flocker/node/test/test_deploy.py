@@ -675,6 +675,20 @@ APPLICATION_WITH_VOLUME = Application(
     links=frozenset(),
 )
 
+# Discovery can't figure out dataset metadata; otherwise we expect this to be
+# the same as APPLICATION_WITH_VOLUME.
+DISCOVERED_APPLICATION_WITH_VOLUME = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(
+            dataset=Dataset(dataset_id=u"xcdsdsa-1234"),
+            primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
@@ -824,12 +838,20 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Locally owned volumes are added to ``Application`` with same name as
         an ``AttachedVolume``.
         """
+        DATASET_ID = u"uuid123"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(u"uuid456"))
+        ))
+
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume1'),
+                             node_path=volume1.get_filesystem.get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -839,19 +861,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume2'),
+                             node_path=volume2.get_filesystem.get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.com"))
-        ))
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.net"))
-        ))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
@@ -859,7 +874,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit.name,
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
-                    name=unit.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data')
                     )
             ) for unit in units.values()]
@@ -879,12 +897,24 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         an ``AttachedVolume``, which contains a maximum_size corresponding to
         the existing volume's maximum size.
         """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(DATASET_ID),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume1'),
+                             node_path=volume1.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -894,22 +924,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume2'),
+                             node_path=volume2.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(
-                _to_volume_name(u"site-example.com"),
-                size=VolumeSize(maximum_size=1024 * 1024 * 100)
-            )
-        ))
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.net"))
-        ))
 
         fake_docker = FakeDockerClient(units=units)
 
@@ -918,7 +938,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit1.name,
                 image=DockerImage.from_string(unit1.container_image),
                 volume=AttachedVolume(
-                    name=unit1.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data'),
                     maximum_size=1024 * 1024 * 100
                     )
@@ -927,7 +950,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit2.name,
                 image=DockerImage.from_string(unit2.container_image),
                 volume=AttachedVolume(
-                    name=unit2.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID2),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data'),
                     )
             )]
@@ -944,7 +970,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_remotely_owned_volumes_ignored(self):
         """
         Remotely owned volumes are not added to the discovered ``Application``
-        instances even if they have the same name.
+        instances.
         """
         unit = Unit(name=u'site-example.com',
                     container_name=u'site-example.com',
@@ -953,7 +979,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         units = {unit.name: unit}
 
         volume = Volume(node_id=unicode(uuid4()),
-                        name=_to_volume_name(u"site-example.com"),
+                        name=_to_volume_name(u"xxxx1234"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
@@ -1354,7 +1380,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
 
         # The discovered current configuration of the cluster reveals the
@@ -1409,7 +1435,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
@@ -1876,7 +1902,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({APPLICATION_WITH_VOLUME}),
+            applications=frozenset({DISCOVERED_APPLICATION_WITH_VOLUME}),
         )
         another_node = Node(
             hostname=u"node2.example.com",
