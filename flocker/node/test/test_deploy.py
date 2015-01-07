@@ -952,7 +952,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     activation_state=u'active')
         units = {unit.name: unit}
 
-        volume = Volume(uuid=unicode(uuid4()),
+        volume = Volume(node_id=unicode(uuid4()),
                         name=_to_volume_name(u"site-example.com"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
@@ -2525,7 +2525,8 @@ class WaitForVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
         self.assertEqual(result,
-                         [VolumeName(namespace=u"default", id=u"myvol")])
+                         [VolumeName(namespace=u"default",
+                                     dataset_id=u"myvol")])
 
     def test_return(self):
         """

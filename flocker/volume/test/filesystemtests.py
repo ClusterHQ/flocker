@@ -93,8 +93,8 @@ class CopyVolumes(object):
 
 
 # VolumeNames for tests:
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
 def create_and_copy(test, fixture):
@@ -115,7 +115,7 @@ def create_and_copy(test, fixture):
     pool2 = fixture(test)
     service2 = service_for_pool(test, pool2)
     volume2 = Volume(
-        uuid=service.uuid,
+        node_id=service.node_id,
         name=MY_VOLUME,
         service=service2,
     )
@@ -221,7 +221,7 @@ def make_istoragepool_tests(fixture):
 
             size = VolumeSize(maximum_size=1024 * 1024 * 1024)
             volume_with_size = Volume(
-                uuid=volume.uuid,
+                node_id=volume.node_id,
                 name=volume.name,
                 service=volume.service,
                 size=size,
@@ -247,7 +247,7 @@ def make_istoragepool_tests(fixture):
             size = VolumeSize(maximum_size=1024 * 1024 * 1024)
             resized = VolumeSize(maximum_size=1024 * 1024 * 10)
             volume_with_size = Volume(
-                uuid=volume.uuid,
+                node_id=volume.node_id,
                 name=volume.name,
                 service=volume.service,
                 size=size,
@@ -280,7 +280,7 @@ def make_istoragepool_tests(fixture):
             size = VolumeSize(maximum_size=1024 * 1024 * 1024)
             resized = VolumeSize(maximum_size=None)
             volume_with_size = Volume(
-                uuid=volume.uuid,
+                node_id=volume.node_id,
                 name=volume.name,
                 service=volume.service,
                 size=size,
@@ -313,7 +313,7 @@ def make_istoragepool_tests(fixture):
             size = VolumeSize(maximum_size=1024 * 1024 * 1024)
             resized = VolumeSize(maximum_size=1)
             volume_with_size = Volume(
-                uuid=volume.uuid,
+                node_id=volume.node_id,
                 name=volume.name,
                 service=volume.service,
                 size=size,
@@ -353,9 +353,9 @@ def make_istoragepool_tests(fixture):
             d.addCallback(created_filesystems)
             return d
 
-        def test_two_uuid_create_different_filesystems(self):
+        def test_two_node_id_create_different_filesystems(self):
             """
-            Two calls to ``create()`` with different volume manager UUIDs
+            Two calls to ``create()`` with different volume manager node IDs
             return different filesystems.
             """
             pool = fixture(self)
@@ -705,7 +705,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(
-                VolumeName(namespace=u"ns", id=u"spaced name"))
+                VolumeName(namespace=u"ns", dataset_id=u"spaced name"))
             creating = pool.create(volume)
 
             def created(ignored):
@@ -728,14 +728,14 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             volume_name = MY_VOLUME
             service = service_for_pool(self, pool)
-            uuid = service.uuid
+            node_id = service.node_id
             volume = service.get(volume_name)
             d = pool.create(volume)
 
             def createdFilesystem(filesystem):
                 name = filesystem.get_path().basename()
-                expected = u"{uuid}.{name}".format(
-                    uuid=uuid, name=volume_name.to_bytes())
+                expected = u"{node_id}.{name}".format(
+                    node_id=node_id, name=volume_name.to_bytes())
                 self.assertEqual(name, expected)
             d.addCallback(createdFilesystem)
             return d
@@ -748,7 +748,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -773,7 +773,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -799,7 +799,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -827,7 +827,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
@@ -864,7 +864,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"new-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"new-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
             d.addCallback(lambda _: pool.clone_to(volume, new_volume))
@@ -885,7 +885,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = pool.create(volume)
 
@@ -940,7 +940,7 @@ def make_istoragepool_tests(fixture):
             pool = fixture(self)
             service = service_for_pool(self, pool)
             volume = service.get(MY_VOLUME)
-            new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+            new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                 service=service)
             d = gatherResults([pool.create(volume), pool.create(new_volume)])
 
