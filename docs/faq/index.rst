@@ -80,5 +80,15 @@ This works because e.g. port 3306 inside one app server gets routed via an ephem
 The upshot if which is that you shouldn't need to change the apps at all, except to configure each clone with a different URL.
 
 
+Security
+~~~~~~~~
+
+I think I’ve found a security problem! What should I do?
+********************************************************
+
+If you think you’ve found a security problem with Flocker (or any other ClusterHQ software), please send a message to security@clusterhq.com. Your message will be forwarded to a small group of trusted developers for triage and it will not be publicly readable.
+
+Due to the sensitive nature of security issues, we ask you not to send a message to one of the public mailing lists. ClusterHQ has a policy for handling security defects designed to minimize any damage that could be inflicted through public knowledge of a defect while it is still outstanding.
+
 .. _good write up of the ZFS and Linux license issues: http://zfsonlinux.org/faq.html#WhatAboutTheLicensingIssue
 .. _the Flocker Google group: https://groups.google.com/forum/#!forum/flocker-users
