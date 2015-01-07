@@ -309,6 +309,8 @@ Release
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
+
    - Checkout the `homebrew-tap`_ repository:
 
      .. code-block:: console
