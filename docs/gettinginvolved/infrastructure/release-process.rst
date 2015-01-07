@@ -320,7 +320,7 @@ Release
      .. code-block:: console
 
         cd ../homebrew-tap-${VERSION}
-        ../flocker-${VERSION}/admin/homebrew.py > flocker-${VERSION}.rb
+        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
         git add flocker-${VERSION}.rb
         git commit -m "New Homebrew recipe"
         git push
