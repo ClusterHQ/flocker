@@ -315,7 +315,7 @@ Release
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
-   - Create and push a recipe file in the homebrew-tap repository:
+   - Create a recipe file and push it tos the `homebrew-tap`_ repository:
 
      .. code-block:: console
 
