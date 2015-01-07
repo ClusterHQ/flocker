@@ -172,10 +172,10 @@ class Manifestation(object):
     """
 
 
-@with_init(["uuid", "maximum_size",
+@with_init(["dataset_id", "maximum_size",
             Attribute("metadata", default_factory=dict)],
            defaults=dict(maximum_size=None),)
-@with_repr(["uuid", "maximum_size", "metadata"])
+@with_repr(["dataset_id", "maximum_size", "metadata"])
 class Dataset(object):
     """
     The filesystem data for a particular application.
@@ -183,7 +183,7 @@ class Dataset(object):
     Datasets have different comparison methods: often should be compared
     by UUID, but may have different settings or metadata.
 
-    :ivar uuid: A unique identifier, as ``unicode``. May also be ``None``
+    :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
         case it will need to be looked up from actual state for existing
         datasets, or a new one generated if a new dataset will need tbe
