@@ -193,7 +193,7 @@ class Dataset(object):
     # UUID gets filled in before comparisons are done?
 
 
-@attributes(["hostname", "applications", "manifestations"])
+@attributes(["hostname", "applications"])
 class Node(object):
     """
     A single node on which applications will be managed (deployed,
@@ -205,9 +205,6 @@ class Node(object):
 
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
-
-    :ivar frozenset manifestations: The ``Manifestation`` instances
-        for datasets exposed on this node.
     """
 
 
@@ -293,7 +290,7 @@ class VolumeChanges(object):
     """
 
 
-@attributes(["running", "not_running", "used_ports", "manifestations"],
+@attributes(["running", "not_running", "used_ports"],
             defaults={"used_ports": frozenset(),
                       "manifestations": frozenset()})
 class NodeState(object):
@@ -306,6 +303,4 @@ class NodeState(object):
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
-    :ivar frozenset manifestations: The ``Manifestation`` instances
-        for datasets exposed on this node.
     """

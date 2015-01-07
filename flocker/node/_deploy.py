@@ -394,7 +394,8 @@ class Deployer(object):
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                manifestations=available_manifestations,
+                # FLOC-1181 will want to add here the manifestations that
+                # are not attached to any application.
             )
         d.addCallback(applications_from_units)
         return d
