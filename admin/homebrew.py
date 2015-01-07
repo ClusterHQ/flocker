@@ -10,7 +10,7 @@ Inspired by https://github.com/tdsmith/labmisc/blob/master/mkpydeps.
 
 from os import environ
 from json import load
-from urllib2 import urlopen
+from urllib2 import HTTPError, urlopen
 from hashlib import sha1
 from tl.eggdeps.graph import Graph
 
@@ -51,7 +51,11 @@ def get_checksum(url):
 
     :return str checksum: The sha1 hash of the file at ``url``.
     """
-    download = urlopen(url)
+    try:
+        download = urlopen(url)
+    except HTTPError:
+        raise Exception("No file available at " + url)
+
     checksum = sha1(download.read()).hexdigest()
     download.close()
     return checksum
