@@ -333,8 +333,9 @@ class Deployer(object):
         def map_volumes_to_size(volumes):
             managed_volumes = dict()
             for volume in volumes:
-                if volume.uuid == self.volume_service.uuid:
-                    managed_volumes[volume.name.id] = volume.size.maximum_size
+                if volume.node_id == self.volume_service.node_id:
+                    managed_volumes[volume.name.dataset_id] = (
+                        volume.size.maximum_size)
             return managed_volumes
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])

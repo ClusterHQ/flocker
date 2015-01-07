@@ -207,7 +207,7 @@ class FilesystemStoragePool(Service):
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.to_bytes())),
+                volume.node_id.encode("ascii"), volume.name.to_bytes())),
             size=volume.size)
 
     def enumerate(self):

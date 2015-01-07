@@ -40,7 +40,7 @@ class CreateConfigurationError(Exception):
     """Create the configuration file failed."""
 
 
-@attributes(["namespace", "id"])
+@attributes(["namespace", "dataset_id"])
 class VolumeName(object):
     """
     The volume and its copies' name within the cluster.
@@ -48,8 +48,8 @@ class VolumeName(object):
     :ivar unicode namespace: The namespace of the volume,
         e.g. ``u"default"``. Must not include periods.
 
-    :ivar unicode id: The id of the volume,
-        e.g. ``u"mypostgresdata"``. Since volume ids must match Docker
+    :ivar unicode dataset_id: The unique id of the
+        dataset. ``u"mypostgresdata"``. Since volume ids must match Docker
         container names, the characters used should be limited to those
         that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
@@ -76,7 +76,7 @@ class VolumeName(object):
         """
         namespace, identifier = name.split(b'.', 1)
         return VolumeName(namespace=namespace.decode("ascii"),
-                          id=identifier.decode("ascii"))
+                          dataset_id=identifier.decode("ascii"))
 
     def to_bytes(self):
         """
@@ -86,14 +86,14 @@ class VolumeName(object):
             ``VolumeName.from_bytes``.
         """
         return b"%s.%s" % (self.namespace.encode("ascii"),
-                           self.id.encode("ascii"))
+                           self.dataset_id.encode("ascii"))
 
 
 class VolumeService(Service):
     """
     Main service for volume management.
 
-    :ivar unicode uuid: A unique identifier for this particular node's
+    :ivar unicode node_id: A unique identifier for this particular node's
         volume manager. Only available once the service has started.
     """
 
@@ -118,11 +118,11 @@ class VolumeService(Service):
             if not self._config_path.exists():
                 uuid = unicode(uuid4())
                 self._config_path.setContent(json.dumps({u"uuid": uuid,
-                                                         u"version": 1}))
+                                                         u"verssion": 1}))
         except OSError as e:
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
-        self.uuid = config[u"uuid"]
+        self.node_id = config[u"uuid"]
         self.pool.startService()
 
     def create(self, volume):
@@ -203,12 +203,12 @@ class VolumeService(Service):
 
         :param VolumeName name: The name of the volume.
 
-        :param uuid: Either ``None``, in which case the local UUID will be
-            used, or a UUID to use for the volume.
+        :param node_id: Either ``None``, in which case the local node ID
+            will be used, or a ``unicode`` node ID to use for the volume.
 
         :return: A ``Volume``.
         """
-        return Volume(uuid=self.uuid, name=name, service=self, **kwargs)
+        return Volume(node_id=self.node_id, name=name, service=self, **kwargs)
 
     def wait_for_volume(self, name):
         """
@@ -220,26 +220,26 @@ class VolumeService(Service):
 
         :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
-        def check_for_volume(uuid, name):
+        def check_for_volume(node_id, name):
             d = self.enumerate()
-            d.addCallback(compare_volumes_by_name_uuid, uuid, name)
+            d.addCallback(compare_volumes_by_name_node_id, node_id, name)
             return d
 
-        def compare_volumes_by_name_uuid(volumes, uuid, name):
+        def compare_volumes_by_name_node_id(volumes, node_id, name):
             """
             Iterate the volumes managed by this service and compare the
-            UUID and the ``VolumeName`` to determine if we have found the
+            node ID and the ``VolumeName`` to determine if we have found the
             ``Volume`` instance requested by name.
             """
             for volume in volumes:
-                if volume.uuid == uuid and volume.name == name:
+                if volume.node_id == node_id and volume.name == name:
                     return volume
             return deferLater(
                 self._reactor, WAIT_FOR_VOLUME_INTERVAL,
-                check_for_volume, uuid, name
+                check_for_volume, node_id, name
             )
 
-        return check_for_volume(self.uuid, name)
+        return check_for_volume(self.node_id, name)
 
     def enumerate(self):
         """Get a listing of all volumes managed by this service.
@@ -255,9 +255,9 @@ class VolumeService(Service):
                 #    https://github.com/ClusterHQ/flocker/issues/78
                 basename = filesystem.get_path().basename()
                 try:
-                    uuid, name = basename.split(b".", 1)
+                    node_id, name = basename.split(b".", 1)
                     name = VolumeName.from_bytes(name)
-                    uuid = UUID(uuid)
+                    UUID(node_id)
                 except ValueError:
                     # ValueError may happen because:
                     # 1. We can't split on `.`.
@@ -272,7 +272,7 @@ class VolumeService(Service):
                 # match this service's uuid.
 
                 yield Volume(
-                    uuid=unicode(uuid),
+                    node_id=node_id.decode("ascii"),
                     name=name,
                     service=self,
                     size=filesystem.size)
@@ -296,7 +296,7 @@ class VolumeService(Service):
         :raises ValueError: If the uuid of the volume is different than
             our own; only locally-owned volumes can be pushed.
         """
-        if volume.uuid != self.uuid:
+        if volume.node_id != self.node_id:
             raise ValueError()
         fs = volume.get_filesystem()
         getting_snapshots = destination.snapshots(volume)
@@ -310,7 +310,7 @@ class VolumeService(Service):
         pushing = getting_snapshots.addCallback(got_snapshots)
         return pushing
 
-    def receive(self, volume_uuid, volume_name, input_file):
+    def receive(self, volume_node_id, volume_name, input_file):
         """
         Process a volume's data that can be read from a file-like object.
 
@@ -319,7 +319,7 @@ class VolumeService(Service):
         Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
         this service's) can be received.
 
-        :param unicode volume_uuid: The volume's UUID.
+        :param unicode volume_node_id: The volume's owner's node ID.
         :param VolumeName volume_name: The volume's name.
         :param input_file: A file-like object, typically ``sys.stdin``, from
             which to read the data.
@@ -327,14 +327,14 @@ class VolumeService(Service):
         :raises ValueError: If the uuid of the volume matches our own;
             remote nodes can't overwrite locally-owned volumes.
         """
-        if volume_uuid == self.uuid:
+        if volume_node_id == self.node_id:
             raise ValueError()
-        volume = Volume(uuid=volume_uuid, name=volume_name, service=self)
+        volume = Volume(node_id=volume_node_id, name=volume_name, service=self)
         with volume.get_filesystem().writer() as writer:
             for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
                 writer.write(chunk)
 
-    def acquire(self, volume_uuid, volume_name):
+    def acquire(self, volume_node_id, volume_name):
         """
         Take ownership of a volume.
 
@@ -343,16 +343,16 @@ class VolumeService(Service):
         Only remotely owned volumes (i.e. volumes whose ``uuid`` do not match
         this service's) can be acquired.
 
-        :param unicode volume_uuid: The volume owner's UUID.
+        :param unicode volume_node_id: The volume's owner's node ID.
         :param VolumeName volume_name: The volume's name.
 
         :return: ``Deferred`` that fires on success, or errbacks with
             ``ValueError`` If the uuid of the volume matches our own.
         """
-        if volume_uuid == self.uuid:
+        if volume_node_id == self.node_id:
             return fail(ValueError("Can't acquire already-owned volume"))
-        volume = Volume(uuid=volume_uuid, name=volume_name, service=self)
-        return volume.change_owner(self.uuid)
+        volume = Volume(node_id=volume_node_id, name=volume_name, service=self)
+        return volume.change_owner(self.node_id)
 
     def handoff(self, volume, destination):
         """
@@ -380,13 +380,13 @@ class VolumeService(Service):
         return changing_owner
 
 
-@attributes(["uuid", "name", "service", "size"],
+@attributes(["node_id", "name", "service", "size"],
             defaults=dict(size=VolumeSize(maximum_size=None)))
 class Volume(object):
     """
     A data volume's identifier.
 
-    :ivar unicode uuid: The UUID of the volume manager that owns
+    :ivar unicode node_id: The node ID of the volume manager that owns
         this volume.
     :ivar VolumeName name: The name of the volume.
     :ivar VolumeSize size: The storage capacity of the volume.
@@ -399,18 +399,18 @@ class Volume(object):
         :return: ``True`` if volume's owner is the ``VolumeService`` that
             is storing it, otherwise ``False``.
         """
-        return self.uuid == self.service.uuid
+        return self.node_id == self.service.node_id
 
-    def change_owner(self, new_owner_uuid):
+    def change_owner(self, new_owner_id):
         """
         Change which volume manager owns this volume.
 
-        :param unicode new_owner_uuid: The UUID of the new owner.
+        :param unicode new_owner_id: The node ID of the new owner.
 
         :return: ``Deferred`` that fires with a new :class:`Volume`
             instance once the ownership has been changed.
         """
-        new_volume = Volume(uuid=new_owner_uuid, name=self.name,
+        new_volume = Volume(node_id=new_owner_id, name=self.name,
                             service=self.service, size=self.size)
         d = self.service.pool.change_owner(self, new_volume)
 
