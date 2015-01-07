@@ -39,7 +39,7 @@ from ...testtools import (
 
 
 class VolumeNameInitializationTests(make_with_init_tests(
-        VolumeName, {"namespace": u"x", "id": u"y"})):
+        VolumeName, {"namespace": u"x", "dataset_id": u"y"})):
     """
     Tests for :class:`VolumeName` initialization.
     """
@@ -53,8 +53,8 @@ class VolumeNameTests(TestCase):
         """
         ``VolumeName`` with same arguments are equal.
         """
-        name1 = VolumeName(namespace=u"blah", id="bloo")
-        name2 = VolumeName(namespace=u"blah", id="bloo")
+        name1 = VolumeName(namespace=u"blah", dataset_id="bloo")
+        name2 = VolumeName(namespace=u"blah", dataset_id="bloo")
         self.assertEqual([name1 == name2, name1 != name2],
                          [True, False])
 
@@ -62,9 +62,9 @@ class VolumeNameTests(TestCase):
         """
         ``VolumeName`` with different arguments are unequal.
         """
-        name1 = VolumeName(namespace=u"blah", id="bloo")
-        name2 = VolumeName(namespace=u"blah", id="bloo2")
-        name3 = VolumeName(namespace=u"blah2", id="bloo")
+        name1 = VolumeName(namespace=u"blah", dataset_id="bloo")
+        name2 = VolumeName(namespace=u"blah", dataset_id="bloo2")
+        name3 = VolumeName(namespace=u"blah2", dataset_id="bloo")
         self.assertEqual([name1 == name2, name1 == name3, name1 != name2,
                           name1 != name3], [False, False, True, True])
 
@@ -72,7 +72,7 @@ class VolumeNameTests(TestCase):
         """
         ``VolumeName.to_bytes`` converts the volume name to bytes.
         """
-        name = VolumeName(namespace=u"blah", id="bloo")
+        name = VolumeName(namespace=u"blah", dataset_id="bloo")
         self.assertEqual(name.to_bytes(), b"blah.bloo")
 
     def test_from_bytes(self):
@@ -80,13 +80,13 @@ class VolumeNameTests(TestCase):
         ``VolumeName.from_bytes`` converts bytes back into a ``VolumeName``.
         """
         self.assertEqual(VolumeName.from_bytes(b"lah.loo"),
-                         VolumeName(namespace=u"lah", id="loo"))
+                         VolumeName(namespace=u"lah", dataset_id="loo"))
 
     def test_no_period_in_namespace(self):
         """
         ``VolumeName`` namespaces can't have a period.
         """
-        self.assertRaises(ValueError, VolumeName, namespace=u".x", id=u"y")
+        self.assertRaises(ValueError, VolumeName, namespace=u".x", dataset_id=u"y")
 
 
 class VolumeSizeInitializationTests(make_with_init_tests(
@@ -230,8 +230,8 @@ class VolumeServiceStartupTests(TestCase):
 
 
 # VolumeName for tests:
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
 class VolumeServiceAPITests(TestCase):
@@ -503,7 +503,7 @@ class VolumeServiceAPITests(TestCase):
         filesystem = volume.get_filesystem()
 
         manager_node_id = unicode(uuid4())
-        new_name = VolumeName(namespace=u"myns", id=u"newvolume")
+        new_name = VolumeName(namespace=u"myns", dataset_id=u"newvolume")
 
         with filesystem.reader() as reader:
             service.receive(manager_node_id, new_name, reader)
@@ -529,7 +529,7 @@ class VolumeServiceAPITests(TestCase):
         filesystem.get_path().child(b"afile").setContent(b"lalala")
 
         manager_node_id = unicode(uuid4())
-        new_name = VolumeName(namespace=u"myns", id=u"newvolume")
+        new_name = VolumeName(namespace=u"myns", dataset_id=u"newvolume")
 
         with filesystem.reader() as reader:
             service.receive(manager_node_id, new_name, reader)
@@ -555,7 +555,7 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        names = set(VolumeName(namespace=u"ns", id=i)
+        names = set(VolumeName(namespace=u"ns", dataset_id=i)
                     for i in (u"somevolume", u"anotherone", u"lastone"))
         expected = {
             self.successResultOf(service.create(service.get(name)))
@@ -575,7 +575,7 @@ class VolumeServiceAPITests(TestCase):
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
-        names = set(VolumeName(namespace=u"ns", id=i)
+        names = set(VolumeName(namespace=u"ns", dataset_id=i)
                     for i in (u"somevolume", u"anotherone", u"lastone"))
         expected = {
             self.successResultOf(service.create(service.get(name)))
@@ -595,7 +595,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         expected = self.successResultOf(service.create(
-            service.get(VolumeName(namespace=u"ns", id=u"some.volume"))))
+            service.get(VolumeName(namespace=u"ns", dataset_id=u"some.volume"))))
         actual = self.successResultOf(service.enumerate())
         self.assertEqual([expected], list(actual))
 
@@ -614,7 +614,7 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
 
-        name = VolumeName(namespace=u"mynspaces", id=u"good volume name")
+        name = VolumeName(namespace=u"mynspaces", dataset_id=u"good volume name")
         self.successResultOf(service.create(service.get(name)))
 
         volumes = list(self.successResultOf(service.enumerate()))
@@ -732,7 +732,7 @@ class VolumeInitializationTests(make_with_init_tests(
         Volume,
         kwargs={
             "node_id": u"abcd",
-            "name": VolumeName(namespace=u"xyz", id=u"123"),
+            "name": VolumeName(namespace=u"xyz", dataset_id=u"123"),
             "service": object(),
             "size": VolumeSize(maximum_size=54321),
         },
@@ -782,7 +782,8 @@ class VolumeTests(TestCase):
         v1 = Volume(
             node_id=u"123", name=MY_VOLUME, service=service, size=self.size)
         v2 = Volume(
-            node_id=u"123", name=VolumeName(namespace=u"mys", id=u"456zz"),
+            node_id=u"123", name=VolumeName(namespace=u"mys",
+                                            dataset_id=u"456zz"),
             service=service, size=self.size,
         )
         assert_not_equal_comparison(self, v1, v2)
@@ -826,7 +827,7 @@ class VolumeTests(TestCase):
         """
         service = create_volume_service(self)
         local = service.get(MY_VOLUME)
-        remote = Volume(uuid=service.uuid + u"extra", name=MY_VOLUME2,
+        remote = Volume(node_id=service.node_id + u"extra", name=MY_VOLUME2,
                         service=service)
         self.assertEqual((local.locally_owned(), remote.locally_owned()),
                          (True, False))

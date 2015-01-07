@@ -961,7 +961,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     activation_state=u'active')
         units = {unit.name: unit}
 
-        volume = Volume(uuid=unicode(uuid4()),
+        volume = Volume(node_id=unicode(uuid4()),
                         name=_to_volume_name(u"site-example.com"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))

@@ -23,18 +23,18 @@ from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
 
-def _to_volume_name(name):
+def _to_volume_name(dataset_id):
     """
     Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
     To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
     real namespace support.
 
-    :param unicode name: Volume name.
+    :param unicode dataset_id: Dataset ID.
 
     :return: ``VolumeName`` with default namespace.
     """
-    return VolumeName(namespace=u"default", id=name)
+    return VolumeName(namespace=u"default", dataset_id=dataset_id)
 
 
 class IStateChange(Interface):
