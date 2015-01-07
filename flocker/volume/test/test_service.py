@@ -86,7 +86,8 @@ class VolumeNameTests(TestCase):
         """
         ``VolumeName`` namespaces can't have a period.
         """
-        self.assertRaises(ValueError, VolumeName, namespace=u".x", dataset_id=u"y")
+        self.assertRaises(ValueError, VolumeName, namespace=u".x",
+                          dataset_id=u"y")
 
 
 class VolumeSizeInitializationTests(make_with_init_tests(
@@ -595,7 +596,8 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
         expected = self.successResultOf(service.create(
-            service.get(VolumeName(namespace=u"ns", dataset_id=u"some.volume"))))
+            service.get(VolumeName(namespace=u"ns",
+                                   dataset_id=u"some.volume"))))
         actual = self.successResultOf(service.enumerate())
         self.assertEqual([expected], list(actual))
 
@@ -614,7 +616,8 @@ class VolumeServiceAPITests(TestCase):
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
         service.startService()
 
-        name = VolumeName(namespace=u"mynspaces", dataset_id=u"good volume name")
+        name = VolumeName(namespace=u"mynspaces",
+                          dataset_id=u"good volume name")
         self.successResultOf(service.create(service.get(name)))
 
         volumes = list(self.successResultOf(service.enumerate()))
@@ -883,7 +886,8 @@ class VolumeOwnerChangeTests(TestCase):
         volume = self.successResultOf(
             self.service.create(self.service.get(MY_VOLUME))
         )
-        new_volume = self.successResultOf(volume.change_owner(self.other_node_id))
+        new_volume = self.successResultOf(
+            volume.change_owner(self.other_node_id))
         volumes = set(self.successResultOf(self.service.enumerate()))
         self.assertEqual({new_volume}, volumes)
 

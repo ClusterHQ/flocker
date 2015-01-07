@@ -2534,7 +2534,8 @@ class WaitForVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
         self.assertEqual(result,
-                         [VolumeName(namespace=u"default", id=u"myvol")])
+                         [VolumeName(namespace=u"default",
+                                     dataset_id=u"myvol")])
 
     def test_return(self):
         """

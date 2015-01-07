@@ -118,7 +118,7 @@ class VolumeService(Service):
             if not self._config_path.exists():
                 uuid = unicode(uuid4())
                 self._config_path.setContent(json.dumps({u"uuid": uuid,
-                                                         u"verssion": 1}))
+                                                         u"version": 1}))
         except OSError as e:
             raise CreateConfigurationError(e.args[1])
         config = json.loads(self._config_path.getContent())
