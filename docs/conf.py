@@ -149,7 +149,9 @@ html_theme_path = ['_themes']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-#html_title = None
+# Strip out "-123-34823498" stuff versioneer tacks on to versions, so
+# output in release branches looks OK:
+html_title = "{} v{} Documentation".format(project, version.split("-")[0])
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #html_short_title = None
