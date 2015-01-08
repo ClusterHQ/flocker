@@ -18,6 +18,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client,
 - a Vagrant base tutorial image and
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- an updated Homebrew recipe
 
 
 Prerequisites
@@ -38,7 +39,7 @@ Access
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
-
+- An OS X (most recent release) system.
 
 Preparing For a Release
 -----------------------
