@@ -68,8 +68,8 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git checkout -b release/${VERSION} origin/master
+      git push origin --set-upstream release/${VERSION}
 
 #. Back port features from master (optional)
 
@@ -107,7 +107,7 @@ Preparing For a Release
 
                 # Choose the tag of the last version with a "What's New" entry to compare the latest version to.
                 $ export OLD_VERSION=0.3.0
-                $ git log --first-parent ${OLD_VERSION}..release/flocker-${VERSION}
+                $ git log --first-parent ${OLD_VERSION}..release/${VERSION}
 
    .. code-block:: console
 
@@ -258,10 +258,10 @@ Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
       cd homebrew-tap-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git checkout -b release/${VERSION} origin/master
+      git push origin --set-upstream release/${VERSION}
       cd ../flocker-${VERSION}
-      git checkout release/flocker-${VERSION}
+      git checkout release/${VERSION}
 
 #. Create and activate the Flocker release virtual environment:
 
@@ -276,7 +276,7 @@ Release
 
    .. code-block:: console
 
-      git tag --annotate "${VERSION}" "release/flocker-${VERSION}" -m "Tag version ${VERSION}"
+      git tag --annotate "${VERSION}" "release/${VERSION}" -m "Tag version ${VERSION}"
       git push origin "${VERSION}"
 
 #. Go to the `BuildBot web status`_ and force a build on the tag.
@@ -337,7 +337,7 @@ Release
 
      .. code-block:: console
 
-        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
+        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
 
    - Make a pull request:
@@ -349,7 +349,7 @@ Release
    - Do not continue until the pull request is merged.
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
-#. Build tagged docs at Read the Docs:
+#. Build release branch docs at Read the Docs
 
    #. Force Read the Docs to reload the repository
 
@@ -361,7 +361,7 @@ Release
          curl -X POST http://readthedocs.org/build/flocker
 
    #. Go to the `Read the Docs dashboard Versions section`_.
-   #. Set the version being released to be "Active".
+   #. Set the branch (not the tag!) for the version being released to be "Active".
    #. Unset "Active" for each previous weekly release or pre-release of the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
@@ -372,7 +372,7 @@ Release
                    We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
                    Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
 
-      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the branch of the version being released, e.g. "releases/flocker-0.4.0".
+      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the branch of the version being released, e.g. "releases/0.4.0".
 
       - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the branch of the version being released.
 
