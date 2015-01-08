@@ -116,13 +116,17 @@ def get_resource_stanzas(dependency_graph):
         f = urlopen(url)
         pypi_information = load(f)
         f.close()
+        resource_added = False
         for release in pypi_information['urls']:
             if release['packagetype'] == 'sdist':
                 url = release['url']
+                resource_added = True
                 resources += resource_template.format(
                     project_name=project_name, url=release['url'],
                     checksum=get_checksum(url))
                 break
+        if not resource_added:
+            raise Exception("sdist package not found for " + name)
     return resources
 
 
