@@ -180,8 +180,16 @@
             {%- block document %}
                 <div class="span9">
                     <script>
-                        var release_re = /^[0-9]+\.[0-9]+\.[0-9]+$/
-                        if (!'{{ release }}'.match(release_re)) {
+                      {#
+                        The warning will appear in RTD for versions built
+                        off non-release branches, and any builds done
+                        elsewhere.
+                        github_version variable comes from:
+                        https://docs.readthedocs.org/en/latest/vcs.html
+                      #}
+                        var release_re = /^release\/[0-9]+\.[0-9]+\.[0-9]+$/
+                        var branch = '{{ github_version|default("unknown") }}'
+                        if (!branch.match(release_re)) {
                             document.write(
                     '<div class="admonition note"> \
                         <p class="last"> \
