@@ -17,7 +17,7 @@ from twisted.web.http import (
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._infrastructure import (
-    EndpointResponse, userDocumentation, structured)
+    EndpointResponse, user_documentation, structured)
 from .._logging import REQUEST
 from .._error import (
     ILLEGAL_CONTENT_TYPE_DESCRIPTION, DECODING_ERROR_DESCRIPTION,
@@ -535,16 +535,16 @@ class StructuredJSONTests(SynchronousTestCase):
 
 class UserDocumentationTests(SynchronousTestCase):
     """
-    Tests for L{userDocumentation}.
+    Tests for L{user_documentation}.
     """
 
     def test_decoration(self):
         """
-        Decorating a function with L{userDocumentation} sets the
-        C{userDocumentation} attribtue of the function to the passed
+        Decorating a function with L{user_documentation} sets the
+        C{user_documentation} attribtue of the function to the passed
         argument.
         """
-        @userDocumentation("Some text")
+        @user_documentation("Some text")
         def f():
             pass
         self.assertEqual(f.userDocumentation, "Some text")
