@@ -49,7 +49,7 @@ def get_checksum(url):
     """
     Given the URL of a file, download that file and return its sha1 hash.
 
-    :param unicode url: A URL of a file.
+    :param bytes url: A URL of a file.
 
     :return str checksum: The sha1 hash of the file at ``url``.
     """
@@ -112,7 +112,7 @@ def get_resource_stanzas(dependency_graph):
         requirement = node.dist.as_requirement()
         operator, version = requirement.specs[0]
         project_name = requirement.project_name
-        url = u"http://pypi.python.org/pypi/{name}/{version}/json".format(
+        url = b"http://pypi.python.org/pypi/{name}/{version}/json".format(
               name=project_name,
               version=version)
         f = urlopen(url)
@@ -138,7 +138,7 @@ def main():
     variable.
     """
     version = get_version()
-    url = (u"https://storage.googleapis.com/archive.clusterhq.com/"
+    url = (b"https://storage.googleapis.com/archive.clusterhq.com/"
            "downloads/flocker/Flocker-{version}.tar.gz").format(
                version=version)
 
