@@ -20,7 +20,7 @@ from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
     ResizeVolume, _link_environment, _to_volume_name)
-from .._model import AttachedVolume
+from .._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)
@@ -468,6 +468,7 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes the appropriate volume arguments to
         ``DockerClient.add`` based on the application's volume.
         """
+        DATASET_ID = u'2141324'
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
         deployer = Deployer(volume_service, fake_docker)
@@ -479,13 +480,16 @@ class StartApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
             links=frozenset(),
-            volume=AttachedVolume(name=application_name,
-                                  mountpoint=mountpoint))
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=DATASET_ID),
+                    primary=True),
+                mountpoint=mountpoint))
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
         filesystem = volume_service.get(
-            _to_volume_name(application_name)).get_filesystem()
+            _to_volume_name(DATASET_ID)).get_filesystem()
 
         self.assertEqual(
             frozenset([DockerVolume(node_path=filesystem.get_path(),
@@ -657,28 +661,48 @@ class StopApplicationTests(SynchronousTestCase):
 
 
 # This models an application that has a volume.
+
 APPLICATION_WITH_VOLUME_NAME = b"psql-clusterhq"
+# XXX For now we require volume names match application names,
+# see https://github.com/ClusterHQ/flocker/issues/49
+DATASET = Dataset(dataset_id=u"xcdsdsa-1234",
+                  metadata={u"name": APPLICATION_WITH_VOLUME_NAME})
 APPLICATION_WITH_VOLUME_MOUNTPOINT = b"/var/lib/postgresql"
 APPLICATION_WITH_VOLUME_IMAGE = u"clusterhq/postgresql:9.1"
 APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
     image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
+        manifestation=Manifestation(dataset=DATASET, primary=True),
+        mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+    ),
+    links=frozenset(),
+)
+DATASET_WITH_SIZE = Dataset(dataset_id=u"xcdsdsa-1234",
+                            metadata={
+                                u"name": APPLICATION_WITH_VOLUME_NAME},
+                            maximum_size=1024 * 1024 * 100)
+
+APPLICATION_WITH_VOLUME_SIZE = Application(
+    name=APPLICATION_WITH_VOLUME_NAME,
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+    volume=AttachedVolume(
+        manifestation=Manifestation(dataset=DATASET_WITH_SIZE,
+                                    primary=True),
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
 )
 
+# Discovery can't figure out dataset metadata; otherwise we expect this to be
+# the same as APPLICATION_WITH_VOLUME.
 DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     name=APPLICATION_WITH_VOLUME_NAME,
-    image=DockerImage.from_string(b"psql-clusterhq"),
+    image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
-        # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
-        name=APPLICATION_WITH_VOLUME_NAME,
+        manifestation=Manifestation(
+            dataset=Dataset(dataset_id=u"xcdsdsa-1234"),
+            primary=True),
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
     links=frozenset(),
@@ -833,12 +857,21 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         Locally owned volumes are added to ``Application`` with same name as
         an ``AttachedVolume``.
         """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume1'),
+                             node_path=volume1.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -848,19 +881,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume2'),
+                             node_path=volume2.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.com"))
-        ))
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.net"))
-        ))
 
         fake_docker = FakeDockerClient(units=units)
         applications = [
@@ -868,10 +894,14 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit.name,
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
-                    name=unit.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=respective_id),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data')
                     )
-            ) for unit in units.values()]
+            ) for (unit, respective_id) in [(unit1, DATASET_ID),
+                                            (unit2, DATASET_ID2)]]
         api = Deployer(
             self.volume_service,
             docker_client=fake_docker,
@@ -888,12 +918,24 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         an ``AttachedVolume``, which contains a maximum_size corresponding to
         the existing volume's maximum size.
         """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(
+                _to_volume_name(DATASET_ID),
+                size=VolumeSize(maximum_size=1024 * 1024 * 100)
+            )
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
         unit1 = Unit(name=u'site-example.com',
                      container_name=u'site-example.com',
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume1'),
+                             node_path=volume1.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
@@ -903,22 +945,12 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                      container_image=u"clusterhq/wordpress:latest",
                      volumes=frozenset(
                          [DockerVolume(
-                             node_path=FilePath(b'/tmp/volume2'),
+                             node_path=volume2.get_filesystem().get_path(),
                              container_path=FilePath(b'/var/lib/data')
                          )]
                      ),
                      activation_state=u'active')
         units = {unit1.name: unit1, unit2.name: unit2}
-
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(
-                _to_volume_name(u"site-example.com"),
-                size=VolumeSize(maximum_size=1024 * 1024 * 100)
-            )
-        ))
-        self.successResultOf(self.volume_service.create(
-            self.volume_service.get(_to_volume_name(u"site-example.net"))
-        ))
 
         fake_docker = FakeDockerClient(units=units)
 
@@ -927,16 +959,22 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 name=unit1.name,
                 image=DockerImage.from_string(unit1.container_image),
                 volume=AttachedVolume(
-                    name=unit1.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID,
+                                        maximum_size=1024 * 1024 * 100),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data'),
-                    maximum_size=1024 * 1024 * 100
                     )
             ),
             Application(
                 name=unit2.name,
                 image=DockerImage.from_string(unit2.container_image),
                 volume=AttachedVolume(
-                    name=unit2.name,
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=DATASET_ID2),
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b'/var/lib/data'),
                     )
             )]
@@ -953,7 +991,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     def test_discover_remotely_owned_volumes_ignored(self):
         """
         Remotely owned volumes are not added to the discovered ``Application``
-        instances even if they have the same name.
+        instances.
         """
         unit = Unit(name=u'site-example.com',
                     container_name=u'site-example.com',
@@ -961,8 +999,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     activation_state=u'active')
         units = {unit.name: unit}
 
-        volume = Volume(uuid=unicode(uuid4()),
-                        name=_to_volume_name(u"site-example.com"),
+        volume = Volume(node_id=unicode(uuid4()),
+                        name=_to_volume_name(u"xxxx1234"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
 
@@ -1336,10 +1374,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         changes = self.successResultOf(calculating)
 
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT
-        )
+        volume = APPLICATION_WITH_VOLUME.volume
+
         expected = Sequentially(changes=[
             InParallel(changes=[CreateVolume(volume=volume)]),
             InParallel(changes=[StartApplication(
@@ -1389,10 +1425,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = self.successResultOf(calculating)
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-        )
+        volume = APPLICATION_WITH_VOLUME.volume
+
         expected = Sequentially(changes=[
             InParallel(changes=[WaitForVolume(volume=volume)]),
             InParallel(changes=[ResizeVolume(volume=volume)]),
@@ -1449,10 +1483,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         changes = self.successResultOf(calculating)
 
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-        )
+        volume = APPLICATION_WITH_VOLUME.volume,
 
         expected = Sequentially(changes=[
             InParallel(changes=[PushVolume(
@@ -1530,22 +1561,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         """
         ``Deployer.calculate_necessary_state_changes`` specifies that a volume
         will be resized if an application which was previously running on this
-        node continues to run on this node but specifies a volume maximum_size
-        that differs to the existing volume size. The Application will also be
+        node continues to run on this node but specifies a dataset maximum_size
+        that differs to the existing dataset size. The Application will also be
         restarted.
         """
-        APPLICATION_WITH_VOLUME_SIZE = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=APPLICATION_WITH_VOLUME_NAME,
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                maximum_size=1024 * 1024 * 100,
-            ),
-            links=frozenset(),
-        )
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
@@ -1597,9 +1616,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         expected = Sequentially(changes=[
             InParallel(
                 changes=[ResizeVolume(
-                    volume=AttachedVolume(name='psql-clusterhq',
-                                          mountpoint='/var/lib/postgresql',
-                                          maximum_size=104857600)
+                    volume=APPLICATION_WITH_VOLUME_SIZE.volume,
                     )]
             ),
             InParallel(
@@ -1621,18 +1638,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         maximum_size that differs to the existing volume size. The volume will
         be resized before moving.
         """
-        APPLICATION_WITH_VOLUME_SIZE = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=APPLICATION_WITH_VOLUME_NAME,
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                maximum_size=1024 * 1024 * 100,
-            ),
-            links=frozenset(),
-        )
         unit = Unit(
             name=APPLICATION_WITH_VOLUME_NAME,
             container_name=APPLICATION_WITH_VOLUME_NAME,
@@ -1688,21 +1693,17 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             hostname=u"node1.example.com",
         )
 
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume
+
         changes = self.successResultOf(calculating)
         # expected is: resize volume, push, stop application, handoff
         expected = Sequentially(changes=[
             InParallel(
-                changes=[ResizeVolume(
-                    volume=AttachedVolume(name='psql-clusterhq',
-                                          mountpoint='/var/lib/postgresql',
-                                          maximum_size=104857600)
-                    )]
+                changes=[ResizeVolume(volume)],
             ),
             InParallel(
                 changes=[PushVolume(
-                    volume=AttachedVolume(name='psql-clusterhq',
-                                          mountpoint='/var/lib/postgresql',
-                                          maximum_size=104857600),
+                    volume=volume,
                     hostname=u'node2.example.com')]
             ),
             InParallel(
@@ -1712,9 +1713,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             ),
             InParallel(
                 changes=[HandoffVolume(
-                    volume=AttachedVolume(name='psql-clusterhq',
-                                          mountpoint='/var/lib/postgresql',
-                                          maximum_size=104857600),
+                    volume=volume,
                     hostname=u'node2.example.com')]
             )])
         self.assertEqual(expected, changes)
@@ -1727,18 +1726,6 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         maximum_size that differs to the existing volume size. The volume on
         the new target node will be resized after it has been received.
         """
-        APPLICATION_WITH_VOLUME_SIZE = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=APPLICATION_WITH_VOLUME_NAME,
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-                maximum_size=1024 * 1024 * 100,
-            ),
-            links=frozenset(),
-        )
         docker = FakeDockerClient(units={})
 
         node = Node(
@@ -1771,11 +1758,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         changes = self.successResultOf(calculating)
-        volume = AttachedVolume(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            maximum_size=1024 * 1024 * 100
-        )
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume,
+
         expected = Sequentially(changes=[
             InParallel(changes=[WaitForVolume(volume=volume)]),
             InParallel(changes=[ResizeVolume(volume=volume)]),
@@ -1859,28 +1843,22 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             container_image=APPLICATION_WITH_VOLUME_IMAGE,
         )
         docker = FakeDockerClient(units={unit.name: unit})
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=Dataset(dataset_id=u"jalkjlk"),
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
 
         another_application = Application(
             name=u"another",
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.1'),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=u"another",
-                mountpoint=FilePath(b"/blah"),
-            ),
+            volume=volume,
             links=frozenset(),
         )
         discovered_another_application = Application(
             name=u"another",
             image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
-            volume=AttachedVolume(
-                # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
-                name=u"another",
-                mountpoint=FilePath(b"/blah"),
-            )
+            volume=volume,
         )
 
         node = Node(
@@ -2534,7 +2512,8 @@ class WaitForVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
         self.assertEqual(result,
-                         [VolumeName(namespace=u"default", id=u"myvol")])
+                         [VolumeName(namespace=u"default",
+                                     dataset_id=u"myvol")])
 
     def test_return(self):
         """

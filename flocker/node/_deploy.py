@@ -14,7 +14,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage, Port, Link
+    NodeState, DockerImage, Port, Link, Manifestation, Dataset
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -23,18 +23,18 @@ from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
 
-def _to_volume_name(name):
+def _to_volume_name(dataset_id):
     """
     Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
     To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
     real namespace support.
 
-    :param unicode name: Volume name.
+    :param unicode dataset_id: Dataset ID.
 
     :return: ``VolumeName`` with default namespace.
     """
-    return VolumeName(namespace=u"default", id=name)
+    return VolumeName(namespace=u"default", dataset_id=dataset_id)
 
 
 class IStateChange(Interface):
@@ -106,7 +106,8 @@ class StartApplication(object):
         volumes = []
         if application.volume is not None:
             volume = deployer.volume_service.get(
-                _to_volume_name(application.volume.name))
+                _to_volume_name(
+                    application.volume.manifestation.dataset.dataset_id))
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
                 node_path=volume.get_filesystem().get_path()))
@@ -331,25 +332,38 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            managed_volumes = dict()
+            primary_manifestations = {}
             for volume in volumes:
-                if volume.uuid == self.volume_service.uuid:
-                    managed_volumes[volume.name.id] = volume.size.maximum_size
-            return managed_volumes
+                if volume.node_id == self.volume_service.node_id:
+                    # FLOC-1181 non-primaries should be added in too
+                    path = volume.get_filesystem().get_path()
+                    primary_manifestations[path] = (
+                        volume.name.dataset_id, volume.size.maximum_size)
+            return primary_manifestations
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
-            units, available_volumes = result
+            units, available_manifestations = result
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
-                if unit.name in available_volumes:
-                    # XXX we only support one volume per container at this time
-                    # https://github.com/ClusterHQ/flocker/issues/49
-                    volume = AttachedVolume.from_unit(unit).pop()
-                    volume.maximum_size = available_volumes[unit.name]
+                if unit.volumes:
+                    # XXX https://clusterhq.atlassian.net/browse/FLOC-49
+                    # we only support one volume per container
+                    # at this time
+                    # XXX https://clusterhq.atlassian.net/browse/FLOC-773
+                    # we assume all volumes are datasets
+                    docker_volume = list(unit.volumes)[0]
+                    dataset_id, max_size = available_manifestations[
+                        docker_volume.node_path]
+                    volume = AttachedVolume(
+                        manifestation=Manifestation(
+                            dataset=Dataset(dataset_id=dataset_id,
+                                            maximum_size=max_size),
+                            primary=True),
+                        mountpoint=docker_volume.container_path)
                 else:
                     volume = None
                 ports = []
@@ -390,7 +404,9 @@ class Deployer(object):
             return NodeState(
                 running=running,
                 not_running=not_running,
-                used_ports=self.network.enumerate_used_ports()
+                used_ports=self.network.enumerate_used_ports(),
+                # FLOC-1181 will want to add here the manifestations that
+                # are not attached to any application.
             )
         d.addCallback(applications_from_units)
         return d
@@ -599,6 +615,11 @@ def find_volume_changes(hostname, current_state, desired_state):
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
     """
+    # XXX would be updated to deal with datasets/manifestations in
+    # calculation.  Among other issues, this or some previous function
+    # need to deal with the fact that the desired state may well lack
+    # UUIDs for many of the datasets, and they will need to be looked
+    # up/generated as necessary.
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
                                           if application.volume)
