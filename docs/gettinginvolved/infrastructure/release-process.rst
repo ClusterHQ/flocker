@@ -13,11 +13,12 @@ Outcomes
 
 By the end of the release process we will have:
 
-- a tag in version control,
+- a branch in version control (used to build docs),
+- a tag in version control (used to build the the software),
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
 - a Vagrant base tutorial image and
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_ based off the branch.
 
 
 Prerequisites
@@ -364,16 +365,16 @@ Release
    #. Unset "Active" for each previous weekly release or pre-release of the version being released.
    #. Wait for the documentation to build.
       The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version and latest version to that version:
+   #. Set the default version and latest version to the release branch (not the tag!):
 
       .. warning:: Skip this step for weekly releases and pre-releases.
                    The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
                    We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
                    Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
 
-      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the version being released.
+      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the branch of the version being released, e.g. "releases/flocker-0.4.0".
 
-      - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
+      - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the branch of the version being released.
 
       - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
         Wait for the new HTML build to pass.
@@ -428,7 +429,7 @@ Post-Release Review Process
    * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
-
+   Do **not** delete the branch upon merge.
 
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
