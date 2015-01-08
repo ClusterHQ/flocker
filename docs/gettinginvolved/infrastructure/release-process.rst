@@ -18,6 +18,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client,
 - a Vagrant base tutorial image and
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- an updated Homebrew recipe
 
 
 Prerequisites
@@ -37,8 +38,8 @@ Access
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 - Access to `Google Cloud Storage`_ using `gsutil`_.
-- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_.
-
+- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
+- An OS X (most recent release) system.
 
 Preparing For a Release
 -----------------------
@@ -50,7 +51,7 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being created as an environment variable for later use:
 
    .. code-block:: console
 
@@ -172,16 +173,19 @@ This review step is to ensure that all acceptance tests pass on the release bran
 .. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
             **not** on a :doc:`Flocker development machine <vagrant>`.
 
+#. Export the version number of the release being reviewed as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
+
 #. Do the acceptance tests:
 
    - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
-     The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH>/flocker-tutorial.json``.
-
      .. code-block:: console
 
-        vagrant box add <URL>
+        vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
 
      You should now see the ``flocker-tutorial`` box listed:
 
@@ -199,10 +203,10 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      .. code-block:: console
 
-        git clone git@github.com:ClusterHQ/flocker.git
-        cd flocker
-        git checkout -b *release branch*
-        mkvirtualenv flocker-release-${VERSION}
+        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+        cd "flocker-${VERSION}"
+        git checkout "release/flocker-${VERSION}"
+        mkvirtualenv "flocker-release-${VERSION}"
         pip install --editable .[dev]
 
    - Install `PhantomJS`_:
@@ -244,7 +248,7 @@ Release
 
                 vagrant ssh -- -A
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being completed as an environment variable for later use:
 
    .. code-block:: console
 
@@ -432,8 +436,6 @@ Post-Release Review Process
 
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
-.. _back-porting-changes:
-
 
 Improving the Release Process
 -----------------------------
@@ -441,6 +443,9 @@ Improving the Release Process
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.
 The issue(s) for the planned improvements should be put into the next sprint.
+
+
+.. _back-porting-changes:
 
 
 Appendix: Back Porting Changes From Master
