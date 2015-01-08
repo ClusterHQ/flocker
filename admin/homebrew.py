@@ -27,7 +27,9 @@ def get_dependency_graph(application):
     """
     dependency_graph = Graph()
     dependency_graph.from_specifications([application])
-    dependency_graph.pop(application, None)
+    # We don't want flocker to require flocker, so we pop "application" out
+    # of the graph
+    dependency_graph.pop(application)
     return dependency_graph
 
 
