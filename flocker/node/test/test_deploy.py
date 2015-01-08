@@ -468,6 +468,7 @@ class StartApplicationTests(SynchronousTestCase):
         ``StartApplication.run()`` passes the appropriate volume arguments to
         ``DockerClient.add`` based on the application's volume.
         """
+        DATASET_ID = u'2141324'
         volume_service = create_volume_service(self)
         fake_docker = FakeDockerClient()
         deployer = Deployer(volume_service, fake_docker)
@@ -479,13 +480,16 @@ class StartApplicationTests(SynchronousTestCase):
             image=DockerImage(repository=u'clusterhq/postgresql',
                               tag=u'9.3.5'),
             links=frozenset(),
-            volume=AttachedVolume(name=application_name,
-                                  mountpoint=mountpoint))
+            volume=AttachedVolume(
+                manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=DATASET_ID),
+                    primary=True),
+                mountpoint=mountpoint))
 
         StartApplication(application=application,
                          hostname="node1.example.com").run(deployer)
         filesystem = volume_service.get(
-            _to_volume_name(application_name)).get_filesystem()
+            _to_volume_name(DATASET_ID)).get_filesystem()
 
         self.assertEqual(
             frozenset([DockerVolume(node_path=filesystem.get_path(),

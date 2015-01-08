@@ -106,7 +106,8 @@ class StartApplication(object):
         volumes = []
         if application.volume is not None:
             volume = deployer.volume_service.get(
-                _to_volume_name(application.volume.name))
+                _to_volume_name(
+                    application.volume.manifestation.dataset.dataset_id))
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
                 node_path=volume.get_filesystem().get_path()))
