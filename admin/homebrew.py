@@ -149,7 +149,7 @@ class {class_name} < Formula
   url "{url}"
   sha1 "{sha1}"
   depends_on :python if MacOS.version <= :snow_leopard
-  {resources}
+{resources}
   def install
     ENV.prepend_create_path "PYTHONPATH", "#{{libexec}}/vendor/lib/python2.7/site-packages"
     %w[{dependencies}].each do |r|
