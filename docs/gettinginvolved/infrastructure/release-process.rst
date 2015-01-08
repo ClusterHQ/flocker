@@ -202,8 +202,8 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      .. code-block:: console
 
-        git clone git@github.com:ClusterHQ/flocker.git
-        cd flocker
+        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+        cd "flocker-${VERSION}"
         git checkout "release/flocker-${VERSION}"
         mkvirtualenv "flocker-release-${VERSION}"
         pip install --editable .[dev]
