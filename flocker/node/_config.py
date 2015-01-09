@@ -1190,9 +1190,12 @@ class FlockerConfiguration(object):
             self._applications[application_name] = Application(**attributes)
 
 
-def deployment_from_configuration(deployment_configuration, all_applications):
+def _apply_deployment_to_applications(
+        deployment_configuration, all_applications):
     """
-    Validate and parse a given deployment configuration.
+    Validate and parse a given deployment configuration, and use that and
+    applications to create corresponding ``Node`` objects describing which
+    application runs where.
 
     :param dict deployment_configuration: The intermediate configuration
         representation to load into ``Node`` instances.  See
@@ -1245,35 +1248,50 @@ def deployment_from_configuration(deployment_configuration, all_applications):
     return set(nodes)
 
 
-def model_from_configuration(applications, deployment_configuration):
+def parse_desired_configuration(application_configuration,
+                                deployment_configuration):
     """
     Validate and coerce the supplied application configuration and
     deployment configuration dictionaries into a ``Deployment`` instance.
 
-    :param dict applications: Map of application names to ``Application``
-        instances.
+    These dictionaries are parsed from the YAML files passed to
+    ``flocker-deploy``.
 
-    :param dict deployment_configuration: Map of node names to application
-        names.
+    :param dict applications: Marshalled application configuration as
+         passed to ``flocker-deploy``.
+
+    :param dict deployment_configuration: Marshalled deployment
+         configuration as passed to ``flocker-deploy``.
 
     :raises ConfigurationError: if there are validation errors.
 
     :returns: A ``Deployment`` object.
     """
-    nodes = deployment_from_configuration(
+    fig_configuration = FigConfiguration(application_configuration)
+    if fig_configuration.is_valid_format():
+        applications = fig_configuration.applications()
+    else:
+        configuration = FlockerConfiguration(application_configuration)
+        if configuration.is_valid_format():
+            applications = configuration.applications()
+        else:
+            raise ConfigurationError(
+                "Configuration is not a valid Fig or Flocker format.")
+
+    nodes = _apply_deployment_to_applications(
         deployment_configuration, applications)
     return Deployment(nodes=frozenset(nodes))
 
 
-def current_from_configuration(current_configuration):
+def parse_current_cluster_state(current_cluster_state):
     """
-    Validate and coerce the supplied current cluster configuration into a
-    ``Deployment`` instance.
+    Validate and coerce the supplied marshalled deployment state (in
+    simple Python types) into a ``Deployment`` instance.
 
     The passed in configuration is the aggregated output of
-    ``marshal_configuration`` as combined by ``flocker-deploy``.
+    ``marshal_node_state`` as combined by ``flocker-deploy``.
 
-    :param dict current_configuration: Map of node names to list of
+    :param dict current_cluster_state: Map of node names to list of
         application maps.
 
     :raises ConfigurationError: if there are validation errors.
@@ -1281,7 +1299,7 @@ def current_from_configuration(current_configuration):
     :returns: A ``Deployment`` object.
     """
     nodes = []
-    for hostname, applications in current_configuration.items():
+    for hostname, applications in current_cluster_state.items():
         configuration = FlockerConfiguration(applications)
         node_applications = configuration.applications()
         nodes.append(Node(hostname=hostname,
@@ -1289,14 +1307,14 @@ def current_from_configuration(current_configuration):
     return Deployment(nodes=frozenset(nodes))
 
 
-def marshal_configuration(state):
+def marshal_node_state(state):
     """
-    Generate representation of a node's applications using only simple Python
-    types.
+    Generate representation of a node's current node state using
+    only simple Python types.
 
-    :param NodeState state: The configuration state to marshal.
+    :param NodeState state: The deployment state to marshal.
 
-    :return: An object representing the node configuration in a structure
+    :return: An object representing the node's deployment state  in a structure
         roughly compatible with the configuration file format.  Only "simple"
         (easily serialized) Python types will be used: ``dict``, ``list``,
         ``int``, ``unicode``, etc.

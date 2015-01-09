@@ -27,8 +27,8 @@ from ..volume.httpapi import create_api_service
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner)
-from . import (ConfigurationError, model_from_configuration, Deployer,
-               FlockerConfiguration, current_from_configuration)
+from . import (ConfigurationError, parse_current_cluster_state, Deployer,
+               parse_desired_configuration)
 
 __all__ = [
     "flocker_changestate_main",
@@ -112,10 +112,8 @@ class ChangeStateOptions(Options):
             )
 
         try:
-            configuration = FlockerConfiguration(application_config)
-            parsed_applications = configuration.applications()
-            self['deployment'] = model_from_configuration(
-                applications=parsed_applications,
+            self['deployment'] = parse_desired_configuration(
+                application_conifugration=application_config,
                 deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(
@@ -124,7 +122,7 @@ class ChangeStateOptions(Options):
             )
         # Current configuration is not written by a human, so don't bother
         # with nice error for failure to parse:
-        self["current"] = current_from_configuration(current_config)
+        self["current"] = parse_current_cluster_state(current_config)
 
 
 @implementer(ICommandLineVolumeScript)
