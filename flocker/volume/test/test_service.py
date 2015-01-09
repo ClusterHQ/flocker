@@ -617,7 +617,7 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
 
         name = VolumeName(namespace=u"mynspaces",
-                          dataset_id=u"good volume name")
+                          dataset_id=u"good_volume_name")
         self.successResultOf(service.create(service.get(name)))
 
         volumes = list(self.successResultOf(service.enumerate()))
