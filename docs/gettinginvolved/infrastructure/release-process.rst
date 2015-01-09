@@ -409,27 +409,9 @@ Post-Release Review Process
 
      XXX: This step should be automated. See `FLOC-1039 <https://clusterhq.atlassian.net/browse/FLOC-1039>`_.
 
-   * The node package (``flocker-node``) should be installed on all supported platforms.
-     You can use vagrant to boot a clean Fedora 20 machine as follows:
+   * The node package (``flocker-node``) should be installed and tested on all supported platforms.
 
-     .. code-block:: console
-
-        mkdir /tmp/fedora20
-        cd /tmp/fedora20
-        vagrant init clusterhq/fedora20-updated
-        vagrant up
-        vagrant ssh
-
-     Follow the :ref:`Flocker node installation documentation<installing-flocker-node>`.
-
-     XXX: These steps should be automated. See (
-     `FLOC-965 <https://clusterhq.atlassian.net/browse/FLOC-965>`_,
-     `FLOC-957 <https://clusterhq.atlassian.net/browse/FLOC-957>`_,
-     `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
-     ).
-
-   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+     XXX: Describe how to use ``./admin/run-acceptance-tests`` to run acceptance tests on Vagrant, Rackspace, AWS and DigitalOcean.
 
 #. Merge the release pull request.
 
