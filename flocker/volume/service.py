@@ -257,6 +257,7 @@ class VolumeService(Service):
                 try:
                     node_id, name = basename.split(b".", 1)
                     name = VolumeName.from_bytes(name)
+                    # We convert to a UUID object for validation purposes:
                     UUID(node_id)
                 except ValueError:
                     # ValueError may happen because:
