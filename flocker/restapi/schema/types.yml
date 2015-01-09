@@ -8,11 +8,8 @@ definitions:
 
     type: object
     properties:
-      name:
-        type: string
-      revision:
+      version:
         type: string
     required:
-      - name
-      - revision
+      - version
     additionalProperties: false
