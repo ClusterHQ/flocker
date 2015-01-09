@@ -10,21 +10,24 @@ from twisted.application.internet import StreamServerEndpointService
 from klein import Klein
 
 from ..restapi import structured
+from .. import __version__
 
-
-class DatasetAPIUser(object):
+class DatasetAPIUserV1(object):
     """
     A user accessing the API.
     """
     app = Klein()
 
-    @app.route("/noop")
-    @structured({}, {})
-    def noop(self):
+    @app.route("/version")
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
+    )
+    def version(self, request):
         """
         Do nothing.
         """
-        return None
+        return {"flocker": __version__}
 
 
 def create_api_service(endpoint):
@@ -33,4 +36,6 @@ def create_api_service(endpoint):
     """
     # FLOC-1162 should add an API version prefix and integration with
     # DatasetAPIUser.
-    return StreamServerEndpointService(endpoint, Site(Resource()))
+    api_root = Resource()
+    api_root.putChild('v1', DatasetAPIUserV1().app.resource())
+    return StreamServerEndpointService(endpoint, Site(api_root))
