@@ -46,7 +46,7 @@ class DatasetAPIUserV1(object):
     )
     def version(self):
         """
-        Do nothing.
+        Return the ``flocker`` version string.
         """
         return {u"flocker":  __version__}
 
@@ -55,8 +55,6 @@ def create_api_service(endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
     """
-    # FLOC-1162 should add an API version prefix and integration with
-    # DatasetAPIUser.
     api_root = Resource()
     api_root.putChild('v1', DatasetAPIUserV1().app.resource())
     return StreamServerEndpointService(endpoint, Site(api_root))
