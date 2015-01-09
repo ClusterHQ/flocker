@@ -200,8 +200,8 @@ class CreateVolume(object):
     """
     def run(self, deployer):
         volume = deployer.volume_service.get(
-            name=_to_volume_name(self.volume.name),
-            size=VolumeSize(maximum_size=self.volume.maximum_size)
+            name=_to_volume_name(self.volume.dataset.dataset_id),
+            size=VolumeSize(maximum_size=self.volume.dataset.maximum_size)
         )
         return deployer.volume_service.create(volume)
 

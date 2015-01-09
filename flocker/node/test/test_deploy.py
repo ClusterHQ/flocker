@@ -2432,12 +2432,11 @@ class CreateVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        create = CreateVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        volume = APPLICATION_WITH_VOLUME.volume
+        create = CreateVolume(volume=volume)
         create.run(deployer)
         self.assertIn(
-            volume_service.get(_to_volume_name(u"myvol")),
+            volume_service.get(_to_volume_name(volume.dataset.dataset_id)),
             list(self.successResultOf(volume_service.enumerate())))
 
     def test_creates_respecting_size(self):
@@ -2446,23 +2445,21 @@ class CreateVolumeTests(SynchronousTestCase):
         instance respecting the maximum_size passed in from the
         ``AttachedVolume``.
         """
-        EXPECTED_SIZE_BYTES = 100000000
+        EXPECTED_SIZE_BYTES = 1024 * 1024 * 100
         EXPECTED_SIZE = VolumeSize(maximum_size=EXPECTED_SIZE_BYTES)
 
         volume_service = create_volume_service(self)
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        create = CreateVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var"),
-                                  maximum_size=EXPECTED_SIZE_BYTES))
+        volume = APPLICATION_WITH_VOLUME_SIZE.volume
+        create = CreateVolume(volume=volume)
         create.run(deployer)
         enumerated_volumes = list(
             self.successResultOf(volume_service.enumerate())
         )
         expected_volume = volume_service.get(
-            _to_volume_name(u"myvol"), size=EXPECTED_SIZE
+            _to_volume_name(volume.dataset.dataset_id), size=EXPECTED_SIZE
         )
         self.assertIn(expected_volume, enumerated_volumes)
         self.assertEqual(expected_volume.size, EXPECTED_SIZE)
@@ -2475,12 +2472,11 @@ class CreateVolumeTests(SynchronousTestCase):
         deployer = Deployer(create_volume_service(self),
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        create = CreateVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        volume = APPLICATION_WITH_VOLUME.volume
+        create = CreateVolume(volume=volume)
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
-            _to_volume_name(u"myvol")))
+            _to_volume_name(volume.dataset.dataset_id)))
 
 
 class WaitForVolumeTests(SynchronousTestCase):
