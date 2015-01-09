@@ -286,7 +286,7 @@ class AsyncStopService(Service):
         return self.stop_result
 
 
-class main_for_serviceMainTests(SynchronousTestCase):
+class MainForServiceTests(SynchronousTestCase):
     """
     Tests for ``main_for_service``.
     """
