@@ -246,7 +246,7 @@ class GenericDockerClientTests(TestCase):
         response.
 
         XXX: We should use a stable internal container instead. See
-        https://github.com/hybridlogic/flocker/issues/120
+        https://clusterhq.atlassian.net/browse/FLOC-120
 
         XXX: The busybox-http-app returns headers in the body of its response,
         hence this over complicated custom assertion. See
