@@ -206,10 +206,19 @@ def aws_runner(config, **kwargs):
     return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
 
+def digitalocean_runner(config, **kwargs):
+    """
+    # Load DO config
+    # Load digitalocean_provisioner
+    # Supply to LibcloudRunner
+    """
+
+
 PROVIDERS = {
     'vagrant': VagrantRunner,
     'rackspace': rackspace_runner,
     'aws': aws_runner,
+    # digitalocean_runner
 }
 
 
@@ -222,6 +231,7 @@ class RunOptions(Options):
          'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
+         #DO and maybe use PROVIDERS to generate this list
          'One of vagrant, rackspace.'],
         ['config-file', None, None,
          'Configuration for providers.'],
