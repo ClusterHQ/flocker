@@ -8,4 +8,5 @@ from ._infrastructure import (
     structured, EndpointResponse, user_documentation,
     )
 
+
 __all__ = ["structured", "EndpointResponse", "user_documentation"]
