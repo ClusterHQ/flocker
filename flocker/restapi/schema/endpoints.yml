@@ -1,0 +1,7 @@
+$schema: http://json-schema.org/draft-04/schema#
+id: http://api.clusterhq.com/v1/endpoints.json
+definitions:
+  versions:
+    type: object
+    additionalProperties:
+      '$ref': 'types.json#/definitions/version'
