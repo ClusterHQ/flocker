@@ -25,7 +25,7 @@ from ..common import gather_deferreds
 
 def _to_volume_name(dataset_id):
     """
-    Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
+    Convert dataset ID to ``VolumeName`` with ``u"default"`` namespace.
 
     To be replaced in https://clusterhq.atlassian.net/browse/FLOC-737 with
     real namespace support.
