@@ -342,7 +342,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
@@ -356,7 +356,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
@@ -369,7 +369,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
@@ -573,7 +573,7 @@ class DockerImageBuilder(object):
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
         # so it would be better to send it to the test.log file. See
-        # https://github.com/ClusterHQ/flocker/issues/171
+        # https://clusterhq.atlassian.net/browse/FLOC-171
         command = [
             b'docker', b'build',
             # Always clean up intermediate containers in case of failures.
@@ -582,7 +582,7 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         check_call(command)
-        # XXX until https://github.com/ClusterHQ/flocker/issues/409 is
+        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
         # fixed we will often have a container lying around which is still
         # using the new image, so removing the image will fail.
         # self.test.addCleanup(check_call, [b"docker", b"rmi", tag])

@@ -9,7 +9,7 @@ from subprocess import Popen
 
 from ..testtools import loop_until
 
-# This is terible (https://github.com/ClusterHQ/flocker/issues/85):
+# This is terible (https://clusterhq.atlassian.net/browse/FLOC-85):
 if_docker_configured = skipIf(Popen([b"docker", b"version"]).wait(),
                               "Docker must be installed and running.")
 

@@ -19,7 +19,7 @@ class IFilesystemSnapshots(Interface):
     Support creating and listing snapshots of a specific filesystem.
 
     Sort of silly, at the moment, since we don't yet have structured
-    representation (https://github.com/ClusterHQ/flocker/issues/668).
+    representation (https://clusterhq.atlassian.net/browse/FLOC-668).
     """
 
     def create(name):

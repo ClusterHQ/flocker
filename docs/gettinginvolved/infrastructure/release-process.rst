@@ -18,6 +18,7 @@ By the end of the release process we will have:
 - Fedora 20 RPMs for software on the node and client,
 - a Vagrant base tutorial image and
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+- an updated Homebrew recipe
 
 
 Prerequisites
@@ -37,8 +38,8 @@ Access
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 - Access to `Google Cloud Storage`_ using `gsutil`_.
-- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_.
-
+- A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
+- An OS X (most recent release) system.
 
 Preparing For a Release
 -----------------------
@@ -50,7 +51,7 @@ Preparing For a Release
 
    The version number must adhere to :ref:`the Flocker version numbering policy <version-numbers>`.
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being created as an environment variable for later use:
 
    .. code-block:: console
 
@@ -172,16 +173,19 @@ This review step is to ensure that all acceptance tests pass on the release bran
 .. warning:: This process requires ``Vagrant`` and should be performed on your own workstation;
             **not** on a :doc:`Flocker development machine <vagrant>`.
 
+#. Export the version number of the release being reviewed as an environment variable for later use:
+
+   .. code-block:: console
+
+      export VERSION=0.1.2
+
 #. Do the acceptance tests:
 
    - Add the tutorial vagrant box that BuildBot has created from the release branch.
 
-     The URL can be found by examining the "upload-base-box" step of the ``flocker-vagrant-tutorial-box`` builder.
-     The URL will look like ``http://build.clusterhq.com/results/vagrant/<RELEASE_BRANCH>/flocker-tutorial.json``.
-
      .. code-block:: console
 
-        vagrant box add <URL>
+        vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
 
      You should now see the ``flocker-tutorial`` box listed:
 
@@ -199,10 +203,10 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
      .. code-block:: console
 
-        git clone git@github.com:ClusterHQ/flocker.git
-        cd flocker
-        git checkout -b *release branch*
-        mkvirtualenv flocker-release-${VERSION}
+        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
+        cd "flocker-${VERSION}"
+        git checkout "release/flocker-${VERSION}"
+        mkvirtualenv "flocker-release-${VERSION}"
         pip install --editable .[dev]
 
    - Install `PhantomJS`_:
@@ -244,21 +248,25 @@ Release
 
                 vagrant ssh -- -A
 
-#. Export the version number as an environment variable for later use:
+#. Export the version number of the release being completed as an environment variable for later use:
 
    .. code-block:: console
 
       export VERSION=0.1.2
 
-#. Create a clean, local copy of the Flocker release branch with no modifications:
+#. Create a clean, local copy of the Flocker and `homebrew-tap`_ release branches with no modifications:
 
    .. code-block:: console
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-      cd flocker-${VERSION}
+      git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
+      cd homebrew-tap-${VERSION}
+      git checkout -b release/flocker-${VERSION} origin/master
+      git push origin --set-upstream release/flocker-${VERSION}
+      cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
-#. Create (if necessary) and activate the Flocker release virtual environment:
+#. Create and activate the Flocker release virtual environment:
 
    .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
 
@@ -312,50 +320,19 @@ Release
                 **not** on a :doc:`Flocker development machine <vagrant>`.
                 This means that ``gsutil`` must be installed and configured on your workstation.
 
-#. Update the Homebrew recipe
+#. Create a version specific ``Homebrew`` recipe for this release:
 
-   The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
+   XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
-   - Checkout the `homebrew-tap`_ repository:
-
-     .. code-block:: console
-
-        git clone git@github.com:ClusterHQ/homebrew-tap.git
-
-   - Create a release branch:
+   - Create a recipe file and push it to the `homebrew-tap`_ repository:
 
      .. code-block:: console
 
-        git checkout -b release/flocker-${VERSION} origin/master
-        git push origin --set-upstream release/flocker-${VERSION}
-
-   - Create a ``flocker-${VERSION}.rb`` file by copying the last recipe file and renaming it for this release.
-
-   - Update recipe file:
-
-     - Update the version number:
-
-       The version number is included in the class name with all dots and dashes removed.
-       e.g. ``class Flocker012 < Formula`` for Flocker-0.1.2
-
-     - Update the URL:
-
-       The version number is also included in the ``url`` part of the recipe.
-
-     - Update the ``sha1`` checksum. Retrieve it with ``sha1sum``:
-
-       .. code-block:: console
-
-          sha1sum "dist/Flocker-${VERSION}.tar.gz"
-          ed03a154c2fdcd19eca471c0e22925cf0d3925fb  dist/Flocker-0.1.2.tar.gz
-
-     - Commit the changes and push:
-
-       .. code-block:: console
-
-          git add flocker-${VERSION}.rb
-          git commit -m "New Homebrew recipe with bumped version number and checksum"
-          git push
+        cd ../homebrew-tap-${VERSION}
+        ../flocker-${VERSION}/admin/make-homebrew-recipe > flocker-${VERSION}.rb
+        git add flocker-${VERSION}.rb
+        git commit -m "New Homebrew recipe"
+        git push
 
    - Test the new recipe on OS X with `Homebrew`_ installed:
 
@@ -363,7 +340,7 @@ Release
 
      .. code-block:: console
 
-        brew install https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
+        brew install --verbose --debug https://raw.githubusercontent.com/ClusterHQ/homebrew-tap/release/flocker-${VERSION}/flocker-${VERSION}.rb
         brew test flocker-${VERSION}.rb
 
    - Make a pull request:
@@ -459,8 +436,6 @@ Post-Release Review Process
 
 .. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
-.. _back-porting-changes:
-
 
 Improving the Release Process
 -----------------------------
@@ -470,10 +445,13 @@ If there is no existing issue for the planned improvements then a new one should
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
+.. _back-porting-changes:
+
+
 Appendix: Back Porting Changes From Master
 ------------------------------------------
 
-XXX: This process needs documenting. See https://github.com/ClusterHQ/flocker/issues/877
+XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
 
 
 .. _pre-populating-rpm-repository:
@@ -503,7 +481,7 @@ These steps must be performed from a :doc:`Flocker development environment <vagr
    gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
    gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
 
-.. note: XXX: Move or automate this documentation https://github.com/ClusterHQ/flocker/issues/327
+.. note: XXX: Move or automate this documentation https://clusterhq.atlassian.net/browse/FLOC-327
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel

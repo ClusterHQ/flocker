@@ -56,4 +56,4 @@ The following sequence of steps must be performed in order:
       alice@mercury:~/flocker-mysql$ ssh root@172.16.255.250 'zfs destroy -r flocker'
 
 
-.. _`on the Flocker development path`: https://github.com/ClusterHQ/flocker/issues/682
+.. _`on the Flocker development path`: https://clusterhq.atlassian.net/browse/FLOC-682

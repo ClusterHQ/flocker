@@ -59,7 +59,7 @@ class AttachedVolume(object):
     :ivar unicode name: A short, human-readable identifier for this
         volume. For now this is always the same as the name of the
         application it is attached to (see
-        https://github.com/ClusterHQ/flocker/issues/49).
+        https://clusterhq.atlassian.net/browse/FLOC-49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
@@ -83,7 +83,7 @@ class AttachedVolume(object):
         volumes = set(unit.volumes)
         name = unit.name
         # XXX we only support one data volume per container at this time
-        # https://github.com/ClusterHQ/flocker/issues/49
+        # https://clusterhq.atlassian.net/browse/FLOC-49
         try:
             volume = volumes.pop()
             # XXX Docker Volume objects do not contain size information
