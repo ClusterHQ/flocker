@@ -17,7 +17,8 @@ from twisted.internet.defer import maybeDeferred
 from twisted.web.http import OK, INTERNAL_SERVER_ERROR
 
 from eliot import Logger, writeFailure
-from eliot.twisted import DeferredContext
+from eliot.twisted import DeferredContext, redirectLogsForTrial
+redirectLogsForTrial()
 
 from ._error import (
     ILLEGAL_CONTENT_TYPE, DECODING_ERROR, BadRequest, InvalidRequestJSON)

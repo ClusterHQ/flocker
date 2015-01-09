@@ -20,7 +20,7 @@ class DatasetAPIUserV1(object):
 
     @app.route("/noop")
     @structured({}, {})
-    def noop(self, request):
+    def noop(self):
         """
         Do nothing.
         """
@@ -33,7 +33,7 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
         schema_store=SCHEMAS
     )
-    def version(self, request):
+    def version(self):
         """
         Do nothing.
         """
