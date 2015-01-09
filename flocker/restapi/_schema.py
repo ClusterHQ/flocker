@@ -47,8 +47,6 @@ def getValidator(schema, schema_store):
     # but does give proper relative paths.
     resolver = LocalRefResolver(
         base_uri=b'',
-        # XXX: HC passed SCHEMAS directly here, but it seems strange to ignore
-        # the supplied argument.
         referrer=schema, store=schema_store)
     resolver.resolution_scope = b''
     return validator_for(schema)(
