@@ -6,10 +6,4 @@ definitions:
     description:
       The software version of a service running on a cluster.
 
-    type: object
-    properties:
-      version:
-        type: string
-    required:
-      - version
-    additionalProperties: false
+    type: string

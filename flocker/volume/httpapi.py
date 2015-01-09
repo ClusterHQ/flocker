@@ -48,7 +48,7 @@ class DatasetAPIUserV1(object):
         """
         Do nothing.
         """
-        return {u"flocker": {u'version': __version__}}
+        return {u"flocker":  __version__}
 
 
 def create_api_service(endpoint):

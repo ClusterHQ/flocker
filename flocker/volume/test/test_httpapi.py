@@ -40,7 +40,7 @@ class APITestsMixin(object):
         requesting = self.agent.request(b"GET", b"/version")
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
-            goodResult({u'flocker': {u'version': __version__}}), loads(body)))
+            goodResult({u'flocker': __version__}), loads(body)))
         return requesting
 
 
