@@ -233,7 +233,9 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
 def provision(distribution, package_source):
     """
     Provision the node for running flocker.
-
+    XXX: Add a note here that this drives all the common Fedora20 installation
+    steps from:
+     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
     :param bytes distribution: See func:`task_install`
