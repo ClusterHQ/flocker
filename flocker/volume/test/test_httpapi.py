@@ -15,8 +15,8 @@ from twisted.application.service import IService
 from ...restapi.testtools import (
     buildIntegrationTests, loads, goodResult)
 
-from ..httpapi import DatasetAPIUser, create_api_service
-
+from ..httpapi import DatasetAPIUserV1, create_api_service
+from ... import __version__
 
 class APITestsMixin(object):
     """
@@ -33,8 +33,19 @@ class APITestsMixin(object):
         return requesting
 
 
+    def test_version(self):
+        """
+        The ``/version`` command returns JSON-encoded ``__version__``.
+        """
+        requesting = self.agent.request(b"GET", b"/version")
+        requesting.addCallback(readBody)
+        requesting.addCallback(lambda body: self.assertEqual(
+            goodResult(__version__), loads(body)))
+        return requesting
+
+
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
-    APITestsMixin, "API", lambda test: DatasetAPIUser().app)
+    APITestsMixin, "API", lambda test: DatasetAPIUserV1().app)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
