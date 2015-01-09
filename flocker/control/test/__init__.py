@@ -3,4 +3,3 @@
 """
 Tests for ``flocker.control``.
 """
-
