@@ -629,15 +629,15 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
-    local_desired_volume_names = set(volume.name for volume in
-                                     local_desired_volumes)
-    local_current_volume_names = set(volume.name for volume in
-                                     current_volumes.get(hostname, set()))
-    remote_current_volume_names = set()
+    local_desired_datasets = set(volume.dataset.dataset_id for volume in
+                                 local_desired_volumes)
+    local_current_datasets = set(volume.dataset.dataset_id for volume in
+                                 current_volumes.get(hostname, set()))
+    remote_current_datasets = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
-            remote_current_volume_names |= set(
-                volume.name for volume in current)
+            remote_current_datasets |= set(
+                volume.dataset.dataset_id for volume in current)
 
     # If a volume exists locally and is desired anywhere on the cluster, and
     # the desired volume is a different maximum_size to the existing volume,
@@ -646,10 +646,10 @@ def find_volume_changes(hostname, current_state, desired_state):
     resizing = set()
     for _, desired in desired_volumes.items():
         for volume in desired:
-            if volume.name in local_current_volume_names:
+            if volume.dataset.dataset_id in local_current_datasets:
                 for existing_volume in current_volumes[hostname]:
-                    if existing_volume.name == volume.name:
-                        if existing_volume.maximum_size != volume.maximum_size:
+                    if existing_volume.dataset.dataset_id == volume.dataset.dataset_id:
+                        if existing_volume.dataset.maximum_size != volume.dataset.maximum_size:
                             resizing.add(volume)
 
     # Look at each application volume that is going to be running
@@ -659,24 +659,24 @@ def find_volume_changes(hostname, current_state, desired_state):
     for volume_hostname, desired in desired_volumes.items():
         if volume_hostname != hostname:
             for volume in desired:
-                if volume.name in local_current_volume_names:
+                if volume.dataset.dataset_id in local_current_datasets:
                     going.add(VolumeHandoff(volume=volume,
                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
     # node.  If it was running somewhere else, we want that Volume to be
     # in `coming`.
-    coming_names = local_desired_volume_names.intersection(
-        remote_current_volume_names)
+    coming_datasets = local_desired_datasets.intersection(
+        remote_current_datasets)
     coming = set(volume for volume in local_desired_volumes
-                 if volume.name in coming_names)
+                 if volume.dataset.dataset_id in coming_datasets)
 
     # For each application volume that is going to be started on this node
     # that was not running anywhere previously, make sure that Volume is
     # in `creating`.
-    creating_names = local_desired_volume_names.difference(
-        local_current_volume_names | remote_current_volume_names)
+    creating_datasets = local_desired_datasets.difference(
+        local_current_datasets | remote_current_datasets)
     creating = set(volume for volume in local_desired_volumes
-                   if volume.name in creating_names)
+                   if volume.dataset.dataset_id in creating_datasets)
     return VolumeChanges(going=going, coming=coming,
                          creating=creating, resizing=resizing)

@@ -5,7 +5,10 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes, Attribute
+from characteristic import (
+    attributes, Attribute, with_init, with_cmp, with_repr,
+    )
+from pyrsistent import pmap
 from zope.interface import Interface, implementer
 
 
@@ -62,7 +65,12 @@ class AttachedVolume(object):
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
+
+    :ivar Dataset dataset: The dataset for this attached volume.
     """
+    @property
+    def dataset(self):
+        return self.manifestation.dataset
 
 
 class IRestartPolicy(Interface):
@@ -169,9 +177,12 @@ class Manifestation(object):
     """
 
 
-@attributes(["dataset_id",
-             Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_factory=dict)])
+@with_init(["dataset_id",
+            Attribute("maximum_size", default_value=None),
+            Attribute("metadata", default_factory=pmap)])
+@with_repr(["dataset_id", "maximum_size", "metadata"])
+# Metadata is merely informative, is shouldn't have semantic impact.
+@with_cmp(["dataset_id", "maximum_size"])
 class Dataset(object):
     """
     The filesystem data for a particular application.
@@ -182,7 +193,7 @@ class Dataset(object):
         datasets, or a new one generated if a new dataset will need tbe
         created.
 
-    :ivar dict metadata: Mapping between ``unicode`` keys and
+    :ivar PMap metadata: Mapping between ``unicode`` keys and
         corresponding values. Typically there will be a ``"name"`` key whose
         value is a a human-readable name, e.g. ``"main-postgres"``.
 

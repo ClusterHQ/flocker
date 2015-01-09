@@ -3,12 +3,15 @@
 """
 Tests for ``flocker.node._model``.
 """
+from pyrsistent import pmap
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from ...testtools import make_with_init_tests
 from .._model import (
-    Application, DockerImage, Node, Deployment,
-    RestartOnFailure, RestartAlways, RestartNever,
+    Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
+    RestartOnFailure, RestartAlways, RestartNever, Manifestation,
 )
 
 
@@ -178,3 +181,35 @@ class RestartOnFailureTests(SynchronousTestCase):
             TypeError,
             RestartOnFailure, maximum_retry_count='foo'
         )
+
+
+class AttachedVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``AttachedVolume``.
+    """
+    def test_dataset(self):
+        """
+        ``AttachedVolume.dataset`` is the same as
+        ``AttachedVolume.manifestation.dataset``.
+        """
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=Dataset(dataset_id=u"jalkjlk"),
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+        self.assertIs(volume.dataset, volume.manifestation.dataset)
+
+
+class DatasetTests(SynchronousTestCase):
+    """
+    Tests for ``Dataset``.
+    """
+    def test_equality_ignores_metadata(self):
+        """
+        Metadata is not used for comparing ``Dataset`` instances.
+        """
+        dataset1 = Dataset(dataset_id=u"sdfsdfs", metadata=pmap({"X": 1}))
+        dataset1b = Dataset(dataset_id=u"sdfsdfs")
+        dataset2 = Dataset(dataset_id=u"XXXXX")
+        same_id = (dataset1 == dataset1b)
+        different_id = (dataset1b == dataset2)
+        self.assertEqual((same_id, different_id), (True, False))
