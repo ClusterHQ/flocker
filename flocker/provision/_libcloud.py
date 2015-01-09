@@ -4,8 +4,16 @@
 Helpers for using libcloud.
 """
 
+from characteristic import attributes, Attribute
 
-def fixed_OpenStackNodeDriver_to_node(self, api_node):
+
+def _fixed_OpenStackNodeDriver_to_node(self, api_node):
+    """
+    This is a copy of
+    libcloud.compute.drivers.openstack.OpenStack_1_1_NodeDriver._to_node
+    from libcloud 0.16.0 to fix
+    https://github.com/apache/libcloud/pull/411
+    """
     from libcloud.utils.networking import is_public_subnet
     from libcloud.compute.base import Node
     from libcloud.compute.types import NodeState
@@ -96,7 +104,7 @@ def monkeypatch():
     from libcloud import __version__
     if __version__ == "0.16.0":
         from libcloud.compute.drivers.openstack import OpenStack_1_1_NodeDriver
-        OpenStack_1_1_NodeDriver._to_node = fixed_OpenStackNodeDriver_to_node
+        OpenStack_1_1_NodeDriver._to_node = _fixed_OpenStackNodeDriver_to_node
 
 
 def get_size(driver, size_id):
@@ -121,3 +129,129 @@ def get_image(driver, image_name):
         return [s for s in driver.list_images() if s.name == image_name][0]
     except IndexError:
         raise ValueError("Unknown image.", image_name)
+
+
+@attributes([
+    # _node gets updated, so we can't make this immutable.
+    Attribute('_node'),
+    Attribute('_provisioner'),
+    'address',
+    'distribution',
+])
+class LibcloudNode(object):
+    """
+    A node created with libcloud.
+
+    :ivar Node _node: The libcloud node object.
+    :ivar LibcloudProvisioner _provisioner: The provisioner that created this
+        node.
+    :ivar bytes address: The IP address of the node.
+    :ivar str distribution: The distribution installed on the node.
+    :ivar bytes name: The name of the node.
+    """
+
+    def destroy(self):
+        """
+        Destroy the node.
+        """
+        self._node.destroy()
+
+    def reboot(self):
+        """
+        Reboot the node.
+        """
+        self._node.reboot()
+
+        self._node, self.addresses = (
+            self._node.driver.wait_until_running([self._node])[0])
+
+    def provision(self, package_source):
+        """
+        Provision flocker on this node.
+
+        :param PackageSource package_source: The source from which to install
+            flocker.
+        """
+        self._provisioner.provision(
+            node=self,
+            package_source=package_source,
+            distribution=self.distribution,
+        )
+        return self.address
+
+    @property
+    def name(self):
+        return self._node.name
+
+
+@attributes([
+    Attribute('_driver'),
+    Attribute('_keyname'),
+    Attribute('image_names'),
+    Attribute('_create_node_arguments'),
+    Attribute('provision'),
+    Attribute('default_size'),
+], apply_immutable=True)
+class LibcloudProvisioner(object):
+    """
+    :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
+    :ivar bytes _keyname: The name of an existing ssh public key configured
+        with the cloud provider. The provision step assumes the corresponding
+        private key is available from an agent.
+    :ivar dict image_names: Dictionary mapping distributions to cloud image
+        names.
+    :ivar callable _create_node_arguments: Extra arguments to pass to
+        libcloud's ``create_node``.
+    :ivar callable provision: Function to call to provision a node.
+    :ivar str default_size: Name of the default size of node to create.
+    """
+
+    def create_node(self, name, distribution,
+                    userdata=None,
+                    size=None, disk_size=8,
+                    keyname=None, metadata={}):
+        """
+        Create a node.
+
+        :param str name: The name of the node.
+        :param str distribution: The name of the distribution to
+            install on the node.
+        :param bytes userdata: User data to pass to the instance.
+        :param str size: The name of the size to use.
+        :param int disk_size: The size of disk to allocate.
+        :param dict metadata: Metadata to associate with the node.
+        :param bytes keyname: The name of an existing ssh public key configured
+            with the cloud provider. The provision step assumes the
+            corresponding private key is available from an agent.
+
+        :return libcloud.compute.base.Node: The created node.
+        """
+        if keyname is None:
+            keyname = self._keyname
+
+        if size is None:
+            size = self.default_size
+
+        image_name = self.image_names[distribution]
+
+        create_node_arguments = self._create_node_arguments(
+            disk_size=disk_size)
+
+        node = self._driver.create_node(
+            name=name,
+            image=get_image(self._driver, image_name),
+            size=get_size(self._driver, size),
+            ex_keyname=keyname,
+            ex_userdata=userdata,
+            ex_metadata=metadata,
+            **create_node_arguments
+        )
+
+        node, addresses = self._driver.wait_until_running([node])[0]
+
+        public_address = addresses[0]
+
+        return LibcloudNode(
+            provisioner=self,
+            node=node, address=public_address,
+            distribution=distribution)

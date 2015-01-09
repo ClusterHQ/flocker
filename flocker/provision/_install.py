@@ -31,6 +31,18 @@ class Run(object):
         return cls(command=" ".join(map(shell_quote, command_args)))
 
 
+@attributes(["command"])
+class Sudo(object):
+    """
+    Run a shell command on a remote host.
+
+    :param bytes command: The command to run.
+    """
+    @classmethod
+    def from_args(cls, command_args):
+        return cls(command=" ".join(map(shell_quote, command_args)))
+
+
 @attributes(["content", "path"])
 class Put(object):
     """
@@ -38,6 +50,15 @@ class Put(object):
 
     :param bytes content: The desired contests.
     :param bytes path: The remote path to create.
+    """
+
+
+@attributes(["comment"])
+class Comment(object):
+    """
+    Record a comment to be shown in the documentation corresponding to a task.
+
+    :param bytes comment: The desired comment.
     """
 
 
@@ -49,13 +70,15 @@ def run_with_fabric(username, address, commands):
     :param bytes address: Address to connect to
     :param list commands: List of commands to run.
     """
-    from fabric.api import settings, run, put
+    from fabric.api import settings, run, put, sudo
     from fabric.network import disconnect_all
     from StringIO import StringIO
 
     handlers = {
         Run: lambda e: run(e.command),
+        Sudo: lambda e: sudo(e.command),
         Put: lambda e: put(StringIO(e.content), e.path),
+        Comment: lambda e: None,
     }
 
     host_string = "%s@%s" % (username, address)
@@ -70,7 +93,28 @@ def run_with_fabric(username, address, commands):
     disconnect_all()
 
 
-def task_install_kernel():
+run = run_with_fabric
+
+
+def task_install_ssh_key():
+    return [
+        Sudo.from_args(['cp', '.ssh/authorized_keys',
+                       '/root/.ssh/authorized_keys']),
+    ]
+
+
+def task_upgrade_kernel():
+    """
+    Upgrade kernel.
+    """
+    return [
+        Run.from_args(['yum', 'upgrade', '-y', 'kernel']),
+        Comment(comment="# The upgrade doesn't make the new kernel default."),
+        Run.from_args(['grubby', '--set-default-index', '0']),
+    ]
+
+
+def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
 
@@ -161,21 +205,45 @@ def task_install_flocker(package_source=PackageSource(),
     return commands
 
 
-def provision(node, username, distribution, package_source):
-    """
-    Provison the node for running flocker.
+def task_upgrade_selinux():
+    return [
+        Run.from_args(['yum', 'upgrade', '-y', 'selinux-policy']),
+    ]
 
-    :param bytes node: Node to provision.
+
+ACCEPTANCE_IMAGES = [
+    "clusterhq/elasticsearch",
+    "clusterhq/logstash",
+    "clusterhq/kibana",
+    "postgres:latest",
+    "clusterhq/mongodb:latest",
+]
+
+
+def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
+    """
+    Pull docker images.
+
+    :param list images: List of images to pull. Defaults to images used in
+        acceptance tests.
+    """
+    return [Run.from_args(['docker', 'pull', image]) for image in images]
+
+
+def provision(distribution, package_source):
+    """
+    Provision the node for running flocker.
+
+    :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
     :param bytes distribution: See func:`task_install`
     :param PackageSource package_source: See func:`task_install`
     """
     commands = []
-    commands += task_install_kernel()
+    commands += task_install_kernel_devel()
     commands += task_install_flocker(package_source=package_source,
                                      distribution=distribution)
     commands += task_enable_docker()
-    commands += task_disable_firewall()
     commands += task_create_flocker_pool_file()
-
-    run_with_fabric(username=username, address=node, commands=commands)
+    commands += task_pull_docker_images()
+    return commands
