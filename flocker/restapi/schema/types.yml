@@ -13,6 +13,6 @@ definitions:
       revision:
         type: string
     required:
-      - branch
+      - name
       - revision
     additionalProperties: false
