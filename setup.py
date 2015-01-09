@@ -103,7 +103,7 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
-            'flocker-volume = flocker.node.script:flocker_volume_main',
+            'flocker-zfs-agent = flocker.node.script:flocker_volume_main',
             'flocker-control = flocker.control.script:flocker_control_main',
         ],
     },
