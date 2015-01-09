@@ -2540,13 +2540,12 @@ class HandoffVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         handoff = HandoffVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var/blah")),
+            volume=APPLICATION_WITH_VOLUME.volume,
             hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(_to_volume_name(u"myvol")),
+            [volume_service.get(_to_volume_name(DATASET.dataset_id)),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -2562,8 +2561,7 @@ class HandoffVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         handoff = HandoffVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")),
+            volume=APPLICATION_WITH_VOLUME.volume,
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)

@@ -251,8 +251,9 @@ class HandoffVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.handoff(service.get(_to_volume_name(self.volume.name)),
-                               RemoteVolumeManager(destination))
+        return service.handoff(
+            service.get(_to_volume_name(self.volume.dataset.dataset_id)),
+            RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
