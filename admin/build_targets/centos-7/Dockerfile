@@ -11,9 +11,8 @@ RUN ["yum", "install", "--assumeyes", "git", "ruby-devel", "python-devel", "pyth
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
-# The pip from CentOS packaged virtualenv doesn't like dangling symlinks (such
-# as _trial_temp.lock). Install it from PyPI instead.
-RUN ["pip", "install", "twisted", "characteristic", "virtualenv"]
+
+RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5"]
 VOLUME /flocker
 WORKDIR /
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

@@ -7,12 +7,12 @@
 FROM ubuntu:14.04
 MAINTAINER ClusterHQ <contact@clusterhq.com>
 RUN ["apt-get", "update"]
-RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "build-essential", "python-twisted", "python-pip", "python-virtualenv", "python2.7-dev", "lintian"]
-# XXX: Characteristic isn't packaged for Ubuntu.
-RUN ["pip", "install", "characteristic"]
+RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "build-essential", "python-pip", "python2.7-dev", "lintian"]
 # Despite being a packaging tool, fpm isn't yet packaged for Ubuntu
 # See https://github.com/jordansissel/fpm/issues/611 and
 # https://github.com/jordansissel/fpm/issues/657
 RUN ["gem", "install", "fpm"]
+
+RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]

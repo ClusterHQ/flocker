@@ -5,10 +5,11 @@
 
 FROM fedora:20
 MAINTAINER ClusterHQ <contact@clusterhq.com>
-RUN ["curl", "--output", "/etc/yum.repos.d/hybridlogic.repo", "https://copr.fedoraproject.org/coprs/tomprince/hybridlogic/repo/fedora-20-x86_64/tomprince-hybridlogic-fedora-20-x86_64.repo"]
-RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "python-twisted", "python-characteristic", "python-virtualenv", "ruby-devel", "rpmlint"]
+RUN ["yum", "install", "--assumeyes", "@buildsys-build", "git", "ruby-devel", "python-devel", "python-pip", "rpmlint"]
 # Despite being a packaging tool, fpm isn't yet packaged for Fedora.
 # See https://github.com/jordansissel/fpm/issues/611
 RUN ["gem", "install", "fpm"]
+
+RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]
