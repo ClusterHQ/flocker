@@ -211,7 +211,7 @@ def make_iremote_volume_manager(fixture):
 
         def test_acquire_returns_node_id(self):
             """
-            ``acquire()`` returns the NODE_ID of the remote volume manager.
+            ``acquire()`` returns the node ID of the remote volume manager.
             """
             service_pair = fixture(self)
             to_service = service_pair.to_service
