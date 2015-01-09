@@ -232,7 +232,7 @@ class WaitForVolume(object):
     """
     def run(self, deployer):
         return deployer.volume_service.wait_for_volume(
-            _to_volume_name(self.volume.name))
+            _to_volume_name(self.volume.dataset.dataset_id))
 
 
 @implementer(IStateChange)

@@ -2497,12 +2497,11 @@ class WaitForVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         wait = WaitForVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+            volume=APPLICATION_WITH_VOLUME.volume)
         wait.run(deployer)
         self.assertEqual(result,
                          [VolumeName(namespace=u"default",
-                                     dataset_id=u"myvol")])
+                                     dataset_id=DATASET.dataset_id)])
 
     def test_return(self):
         """
@@ -2515,9 +2514,7 @@ class WaitForVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        wait = WaitForVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")))
+        wait = WaitForVolume(volume=APPLICATION_WITH_VOLUME.volume)
         wait_result = wait.run(deployer)
         self.assertIs(wait_result, result)
 
