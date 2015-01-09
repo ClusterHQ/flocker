@@ -427,7 +427,7 @@ def volume_to_dataset(volume):
 
     :return: Dataset name as ``bytes``.
     """
-    return b"%s.%s" % (volume.uuid.encode("ascii"),
+    return b"%s.%s" % (volume.node_id.encode("ascii"),
                        volume.name.to_bytes())
 
 
