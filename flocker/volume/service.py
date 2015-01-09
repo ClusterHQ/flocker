@@ -24,7 +24,7 @@ from twisted.internet.defer import fail
 
 # We might want to make these utilities shared, rather than in zfs
 # module... but in this case the usage is temporary and should go away as
-# part of https://github.com/ClusterHQ/flocker/issues/64
+# part of https://clusterhq.atlassian.net/browse/FLOC-64
 from .filesystems.zfs import StoragePool
 from ._model import VolumeSize
 from ..common.script import ICommandLineScript
@@ -184,7 +184,7 @@ class VolumeService(Service):
         Make a filesystem publically readable/writeable/executable.
 
         A better alternative will be implemented in
-        https://github.com/ClusterHQ/flocker/issues/34
+        https://clusterhq.atlassian.net/browse/FLOC-34
 
         :param filesystem: A ``IFilesystem`` provider.
         """
@@ -252,7 +252,7 @@ class VolumeService(Service):
             for filesystem in filesystems:
                 # XXX It so happens that this works but it's kind of a
                 # fragile way to recover the information:
-                #    https://github.com/ClusterHQ/flocker/issues/78
+                #    https://clusterhq.atlassian.net/browse/FLOC-78
                 basename = filesystem.get_path().basename()
                 try:
                     uuid, name = basename.split(b".", 1)

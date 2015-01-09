@@ -219,7 +219,7 @@ class _SSHAgent(object):
         patchdict(b"SSH_AGENT_PID", pid)
 
         with open(os.devnull, "w") as discard:
-            # See https://github.com/clusterhq/flocker/issues/192
+            # See https://clusterhq.atlassian.net/browse/FLOC-192
             check_call(
                 [b"ssh-add", key_file.path],
                 stdout=discard, stderr=discard)
