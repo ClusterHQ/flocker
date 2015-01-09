@@ -2588,13 +2588,12 @@ class PushVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var/blah")),
+            volume=APPLICATION_WITH_VOLUME.volume,
             hostname=hostname)
         push.run(deployer)
         self.assertEqual(
             result,
-            [volume_service.get(_to_volume_name(u"myvol")),
+            [volume_service.get(_to_volume_name(DATASET.dataset_id)),
              RemoteVolumeManager(standard_node(hostname))])
 
     def test_return(self):
@@ -2610,8 +2609,7 @@ class PushVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         push = PushVolume(
-            volume=AttachedVolume(name=u"myvol",
-                                  mountpoint=FilePath(u"/var")),
+            volume=APPLICATION_WITH_VOLUME.volume,
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
