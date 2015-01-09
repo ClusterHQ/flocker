@@ -6,6 +6,7 @@ import sys
 import os
 
 from twisted.internet import task
+from twisted.internet.defer import Deferred, maybeDeferred
 from twisted.python import usage
 from twisted.python.filepath import FilePath
 from twisted.python.log import (
@@ -20,6 +21,7 @@ __all__ = [
     'flocker_standard_options',
     'ICommandLineScript',
     'FlockerScriptRunner',
+    'main_for_service',
 ]
 
 
@@ -140,3 +142,44 @@ class FlockerScriptRunner(object):
         if observer is not None:
             removeObserver(observer)
             log_file.close()
+
+
+def _chain_stop_result(service, stop):
+    """
+    Stop a service and chain the resulting ``Deferred`` to another
+    ``Deferred``.
+
+    :param IService service: The service to stop.
+    :param Deferred stop: The ``Deferred`` which will be fired when the service
+        has stopped.
+    """
+    maybeDeferred(service.stopService).chainDeferred(stop)
+
+
+def main_for_service(reactor, service):
+    """
+    Start a service and integrate its shutdown with reactor shutdown.
+
+    This is useful for hooking driving an ``IService`` provider with
+    ``twisted.internet.task.react``.  For example::
+
+        from twisted.internet.task import react
+        from yourapp import YourService
+        react(_main_for_service, [YourService()])
+
+    :param IReactorCore reactor: The reactor the run lifetime of which to tie
+        to the given service.  When the reactor is shutdown, the service will
+        be shutdown.
+
+    :param IService service: The service to tie to the run lifetime of the
+        given reactor.  It will be started immediately and made to stop when
+        the reactor stops.
+
+    :return: A ``Deferred`` which fires after the service has finished
+        stopping.
+    """
+    service.startService()
+    stop = Deferred()
+    reactor.addSystemEventTrigger(
+        "before", "shutdown", _chain_stop_result, service, stop)
+    return stop
