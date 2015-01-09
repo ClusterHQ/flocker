@@ -48,10 +48,10 @@ class VolumeName(object):
     :ivar unicode namespace: The namespace of the volume,
         e.g. ``u"default"``. Must not include periods.
 
-    :ivar unicode dataset_id: The unique id of the
-        dataset. ``u"mypostgresdata"``. Since volume ids must match Docker
-        container names, the characters used should be limited to those
-        that Docker allows for container names (``[a-zA-Z0-9_.-]``).
+    :ivar unicode dataset_id: The unique id of the dataset. It is not
+        expected to be meaningful to humans. Since volume ids must match
+        Docker container names, the characters used should be limited to
+        those that Docker allows for container names (``[a-zA-Z0-9_.-]``).
     """
     def __init__(self):
         """
