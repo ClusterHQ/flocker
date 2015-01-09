@@ -9,7 +9,7 @@ from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ..restapi import structured
+from ..restapi import structured, SCHEMAS
 from .. import __version__
 
 class DatasetAPIUserV1(object):
@@ -22,6 +22,7 @@ class DatasetAPIUserV1(object):
     @structured(
         inputSchema={},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
+        schema_store=SCHEMAS
     )
     def version(self, request):
         """

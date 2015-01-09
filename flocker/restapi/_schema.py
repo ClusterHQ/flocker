@@ -14,10 +14,12 @@ __all__ = [
 ]
 
 import copy
+import yaml
 
 from jsonschema.validators import RefResolver, validator_for
 from jsonschema import draft4_format_checker
 
+from twisted.python.filepath import FilePath
 
 class SchemaNotProvided(Exception):
     """
@@ -32,6 +34,11 @@ class LocalRefResolver(RefResolver):
     def resolve_remote(self, uri):
         raise SchemaNotProvided(uri)
 
+SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
+SCHEMAS = {
+    b'/v2/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
+    b'/v2/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
+    }
 
 def getValidator(schema, schema_store):
     """
@@ -47,44 +54,47 @@ def getValidator(schema, schema_store):
     # but does give proper relative paths.
     resolver = LocalRefResolver(
         base_uri=b'',
+        # XXX: HC passed SCHEMAS directly here, but it seems strange to ignore
+        # the supplied argument.
         referrer=schema, store=schema_store)
     resolver.resolution_scope = b''
     return validator_for(schema)(
         schema, resolver=resolver, format_checker=draft4_format_checker)
 
 
-def resolveSchema(schema, schemaStore):
-    """
-    Recursively resolve all I{$ref} JSON references in a JSON Schema.
+# XXX: This doesn't seem to be used anywhere. Not even in HC. Delete?
+# def resolveSchema(schema, schemaStore):
+#     """
+#     Recursively resolve all I{$ref} JSON references in a JSON Schema.
 
-    @param schema: A L{dict} with a JSON Schema.
+#     @param schema: A L{dict} with a JSON Schema.
 
-    @param schemaStore: A L{dict} mapping file paths to JSON Schema loaded
-        as L{dict}.
+#     @param schemaStore: A L{dict} mapping file paths to JSON Schema loaded
+#         as L{dict}.
 
-    @return: The resolved JSON Schema.
-    @rtype: L{dict}
-    """
-    result = copy.deepcopy(schema)
-    resolver = LocalRefResolver(base_uri=b'', referrer=schema,
-                                store=schemaStore)
+#     @return: The resolved JSON Schema.
+#     @rtype: L{dict}
+#     """
+#     result = copy.deepcopy(schema)
+#     resolver = LocalRefResolver(base_uri=b'', referrer=schema,
+#                                 store=schemaStore)
 
-    def resolve(obj):
-        if isinstance(obj, list):
-            for item in obj:
-                resolve(item)
-            return
+#     def resolve(obj):
+#         if isinstance(obj, list):
+#             for item in obj:
+#                 resolve(item)
+#             return
 
-        if isinstance(obj, dict):
-            if "$ref" in obj:
-                with resolver.resolving(obj[u'$ref']) as resolved:
-                    resolve(resolved)
-                    obj.clear()
-                    obj.update(resolved)
-            else:
-                for value in obj.values():
-                    resolve(value)
+#         if isinstance(obj, dict):
+#             if "$ref" in obj:
+#                 with resolver.resolving(obj[u'$ref']) as resolved:
+#                     resolve(resolved)
+#                     obj.clear()
+#                     obj.update(resolved)
+#             else:
+#                 for value in obj.values():
+#                     resolve(value)
 
-    resolve(result)
-    result["$schema"] = "http://json-schema.org/draft-04/schema#"
-    return result
+#     resolve(result)
+#     result["$schema"] = "http://json-schema.org/draft-04/schema#"
+#     return result
