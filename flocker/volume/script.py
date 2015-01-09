@@ -42,7 +42,7 @@ def flocker_volume_options(cls):
          "containing the UUID of the Flocker volume service on this node. "
          "This file will be created if it does not already exist."],
         # Maybe we can come up with something better in
-        # https://github.com/ClusterHQ/flocker/issues/125
+        # https://clusterhq.atlassian.net/browse/FLOC-125
         ["pool", None, FLOCKER_POOL,
          "The ZFS pool to use for volumes."],
         ["mountpoint", None, FLOCKER_MOUNTPOINT.path,

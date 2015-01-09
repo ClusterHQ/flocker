@@ -321,7 +321,7 @@ class VolumeServiceAPITests(TestCase):
         """The created filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/ClusterHQ/flocker/issues/34
+        https://clusterhq.atlassian.net/browse/FLOC-34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -382,7 +382,7 @@ class VolumeServiceAPITests(TestCase):
         The cloned-to filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/ClusterHQ/flocker/issues/34
+        https://clusterhq.atlassian.net/browse/FLOC-34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())

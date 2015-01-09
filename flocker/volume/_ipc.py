@@ -7,7 +7,7 @@ Specific volume managers ("nodes") may wish to push data to other
 nodes. In the current iteration this is done over SSH using a blocking
 API. In some future iteration this will be replaced with an actual
 well-specified communication protocol between daemon processes using
-Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
+Twisted's event loop (https://clusterhq.atlassian.net/browse/FLOC-154).
 """
 
 from contextlib import contextmanager
@@ -28,7 +28,7 @@ from .filesystems.zfs import Snapshot
 # Path to SSH private key available on nodes and used to communicate
 # across nodes.
 # XXX duplicate of same information in flocker.cli:
-# https://github.com/ClusterHQ/flocker/issues/390
+# https://clusterhq.atlassian.net/browse/FLOC-390
 SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
 
 

@@ -34,8 +34,6 @@ from ..release import rpm_version, make_rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
-# XXX: Get fpm installed on the build slaves.
-# See https://github.com/ClusterHQ/build.clusterhq.com/issues/32
 require_fpm = skipIf(not which('fpm'), "Tests require the ``fpm`` command.")
 require_rpm = skipIf(not which('rpm'), "Tests require the ``rpm`` command.")
 require_rpmlint = skipIf(not which('rpmlint'),
