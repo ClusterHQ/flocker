@@ -4,13 +4,16 @@ from twisted.web.server import Site
 from twisted.trial.unittest import SynchronousTestCase
 
 from ..script import ControlOptions, ControlScript
-from ...testtools import MemoryCoreReactor
+from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
 
 
-class ControlOptionsTests():
+class ControlOptionsTests(StandardOptionsTestsMixin,
+                          SynchronousTestCase):
     """
     Tests for ``ControlOptions``.
     """
+    options = ControlOptions
+
     def test_default_port(self):
         """
         The default port configured by ``ControlOptions`` is 4523.
@@ -28,9 +31,9 @@ class ControlOptionsTests():
         self.assertEqual(options["port"], 1234)
 
 
-class ControlScriptTests(SynchronousTestCase):
+class ControlScriptEffectsTests(SynchronousTestCase):
     """
-    Tests for ``ControlScript``.
+    Tests for effects ``ControlScript``.
     """
     def test_starts_http_api_server(self):
         """
