@@ -14,12 +14,10 @@ __all__ = [
 ]
 
 import copy
-import yaml
 
 from jsonschema.validators import RefResolver, validator_for
 from jsonschema import draft4_format_checker
 
-from twisted.python.filepath import FilePath
 
 class SchemaNotProvided(Exception):
     """
@@ -34,11 +32,6 @@ class LocalRefResolver(RefResolver):
     def resolve_remote(self, uri):
         raise SchemaNotProvided(uri)
 
-SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
-SCHEMAS = {
-    b'/v1/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
-    b'/v1/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
-    }
 
 def getValidator(schema, schema_store):
     """

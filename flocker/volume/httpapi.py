@@ -3,14 +3,25 @@
 A HTTP REST API for controlling the Dataset Manager.
 """
 
+import yaml
+
+from twisted.python.filepath import FilePath
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ..restapi import structured, SCHEMAS
+from ..restapi import structured
 from .. import __version__
+
+
+SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
+SCHEMAS = {
+    b'/v1/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
+    b'/v1/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
+    }
+
 
 class DatasetAPIUserV1(object):
     """
