@@ -5,15 +5,12 @@
 import sys
 from os import getpid
 
-from zope.interface import implementer
-
 from twisted.internet import task
 from twisted.internet.defer import succeed
 from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python.log import msg
-from twisted.internet.interfaces import IReactorCore
 from twisted.internet.defer import Deferred
 from twisted.application.service import Service
 
@@ -23,6 +20,7 @@ from ..script import (
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
     skip_on_broken_permissions, attempt_effective_uid,
+    MemoryCoreReactor,
     )
 
 
@@ -269,33 +267,6 @@ class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
     options = TestOptions
-
-
-# TODO: This should be provided by Twisted (also it should be more complete
-# instead of 1/3rd done).
-from twisted.internet.base import _ThreePhaseEvent
-
-
-@implementer(IReactorCore)
-class MemoryCoreReactor(object):
-    """
-    Fake reactor with just enough of an implementation of
-    IReactorCore to pass to ``main_for_service`` in the unit tests.
-    """
-    def __init__(self):
-        self._triggers = {}
-
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
-        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, *args, **kw)
-        # removeSystemEventTrigger isn't implemented so the return value here
-        # isn't useful.
-        return object()
-
-    def fireSystemEvent(self, eventType):
-        event = self._triggers.get(eventType)
-        if event is not None:
-            event.fireEvent()
 
 
 class AsyncStopService(Service):

@@ -10,7 +10,6 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
-from twisted.web.server import Site
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin
@@ -396,27 +395,8 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-
-class XXX:
-
-
 class StandardServeOptionsTests(
         make_volume_options_tests(ServeOptions)):
     """
     Tests for the volume configuration arguments of ``ServeOptions``.
     """
-    def test_default_port(self):
-        """
-        The default port configured by ``ServeOptions`` is 4523.
-        """
-        options = ServeOptions()
-        options.parseOptions([])
-        self.assertEqual(options["port"], 4523)
-
-    def test_custom_port(self):
-        """
-        The ``--port`` command-line option allows configuring the port.
-        """
-        options = ServeOptions()
-        options.parseOptions(["--port", 1234])
-        self.assertEqual(options["port"], 1234)
