@@ -485,8 +485,8 @@ class VolumeServiceAPITests(TestCase):
 
     def test_receive_local_node_id(self):
         """
-        If a volume with same node_id as service is received, ``ValueError`` is
-        raised.
+        If a volume with the same node ID as the service is received,
+        ``ValueError`` is raised.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
