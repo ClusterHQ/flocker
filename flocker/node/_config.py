@@ -294,9 +294,12 @@ class ApplicationMarshaller(object):
             volume_dict = {
                 u'mountpoint': self._application.volume.mountpoint.path
             }
-            if self._application.volume.dataset.maximum_size is not None:
+            dataset = self._application.volume.dataset
+            if dataset.dataset_id is not None:
+                volume_dict[u'dataset_id'] = dataset.dataset_id
+            if dataset.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
-                    unicode(self._application.volume.dataset.maximum_size)
+                    unicode(dataset.maximum_size)
                 )
             return volume_dict
         return None
@@ -1082,6 +1085,12 @@ class FlockerConfiguration(object):
                 )
             )
         configured_volume.pop('mountpoint')
+
+        if 'dataset_id' in configured_volume:
+            dataset_id = configured_volume.pop('dataset_id')
+        else:
+            dataset_id = None
+
         if configured_volume:
             raise ValueError(
                 "Unrecognised keys: {keys}.".format(
@@ -1092,7 +1101,7 @@ class FlockerConfiguration(object):
 
         volume = AttachedVolume(
             manifestation=Manifestation(
-                dataset=Dataset(dataset_id=None,
+                dataset=Dataset(dataset_id=dataset_id,
                                 metadata=pmap({"name": application_name}),
                                 maximum_size=maximum_size),
                 primary=True),

@@ -1892,6 +1892,27 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
         self.assertEqual(volume.dataset.maximum_size, 1610612736)
 
+    def test_volume_dataset_id(self):
+        """
+        If a volume has a ``dataset_id`` attribute then it is set on the
+        created ``Dataset`` object.
+        """
+        dataset_id = unicode(uuid4())
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'dataset_id': dataset_id},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.dataset_id, dataset_id)
+
     def test_volume_max_size_parse_valid_unit(self):
         """
         ``parse_storage_string`` returns the integer number of bytes
@@ -2947,6 +2968,44 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'volume': {'mountpoint': b'/var/mysql/data',
                                'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_application_with_volume_includes_dataset_id(self):
+        """
+        If the supplied applications has a volume with a dataset that has a
+        dataset ID, the resulting yaml will also include this dataset ID.
+        """
+        dataset_id = unicode(uuid4())
+
+        applications = [
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            metadata=pmap({'name': 'mysql-hybridcluster'})),
+                        primary=True),
+                    mountpoint=FilePath(b'/var/mysql/data'),
+                ),
+            )
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        expected = {
+            'used_ports': [],
+            'applications': {
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': b'/var/mysql/data',
+                               'dataset_id': dataset_id},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
