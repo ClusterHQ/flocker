@@ -12,12 +12,12 @@ from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
-from ...testtools import StandardOptionsTestsMixin
+from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
 from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    ServeOptions, ServeScript,
+    VolumeServeOptions, VolumeServeScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
 from .._docker import FakeDockerClient, Unit
@@ -395,8 +395,28 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-class StandardServeOptionsTests(
-        make_volume_options_tests(ServeOptions)):
+class VolumeServeScriptOptions(SynchronousTestCase):
     """
-    Tests for the volume configuration arguments of ``ServeOptions``.
+    Tests for ``VolumeServeScript``.
+    """
+    def test_main_starts_service(self):
+        """
+        ``VolumeServeScript.main`` starts the given service.
+        """
+        service = Service()
+        VolumeServeScript().main(MemoryCoreReactor(), None, service)
+        self.assertTrue(service.running)
+
+    def test_no_immediate_stop(self):
+        """
+        The ``Deferred`` returned from ``VolumeServeScript`` is not fired.
+        """
+        script = VolumeServeScript()
+        self.assertNoResult(script.main(MemoryCoreReactor(), None, Service()))
+
+
+class StandardServeOptionsTests(
+        make_volume_options_tests(VolumeServeOptions)):
+    """
+    Tests for the volume configuration arguments of ``VolumeServeOptions``.
     """

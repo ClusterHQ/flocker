@@ -45,3 +45,10 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         port = server[0]
         factory = server[1].__class__
         self.assertEqual((port, factory), (8001, Site))
+
+    def test_no_immediate_stop(self):
+        """
+        The ``Deferred`` returned from ``ControlScript`` is not fired.
+        """
+        script = ControlScript()
+        self.assertNoResult(script.main(MemoryCoreReactor(), ControlOptions()))

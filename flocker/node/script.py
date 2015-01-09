@@ -210,14 +210,14 @@ def flocker_reportstate_main():
 
 @flocker_standard_options
 @flocker_volume_options
-class ServeOptions(Options):
+class VolumeServeOptions(Options):
     """
     Command line options for ``flocker-serve`` cluster management process.
     """
 
 
 @implementer(ICommandLineVolumeScript)
-class ServeScript(object):
+class VolumeServeScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
@@ -228,6 +228,6 @@ class ServeScript(object):
 
 def flocker_volume_main():
     return FlockerScriptRunner(
-        script=VolumeScript(ServeScript()),
-        options=ServeOptions()
+        script=VolumeScript(VolumeServeScript()),
+        options=VolumeServeOptions()
     ).main()
