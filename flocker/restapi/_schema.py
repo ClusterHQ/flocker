@@ -36,8 +36,8 @@ class LocalRefResolver(RefResolver):
 
 SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
 SCHEMAS = {
-    b'/v2/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
-    b'/v2/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
+    b'/v1/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
+    b'/v1/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
 def getValidator(schema, schema_store):
