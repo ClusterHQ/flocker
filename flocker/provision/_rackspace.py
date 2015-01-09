@@ -4,28 +4,27 @@
 Rackspace provisioner.
 """
 
-from characteristic import attributes, Attribute
-from ._libcloud import get_size, get_image, monkeypatch
-from ._install import provision
+from ._libcloud import monkeypatch, LibcloudProvisioner
+from ._install import provision, run, task_disable_firewall
 
 
-# _node isn't immutable, since libcloud provides new instances
-# with updated data.
-@attributes([Attribute('_node'), 'address', 'distribution'])
-class RackspaceNode(object):
-    def destroy(self):
-        self._node.destroy()
-
-    def provision(self, package_source):
-        """
-        Provision flocker on this node.
-        """
-        provision(
-            self.address, username="root",
+def provision_rackspace(node, package_source, distribution):
+    """
+    Provision flocker on this node.
+    """
+    commands = (
+        task_disable_firewall()
+        + provision(
             package_source=package_source,
-            distribution=self.distribution,
+            distribution=node.distribution,
         )
-        return self.address
+    )
+    run(
+        username='root',
+        address=node.address,
+        commands=commands,
+    )
+    return node.address
 
     @property
     def name(self):
@@ -37,49 +36,35 @@ IMAGE_NAMES = {
 }
 
 
-@attributes([Attribute('_keyname')], apply_immutable=True)
-class Rackspace(object):
+def rackspace_provisioner(username, key, region, keyname):
+    """
+    Create a LibCloudProvisioner for provisioning nodes on rackspace.
 
-    def __init__(self, username, key, region):
-        # Import these here, so that this can be imported without
-        # installng libcloud.
-        from libcloud.compute.providers import get_driver, Provider
-        monkeypatch()
-        self._driver = get_driver(Provider.RACKSPACE)(
-            key=username,
-            secret=key,
-            region=region)
+    :param bytes username: The user to connect to rackspace with.
+    :param bytes key: The API key associated with the user.
+    :param bytes region: The rackspace region in which to launch the instance.
+    :param bytes keyname: The name of an existing ssh public key configured in
+       rackspace. The provision step assumes the corresponding private key is
+       available from an agent.
+    """
+    # Import these here, so that this can be imported without
+    # installng libcloud.
+    from libcloud.compute.providers import get_driver, Provider
+    monkeypatch()
+    driver = get_driver(Provider.RACKSPACE)(
+        key=username,
+        secret=key,
+        region=region)
 
-    def create_node(self, name, distribution,
-                    userdata=None,
-                    size="performance1-2", disk_size=8,
-                    keyname=None, metadata={}):
-        """
-        :param str name: The name of the node.
-        :param str base_ami: The name of the ami to use.
-        :param bytes userdata: User data to pass to the instance.
-        :param bytes size: The name of the size to use.
-        :param int disk_size: The size of disk to allocate.
-        :param dict metadata: Metadata to associate with the node.
-        """
-        if keyname is None:
-            keyname = self._keyname
+    provisioner = LibcloudProvisioner(
+        driver=driver,
+        keyname=keyname,
+        image_names=IMAGE_NAMES,
+        create_node_arguments=lambda **kwargs: {
+            "ex_config_drive": "true",
+        },
+        provision=provision_rackspace,
+        default_size="performance1-2",
+    )
 
-        image_name = IMAGE_NAMES[distribution]
-
-        node = self._driver.create_node(
-            name=name,
-            image=get_image(self._driver, image_name),
-            size=get_size(self._driver, size),
-            ex_keyname=keyname,
-            ex_userdata=userdata,
-            ex_config_drive="true",
-            ex_metadata=metadata,
-        )
-
-        node, addresses = self._driver.wait_until_running([node])[0]
-
-        public_address = addresses[0]
-
-        return RackspaceNode(node=node, address=public_address,
-                             distribution=distribution)
+    return provisioner

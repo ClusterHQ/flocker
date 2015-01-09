@@ -2313,7 +2313,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     XXX: Some of these tests are exercising code which has now been
     refactored into ``IStateChange`` objects. As such they can be
     refactored to not be based on side-effects. See
-    https://github.com/ClusterHQ/flocker/issues/321
+    https://clusterhq.atlassian.net/browse/FLOC-321
     """
     def test_applications_stopped(self):
         """

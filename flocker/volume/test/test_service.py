@@ -322,7 +322,7 @@ class VolumeServiceAPITests(TestCase):
         """The created filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/ClusterHQ/flocker/issues/34
+        https://clusterhq.atlassian.net/browse/FLOC-34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -383,7 +383,7 @@ class VolumeServiceAPITests(TestCase):
         The cloned-to filesystem is readable/writable/executable by anyone.
 
         A better alternative will be implemented in
-        https://github.com/ClusterHQ/flocker/issues/34
+        https://clusterhq.atlassian.net/browse/FLOC-34
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -485,8 +485,8 @@ class VolumeServiceAPITests(TestCase):
 
     def test_receive_local_node_id(self):
         """
-        If a volume with same node_id as service is received, ``ValueError`` is
-        raised.
+        If a volume with the same node ID as the service is received,
+        ``ValueError`` is raised.
         """
         pool = FilesystemStoragePool(FilePath(self.mktemp()))
         service = VolumeService(FilePath(self.mktemp()), pool, reactor=Clock())
@@ -617,7 +617,7 @@ class VolumeServiceAPITests(TestCase):
         service.startService()
 
         name = VolumeName(namespace=u"mynspaces",
-                          dataset_id=u"good volume name")
+                          dataset_id=u"good_volume_name")
         self.successResultOf(service.create(service.get(name)))
 
         volumes = list(self.successResultOf(service.enumerate()))

@@ -723,7 +723,7 @@ def make_istoragepool_tests(fixture):
             pattern.
 
             This test should be removed as part of:
-                https://github.com/ClusterHQ/flocker/issues/78
+                https://clusterhq.atlassian.net/browse/FLOC-78
             """
             pool = fixture(self)
             volume_name = MY_VOLUME

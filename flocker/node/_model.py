@@ -58,7 +58,7 @@ class AttachedVolume(object):
     :ivar Manifestation manifestation: The ``Manifestation`` that is being
         attached as a volume. For now this is always from a ``Dataset``
         with the same as the name of the application it is attached to
-        (see https://github.com/ClusterHQ/flocker/issues/49).
+        https://clusterhq.atlassian.net/browse/FLOC-49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
