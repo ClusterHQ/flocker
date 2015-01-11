@@ -7,6 +7,7 @@ from subprocess import call, check_call
 import sys
 import os
 import yaml
+import signal
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -289,6 +290,16 @@ class RunOptions(Options):
         )
 
 
+def signal_handler(signal, frame):
+    """
+    Exit gracefully when receiving a singal.
+
+    :param int signal: The signal that was received.
+    :param frame: The running frame.
+    """
+    raise SystemExit(1)
+
+
 def main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
@@ -304,6 +315,8 @@ def main(args, base_path, top_level):
         raise SystemExit(1)
 
     runner = options.runner
+
+    signal.signal(signal.SIGTERM, signal_handler)
 
     try:
         nodes = runner.start_nodes()
