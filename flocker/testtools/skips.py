@@ -6,13 +6,18 @@ Utilities to help with skipping unit and functional tests.
 
 from unittest import skipUnless
 
-def check_if_test_in_flocker_test_no_skips(testcase):
-    pass
-    # return True / False depending on whether test is covered by
-    # FLOCKER_TEST_NO_SKIPS
+def check_if_in_flocker_test_no_skips(test_object):
+    return False
+    # return True if test is covered by FLOCKER_TEST_NO_SKIPS, else False
 
 def skipUnless2(condition, message):
-    pass
+    def maybe_ignore_skips(function):
+        if check_if_in_flocker_test_no_skips(test_object=function):
+            return function
+        else:
+            return skipUnless(condition, message)
+
+    return maybe_ignore_skips
     # check the environment variable FLOCKER_TEST_NO_SKIPS
     # get modules defined in FLOCKER_TEST_NO_SKIPS
     # if decorated function is in one of those modules, return the function
@@ -29,4 +34,5 @@ def skipUnless2(condition, message):
 
 # follow up issues for skipping setUp when skipping tests
 # add to tox / buildbot reconfiguration
-# document this
+# check that this will work with tox
+# document this in CONTRIBUTING.rst
