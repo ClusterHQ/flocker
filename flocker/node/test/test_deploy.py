@@ -2198,6 +2198,104 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
         self.assertEqual(expected, self.successResultOf(d))
 
+    def test_dataset_id_populated(self):
+        """
+        If one of ``Dataset`` objects in the desired configuration is missing
+        its dataset ID, and a ``Dataset`` with matching name exists in
+        current configuration, the desired ``Dataset`` has its ID set to
+        the matching ID.
+
+        This is part of supporting configuration files that don't specify
+        dataset IDs.
+        """
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
+        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
+        desired_application = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                manifestation=Manifestation(dataset=dataset, primary=True),
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+            ),
+        )
+        desired = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([desired_application])
+            )
+        ]))
+        actual = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([APPLICATION_WITH_VOLUME_SIZE])
+            )
+        ]))
+        api = Deployer(create_volume_service(self),
+                       docker_client=FakeDockerClient(),
+                       network=make_memory_network())
+        d = api.calculate_necessary_state_changes(desired, actual, u"node")
+
+        # Desired configuration was changed to set the correct dataset ID,
+        # which is why only a resize is happening:
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeVolume(
+                    volume=APPLICATION_WITH_VOLUME_SIZE.volume,
+                    )]
+            ),
+            InParallel(
+                changes=[Sequentially(
+                    changes=[
+                        StopApplication(application=APPLICATION_WITH_VOLUME),
+                        StartApplication(
+                            application=APPLICATION_WITH_VOLUME_SIZE,
+                            hostname=u'node')
+                    ])]
+            )])
+        self.assertEqual(self.successResultOf(d), expected)
+
+    def test_dataset_id_generated(self):
+        """
+        If one of ``Dataset`` objects in the desired configuration is missing
+        its dataset ID, and no ``Dataset`` with matching name exists in
+        current configuration, a new dataset ID will be generated.
+
+        This is part of supporting configuration files that don't specify
+        dataset IDs.
+        """
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
+        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
+        desired_application = Application(
+            name=APPLICATION_WITH_VOLUME_NAME,
+            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
+            volume=AttachedVolume(
+                manifestation=Manifestation(dataset=dataset, primary=True),
+                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
+            ),
+        )
+        desired = Deployment(nodes=frozenset([
+            Node(
+                hostname=u'node',
+                applications=frozenset([desired_application])
+            )
+        ]))
+        actual = Deployment(nodes=frozenset())
+        api = Deployer(create_volume_service(self),
+                       docker_client=FakeDockerClient(),
+                       network=make_memory_network())
+        d = api.calculate_necessary_state_changes(desired, actual, u"node")
+        result = self.successResultOf(d)
+        # CreateVolume:
+        dataset = result.changes[0].changes[0].volume.dataset
+        # StartApplication:
+        dataset2 = result.changes[1].changes[0].application.volume.dataset
+        # New UUID was generated, but only once:
+        self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
+
 
 class SetProxiesTests(SynchronousTestCase):
     """
@@ -2447,83 +2545,6 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
         api.calculate_necessary_state_changes = calculate
         api.change_node_state(desired, state, host)
         self.assertEqual(arguments, [desired, state, host])
-
-    def test_dataset_id_populated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and a ``Dataset`` with matching name exists in
-        current configuration, the desired ``Dataset`` has its ID set to
-        the matching ID.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'different_node',
-                applications=frozenset([APPLICATION_WITH_VOLUME])
-            )
-        ]))
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=make_memory_network())
-        api.change_node_state(desired, actual, u"node")
-        # Desired configuration was mutated to set the correct dataset ID:
-        self.assertEqual(dataset.dataset_id, DATASET_ID)
-
-    def test_dataset_id_generated(self):
-        """
-        If one of ``Dataset`` objects in the desired configuration is missing
-        its dataset ID, and no ``Dataset`` with matching name exists in
-        current configuration, a new dataset ID will be generated.
-
-        This is part of supporting configuration files that don't specify
-        dataset IDs.
-        """
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({u"name": APPLICATION_WITH_VOLUME_NAME}))
-        # Like APPLICATION_WITH_VOLUME, but dataset_id is set to None:
-        desired_application = Application(
-            name=APPLICATION_WITH_VOLUME_NAME,
-            image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
-            volume=AttachedVolume(
-                manifestation=Manifestation(dataset=dataset, primary=True),
-                mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
-            ),
-        )
-        desired = Deployment(nodes=frozenset([
-            Node(
-                hostname=u'node',
-                applications=frozenset([desired_application])
-            )
-        ]))
-        actual = Deployment(nodes=frozenset())
-        api = Deployer(create_volume_service(self),
-                       docker_client=FakeDockerClient(),
-                       network=make_memory_network())
-        api.change_node_state(desired, actual, u"node")
-        # New UUID was generated:
-        new_uuid = UUID(dataset.dataset_id)
-        self.assertNotEqual(new_uuid, UUID(DATASET_ID))
 
 
 class CreateVolumeTests(SynchronousTestCase):
