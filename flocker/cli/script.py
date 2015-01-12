@@ -90,19 +90,20 @@ class DeployOptions(Options):
             )
 
         try:
-            configuration = FigConfiguration(app_config_obj)
-            if not configuration.is_valid_format():
+            fig_configuration = FigConfiguration(app_config_obj)
+            if fig_configuration.is_valid_format():
+                applications = fig_configuration.applications()
+                self['application_config'] = (
+                    applications_to_flocker_yaml(applications)
+                )
+            else:
                 configuration = FlockerConfiguration(app_config_obj)
-                if not configuration.is_valid_format():
+                if configuration.is_valid_format():
+                    applications = configuration.applications()
+                else:
                     raise ConfigurationError(
                         "Configuration is not a valid Fig or Flocker format."
                     )
-
-            applications = configuration.applications()
-            datasets = configuration.datasets()
-            self['application_config'] = (
-                applications_to_flocker_yaml(applications, datasets)
-            )
             self['deployment'] = model_from_configuration(
                 applications=applications,
                 deployment_configuration=deploy_config_obj)
