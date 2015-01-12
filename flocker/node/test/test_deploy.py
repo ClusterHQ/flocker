@@ -1875,8 +1875,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         docker = FakeDockerClient(units={unit.name: unit})
         volume = APPLICATION_WITH_VOLUME.volume
         volume2 = AttachedVolume(
-            manifestation=Manifestation(dataset=Dataset(dataset_id=u"jalkjlk"),
-                                        primary=True),
+            manifestation=Manifestation(
+                dataset=Dataset(
+                    dataset_id=unicode(uuid4()),
+                    metadata=pmap({"name": "another"})),
+                primary=True),
             mountpoint=FilePath(b"/blah"))
 
         another_application = Application(
@@ -2238,22 +2241,19 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired, actual, u"node")
 
         # Desired configuration was changed to set the correct dataset ID,
-        # which is why only a resize is happening:
+        # which is why a resize is happening:
         expected = Sequentially(changes=[
             InParallel(
                 changes=[ResizeVolume(
-                    volume=APPLICATION_WITH_VOLUME_SIZE.volume,
+                    volume=APPLICATION_WITH_VOLUME.volume,
                     )]
             ),
             InParallel(
-                changes=[Sequentially(
-                    changes=[
-                        StopApplication(application=APPLICATION_WITH_VOLUME),
-                        StartApplication(
-                            application=APPLICATION_WITH_VOLUME_SIZE,
-                            hostname=u'node')
-                    ])]
-            )])
+                changes=[
+                    StartApplication(
+                        application=APPLICATION_WITH_VOLUME,
+                        hostname=u'node')
+                ])])
         self.assertEqual(self.successResultOf(d), expected)
 
     def test_dataset_id_generated(self):
