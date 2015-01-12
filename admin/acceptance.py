@@ -12,6 +12,7 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python.reflect import namedAny
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
@@ -178,58 +179,47 @@ class LibcloudRunner(object):
                 print "Failed to destroy %s: %s" % (node.name, e)
 
 
-def rackspace_runner(config, **kwargs):
+def runner_for_cloudprovisioner(provisioner_name):
     """
-    Run the tests against rackspace nodes.
+    Dynamically generate and return a factory function which will be used to
+    build a ``LibcloudRunner`` instance.
+
+    :param unicode provisioner_name: The name of the cloud provisioner for
+        which to build a runner factory function.
+    :returns: a factory function for the given ``provisioner_name``.
+    :raises: ``UsageError`` unless the configuration includes a provisioner
+        specific stanza. All cloud provisioners are assumed to require some
+        specific configuration.
     """
-    from flocker.provision import rackspace_provisioner
-    try:
-        rackspace_config = config['rackspace']
-    except KeyError:
-        raise UsageError("Must provided 'rackspace' config stanza.")
+    def runner_factory(config, **kwargs):
+        """
+        :param dict config: The complete configuration.
+        :param kwargs: Extra keyword arguments which will be supplied to
+            ``LibcloudRunner`` initializer.
+        :returns: A ``LibcloudRunner`` instance.
+        """
+        try:
+            provisioner_config = config[provisioner_name]
+        except KeyError:
+            raise UsageError(
+                "Configuration file must include a {!r} config stanza.".format(
+                    provisioner_name)
+            )
 
-    provisioner = rackspace_provisioner(**rackspace_config)
-    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
+        provisioner_factory = namedAny(
+            'flocker.provision.{}_provisioner'.format(
+                provisioner_name))
+        provisioner = provisioner_factory(**provisioner_config)
+        return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
-
-def aws_runner(config, **kwargs):
-    """
-    Run the tests against aws nodes.
-    """
-    try:
-        aws_config = config['aws']
-    except KeyError:
-        raise UsageError(
-            "Configuration file must include a 'aws' config stanza.")
-
-    from flocker.provision import aws_provisioner
-    provisioner = aws_provisioner(**aws_config)
-    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
-
-
-def digitalocean_runner(config, **kwargs):
-    """
-    # Load DO config
-    # Load digitalocean_provisioner
-    # Supply to LibcloudRunner
-    """
-    try:
-        digitalocean_config = config['digitalocean']
-    except KeyError:
-        raise UsageError(
-            "Configuration file must include a 'digitalocean' config stanza.")
-
-    from flocker.provision import digitalocean_provisioner
-    provisioner = digitalocean_provisioner(**digitalocean_config)
-    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
-
+    return runner_factory
 
 
 PROVIDERS = {
     'vagrant': VagrantRunner,
-    'rackspace': rackspace_runner,
-    'aws': aws_runner,
-    'digitalocean': digitalocean_runner,
+    'rackspace': runner_for_cloudprovisioner('rackspace'),
+    'aws': runner_for_cloudprovisioner('aws'),
+    'digitalocean': runner_for_cloudprovisioner('digitalocean'),
 }
 
 
