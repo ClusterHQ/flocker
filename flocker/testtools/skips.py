@@ -1,33 +1,56 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Utilities to help with skipping unit and functional tests.
+Utilities to help with skipping tests.
 """
 
-from unittest import skipUnless
+from unittest import skipIf, skipUnless
 
-def check_if_in_flocker_test_no_skips(test_object):
-    return False
-    # return True if test is covered by FLOCKER_TEST_NO_SKIPS, else False
+def ignore_skip(test_object):
+    """
+    Check whether to ignore any skip decorators on a test object.
 
-def skipUnless2(condition, message):
-    def maybe_ignore_skips(function):
-        if check_if_in_flocker_test_no_skips(test_object=function):
+    :param test_object: test method or class with a skip decorator.
+
+    :return: True if ``test_object`` is covered by environment variable
+        FLOCKER_TEST_NO_SKIPS, else False.
+    """
+
+# The following functions need suitable names.
+# Ideally those names would read well, like how:
+# skipUnless(SELENIUM_INSTALLED) reads like "skip unless selenium is installed".
+# One option is to have them called skipIf and skipUnless, like the unittest
+# methods, and then only import lines must be changed.
+
+def skipUnlessForcedOr(condition, reason):
+    """
+    Ignore skipUnless if an environment variable has been set instructing to do
+    so.
+
+    See unittest.skipUnless for parameter documentation.
+    """
+    def skip_unless_condition_or_forced(function):
+        if ignore_skip(test_object=function):
             return function
         else:
-            return skipUnless(condition, message)
+            return skipUnless(condition, reason)
 
-    return maybe_ignore_skips
-    # check the environment variable FLOCKER_TEST_NO_SKIPS
-    # get modules defined in FLOCKER_TEST_NO_SKIPS
-    # if decorated function is in one of those modules, return the function
-    # without the skipUnless decorator
-    # same for skipIf
-    # should this be called skipUnless and so import lines only can be changed
-    # alternatively it could have a unique function name e.g. skipUnlessForced
-    # one issue with that is that:
-    # skipUnless(SELENIUM_INSTALLED) reads like "skip unless selenium is installed"
-    # skipUnlessForced(SELENIUM_INSTALLED) does not read as clearly
+    return skip_unless_condition_or_forced
+
+def skipUnlessForcedIf(condition, reason):
+    """
+    Ignore skipIf if an environment variable has been set instructing to do
+    so.
+
+    See unittest.skipIf for parameter documentation.
+    """
+    def skip_if_condition_or_forced(function):
+        if ignore_skip(test_object=function):
+            return function
+        else:
+            return skipIf(condition, reason)
+
+    return skip_if_condition_or_forced
 
 # also handle all raise SkipTests
 # also handle .skip
@@ -36,3 +59,4 @@ def skipUnless2(condition, message):
 # add to tox / buildbot reconfiguration
 # check that this will work with tox
 # document this in CONTRIBUTING.rst
+# tests for this
