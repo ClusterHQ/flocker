@@ -218,7 +218,7 @@ PROVIDERS = {
     'vagrant': VagrantRunner,
     'rackspace': rackspace_runner,
     'aws': aws_runner,
-    # digitalocean_runner
+    'digitalocean': digitalocean_runner,
 }
 
 
@@ -231,8 +231,7 @@ class RunOptions(Options):
          'One of fedora-20.'],
         ['provider', None, 'vagrant',
          'The target provider to test against. '
-         #DO and maybe use PROVIDERS to generate this list
-         'One of vagrant, rackspace.'],
+         'One of {}.'.format(', '.join(sorted(PROVIDERS.keys())))],
         ['config-file', None, None,
          'Configuration for providers.'],
         ['branch', None, None, 'Branch to grab RPMS from'],
