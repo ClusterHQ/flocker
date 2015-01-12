@@ -96,7 +96,10 @@ def provision_digitalocean(node, package_source, distribution):
 # ('9801950', u'14.04 x64', {'distribution': u'Ubuntu'})
 # ('9801954', u'14.10 x64', {'distribution': u'Ubuntu'})
 IMAGE_NAMES = {
-     'fedora-20': '6370882',
+    # It'd be better to use image ID here, but the following code is currently
+    # written to lookup image names...which would normally be good for
+    # readability but which in the case DigitalOcean are pretty meaningless.
+     'fedora-20': '20 x64',
 }
 
 def digitalocean_provisioner(client_id, api_key, location_id, keyname):
