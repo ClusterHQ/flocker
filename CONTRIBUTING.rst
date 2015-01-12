@@ -76,6 +76,8 @@ Running Tests
 
 You can run all unit tests by doing:
 
+.. Document the FLOCKER_TEST_NO_SKIPS environment variable here
+
 .. code-block:: console
 
    $ tox
