@@ -143,6 +143,7 @@ To run the acceptance on DigitalOcean, you need:
 - a DigitalOcean account
 - a "Legacy API v1" Client ID and API key
   (https://cloud.digitalocean.com/generate_api_key)
+- an ssh-key registered with the AWS account.
 
 .. code-block:: yaml
 
@@ -150,5 +151,6 @@ To run the acceptance on DigitalOcean, you need:
      client_id: "<DigitalOcean API v1 client id>"
      api_key: "<DigitalOcean API v1 api key>"
      location_id: <DigitalOcean location ID e.g. 9 for Amsterdam 3>
+     keyname: <ssh-key-name>
    metadata:
      creator: <your-name>

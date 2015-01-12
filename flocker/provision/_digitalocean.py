@@ -83,7 +83,7 @@ IMAGE_NAMES = {
 #     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
 }
 
-def digitalocean_provisioner(client_id, api_key, location_id):
+def digitalocean_provisioner(client_id, api_key, location_id, keyname):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
 
@@ -103,8 +103,6 @@ def digitalocean_provisioner(client_id, api_key, location_id):
     driver_factory = get_driver(Provider.DIGITAL_OCEAN)
     driver = driver_factory(key=client_id, secret=api_key)
 
-    import pdb; pdb.set_trace()
-
     def create_arguments(disk_size):
         """
         :param disk_size: Unused
@@ -121,8 +119,8 @@ def digitalocean_provisioner(client_id, api_key, location_id):
         image_names=IMAGE_NAMES,
         create_node_arguments=create_arguments,
         provision=provision_digitalocean,
-        # Find out which droplet sizes DO supports and their codes.
-        default_size="m3.large",
+        # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...>
+        default_size=65,
     )
 
     return provisioner
