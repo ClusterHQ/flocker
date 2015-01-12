@@ -665,7 +665,7 @@ APPLICATION_WITH_VOLUME = Application(
     image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
     volume=AttachedVolume(
         # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
+        # see https://clusterhq.atlassian.net/browse/FLOC-49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
@@ -677,7 +677,7 @@ DISCOVERED_APPLICATION_WITH_VOLUME = Application(
     image=DockerImage.from_string(b"psql-clusterhq"),
     volume=AttachedVolume(
         # XXX For now we require volume names match application names,
-        # see https://github.com/ClusterHQ/flocker/issues/49
+        # see https://clusterhq.atlassian.net/browse/FLOC-49
         name=APPLICATION_WITH_VOLUME_NAME,
         mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
     ),
@@ -961,7 +961,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                     activation_state=u'active')
         units = {unit.name: unit}
 
-        volume = Volume(uuid=unicode(uuid4()),
+        volume = Volume(node_id=unicode(uuid4()),
                         name=_to_volume_name(u"site-example.com"),
                         service=self.volume_service)
         self.successResultOf(volume.service.pool.create(volume))
@@ -1539,7 +1539,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
+                # see https://clusterhq.atlassian.net/browse/FLOC-49
                 name=APPLICATION_WITH_VOLUME_NAME,
                 mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
                 maximum_size=1024 * 1024 * 100,
@@ -1626,7 +1626,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
+                # see https://clusterhq.atlassian.net/browse/FLOC-49
                 name=APPLICATION_WITH_VOLUME_NAME,
                 mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
                 maximum_size=1024 * 1024 * 100,
@@ -1732,7 +1732,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(APPLICATION_WITH_VOLUME_IMAGE),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
+                # see https://clusterhq.atlassian.net/browse/FLOC-49
                 name=APPLICATION_WITH_VOLUME_NAME,
                 mountpoint=APPLICATION_WITH_VOLUME_MOUNTPOINT,
                 maximum_size=1024 * 1024 * 100,
@@ -1866,7 +1866,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                               tag=u'9.1'),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
+                # see https://clusterhq.atlassian.net/browse/FLOC-49
                 name=u"another",
                 mountpoint=FilePath(b"/blah"),
             ),
@@ -1877,7 +1877,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
             image=DockerImage.from_string(u'clusterhq/postgresql:9.1'),
             volume=AttachedVolume(
                 # XXX For now we require volume names match application names,
-                # see https://github.com/ClusterHQ/flocker/issues/49
+                # see https://clusterhq.atlassian.net/browse/FLOC-49
                 name=u"another",
                 mountpoint=FilePath(b"/blah"),
             )
@@ -2335,7 +2335,7 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
     XXX: Some of these tests are exercising code which has now been
     refactored into ``IStateChange`` objects. As such they can be
     refactored to not be based on side-effects. See
-    https://github.com/ClusterHQ/flocker/issues/321
+    https://clusterhq.atlassian.net/browse/FLOC-321
     """
     def test_applications_stopped(self):
         """
@@ -2534,7 +2534,8 @@ class WaitForVolumeTests(SynchronousTestCase):
                                   mountpoint=FilePath(u"/var")))
         wait.run(deployer)
         self.assertEqual(result,
-                         [VolumeName(namespace=u"default", id=u"myvol")])
+                         [VolumeName(namespace=u"default",
+                                     dataset_id=u"myvol")])
 
     def test_return(self):
         """

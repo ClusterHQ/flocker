@@ -182,7 +182,7 @@ class MutatingProcessNode(ProcessNode):
     """Mutate the command being run in order to make tests work.
 
     Come up with something better in
-    https://github.com/ClusterHQ/flocker/issues/125
+    https://clusterhq.atlassian.net/browse/FLOC-125
     """
     def __init__(self, to_service):
         """

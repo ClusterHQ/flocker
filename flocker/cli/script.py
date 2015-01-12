@@ -243,7 +243,7 @@ class DeployScript(object):
         for target in self._get_destinations(deployment):
             # XXX if number of nodes is bigger than number of available
             # threads we won't get the required parallelism...
-            # https://github.com/ClusterHQ/flocker/issues/347
+            # https://clusterhq.atlassian.net/browse/FLOC-347
             results.append(
                 deferToThread(
                     target.node.get_output, command + [target.hostname]))

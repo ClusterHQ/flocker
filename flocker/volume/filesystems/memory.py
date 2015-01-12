@@ -139,7 +139,7 @@ class DirectoryFilesystem(object):
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:
-            # https://github.com/ClusterHQ/flocker/issues/122
+            # https://clusterhq.atlassian.net/browse/FLOC-122
             pass
 
 
@@ -207,7 +207,7 @@ class FilesystemStoragePool(Service):
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.to_bytes())),
+                volume.node_id.encode("ascii"), volume.name.to_bytes())),
             size=volume.size)
 
     def enumerate(self):
