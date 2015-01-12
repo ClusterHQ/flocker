@@ -5,6 +5,8 @@
 Deploy applications on nodes.
 """
 
+from uuid import uuid4
+
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
@@ -588,6 +590,29 @@ class Deployer(object):
 
         :return: ``Deferred`` that fires when the necessary changes are done.
         """
+        # Add missing dataset IDs to the desired configuration. Should be
+        # done elsewhere: https://clusterhq.atlassian.net/browse/FLOC-1199
+        datasets_with_no_id = []
+        for node in desired_state.nodes:
+            for application in node.applications:
+                if application.volume:
+                    dataset = application.volume.dataset
+                    if dataset.dataset_id is None:
+                        datasets_with_no_id.append(dataset)
+        current_datasets_by_name = {}
+        for node in current_cluster_state.nodes:
+            for application in node.applications:
+                if application.volume:
+                    dataset = application.volume.dataset
+                    name = dataset.metadata[u"name"]
+                    current_datasets_by_name[name] = dataset
+        for dataset in datasets_with_no_id:
+            matching = current_datasets_by_name.get(dataset.metadata[u"name"])
+            if matching:
+                dataset.dataset_id = matching.dataset_id
+            else:
+                dataset.dataset_id = unicode(uuid4())
+
         d = self.calculate_necessary_state_changes(
             desired_state=desired_state,
             current_cluster_state=current_cluster_state,
