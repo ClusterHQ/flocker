@@ -147,7 +147,7 @@ class LibcloudRunner(object):
         }
         metadata.update(self.metadata)
 
-        for index in range(2):
+        for index in range(1):
             name = "acceptance-test-%s-%d" % (self.creator, index)
             try:
                 print "Creating node %d: %s" % (index, name)

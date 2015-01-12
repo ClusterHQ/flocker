@@ -16,6 +16,7 @@ def provision_digitalocean(node, package_source, distribution):
     """
     Provision flocker on this node.
     """
+    import pdb; pdb.set_trace()
     # I don't think this step will be necessary. DO installs the SSH keys for
     # root automatically.
     # run(
@@ -107,12 +108,27 @@ def get_location(driver, location_id):
     """
     Return a ``NodeLocation`` corresponding to a given id.
 
+    XXX: Find out if DigitalOcean Locations have short human readable labels
+    instead. The webui shows eg lon1 and ams3 so I guess it's possible.
+
     :param driver: The libcloud driver to query for sizes.
     """
     try:
         return [l for l in driver.list_locations() if l.id == location_id][0]
     except IndexError:
         raise ValueError("Unknown location.", location_id)
+
+
+def get_ssh_key_id(driver, ssh_key_name):
+    """
+    """
+    # There's no high level API for this in the DigitalOcean driver.
+    response = driver.connection.request('/ssh_keys')
+    keys = response.object['ssh_keys']
+    try:
+        return [k['id'] for k in keys if k['name'] == ssh_key_name][0]
+    except IndexError:
+        raise ValueError("Unknown SSH keyname.", ssh_key_name)
 
 
 def digitalocean_provisioner(client_id, api_key, location_id, keyname):
@@ -141,6 +157,10 @@ def digitalocean_provisioner(client_id, api_key, location_id, keyname):
         """
         return {
             "location": get_location(driver, location_id),
+            # XXX: DigitalOcean driver doesn't use the standard ex_keyname
+            # parameter. Perhaps ``_libcloud.LibcloudProvisioner.create_node
+            # needs refactoring.
+            "ex_ssh_key_ids": [str(get_ssh_key_id(driver, keyname))]
         }
 
     provisioner = LibcloudProvisioner(

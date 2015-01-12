@@ -150,7 +150,7 @@ To run the acceptance on DigitalOcean, you need:
    digitalocean:
      client_id: "<DigitalOcean API v1 client id>"
      api_key: "<DigitalOcean API v1 api key>"
-     location_id: <DigitalOcean location ID e.g. 9 for Amsterdam 3>
+     location_id: "<DigitalOcean location ID e.g. 9 for Amsterdam 3>"
      keyname: <ssh-key-name>
    metadata:
      creator: <your-name>
