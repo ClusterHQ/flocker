@@ -223,9 +223,6 @@ class Deployment(object):
 
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
-
-    :ivar frozenset datasets: A ``frozenset`` containing ``Dataset``
-        instances describing the datasets in a deployment.
     """
 
 
