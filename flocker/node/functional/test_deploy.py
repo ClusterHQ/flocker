@@ -119,21 +119,19 @@ class DeployerTests(TestCase):
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
+        d.addCallback(lambda _: volume_service.enumerate())
+        d.addCallback(lambda volumes:
+                      list(volumes)[0].get_filesystem().get_path().child(
+                          b'env'))
 
-        def get_result_path():
-            volume = volume_service.get(_to_volume_name(dataset.dataset_id))
-            return volume.get_filesystem().get_path().child(b'env')
+        def got_result_path(result_path):
+            d = loop_until(result_path.exists)
+            d.addCallback(lambda _: result_path)
+            return d
+        d.addCallback(got_result_path)
 
-        def result_exists():
-            # Eventually the dataset ID should be set on the desired
-            # configuration, allowing us to figure out the path:
-            if dataset.dataset_id is not None:
-                return get_result_path().exists()
-            return False
-        d.addCallback(lambda _: loop_until(result_exists))
-
-        def started(_):
-            contents = get_result_path().getContent()
+        def started(result_path):
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,
@@ -194,21 +192,19 @@ class DeployerTests(TestCase):
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
+        d.addCallback(lambda _: volume_service.enumerate())
+        d.addCallback(lambda volumes:
+                      list(volumes)[0].get_filesystem().get_path().child(
+                          b'env'))
 
-        def get_result_path():
-            volume = volume_service.get(_to_volume_name(dataset.dataset_id))
-            return volume.get_filesystem().get_path().child(b'env')
+        def got_result_path(result_path):
+            d = loop_until(result_path.exists)
+            d.addCallback(lambda _: result_path)
+            return d
+        d.addCallback(got_result_path)
 
-        def result_exists():
-            # Eventually the dataset ID should be set on the desired
-            # configuration, allowing us to figure out the path:
-            if dataset.dataset_id is not None:
-                return get_result_path().exists()
-            return False
-        d.addCallback(lambda _: loop_until(result_exists))
-
-        def started(_):
-            contents = get_result_path().getContent()
+        def started(result_path):
+            contents = result_path.getContent()
 
             assertContainsAll(
                 haystack=contents,
