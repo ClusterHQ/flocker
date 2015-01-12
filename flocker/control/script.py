@@ -18,6 +18,7 @@ class ControlOptions(Options):
     Command line options for ``flocker-control`` cluster management process.
     """
     optParameters = [
+        # XXX also choose where configuration will be stored
         ["port", "p", 4523, "The port to listen on.", int],
         ]
 
@@ -28,6 +29,7 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
+        # XXX also start persistence service
         api_service = create_api_service(
             TCP4ServerEndpoint(reactor, options["port"]))
         return main_for_service(reactor, api_service)
