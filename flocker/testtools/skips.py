@@ -29,3 +29,4 @@ def skipUnless2(condition, message):
 
 # follow up issues for skipping setUp when skipping tests
 # add to tox / buildbot reconfiguration
+# document this
