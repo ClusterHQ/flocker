@@ -83,7 +83,7 @@ IMAGE_NAMES = {
 #     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
 }
 
-def digitalocean_provisioner(client_id, api_key):
+def digitalocean_provisioner(client_id, api_key, location_id):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
 
@@ -110,7 +110,7 @@ def digitalocean_provisioner(client_id, api_key):
         :param disk_size: Unused
         """
         return {
-            "location": None,
+            "location": location_id,
             # A list of ssh key ids which will be added to the server.
             "ex_ssh_key_ids": None
         }

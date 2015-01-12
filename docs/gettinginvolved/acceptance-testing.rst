@@ -147,7 +147,9 @@ To run the acceptance on DigitalOcean, you need:
 .. code-block:: yaml
 
    digitalocean:
-     client_id: "<client id>"
-     api_key: "<api key>"
+     client_id: "<DigitalOcean API v1 client id>"
+     api_key: "<DigitalOcean API v1 api key>"
+     # Eg 9 = Amsterdam 3
+     location_id: <DigitalOcean location ID number>
    metadata:
      creator: <your-name>
