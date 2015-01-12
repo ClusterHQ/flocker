@@ -102,6 +102,19 @@ IMAGE_NAMES = {
      'fedora-20': '20 x64',
 }
 
+
+def get_location(driver, location_id):
+    """
+    Return a ``NodeLocation`` corresponding to a given id.
+
+    :param driver: The libcloud driver to query for sizes.
+    """
+    try:
+        return [l for l in driver.list_locations() if l.id == location_id][0]
+    except IndexError:
+        raise ValueError("Unknown location.", location_id)
+
+
 def digitalocean_provisioner(client_id, api_key, location_id, keyname):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
@@ -122,14 +135,12 @@ def digitalocean_provisioner(client_id, api_key, location_id, keyname):
     driver_factory = get_driver(Provider.DIGITAL_OCEAN)
     driver = driver_factory(key=client_id, secret=api_key)
 
-    import pdb; pdb.set_trace()
-
     def create_arguments(disk_size):
         """
         :param disk_size: Unused
         """
         return {
-            "location": location_id,
+            "location": get_location(driver, location_id),
         }
 
     provisioner = LibcloudProvisioner(
