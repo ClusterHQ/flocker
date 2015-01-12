@@ -1013,6 +1013,40 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_ignore_unknown_volumes(self):
+        """
+        Docker volumes that cannot be matched to a dataset are ignored.
+        """
+        unit = Unit(name=u'site-example.com',
+                    container_name=u'site-example.com',
+                    container_image=u"clusterhq/wordpress:latest",
+                    volumes=frozenset(
+                        [DockerVolume(
+                            node_path=FilePath(b"/some/random/path"),
+                            container_path=FilePath(b'/var/lib/data')
+                        )],
+                    ),
+                    activation_state=u'active')
+        units = {unit.name: unit}
+
+        fake_docker = FakeDockerClient(units=units)
+
+        applications = [
+            Application(
+                name=unit.name,
+                image=DockerImage.from_string(unit.container_image),
+            ),
+        ]
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_node_configuration()
+
+        self.assertEqual(sorted(applications),
+                         sorted(self.successResultOf(d).running))
+
     def test_not_running_units(self):
         """
         Units that are not active are considered to be not running by

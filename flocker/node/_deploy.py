@@ -362,16 +362,21 @@ class Deployer(object):
                     # XXX https://clusterhq.atlassian.net/browse/FLOC-773
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
-                    dataset_id, max_size = available_manifestations[
-                        docker_volume.node_path]
-                    volume = AttachedVolume(
-                        manifestation=Manifestation(
-                            dataset=Dataset(
-                                dataset_id=dataset_id,
-                                metadata=pmap({u"name": unit.name}),
-                                maximum_size=max_size),
-                            primary=True),
-                        mountpoint=docker_volume.container_path)
+                    try:
+                        dataset_id, max_size = available_manifestations[
+                            docker_volume.node_path]
+                    except KeyError:
+                        # Apparently not a dataset we're managing, give up.
+                        volume = None
+                    else:
+                        volume = AttachedVolume(
+                            manifestation=Manifestation(
+                                dataset=Dataset(
+                                    dataset_id=dataset_id,
+                                    metadata=pmap({u"name": unit.name}),
+                                    maximum_size=max_size),
+                                primary=True),
+                            mountpoint=docker_volume.container_path)
                 else:
                     volume = None
                 ports = []
