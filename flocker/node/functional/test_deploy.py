@@ -6,12 +6,15 @@ Functional tests for ``flocker.node._deploy``.
 
 from subprocess import check_call
 
+from pyrsistent import pmap
+
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
 from .._deploy import _to_volume_name
+from .._model import Manifestation, Dataset
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
@@ -94,6 +97,9 @@ class DeployerTests(TestCase):
             'key2': 'value2',
         }.items())
 
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -102,22 +108,32 @@ class DeployerTests(TestCase):
                          image_name),
                      environment=expected_variables,
                      volume=AttachedVolume(
-                         name=application_name,
+                         manifestation=Manifestation(
+                             dataset=dataset,
+                             primary=True),
                          mountpoint=FilePath('/data'),
                          ),
                      links=frozenset(),
                      )]))]))
 
-        volume = volume_service.get(_to_volume_name(application_name))
-        result_path = volume.get_filesystem().get_path().child(b'env')
-
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: loop_until(result_path.exists))
+
+        def get_result_path():
+            volume = volume_service.get(_to_volume_name(dataset.dataset_id))
+            return volume.get_filesystem().get_path().child(b'env')
+
+        def result_exists():
+            # Eventually the dataset ID should be set on the desired
+            # configuration, allowing us to figure out the path:
+            if dataset.dataset_id is not None:
+                return get_result_path().exists()
+            return False
+        d.addCallback(lambda _: loop_until(result_exists))
 
         def started(_):
-            contents = result_path.getContent()
+            contents = get_result_path().getContent()
 
             assertContainsAll(
                 haystack=contents,
@@ -157,6 +173,9 @@ class DeployerTests(TestCase):
                     local_port=80,
                     remote_port=8080)
 
+        dataset = Dataset(
+            dataset_id=None,
+            metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -165,21 +184,31 @@ class DeployerTests(TestCase):
                          image_name),
                      links=frozenset([link]),
                      volume=AttachedVolume(
-                         name=application_name,
+                         manifestation=Manifestation(
+                             dataset=dataset,
+                             primary=True),
                          mountpoint=FilePath('/data'),
                          ),
                      )]))]))
 
-        volume = volume_service.get(_to_volume_name(application_name))
-        result_path = volume.get_filesystem().get_path().child(b'env')
-
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: loop_until(result_path.exists))
+
+        def get_result_path():
+            volume = volume_service.get(_to_volume_name(dataset.dataset_id))
+            return volume.get_filesystem().get_path().child(b'env')
+
+        def result_exists():
+            # Eventually the dataset ID should be set on the desired
+            # configuration, allowing us to figure out the path:
+            if dataset.dataset_id is not None:
+                return get_result_path().exists()
+            return False
+        d.addCallback(lambda _: loop_until(result_exists))
 
         def started(_):
-            contents = result_path.getContent()
+            contents = get_result_path().getContent()
 
             assertContainsAll(
                 haystack=contents,
