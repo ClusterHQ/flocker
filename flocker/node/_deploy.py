@@ -684,9 +684,12 @@ def find_volume_changes(hostname, current_state, desired_state):
         for volume in desired:
             if volume.dataset.dataset_id in local_current_datasets:
                 for existing_volume in current_volumes[hostname]:
-                    if existing_volume.dataset.dataset_id == volume.dataset.dataset_id:
-                        if existing_volume.dataset.maximum_size != volume.dataset.maximum_size:
-                            resizing.add(volume)
+                    cur_dataset = existing_volume.dataset
+                    new_dataset = volume.dataset
+                    if cur_dataset.dataset_id != new_dataset.dataset_id:
+                        continue
+                    if cur_dataset.maximum_size != new_dataset.maximum_size:
+                        resizing.add(volume)
 
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for

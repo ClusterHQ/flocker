@@ -5,9 +5,7 @@
 Record types for representing deployment models.
 """
 
-from characteristic import (
-    attributes, Attribute, with_init, with_cmp, with_repr,
-    )
+from characteristic import attributes, Attribute
 from pyrsistent import pmap
 from zope.interface import Interface, implementer
 

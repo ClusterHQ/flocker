@@ -3,7 +3,6 @@
 """
 Tests for ``flocker.node._model``.
 """
-from pyrsistent import pmap
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
