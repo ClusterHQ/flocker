@@ -83,8 +83,7 @@ IMAGE_NAMES = {
 #     'fedora-20': 'Fedora-x86_64-20-20140407-sda',
 }
 
-def digitalocean_provisioner(access_key, secret_access_token, keyname,
-                             region, security_groups):
+def digitalocean_provisioner(client_id, api_key):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
 
@@ -101,10 +100,10 @@ def digitalocean_provisioner(access_key, secret_access_token, keyname,
     # installing libcloud.
     from libcloud.compute.providers import get_driver, Provider
 
-    driver = get_driver(Provider.DIGITAL_OCEAN)(
-        key=access_key,
-        secret=secret_access_token,
-    )
+    driver_factory = get_driver(Provider.DIGITAL_OCEAN)
+    driver = driver_factory(key=client_id, secret=api_key)
+
+    import pdb; pdb.set_trace()
 
     def create_arguments(disk_size):
         """
