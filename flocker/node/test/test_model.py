@@ -197,19 +197,3 @@ class AttachedVolumeTests(SynchronousTestCase):
                                         primary=True),
             mountpoint=FilePath(b"/blah"))
         self.assertIs(volume.dataset, volume.manifestation.dataset)
-
-
-class DatasetTests(SynchronousTestCase):
-    """
-    Tests for ``Dataset``.
-    """
-    def test_equality_ignores_metadata(self):
-        """
-        Metadata is not used for comparing ``Dataset`` instances.
-        """
-        dataset1 = Dataset(dataset_id=u"sdfsdfs", metadata=pmap({"X": 1}))
-        dataset1b = Dataset(dataset_id=u"sdfsdfs")
-        dataset2 = Dataset(dataset_id=u"XXXXX")
-        same_id = (dataset1 == dataset1b)
-        different_id = (dataset1b == dataset2)
-        self.assertEqual((same_id, different_id), (True, False))

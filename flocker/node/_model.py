@@ -177,12 +177,9 @@ class Manifestation(object):
     """
 
 
-@with_init(["dataset_id",
-            Attribute("maximum_size", default_value=None),
-            Attribute("metadata", default_factory=pmap)])
-@with_repr(["dataset_id", "maximum_size", "metadata"])
-# Metadata is merely informative, is shouldn't have semantic impact.
-@with_cmp(["dataset_id", "maximum_size"])
+@attributes(["dataset_id",
+             Attribute("maximum_size", default_value=None),
+             Attribute("metadata", default_factory=pmap)])
 class Dataset(object):
     """
     The filesystem data for a particular application.

@@ -896,7 +896,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit.container_image),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=respective_id),
+                        dataset=Dataset(dataset_id=respective_id,
+                                        metadata=pmap({u"name": unit.name})),
                         primary=True,
                     ),
                     mountpoint=FilePath(b'/var/lib/data')
@@ -961,8 +962,10 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit1.container_image),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID,
-                                        maximum_size=1024 * 1024 * 100),
+                        dataset=Dataset(
+                            dataset_id=DATASET_ID,
+                            metadata=pmap({"name": unit1.name}),
+                            maximum_size=1024 * 1024 * 100),
                         primary=True,
                     ),
                     mountpoint=FilePath(b'/var/lib/data'),
@@ -973,7 +976,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
                 image=DockerImage.from_string(unit2.container_image),
                 volume=AttachedVolume(
                     manifestation=Manifestation(
-                        dataset=Dataset(dataset_id=DATASET_ID2),
+                        dataset=Dataset(dataset_id=DATASET_ID2,
+                                        metadata=pmap({"name": unit2.name})),
                         primary=True,
                     ),
                     mountpoint=FilePath(b'/var/lib/data'),

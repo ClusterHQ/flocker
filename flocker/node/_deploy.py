@@ -9,6 +9,8 @@ from zope.interface import Interface, implementer
 
 from characteristic import attributes
 
+from pyrsistent import pmap
+
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
@@ -362,8 +364,10 @@ class Deployer(object):
                         docker_volume.node_path]
                     volume = AttachedVolume(
                         manifestation=Manifestation(
-                            dataset=Dataset(dataset_id=dataset_id,
-                                            maximum_size=max_size),
+                            dataset=Dataset(
+                                dataset_id=dataset_id,
+                                metadata=pmap({u"name": unit.name}),
+                                maximum_size=max_size),
                             primary=True),
                         mountpoint=docker_volume.container_path)
                 else:
