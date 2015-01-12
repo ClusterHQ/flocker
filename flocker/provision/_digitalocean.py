@@ -138,8 +138,10 @@ def digitalocean_provisioner(client_id, api_key, location_id, keyname):
         image_names=IMAGE_NAMES,
         create_node_arguments=create_arguments,
         provision=provision_digitalocean,
+        # The NodeSize repr suggests that ``id`` is an ``int`` but in fact it's a string.
+        # Perhaps we need to modify _libcloud.get_size or something.
         # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...>
-        default_size=65,
+        default_size="65",
     )
 
     return provisioner
