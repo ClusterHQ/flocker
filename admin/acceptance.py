@@ -196,12 +196,13 @@ def aws_runner(config, **kwargs):
     """
     Run the tests against aws nodes.
     """
-    from flocker.provision import aws_provisioner
     try:
         aws_config = config['aws']
     except KeyError:
-        raise UsageError("Must provided 'aws' config stanza.")
+        raise UsageError(
+            "Configuration file must include a 'aws' config stanza.")
 
+    from flocker.provision import aws_provisioner
     provisioner = aws_provisioner(**aws_config)
     return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
 
@@ -212,6 +213,16 @@ def digitalocean_runner(config, **kwargs):
     # Load digitalocean_provisioner
     # Supply to LibcloudRunner
     """
+    try:
+        digitalocean_config = config['digitalocean']
+    except KeyError:
+        raise UsageError(
+            "Configuration file must include a 'digitalocean' config stanza.")
+
+    from flocker.provision import digitalocean_provisioner
+    provisioner = digitalocean_provisioner(**digitalocean_config)
+    return LibcloudRunner(config=config, provisioner=provisioner, **kwargs)
+
 
 
 PROVIDERS = {
