@@ -149,7 +149,6 @@ To run the acceptance on DigitalOcean, you need:
    digitalocean:
      client_id: "<DigitalOcean API v1 client id>"
      api_key: "<DigitalOcean API v1 api key>"
-     # Eg 9 = Amsterdam 3
-     location_id: <DigitalOcean location ID number>
+     location_id: <DigitalOcean location ID e.g. 9 for Amsterdam 3>
    metadata:
      creator: <your-name>
