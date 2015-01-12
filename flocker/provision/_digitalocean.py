@@ -127,8 +127,6 @@ def digitalocean_provisioner(client_id, api_key, location_id, keyname):
         """
         return {
             "location": location_id,
-            # A list of ssh key ids which will be added to the server.
-            "ex_ssh_key_ids": None
         }
 
     provisioner = LibcloudProvisioner(
