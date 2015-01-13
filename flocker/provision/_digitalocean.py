@@ -17,14 +17,6 @@ def provision_digitalocean(node, package_source, distribution):
     Provision flocker on this node.
     """
     import pdb; pdb.set_trace()
-    # I don't think this step will be necessary. DO installs the SSH keys for
-    # root automatically.
-    # run(
-    #     username='fedora',
-    #     address=node.address,
-    #     commands=task_install_ssh_key(),
-    # )
-
     # DO doesn't support booting the droplet's own kernel.
     # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader
     # So rather than upgrade, we'll need to have new task to install the kernel
