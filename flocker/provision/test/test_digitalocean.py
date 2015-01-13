@@ -101,4 +101,4 @@ class RealListKernelsTests(make_list_kernels_tests(real_driver)):
     """
 
 if real_driver is None:
-    RealListKernelsTests.skip = 'Missing DIGIALOCEAN environment variables'
+    RealListKernelsTests.skip = 'Missing DIGITALOCEAN environment variables'
