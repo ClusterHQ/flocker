@@ -4,4 +4,8 @@ definitions:
   versions:
     type: object
     additionalProperties:
-      '$ref': 'types.json#/definitions/version'
+      version:
+        title: Service Version
+        description:
+          The software version of a service running on a cluster.
+        type: string

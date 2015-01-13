@@ -1,9 +1,3 @@
 $schema: http://json-schema.org/draft-04/schema#
 id: http://api.clusterhq.com/v1/types.json
 definitions:
-  version:
-    title: Service Version
-    description:
-      The software version of a service running on a cluster.
-
-    type: string
