@@ -46,11 +46,7 @@ def skipUnless2(condition, reason):
             @wraps(test_item)
             def skip_wrapper(*args, **kwargs):
                 raise SkipTest(reason)
-            test_item = skip_wrapper
-
-            test_item.__unittest_skip__ = True
-            test_item.__unittest_skip_why__ = reason
-            return test_item
+            return skip_wrapper
 
     return fail_or_skip
 
