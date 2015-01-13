@@ -18,8 +18,10 @@ from .. import __version__
 
 SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
 SCHEMAS = {
-    b'/v1/types.json': yaml.safe_load(SCHEMA_BASE.child(b'types.yml').getContent()),
-    b'/v1/endpoints.json': yaml.safe_load(SCHEMA_BASE.child(b'endpoints.yml').getContent()),
+    b'/v1/types.json': yaml.safe_load(
+        SCHEMA_BASE.child(b'types.yml').getContent()),
+    b'/v1/endpoints.json': yaml.safe_load(
+        SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
 
 

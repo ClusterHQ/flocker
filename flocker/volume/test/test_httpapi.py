@@ -18,6 +18,7 @@ from ...restapi.testtools import (
 from ..httpapi import DatasetAPIUserV1, create_api_service
 from ... import __version__
 
+
 class APITestsMixin(object):
     """
     Integration tests for the Dataset Manager API.
