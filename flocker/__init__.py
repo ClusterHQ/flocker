@@ -23,6 +23,7 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
+
 def _redirect_eliot_logs_for_trial():
     """
     Enable Eliot logging to the ``_trial/test.log`` file.
