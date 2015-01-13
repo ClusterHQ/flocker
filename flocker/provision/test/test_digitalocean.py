@@ -44,16 +44,6 @@ class ListKernelsTestsMixin(object):
         self.assertEqual(expected_kernels, actual_kernels)
 
 
-def test_factory(get_name):
-    def f(orig):
-        def g(unit):
-            cls = g(unit)
-            cls.__name__ += get_name(unit)
-            return cls
-        return g
-    return f
-
-# @test_factory(lambda driver: driver.__class__.__name__)
 def make_list_kernels_tests(driver):
     class ListKernelTests(ListKernelsTestsMixin, SynchronousTestCase):
         def setUp(self):
