@@ -5,9 +5,11 @@ Utilities to help with skipping tests.
 """
 
 from unittest import SkipTest, skip, skipUnless
+import functools
+import types
 
 
-def fail_if_skipped(test_object):
+def fail_if_skipped(test_item):
     """
     Check whether to fail the given test object if it will be skipped.
 
@@ -16,7 +18,7 @@ def fail_if_skipped(test_object):
     :return: True if ``test_object`` is covered by environment variable
         FLOCKER_TEST_NO_SKIPS, else False.
     """
-    return False
+    return True
 
 # The following functions need suitable names.
 # Ideally those names would read well, like how:
@@ -37,10 +39,21 @@ def skipUnless2(condition, reason):
     """
     def fail_or_skip(function):
         if not condition:
-            if fail_if_skipped(test_object=function):
+            if fail_if_skipped(test_item=function):
                 return lambda function: function.fail(reason)
             else:
-                return skipUnless(condition, reason)
+                test_item = function
+                if not isinstance(test_item, (type, types.ClassType)):
+                    @functools.wraps(test_item)
+                    def skip_wrapper(*args, **kwargs):
+                        raise SkipTest(reason)
+                    test_item = skip_wrapper
+
+                test_item.__unittest_skip__ = True
+                test_item.__unittest_skip_why__ = reason
+                return test_item
+            return decorator
+
                 # raise SkipTest("HELLO")
                 # return skipUnless(condition, reason)
         else:
@@ -56,16 +69,6 @@ def skipIf2(condition, reason):
 
     See unittest.skipIf for parameter documentation.
     """
-    def fail_or_skip(function):
-        if condition:
-            if fail_if_skipped(test_object=function):
-                return lambda function: function.fail(reason)
-            else:
-                raise SkipTest(reason)
-        else:
-            return function
-
-    return fail_or_skip
 
 # also handle all raise SkipTests
 # also handle .skip
