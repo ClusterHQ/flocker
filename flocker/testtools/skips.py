@@ -16,7 +16,7 @@ def fail_if_skipped(test_item):
     return False
 
 
-def skipUnless2(condition, reason):
+def skipUnless(condition, reason):
     """
     A test object decorator to skip the test unless ``condition`` evaluates to
     ``True``. Fail the test if an environment variable says to fail the
