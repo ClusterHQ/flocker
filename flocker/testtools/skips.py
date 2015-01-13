@@ -17,18 +17,9 @@ def fail_if_skipped(test_item):
     :return: True if ``test_object`` is covered by environment variable
         FLOCKER_TEST_NO_SKIPS, else False.
     """
-    return True
-
-# The following functions need suitable names.
-# Ideally those names would read well, like how
-# skipUnless(SELENIUM_INSTALLED) reads like "skip unless selenium is
-# installed".
-# One option is to have them called skipIf and skipUnless, like the unittest
-# methods, and then only import lines must be changed.
-# another option is "skipOrFailUnless" and "skipOrFailIf"
 
 
-def skipUnless2(condition, reason):
+def skipUnless(condition, reason):
     """
     A test object decorator to skip the test unless ``condition`` evaluates to
     ``True``. Fail the test if an environment variable says to fail the
@@ -51,7 +42,7 @@ def skipUnless2(condition, reason):
     return fail_or_skip
 
 
-def skipIf2(condition, reason):
+def skipIf(condition, reason):
     """
     A test object decorator to skip the test if ``condition`` evaluates to
     ``True``. Fail the test if an environment variable says to fail the
@@ -59,11 +50,3 @@ def skipIf2(condition, reason):
 
     See unittest.skipIf for parameter documentation.
     """
-
-# also handle all raise SkipTests
-# also handle .skip
-
-# This requires follow-up issues to modify tox configurations and buildbot
-# builders
-
-# all skips will have to be changed

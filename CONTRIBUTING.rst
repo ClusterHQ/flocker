@@ -76,8 +76,6 @@ Running Tests
 
 You can run all unit tests by doing:
 
-.. Document the FLOCKER_TEST_NO_SKIPS environment variable here
-
 .. code-block:: console
 
    $ tox
@@ -91,6 +89,8 @@ In addition, ``tox`` needs to be run as root:
 
 Since these tests involve global state on your machine (filesystems, ``iptables``, Docker containers, etc.) we recommend running them in the development Vagrant image.
 
+The ``FLOCKER_TEST_NO_SKIPS`` environment variable can be used to specify tests with which should be counted as failing if they are skipped.
+For example, ``FLOCKER_TEST_NO_SKIPS=flocker.acceptance tox`` will cause test failures if the acceptance tests are skipped.
 
 Documentation
 =============
