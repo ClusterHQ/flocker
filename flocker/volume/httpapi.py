@@ -3,9 +3,6 @@
 A HTTP REST API for controlling the Dataset Manager.
 """
 
-import yaml
-
-from twisted.python.filepath import FilePath
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
@@ -13,41 +10,27 @@ from twisted.application.internet import StreamServerEndpointService
 from klein import Klein
 
 from ..restapi import structured
-from .. import __version__
 
 
-SCHEMA_BASE = FilePath(__file__).parent().child(b'schema')
-SCHEMAS = {
-    b'/v1/types.json': yaml.safe_load(
-        SCHEMA_BASE.child(b'types.yml').getContent()),
-    b'/v1/endpoints.json': yaml.safe_load(
-        SCHEMA_BASE.child(b'endpoints.yml').getContent()),
-    }
-
-
-class DatasetAPIUserV1(object):
+class DatasetAPIUser(object):
     """
     A user accessing the API.
     """
     app = Klein()
 
-    @app.route("/version")
-    @structured(
-        inputSchema={},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
-        schema_store=SCHEMAS
-    )
-    def version(self):
+    @app.route("/noop")
+    @structured({}, {})
+    def noop(self):
         """
-        Return the ``flocker`` version string.
+        Do nothing.
         """
-        return {u"flocker":  __version__}
+        return None
 
 
 def create_api_service(endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
     """
-    api_root = Resource()
-    api_root.putChild('v1', DatasetAPIUserV1().app.resource())
-    return StreamServerEndpointService(endpoint, Site(api_root))
+    # FLOC-1162 should add an API version prefix and integration with
+    # DatasetAPIUser.
+    return StreamServerEndpointService(endpoint, Site(Resource()))
