@@ -30,7 +30,7 @@ def safe_call(command, **kwargs):
     try:
         return process.wait()
     except:
-        process.kill()
+        process.terminate()
 
 
 def check_safe_call(command, **kwargs):
