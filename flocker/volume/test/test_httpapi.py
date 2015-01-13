@@ -15,27 +15,26 @@ from twisted.application.service import IService
 from ...restapi.testtools import (
     buildIntegrationTests, loads, goodResult)
 
-from ..httpapi import DatasetAPIUserV1, create_api_service
-from ... import __version__
+from ..httpapi import DatasetAPIUser, create_api_service
 
 
 class APITestsMixin(object):
     """
     Integration tests for the Dataset Manager API.
     """
-    def test_version(self):
+    def test_noop(self):
         """
-        The ``/version`` command returns JSON-encoded ``__version__``.
+        The ``/noop`` commands return JSON-encoded ``null``.
         """
-        requesting = self.agent.request(b"GET", b"/version")
+        requesting = self.agent.request(b"GET", b"/noop")
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
-            goodResult({u'flocker': __version__}), loads(body)))
+            goodResult(None), loads(body)))
         return requesting
 
 
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
-    APITestsMixin, "API", lambda test: DatasetAPIUserV1().app)
+    APITestsMixin, "API", lambda test: DatasetAPIUser().app)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
