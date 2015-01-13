@@ -5,7 +5,7 @@ Tests for ``admin.packaging``.
 """
 
 from glob import glob
-from subprocess import check_output, CalledProcessError, check_call
+from subprocess import check_output
 from textwrap import dedent
 from unittest import skipIf
 
@@ -17,8 +17,6 @@ from twisted.trial.unittest import TestCase
 from virtualenv import REQUIRED_MODULES as VIRTUALENV_REQUIRED_MODULES
 
 from flocker.testtools import FakeSysModule
-from flocker.node.testtools import if_docker_configured
-from flocker import __version__
 
 from .. import packaging
 from ..packaging import (
@@ -30,7 +28,7 @@ from ..packaging import (
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
     make_dependencies,
 )
-from ..release import rpm_version, make_rpm_version
+from ..release import rpm_version
 
 FLOCKER_PATH = FilePath(__file__).parent().parent().parent()
 
@@ -831,222 +829,6 @@ class OmnibusPackageBuilderTests(TestCase):
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
-
-    @if_docker_configured
-    @require_rpm
-    def test_functional_fedora_20(self):
-        """
-        The expected RPM files are built for Fedora 20
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'fedora-20',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'x86_64'),
-            ('clusterhq-flocker-cli', 'noarch'),
-            ('clusterhq-flocker-node', 'noarch'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}-{}-{}.{}.rpm'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_rpm_lint(self, f)
-
-    @if_docker_configured
-    @require_rpm
-    def test_functional_centos_7(self):
-        """
-        The expected RPM files are built for CentOS 7
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'centos-7',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'x86_64'),
-            ('clusterhq-flocker-cli', 'noarch'),
-            ('clusterhq-flocker-node', 'noarch'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}-{}-{}.{}.rpm'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_rpm_lint(self, f)
-
-    @if_docker_configured
-    @require_dpkg
-    def test_functional_ubuntu_1404(self):
-        """
-        The expected deb files are generated on Ubuntu14.04.
-        """
-        output_dir = FilePath(self.mktemp())
-        check_call([
-            FLOCKER_PATH.descendant([b'admin', b'build-package']).path,
-            '--destination-path', output_dir.path,
-            '--distribution', 'ubuntu-14.04',
-            FLOCKER_PATH.path
-        ])
-        python_version = __version__
-        rpm_version = make_rpm_version(python_version)
-
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'amd64'),
-            ('clusterhq-flocker-cli', 'all'),
-            ('clusterhq-flocker-node', 'all'),
-        )
-        expected_filenames = []
-        for basename, arch in expected_basenames:
-            f = '{}_{}-{}_{}.deb'.format(
-                basename, rpm_version.version, rpm_version.release, arch)
-            expected_filenames.append(f)
-
-        self.assertEqual(
-            set(expected_filenames),
-            set(f.basename() for f in output_dir.children())
-        )
-
-        for f in output_dir.children():
-            assert_deb_lint(self, f)
-
-
-RPMLINT_IGNORED_WARNINGS = (
-    # This isn't an distribution package, so we deliberately install in /opt
-    'dir-or-file-in-opt',
-    # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
-    'zero-length',
-    # XXX: These warnings are being ignored but should probably be fixed.
-    'non-standard-executable-perm',
-    'incorrect-fsf-address',
-    'pem-certificate',
-    'non-executable-script',
-    'devel-file-in-non-devel-package',
-    'dangling-relative-symlink',
-    'dangling-symlink',
-    'no-documentation',
-    'no-changelogname-tag',
-    'non-standard-group',
-    'backup-file-in-package',
-    'no-manual-page-for-binary',
-    'unstripped-binary-or-object',
-    # Only on CentOS 7 (not Fedora)
-    # See http://fedoraproject.org/wiki/Common_Rpmlint_issues#no-binary
-    'no-binary',
-    'python-bytecode-without-source',
-    'python-bytecode-inconsistent-mtime',
-    'wrong-script-interpreter',
-)
-
-
-@require_rpmlint
-def assert_rpm_lint(test_case, rpm_path):
-    """
-    Fail for certain rpmlint warnings on a supplied RPM file.
-
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :param FilePath rpm_path: The path to the RPM file to check.
-    """
-    try:
-        check_output(['rpmlint', rpm_path.path])
-    except CalledProcessError as e:
-        output = []
-        for line in e.output.splitlines():
-            # Ignore certain warning lines
-            show_line = True
-            for ignored in RPMLINT_IGNORED_WARNINGS:
-                if ignored in line:
-                    show_line = False
-                    break
-            if show_line:
-                output.append(line)
-
-        # Don't print out the summary line unless there are some unfiltered
-        # warnings.
-        if len(output) > 1:
-            test_case.fail('rpmlint warnings:\n{}'.format('\n'.join(output)))
-
-
-# See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian
-LINTIAN_IGNORED_WARNINGS = (
-    'script-not-executable',
-    'binary-without-manpage',
-    'dir-or-file-in-opt',
-    'unstripped-binary-or-object',
-    'missing-dependency-on-libc',
-    'no-copyright-file',
-    'debian-revision-not-well-formed',
-    'unknown-section',
-    'non-standard-file-perm',
-    'extra-license-file',
-    'non-standard-executable-perm',
-    'package-installs-python-bytecode',
-    'embedded-javascript-library',
-    'wrong-path-for-interpreter',
-    # Not sure about this one. We do have a python2.7 dependency.
-    # https://lintian.debian.org/tags/python-script-but-no-python-dep.html
-    'python-script-but-no-python-dep',
-    # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
-    'symlink-should-be-relative',
-    # Werkzeug installs various images with executable permissions.
-    # https://github.com/mitsuhiko/werkzeug/issues/629
-    'executable-not-elf-or-script',
-)
-
-
-@require_lintian
-def assert_deb_lint(test_case, package_path):
-    """
-    Fail for certain lintian warnings on a supplied ``package_path``.
-
-    :param test_case: The ``TestCase`` whose assert methods will be called.
-    :param FilePath package_path: The path to the deb file to check.
-    """
-    try:
-        check_output(['lintian', package_path.path])
-    except CalledProcessError as e:
-        output = []
-        for line in e.output.splitlines():
-            # Ignore certain warning lines
-            show_line = True
-            for ignored in LINTIAN_IGNORED_WARNINGS:
-                if ignored in line:
-                    show_line = False
-                    break
-            if show_line:
-                output.append(line)
-
-        # Don't print out the summary line unless there are some unfiltered
-        # warnings.
-        if len(output) > 1:
-            test_case.fail('lintian warnings:\n{}'.format('\n'.join(output)))
 
 
 class DockerBuildOptionsTests(TestCase):
