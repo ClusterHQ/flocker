@@ -4,10 +4,6 @@
 Utilities to help with skipping tests.
 """
 
-from unittest import SkipTest
-from functools import wraps
-
-
 def fail_if_skipped(test_item):
     """
     Check whether to fail the given test object if it will be skipped.
@@ -17,9 +13,10 @@ def fail_if_skipped(test_item):
     :return: True if ``test_object`` is covered by environment variable
         FLOCKER_TEST_NO_SKIPS, else False.
     """
+    return False
 
 
-def skipUnless(condition, reason):
+def skipUnless2(condition, reason):
     """
     A test object decorator to skip the test unless ``condition`` evaluates to
     ``True``. Fail the test if an environment variable says to fail the
@@ -33,11 +30,7 @@ def skipUnless(condition, reason):
         elif fail_if_skipped(test_item=test_item):
             return lambda test_item: test_item.fail(reason)
         else:
-
-            @wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                raise SkipTest(reason)
-            return skip_wrapper
+            return lambda test_item: test_item.skipTest(reason)
 
     return fail_or_skip
 
