@@ -75,3 +75,30 @@ test_driver = CannedResponseDriver(
 class CannedListKernelsTests(make_list_kernels_tests(test_driver)):
     """
     """
+
+
+import os
+from libcloud.compute.drivers.digitalocean import DigitalOceanNodeDriver
+def driver_from_environment():
+    """
+    """
+    client_id = os.environ.get('DIGITALOCEAN_CLIENT_ID')
+    api_key = os.environ.get('DIGITALOCEAN_API_KEY')
+
+    if None in (client_id, api_key):
+        return None
+
+    return DigitalOceanNodeDriver(
+        key=client_id,
+        secret=api_key,
+    )
+
+
+real_driver = driver_from_environment()
+
+class RealListKernelsTests(make_list_kernels_tests(real_driver)):
+    """
+    """
+
+if real_driver is None:
+    RealListKernelsTests.skip = 'Missing DIGIALOCEAN environment variables'
