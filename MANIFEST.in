@@ -2,3 +2,7 @@ include README.rst
 include versioneer.py
 include flocker/_version.py
 recursive-include admin *.py
+
+# These data files are used by the volumes API to define input and output
+# schemas.
+recursive-include flocker/volume/schema *.yml
