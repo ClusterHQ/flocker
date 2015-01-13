@@ -29,15 +29,6 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    @app.route("/noop")
-    @structured({}, {})
-    def noop(self):
-        """
-        Do nothing.
-        """
-        return None
-
-
     @app.route("/version")
     @structured(
         inputSchema={},
