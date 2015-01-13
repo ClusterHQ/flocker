@@ -1,4 +1,4 @@
-te# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
 Tests for deploying applications.

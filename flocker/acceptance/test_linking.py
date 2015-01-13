@@ -17,7 +17,7 @@ except ImportError:
 try:
     from selenium import webdriver
     from selenium.common.exceptions import WebDriverException
-n    SELENIUM_INSTALLED = True
+    SELENIUM_INSTALLED = True
 except ImportError:
     SELENIUM_INSTALLED = False
 
