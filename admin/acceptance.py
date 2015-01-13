@@ -319,7 +319,7 @@ class RunOptions(Options):
 
 def signal_handler(signal, frame):
     """
-    Exit gracefully when receiving a singal.
+    Exit gracefully when receiving a signal.
 
     :param int signal: The signal that was received.
     :param frame: The running frame.
