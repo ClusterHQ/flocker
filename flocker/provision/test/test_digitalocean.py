@@ -9,6 +9,11 @@ from twisted.trial.unittest import SynchronousTestCase
 from flocker.provision._digitalocean import list_kernels
 
 
+# It would be nice to use libcloud.common.base.JsonResponse instead of defining
+# our own response type here.  However, JsonResponse is not very amenable to
+# testing.  It wants an HTTPResponse object and it wants to read stuff from
+# that object in order to initialize itself.  With this CannedResponse we can
+# just pass in some structured data representing the case we want to test.
 class CannedResponse(object):
     def __init__(self, expected_response):
         self.object = expected_response
