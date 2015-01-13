@@ -12,6 +12,12 @@ from ._install import (
     task_upgrade_selinux,
 )
 
+def list_kernels(driver, droplet_id):
+    """
+    Return a list of kernels supported by the supplied droplet.
+    """
+
+
 def provision_digitalocean(node, package_source, distribution):
     """
     Provision flocker on this node.
