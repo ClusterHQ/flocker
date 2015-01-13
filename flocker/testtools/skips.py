@@ -4,9 +4,8 @@
 Utilities to help with skipping tests.
 """
 
-from unittest import SkipTest, skip, skipUnless
-import functools
-import types
+from unittest import SkipTest
+from functools import wraps
 
 
 def fail_if_skipped(test_item):
@@ -21,7 +20,7 @@ def fail_if_skipped(test_item):
     return True
 
 # The following functions need suitable names.
-# Ideally those names would read well, like how:
+# Ideally those names would read well, like how
 # skipUnless(SELENIUM_INSTALLED) reads like "skip unless selenium is
 # installed".
 # One option is to have them called skipIf and skipUnless, like the unittest
@@ -37,29 +36,24 @@ def skipUnless2(condition, reason):
 
     See unittest.skipUnless for parameter documentation.
     """
-    def fail_or_skip(function):
-        if not condition:
-            if fail_if_skipped(test_item=function):
-                return lambda function: function.fail(reason)
-            else:
-                test_item = function
-                if not isinstance(test_item, (type, types.ClassType)):
-                    @functools.wraps(test_item)
-                    def skip_wrapper(*args, **kwargs):
-                        raise SkipTest(reason)
-                    test_item = skip_wrapper
-
-                test_item.__unittest_skip__ = True
-                test_item.__unittest_skip_why__ = reason
-                return test_item
-            return decorator
-
-                # raise SkipTest("HELLO")
-                # return skipUnless(condition, reason)
+    def fail_or_skip(test_item):
+        if condition:
+            return test_item
+        elif fail_if_skipped(test_item=test_item):
+            return lambda test_item: test_item.fail(reason)
         else:
-            return function
+
+            @wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                raise SkipTest(reason)
+            test_item = skip_wrapper
+
+            test_item.__unittest_skip__ = True
+            test_item.__unittest_skip_why__ = reason
+            return test_item
 
     return fail_or_skip
+
 
 def skipIf2(condition, reason):
     """
