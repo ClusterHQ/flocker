@@ -29,16 +29,6 @@ def provision_digitalocean(node, package_source, distribution):
     # But libcloud only supports the DO v1 API
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
     # XXX: Double check this.
-    # So we may be forced to make direct REST API calls here instead.
-    # Or use the kexec trick described by Richard Yao:
-    # * https://zulip.com/#narrow/stream/social/topic/How.20to.20fix.20a.20Fedora.20VM.20running.20at.20Digital.20Ocean
-    # yum update -y
-    # KV=$(rpm -q kernel | sed 's/kernel-//' | sort --general-numeric-sort | tail -n 1)
-    # yum install -y kexec-tools kernel-headers-${KV}
-    # kexec -l /boot/vmlinuz-${KV} --initrd=/boot/initramfs-${KV}.img --command-line="root=$(df --output=source /boot | sed '1d') ro"
-    # echo u > /proc/sysrq-trigger
-    # kexec -e
-    # ...and turn that into a task which can be included in the documentation.
     # run(
     #     username='root',
     #     address=node.address,
