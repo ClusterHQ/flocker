@@ -31,9 +31,11 @@ class CannedResponseConnection(object):
         return CannedResponse(self._response)
 
 
-class ListKernelsTestsMixin(object):
-    def test_all(self):
+class DigitalOceanNodeDriverV2TestsMixin(object):
+    def test_list_kernels(self):
         """
+        ``DigitalOceanNodeDriverV2.list_kernels`` returns a ``list`` of
+        ``DigitalOceanKernel`` instances for the supplied ``droplet_id``.
         """
         actual_kernels = self.driver.list_kernels(droplet_id='2800208')
         expected_kernels = []
@@ -41,7 +43,8 @@ class ListKernelsTestsMixin(object):
 
 
 def make_list_kernels_tests(driver):
-    class ListKernelTests(ListKernelsTestsMixin, SynchronousTestCase):
+    class ListKernelTests(DigitalOceanNodeDriverV2TestsMixin,
+                          SynchronousTestCase):
         def setUp(self):
             self.driver = driver
     return ListKernelTests
