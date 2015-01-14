@@ -177,10 +177,15 @@ class Manifestation(object):
 
 @attributes(["dataset_id",
              Attribute("maximum_size", default_value=None),
-             Attribute("metadata", default_factory=pmap)])
+             Attribute("metadata", default_value=pmap())])
 class Dataset(object):
     """
     The filesystem data for a particular application.
+
+    At some point we'll want a way of reserving metadata for ourselves.
+
+    maximum_size really should be metadata:
+    https://clusterhq.atlassian.net/browse/FLOC-1215
 
     :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
         if this is coming out of human-supplied configuration, in which
