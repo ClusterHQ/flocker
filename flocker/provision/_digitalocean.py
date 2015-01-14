@@ -44,7 +44,6 @@ class DigitalOceanNodeDriverV2(object):
         """
         action = '/droplets/{droplet_id}/kernels'.format(droplet_id=droplet_id)
         response = self.connection.request(action)
-        import pdb; pdb.set_trace()
         return response.object['kernels']
 
 

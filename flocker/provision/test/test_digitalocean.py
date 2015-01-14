@@ -31,8 +31,11 @@ class CannedResponseConnection(object):
         return CannedResponse(self._response)
 
 
-class DigitalOceanNodeDriverV2TestsMixin(object):
-    def test_list_kernels(self):
+class ListKernelsTestsMixin(object):
+    """
+    Tests for ``DigitalOceanNodeDriverV2.list_kernels``.
+    """
+    def test_success(self):
         """
         ``DigitalOceanNodeDriverV2.list_kernels`` returns a ``list`` of
         ``DigitalOceanKernel`` instances for the supplied ``droplet_id``.
@@ -42,12 +45,11 @@ class DigitalOceanNodeDriverV2TestsMixin(object):
         self.assertEqual(expected_kernels, actual_kernels)
 
 
-def make_list_kernels_tests(driver):
-    class ListKernelTests(DigitalOceanNodeDriverV2TestsMixin,
-                          SynchronousTestCase):
+def make_tests(driver, tests_mixin):
+    class Tests(tests_mixin, SynchronousTestCase):
         def setUp(self):
             self.driver = driver
-    return ListKernelTests
+    return Tests
 
 
 canned_connection = CannedResponseConnection(
@@ -71,9 +73,13 @@ canned_connection = CannedResponseConnection(
     }
 )
 
-canned_driver = DigitalOceanNodeDriverV2(token=object(), connection=canned_connection)
 
-class CannedListKernelsTests(make_list_kernels_tests(canned_driver)):
+class CannedListKernelsTests(
+        make_tests(
+            DigitalOceanNodeDriverV2(token=object(),
+                                     connection=canned_connection),
+            ListKernelsTestsMixin)
+):
     """
     """
 
@@ -90,7 +96,7 @@ def driver_from_environment():
 
 real_driver = driver_from_environment()
 
-class RealListKernelsTests(make_list_kernels_tests(real_driver)):
+class RealListKernelsTests(make_tests(real_driver, ListKernelsTestsMixin)):
     """
     """
 
