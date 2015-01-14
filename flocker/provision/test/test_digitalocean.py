@@ -6,6 +6,7 @@ Tests for ``flocker.provision._digitalocean``.
 import httplib
 import os
 import json
+import re
 
 from twisted.trial.unittest import SynchronousTestCase
 
@@ -66,8 +67,12 @@ class CannedResponseConnection(object):
         self._responses = expected_responses
 
     def request(self, action):
-        response = self._responses[action]
-        return response()
+        for key in self._responses:
+            match = re.match(key, action)
+            if match is None:
+                continue
+            response = self._responses[key]
+            return response()
 
 
 class ListKernelsTestsMixin(object):
@@ -79,7 +84,7 @@ class ListKernelsTestsMixin(object):
         ``DigitalOceanNodeDriverV2.list_kernels`` returns a ``list`` of
         ``DigitalOceanKernel`` instances for the supplied ``droplet_id``.
         """
-        actual_kernels = self.driver.list_kernels(droplet_id='2800208')
+        actual_kernels = self.driver.list_kernels(droplet_id=self.droplet_id)
         expected_kernels = []
         self.assertEqual(expected_kernels, actual_kernels)
 
@@ -112,7 +117,7 @@ def make_tests(driver, tests_mixin):
 
 canned_connection = CannedResponseConnection(
     expected_responses = {
-        '/droplets/2800208/kernels': canned_json_response({
+        '/droplets/\d+/kernels': canned_json_response({
             "kernels": [
               {
                 "id": 231,
@@ -145,8 +150,10 @@ class CannedListKernelsTests(
                                      connection=canned_connection),
             ListKernelsTestsMixin)
 ):
+
     """
     """
+    droplet_id = '12345'
 
 
 def driver_from_environment():
@@ -159,11 +166,17 @@ def driver_from_environment():
     return DigitalOceanNodeDriverV2(token=token)
 
 
-real_driver = driver_from_environment()
+def live_api_tests_from_environment(tests_mixin):
+    real_driver = driver_from_environment()
+    class Tests(make_tests(real_driver, tests_mixin)):
+        pass
+    if real_driver is None:
+        Tests.skip = 'Missing DIGITALOCEAN environment variables'
+    return Tests
 
-class RealListKernelsTests(make_tests(real_driver, ListKernelsTestsMixin)):
+
+class RealListKernelsTests(
+        live_api_tests_from_environment(ListKernelsTestsMixin)):
     """
     """
-
-if real_driver is None:
-    RealListKernelsTests.skip = 'Missing DIGITALOCEAN environment variables'
+    droplet_id = os.environ.get('DIGITALOCEAN_DROPLET_ID')
