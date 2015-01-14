@@ -358,7 +358,7 @@ class CreateDropletTestsMixin(object):
             image=expected_response['image']['slug'],
         )
 
-        self.assertEqual(expected_response, actual_droplet)
+        self.assertEqual(expected_response['name'], actual_droplet['name'])
 
 
 class CannedCreateDropletTests(
