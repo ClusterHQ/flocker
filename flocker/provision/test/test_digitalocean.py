@@ -277,6 +277,27 @@ class ChangeKernelTestsMixin(object):
             )
         )
 
+    def test_unknown_droplet_id(self):
+        """
+        ``DigitalOceanNodeDriverV2.change_kernel`` raises ``Exception`` if
+        supplied with an invalid ``droplet_id``.
+        """
+        exception = self.assertRaises(
+            Exception,
+            self.driver.change_kernel,
+            droplet_id='',
+            kernel_id=self.kernel_id
+        )
+        self.assertEqual(
+            {
+                u'message': (u'The resource you were accessing '
+                             u'could not be found.'),
+                u'id': u'not_found'
+            },
+            exception.args[0]
+        )
+
+
 
 class CannedChangeKernelTests(
     make_tests(
@@ -289,7 +310,12 @@ class CannedChangeKernelTests(
                         'POST',
                         '{"type": "change_kernel", "kernel": "[0-9]+"}'
                     ): canned_json_response(JSON_CHANGE_KERNEL_RESPONSE),
-                    request_key('/droplets//actions'): canned_json_error(JSON_NOT_FOUND)
+
+                    request_key(
+                        '/droplets//actions',
+                        'POST',
+                        '{"type": "change_kernel", "kernel": "[0-9]+"}'
+                    ): canned_json_error(JSON_NOT_FOUND)
                 }
             )
         ),
