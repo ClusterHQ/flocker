@@ -65,7 +65,7 @@ def canned_json_error(response_object, response_status=httplib.NOT_FOUND):
 @attributes([
     'path',
     Attribute('method', default_value='GET'),
-    Attribute('data', default_value=b''),
+    Attribute('data', default_value=None),
 ], apply_immutable=True)
 class RequestKey(object):
     """
@@ -82,20 +82,44 @@ class CannedResponseConnection(object):
     def __init__(self, expected_responses):
         self._responses = expected_responses
 
-    def request(self, action, method='GET', data=b''):
+    def request(self, action, method='GET', data=None):
+        if data is None:
+            data_dict = {}
+        else:
+            data_dict = json.loads(data)
         for key in self._responses:
             if key.method != method:
                 continue
-            match = re.match(key.path, action)
-            if match is None:
+            path_match = re.match(key.path, action)
+            if path_match is None:
                 continue
+
+            if key.data is not None:
+                try:
+                    expected_data_dict = json.loads(key.data)
+                except ValueError as e:
+                    raise FailTest(
+                        'Bad data in key: {!r}. Error was: {!r}'.format(
+                            key.data, e)
+                    )
+                missing_pairs = False
+                for expected_key, expected_pattern in expected_data_dict.items():
+                    if expected_key not in data_dict:
+                        missing_pairs = True
+                        break
+                    data_match = re.match(expected_pattern, str(data_dict[expected_key]))
+                    if data_match is None:
+                        missing_pairs = True
+                        break
+                if missing_pairs:
+                    continue
             response = self._responses[key]
             return response()
         else:
             raise FailTest(
                 'Unexpected request. '
-                'Action: {}, Method: {}, Expected: {}'.format(
-                    action, method, self._responses.keys())
+                'Action: {}, Method: {}, Data: {}, Expected: {}'.format(
+                    action, method, data_dict, self._responses.keys())
             )
 
 
@@ -260,7 +284,11 @@ class CannedChangeKernelTests(
             token=object(),
             connection=CannedResponseConnection(
                 expected_responses = {
-                    request_key('/droplets/\d+/actions', 'POST'): canned_json_response(JSON_CHANGE_KERNEL_RESPONSE),
+                    request_key(
+                        '/droplets/\d+/actions',
+                        'POST',
+                        '{"type": "change_kernel", "kernel": "[0-9]+"}'
+                    ): canned_json_response(JSON_CHANGE_KERNEL_RESPONSE),
                     request_key('/droplets//actions'): canned_json_error(JSON_NOT_FOUND)
                 }
             )
