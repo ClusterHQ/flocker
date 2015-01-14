@@ -27,7 +27,7 @@ class CannedResponseConnection(object):
     def __init__(self, expected_response):
         self._response = expected_response
 
-    def request(self, action, method):
+    def request(self, action, method='GET'):
         return CannedResponse(self._response)
 
 

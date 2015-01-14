@@ -13,11 +13,12 @@ from ._install import (
 )
 
 
-from libcloud.common.base import Connection
+from libcloud.common.base import Connection, JsonResponse
 
 
 class DigitalOceanConnectionV2(Connection):
     host = 'api.digitalocean.com'
+    responseCls = JsonResponse
 
     def __init__(self, token):
         Connection.__init__(self, secure=True)
@@ -42,7 +43,8 @@ class DigitalOceanNodeDriverV2(object):
         Return a list of kernels supported by the supplied droplet.
         """
         action = '/droplets/{droplet_id}/kernels'.format(droplet_id=droplet_id)
-        response = self.connection.request(action, method='POST')
+        response = self.connection.request(action)
+        import pdb; pdb.set_trace()
         return response.object['kernels']
 
 
