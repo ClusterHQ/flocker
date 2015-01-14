@@ -3,6 +3,7 @@
 """
 DigitalOcean provisioner.
 """
+import httplib
 import json
 
 from ._libcloud import LibcloudProvisioner
@@ -17,9 +18,23 @@ from ._install import (
 from libcloud.common.base import Connection, JsonResponse
 
 
+class DigitalOceanV2JsonResponse(JsonResponse):
+    def success(self):
+        """
+        Determine if our request was successful.
+
+        Overridden because libcloud's version doesn't handle ACCEPTED
+
+        :rtype: ``bool``
+        :return: ``True`` or ``False``
+        """
+        return self.status in [httplib.OK, httplib.CREATED, httplib.ACCEPTED]
+
+
+
 class DigitalOceanConnectionV2(Connection):
     host = 'api.digitalocean.com'
-    responseCls = JsonResponse
+    responseCls = DigitalOceanV2JsonResponse
 
     def __init__(self, token):
         Connection.__init__(self, secure=True)
@@ -28,6 +43,7 @@ class DigitalOceanConnectionV2(Connection):
 
     def add_default_headers(self, headers):
         headers['Authorization'] = b'Bearer %s' % (self._token,)
+        headers['Content-Type'] = 'application/json'
         return headers
 
 
@@ -60,12 +76,31 @@ class DigitalOceanNodeDriverV2(object):
             action, method='POST', data=json.dumps(data))
         return response.object['action']
 
+    def create_droplet(self, name, region, size, image):
+        """
+        Create a droplet
+        """
+        action = '/droplets'
+        data = {
+            "name": name,
+            "region": region,
+            "size": size,
+            "image": image,
+            "ssh_keys": None,
+            "backups": False,
+            "ipv6": True,
+            "user_data": None,
+            "private_networking": None
+        }
+        response = self.connection.request(
+            action, method='POST', data=json.dumps(data))
+        return response.object['droplet']
+
 
 def provision_digitalocean(node, package_source, distribution):
     """
     Provision flocker on this node.
     """
-    import pdb; pdb.set_trace()
     # DO doesn't support booting the droplet's own kernel.
     # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader
     # So rather than upgrade, we'll need to have new task to install the kernel

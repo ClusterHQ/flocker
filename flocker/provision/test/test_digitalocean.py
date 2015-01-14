@@ -3,6 +3,7 @@
 """
 Tests for ``flocker.provision._digitalocean``.
 """
+import copy
 import httplib
 import os
 import json
@@ -15,7 +16,7 @@ from twisted.trial.unittest import SynchronousTestCase, FailTest
 from libcloud.common.base import JsonResponse
 
 from flocker.provision._digitalocean import DigitalOceanNodeDriverV2
-
+from flocker.testtools import random_name
 
 # It would be nice to use libcloud.common.base.JsonResponse instead of defining
 # our own response type here.  However, JsonResponse is not very amenable to
@@ -326,3 +327,62 @@ class CannedChangeKernelTests(
     """
     droplet_id = 12345
     kernel_id = 12345
+
+
+JSON_CREATE_DROPLET_RESPONSE = {
+    "name": 'flocker-provisioning-{}-{}'.format(
+        os.environ.get('user', 'unknownuser'),
+        random_name()
+    ),
+    "size_slug": "8gb",
+    "region": {
+        "slug": 'lon1'
+    },
+    "image": {
+        "slug": "fedora-20-x64"
+    }
+}
+
+
+class CreateDropletTestsMixin(object):
+    def test_success(self):
+        """
+        ``DigitalOceanNodeDriverV2.create_droplet`` returns
+        ``dict`` of information about the ``action``.
+        """
+        expected_response = copy.deepcopy(JSON_CREATE_DROPLET_RESPONSE)
+        actual_droplet = self.driver.create_droplet(
+            name=expected_response['name'],
+            region=expected_response['region']['slug'],
+            size=expected_response['size_slug'],
+            image=expected_response['image']['slug'],
+        )
+
+        self.assertEqual(expected_response, actual_droplet)
+
+
+class CannedCreateDropletTests(
+    make_tests(
+        DigitalOceanNodeDriverV2(
+            token=object(),
+            connection=CannedResponseConnection(
+                expected_responses = {
+                    request_key(
+                        '/droplets',
+                        'POST',
+                    ): canned_json_response(
+                        {'droplet': JSON_CREATE_DROPLET_RESPONSE}),
+                }
+            )
+        ),
+        CreateDropletTestsMixin
+    )
+):
+    """
+    """
+
+
+class RealCreateDropletTests(
+        live_api_tests_from_environment(CreateDropletTestsMixin)):
+    """
+    """
