@@ -14,9 +14,10 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call
+from subprocess import check_call, check_output
 from functools import wraps
 from unittest import skipIf
+from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
@@ -32,6 +33,8 @@ from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, Protocol
 from twisted.test.proto_helpers import MemoryReactor
+from twisted.python.procutils import which
+from twisted.trial.unittest import TestCase
 
 from characteristic import attributes
 
@@ -700,3 +703,23 @@ class MemoryCoreReactor(MemoryReactor):
         event = self._triggers.get(eventType)
         if event is not None:
             event.fireEvent()
+
+
+def make_script_tests(executable):
+    """
+    Generate a test suite which applies to any Flocker-installed node script.
+
+    :param bytes executable: The basename of the script to be tested.
+
+    :return: A ``TestCase`` subclass which defines some tests applied to the
+        given executable.
+    """
+    class ScriptTests(TestCase):
+        @skipUnless(which(executable), executable + " not installed")
+        def test_version(self):
+            """
+            The script is a command available on the system path.
+            """
+            result = check_output([executable] + [b"--version"])
+            self.assertEqual(result, b"%s\n" % (__version__,))
+    return ScriptTests
