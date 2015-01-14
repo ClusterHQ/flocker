@@ -28,7 +28,7 @@ from ..packaging import (
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
     make_dependencies,
-    CheckFiles, LintPackage,
+    LintPackage,
 )
 from ..release import rpm_version
 
@@ -967,13 +967,6 @@ class OmnibusPackageBuilderTests(TestCase):
                     rpm_version=expected_version,
                     package='clusterhq-flocker-node',
                     architecture="all",
-                ),
-
-                CheckFiles(
-                    distribution=distribution,
-                    destination_path=expected_destination_path,
-                    epoch=expected_epoch,
-                    rpm_version=expected_version,
                 ),
             )
         )

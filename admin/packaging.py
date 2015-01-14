@@ -602,36 +602,6 @@ IGNORED_WARNINGS = {
 
 
 @attributes([
-    'distribution',
-    'destination_path',
-    'epoch',
-    'rpm_version',
-])
-class CheckFiles(object):
-    def run(self):
-        expected_basenames = (
-            ('clusterhq-python-flocker', 'native'),
-            ('clusterhq-flocker-cli', 'all'),
-            ('clusterhq-flocker-node', 'all'),
-        )
-        expected_filenames = []
-        for basename, architecture in expected_basenames:
-            f = package_filename(
-                package_type=self.distribution.package_type(),
-                package=basename, rpm_version=self.rpm_version,
-                architecture=architecture)
-            expected_filenames.append(f)
-
-        output_files = self.destination_path.children()
-
-        if (set(expected_filenames) !=
-                set(f.basename() for f in output_files)):
-            raise Exception(
-                "missing file", expected_filenames,
-                set(f.basename() for f in output_files))
-
-
-@attributes([
     'package_type',
     'destination_path',
     'epoch',
@@ -890,15 +860,6 @@ def omnibus_package_builder(
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
                 architecture='all',
-            ),
-
-            # This would be better outside of docker
-            # but we don't have the version number there.
-            CheckFiles(
-                distribution=distribution,
-                destination_path=destination_path,
-                epoch=PACKAGE.EPOCH.value,
-                rpm_version=rpm_version,
             ),
         )
     )
