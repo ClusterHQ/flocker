@@ -1,0 +1,11 @@
+h2 {
+  font-size: 2em;
+}
+
+.right-border {
+  border-right: 1px solid black;
+}
+
+.bottom-border {
+  border-bottom: 1px solid black;
+}
