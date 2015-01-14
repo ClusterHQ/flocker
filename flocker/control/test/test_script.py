@@ -27,7 +27,7 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         The ``--port`` command-line option allows configuring the port.
         """
         options = ControlOptions()
-        options.parseOptions(["--port", 1234])
+        options.parseOptions([b"--port", b"1234"])
         self.assertEqual(options["port"], 1234)
 
 
