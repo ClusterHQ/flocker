@@ -18,11 +18,11 @@ from libcloud.common.base import Connection
 
 class DigitalOceanConnectionV2(Connection):
     host = 'api.digitalocean.com'
-    request_path = '/v2'
 
     def __init__(self, token):
-        Connection.__init__(self)
+        Connection.__init__(self, secure=True)
         self._token = token
+        self.request_path = '/v2'
 
     def add_default_headers(self, headers):
         headers['Authorization'] = b'Bearer %s' % (self._token,)

@@ -35,7 +35,7 @@ class ListKernelsTestsMixin(object):
     def test_all(self):
         """
         """
-        actual_kernels = self.driver.list_kernels(droplet_id=object())
+        actual_kernels = self.driver.list_kernels(droplet_id='2800208')
         expected_kernels = []
         self.assertEqual(expected_kernels, actual_kernels)
 
