@@ -12,10 +12,38 @@ from ._install import (
     task_upgrade_selinux,
 )
 
-def list_kernels(driver, droplet_id):
+
+from libcloud.common.base import Connection
+
+
+class DigitalOceanConnectionV2(Connection):
+    host = 'api.digitalocean.com'
+    request_path = '/v2'
+
+    def __init__(self, token):
+        Connection.__init__(self)
+        self._token = token
+
+    def add_default_headers(self, headers):
+        headers['Authorization'] = b'Bearer %s' % (self._token,)
+        return headers
+
+
+class DigitalOceanNodeDriverV2(object):
     """
-    Return a list of kernels supported by the supplied droplet.
     """
+    def __init__(self, token, connection=None):
+        if connection is None:
+            connection = DigitalOceanConnectionV2(token=token)
+        self.connection = connection
+
+    def list_kernels(self, droplet_id):
+        """
+        Return a list of kernels supported by the supplied droplet.
+        """
+        action = '/droplets/{droplet_id}/kernels'.format(droplet_id=droplet_id)
+        response = self.connection.request(action, method='POST')
+        return response.object['kernels']
 
 
 def provision_digitalocean(node, package_source, distribution):

@@ -4,9 +4,11 @@
 Tests for ``flocker.provision._digitalocean``.
 """
 
+import os
+
 from twisted.trial.unittest import SynchronousTestCase
 
-from flocker.provision._digitalocean import list_kernels
+from flocker.provision._digitalocean import DigitalOceanNodeDriverV2
 
 
 # It would be nice to use libcloud.common.base.JsonResponse instead of defining
@@ -25,21 +27,15 @@ class CannedResponseConnection(object):
     def __init__(self, expected_response):
         self._response = expected_response
 
-    def request(self):
+    def request(self, action, method):
         return CannedResponse(self._response)
-
-
-class CannedResponseDriver(object):
-    def __init__(self, expected_response):
-        self._response = expected_response
-        self.connection = CannedResponseConnection(expected_response)
 
 
 class ListKernelsTestsMixin(object):
     def test_all(self):
         """
         """
-        actual_kernels = list_kernels(self.driver, droplet_id=object())
+        actual_kernels = self.driver.list_kernels(droplet_id=object())
         expected_kernels = []
         self.assertEqual(expected_kernels, actual_kernels)
 
@@ -51,7 +47,7 @@ def make_list_kernels_tests(driver):
     return ListKernelTests
 
 
-test_driver = CannedResponseDriver(
+canned_connection = CannedResponseConnection(
     expected_response = {
         "kernels": [
           {
@@ -72,26 +68,21 @@ test_driver = CannedResponseDriver(
     }
 )
 
-class CannedListKernelsTests(make_list_kernels_tests(test_driver)):
+canned_driver = DigitalOceanNodeDriverV2(token=object(), connection=canned_connection)
+
+class CannedListKernelsTests(make_list_kernels_tests(canned_driver)):
     """
     """
 
 
-import os
-from libcloud.compute.drivers.digitalocean import DigitalOceanNodeDriver
 def driver_from_environment():
     """
     """
-    client_id = os.environ.get('DIGITALOCEAN_CLIENT_ID')
-    api_key = os.environ.get('DIGITALOCEAN_API_KEY')
-
-    if None in (client_id, api_key):
+    token = os.environ.get('DIGITALOCEAN_TOKEN')
+    if None in (token,):
         return None
 
-    return DigitalOceanNodeDriver(
-        key=client_id,
-        secret=api_key,
-    )
+    return DigitalOceanNodeDriverV2(token=token)
 
 
 real_driver = driver_from_environment()
