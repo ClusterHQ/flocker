@@ -79,14 +79,18 @@ class ListKernelsTestsMixin(object):
     """
     Tests for ``DigitalOceanNodeDriverV2.list_kernels``.
     """
-    def test_success(self):
+    def test_kernel_dict(self):
         """
         ``DigitalOceanNodeDriverV2.list_kernels`` returns a ``list`` of
-        ``DigitalOceanKernel`` instances for the supplied ``droplet_id``.
+        ``dict``s containing information about the kernels available for the
+        supplied ``droplet_id``.
+
+        A more specific dictionary format test is included in the canned driver
+        test below.
         """
         actual_kernels = self.driver.list_kernels(droplet_id=self.droplet_id)
-        expected_kernels = []
-        self.assertEqual(expected_kernels, actual_kernels)
+        expected_keys = set(['id', 'name', 'version'])
+        self.assertEqual(expected_keys, set(actual_kernels[0].keys()))
 
     def test_unknown_droplet_id(self):
         """
@@ -115,16 +119,18 @@ def make_tests(driver, tests_mixin):
     return Tests
 
 
+# From https://developers.digitalocean.com/#list-all-available-kernels-for-a-droplet
+expected_kernel = {
+  "id": 231,
+  "name": "DO-recovery-static-fsck",
+  "version": "3.8.0-25-generic"
+}
+
+
 canned_connection = CannedResponseConnection(
     expected_responses = {
         '/droplets/\d+/kernels': canned_json_response({
-            "kernels": [
-              {
-                "id": 231,
-                "name": "DO-recovery-static-fsck",
-                "version": "3.8.0-25-generic"
-              }
-            ],
+            "kernels": [expected_kernel],
             "links": {
               "pages": {
                 "last": "https://api.digitalocean.com/v2/droplets/3164494/kernels?page=124&per_page=1",
@@ -154,6 +160,14 @@ class CannedListKernelsTests(
     """
     """
     droplet_id = '12345'
+    def test_success(self):
+        """
+        ``DigitalOceanNodeDriverV2.list_kernels`` returns a ``list`` of
+        ``dict``s for the supplied ``droplet_id``.
+        """
+        actual_kernels = self.driver.list_kernels(droplet_id=self.droplet_id)
+        expected_kernels = [expected_kernel]
+        self.assertEqual(expected_kernels, actual_kernels)
 
 
 def driver_from_environment():
