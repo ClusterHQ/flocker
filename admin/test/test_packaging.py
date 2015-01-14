@@ -8,6 +8,7 @@ from glob import glob
 from subprocess import check_output
 from textwrap import dedent
 from unittest import skipIf
+from StringIO import StringIO
 
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
@@ -694,6 +695,99 @@ class BuildPackageTests(TestCase):
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
+
+
+class LintPackageTests(TestCase):
+    """
+    Tests for ``LintPackage``.
+    """
+
+    @require_fpm
+    def setUp(self):
+        pass
+
+    def assert_lint(self, package_type, expected_output):
+        """
+        ``LintPackage.run`` reports only unfiltered errors and raises
+        ``SystemExit``.
+
+        :param PackageTypes package_type: The type of package to test.
+        :param bytes expected_output: The expected output of the linting.
+        """
+        destination_path = FilePath(self.mktemp())
+        destination_path.makedirs()
+        source_path = FilePath(self.mktemp())
+        source_path.makedirs()
+        source_path.child('Foo').touch()
+        source_path.child('Bar').touch()
+        BuildPackage(
+            package_type=package_type,
+            destination_path=destination_path,
+            source_paths={
+                source_path: FilePath('/foo/bar'),
+                source_path.child('Foo'): FilePath('/opt/file'),
+            },
+            name="package-name",
+            prefix=FilePath('/'),
+            epoch=b'3',
+            rpm_version=rpm_version('0.3', '0.dev.1'),
+            license="Example",
+            url="https://package.example/",
+            vendor="Acme Corporation",
+            maintainer='Someone <noreply@example.com>',
+            architecture="all",
+            description="Description\n\nExtended",
+            category="none",
+            dependencies=[]
+        ).run()
+
+        step = LintPackage(
+            package_type=package_type,
+            destination_path=destination_path,
+            epoch=b'3',
+            rpm_version=rpm_version('0.3', '0.dev.1'),
+            package='package-name',
+            architecture='all'
+        )
+        step.output = StringIO()
+        self.assertRaises(SystemExit, step.run)
+        self.assertEqual(step.output.getvalue(), expected_output)
+
+    @require_rpmlint
+    def test_rpm(self):
+        """
+        rpmlint doesn't report filtered errors.
+        """
+        # The following warnings and errors are filtered.
+        # - E: no-changelogname-tag
+        # - W: no-documentation
+        # - E: zero-length
+        self.assert_lint(PackageTypes.RPM, b"""\
+Package errors (package-name):
+package-name.noarch: W: non-standard-group default
+package-name.noarch: W: invalid-license Example
+package-name.noarch: W: invalid-url URL: https://package.example/ \
+<urlopen error [Errno -2] Name or service not known>
+package-name.noarch: W: cross-directory-hard-link /foo/bar/Foo /opt/file
+""")
+
+    @require_lintian
+    def test_deb(self):
+        """
+        lintian doesn't report filtered errors.
+        """
+        # The following warnings and errors are filtered.
+        # - E: package-name: no-copyright-file
+        # - E: package-name: dir-or-file-in-opt
+        # - W: package-name: file-missing-in-md5sums .../changelog.Debian.gz
+        self.assert_lint(PackageTypes.DEB, b"""\
+Package errors (package-name):
+W: package-name: unknown-section default
+E: package-name: non-standard-toplevel-dir foo/
+W: package-name: file-in-unusual-dir foo/bar/Bar
+W: package-name: file-in-unusual-dir foo/bar/Foo
+W: package-name: package-contains-hardlink foo/bar/Foo -> opt/file
+""")
 
 
 class OmnibusPackageBuilderTests(TestCase):

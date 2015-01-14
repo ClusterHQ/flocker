@@ -523,87 +523,82 @@ class DelayedRpmVersion(object):
     def __str__(self):
         return self.rpm_version.version + '-' + self.rpm_version.release
 
-RPMLINT_IGNORED_WARNINGS = (
-    # Ignore the summary line rpmlint prints.
-    # We always check a single package, so we can hardcode the numbers.
-    '1 packages and 0 specfiles checked;',
+IGNORED_WARNINGS = {
+    PackageTypes.RPM: (
+        # Ignore the summary line rpmlint prints.
+        # We always check a single package, so we can hardcode the numbers.
+        '1 packages and 0 specfiles checked;',
 
-    # This isn't an distribution package, so we deliberately install in /opt
-    'dir-or-file-in-opt',
-    # We don't care enought to fix this
-    'python-bytecode-inconsistent-mtime',
-    # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
-    'zero-length',
+        # This isn't an distribution package so we deliberately install in /opt
+        'dir-or-file-in-opt',
+        # We don't care enought to fix this
+        'python-bytecode-inconsistent-mtime',
+        # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
+        'zero-length',
 
-    # fpm doesn't provide a way to specify a group tag.
-    'non-standard-group',
+        # cli/node packages have symlink to base package
+        'dangling-symlink',
 
-    # cli/node packages have symlink to base package
-    'dangling-symlink',
+        # Should be fixed
+        'no-documentation',
+        'no-manual-page-for-binary',
+        # changelogs are elsewhere
+        'no-changelogname-tag',
 
-    # Should be fixed
-    'no-documentation',
-    'no-manual-page-for-binary',
-    # changelogs are elsewhere
-    'no-changelogname-tag',
+        # virtualenv's interpreter is correct.
+        'wrong-script-interpreter',
 
-    # virtualenv's interpreter is correct.
-    'wrong-script-interpreter',
+        # rpmlint on CentOS 7 doesn't see python in the virtualenv.
+        'no-binary',
 
-    # rpmlint on CentOS 7 doesn't see python in the virtualenv.
-    'no-binary',
-
-    # These are in our dependencies.
-    'incorrect-fsf-address',
-    'pem-certificate',
-    'non-executable-script',
-    'devel-file-in-non-devel-package',
-    'unstripped-binary-or-object',
-)
+        # These are in our dependencies.
+        'incorrect-fsf-address',
+        'pem-certificate',
+        'non-executable-script',
+        'devel-file-in-non-devel-package',
+        'unstripped-binary-or-object',
+    ),
 # See https://www.debian.org/doc/manuals/developers-reference/tools.html#lintian  # noqa
-LINTIAN_IGNORED_WARNINGS = (
-    # This isn't an distribution package, so we deliberately install in /opt
-    'dir-or-file-in-opt',
+    PackageTypes.DEB: (
+        # This isn't an distribution package so we deliberately install in /opt
+        'dir-or-file-in-opt',
 
-    # virtualenv's interpreter is correct.
-    'wrong-path-for-interpreter',
-    # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
-    'symlink-should-be-relative',
+        # virtualenv's interpreter is correct.
+        'wrong-path-for-interpreter',
+        # Virtualenv creates symlinks for local/{bin,include,lib}. Ignore them.
+        'symlink-should-be-relative',
 
-    # We depend on python2.7 which depends on libc
-    'missing-dependency-on-libc',
+        # We depend on python2.7 which depends on libc
+        'missing-dependency-on-libc',
 
-    # We are installing in a virtualenv, so we can't easily use debian's
-    # bytecompiling infrastructure. It doesn't provide any benefit, either.
-    'package-installs-python-bytecode',
+        # We are installing in a virtualenv, so we can't easily use debian's
+        # bytecompiling infrastructure. It doesn't provide any benefit, either.
+        'package-installs-python-bytecode',
 
-    # https://github.com/jordansissel/fpm/issues/833
-    ('file-missing-in-md5sums '
-     'usr/share/doc/clusterhq-python-flocker/changelog.Debian.gz'),
+        # https://github.com/jordansissel/fpm/issues/833
+        ('file-missing-in-md5sums '
+         'usr/share/doc/'),
 
-    # lintian expects python dep for .../python shebang lines.
-    # We are in a virtualenv that points a python2.7 explictly and have that
-    # dependency.
-    'python-script-but-no-python-dep',
+        # lintian expects python dep for .../python shebang lines.
+        # We are in a virtualenv that points at python2.7 explictly and has
+        # that dependency.
+        'python-script-but-no-python-dep',
 
-    # Should be fixed
-    'binary-without-manpage',
-    'no-copyright-file',
+        # Should be fixed
+        'binary-without-manpage',
+        'no-copyright-file',
 
-    # These are in our dependencies.
-    'script-not-executable',
-    'embedded-javascript-library',
-    'extra-license-file',
-    'unstripped-binary-or-object',
+        # These are in our dependencies.
+        'script-not-executable',
+        'embedded-javascript-library',
+        'extra-license-file',
+        'unstripped-binary-or-object',
 
-    # Werkzeug installs various images with executable permissions.
-    # https://github.com/mitsuhiko/werkzeug/issues/629
-    'executable-not-elf-or-script',
-)
-(
-    # fpm doesn't provide a way to specify a section tag.
-    'unknown-section',
-)
+        # Werkzeug installs various images with executable permissions.
+        # https://github.com/mitsuhiko/werkzeug/issues/629
+        'executable-not-elf-or-script',
+    ),
+}
 
 
 @attributes([
@@ -637,7 +632,7 @@ class CheckFiles(object):
 
 
 @attributes([
-    'distribution',
+    'package_type',
     'destination_path',
     'epoch',
     'rpm_version',
@@ -646,23 +641,34 @@ class CheckFiles(object):
 ])
 class LintPackage(object):
     """
+    Run package linting tool against a package and fail if there are any errors
+    or warnings that aren't whitelisted.
     """
+    output = sys.stdout
 
     @staticmethod
-    def check_lint_output(output, acceptable_warnings):
+    def check_lint_output(warnings, ignored_warnings):
+        """
+        Filter the output of a linting tool against a list of ignored
+        warnings.
+
+        :param list warnings: List of warnings produced.
+        :param list ignored_warnings: List of warnings to ignore. A warning is
+            ignored it it has a substring matching something in this list.
+        """
         unacceptable = []
-        for line in output.splitlines():
+        for warning in warnings:
             # Ignore certain warning lines
-            for ignored in acceptable_warnings:
-                if ignored in line:
+            for ignored in ignored_warnings:
+                if ignored in warning:
                     break
             else:
-                unacceptable.append(line)
+                unacceptable.append(warning)
         return unacceptable
 
     def run(self):
         filename = package_filename(
-            package_type=self.distribution.package_type(),
+            package_type=self.package_type,
             package=self.package, rpm_version=self.rpm_version,
             architecture=self.architecture)
 
@@ -673,18 +679,18 @@ class LintPackage(object):
                 {
                     PackageTypes.RPM: 'rpmlint',
                     PackageTypes.DEB: 'lintian',
-                }[self.distribution.package_type()],
+                }[self.package_type],
                 output_file.path,
             ])
         except CalledProcessError as e:
-            results = self.check_lint_output(e.output, {
-                PackageTypes.RPM: RPMLINT_IGNORED_WARNINGS,
-                PackageTypes.DEB: LINTIAN_IGNORED_WARNINGS,
-            }[self.distribution.package_type()])
+            results = self.check_lint_output(
+                warnings=e.output.splitlines(),
+                ignored_warnings=IGNORED_WARNINGS[self.package_type],
+            )
 
             if results:
-                print "Package errors (%s):" % (self.package)
-                print '\n'.join(results)
+                self.output.write("Package errors (%s):\n" % (self.package))
+                self.output.write('\n'.join(results) + "\n")
                 raise SystemExit(1)
 
 
@@ -806,7 +812,7 @@ def omnibus_package_builder(
                 directories=[virtualenv_dir],
             ),
             LintPackage(
-                distribution=distribution,
+                package_type=distribution.package_type(),
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
@@ -840,13 +846,14 @@ def omnibus_package_builder(
                     'cli', rpm_version, distribution),
             ),
             LintPackage(
-                distribution=distribution,
+                package_type=distribution.package_type(),
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-cli',
                 architecture='all',
             ),
+
             # flocker-node steps
             CreateLinks(
                 links=[
@@ -877,13 +884,14 @@ def omnibus_package_builder(
                     'node', rpm_version, distribution),
             ),
             LintPackage(
-                distribution=distribution,
+                package_type=distribution.package_type(),
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
                 package='clusterhq-flocker-node',
                 architecture='all',
             ),
+
             # This would be better outside of docker
             # but we don't have the version number there.
             CheckFiles(
