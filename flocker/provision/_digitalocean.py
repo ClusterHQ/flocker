@@ -46,6 +46,14 @@ class DigitalOceanNodeDriverV2(object):
         response = self.connection.request(action)
         return response.object['kernels']
 
+    def change_kernel(self, droplet_id, kernel_id):
+        """
+        Change the kernel of the given droplet.
+        """
+        action = '/droplets/{droplet_id}/actions'.format(droplet_id=droplet_id)
+        response = self.connection.request(action, method='POST')
+        return response.object['action']
+
 
 def provision_digitalocean(node, package_source, distribution):
     """
