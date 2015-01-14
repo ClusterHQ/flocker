@@ -206,7 +206,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
             'applications': {
                 'wordpress': {
                     'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'volume': {'mountpoint': b'/var/www/wordpress'},
+                    'volume': {'mountpoint': '/var/www/wordpress'},
                     'image': 'sample/wordpress',
                     'ports': [{'internal': 80, 'external': 8080}],
                     'links': [
@@ -294,7 +294,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                 'postgres': {
                     'image': 'sample/postgres',
                     'ports': [{'internal': 5432, 'external': 5432}],
-                    'volume': {'mountpoint': b'/var/lib/data'},
+                    'volume': {'mountpoint': '/var/lib/data'},
                 }
             }
         }
@@ -546,7 +546,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         config = {
             'postgres': {
                 'image': 'sample/postgres',
-                'volumes': [b'/var/db/data']
+                'volumes': ['/var/db/data']
             },
             'wordpress': {
                 'image': 'sample/wordpress',
@@ -1520,7 +1520,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(
                     image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': b'/var/mysql/data'}
+                    volume={'mountpoint': '/var/mysql/data'}
                 ),
                 'site-hybridcluster': {
                     'image': 'flocker/wordpress:v1.0.0',
@@ -1574,14 +1574,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql'},
+                    'volume': {'mountpoint': '/var/lib/mysql'},
                 },
                 'site-hybridcluster': {
                     'image': 'clusterhq/wordpress:v1.0.0',
                     'ports': [dict(internal=80, external=8080)],
                     'links': [{'alias': 'mysql', 'local_port': 3306,
                                'remote_port': 3306}],
-                    'volume': {'mountpoint': b'/var/www/data'},
+                    'volume': {'mountpoint': '/var/www/data'},
                     'environment': {
                         'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                     },
@@ -1639,7 +1639,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': "-10M"},
                 },
             }
@@ -1689,7 +1689,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'100F'},
                 },
             }
@@ -1741,7 +1741,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': 1000000},
                 },
             }
@@ -1768,7 +1768,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'100M'},
                 },
             }
@@ -1790,7 +1790,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1000000'},
                 },
             }
@@ -1813,7 +1813,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1000K'},
                 },
             }
@@ -1836,7 +1836,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1G'},
                 },
             }
@@ -1859,7 +1859,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1T'},
                 },
             }
@@ -1882,7 +1882,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1.5G'},
                 },
             }
@@ -1903,7 +1903,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'dataset_id': dataset_id},
                 },
             }
@@ -2200,7 +2200,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'/var/mysql/data',
+                volume={'mountpoint': '/var/mysql/data',
                         'bar': 'baz',
                         'foo': 215},
             )}
@@ -2246,7 +2246,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'./.././var//'},
+                volume={'mountpoint': './.././var//'},
             )}
         )
         parser = FlockerConfiguration(config)
@@ -2928,7 +2928,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'volume': {'mountpoint': '/var/mysql/data'},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2966,7 +2966,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data',
+                    'volume': {'mountpoint': '/var/mysql/data',
                                'maximum_size': unicode(EXPECTED_MAX_SIZE)},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
@@ -3004,7 +3004,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data',
+                    'volume': {'mountpoint': '/var/mysql/data',
                                'dataset_id': dataset_id},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
