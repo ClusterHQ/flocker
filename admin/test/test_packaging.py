@@ -598,6 +598,7 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            category="Applications/System",
             dependencies=[
                 Dependency(package='test-dep'),
                 Dependency(package='version-dep', compare='>=', version='42')],
@@ -616,6 +617,7 @@ class BuildPackageTests(TestCase):
             Vendor=expected_vendor,
             Packager=expected_maintainer,
             Architecture=expected_architecture,
+            Group="Applications/System",
         )
         rpm_path = FilePath(rpms[0])
         assert_rpm_requires(self, expected_dependencies, rpm_path)
@@ -669,6 +671,7 @@ class BuildPackageTests(TestCase):
             maintainer=expected_maintainer,
             architecture=expected_architecture,
             description=expected_description,
+            category="admin",
             dependencies=[
                 Dependency(package='test-dep'),
                 Dependency(package='version-dep', compare='>=', version='42')],
@@ -691,7 +694,8 @@ class BuildPackageTests(TestCase):
             Architecture=expected_architecture,
             Maintainer=expected_maintainer,
             Homepage=expected_url,
-            Depends=', '.join(['test-dep', 'version-dep (>= 42)'])
+            Depends=', '.join(['test-dep', 'version-dep (>= 42)']),
+            Section="admin",
         )
         assert_deb_headers(self, expected_headers, FilePath(packages[0]))
         assert_deb_content(self, expected_paths, FilePath(packages[0]))
@@ -891,7 +895,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     dependencies=[Dependency(package='python-dep')],
                 ),
                 LintPackage(
-                    distribution=distribution,
+                    package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     epoch=expected_epoch,
                     rpm_version=expected_version,
@@ -924,7 +928,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     dependencies=[Dependency(package='cli-dep')],
                 ),
                 LintPackage(
-                    distribution=distribution,
+                    package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     epoch=expected_epoch,
                     rpm_version=expected_version,
@@ -961,7 +965,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     dependencies=[Dependency(package='node-dep')],
                 ),
                 LintPackage(
-                    distribution=distribution,
+                    package_type=expected_package_type,
                     destination_path=expected_destination_path,
                     epoch=expected_epoch,
                     rpm_version=expected_version,
