@@ -93,7 +93,14 @@ class ListKernelsTestsMixin(object):
             self.driver.list_kernels,
             droplet_id=''
         )
-        self.assertEqual('', exception)
+        self.assertEqual(
+            {
+                u'message': (u'The resource you were accessing '
+                             u'could not be found.'),
+                u'id': u'not_found'
+            },
+            exception.args[0]
+        )
 
 
 def make_tests(driver, tests_mixin):
