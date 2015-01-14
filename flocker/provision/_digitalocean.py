@@ -3,6 +3,7 @@
 """
 DigitalOcean provisioner.
 """
+import json
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
@@ -51,7 +52,12 @@ class DigitalOceanNodeDriverV2(object):
         Change the kernel of the given droplet.
         """
         action = '/droplets/{droplet_id}/actions'.format(droplet_id=droplet_id)
-        response = self.connection.request(action, method='POST')
+        data = {
+            "type": "change_kernel",
+            "kernel": kernel_id
+        }
+        response = self.connection.request(
+            action, method='POST', data=json.dumps(data))
         return response.object['action']
 
 

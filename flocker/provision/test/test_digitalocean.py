@@ -8,6 +8,8 @@ import os
 import json
 import re
 
+from characteristic import Attribute, attributes
+
 from twisted.trial.unittest import SynchronousTestCase, FailTest
 
 from libcloud.common.base import JsonResponse
@@ -60,20 +62,34 @@ def canned_json_error(response_object, response_status=httplib.NOT_FOUND):
     return canned_json_response(response_object, response_status)
 
 
+@attributes([
+    'path',
+    Attribute('method', default_value='GET'),
+    Attribute('data', default_value=b''),
+], apply_immutable=True)
+class RequestKey(object):
+    """
+    """
+
+def request_key(*args):
+    kwargs = dict(zip(('path', 'method', 'data'), args))
+    return RequestKey(**kwargs)
+
+
 class CannedResponseConnection(object):
     """
     """
     def __init__(self, expected_responses):
         self._responses = expected_responses
 
-    def request(self, action, method='GET'):
-        for match_method, match_path in self._responses:
-            if match_method != method:
+    def request(self, action, method='GET', data=b''):
+        for key in self._responses:
+            if key.method != method:
                 continue
-            match = re.match(match_path, action)
+            match = re.match(key.path, action)
             if match is None:
                 continue
-            response = self._responses[(match_method, match_path)]
+            response = self._responses[key]
             return response()
         else:
             raise FailTest(
@@ -158,8 +174,8 @@ class CannedListKernelsTests(
                 token=object(),
                 connection=CannedResponseConnection(
                     expected_responses = {
-                        ('GET', '/droplets/\d+/kernels'): canned_json_response(JSON_KERNELS),
-                        ('GET', '/droplets//kernels'): canned_json_error(JSON_NOT_FOUND)
+                        request_key('/droplets/\d+/kernels'): canned_json_response(JSON_KERNELS),
+                        request_key('/droplets//kernels'): canned_json_error(JSON_NOT_FOUND)
                     }
                 )
             ),
@@ -244,8 +260,8 @@ class CannedChangeKernelTests(
             token=object(),
             connection=CannedResponseConnection(
                 expected_responses = {
-                    ('POST', '/droplets/\d+/actions'): canned_json_response(JSON_CHANGE_KERNEL_RESPONSE),
-                    ('POST', '/droplets//actions'): canned_json_error(JSON_NOT_FOUND)
+                    request_key('/droplets/\d+/actions', 'POST'): canned_json_response(JSON_CHANGE_KERNEL_RESPONSE),
+                    request_key('/droplets//actions'): canned_json_error(JSON_NOT_FOUND)
                 }
             )
         ),
