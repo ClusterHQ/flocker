@@ -331,7 +331,7 @@ class CannedChangeKernelTests(
 
 JSON_CREATE_DROPLET_RESPONSE = {
     "name": 'flocker-provisioning-{}-{}'.format(
-        os.environ.get('user', 'unknownuser'),
+        os.environ.get('USER', 'unknownuser'),
         random_name()
     ),
     "size_slug": "8gb",
