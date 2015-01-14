@@ -27,6 +27,7 @@ from ..packaging import (
     Dependency, build_in_docker, DockerBuild, DockerRun,
     PACKAGE, PACKAGE_PYTHON, PACKAGE_CLI, PACKAGE_NODE,
     make_dependencies,
+    CheckFiles, LintPackage,
 )
 from ..release import rpm_version
 
@@ -699,26 +700,50 @@ class OmnibusPackageBuilderTests(TestCase):
     """
     Tests for ``omnibus_package_builder``.
     """
-    def test_steps(self):
+    def test_centos_7(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='centos', version='7'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+        )
+
+    def test_ubuntu_14_04(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='ubuntu', version='14.04'),
+            expected_category='admin',
+            expected_package_type=PackageTypes.DEB,
+        )
+
+    def test_fedora_20(self):
+        self.assert_omnibus_steps(
+            distribution=Distribution(name='fedora', version='20'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+        )
+
+    def assert_omnibus_steps(
+            self,
+            distribution=Distribution(name='fedora', version='20'),
+            expected_category='Applications/System',
+            expected_package_type=PackageTypes.RPM,
+            ):
         """
         A sequence of build steps is returned.
         """
-        self.patch(packaging, 'CURRENT_DISTRIBUTION',
-                   Distribution(name='test-distro', version='30'))
+        self.patch(packaging, 'CURRENT_DISTRIBUTION', distribution)
 
         fake_dependencies = {
-            'python': {'test-distro': [Dependency(package='python-dep')]},
-            'node': {'test-distro': [Dependency(package='node-dep')]},
-            'cli': {'test-distro': [Dependency(package='cli-dep')]},
+            'python': [Dependency(package='python-dep')],
+            'node': [Dependency(package='node-dep')],
+            'cli': [Dependency(package='cli-dep')],
         }
 
         def fake_make_dependencies(
                 package_name, package_version, distribution):
-            return fake_dependencies[package_name][distribution]
+            return fake_dependencies[package_name]
 
         self.patch(packaging, 'make_dependencies', fake_make_dependencies)
 
-        expected_package_type = 'rpm'
         expected_destination_path = FilePath(self.mktemp())
 
         target_path = FilePath(self.mktemp())
@@ -767,7 +792,17 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='native',
                     description=PACKAGE_PYTHON.DESCRIPTION.value,
+                    category=expected_category,
+                    directories=[expected_virtualenv_path],
                     dependencies=[Dependency(package='python-dep')],
+                ),
+                LintPackage(
+                    distribution=distribution,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-python-flocker',
+                    architecture="native",
                 ),
 
                 # flocker-cli steps
@@ -791,8 +826,18 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='all',
                     description=PACKAGE_CLI.DESCRIPTION.value,
+                    category=expected_category,
                     dependencies=[Dependency(package='cli-dep')],
                 ),
+                LintPackage(
+                    distribution=distribution,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-cli',
+                    architecture="all",
+                ),
+
                 # flocker-node steps
                 CreateLinks(
                     links=[
@@ -818,14 +863,30 @@ class OmnibusPackageBuilderTests(TestCase):
                     maintainer=expected_maintainer,
                     architecture='all',
                     description=PACKAGE_NODE.DESCRIPTION.value,
+                    category=expected_category,
                     dependencies=[Dependency(package='node-dep')],
+                ),
+                LintPackage(
+                    distribution=distribution,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
+                    package='clusterhq-flocker-node',
+                    architecture="all",
+                ),
+
+                CheckFiles(
+                    distribution=distribution,
+                    destination_path=expected_destination_path,
+                    epoch=expected_epoch,
+                    rpm_version=expected_version,
                 ),
             )
         )
         assert_equal_steps(
             self,
             expected,
-            omnibus_package_builder(package_type=expected_package_type,
+            omnibus_package_builder(distribution=distribution,
                                     destination_path=expected_destination_path,
                                     package_uri=expected_package_uri,
                                     target_dir=target_path))
@@ -853,19 +914,8 @@ class DockerBuildOptionsTests(TestCase):
         """
         expected_defaults = {
             'destination-path': '.',
-            'package-type': 'native',
         }
         self.assertEqual(expected_defaults, DockerBuildOptions())
-
-    def test_native(self):
-        """
-        ``DockerBuildOptions`` package-type is selected automatically if the
-        keyword ``native`` is supplied.
-        """
-        options = DockerBuildOptions()
-        options.parseOptions(
-            ['--package-type=native', 'http://example.com/fake/uri'])
-        self.assertEqual(self.native_package_type, options['package-type'])
 
     def test_package_uri_missing(self):
         """
@@ -936,9 +986,10 @@ class DockerBuildScriptTests(TestCase):
             argv=[
                 'build-command-name',
                 '--destination-path=%s' % (expected_destination_path.path,),
-                '--package-type=rpm',
                 expected_package_uri]
         )
+        distribution = Distribution(name='test-distro', version='30')
+        self.patch(packaging, 'CURRENT_DISTRIBUTION', distribution)
         script = DockerBuildScript(sys_module=fake_sys_module)
         build_step = SpyStep()
         arguments = []
@@ -952,7 +1003,7 @@ class DockerBuildScriptTests(TestCase):
             (),
             dict(destination_path=expected_destination_path,
                  package_uri=expected_package_uri,
-                 package_type=PackageTypes.RPM)
+                 distribution=distribution)
         )]
         self.assertEqual(expected_build_arguments, arguments)
         self.assertTrue(build_step.ran)
@@ -1142,7 +1193,8 @@ class MakeDependenciesTests(TestCase):
                 compare='=',
                 version=expected_version
             ),
-            make_dependencies('node', expected_version, 'fedora')
+            make_dependencies('node', expected_version,
+                              Distribution(name='fedora', version='20'))
         )
 
     def test_cli(self):
@@ -1157,5 +1209,6 @@ class MakeDependenciesTests(TestCase):
                 compare='=',
                 version=expected_version
             ),
-            make_dependencies('cli', expected_version, 'fedora')
+            make_dependencies('cli', expected_version,
+                              Distribution(name='fedora', version='20'))
         )

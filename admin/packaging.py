@@ -802,11 +802,11 @@ def omnibus_package_builder(
                 description=PACKAGE_PYTHON.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
-                    'python', rpm_version, CURRENT_DISTRIBUTION),
+                    'python', rpm_version, distribution),
                 directories=[virtualenv_dir],
             ),
             LintPackage(
-                distribution=CURRENT_DISTRIBUTION,
+                distribution=distribution,
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
@@ -837,10 +837,10 @@ def omnibus_package_builder(
                 description=PACKAGE_CLI.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
-                    'cli', rpm_version, CURRENT_DISTRIBUTION),
+                    'cli', rpm_version, distribution),
             ),
             LintPackage(
-                distribution=CURRENT_DISTRIBUTION,
+                distribution=distribution,
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
@@ -874,10 +874,10 @@ def omnibus_package_builder(
                 description=PACKAGE_NODE.DESCRIPTION.value,
                 category=category,
                 dependencies=make_dependencies(
-                    'node', rpm_version, CURRENT_DISTRIBUTION),
+                    'node', rpm_version, distribution),
             ),
             LintPackage(
-                distribution=CURRENT_DISTRIBUTION,
+                distribution=distribution,
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
@@ -887,7 +887,7 @@ def omnibus_package_builder(
             # This would be better outside of docker
             # but we don't have the version number there.
             CheckFiles(
-                distribution=CURRENT_DISTRIBUTION,
+                distribution=distribution,
                 destination_path=destination_path,
                 epoch=PACKAGE.EPOCH.value,
                 rpm_version=rpm_version,
