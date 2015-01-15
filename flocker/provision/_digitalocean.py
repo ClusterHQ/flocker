@@ -96,13 +96,6 @@ def provision_digitalocean(node, package_source, distribution, token):
 
     node.reboot()
 
-    # This may not be necessary with the DO Fedora distribution.
-    # run(
-    #     username='root',
-    #     address=node.address,
-    #     commands=task_upgrade_selinux(),
-    # )
-
     # Finally run all the standard Fedora20 installation steps.
     # run(
     #     username='root',
