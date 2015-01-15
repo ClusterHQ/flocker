@@ -8,6 +8,7 @@ Helper utilities for Flocker packaging.
 from functools import partial
 import platform
 import sys
+import os
 from subprocess import check_output, check_call, CalledProcessError, call
 from tempfile import mkdtemp
 from textwrap import dedent, fill
@@ -116,17 +117,22 @@ class BuildSequence(object):
             step.run()
 
 
-def run_command(args, env=None, cwd=None):
+def run_command(args, added_env=None, cwd=None):
     """
     Run a subprocess and return its output. The command line and its
     environment are logged for debugging purposes.
+
+    :param dict env: Addtional environment variables to pass.
 
     :return: The output of the command.
     """
     log.msg(
         format="Running %(args)r with environment %(env)r "
                "and working directory %(cwd)s",
-        args=args, env=env, cwd=cwd)
+        args=args, env=added_env, cwd=cwd)
+    if added_env:
+        env = os.environ.copy()
+        env.update(env)
     try:
         return check_output(args=args, env=env, cwd=cwd,)
     except CalledProcessError as e:
@@ -271,7 +277,7 @@ def create_virtualenv(root):
     # we can turn off Python byte code compilation.
     run_command(
         ['virtualenv', '--python=/usr/bin/python2.7', '--quiet', root.path],
-        env=dict(PYTHONDONTWRITEBYTECODE='1')
+        added_env=dict(PYTHONDONTWRITEBYTECODE='1')
     )
     # XXX: Virtualenv doesn't link to pyc files when copying its bootstrap
     # modules. See https://github.com/pypa/virtualenv/issues/659
