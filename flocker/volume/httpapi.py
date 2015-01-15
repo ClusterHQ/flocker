@@ -31,7 +31,7 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    @app.route("/version")
+    @app.route("/version", methods=['GET'])
     @structured(
         inputSchema={},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},
