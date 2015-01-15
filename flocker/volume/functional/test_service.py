@@ -23,7 +23,7 @@ class RealisticTests(TestCase):
 
         d = service_pair.from_service.create(
             service_pair.from_service.get(
-                VolumeName(namespace=u"myns", id=u"myvolume")
+                VolumeName(namespace=u"myns", dataset_id=u"myvolume")
             )
         )
 
@@ -43,7 +43,7 @@ class RealisticTests(TestCase):
 
         d = service_pair.from_service.create(
             service_pair.from_service.get(
-                VolumeName(namespace=u"myns", id=u"myvolume")
+                VolumeName(namespace=u"myns", dataset_id=u"myvolume")
             )
         )
 
@@ -55,7 +55,7 @@ class RealisticTests(TestCase):
         def handed_off(volume):
             return service_pair.to_service.handoff(
                 service_pair.to_service.get(
-                    VolumeName(namespace=u"myns", id=u"myvolume")),
+                    VolumeName(namespace=u"myns", dataset_id=u"myvolume")),
                 service_pair.origin_remote)
         # If the Deferred errbacks the test will fail:
         return d

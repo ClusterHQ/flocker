@@ -23,8 +23,8 @@ from ...common import FakeNode
 from ...common._ipc import ProcessNode
 
 
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvol")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvol2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvol")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvol2")
 
 
 def make_iremote_volume_manager(fixture):
@@ -96,7 +96,7 @@ def make_iremote_volume_manager(fixture):
             created.addCallback(do_push)
 
             def pushed(_):
-                to_volume = Volume(uuid=service_pair.from_service.uuid,
+                to_volume = Volume(node_id=service_pair.from_service.node_id,
                                    name=MY_VOLUME,
                                    service=service_pair.to_service)
                 d = service_pair.to_service.enumerate()
@@ -126,7 +126,7 @@ def make_iremote_volume_manager(fixture):
             created.addCallback(do_push)
 
             def pushed(_):
-                to_volume = Volume(uuid=service_pair.from_service.uuid,
+                to_volume = Volume(node_id=service_pair.from_service.node_id,
                                    name=MY_VOLUME,
                                    service=service_pair.to_service)
                 root = to_volume.get_filesystem().get_path()
@@ -157,10 +157,10 @@ def make_iremote_volume_manager(fixture):
             created.addCallback(got_volume)
             return created
 
-        def test_acquire_changes_uuid(self):
+        def test_acquire_changes_node_id(self):
             """
-            ``acquire()`` changes the UUID of the given volume on the receiving
-            side to the volume manager's.
+            ``acquire()`` changes the node ID of the given volume on the
+            receiving side to the volume manager's.
             """
             service_pair = fixture(self)
             to_service = service_pair.to_service
@@ -171,7 +171,8 @@ def make_iremote_volume_manager(fixture):
                 d = to_service.enumerate()
                 d.addCallback(lambda results: self.assertEqual(
                     list(results),
-                    [Volume(uuid=to_service.uuid, name=pushed_volume.name,
+                    [Volume(node_id=to_service.node_id,
+                            name=pushed_volume.name,
                             service=to_service)]))
                 return d
             created.addCallback(got_volume)
@@ -196,7 +197,7 @@ def make_iremote_volume_manager(fixture):
                 def pushed(ignored):
                     service_pair.remote.acquire(pushed_volume)
 
-                    filesystem = Volume(uuid=to_service.uuid,
+                    filesystem = Volume(node_id=to_service.node_id,
                                         name=pushed_volume.name,
                                         service=to_service).get_filesystem()
                     new_root = filesystem.get_path()
@@ -208,9 +209,9 @@ def make_iremote_volume_manager(fixture):
             created.addCallback(got_volume)
             return created
 
-        def test_acquire_returns_uuid(self):
+        def test_acquire_returns_node_id(self):
             """
-            ``acquire()`` returns the UUID of the remote volume manager.
+            ``acquire()`` returns the node ID of the remote volume manager.
             """
             service_pair = fixture(self)
             to_service = service_pair.to_service
@@ -218,7 +219,7 @@ def make_iremote_volume_manager(fixture):
 
             def got_volume(pushed_volume):
                 result = service_pair.remote.acquire(pushed_volume)
-                self.assertEqual(result, to_service.uuid)
+                self.assertEqual(result, to_service.node_id)
             created.addCallback(got_volume)
             return created
 
@@ -319,7 +320,7 @@ class RemoteVolumeManagerTests(TestCase):
         snapshots = self.successResultOf(remote.snapshots(self.volume))
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"snapshots", self.volume.uuid.encode("ascii"),
+                          b"snapshots", self.volume.node_id.encode("ascii"),
                           b"myns.myvol"])
         self.assertEqual(
             [Snapshot(name="abc"), Snapshot(name="def")], snapshots)
@@ -335,7 +336,7 @@ class RemoteVolumeManagerTests(TestCase):
             pass
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"receive", self.volume.uuid.encode("ascii"),
+                          b"receive", self.volume.node_id.encode("ascii"),
                           b"myns.myvol"])
 
     def test_receive_default_config(self):
@@ -351,7 +352,7 @@ class RemoteVolumeManagerTests(TestCase):
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config",
                           DEFAULT_CONFIG_PATH.path,
-                          b"receive", self.volume.uuid.encode("ascii"),
+                          b"receive", self.volume.node_id.encode("ascii"),
                           b"myns.myvol"])
 
     def test_acquire_destination_run(self):
@@ -366,7 +367,7 @@ class RemoteVolumeManagerTests(TestCase):
 
         self.assertEqual(node.remote_command,
                          [b"flocker-volume", b"--config", b"/path/to/json",
-                          b"acquire", self.volume.uuid.encode("ascii"),
+                          b"acquire", self.volume.node_id.encode("ascii"),
                           b"myns.myvol"])
 
 

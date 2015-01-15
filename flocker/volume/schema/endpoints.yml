@@ -1,0 +1,14 @@
+$schema: http://json-schema.org/draft-04/schema#
+id: http://api.clusterhq.com/v1/endpoints.json
+definitions:
+  versions:
+    type: object
+    properties:
+      flocker:
+        title: Flocker version
+        description:
+          The software version of Flocker
+        type: string
+    required:
+      - flocker
+    additionalProperties: false
