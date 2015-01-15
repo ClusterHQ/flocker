@@ -133,6 +133,8 @@ def run_command(args, added_env=None, cwd=None):
     if added_env:
         env = os.environ.copy()
         env.update(env)
+    else:
+        env = None
     try:
         return check_output(args=args, env=env, cwd=cwd,)
     except CalledProcessError as e:
