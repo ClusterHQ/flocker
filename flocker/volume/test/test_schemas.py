@@ -28,8 +28,8 @@ def build_schema_test(name, schema, failing_instances, passing_instances):
     body = {
         'schema': schema,
         'validator': getValidator(schema, SCHEMAS),
-        'passingInstances': passing_instances,
-        'failingInstances': failing_instances,
+        'passing_instances': passing_instances,
+        'failing_instances': failing_instances,
         }
     for i, inst in enumerate(failing_instances):
         def test(self, inst=inst):
