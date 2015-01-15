@@ -96,7 +96,7 @@ setup(
         ],
         # These data files are used by the volumes API to define input and
         # output schemas.
-        'flocker.volume': ['schema/*.yml'],
+        'flocker.control': ['schema/*.yml'],
     },
 
     entry_points = {
@@ -106,7 +106,8 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
-            'flocker-serve = flocker.node.script:flocker_serve_main',
+            'flocker-zfs-agent = flocker.node.script:flocker_volume_main',
+            'flocker-control = flocker.control.script:flocker_control_main',
         ],
     },
 
