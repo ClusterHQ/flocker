@@ -530,9 +530,8 @@ class GetPackageVersionTests(TestCase):
 
     def test_version_not_found(self):
         """
-        ``GetPackageVersion.run`` leaves the ``version`` attribute set to
-        ``None`` if the supplied ``package_name`` is not installed in the
-        supplied ``virtual_env``.
+        ``GetPackageVersion.run`` raises an exception if the supplied
+        ``package_name`` is not installed in the supplied ``virtual_env``.
         """
         test_env = FilePath(self.mktemp())
         virtualenv = VirtualEnv(root=test_env)
@@ -542,8 +541,7 @@ class GetPackageVersionTests(TestCase):
             virtualenv=virtualenv,
             package_name='PackageWhichIsNotInstalled'
         )
-        step.run()
-        self.assertIs(None, step.version)
+        self.assertRaises(Exception, step.run)
 
 
 class BuildPackageTests(TestCase):

@@ -391,8 +391,9 @@ class GetPackageVersion(object):
     :ivar bytes package_name: The name of the package whose version will be
         recorded.
     :ivar version: The version string of the supplied package. Default is
-        ``None`` until the step has been run or if the supplied
-        ``package_name`` is not found.
+        ``None`` until the step has been run. or if the supplied
+
+    :raises: If ``package_name`` is not found.
     """
     version = None
 
