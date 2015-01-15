@@ -93,7 +93,7 @@ _PASSING_NODENAMES = [
 
 VersionTests = buildSchemaTest(
     name="VersionTests",
-    schema={'$ref': '/v2/types.json#/definitions/version'},
+    schema={'$ref': '/v1/types.json#/definitions/version'},
     failingInstances=[
         # Missing version information
         {},
@@ -117,7 +117,7 @@ VersionTests = buildSchemaTest(
 
 VersionsTests = buildSchemaTest(
     name="VersionsTests",
-    schema={'$ref': '/v2/endpoints.json#/definitions/versions'},
+    schema={'$ref': '/v1/endpoints.json#/definitions/versions'},
     failingInstances=[
         # Missing version information
         {},
