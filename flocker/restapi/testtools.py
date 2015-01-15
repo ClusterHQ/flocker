@@ -549,10 +549,8 @@ def build_schema_test(name, schema, schema_store,
     :param bytes name: Name of test case to create.
     :param dict schema: Schema to test.
     :param dict schema_store: The schema definitions.
-    :param list failing_instances: List of instances which should fail
-        validation.
-    :param list passing_instances: List of instances which should pass
-        validation.
+    :param list failing_instances: Instances which should fail validation.
+    :param list passing_instances: Instances which should pass validation.
 
     :returns: The test case; a ``SynchronousTestCase} subclass.
     """
