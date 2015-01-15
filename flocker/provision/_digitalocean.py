@@ -84,9 +84,8 @@ def provision_digitalocean(node, package_source, distribution, token):
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
 
     kernel = set_latest_droplet_kernel(token, node._node.id)
-    version = None
-    release = None
-    import pdb; pdb.set_trace()
+    version, distribution, architecture = kernel.version.rsplit('.', 2)
+    version, release = version.split('-', 1)
     run(
         username='root',
         address=node.address,
