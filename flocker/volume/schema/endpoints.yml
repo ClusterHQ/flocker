@@ -9,3 +9,5 @@ definitions:
         description:
           The software version of a service running on a cluster.
         type: string
+    required:
+      - flocker
