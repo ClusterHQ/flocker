@@ -31,6 +31,9 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
+    def __init__(self, persistence_service):
+        pass
+
     @app.route("/version", methods=['GET'])
     @structured(
         inputSchema={},
@@ -43,11 +46,20 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
+    @app.route("/configuration", methods=["GET"])
+    def configuration(self):
+        """
+        Return the current configuration.
+        """
+        return {"applications": ...,
+                "deployment": ...}
 
-def create_api_service(endpoint):
+
+def create_api_service(persistence_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
     """
     api_root = Resource()
-    api_root.putChild('v1', DatasetAPIUserV1().app.resource())
+    api_root.putChild(
+        'v1', DatasetAPIUserV1(persistence_service).app.resource())
     return StreamServerEndpointService(endpoint, Site(api_root))
