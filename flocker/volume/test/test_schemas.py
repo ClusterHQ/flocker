@@ -99,14 +99,7 @@ VersionsTests = buildSchemaTest(
         # Missing version information
         {},
         # Wrong type for SiteJuggler version
-        {'SiteJuggler': []},
-        # Missing 'SiteJuggler' version
-        {'OtherService': {'revision':'asf', 'branch': 'asdf'}},
-        # Unexpected service version has wrong type
-        {
-            'SiteJuggler': {'revision': 'asdf', 'branch': 'asdf'},
-            'OtherService': 'not a version',
-        },
+        {'flocker': []},
         # Unexpected version.
         {
             'flocker': '0.3.0-10-dirty',
