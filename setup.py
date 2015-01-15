@@ -96,7 +96,7 @@ setup(
         ],
         # These data files are used by the volumes API to define input and
         # output schemas.
-        'flocker.volume': ['schema/*.yml'],
+        'flocker.control': ['schema/*.yml'],
     },
 
     entry_points = {
