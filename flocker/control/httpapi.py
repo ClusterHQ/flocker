@@ -51,8 +51,11 @@ class DatasetAPIUserV1(object):
         """
         Return the current configuration.
         """
+        # For now we're sticking to current config. Later on this will
+        # have a datasets key, and maybe omit applications if we have
+        # none?
         return {"applications": ...,
-                "deployment": ...}
+                "application_deployment": ...}
 
 
 def create_api_service(persistence_service, endpoint):
