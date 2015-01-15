@@ -134,6 +134,32 @@ class DeploymentInitTests(make_with_init_tests(
     """
 
 
+class DeploymentTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment``.
+    """
+    def test_applications(self):
+        """
+        ``Deployment.applications()`` returns applications from all nodes.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        deployment = Deployment(nodes=frozenset([node, another_node]))
+        self.assertEqual(sorted(list(deployment.applications())),
+                         sorted(list(node.applications) +
+                                list(another_node.applications)))
+
+
 class RestartOnFailureTests(SynchronousTestCase):
     """
     Tests for ``RestartOnFailure``.

@@ -227,6 +227,15 @@ class Deployment(object):
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+    def applications(self):
+        """
+        Return all applications in all nodes.
+
+        :return: Iterable returning all applications.
+        """
+        for node in self.nodes:
+            for application in node.applications:
+                yield application
 
 
 @attributes(['internal_port', 'external_port'])
