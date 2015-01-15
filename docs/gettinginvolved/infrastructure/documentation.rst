@@ -77,10 +77,36 @@ CloudFront Distributions
 docs/staging-docs
 
 pointed at s3 website URL
-(can't use s3 URL, as that doesn't handle redirects or index.html)
+There are two cloudfront distributions, configured the same except for the bucket
+pointed to.
+
+Configuration
+~~~~~~~~~~~~~
+The following settins should be set:
+
+- Origin Domain Name: clusterhq-docs.s3-website-us-east-1.amazonaws.com
+- Origin Path:
+- Origin ID: clusterhq-docs
+- Origin Protocol Policy: HTTP Only
+- Alternate Domain Names: docs.clusterhq.com
+- Viewer Protocol Policy: HTTPS Only
+- Logging: ??
+
+The rest can be left at their defaults.
+
+.. note::
+
+   We can't use an S3 origin, as redirects won't work.
+
+Improvements
+~~~~~~~~~~~~
+
+Perhaps we can have two origins, one being S3, and only
+point URLs that need redirections to the website backed one.
+
 
 
 CloudFlare
 ----------
 
-pointed at cloudfront
+`docs.clusterhq.com` and `docs.staging.clusterhq.com` are configured to point a the corresponding cloudfront distributions.

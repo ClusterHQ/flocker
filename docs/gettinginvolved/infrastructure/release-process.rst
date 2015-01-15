@@ -379,8 +379,7 @@ Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
-   todo
-   ....
+   TODO:
 
    - Do we want to have a ``/latest`` or ``/stable`` link.
    - If so, do we want to support deep-linking to them, or can we just have those be redirects.
