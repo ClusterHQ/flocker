@@ -263,17 +263,17 @@ You'll probably want to setup at least two nodes.
    At the time of writing, the only supported Fedora 20 kernel on DigitalOcean is ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64``.
    To switch to that kernel, follow these steps:
 
+   #. Configure the Droplet to boot with the desired kernel:
+
+      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
+      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
+
    #. Upgrade the kernel package inside the virtual machine:
 
       This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
 
       .. task:: install_kernel
          :prompt: [root@digitalocean]#
-
-   #. Configure the Droplet to boot with the desired kernel:
-
-      * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
-      * Choose the ``Fedora 20 x64 vmlinuz-3.16.6-203.fc20.x86_64`` kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
 
    #. Power Cycle the Droplet
 
