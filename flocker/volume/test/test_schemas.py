@@ -109,11 +109,11 @@ VersionsTests = buildSchemaTest(
         },
     ],
     passingInstances=[
-        {'flocker': {'revision': 'asdf', 'branch': 'asdf'}},
+        {'flocker': '0.3.0-10-dirty'},
         # Unexpected services are accepted.
         {
-            'flocker': {'revision': 'asdf', 'branch': 'asdf'},
-            'OtherService': {'revision': 'asdf', 'branch': 'asdf'}
+            'flocker': '0.3.0-10-dirty',
+            'OtherService': '0.3.0-10-dirty',
         },
     ],
 )

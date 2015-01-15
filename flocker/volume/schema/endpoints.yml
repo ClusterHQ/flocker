@@ -3,11 +3,11 @@ id: http://api.clusterhq.com/v1/endpoints.json
 definitions:
   versions:
     type: object
-    additionalProperties:
-      version:
-        title: Service Version
+    properties:
+      flocker:
+        title: Flocker version
         description:
-          The software version of a service running on a cluster.
+          The software version of Flocker
         type: string
     required:
       - flocker
