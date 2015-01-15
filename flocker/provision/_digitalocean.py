@@ -11,10 +11,7 @@ import pyocean
 from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision, run,
-    task_install_ssh_key,
     task_install_kernel,
-    task_upgrade_kernel,
-    task_upgrade_selinux,
 )
 
 
@@ -31,7 +28,7 @@ def retry_if_pending(callable, *args, **kwargs):
     pyocean doesn't consistently return the event info. E.g. droplet.create
     returns a ``droplet`` instance instead whose status is difficult to check.
 
-    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-calls-to-queue-rather-than-just-rejectin  #noqa
+    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-calls-to-queue-rather-than-just-rejectin # noqa
     """
     while True:
         try:
@@ -66,16 +63,18 @@ def provision_digitalocean(node, package_source, distribution, token):
     Provision flocker on this node.
     """
     # DO doesn't support booting the droplet's own kernel.
-    # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader
+    # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader # noqa
     # So rather than upgrade, we'll need to have new task to install the kernel
     # package (and headers) for the DO supported kernel.
-    # The Fedora droplet default is to use a kernel that's too old for our purposes.
-    # Our documentation describes how to select a newer (DO supported) kernel for this droplet.
-    # Unfortunately it looks like this operation is only supported in the DO v2 API.
-    # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/5618546-add-the-ability-to-change-kernel-via-api
+    # The Fedora droplet default is to use a kernel that's too old for our
+    # purposes.
+    # Our documentation describes how to select a newer (DO supported) kernel
+    # for this droplet.
+    # Unfortunately this operation is only supported in the DO v2 API.
+    # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/5618546-add-the-ability-to-change-kernel-via-api # noqa
     # * https://developers.digitalocean.com/#change-the-kernel
     # But libcloud only supports the DO v1 API
-    # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
+    # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api # noqa
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
 
@@ -85,7 +84,8 @@ def provision_digitalocean(node, package_source, distribution, token):
     run(
         username='root',
         address=node.address,
-        commands=task_install_kernel(version=version, release=release, distribution='fc20',
+        commands=task_install_kernel(version=version, release=release,
+                                     distribution='fc20',
                                      architecture='x86_64')
     )
 
@@ -96,7 +96,7 @@ def provision_digitalocean(node, package_source, distribution, token):
     # Sorry about this, but shutdown returns the following, indicating that the
     # droplet has halted, but it still seems to require some time before
     # powering on.
-    # {u'status': u'completed', u'resource_id': 3797602, u'region': u'ams3', u'completed_at': u'2015-01-15T20:52:36Z', u'started_at': u'2015-01-15T20:52:31Z', u'type': u'shutdown', u'id': 41364967, u'resource_type': u'droplet'}
+    # {u'status': u'completed', u'resource_id': 3797602, u'region': u'ams3', u'completed_at': u'2015-01-15T20:52:36Z', u'started_at': u'2015-01-15T20:52:31Z', u'type': u'shutdown', u'id': 41364967, u'resource_type': u'droplet'} # noqa
     time.sleep(30)
 
     # libcloud doesn't support powering up DO vms.
@@ -117,7 +117,7 @@ def provision_digitalocean(node, package_source, distribution, token):
 
 # Figure out which image names are supported by DO
 # http://doc-dev.clusterhq.com/gettingstarted/installation.html#using-digitalocean
-# (Pdb++) print '\n'.join('%r' % ((i.id, i.name, i.extra),) for i in driver.list_images())
+# (Pdb++) print '\n'.join('%r' % ((i.id, i.name, i.extra),) for i in driver.list_images()) # noqa
 # ...
 # ('9836782', u'557.0.0 (alpha)', {'distribution': u'CoreOS'})
 # ('9836871', u'522.4.0 (beta)', {'distribution': u'CoreOS'})
@@ -137,7 +137,7 @@ IMAGE_NAMES = {
     # It'd be better to use image ID here, but the following code is currently
     # written to lookup image names...which would normally be good for
     # readability but which in the case DigitalOcean are pretty meaningless.
-     'fedora-20': '20 x64',
+    'fedora-20': '20 x64',
 }
 
 
@@ -207,9 +207,9 @@ def digitalocean_provisioner(client_id, api_key, token, location_id, keyname):
         create_node_arguments=create_arguments,
         # Tack the token on here because its not a standard part of the API.
         provision=partial(provision_digitalocean, token=token),
-        # The NodeSize repr suggests that ``id`` is an ``int`` but in fact it's a string.
-        # Perhaps we need to modify _libcloud.get_size or something.
-        # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...>
+        # The NodeSize repr suggests that ``id`` is an ``int`` but in fact it's
+        # a string.  Perhaps we need to modify _libcloud.get_size or something.
+        # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...> # noqa
         default_size="65",
     )
 
