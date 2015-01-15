@@ -91,6 +91,7 @@ Since these tests involve global state on your machine (filesystems, ``iptables`
 
 The ``FLOCKER_TEST_FAIL_IF_SKIPS`` environment variable can be used to specify tests with which should be counted as failing if they are skipped.
 For example, ``FLOCKER_TEST_FAIL_IF_SKIPS=flocker.acceptance tox`` will cause test failures if the acceptance tests are skipped.
+To support this environment variable, all tests which need skip logic must use either ``flocker.testtools.skips.skipIf``, ``flocker.testtools.skips.skipUnless`` or ``flocker.testtools.skips.SkipTest``.
 
 Documentation
 =============
