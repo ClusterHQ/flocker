@@ -10,7 +10,7 @@ from .. import PackageSource
 from .._install import (
     task_install_flocker,
     ZFS_REPO, CLUSTERHQ_REPO,
-    Run, Put,
+    Run, Put, koji_kernel_url
 )
 
 
@@ -135,3 +135,23 @@ enabled=0
             Run(command="yum install --enablerepo=clusterhq-build "
                         "-y clusterhq-flocker-node-1.2.3-1")
         ])
+
+
+class KojiKernelUrlTests(SynchronousTestCase):
+    """
+    Tests for ``koji_kernel_url``.
+    """
+    def test_success(self):
+        """
+        ``koji_kernel_url`` returns the expected URL.
+        """
+        expected_url = b'https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm' #noqa
+        self.assertEqual(
+            expected_url,
+            koji_kernel_url(
+                version='3.16.6',
+                release='203',
+                distribution='fc20',
+                architecture='x86_64'
+            )
+        )

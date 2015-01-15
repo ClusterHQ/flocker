@@ -114,6 +114,37 @@ def task_upgrade_kernel():
     ]
 
 
+KOJI_URL_TEMPLATE = (
+    'https://kojipkgs.fedoraproject.org/packages/kernel'
+    '/{version}/{release}.{distribution}/{architecture}'
+    '/kernel-{version}-{release}.{distribution}.{architecture}.rpm'
+)
+
+
+def koji_kernel_url(version, release, distribution, architecture):
+    """
+    Return the koji URL for the given kernel version.
+    """
+    url = KOJI_URL_TEMPLATE.format(
+        version=version,
+        release=release,
+        distribution=distribution,
+        architecture=architecture
+    )
+    return url
+
+
+def task_install_kernel(version='3.16.6', release='203', distribution='fc20',
+                        architecture='x86_64'):
+    """
+    Install a specific Fedora kernel version.
+    """
+    url = koji_kernel_url(version, release, distribution, architecture)
+    return [
+        Run.from_args(['yum', 'update', '-y', url]),
+    ]
+
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
