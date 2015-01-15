@@ -212,7 +212,7 @@ def flocker_reportstate_main():
 @flocker_volume_options
 class VolumeServeOptions(Options):
     """
-    Command line options for ``flocker-serve`` cluster management process.
+    Command line options for ``flocker-zfs-agent`` cluster management process.
     """
 
 

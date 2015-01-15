@@ -1,11 +1,11 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Tests for flocker/volume/schemas.
+Tests for control API schemas.
 """
 
-from flocker.restapi.testtools import build_schema_test
-from flocker.volume.httpapi import SCHEMAS
+from ...restapi.testtools import build_schema_test
+from ..httpapi import SCHEMAS
 
 
 VersionsTests = build_schema_test(
