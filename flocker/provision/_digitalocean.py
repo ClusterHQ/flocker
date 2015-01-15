@@ -94,11 +94,7 @@ def provision_digitalocean(node, package_source, distribution, token):
                                      architecture='x86_64')
     )
 
-    # Need to power cycle instead.
-    # Create a new task to shutdown the machine
-    # Then make an API call to boot it up again.
-    # XXX: Check whether this still applies if we use the kexec method above.
-    # node.reboot()
+    node.reboot()
 
     # This may not be necessary with the DO Fedora distribution.
     # run(
