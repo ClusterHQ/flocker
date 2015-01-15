@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+        <style>
+            body {
+                padding-top: 50px;
+                padding-bottom: 20px;
+            }
+        </style>
+        <link rel="stylesheet" href="assets/css/main.css">
+
+        <script src="assets/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#"><img src="assets/img/clusterhq.png" alt="ClusterHQ Container Data Management" /></a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+        </div><!--/.navbar-collapse -->
+      </div>
+    </nav>
+
+    <div class="jumbotron">
+      <div class="container">
+    	<div class="row">
+		<div class="col-md-9">
+	        <h1>Getting started with Flocker</h1>
+	       	<p>Flocker lets you run microservices apps with database containers and move them around between servers. It comes in two pieces and you’ll need both.</p>
+		</div>
+		<div class="col-md-3">
+	    	<div class="flocker-logo"></div>
+		</div>
+    	</div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12">
+            <h2 class="heading bottom-spaced text-center">Step 1: Installing Flocker CLI & Node</h2>
+        </div>
+        <div class="col-md-6 bordered bordered-right bordered-bottom bordered-gray">
+            <img class="center-block" src="assets/img/macbook.png" alt="Flocker CLI diagram" />
+            <h2 class="heading text-center">Flocker CLI</h2>
+            <table class="table table-striped">
+                <tbody>
+                    <tr><td><p>Runs on your laptop</p></td></tr>
+                    <tr><td><p>Uses application and deployment configuration files</p></td></tr>
+                    <tr><td><p>Deploys containers to a cluster of servers</p></td></tr>
+                </tbody>
+            </table>
+            <div class="arrow-down center-block"></div>
+        </div>
+        <div class="col-md-6 bordered bordered-bottom bordered-gray">
+            <img class="center-block offset-top" src="assets/img/nodes.png" alt="Flocker Node diagram" />
+            <h2 class="heading text-center">Flocker Node</h2>
+            <table class="table table-striped">
+                <tbody>
+                    <tr><td><p>Runs on each server in a cluster</p></td></tr>
+                    <tr><td><p>Links, ports and volumes work across hosts</p></td></tr>
+                    <tr><td><p>After deployment, containers can move around</p></td></tr>
+                </tbody>
+            </table>
+            <div class="arrow-down center-block"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 bordered bordered-right bordered-bottom bordered-gray">
+            <h2 class="heading text-center">Installation</h2>
+            <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
+                <li class="active"><a href="#cli-osx" data-toggle="tab">OS X</a></li>
+                <li><a href="#cli-linux" data-toggle="tab">Linux</a></li>
+            </ul>
+            <div id="install-cli" class="tab-content">
+                <div class="tab-pane active" id="cli-osx">
+                    <p>Install the flocker-cli client on your Mac (requires homebrew):</p>
+                    <samp>
+$ brew update && \
+    brew tap clusterhq/flocker && \
+    brew install flocker-0.3.2.
+                    </samp>
+                </div>
+                <div class="tab-pane" id="cli-linux">
+                    <p>Install the flocker-cli client on your Linux machine:</p>
+                    <samp>
+$ virtualenv --python=/usr/bin/python2.7 \
+    flocker-tutorial
+$ flocker-tutorial/bin/pip install --upgrade pip
+$ pip install --quiet flocker-cli
+                    </samp>
+                </div>
+            </div>
+           <div class="arrow-down center-block invisible"></div>
+        </div>
+        <div class="col-md-6 bordered bordered-bottom bordered-gray">
+            <h2 class="heading text-center">Installation</h2>
+            <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
+                <li class="active"><a href="#node-vagrant" data-toggle="tab">Vagrant</a></li>
+                <li><a href="#node-aws" data-toggle="tab">AWS</a></li>
+            </ul>
+            <div id="install-node" class="tab-content">
+                <div class="tab-pane active" id="node-vagrant">
+                    <p>Simulate a flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):</p>
+                    <samp>
+$ git clone \
+    https://github.com/clusterhq/vagrant-flocker
+$ cd vagrant-flocker
+$ vagrant up
+                    </samp>
+                </div>
+                <div class="tab-pane" id="node-aws">
+                    <p>Stuff here...</p>
+                </div>
+            </div>
+           <div class="arrow-down arrow-offset center-block"></div>
+        </div>
+      </div>      
+      
+      <div class="row">
+        <div class="col-md-12 text-larger">
+            <h2 class="heading bottom-spaced text-center">Step 2: Deploying a demo app</h2>
+            <div class="row row-centered">
+                <div class="col-md-9 col-centered">
+                    <p>You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.<p>
+                    <p>Now you can try our simple tutorial: a Python web application and a Redis server.</p>
+                    <pre>
+$ git clone https://github.com/clusterhq/flocker-tutorial
+$ cd flocker-tutorial                    
+                    </pre>
+                    <h2 class="heading bottom-spaced">fig.yml</h2>
+                    <pre>
+web:
+  image: lmarsden/flask:v0.16
+  links:
+   - "redis:redis"
+  ports:
+   - "80:80"
+redis:
+  image: dockerfile/redis
+  ports:
+   - "6379:6379"
+  volumes: ["/data"]
+                </pre>
+                <h2 class="heading bottom-spaced">deployment-node1.yml</h2>
+                <pre>
+"version": 1
+"nodes":
+  "172.16.255.250": ["web", "redis"]
+  "172.16.255.251": []                
+                </pre>
+                <p>The fig.yml describes your distributed application. The deployment.yml describes which containers to deploy where.</p>
+                <p>If you are using real servers on AWS, you'll need to change the IP addresses in the deployment file.</p>
+                <pre>
+$ flocker-deploy deployment-node1.yml fig.yml                
+                </pre>
+                <p>Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes. It works!</p>
+                </div>
+            </div>
+        </div>      
+      </div>
+          
+      <div class="row">
+           <hr class="hr-offset" />
+           <div class="arrow-down arrow-hr center-block"></div>
+        <div class="col-md-12 text-larger">
+            <h2 class="heading bottom-spaced text-center heading-offset-top">Step 3: Migrating a container</h2>
+            <div class="row row-centered">
+                <div class="col-md-9 col-centered">
+                <p>Now we are going to use a different depoyment config to show moving the Redis container with its data volume.</p>
+                <h2 class="heading bottom-spaced">deployment-node2.yml</h2>
+                <pre>
+"version": 1
+"nodes":
+  "172.16.255.250": ["web"]
+  "172.16.255.251": ["redis"]
+                </pre>
+                <pre>
+$ flocker-deploy deployment-node2.yml app.yml                
+                </pre>
+                <br />
+                <img src="assets/img/migration.png" alt="Flocker Deployment migration diagram" />
+                <br />&nbsp;<br />
+                <p>In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    <div class="jumbotron signup">
+      <div class="container">
+    	<div class="row">
+		<div class="col-md-9">
+	        <h1>Get Involved</h1>
+	       	<p>Sign up for email updates about Flocker</p>
+	       	<form class="form-inline">
+                <div class="form-group">
+                    <input type="email" class="form-control input-lg" id="email" name="email" placeholder="Email address">
+                </div>
+                <button type="submit" class="btn btn-signup btn-lg">Sign up</button>
+	       	</form>
+		</div>
+    	</div>
+      </div>
+    </div>
+        
+        <h2 class="heading text-center">See our <a href="http://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
+
+      <footer>
+        <p>Copyright &copy; 2014 ClusterHQ</p>
+      </footer>
+    </div>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="assets/js/vendor/jquery-1.11.1.min.js"><\/script>')</script>
+
+        <script src="assets/js/vendor/bootstrap.min.js"></script>
+
+        <script src="assets/js/plugins.js"></script>
+        <script src="assets/js/main.js"></script>
+
+        <!-- Google Analytics -->
+        <script>
+            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
+            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
+            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
+            e.src='//www.google-analytics.com/analytics.js';
+            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
+            ga('create','UA-XXXXX-X');ga('send','pageview');
+        </script>
+    </body>
+</html>
