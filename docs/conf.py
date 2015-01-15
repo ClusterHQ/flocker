@@ -30,6 +30,9 @@ extensions = [
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
     'sphinx-prompt',
+    'sphinxcontrib.httpdomain',
+    'flocker.restapi.docs.publicapi',
+    'flocker.restapi.docs.hidden_code_block',
 ]
 
 if not on_rtd:

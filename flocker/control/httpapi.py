@@ -12,7 +12,7 @@ from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ..restapi import structured
+from ..restapi import structured, user_documentation
 from .. import __version__
 
 
@@ -32,6 +32,9 @@ class DatasetAPIUserV1(object):
     app = Klein()
 
     @app.route("/version", methods=['GET'])
+    @user_documentation("""
+        Get the version of Flocker being run.
+        """, examples=[u"get version"])
     @structured(
         inputSchema={},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/versions'},

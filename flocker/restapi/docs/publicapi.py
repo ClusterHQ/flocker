@@ -39,6 +39,8 @@ HTTPResource.doc_field_types.append(
         typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
 )
 del HTTPResource, TypedField
+# Disable "HTTP Routing Table" index:
+httpdomain.HTTPDomain.indices = []
 
 
 class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
@@ -121,6 +123,12 @@ def _parseSchema(schema, schema_store):
     if schema.get(u'$ref') is None:
         raise Exception('Non-$ref top-level definitions not supported.')
 
+    def fill_in_attribute(attr, propSchema):
+        attr['title'] = propSchema['title']
+        attr['description'] = prepare_docstring(
+            propSchema['description'])
+        attr['required'] = property in schema.get('required', [])
+
     with resolver.resolving(schema[u'$ref']) as schema:
         if schema[u'type'] != u'object':
             raise Exception('Non-object top-level definitions not supported.')
@@ -128,11 +136,11 @@ def _parseSchema(schema, schema_store):
         result['properties'] = {}
         for property, propSchema in schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
-            with resolver.resolving(propSchema['$ref']) as propSchema:
-                attr['title'] = propSchema['title']
-                attr['description'] = prepare_docstring(
-                    propSchema['description'])
-                attr['required'] = property in schema.get('required', [])
+            if "$ref" in propSchema:
+                with resolver.resolving(propSchema['$ref']) as propSchema:
+                    fill_in_attribute(attr, propSchema)
+            else:
+                fill_in_attribute(attr, propSchema)
     return result
 
 
@@ -299,23 +307,10 @@ def _formatRouteBody(data, schema_store):
     """
     baseSubstitutions = {
         u"DOMAIN": u"example.com",
-        u"SERVER_IP": u"10.0.42.1",
-        u"USER_ID": u"54321",
         }
 
     for line in data['description']:
         yield line
-
-    if 'paged' in data:
-        yield ("This endpoint is a collection and supports the " +
-               ":ref:`common query parameters<api-collections>` " +
-               "associated to them.")
-        yield "It supports the following sort keys:"
-        yield ""
-        yield "  * ``%s`` *(default)*" % (data['paged']['defaultKey'],)
-        for key in data['paged']['otherKeys']:
-            yield "  * ``%s``" % (key,)
-        yield ""
 
     if 'input' in data:
         for line in _formatActualSchema(data['input_schema'],
