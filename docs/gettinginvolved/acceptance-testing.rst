@@ -143,6 +143,8 @@ To run the acceptance on DigitalOcean, you need:
 - a DigitalOcean account
 - a "Legacy API v1" Client ID and API key
   (https://cloud.digitalocean.com/generate_api_key)
+- an "API v2" token
+  (Used for updating the kernel of the droplets).
 - an ssh-key registered with the AWS account.
 
 .. code-block:: yaml
