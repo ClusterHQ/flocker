@@ -35,13 +35,13 @@ def build_schema_test(name, schema, failing_instances, passing_instances):
         def test(self, inst=inst):
             self.assertRaises(ValidationError,
                               self.validator.validate, inst)
-        test.__name__ = 'test_failsValidation_%d' % (i,)
+        test.__name__ = 'test_fails_validation_%d' % (i,)
         body[test.__name__] = test
 
     for i, inst in enumerate(passing_instances):
         def test(self, inst=inst):
             self.validator.validate(inst)
-        test.__name__ = 'test_passesValidation_%d' % (i,)
+        test.__name__ = 'test_passes_validation_%d' % (i,)
         body[test.__name__] = test
 
     return type(name, (SynchronousTestCase, object), body)
