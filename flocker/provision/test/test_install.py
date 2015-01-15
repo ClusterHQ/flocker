@@ -145,7 +145,7 @@ class KojiKernelUrlTests(SynchronousTestCase):
         """
         ``koji_kernel_url`` returns the expected URL.
         """
-        expected_url = b'https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm' #noqa
+        expected_url = b'https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm'  # noqa
         self.assertEqual(
             expected_url,
             koji_kernel_url(
