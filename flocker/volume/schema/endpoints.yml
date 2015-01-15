@@ -11,3 +11,4 @@ definitions:
         type: string
     required:
       - flocker
+    additionalProperties: false

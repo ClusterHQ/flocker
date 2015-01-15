@@ -107,13 +107,13 @@ VersionsTests = buildSchemaTest(
             'SiteJuggler': {'revision': 'asdf', 'branch': 'asdf'},
             'OtherService': 'not a version',
         },
-    ],
-    passingInstances=[
-        {'flocker': '0.3.0-10-dirty'},
-        # Unexpected services are accepted.
+        # Unexpected version.
         {
             'flocker': '0.3.0-10-dirty',
             'OtherService': '0.3.0-10-dirty',
         },
+    ],
+    passingInstances=[
+        {'flocker': '0.3.0-10-dirty'},
     ],
 )
