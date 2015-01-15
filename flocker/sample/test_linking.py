@@ -29,6 +29,5 @@ class SkippedTests(TestCase):
     def test_decorated_with_skipIf(self):
         pass
 
-class SkipTestRaised(TestCase):
     def test_raises_skiptest(self):
         raise SkipTest(self, "Skipping this test.")
