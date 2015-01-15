@@ -91,29 +91,6 @@ _PASSING_NODENAMES = [
     "1.2.3.4", "255.255.255.255", "1.0.0.1",
     ]
 
-VersionTests = buildSchemaTest(
-    name="VersionTests",
-    schema={'$ref': '/v1/types.json#/definitions/version'},
-    failingInstances=[
-        # Missing version information
-        {},
-        # Unexepected information
-        {'revision': 'abcd', 'branch': 'asdf', 'unexepected': 5},
-        # Wrong type for 'branch'
-        {'revision': 'abcd', 'branch': 5},
-        # Wrong type for 'revision'
-        {'revision': 5, 'branch': 'asdf'},
-        # 'revision' is requried
-        {'branch': 'asdf'},
-        # 'branch' is requried
-        {'revision': 'asdf'},
-    ],
-    passingInstances=[
-        {'revision': 'asdf', 'branch': 'asdf'},
-    ],
-)
-
-
 
 VersionsTests = buildSchemaTest(
     name="VersionsTests",
