@@ -28,6 +28,8 @@ def retry_if_pending(callable, *args, **kwargs):
     would be a better way to block before issuing the next API call, but
     pyocean doesn't consistently return the event info. E.g. droplet.create
     returns a ``droplet`` instance instead whose status is difficult to check.
+
+    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-calls-to-queue-rather-than-just-rejectin  #noqa
     """
     while True:
         try:
