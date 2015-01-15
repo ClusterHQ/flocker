@@ -374,6 +374,11 @@ Release
 
    #. Update redirects to point to new documentation.
 
+      .. warning:: Skip this step for weekly releases and pre-releases.
+
+         The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
+         We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
+
       .. prompt:: bash $
 
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
