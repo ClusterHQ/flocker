@@ -44,7 +44,6 @@ class LatestDropletKernelTests(SynchronousTestCase):
         droplet = retry_if_pending(client.droplet.create, droplet_attributes)
         self.addCleanup(retry_if_pending, droplet.destroy)
 
-        self.token = token
         self.client = client
         self.droplet = droplet
 
@@ -53,8 +52,7 @@ class LatestDropletKernelTests(SynchronousTestCase):
         ``set_latest_droplet_kernel`` selects the newest kernel and assigns it
         to the droplet, returning the selected kernel.
         """
-        expected_kernel = set_latest_droplet_kernel(
-            self.token, self.droplet.id, client=self.client)
+        expected_kernel = set_latest_droplet_kernel(self.droplet)
 
         # Need to query again for the droplet after updating its kernel
         updated_droplet = self.client.droplet.get(self.droplet.id)

@@ -46,17 +46,11 @@ def retry_if_pending(callable, *args, **kwargs):
             return result
 
 
-def set_latest_droplet_kernel(
-        access_token, droplet_id, kernel_prefix='Fedora 20 x64',
-        client=None):
+def set_latest_droplet_kernel(droplet, kernel_prefix='Fedora 20 x64'):
     """
     Change the kernel of the droplet with ``droplet_id`` to the latest kernel
     version with the given ``kernel_prefix``.
     """
-    if client is None:
-        client = pyocean.DigitalOcean(access_token)
-
-    droplet = client.droplet.get(droplet_id)
     matching_kernels = [kernel for kernel in droplet.get_available_kernels()
                         if kernel.name.startswith(kernel_prefix)]
     latest_kernel = sorted(
@@ -83,8 +77,10 @@ def provision_digitalocean(node, package_source, distribution, token):
     # * https://developers.digitalocean.com/#change-the-kernel
     # But libcloud only supports the DO v1 API
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
+    v2client = pyocean.DigitalOcean(access_token=token)
+    v2droplet = v2client.droplet.get(node._node.id)
 
-    kernel = set_latest_droplet_kernel(token, node._node.id)
+    kernel = set_latest_droplet_kernel(v2droplet)
     version, distribution, architecture = kernel.version.rsplit('.', 2)
     version, release = version.split('-', 1)
     run(
@@ -94,14 +90,8 @@ def provision_digitalocean(node, package_source, distribution, token):
                                      architecture='x86_64')
     )
 
-    run(
-        username='root',
-        address=node.address,
-        commands=task_halt()
-    )
-
-    import pdb; pdb.set_trace()
-    node.reboot()
+    v2droplet.shutdown()
+    v2droplet.power_on()
 
     # Finally run all the standard Fedora20 installation steps.
     run(
