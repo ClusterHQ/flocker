@@ -3,6 +3,7 @@
 """
 Utilities to help with skipping tests.
 """
+from os import environ
 
 
 def fail_if_skipped(test_item):
@@ -14,7 +15,10 @@ def fail_if_skipped(test_item):
     :return: True if ``test_object`` is covered by environment variable
         FLOCKER_TEST_FAIL_IF_SKIPS, else False.
     """
+    test_fail_if_skips = environ.get("FLOCKER_TEST_FAIL_IF_SKIPS")
     return True
+    # if test_fail_if_skips is None:
+    #     return False
 
 
 def skipUnless(condition, reason):
