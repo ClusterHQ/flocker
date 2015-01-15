@@ -30,7 +30,11 @@ def safe_call(command, **kwargs):
     try:
         return process.wait()
     except:
+        # We expect KeyboardInterrupt (from C-c) and
+        # SystemExit (from signal_handler below) here.
+        # But we'll cleanup on any execption.
         process.terminate()
+        raise
 
 
 def check_safe_call(command, **kwargs):
@@ -343,6 +347,12 @@ def main(args, base_path, top_level):
 
     runner = options.runner
 
+    # We register a signal handler for SIGTERM here.
+    # When a signal is received, python will call this function
+    # from the main thread.
+    # We raise SystemExit to shutdown gracefully.
+    # In particular, we will kill any processes we spawned
+    # and cleanup and VMs we created.
     signal.signal(signal.SIGTERM, signal_handler)
 
     try:
