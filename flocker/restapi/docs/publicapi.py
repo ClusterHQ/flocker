@@ -123,6 +123,12 @@ def _parseSchema(schema, schema_store):
     if schema.get(u'$ref') is None:
         raise Exception('Non-$ref top-level definitions not supported.')
 
+    def fill_in_attribute(attr, propSchema):
+        attr['title'] = propSchema['title']
+        attr['description'] = prepare_docstring(
+            propSchema['description'])
+        attr['required'] = property in schema.get('required', [])
+
     with resolver.resolving(schema[u'$ref']) as schema:
         if schema[u'type'] != u'object':
             raise Exception('Non-object top-level definitions not supported.')
@@ -130,11 +136,11 @@ def _parseSchema(schema, schema_store):
         result['properties'] = {}
         for property, propSchema in schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
-            with resolver.resolving(propSchema['$ref']) as propSchema:
-                attr['title'] = propSchema['title']
-                attr['description'] = prepare_docstring(
-                    propSchema['description'])
-                attr['required'] = property in schema.get('required', [])
+            if "$ref" in propSchema:
+                with resolver.resolving(propSchema['$ref']) as propSchema:
+                    fill_in_attribute(attr, propSchema)
+            else:
+                fill_in_attribute(attr, propSchema)
     return result
 
 
