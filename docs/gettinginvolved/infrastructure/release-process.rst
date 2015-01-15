@@ -413,7 +413,11 @@ Post-Release Review Process
 
 #. Check that the documentation is set up correctly:
 
-   The following links should all point to the latest release.
+   The following link should have the latest documentation.
+
+   * https://docs.clusterhq.com/en/<version>
+
+   The following links should all redirect to the latest release.
    (Except in the case of weekly release or pre-release)
 
    * https://docs.clusterhq.com/en/latest
