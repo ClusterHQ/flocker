@@ -531,7 +531,7 @@ IGNORED_WARNINGS = {
 
         # This isn't an distribution package so we deliberately install in /opt
         'dir-or-file-in-opt',
-        # We don't care enought to fix this
+        # We don't care enough to fix this
         'python-bytecode-inconsistent-mtime',
         # /opt/flocker/lib/python2.7/no-global-site-packages.txt will be empty.
         'zero-length',
@@ -596,6 +596,7 @@ IGNORED_WARNINGS = {
 
         # Werkzeug installs various images with executable permissions.
         # https://github.com/mitsuhiko/werkzeug/issues/629
+        # Fixed upstream, but not released.
         'executable-not-elf-or-script',
     ),
 }
