@@ -146,6 +146,17 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
+#. Update the staging documentation.
+
+   TODO: find a better way to get the current version.
+   TODO: Automate this.
+   .. prompt:: bash $
+
+      gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
+      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
@@ -225,6 +236,9 @@ This review step is to ensure that all acceptance tests pass on the release bran
      .. code-block:: console
 
         $ admin/run-acceptance-tests --distribution fedora-20
+
+
+#. Check documentation. (TODO)
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
@@ -354,20 +368,23 @@ Release
 
    #. Copy release documentation to ...
 
-   .. code:: bash
+      .. prompt:: bash $
 
-      gsutil -m rsync -d -r s3://clusterhq-dev-docs/${VERSION}/ s3://clusterhq-staging-docs/en/${VERSION}/
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/${VERSION}/ s3://clusterhq-docs/en/${VERSION}/
 
-   .. code:: Update redirects to point to new documentation.
+   #. Update redirects to point to new documentation.
 
-      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+      .. prompt:: bash $
+
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
    todo
    ....
 
    - Do we want to have a ``/latest`` or ``/stable`` link.
    - If so, do we want to support deep-linking to them, or can we just have those be redirects.
+     (Maybe deep-linking can be supported by having a redirect rule on S3 bucket).
    - If not, we need to update links to on the main page and maybe elsewhere.
 
    - We probably need to purge some documents from cloudfront and cloudflare.

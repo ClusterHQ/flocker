@@ -1,33 +1,25 @@
 Documentation Hosting
 =====================
 
+Flocker's documentation is hosted on S3, fronted by cloudfront and cloudflare.
+
 S3 Buckets
 ----------
 
-- clusterhq-docs
+There are 3 S3 buckets used for documentation.
 
-  - Pointed (via cloudflare and cloudfront) at by docs.clusterhq.com
-  - Hosts docs for stable version
-  - Has redirect from /en/ to / for RTD compat
-  - Docs are synced from clusterhq-dev-docs
+clusterhq-docs
+~~~~~~~~~~~~~~
 
+This bucket hosts our public facing documentation.
 
-- clusterhq-staging-docs
+It has documentation for all marketing releases.
 
-  - Pointed at by docs.staging.clusterhq.com
-  - Docs are synced from clusterhq-dev-docs
-  - Bucket for testing things for clusterhq-docs
-  - Has redirect from /en/ to / for RTD compat
+Configuration
+`````````````
+It is configured to allow static website hosting, with an index document of ``index.html``.
 
-
-- clusterhq-dev-docs
-
-  - Uploaded to from buildbot
-
-
-TODO: Add error pages.
-- Either in s3 or cloudfront
-
+It has the following bucket policy configured
 
 .. code:: json
 
@@ -39,19 +31,45 @@ TODO: Add error pages.
          "Effect": "Allow",
          "Principal": "*",
          "Action": "s3:GetObject",
-         "Resource": "arn:aws:s3:::clusterhq-staging-docs/*"
+         "Resource": "arn:aws:s3:::clusterhq-docs/*"
       }]
    }
 
-.. code:: bash
+It has logging enabled. (TODO: figure out what configuration we want, or if this should be at a different layer).
 
-   gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-   gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+There are empty files at `/index.html` and `/en/index.html` that redirect to the latest docuemntation.
+
+.. prompt:: bash $
+
+   gsutil -h x-amz-website-redirect-location:/en/${VERSION} cp - s3://clusterhq-docs/index.html </dev/null
+   gsutil -h x-amz-website-redirect-location:/en/${VERSION} cp - s3://clusterhq-docs/en/index.html </dev/null
+
+TODO
+````
+- Figure out what to do about error pages.
+- Do we want content on the redirect page.
+
+clusterhq-staging-docs
+~~~~~~~~~~~~~~~~~~~~~~
+
+This bucket is for staging changes to the main ``clusterhq-docs`` bucket.
+It is also used as part of the pre-release testing.
+It is configured the same as that bucket (with the name changed throughout).
+
+clusterhq-dev-docs
+~~~~~~~~~~~~~~~~~~
+
+This bucket has documentation uploaded to it from buildbot.
+Buildbot will upload documentation from all builds of release branches or tags here.
 
 
-.. code:: bash
+Configuration
+`````````````
 
-   gsutil -m rsync -d -r s3://clusterhq-dev-docs/${VERSION}/ s3://clusterhq-staging-docs/en/${VERSION}/
+It is not configured to be publicly accessible.
+
+It has a lifecycle rule that deletes all objects older than 14 days.
+
 
 CloudFront Distributions
 ------------------------
