@@ -745,7 +745,7 @@ class OmnibusPackageBuilderTests(TestCase):
 
         expected = BuildSequence(
             steps=(
-                # python-flocker steps
+                # clusterhq-python-flocker steps
                 InstallVirtualEnv(
                     virtualenv=VirtualEnv(root=expected_virtualenv_path)),
                 InstallApplication(
@@ -772,7 +772,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     dependencies=[Dependency(package='python-dep')],
                 ),
 
-                # flocker-cli steps
+                # clusterhq-flocker-cli steps
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-deploy'),
@@ -795,7 +795,7 @@ class OmnibusPackageBuilderTests(TestCase):
                     description=PACKAGE_CLI.DESCRIPTION.value,
                     dependencies=[Dependency(package='cli-dep')],
                 ),
-                # flocker-node steps
+                # clusterhq-flocker-node steps
                 CreateLinks(
                     links=[
                         (FilePath('/opt/flocker/bin/flocker-reportstate'),
@@ -1351,7 +1351,7 @@ class MakeDependenciesTests(TestCase):
     def test_node(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``python-flocker`` for ``flocker-node``.
+        ``clusterhq-python-flocker`` for ``flocker-node``.
         """
         expected_version = '1.2.3'
         self.assertIn(
@@ -1366,7 +1366,7 @@ class MakeDependenciesTests(TestCase):
     def test_cli(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``python-flocker`` for ``flocker-cli``.
+        ``clusterhq-python-flocker`` for ``flocker-cli``.
         """
         expected_version = '1.2.3'
         self.assertIn(
