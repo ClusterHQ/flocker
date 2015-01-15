@@ -21,7 +21,7 @@ from .._config import (
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
     _parse_restart_policy, marshal_to_application_config_format,
-    marshal_to_deployment_config_format
+    marshal_to_deployment_config_format, deployment_from_configuration_files
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
@@ -3342,12 +3342,8 @@ class MarshalToApplicationAndDeploymentConfigsTests(SynchronousTestCase):
         ``marshal_to_deployment_config_format`` can roundtrip a
         ``Deployment`` back into the relevant configuration formats.
         """
-        configuration = FlockerConfiguration(copy.deepcopy(
-            COMPLEX_APPLICATION_YAML))
-        parsed_applications = configuration.applications()
-        deployment = model_from_configuration(
-            applications=parsed_applications,
-            deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+        deployment = deployment_from_configuration_files(
+            copy.deepcopy(COMPLEX_APPLICATION_YAML), COMPLEX_DEPLOYMENT_YAML)
         self.assertEqual([marshal_to_application_config_format(deployment),
                           marshal_to_deployment_config_format(deployment)],
                          [COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML])

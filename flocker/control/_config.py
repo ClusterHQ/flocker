@@ -1377,3 +1377,24 @@ def marshal_to_deployment_config_format(deployment):
             for node in deployment.nodes
         }
     }
+
+
+def deployment_from_configuration_files(application_config,
+                                        deployment_config):
+    """
+    Load application and deployment configurations into ``Deployment``
+    object.
+
+    :param application_config: Simple Python types in the application
+        configuration format.
+
+    :param deployment_config: Simple Python types in the deployment
+        configuration format.
+
+    :return Deployment: The parsed deployment object.
+    """
+    configuration = FlockerConfiguration(application_config)
+    parsed_applications = configuration.applications()
+    return model_from_configuration(
+        applications=parsed_applications,
+        deployment_configuration=deployment_config)

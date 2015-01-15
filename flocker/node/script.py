@@ -24,8 +24,8 @@ from ..volume.service import (
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from ..control import (ConfigurationError, model_from_configuration,
-                       FlockerConfiguration, current_from_configuration)
+from ..control import (ConfigurationError, current_from_configuration,
+                       deployment_from_configuration_files)
 from . import Deployer
 
 
@@ -111,11 +111,8 @@ class ChangeStateOptions(Options):
             )
 
         try:
-            configuration = FlockerConfiguration(application_config)
-            parsed_applications = configuration.applications()
-            self['deployment'] = model_from_configuration(
-                applications=parsed_applications,
-                deployment_configuration=deployment_config)
+            self['deployment'] = deployment_from_configuration_files(
+                application_config, deployment_config)
         except ConfigurationError as e:
             raise UsageError(
                 'Configuration Error: {error}'
