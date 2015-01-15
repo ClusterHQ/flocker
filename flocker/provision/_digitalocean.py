@@ -97,14 +97,14 @@ def provision_digitalocean(node, package_source, distribution, token):
     node.reboot()
 
     # Finally run all the standard Fedora20 installation steps.
-    # run(
-    #     username='root',
-    #     address=node.address,
-    #     commands=provision(
-    #         package_source=package_source,
-    #         distribution=node.distribution,
-    #     )
-    # )
+    run(
+        username='root',
+        address=node.address,
+        commands=provision(
+            package_source=package_source,
+            distribution=node.distribution,
+        )
+    )
     return node.address
 
 
