@@ -12,7 +12,7 @@ def fail_if_skipped(test_item):
     :param test_object: test method or class with a skip decorator.
 
     :return: True if ``test_object`` is covered by environment variable
-        FLOCKER_TEST_NO_SKIPS, else False.
+        FLOCKER_TEST_FAIL_IF_SKIPS, else False.
     """
     return True
 
