@@ -165,18 +165,18 @@ def get_ssh_key_id(driver, ssh_key_name):
         raise ValueError("Unknown SSH keyname.", ssh_key_name)
 
 
-def digitalocean_provisioner(client_id, api_key, location_id, keyname):
+def digitalocean_provisioner(client_id, api_key, token, location_id, keyname):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
 
-    :param bytes access_key: The access_key to connect to AWS with.
-    :param bytes secret_access_token: The corresponding secret token.
-    :param bytes region: The AWS region in which to launch the instance.
+    :param bytes client_id: A V1 API client ID.
+    :param bytes api_key: A V1 API key.
+    :param bytes token: A V2 API token.
+    :param bytes location_id: The location id in which new nodes will be
+        created.
     :param bytes keyname: The name of an existing ssh public key configured in
-       AWS. The provision step assumes the corresponding private key is
-       available from an agent.
-    :param list security_groups: List of security groups to put created nodes
-        in.
+       DigitalOcean. The provision step assumes the corresponding private key
+       is available from an agent.
     """
     # Import these here, so that this can be imported without
     # installing libcloud.
