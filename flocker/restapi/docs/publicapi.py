@@ -39,6 +39,8 @@ HTTPResource.doc_field_types.append(
         typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
 )
 del HTTPResource, TypedField
+# Disable "HTTP Routing Table" index:
+httpdomain.HTTPDomain.indices = []
 
 
 class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
@@ -299,23 +301,10 @@ def _formatRouteBody(data, schema_store):
     """
     baseSubstitutions = {
         u"DOMAIN": u"example.com",
-        u"SERVER_IP": u"10.0.42.1",
-        u"USER_ID": u"54321",
         }
 
     for line in data['description']:
         yield line
-
-    if 'paged' in data:
-        yield ("This endpoint is a collection and supports the " +
-               ":ref:`common query parameters<api-collections>` " +
-               "associated to them.")
-        yield "It supports the following sort keys:"
-        yield ""
-        yield "  * ``%s`` *(default)*" % (data['paged']['defaultKey'],)
-        for key in data['paged']['otherKeys']:
-            yield "  * ``%s``" % (key,)
-        yield ""
 
     if 'input' in data:
         for line in _formatActualSchema(data['input_schema'],
