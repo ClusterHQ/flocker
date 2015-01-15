@@ -11,6 +11,7 @@ import math
 import os
 import re
 import types
+from json import dumps
 
 from pyrsistent import pmap
 
@@ -310,6 +311,8 @@ def applications_to_flocker_yaml(applications):
     Converts a ``dict`` of ``Application`` instances to Flocker's
     application configuration YAML.
 
+    We actually do JSON, because that is subset of YAML.
+
     :param applications: A ``dict`` mapping application names to
         ``Application`` instances.
 
@@ -321,7 +324,7 @@ def applications_to_flocker_yaml(applications):
         converter = ApplicationMarshaller(application)
         value = converter.convert()
         config['applications'][application_name] = value
-    return safe_dump(config)
+    return dumps(config)
 
 
 @implementer(IApplicationConfiguration)
@@ -1344,10 +1347,18 @@ def marshal_to_application_config_format(deployment):
 
     :param Deployment deployment: The current desired configuration.
 
-    :return: Simple Python types suitable for serialization to YAML, in
-        the application configuration format.
+    :return: Simple Python types suitable for serialization to JSON or
+        YAML, in the application configuration format.
     """
-    pass
+    result = {}
+    for application in deployment.applications():
+        converter = ApplicationMarshaller(application)
+        result[application.name] = converter.convert()
+
+    return {
+        "version": 1,
+        "applications": result,
+    }
 
 
 def marshal_to_deployment_config_format(deployment):
@@ -1356,7 +1367,13 @@ def marshal_to_deployment_config_format(deployment):
 
     :param Deployment deployment: The current desired configuration.
 
-    :return: Simple Python types suitable for serialization to YAML, in
-        the deployment configuration format.
+    :return: Simple Python types suitable for serialization to JSON or
+        YAML, in the deployment configuration format.
     """
-    pass
+    return {
+        "version": 1,
+        "nodes": {
+            node.hostname: [app.name for app in node.applications]
+            for node in deployment.nodes
+        }
+    }

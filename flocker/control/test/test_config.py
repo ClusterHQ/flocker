@@ -20,13 +20,57 @@ from .._config import (
     model_from_configuration, FigConfiguration,
     applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
     FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
-    _parse_restart_policy,
+    _parse_restart_policy, marshal_to_application_config_format,
+    marshal_to_deployment_config_format
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
     NodeState, RestartNever, RestartAlways, RestartOnFailure, Dataset,
     Manifestation,
 )
+
+
+COMPLEX_APPLICATION_YAML = {
+    'version': 1,
+    'applications': {
+        'wordpress': {
+            'image': 'sample/wordpress:latest',
+            'volume': {'mountpoint': '/var/www/wordpress'},
+            'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+            'ports': [{'internal': 80, 'external': 8080}],
+            'links': [
+                {'local_port': 3306,
+                 'remote_port': 3306,
+                 'alias': 'db'},
+                {'local_port': 3307,
+                 'remote_port': 3307,
+                 'alias': 'db'}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        },
+        'mysql': {
+            'image': 'sample/mysql:latest',
+            'ports': [
+                {'internal': 3306, 'external': 3306},
+                {'internal': 3307, 'external': 3307}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        }
+    }
+}
+
+
+COMPLEX_DEPLOYMENT_YAML = {
+    'version': 1,
+    'nodes': {
+        'node1.example.com': ['wordpress'],
+        'node2.example.com': ['mysql'],
+    }
+}
 
 
 class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
@@ -38,38 +82,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         The YAML returned by ``applications_to_flocker_yaml" can be
         successfully parsed as YAML.
         """
-        expected = {
-            'version': 1,
-            'applications': {
-                'wordpress': {
-                    'image': 'sample/wordpress:latest',
-                    'volume': {'mountpoint': '/var/www/wordpress'},
-                    'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'links': [
-                        {'local_port': 3306,
-                         'remote_port': 3306,
-                         'alias': 'db'},
-                        {'local_port': 3307,
-                         'remote_port': 3307,
-                         'alias': 'db'}
-                    ],
-                    'restart_policy': {
-                        'name': 'never',
-                    },
-                },
-                'mysql': {
-                    'image': 'sample/mysql:latest',
-                    'ports': [
-                        {'internal': 3306, 'external': 3306},
-                        {'internal': 3307, 'external': 3307}
-                    ],
-                    'restart_policy': {
-                        'name': 'never',
-                    },
-                }
-            }
-        }
+        expected = COMPLEX_APPLICATION_YAML
         config = copy.deepcopy(expected)
         applications = FlockerConfiguration(config).applications()
         yaml = safe_load(applications_to_flocker_yaml(applications))
@@ -3316,3 +3329,25 @@ class ApplicationConfigurationErrorTests(SynchronousTestCase):
             ),
             unicode(e)
         )
+
+
+class MarshalToApplicationAndDeploymentConfigsTests(SynchronousTestCase):
+    """
+    Tests for ``marshal_to_application_config_format`` and
+    ``marshal_to_deployment_config_format``.
+    """
+    def test_roundtrip(self):
+        """
+        ``marshal_to_application_config_format`` and
+        ``marshal_to_deployment_config_format`` can roundtrip a
+        ``Deployment`` back into the relevant configuration formats.
+        """
+        configuration = FlockerConfiguration(copy.deepcopy(
+            COMPLEX_APPLICATION_YAML))
+        parsed_applications = configuration.applications()
+        deployment = model_from_configuration(
+            applications=parsed_applications,
+            deployment_configuration=COMPLEX_DEPLOYMENT_YAML)
+        self.assertEqual([marshal_to_application_config_format(deployment),
+                          marshal_to_deployment_config_format(deployment)],
+                         [COMPLEX_APPLICATION_YAML, COMPLEX_DEPLOYMENT_YAML])
