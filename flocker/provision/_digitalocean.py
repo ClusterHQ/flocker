@@ -5,6 +5,7 @@ DigitalOcean provisioner.
 """
 import httplib
 import json
+import time
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
@@ -17,40 +18,54 @@ from ._install import (
 
 from libcloud.common.base import Connection, JsonResponse
 
+import pyocean
+
+
+def retry_if_pending(callable, *args, **kwargs):
+    """
+    DigitalOceanV2 API only allows one change at a time and returns HTTP code
+    402 if another change is already pending.
+
+    So this function repeats the API call if that error code is received and
+    returns the result if the call eventually succeeds.
+
+    The raw DO API returns ``event``s whose status can be queried, and that
+    would be a better way to block before issuing the next API call, but
+    pyocean doesn't consistently return the event info. E.g. droplet.create
+    returns a ``droplet`` instance instead whose status is difficult to check.
+    """
+    while True:
+        try:
+            result = callable(*args, **kwargs)
+        except pyocean.exceptions.ClientError as e:
+            if e.message == 'Droplet already has a pending event.':
+                time.sleep(1)
+                continue
+            raise
+        else:
+            return result
+
+
 def set_latest_droplet_kernel(
-        access_token, droplet_id, kernel_prefix='Fedora 20 x64'):
+        access_token, droplet_id, kernel_prefix='Fedora 20 x64',
+        client=None):
     """
-    ACCESS_TOKEN = 'X'
-    digitalocean = pyocean.DigitalOcean(ACCESS_TOKEN)
-    attrs = {
-        'name': 'adam-dangoor-droplet-fedora-20',
-        'region': 'lon1',
-        'size': '8gb',
-        'image': 'fedora-20-x64'
-    }
-    droplet = digitalocean.droplet.create(attrs)
-    for droplet in digitalocean.droplet.all():
-        print(droplet.id)
-
-
-    ...
-
-    droplet.power_cycle()
-    droplet = digitalocean.droplet.get(droplet.id)
-    droplet.kernel
+    Change the kernel of the droplet with ``droplet_id`` to the latest kernel
+    version with the given ``kernel_prefix``.
     """
-    import pyocean
-    digitalocean = pyocean.DigitalOcean(access_token)
-    droplet = digitalocean.droplet.get(droplet_id)
-    fedora_20_kernels = [kernel for kernel in droplet.get_available_kernels()
-                         if kernel.name.startswith()]
+    if client is None:
+        client = pyocean.DigitalOcean(access_token)
+
+    droplet = client.droplet.get(droplet_id)
+    matching_kernels = [kernel for kernel in droplet.get_available_kernels()
+                        if kernel.name.startswith(kernel_prefix)]
     latest_kernel = sorted(
-        fedora_20_kernels,
+        matching_kernels,
         key=lambda kernel: kernel.version.split('.'),
         reverse=True)[0]
 
-    droplet.change_kernel(latest_kernel.id)
-
+    retry_if_pending(droplet.change_kernel, latest_kernel.id)
+    return latest_kernel
 
 
 class DigitalOceanV2JsonResponse(JsonResponse):
