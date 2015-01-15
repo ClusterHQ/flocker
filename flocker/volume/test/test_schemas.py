@@ -7,8 +7,8 @@ Tests for hybridcluster/publicapi/schemas.
 from twisted.trial.unittest import SynchronousTestCase
 from jsonschema.exceptions import ValidationError
 
-from hybridcluster.publicapi._schema import getValidator
-
+from flocker.restapi._schema import getValidator
+from flocker.volume.httpapi import SCHEMAS
 
 def withoutItem(mapping, key):
     """
@@ -54,7 +54,7 @@ def buildSchemaTest(name, schema, failingInstances, passingInstances):
     """
     body = {
         'schema': schema,
-        'validator': getValidator(schema),
+        'validator': getValidator(schema, SCHEMAS),
         'passingInstances': passingInstances,
         'failingInstances': failingInstances,
         }
