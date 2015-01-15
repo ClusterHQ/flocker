@@ -35,9 +35,7 @@ Software
 Access
 ~~~~~~
 
-- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
-  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
-- Access to `Google Cloud Storage`_ using `gsutil`_.
+- Access to `Google Cloud Storage`_ and `Amazon S3` using `gsutil`_.
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
@@ -352,35 +350,34 @@ Release
    - Do not continue until the pull request is merged.
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
-#. Build tagged docs at Read the Docs:
+#. Update the documentation.
 
-   #. Force Read the Docs to reload the repository
+   #. Copy release documentation to ...
 
-      There is a GitHub webhook which should notify Read The Docs about changes in the Flocker repository, but it sometimes fails.
-      Force an update by running:
+   .. code:: bash
 
-      .. code-block:: console
+      gsutil -m rsync -d -r s3://clusterhq-dev-docs/${VERSION}/ s3://clusterhq-staging-docs/en/${VERSION}/
 
-         curl -X POST http://readthedocs.org/build/flocker
+   .. code:: Update redirects to point to new documentation.
 
-   #. Go to the `Read the Docs dashboard Versions section`_.
-   #. Set the version being released to be "Active".
-   #. Unset "Active" for each previous weekly release or pre-release of the version being released.
-   #. Wait for the documentation to build.
-      The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version and latest version to that version:
+      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
+      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
 
-      .. warning:: Skip this step for weekly releases and pre-releases.
-                   The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-                   We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-                   Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
+   todo
+   ....
 
-      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the version being released.
+   - Do we want to have a ``/latest`` or ``/stable`` link.
+   - If so, do we want to support deep-linking to them, or can we just have those be redirects.
+   - If not, we need to update links to on the main page and maybe elsewhere.
 
-      - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
+   - We probably need to purge some documents from cloudfront and cloudflare.
 
-      - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
-        Wait for the new HTML build to pass.
+     - /
+     - /index.html
+     - /en/
+     - /en/index.html
+     - /en/latest/
+     - /en/latest/index.html (or /en/latest/* if we do deep-linking)
 
 #. Submit the release pull request for review again.
 
@@ -393,12 +390,13 @@ Post-Release Review Process
 
       $ vagrant box remove clusterhq/flocker-tutorial
 
-#. Check that Read The Docs is set up correctly:
+#. Check that the documentation is set up correctly:
 
-   The following links should both point to the latest release.
+   The following links should all point to the latest release.
    (Except in the case of weekly release or pre-release)
 
-   * https://docs.clusterhq.com/en/latest and
+   * https://docs.clusterhq.com/en/latest
+   * https://docs.clusterhq.com/en/
    * https://docs.clusterhq.com/
 
 #. Verify that the tutorial works on all supported platforms:
@@ -432,9 +430,6 @@ Post-Release Review Process
    * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
-
-
-.. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
 
 
 Improving the Release Process

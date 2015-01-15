@@ -39,7 +39,7 @@ TODO: Add error pages.
          "Effect": "Allow",
          "Principal": "*",
          "Action": "s3:GetObject",
-         "Resource": "arn:aws:s3:::clusterhq-staging-docs/\*"
+         "Resource": "arn:aws:s3:::clusterhq-staging-docs/*"
       }]
    }
 
