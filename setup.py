@@ -185,6 +185,7 @@ setup(
             # The cloud acceptance test runner needs these
             "fabric==1.10.0",
             "apache-libcloud==0.16.0",
+            "digitalocean-python==0.1.5",
             ],
 
         # This extra is for Flocker release engineers to set up their release

@@ -17,6 +17,41 @@ from ._install import (
 
 from libcloud.common.base import Connection, JsonResponse
 
+def set_latest_droplet_kernel(
+        access_token, droplet_id, kernel_prefix='Fedora 20 x64'):
+    """
+    ACCESS_TOKEN = 'X'
+    digitalocean = pyocean.DigitalOcean(ACCESS_TOKEN)
+    attrs = {
+        'name': 'adam-dangoor-droplet-fedora-20',
+        'region': 'lon1',
+        'size': '8gb',
+        'image': 'fedora-20-x64'
+    }
+    droplet = digitalocean.droplet.create(attrs)
+    for droplet in digitalocean.droplet.all():
+        print(droplet.id)
+
+
+    ...
+
+    droplet.power_cycle()
+    droplet = digitalocean.droplet.get(droplet.id)
+    droplet.kernel
+    """
+    import pyocean
+    digitalocean = pyocean.DigitalOcean(access_token)
+    droplet = digitalocean.droplet.get(droplet_id)
+    fedora_20_kernels = [kernel for kernel in droplet.get_available_kernels()
+                         if kernel.name.startswith()]
+    latest_kernel = sorted(
+        fedora_20_kernels,
+        key=lambda kernel: kernel.version.split('.'),
+        reverse=True)[0]
+
+    droplet.change_kernel(latest_kernel.id)
+
+
 
 class DigitalOceanV2JsonResponse(JsonResponse):
     def success(self):
