@@ -18,8 +18,8 @@ class ConfigurationPersistenceService(Service):
     """
     def __init__(self, path):
         """
-        :param FilePath path: Directory where configuration files will be
-            stored.
+        :param FilePath path: Directory where desired deployment will be
+            persisted.
         """
 
     def startService(self):

@@ -16,7 +16,7 @@ from yaml.error import YAMLError
 
 from zope.interface import implementer
 
-from ._config import marshal_configuration
+from ..control._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
@@ -24,8 +24,10 @@ from ..volume.service import (
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from . import (ConfigurationError, model_from_configuration, Deployer,
-               FlockerConfiguration, current_from_configuration)
+from ..control import (ConfigurationError, model_from_configuration,
+                       FlockerConfiguration, current_from_configuration)
+from . import Deployer
+
 
 __all__ = [
     "flocker_changestate_main",
