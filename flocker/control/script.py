@@ -18,7 +18,7 @@ class ControlOptions(Options):
     Command line options for ``flocker-control`` cluster management process.
     """
     optParameters = [
-        # XXX also choose where configuration will be stored
+        # XXX also choose where persistent will be stored
         ["port", "p", 4523, "The port to listen on.", int],
         ]
 
