@@ -3,9 +3,9 @@
 """
 DigitalOcean provisioner.
 """
-import httplib
-import json
 import time
+
+import pyocean
 
 from ._libcloud import LibcloudProvisioner
 from ._install import (
@@ -14,11 +14,6 @@ from ._install import (
     task_upgrade_kernel,
     task_upgrade_selinux,
 )
-
-
-from libcloud.common.base import Connection, JsonResponse
-
-import pyocean
 
 
 def retry_if_pending(callable, *args, **kwargs):
@@ -66,85 +61,6 @@ def set_latest_droplet_kernel(
 
     retry_if_pending(droplet.change_kernel, latest_kernel.id)
     return latest_kernel
-
-
-class DigitalOceanV2JsonResponse(JsonResponse):
-    def success(self):
-        """
-        Determine if our request was successful.
-
-        Overridden because libcloud's version doesn't handle ACCEPTED
-
-        :rtype: ``bool``
-        :return: ``True`` or ``False``
-        """
-        return self.status in [httplib.OK, httplib.CREATED, httplib.ACCEPTED]
-
-
-
-class DigitalOceanConnectionV2(Connection):
-    host = 'api.digitalocean.com'
-    responseCls = DigitalOceanV2JsonResponse
-
-    def __init__(self, token):
-        Connection.__init__(self, secure=True)
-        self._token = token
-        self.request_path = '/v2'
-
-    def add_default_headers(self, headers):
-        headers['Authorization'] = b'Bearer %s' % (self._token,)
-        headers['Content-Type'] = 'application/json'
-        return headers
-
-
-class DigitalOceanNodeDriverV2(object):
-    """
-    """
-    def __init__(self, token, connection=None):
-        if connection is None:
-            connection = DigitalOceanConnectionV2(token=token)
-        self.connection = connection
-
-    def list_kernels(self, droplet_id):
-        """
-        Return a list of kernels supported by the supplied droplet.
-        """
-        action = '/droplets/{droplet_id}/kernels'.format(droplet_id=droplet_id)
-        response = self.connection.request(action)
-        return response.object['kernels']
-
-    def change_kernel(self, droplet_id, kernel_id):
-        """
-        Change the kernel of the given droplet.
-        """
-        action = '/droplets/{droplet_id}/actions'.format(droplet_id=droplet_id)
-        data = {
-            "type": "change_kernel",
-            "kernel": kernel_id
-        }
-        response = self.connection.request(
-            action, method='POST', data=json.dumps(data))
-        return response.object['action']
-
-    def create_droplet(self, name, region, size, image):
-        """
-        Create a droplet
-        """
-        action = '/droplets'
-        data = {
-            "name": name,
-            "region": region,
-            "size": size,
-            "image": image,
-            "ssh_keys": None,
-            "backups": False,
-            "ipv6": True,
-            "user_data": None,
-            "private_networking": None
-        }
-        response = self.connection.request(
-            action, method='POST', data=json.dumps(data))
-        return response.object['droplet']
 
 
 def provision_digitalocean(node, package_source, distribution):
