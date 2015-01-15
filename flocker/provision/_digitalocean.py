@@ -13,6 +13,7 @@ from ._install import (
     provision, run,
     task_install_ssh_key,
     task_install_kernel,
+    task_halt,
     task_upgrade_kernel,
     task_upgrade_selinux,
 )
@@ -93,6 +94,13 @@ def provision_digitalocean(node, package_source, distribution, token):
                                      architecture='x86_64')
     )
 
+    run(
+        username='root',
+        address=node.address,
+        commands=task_halt()
+    )
+
+    import pdb; pdb.set_trace()
     node.reboot()
 
     # Finally run all the standard Fedora20 installation steps.

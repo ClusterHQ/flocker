@@ -281,9 +281,8 @@ You'll probably want to setup at least two nodes.
 
       * Shut down the virtual machine:
 
-      .. code-block:: sh
-
-         [root@digitalocean]# shutdown -h now
+      .. task:: halt
+         :prompt: [root@digitalocean]#
 
       * On the "Power" administration page, click "Boot".
 
