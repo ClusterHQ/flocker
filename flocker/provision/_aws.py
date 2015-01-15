@@ -67,8 +67,7 @@ def aws_provisioner(access_key, secret_access_token, keyname,
         in.
     """
     # Import these here, so that this can be imported without
-    # installng libcloud.
-    # XXX ^^ typo
+    # installing libcloud.
     from libcloud.compute.providers import get_driver, Provider
     driver = get_driver(Provider.EC2)(
         key=access_key,
