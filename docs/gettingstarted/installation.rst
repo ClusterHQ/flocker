@@ -267,9 +267,8 @@ You'll probably want to setup at least two nodes.
 
       This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
 
-      .. code-block:: sh
-
-         [root@digitalocean]# yum update https://kojipkgs.fedoraproject.org/packages/kernel/3.16.6/203.fc20/x86_64/kernel-3.16.6-203.fc20.x86_64.rpm
+      .. task:: install_kernel
+         :prompt: [root@digitalocean]#
 
    #. Configure the Droplet to boot with the desired kernel:
 

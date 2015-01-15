@@ -12,6 +12,7 @@ from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision, run,
     task_install_ssh_key,
+    task_install_kernel,
     task_upgrade_kernel,
     task_upgrade_selinux,
 )
@@ -83,12 +84,15 @@ def provision_digitalocean(node, package_source, distribution, token):
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
 
     kernel = set_latest_droplet_kernel(token, node._node.id)
-
-    # run(
-    #     username='root',
-    #     address=node.address,
-    #     commands=task_upgrade_kernel(),
-    # )
+    version = None
+    release = None
+    import pdb; pdb.set_trace()
+    run(
+        username='root',
+        address=node.address,
+        commands=task_install_kernel(version=version, release=release, distribution='fc20',
+                                     architecture='x86_64')
+    )
 
     # Need to power cycle instead.
     # Create a new task to shutdown the machine
