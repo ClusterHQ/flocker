@@ -31,7 +31,7 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    def __init__(self, persistence_service):
+    def __init__(self, persistence_service=None):
         pass
 
     @app.route("/version", methods=['GET'])
@@ -54,15 +54,16 @@ class DatasetAPIUserV1(object):
         # For now we're sticking to current config. Later on this will
         # have a datasets key, and maybe omit applications if we have
         # none?
-        return {"applications": ...,
-                "application_deployment": ...}
+        #return {"applications": ...,
+        #        "application_deployment": ...}
+        pass
 
 
-def create_api_service(persistence_service, endpoint):
+def create_api_service(endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
     """
     api_root = Resource()
     api_root.putChild(
-        'v1', DatasetAPIUserV1(persistence_service).app.resource())
+        'v1', DatasetAPIUserV1().app.resource())
     return StreamServerEndpointService(endpoint, Site(api_root))
