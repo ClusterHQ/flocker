@@ -411,7 +411,16 @@ Post-Release Review Process
 
    * The node package (``flocker-node``) should be installed and tested on all supported platforms.
 
-     XXX: Describe how to use ``./admin/run-acceptance-tests`` to run acceptance tests on Vagrant, Rackspace, AWS and DigitalOcean.
+     The acceptance tests can be run automatically using the ``run-acceptance-tests`` tool.
+     See :ref:acceptance-testing for details of the configuration files required for each platform.
+
+     .. code-block:: console
+
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=vagrant --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=aws --config-file=aws.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=rackspace --config-file=rackspace.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=digitalocean --config-file=digitalocean.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
+
 
 #. Merge the release pull request.
 
