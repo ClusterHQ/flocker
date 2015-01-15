@@ -11,36 +11,34 @@ from flocker.restapi._schema import getValidator
 from flocker.volume.httpapi import SCHEMAS
 
 
-def buildSchemaTest(name, schema, failingInstances, passingInstances):
+def build_schema_test(name, schema, failing_instances, passing_instances):
     """
     Create test case verifying that various instances pass and fail
     verification with a given JSON Schema.
 
-    @param name: Name of test case to create
-    @type name: L{str}
+    :param bytes name: Name of test case to create.
+    :param dict schema: Schema to test.
+    :param list failing_instances: List of instances which should fail
+        validation.
+    :param list passing_instances: List of instances which should pass
+        validation.
 
-    @param schema: Schema to test
-    @type schema: L{dict}
-    @param failingInstances: List of instances which should fail validation
-    @param passingInstances: List of instances which should pass validation
-
-    @return The test case.
-    @rtype: A L{SynchronousTestCase} subclass.
+    :returns: The test case; a ``SynchronousTestCase} subclass.
     """
     body = {
         'schema': schema,
         'validator': getValidator(schema, SCHEMAS),
-        'passingInstances': passingInstances,
-        'failingInstances': failingInstances,
+        'passingInstances': passing_instances,
+        'failingInstances': failing_instances,
         }
-    for i, inst in enumerate(failingInstances):
+    for i, inst in enumerate(failing_instances):
         def test(self, inst=inst):
             self.assertRaises(ValidationError,
                               self.validator.validate, inst)
         test.__name__ = 'test_failsValidation_%d' % (i,)
         body[test.__name__] = test
 
-    for i, inst in enumerate(passingInstances):
+    for i, inst in enumerate(passing_instances):
         def test(self, inst=inst):
             self.validator.validate(inst)
         test.__name__ = 'test_passesValidation_%d' % (i,)
@@ -49,10 +47,10 @@ def buildSchemaTest(name, schema, failingInstances, passingInstances):
     return type(name, (SynchronousTestCase, object), body)
 
 
-VersionsTests = buildSchemaTest(
+VersionsTests = build_schema_test(
     name="VersionsTests",
     schema={'$ref': '/v1/endpoints.json#/definitions/versions'},
-    failingInstances=[
+    failing_instances=[
         # Missing version information
         {},
         # Wrong type for Flocker version
@@ -63,7 +61,7 @@ VersionsTests = buildSchemaTest(
             'OtherService': '0.3.0-10-dirty',
         },
     ],
-    passingInstances=[
+    passing_instances=[
         {'flocker': '0.3.0-10-dirty'},
     ],
 )
