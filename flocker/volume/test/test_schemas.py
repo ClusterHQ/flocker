@@ -55,7 +55,7 @@ VersionsTests = buildSchemaTest(
     failingInstances=[
         # Missing version information
         {},
-        # Wrong type for SiteJuggler version
+        # Wrong type for Flocker version
         {'flocker': []},
         # Unexpected version.
         {
