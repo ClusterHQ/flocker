@@ -4,6 +4,7 @@
 DigitalOcean provisioner.
 """
 import time
+from functools import partial
 
 import pyocean
 
@@ -65,7 +66,7 @@ def set_latest_droplet_kernel(
     return latest_kernel
 
 
-def provision_digitalocean(node, package_source, distribution):
+def provision_digitalocean(node, package_source, distribution, token):
     """
     Provision flocker on this node.
     """
@@ -80,7 +81,9 @@ def provision_digitalocean(node, package_source, distribution):
     # * https://developers.digitalocean.com/#change-the-kernel
     # But libcloud only supports the DO v1 API
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api
-    # XXX: Double check this.
+
+    kernel = set_latest_droplet_kernel(token, node._node.id)
+
     # run(
     #     username='root',
     #     address=node.address,
@@ -202,7 +205,8 @@ def digitalocean_provisioner(client_id, api_key, token, location_id, keyname):
         keyname=keyname,
         image_names=IMAGE_NAMES,
         create_node_arguments=create_arguments,
-        provision=provision_digitalocean,
+        # Tack the token on here because its not a standard part of the API.
+        provision=partial(provision_digitalocean, token=token),
         # The NodeSize repr suggests that ``id`` is an ``int`` but in fact it's a string.
         # Perhaps we need to modify _libcloud.get_size or something.
         # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...>
