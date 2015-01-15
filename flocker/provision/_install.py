@@ -144,11 +144,6 @@ def task_install_kernel(version='3.16.6', release='203', distribution='fc20',
         Run.from_args(['yum', 'update', '-y', url]),
     ]
 
-def task_halt():
-    return [
-        Run.from_args(['shutdown', '-h', 'now']),
-    ]
-
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.

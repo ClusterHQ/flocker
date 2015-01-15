@@ -13,7 +13,6 @@ from ._install import (
     provision, run,
     task_install_ssh_key,
     task_install_kernel,
-    task_halt,
     task_upgrade_kernel,
     task_upgrade_selinux,
 )
