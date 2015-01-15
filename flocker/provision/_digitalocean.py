@@ -90,8 +90,10 @@ def provision_digitalocean(node, package_source, distribution, token):
                                      architecture='x86_64')
     )
 
-    v2droplet.shutdown()
-    v2droplet.power_on()
+    # libcloud doesn't support shutting down or powering up DO vms.
+    # XXX Create an issue.
+    retry_if_pending(v2droplet.shutdown)
+    retry_if_pending(v2droplet.power_on)
 
     # Finally run all the standard Fedora20 installation steps.
     run(
