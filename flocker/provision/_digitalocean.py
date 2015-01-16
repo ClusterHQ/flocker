@@ -167,13 +167,13 @@ def location_by_slug(driver, location_slug):
 def get_ssh_key_id(driver, ssh_key_name):
     """
     """
-    # There's no high level API for this in the DigitalOcean driver.
-    response = driver.connection.request('/ssh_keys')
-    keys = response.object['ssh_keys']
-    try:
-        return [k['id'] for k in keys if k['name'] == ssh_key_name][0]
-    except IndexError:
+    for ssh_key in driver.ex_list_ssh_keys():
+        if ssh_key.name == ssh_key_name:
+            break
+    else:
         raise ValueError("Unknown SSH keyname.", ssh_key_name)
+
+    return ssh_key
 
 
 def digitalocean_provisioner(client_id, api_key, token, location, keyname):
