@@ -164,14 +164,19 @@ def location_by_slug(driver, location_slug):
     return driver._to_location(location_dict)
 
 
-def get_ssh_key_id(driver, ssh_key_name):
+def ssh_key_by_name(driver, ssh_key_name):
     """
+    Return the ``SSHKey`` with the given name.
+
+    :param DigitalOceanDriver driver: The driver to use for issuing queries.
+    :param bytes ssh_key_name: The name of a registered SSH key.
+    :returns: ``SSHKey``
     """
     for ssh_key in driver.ex_list_ssh_keys():
         if ssh_key.name == ssh_key_name:
             break
     else:
-        raise ValueError("Unknown SSH keyname.", ssh_key_name)
+        raise ValueError("Unknown SSH key name.", ssh_key_name)
 
     return ssh_key
 
@@ -195,6 +200,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
 
     driver_factory = get_driver(Provider.DIGITAL_OCEAN)
     driver = driver_factory(key=client_id, secret=api_key)
+    ssh_key = ssh_key_by_name(driver, keyname)
 
     def create_arguments(disk_size):
         """
@@ -205,7 +211,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
             # XXX: DigitalOcean driver doesn't use the standard ex_keyname
             # parameter. Perhaps ``_libcloud.LibcloudProvisioner.create_node
             # needs refactoring.
-            "ex_ssh_key_ids": [str(get_ssh_key_id(driver, keyname))]
+            "ex_ssh_key_ids": [str(ssh_key.id)]
         }
 
     provisioner = LibcloudProvisioner(
