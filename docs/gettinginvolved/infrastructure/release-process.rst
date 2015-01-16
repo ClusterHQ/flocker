@@ -416,11 +416,10 @@ Post-Release Review Process
 
      .. code-block:: console
 
-        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=vagrant --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
-        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=aws --config-file=aws.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
-        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=rackspace --config-file=rackspace.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
-        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=digitalocean --config-file=digitalocean.config --flocker-version=0.3.2-1109-gd71621f --branch=digitalocean-acceptance-FLOC-958
-
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=vagrant
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=aws --config-file=aws.config
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=rackspace --config-file=rackspace.config
+        $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=digitalocean --config-file=digitalocean.config
 
 #. Merge the release pull request.
 
