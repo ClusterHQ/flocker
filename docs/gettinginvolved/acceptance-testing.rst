@@ -152,10 +152,10 @@ To run the acceptance tests on DigitalOcean, you need:
 .. code-block:: yaml
 
    digitalocean:
-     client_id: "<DigitalOcean API v1 client id>"
-     api_key: "<DigitalOcean API v1 api key>"
-     token: "<DigitalOcean API v2 api token>"
-     location: "<DigitalOcean location slug e.g. lon1, nyc2, or sfo1>"
+     client_id: <DigitalOcean API v1 client id>
+     api_key: <DigitalOcean API v1 api key>
+     token: <DigitalOcean API v2 api token>
+     location: <DigitalOcean location slug e.g. lon1, nyc2, or sfo1>
      keyname: <ssh-key-name>
    metadata:
      creator: <your-name>
