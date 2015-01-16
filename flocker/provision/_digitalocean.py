@@ -209,8 +209,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
         return {
             "location": location_by_slug(driver, location),
             # XXX: DigitalOcean driver doesn't use the standard ex_keyname
-            # parameter. Perhaps ``_libcloud.LibcloudProvisioner.create_node
-            # needs refactoring.
+            # See https://clusterhq.atlassian.net/browse/FLOC-1228
             "ex_ssh_key_ids": [str(ssh_key.id)]
         }
 
