@@ -137,7 +137,7 @@ class MakeRstTests(SynchronousTestCase):
              '   Demonstrates examples.',
              '   ',
              # This is a header introducing the request portion of the session.
-             '   **example request**',
+             '   **Example request**',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              '   .. sourcecode:: http',
@@ -150,7 +150,7 @@ class MakeRstTests(SynchronousTestCase):
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              # The same again but for the HTTP response.
-             '   **example response**',
+             '   **Example response**',
              '   ',
              '   .. sourcecode:: http',
              '   ',
