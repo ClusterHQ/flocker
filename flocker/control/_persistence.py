@@ -39,6 +39,17 @@ class ConfigurationPersistenceService(Service):
                 data[u"applications"], data[u"deployment"])
         else:
             self._deployment = Deployment(nodes=frozenset())
+            self._sync_save(self._deployment)
+
+    def _sync_save(self, deployment):
+        """
+        Save and flush new deployment to disk synchronously.
+        """
+        data = {
+            u"applications": marshal_to_application_config_format(deployment),
+            u"deployment": marshal_to_deployment_config_format(deployment),
+            }
+        self._config_path.setContent(dumps(data))
 
     def save(self, deployment):
         """
@@ -46,12 +57,9 @@ class ConfigurationPersistenceService(Service):
 
         :return Deferred: Fires when write is finished.
         """
-        data = {
-            u"applications": marshal_to_application_config_format(deployment),
-            u"deployment": marshal_to_deployment_config_format(deployment),
-            }
-        self._config_path.setContent(dumps(data))
+        self._sync_save(deployment)
         self._deployment = deployment
+        # Switch to thread at some point in future:
         from twisted.internet.defer import succeed
         return succeed(None)
 

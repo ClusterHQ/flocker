@@ -6,8 +6,11 @@ Script for starting control service server.
 
 from twisted.python.usage import Options
 from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.python.filepath import FilePath
+from twisted.application.service import MultiService
 
 from .httpapi import create_api_service
+from ._persistence import ConfigurationPersistenceService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 
@@ -18,7 +21,8 @@ class ControlOptions(Options):
     Command line options for ``flocker-control`` cluster management process.
     """
     optParameters = [
-        # XXX also choose where persistent will be stored
+        ["data-path", "d", FilePath(b"/var/lib/flocker"),
+         "The directory where data will be persisted.", FilePath],
         ["port", "p", 4523, "The port to listen on.", int],
         ]
 
@@ -29,10 +33,13 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
-        # XXX also start persistence service
-        api_service = create_api_service(
-            TCP4ServerEndpoint(reactor, options["port"]))
-        return main_for_service(reactor, api_service)
+        top_service = MultiService()
+        persistence = ConfigurationPersistenceService(
+            reactor, options["data-path"])
+        persistence.setServiceParent(top_service)
+        create_api_service(persistence, TCP4ServerEndpoint(
+            reactor, options["port"])).setServiceParent(top_service)
+        return main_for_service(reactor, top_service)
 
 
 def flocker_control_main():

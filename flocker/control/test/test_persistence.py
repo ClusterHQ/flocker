@@ -54,6 +54,14 @@ class ConfigurationPersistenceServiceTests(TestCase):
         self.service(path)
         self.assertTrue(path.isdir())
 
+    def test_file_is_created(self):
+        """
+        If no configuration file exists in the given path, it is created.
+        """
+        path = FilePath(self.mktemp())
+        self.service(path)
+        self.assertTrue(path.child(b"current_configuration.json").exists())
+
     def test_save_then_get(self):
         """
         A configuration that was saved can subsequently retrieved.

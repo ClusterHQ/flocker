@@ -76,9 +76,15 @@ class DatasetAPIUserV1(object):
                 marshal_to_deployment_config_format(deployment)}
 
 
-def create_api_service(endpoint):
+def create_api_service(persistence_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
+
+    :param ConfigurationPersistenceService persistence_service: Service
+        for retrieving and setting desired configuration.
+    :param endpoint: Twisted endpoint to listen on.
+
+    :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
     api_root.putChild(
