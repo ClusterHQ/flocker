@@ -101,8 +101,8 @@ def provision_digitalocean(node, package_source, distribution, token):
                                      architecture='x86_64')
     )
 
-    # libcloud doesn't support shutting down DO vms.
-    # XXX Create an issue.
+    # Libcloud doesn't support shutting down DO vms.
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
     retry_if_pending(v2droplet.shutdown)
 
     # Sorry about this, but shutdown returns the following, indicating that the
@@ -111,8 +111,8 @@ def provision_digitalocean(node, package_source, distribution, token):
     # {u'status': u'completed', u'resource_id': 3797602, u'region': u'ams3', u'completed_at': u'2015-01-15T20:52:36Z', u'started_at': u'2015-01-15T20:52:31Z', u'type': u'shutdown', u'id': 41364967, u'resource_type': u'droplet'} # noqa
     time.sleep(30)
 
-    # libcloud doesn't support powering up DO vms.
-    # XXX Create an issue.
+    # Libcloud doesn't support powering up DO vms.
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-655
     retry_if_pending(v2droplet.power_on)
 
     # Finally run all the standard Fedora20 installation steps.
