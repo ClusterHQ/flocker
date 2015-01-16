@@ -15,8 +15,37 @@ from ._install import (
 )
 
 
-def retry_if_pending(callable, *args, **kwargs):
+def retry_on_error(error_checkers, callable, *args, **kwargs):
     """
+    This function repeats the API call if it raises an exception and if that
+    exception is validated by any of the supplied checkers.
+    It returns the result if the call eventually succeeds.
+
+    :param error_checkers: A ``list`` of ``callables`` which will check for
+        expected exceptions.
+    :param callable: The API function to call.
+    :param args: Positional arguments to supply when calling it.
+    :param kwargs: Keyword arguments to supply when calling it.
+    :return: The result of calling  ``callable``.
+    """
+    while True:
+        try:
+            result = callable(*args, **kwargs)
+        except Exception as e:
+            for checker in error_checkers:
+                if checker(e):
+                    time.sleep(1)
+                    break
+            else:
+                raise
+        else:
+            return result
+
+
+def pending_event(exception):
+    """
+    Check for a pending event exception.
+
     DigitalOceanV2 API only allows one change at a time and returns HTTP code
     402 if another change is already pending.
 
@@ -28,23 +57,51 @@ def retry_if_pending(callable, *args, **kwargs):
     pyocean doesn't consistently return the event info. E.g. droplet.create
     returns a ``droplet`` instance instead whose status is difficult to check.
 
-    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-calls-to-queue-rather-than-just-rejectin # noqa
+    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-cal
+    """
+    if (isinstance(exception, pyocean.exceptions.ClientError)
+        and exception.message == 'Droplet already has a pending event.'):
+        return True
+    return False
 
+
+def droplet_still_on(exception):
+    """
+    Check for a droplet still on exception.
+
+    Sorry about this, but shutdown returns the following, indicating that the
+    droplet has halted, but it still seems to require some time before
+    powering on.
+    {u'completed_at': u'2015-01-15T20:52:36Z',
+     u'id': 41364967,
+     u'region': u'ams3',
+     u'resource_id': 3797602,
+     u'resource_type': u'droplet',
+     u'started_at': u'2015-01-15T20:52:31Z',
+     u'status': u'completed',
+     u'type': u'shutdown'}
+    """
+    if (isinstance(exception, pyocean.exceptions.ClientError)
+        and exception.message == ('Droplet is currently on. '
+                                  'Please power it off to run this event.')):
+        return True
+    return False
+
+
+def retry_if_pending(callable, *args, **kwargs):
+    """
+    Repeats the API call if another API event is currently in progress.
+
+    It returns the result if the call eventually succeeds.
+
+    :param error_checkers: A ``list`` of ``callables`` which will check for
+        expected exceptions.
     :param callable: The API function to call.
     :param args: Positional arguments to supply when calling it.
     :param kwargs: Keyword arguments to supply when calling it.
     :return: The result of calling  ``callable``.
     """
-    while True:
-        try:
-            result = callable(*args, **kwargs)
-        except pyocean.exceptions.ClientError as e:
-            if e.message == 'Droplet already has a pending event.':
-                time.sleep(1)
-                continue
-            raise
-        else:
-            return result
+    return retry_on_error([pending_event], callable, *args, **kwargs)
 
 
 def set_latest_droplet_kernel(droplet, kernel_prefix='Fedora 20 x64'):
@@ -105,22 +162,11 @@ def provision_digitalocean(node, package_source, distribution, token):
     # See https://issues.apache.org/jira/browse/LIBCLOUD-655
     retry_if_pending(v2droplet.shutdown)
 
-    # Sorry about this, but shutdown returns the following, indicating that the
-    # droplet has halted, but it still seems to require some time before
-    # powering on.
-    # {u'completed_at': u'2015-01-15T20:52:36Z',
-    #  u'id': 41364967,
-    #  u'region': u'ams3',
-    #  u'resource_id': 3797602,
-    #  u'resource_type': u'droplet',
-    #  u'started_at': u'2015-01-15T20:52:31Z',
-    #  u'status': u'completed',
-    #  u'type': u'shutdown'}
-    time.sleep(30)
-
     # Libcloud doesn't support powering up DO vms.
     # See https://issues.apache.org/jira/browse/LIBCLOUD-655
-    retry_if_pending(v2droplet.power_on)
+    # Even after the shutdown, the droplet may not be quite ready to power on,
+    # so also check for that resulting error here.
+    retry_on_error([pending_event, droplet_still_on], v2droplet.power_on)
 
     # Finally run all the standard Fedora20 installation steps.
     run(
