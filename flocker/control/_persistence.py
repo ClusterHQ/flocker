@@ -68,4 +68,3 @@ class ConfigurationPersistenceService(Service):
         :return Deployment: The current desired configuration.
         """
         return self._deployment
-
