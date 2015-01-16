@@ -23,6 +23,14 @@ TESTING_DROPLET_ATTRIBUTES = {
 
 
 class LatestDropletKernelTests(SynchronousTestCase):
+    """
+    Tests for ``set_latest_droplet_kernel``.
+
+    These tests are designed to interact with live DigitalOcean droplets.
+
+    You must supply a DigitalOcean V2 API token by setting
+    ``DIGITALOCEAN_TOKEN`` in the environment before running these tests.
+    """
     def setUp(self):
         """
         Set up a test droplet and destroy it after the test.
