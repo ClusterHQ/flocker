@@ -18,7 +18,8 @@ from admin.release import make_rpm_version
 from flocker.provision import PackageSource
 import flocker
 from flocker.provision._install import (
-    run_tasks_on_node, task_pull_docker_images
+    run as run_tasks_on_node,
+    task_pull_docker_images
 )
 
 
