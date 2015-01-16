@@ -148,6 +148,8 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
+   In addition, review the linkcheck step of the documentation builder to ensure that all the errors are expected.
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
