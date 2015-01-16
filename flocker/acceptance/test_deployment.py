@@ -70,6 +70,7 @@ class DeploymentTests(TestCase):
             # The configuration doesn't provide a uuid for the volume so one is
             # generated.  There's no way to know in advance what will be
             # generated so just avoid comparing the value against anything.
+            dataset_id = state[MONGO_APPLICATION].volume.manifestation.dataset.dataset_id
             state[MONGO_APPLICATION].volume.manifestation.dataset.dataset_id = None
 
             self.assertEqual(state[MONGO_APPLICATION], application)
@@ -89,9 +90,10 @@ class DeploymentTests(TestCase):
             application = create_application(
                 MONGO_APPLICATION, MONGO_IMAGE,
                 volume=create_attached_volume(
-                    name=MONGO_APPLICATION,
+                    dataset_id=dataset_id,
                     mountpoint=b'/data/db',
-                    maximum_size=int(SIZE_100_MB)
+                    maximum_size=int(SIZE_100_MB),
+                    metadata=pmap({"name": MONGO_APPLICATION}),
                 )
             )
 
