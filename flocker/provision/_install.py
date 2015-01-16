@@ -144,6 +144,7 @@ def task_install_kernel(version='3.16.6', release='203', distribution='fc20',
         Run.from_args(['yum', 'update', '-y', url]),
     ]
 
+
 def task_install_kernel_devel():
     """
     Install development headers corresponding to running kernel.
@@ -263,9 +264,10 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
 def provision(distribution, package_source):
     """
     Provision the node for running flocker.
-    XXX: Add a note here that this drives all the common Fedora20 installation
-    steps from:
-     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20
+
+    This drives all the common Fedora20 installation steps in:
+     * http://doc-dev.clusterhq.com/gettingstarted/installation.html#installing-on-fedora-20 # noqa
+
     :param bytes address: Address of the node to provision.
     :param bytes username: Username to connect as.
     :param bytes distribution: See func:`task_install`
