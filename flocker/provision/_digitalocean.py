@@ -164,6 +164,28 @@ def location_by_slug(driver, location_slug):
     return driver._to_location(location_dict)
 
 
+def size_by_slug(driver, size_slug):
+    """
+    Look up a DigitalOcean size by its short human readable "slug" code.
+
+    # XXX: ``libcloud.DigitalOceanDriver.list_sizes`` discards the slug
+    # so we make a direct call to the v1 API and parse the returned dictionary.
+    # See
+
+    :param driver: The libcloud driver to query for sizes.
+    :param bytes size_slug: A DigitalOcean size "slug".
+    :returns: ``NodeSize``.
+    """
+    result = driver.connection.request('/sizes')
+    for size_dict in result.object['sizes']:
+        if size_dict['slug'] == size_slug:
+            break
+    else:
+        raise ValueError("Unknown size slug.", size_slug)
+
+    return driver._to_size(size_dict)
+
+
 def ssh_key_by_name(driver, ssh_key_name):
     """
     Return the ``SSHKey`` with the given name.
@@ -201,6 +223,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
     driver_factory = get_driver(Provider.DIGITAL_OCEAN)
     driver = driver_factory(key=client_id, secret=api_key)
     ssh_key = ssh_key_by_name(driver, keyname)
+    size = size_by_slug(driver, "8gb")
 
     def create_arguments(disk_size):
         """
@@ -220,10 +243,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
         create_node_arguments=create_arguments,
         # Tack the token on here because its not a standard part of the API.
         provision=partial(provision_digitalocean, token=token),
-        # The NodeSize repr suggests that ``id`` is an ``int`` but in fact it's
-        # a string.  Perhaps we need to modify _libcloud.get_size or something.
-        # <NodeSize: id=65, name=8GB, ram=8192 disk=0 bandwidth=0 price=0 driver=Digital Ocean ...> # noqa
-        default_size="65",
+        default_size=size.id,
     )
 
     return provisioner
