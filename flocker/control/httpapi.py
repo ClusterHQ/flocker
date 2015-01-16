@@ -12,6 +12,9 @@ from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
+from ._config import (
+    marshal_to_application_config_format, marshal_to_deployment_config_format,
+    )
 from ..restapi import structured, user_documentation
 from .. import __version__
 
@@ -32,7 +35,11 @@ class DatasetAPIUserV1(object):
     app = Klein()
 
     def __init__(self, persistence_service=None):
-        pass
+        """
+        :param ConfigurationPersistenceService persistence_service: Service
+            for retrieving and setting desired configuration.
+        """
+        self.persistence_service = persistence_service
 
     @app.route("/version", methods=['GET'])
     @user_documentation("""
@@ -62,12 +69,11 @@ class DatasetAPIUserV1(object):
         """
         Return the current configuration.
         """
-        # For now we're sticking to current config. Later on this will
-        # have a datasets key, and maybe omit applications if we have
-        # none?
-        #return {"applications": ...,
-        #        "application_deployment": ...}
-        pass
+        deployment = self.persistence_service.get()
+        return {"applications":
+                marshal_to_application_config_format(deployment),
+                "application_deployment":
+                marshal_to_deployment_config_format(deployment)}
 
 
 def create_api_service(endpoint):

@@ -5,17 +5,24 @@ Tests for ``flocker.control.httpapi``.
 
 from zope.interface.verify import verifyObject
 
+from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.server import Site
 from twisted.web.client import readBody
 from twisted.application.service import IService
+from twisted.python.filepath import FilePath
 
 from ...restapi.testtools import (
     buildIntegrationTests, loads, goodResult)
 
 from ..httpapi import DatasetAPIUserV1, create_api_service
+from .._persistence import ConfigurationPersistenceService
+from .._config import (
+    marshal_to_application_config_format, marshal_to_deployment_config_format,
+    )
+from .test_persistence import TEST_DEPLOYMENT
 from ... import __version__
 
 
@@ -23,19 +30,60 @@ class APITestsMixin(object):
     """
     Integration tests for the Dataset Manager API.
     """
+    def initialize(self):
+        """
+        Create initial objects for the ``DatasetAPIUserV1``.
+        """
+        self.persistence_service = ConfigurationPersistenceService(
+            reactor, FilePath(self.mktemp()))
+        self.persistence_service.startService()
+        self.addCleanup(self.persistence_service.stopService)
+
+    def assertGoodResult(self, method, path, expected_good_result):
+        """
+        Assert a particular JSON response for the given API request.
+
+        :param bytes method: HTTP method to request.
+        :param bytes path: HTTP path.
+        :param unicode expected_good_result: Successful good result we expect.
+
+        :return Deferred: Fires when test is done.
+        """
+        requesting = self.agent.request(method, path)
+        requesting.addCallback(readBody)
+        requesting.addCallback(lambda body: self.assertEqual(
+            goodResult(expected_good_result), loads(body)))
+        return requesting
+
     def test_version(self):
         """
         The ``/version`` command returns JSON-encoded ``__version__``.
         """
-        requesting = self.agent.request(b"GET", b"/version")
-        requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertEqual(
-            goodResult({u'flocker': __version__}), loads(body)))
-        return requesting
+        return self.assertGoodResult(b"GET", b"/version",
+                                     {u'flocker': __version__})
+
+    def test_configuration(self):
+        """
+        The ``/configuration`` commands returns the current ``Deployment``
+        encoded into the two configuration formats (application and
+        deployment).
+        """
+        d = self.persistence_service.save(TEST_DEPLOYMENT)
+        d.addCallback(
+            lambda _: self.assertGoodResult(
+                b"GET", b"/configuration",
+                {u'applications':
+                 marshal_to_application_config_format(TEST_DEPLOYMENT),
+                 u'application_deployment':
+                 marshal_to_deployment_config_format(TEST_DEPLOYMENT)}))
+        return d
 
 
+def _build_app(test):
+    test.initialize()
+    return DatasetAPIUserV1(test.persistence_service).app
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
-    APITestsMixin, "API", lambda test: DatasetAPIUserV1().app)
+    APITestsMixin, "API", _build_app)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
