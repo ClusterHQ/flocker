@@ -11,7 +11,8 @@ import pyocean
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
-    set_latest_droplet_kernel, retry_if_pending)
+    set_droplet_kernel, retry_if_pending, latest_droplet_kernel,
+    kernel_from_digitalocean_version, SUPPORTED_KERNEL)
 from flocker.testtools import random_name
 
 
@@ -22,9 +23,31 @@ TESTING_DROPLET_ATTRIBUTES = {
 }
 
 
-class LatestDropletKernelTests(SynchronousTestCase):
+def client_from_environment():
+    token = os.environ.get('DIGITALOCEAN_TOKEN')
+    if token is None:
+        raise SkipTest(
+            'A DIGITALOCEAN_TOKEN environment variable is required to run '
+            'these tests.')
+
+    return pyocean.DigitalOcean(token)
+
+
+def droplet_for_test(test_case, client):
+    droplet_attributes = copy.deepcopy(TESTING_DROPLET_ATTRIBUTES)
+    droplet_attributes['name'] = (
+        test_case.id().replace('_', '-')
+        + '-'
+        + random_name()
+    )
+    droplet = retry_if_pending(client.droplet.create, droplet_attributes)
+    test_case.addCleanup(retry_if_pending, droplet.destroy)
+    return droplet
+
+
+class SetDropletKernelTests(SynchronousTestCase):
     """
-    Tests for ``set_latest_droplet_kernel``.
+    Tests for ``set_droplet_kernel``.
 
     These tests are designed to interact with live DigitalOcean droplets.
 
@@ -35,41 +58,51 @@ class LatestDropletKernelTests(SynchronousTestCase):
         """
         Set up a test droplet and destroy it after the test.
         """
-        token = os.environ.get('DIGITALOCEAN_TOKEN')
-        if token is None:
-            raise SkipTest(
-                'A DIGITALOCEAN_TOKEN environment variable is required to run '
-                'these tests.')
-
-        client = pyocean.DigitalOcean(token)
-
-        droplet_attributes = copy.deepcopy(TESTING_DROPLET_ATTRIBUTES)
-        droplet_attributes['name'] = (
-            self.id().replace('_', '-')
-            + '-'
-            + random_name()
-        )
-        droplet = retry_if_pending(client.droplet.create, droplet_attributes)
-        self.addCleanup(retry_if_pending, droplet.destroy)
-
-        self.client = client
-        self.droplet = droplet
+        self.client = client_from_environment()
+        self.droplet = droplet_for_test(self, self.client)
 
     def test_success(self):
         """
-        ``set_latest_droplet_kernel`` selects the newest kernel and assigns it
-        to the droplet, returning the selected kernel.
+        ``set_droplet_kernel`` assigns the supplied kernel to the droplet.
+        to the droplet, returning the selected DigitalOcean kernel instance.
         """
-        expected_kernel = set_latest_droplet_kernel(self.droplet)
+        expected_kernel = SUPPORTED_KERNEL
+        set_droplet_kernel(self.droplet, expected_kernel)
 
         # Need to query again for the droplet after updating its kernel
         updated_droplet = self.client.droplet.get(self.droplet.id)
-
         # Pyocean wraps kernel attributes in its ``Image`` class...which makes
         # no sense and then uses a ``dict`` for the ``droplet.kernel``
         # attribute, so they can't be directly compared. It would be better if
         # both used a dedicated ``Kernel`` type which could easily be
         # compared.
         # See: https://github.com/flowfree/pyocean/issues/2
-        # Just check they have the same ID.
-        self.assertEqual(expected_kernel.id, updated_droplet.kernel['id'])
+        actual_kernel = kernel_from_digitalocean_version(updated_droplet.kernel['version'])
+        self.assertEqual(expected_kernel, actual_kernel)
+
+
+class LatestDropletKernelTests(SynchronousTestCase):
+    """
+    Tests for ``latest_droplet_kernel``.
+
+    These tests are designed to interact with live DigitalOcean droplets.
+
+    You must supply a DigitalOcean V2 API token by setting
+    ``DIGITALOCEAN_TOKEN`` in the environment before running these tests.
+    """
+    def setUp(self):
+        """
+        Set up a test droplet and destroy it after the test.
+        """
+        self.client = client_from_environment()
+        self.droplet = droplet_for_test(self, self.client)
+
+    def test_success(self):
+        """
+        ``latest_droplet_kernel`` should return the same kernel that we ask
+        users to install in our documentation.
+        """
+        expected_kernel = SUPPORTED_KERNEL
+        actual_kernel = latest_droplet_kernel(self.droplet, 'fc20', 'x86_64')
+
+        self.assertEqual(expected_kernel, actual_kernel)

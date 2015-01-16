@@ -104,25 +104,92 @@ def retry_if_pending(callable, *args, **kwargs):
     return retry_on_error([pending_event], callable, *args, **kwargs)
 
 
-def set_latest_droplet_kernel(droplet, kernel_prefix='Fedora 20 x64'):
+from characteristic import attributes, Attribute
+
+@attributes(
+    ['version', 'release', 'distribution', 'architecture']
+)
+class Kernel(object):
     """
-    Change the kernel of the droplet with ``droplet_id`` to the latest kernel
-    version with the given ``kernel_prefix``.
+    """
+
+
+SUPPORTED_KERNEL = Kernel(
+    version="3.17.8",
+    release="200",
+    distribution="fc20",
+    architecture="x86_64"
+)
+
+
+def kernel_from_digitalocean_version(version):
+    """
+    Parse a DigitalOcean kernel version string into its component parts.
+    """
+    version, remaining = version.split('-', 1)
+    release, distribution, architecture = remaining.split('.', 2)
+    return Kernel(
+        version=version,
+        release=release,
+        distribution=distribution,
+        architecture=architecture
+    )
+
+
+DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE = (
+    '{version}-{release}.{distribution}.{architecture}'
+)
+
+def kernel_to_digitalocean_version(kernel):
+    return DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE.format(
+        version=kernel.version,
+        release=kernel.release,
+        distribution=kernel.distribution,
+        architecture=kernel.architecture
+    )
+
+
+def set_droplet_kernel(droplet, required_kernel):
+    """
+    Change the kernel of the droplet with ``droplet_id``.
 
     :param ``pyocean.Droplet`` droplet: The droplet whose kernel will be
         configured.
-    :param bytes kernel_prefix: Only kernel names with this prefix will be
-        considered.
     :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
     """
-    matching_kernels = [kernel for kernel in droplet.get_available_kernels()
-                        if kernel.name.startswith(kernel_prefix)]
+    full_version = kernel_to_digitalocean_version(required_kernel)
+    for do_kernel in droplet.get_available_kernels():
+        if do_kernel.version == full_version:
+            break
+    else:
+        raise ValueError('Unknown kernel', required_kernel)
+
+    retry_if_pending(droplet.change_kernel, do_kernel.id)
+    return do_kernel
+
+
+def latest_droplet_kernel(droplet,
+                          required_distribution, required_architecture):
+    """
+    """
+    matching_kernels = []
+    for do_kernel in droplet.get_available_kernels():
+        kernel = kernel_from_digitalocean_version(do_kernel.version)
+
+        if ((required_distribution, required_architecture)
+            == (kernel.distribution, kernel.architecture)):
+            matching_kernels.append(kernel)
+
+    if not matching_kernels:
+        raise ValueError(
+            'No kernels for required distribution and architecture',
+            required_distribution, required_architecture)
+
     latest_kernel = sorted(
         matching_kernels,
-        key=lambda kernel: kernel.version.split('.'),
+        key=lambda kernel: (kernel.version, kernel.release),
         reverse=True)[0]
 
-    retry_if_pending(droplet.change_kernel, latest_kernel.id)
     return latest_kernel
 
 
@@ -147,9 +214,7 @@ def provision_digitalocean(node, package_source, distribution, token):
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
 
-    kernel = set_latest_droplet_kernel(v2droplet)
-    version, distribution, architecture = kernel.version.rsplit('.', 2)
-    version, release = version.split('-', 1)
+    kernel = set_droplet_kernel(v2droplet, SUPPORTED_KERNEL)
     run(
         username='root',
         address=node.address,
