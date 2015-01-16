@@ -204,7 +204,7 @@ def digitalocean_provisioner(client_id, api_key, token, location, keyname):
 
     def create_arguments(disk_size):
         """
-        :param disk_size: Unused
+        :param disk_size: DigitalOcean doesn't support arbitrary disk sizes.
         """
         return {
             "location": location_by_slug(driver, location),
