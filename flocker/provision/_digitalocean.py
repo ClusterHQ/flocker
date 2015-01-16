@@ -29,6 +29,11 @@ def retry_if_pending(callable, *args, **kwargs):
     returns a ``droplet`` instance instead whose status is difficult to check.
 
     See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-calls-to-queue-rather-than-just-rejectin # noqa
+
+    :param callable: The API function to call.
+    :param args: Positional arguments to supply when calling it.
+    :param kwargs: Keyword arguments to supply when calling it.
+    :return: The result of calling  ``callable``.
     """
     while True:
         try:
@@ -46,6 +51,12 @@ def set_latest_droplet_kernel(droplet, kernel_prefix='Fedora 20 x64'):
     """
     Change the kernel of the droplet with ``droplet_id`` to the latest kernel
     version with the given ``kernel_prefix``.
+
+    :param ``pyocean.Droplet`` droplet: The droplet whose kernel will be
+        configured.
+    :param bytes kernel_prefix: Only kernel names with this prefix will be
+        considered.
+    :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
     """
     matching_kernels = [kernel for kernel in droplet.get_available_kernels()
                         if kernel.name.startswith(kernel_prefix)]
