@@ -2621,11 +2621,17 @@ class ResizeVolumeTests(SynchronousTestCase):
         d = volume_service.create(volume)
 
         def created(ignored):
+            dataset = Dataset(
+                dataset_id=volume_name.dataset_id,
+                maximum_size=size.maximum_size,
+            )
             change = ResizeVolume(
                 volume=AttachedVolume(
-                    name=volume_name.dataset_id,
+                    manifestation=Manifestation(
+                        dataset=dataset,
+                        primary=True,
+                    ),
                     mountpoint=FilePath(b"/opt"),
-                    maximum_size=size.maximum_size
                 )
             )
             deployer = Deployer(
