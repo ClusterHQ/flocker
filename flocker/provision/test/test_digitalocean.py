@@ -6,6 +6,8 @@ Tests for ``flocker.provision._digitalocean``.
 import copy
 import os
 
+import pyocean
+
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
@@ -25,8 +27,6 @@ class LatestDropletKernelTests(SynchronousTestCase):
         """
         Set up a test droplet and destroy it after the test.
         """
-        import pyocean
-
         token = os.environ.get('DIGITALOCEAN_TOKEN')
         if token is None:
             raise SkipTest(
