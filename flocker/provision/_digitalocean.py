@@ -144,7 +144,7 @@ IMAGE_NAMES = {
 
 def location_by_slug(driver, location_slug):
     """
-    Look up a DigitalOcean by its short human readable "slug" code.
+    Look up a DigitalOcean location by its short human readable "slug" code.
 
     # XXX: ``libcloud.DigitalOceanDriver.list_locations`` discards the slug
     # so we make a direct call to the v1 API and parse the returned dictionary.
