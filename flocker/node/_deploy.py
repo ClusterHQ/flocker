@@ -5,21 +5,16 @@
 Deploy applications on nodes.
 """
 
-from uuid import uuid4
-
 from zope.interface import Interface, implementer
 
 from characteristic import attributes
-
-from pyrsistent import pmap
-from pickle import loads, dumps
 
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
-    NodeState, DockerImage, Port, Link, Manifestation, Dataset
+    NodeState, DockerImage, Port, Link
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
@@ -30,7 +25,7 @@ from ..common import gather_deferreds
 
 def _to_volume_name(dataset_id):
     """
-    Convert dataset ID to ``VolumeName`` with ``u"default"`` namespace.
+    Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
     To be replaced in https://clusterhq.atlassian.net/browse/FLOC-737 with
     real namespace support.
@@ -111,8 +106,7 @@ class StartApplication(object):
         volumes = []
         if application.volume is not None:
             volume = deployer.volume_service.get(
-                _to_volume_name(
-                    application.volume.manifestation.dataset.dataset_id))
+                _to_volume_name(application.volume.name))
             volumes.append(DockerVolume(
                 container_path=application.volume.mountpoint,
                 node_path=volume.get_filesystem().get_path()))
@@ -205,8 +199,8 @@ class CreateVolume(object):
     """
     def run(self, deployer):
         volume = deployer.volume_service.get(
-            name=_to_volume_name(self.volume.dataset.dataset_id),
-            size=VolumeSize(maximum_size=self.volume.dataset.maximum_size)
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
         )
         return deployer.volume_service.create(volume)
 
@@ -237,7 +231,7 @@ class WaitForVolume(object):
     """
     def run(self, deployer):
         return deployer.volume_service.wait_for_volume(
-            _to_volume_name(self.volume.dataset.dataset_id))
+            _to_volume_name(self.volume.name))
 
 
 @implementer(IStateChange)
@@ -256,9 +250,8 @@ class HandoffVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.handoff(
-            service.get(_to_volume_name(self.volume.dataset.dataset_id)),
-            RemoteVolumeManager(destination))
+        return service.handoff(service.get(_to_volume_name(self.volume.name)),
+                               RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
@@ -277,9 +270,8 @@ class PushVolume(object):
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
-        return service.push(
-            service.get(_to_volume_name(self.volume.dataset.dataset_id)),
-            RemoteVolumeManager(destination))
+        return service.push(service.get(_to_volume_name(self.volume.name)),
+                            RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
@@ -339,45 +331,26 @@ class Deployer(object):
         volumes = self.volume_service.enumerate()
 
         def map_volumes_to_size(volumes):
-            primary_manifestations = {}
+            managed_volumes = dict()
             for volume in volumes:
                 if volume.node_id == self.volume_service.node_id:
-                    # FLOC-1181 non-primaries should be added in too
-                    path = volume.get_filesystem().get_path()
-                    primary_manifestations[path] = (
-                        volume.name.dataset_id, volume.size.maximum_size)
-            return primary_manifestations
+                    managed_volumes[volume.name.dataset_id] = (
+                        volume.size.maximum_size)
+            return managed_volumes
         volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
-            units, available_manifestations = result
+            units, available_volumes = result
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
-                if unit.volumes:
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-49
-                    # we only support one volume per container
-                    # at this time
-                    # XXX https://clusterhq.atlassian.net/browse/FLOC-773
-                    # we assume all volumes are datasets
-                    docker_volume = list(unit.volumes)[0]
-                    try:
-                        dataset_id, max_size = available_manifestations[
-                            docker_volume.node_path]
-                    except KeyError:
-                        # Apparently not a dataset we're managing, give up.
-                        volume = None
-                    else:
-                        volume = AttachedVolume(
-                            manifestation=Manifestation(
-                                dataset=Dataset(
-                                    dataset_id=dataset_id,
-                                    metadata=pmap({u"name": unit.name}),
-                                    maximum_size=max_size),
-                                primary=True),
-                            mountpoint=docker_volume.container_path)
+                if unit.name in available_volumes:
+                    # XXX we only support one volume per container at this time
+                    # https://clusterhq.atlassian.net/browse/FLOC-49
+                    volume = AttachedVolume.from_unit(unit).pop()
+                    volume.maximum_size = available_volumes[unit.name]
                 else:
                     volume = None
                 ports = []
@@ -418,63 +391,10 @@ class Deployer(object):
             return NodeState(
                 running=running,
                 not_running=not_running,
-                used_ports=self.network.enumerate_used_ports(),
-                # FLOC-1181 will want to add here the manifestations that
-                # are not attached to any application.
+                used_ports=self.network.enumerate_used_ports()
             )
         d.addCallback(applications_from_units)
         return d
-
-    def _add_dataset_ids(self, desired_state, current_cluster_state):
-        """
-        Add missing dataset IDs to the desired configuration.
-
-        If current cluster has dataset matched by name, we add that
-        dataset's ID. If no dataset can be matched to current cluster we
-        generate a new one.
-
-        This heuristic may not work once we support more than one volume
-        per container and therefore can't match by name:
-        https://clusterhq.atlassian.net/browse/FLOC-49
-
-        Should be done elsewhere:
-        https://clusterhq.atlassian.net/browse/FLOC-1199
-
-        :param Deployment desired_state: The intended configuration of all
-            nodes.
-        :param Deployment current_cluster_state: The current configuration
-            of all nodes.
-
-        :return Deployment: Desired configuration updated with dataset IDs.
-        """
-        # We don't want to mutate the desired configuration, so do a
-        # deepcopy (PMap doesn't support copy.deepcopy so we use pickle).
-        # This is, of course, utterly terrible. At some point we'll
-        # switching everything over to persistent data structures so we
-        # don't have to do this.
-        desired_state = loads(dumps(desired_state))
-
-        datasets_with_no_id = []
-        for application in desired_state.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                if dataset.dataset_id is None:
-                    datasets_with_no_id.append(dataset)
-
-        current_datasets_by_name = {}
-        for application in current_cluster_state.applications():
-            if application.volume:
-                dataset = application.volume.dataset
-                name = dataset.metadata[u"name"]
-                current_datasets_by_name[name] = dataset
-
-        for dataset in datasets_with_no_id:
-            matching = current_datasets_by_name.get(dataset.metadata[u"name"])
-            if matching:
-                dataset.dataset_id = matching.dataset_id
-            else:
-                dataset.dataset_id = unicode(uuid4())
-        return desired_state
 
     def calculate_necessary_state_changes(self, desired_state,
                                           current_cluster_state, hostname):
@@ -504,8 +424,6 @@ class Deployer(object):
         :return: A ``Deferred`` which fires with a ``IStateChange``
             provider.
         """
-        desired_state = self._add_dataset_ids(desired_state,
-                                              current_cluster_state)
         phases = []
 
         desired_proxies = set()
@@ -691,15 +609,15 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
-    local_desired_datasets = set(volume.dataset.dataset_id for volume in
-                                 local_desired_volumes)
-    local_current_datasets = set(volume.dataset.dataset_id for volume in
-                                 current_volumes.get(hostname, set()))
-    remote_current_datasets = set()
+    local_desired_volume_names = set(volume.name for volume in
+                                     local_desired_volumes)
+    local_current_volume_names = set(volume.name for volume in
+                                     current_volumes.get(hostname, set()))
+    remote_current_volume_names = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
-            remote_current_datasets |= set(
-                volume.dataset.dataset_id for volume in current)
+            remote_current_volume_names |= set(
+                volume.name for volume in current)
 
     # If a volume exists locally and is desired anywhere on the cluster, and
     # the desired volume is a different maximum_size to the existing volume,
@@ -708,14 +626,11 @@ def find_volume_changes(hostname, current_state, desired_state):
     resizing = set()
     for _, desired in desired_volumes.items():
         for volume in desired:
-            if volume.dataset.dataset_id in local_current_datasets:
+            if volume.name in local_current_volume_names:
                 for existing_volume in current_volumes[hostname]:
-                    cur_dataset = existing_volume.dataset
-                    new_dataset = volume.dataset
-                    if cur_dataset.dataset_id != new_dataset.dataset_id:
-                        continue
-                    if cur_dataset.maximum_size != new_dataset.maximum_size:
-                        resizing.add(volume)
+                    if existing_volume.name == volume.name:
+                        if existing_volume.maximum_size != volume.maximum_size:
+                            resizing.add(volume)
 
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for
@@ -724,24 +639,24 @@ def find_volume_changes(hostname, current_state, desired_state):
     for volume_hostname, desired in desired_volumes.items():
         if volume_hostname != hostname:
             for volume in desired:
-                if volume.dataset.dataset_id in local_current_datasets:
+                if volume.name in local_current_volume_names:
                     going.add(VolumeHandoff(volume=volume,
                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
     # node.  If it was running somewhere else, we want that Volume to be
     # in `coming`.
-    coming_datasets = local_desired_datasets.intersection(
-        remote_current_datasets)
+    coming_names = local_desired_volume_names.intersection(
+        remote_current_volume_names)
     coming = set(volume for volume in local_desired_volumes
-                 if volume.dataset.dataset_id in coming_datasets)
+                 if volume.name in coming_names)
 
     # For each application volume that is going to be started on this node
     # that was not running anywhere previously, make sure that Volume is
     # in `creating`.
-    creating_datasets = local_desired_datasets.difference(
-        local_current_datasets | remote_current_datasets)
+    creating_names = local_desired_volume_names.difference(
+        local_current_volume_names | remote_current_volume_names)
     creating = set(volume for volume in local_desired_volumes
-                   if volume.dataset.dataset_id in creating_datasets)
+                   if volume.name in creating_names)
     return VolumeChanges(going=going, coming=coming,
                          creating=creating, resizing=resizing)

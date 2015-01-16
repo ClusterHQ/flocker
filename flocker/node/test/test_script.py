@@ -6,8 +6,6 @@ Tests for :module:`flocker.node.script`.
 
 from StringIO import StringIO
 
-from pyrsistent import pmap
-
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
@@ -24,9 +22,7 @@ from ..script import (
     ReportStateOptions, ReportStateScript)
 from .._docker import FakeDockerClient, Unit
 from .._deploy import Deployer
-from .._model import (
-    Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
-    Manifestation)
+from .._model import Application, Deployment, DockerImage, Node, AttachedVolume
 
 from ...volume.testtools import create_volume_service
 
@@ -179,11 +175,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
                     ports=frozenset(),
                     links=frozenset(),
                     volume=AttachedVolume(
-                        manifestation=Manifestation(
-                            dataset=Dataset(
-                                dataset_id=None,
-                                metadata=pmap({'name': 'mysql-something'})),
-                            primary=True),
+                        name='mysql-something',
                         mountpoint=FilePath(b'/var/lib/data'),
                     )
                 ),

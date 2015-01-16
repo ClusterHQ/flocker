@@ -6,14 +6,12 @@ Functional tests for ``flocker.node._deploy``.
 
 from subprocess import check_call
 
-from pyrsistent import pmap
-
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
     Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
-from .._model import Manifestation, Dataset
+from .._deploy import _to_volume_name
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
@@ -96,9 +94,6 @@ class DeployerTests(TestCase):
             'key2': 'value2',
         }.items())
 
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -107,29 +102,21 @@ class DeployerTests(TestCase):
                          image_name),
                      environment=expected_variables,
                      volume=AttachedVolume(
-                         manifestation=Manifestation(
-                             dataset=dataset,
-                             primary=True),
+                         name=application_name,
                          mountpoint=FilePath('/data'),
                          ),
                      links=frozenset(),
                      )]))]))
 
+        volume = volume_service.get(_to_volume_name(application_name))
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: volume_service.enumerate())
-        d.addCallback(lambda volumes:
-                      list(volumes)[0].get_filesystem().get_path().child(
-                          b'env'))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
-        def got_result_path(result_path):
-            d = loop_until(result_path.exists)
-            d.addCallback(lambda _: result_path)
-            return d
-        d.addCallback(got_result_path)
-
-        def started(result_path):
+        def started(_):
             contents = result_path.getContent()
 
             assertContainsAll(
@@ -170,9 +157,6 @@ class DeployerTests(TestCase):
                     local_port=80,
                     remote_port=8080)
 
-        dataset = Dataset(
-            dataset_id=None,
-            metadata=pmap({"name": application_name}))
         desired_state = Deployment(nodes=frozenset([
             Node(hostname=u"localhost",
                  applications=frozenset([Application(
@@ -181,28 +165,20 @@ class DeployerTests(TestCase):
                          image_name),
                      links=frozenset([link]),
                      volume=AttachedVolume(
-                         manifestation=Manifestation(
-                             dataset=dataset,
-                             primary=True),
+                         name=application_name,
                          mountpoint=FilePath('/data'),
                          ),
                      )]))]))
 
+        volume = volume_service.get(_to_volume_name(application_name))
+        result_path = volume.get_filesystem().get_path().child(b'env')
+
         d = deployer.change_node_state(desired_state,
                                        Deployment(nodes=frozenset()),
                                        u"localhost")
-        d.addCallback(lambda _: volume_service.enumerate())
-        d.addCallback(lambda volumes:
-                      list(volumes)[0].get_filesystem().get_path().child(
-                          b'env'))
+        d.addCallback(lambda _: loop_until(result_path.exists))
 
-        def got_result_path(result_path):
-            d = loop_until(result_path.exists)
-            d.addCallback(lambda _: result_path)
-            return d
-        d.addCallback(got_result_path)
-
-        def started(result_path):
+        def started(_):
             contents = result_path.getContent()
 
             assertContainsAll(

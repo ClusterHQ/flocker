@@ -12,8 +12,6 @@ import os
 import re
 import types
 
-from pyrsistent import pmap
-
 from twisted.python.filepath import FilePath
 
 from yaml import safe_dump
@@ -22,7 +20,6 @@ from zope.interface import Interface, implementer
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
     DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
-    Manifestation, Dataset,
 )
 
 # Map ``flocker.node.IRestartPolicy`` implementations to
@@ -294,12 +291,9 @@ class ApplicationMarshaller(object):
             volume_dict = {
                 u'mountpoint': self._application.volume.mountpoint.path
             }
-            dataset = self._application.volume.dataset
-            if dataset.dataset_id is not None:
-                volume_dict[u'dataset_id'] = dataset.dataset_id
-            if dataset.maximum_size is not None:
+            if self._application.volume.maximum_size is not None:
                 volume_dict[u'maximum_size'] = (
-                    unicode(dataset.maximum_size)
+                    unicode(self._application.volume.maximum_size)
                 )
             return volume_dict
         return None
@@ -555,10 +549,7 @@ class FigConfiguration(object):
                      application=application)
             )
         volume = AttachedVolume(
-            manifestation=Manifestation(
-                dataset=Dataset(dataset_id=None,
-                                metadata=pmap({"name": application})),
-                primary=True),
+            name=application,
             mountpoint=FilePath(volumes[0])
         )
         return volume
@@ -1064,13 +1055,7 @@ class FlockerConfiguration(object):
         except KeyError:
             raise ValueError("Missing mountpoint.")
 
-        if not isinstance(mountpoint, (str, unicode)):
-            raise ValueError("Mountpoint \"{path}\" is not a string.".format(
-                path=mountpoint))
-
-        try:
-            mountpoint.decode("ascii")
-        except UnicodeError:
+        if not isinstance(mountpoint, str):
             raise ValueError(
                 "Mountpoint \"{path}\" contains non-ASCII "
                 "(unsupported).".format(
@@ -1085,12 +1070,6 @@ class FlockerConfiguration(object):
                 )
             )
         configured_volume.pop('mountpoint')
-
-        if 'dataset_id' in configured_volume:
-            dataset_id = configured_volume.pop('dataset_id')
-        else:
-            dataset_id = None
-
         if configured_volume:
             raise ValueError(
                 "Unrecognised keys: {keys}.".format(
@@ -1100,12 +1079,9 @@ class FlockerConfiguration(object):
         mountpoint = FilePath(mountpoint)
 
         volume = AttachedVolume(
-            manifestation=Manifestation(
-                dataset=Dataset(dataset_id=dataset_id,
-                                metadata=pmap({"name": application_name}),
-                                maximum_size=maximum_size),
-                primary=True),
+            name=application_name,
             mountpoint=mountpoint,
+            maximum_size=maximum_size
             )
 
         return volume

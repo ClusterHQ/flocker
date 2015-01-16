@@ -4,16 +4,11 @@
 Tests for running and managing PostgreSQL with Flocker.
 """
 from unittest import skipUnless
-from uuid import uuid4
-
-from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._model import (
-    Application, DockerImage, AttachedVolume, Port, Dataset, Manifestation,
-    )
+from flocker.node._model import Application, DockerImage, AttachedVolume, Port
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
@@ -41,11 +36,7 @@ POSTGRES_APPLICATION = Application(
              external_port=POSTGRES_EXTERNAL_PORT),
         ]),
     volume=AttachedVolume(
-        manifestation=Manifestation(
-            dataset=Dataset(
-                dataset_id=unicode(uuid4()),
-                metadata=pmap({"name": POSTGRES_APPLICATION_NAME})),
-            primary=True),
+        name=POSTGRES_APPLICATION_NAME,
         mountpoint=FilePath(POSTGRES_VOLUME_MOUNTPOINT),
     ),
 )
