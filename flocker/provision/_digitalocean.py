@@ -116,24 +116,6 @@ def provision_digitalocean(node, package_source, distribution, token):
     return node.address
 
 
-# Figure out which image names are supported by DO
-# http://doc-dev.clusterhq.com/gettingstarted/installation.html#using-digitalocean
-# (Pdb++) print '\n'.join('%r' % ((i.id, i.name, i.extra),) for i in driver.list_images()) # noqa
-# ...
-# ('9836782', u'557.0.0 (alpha)', {'distribution': u'CoreOS'})
-# ('9836871', u'522.4.0 (beta)', {'distribution': u'CoreOS'})
-# ('9836874', u'522.4.0 (stable)', {'distribution': u'CoreOS'})
-# ('6370882', u'20 x64', {'distribution': u'Fedora'})
-# ('6370968', u'19 x64', {'distribution': u'Fedora'})
-# ('6372108', u'6.5 x64', {'distribution': u'CentOS'})
-# ('6372321', u'5.10 x64', {'distribution': u'CentOS'})
-# ('6372526', u'7.0 x64', {'distribution': u'Debian'})
-# ('6372581', u'6.0 x64', {'distribution': u'Debian'})
-# ('6374124', u'10.04 x64', {'distribution': u'Ubuntu'})
-# ('6374128', u'12.04.5 x64', {'distribution': u'Ubuntu'})
-# ('7053293', u'7.0 x64', {'distribution': u'CentOS'})
-# ('9801950', u'14.04 x64', {'distribution': u'Ubuntu'})
-# ('9801954', u'14.10 x64', {'distribution': u'Ubuntu'})
 IMAGE_NAMES = {
     # It'd be better to use image ID here, but the following code is currently
     # written to lookup image names...which would normally be good for
