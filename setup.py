@@ -108,10 +108,11 @@ setup(
     },
 
     install_requires=[
-        # Any changes here must be reflected in ``python-flocker.spec.in`` so
-        # that RPM dependencies match.
-        # They must also be reflected in the yumdownloader lines in
-        # "Appendix: Pre-populating RPM Repository" in the Release Process.
+        # Any changes here must be reflected in:
+        # * ``python-flocker.spec.in`` so that RPM dependencies match,
+        # * the yumdownloader lines in "Appendix: Pre-populating RPM
+        #   Repository" in the Release Process,
+        # * the internal ClusterHQ "Compliance" documentation.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
