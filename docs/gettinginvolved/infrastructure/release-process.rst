@@ -412,7 +412,7 @@ Post-Release Review Process
    * The node package (``flocker-node``) should be installed and tested on all supported platforms.
 
      The acceptance tests can be run using the ``run-acceptance-tests`` tool.
-     See :ref:acceptance-testing for details of the configuration files required for each platform.
+     See :ref:`acceptance-testing` for details of the configuration files required for each platform.
 
      .. code-block:: console
 

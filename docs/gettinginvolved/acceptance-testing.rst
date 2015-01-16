@@ -1,3 +1,5 @@
+.. _acceptance-testing:
+
 Acceptance Testing
 ==================
 
