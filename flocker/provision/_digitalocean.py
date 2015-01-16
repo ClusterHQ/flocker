@@ -108,7 +108,14 @@ def provision_digitalocean(node, package_source, distribution, token):
     # Sorry about this, but shutdown returns the following, indicating that the
     # droplet has halted, but it still seems to require some time before
     # powering on.
-    # {u'status': u'completed', u'resource_id': 3797602, u'region': u'ams3', u'completed_at': u'2015-01-15T20:52:36Z', u'started_at': u'2015-01-15T20:52:31Z', u'type': u'shutdown', u'id': 41364967, u'resource_type': u'droplet'} # noqa
+    # {u'completed_at': u'2015-01-15T20:52:36Z',
+    #  u'id': 41364967,
+    #  u'region': u'ams3',
+    #  u'resource_id': 3797602,
+    #  u'resource_type': u'droplet',
+    #  u'started_at': u'2015-01-15T20:52:31Z',
+    #  u'status': u'completed',
+    #  u'type': u'shutdown'}
     time.sleep(30)
 
     # Libcloud doesn't support powering up DO vms.
