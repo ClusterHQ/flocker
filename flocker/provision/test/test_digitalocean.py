@@ -57,8 +57,11 @@ class LatestDropletKernelTests(SynchronousTestCase):
         # Need to query again for the droplet after updating its kernel
         updated_droplet = self.client.droplet.get(self.droplet.id)
 
-        # pyocean wraps kernel attributes in its ``Image`` class...which makes
+        # Pyocean wraps kernel attributes in its ``Image`` class...which makes
         # no sense and then uses a ``dict`` for the ``droplet.kernel``
-        # attribute, so they can't be directly compared. Just check they have
-        # the same ID.
+        # attribute, so they can't be directly compared. It would be better if
+        # both used a dedicated ``Kernel`` type which could easily be
+        # compared.
+        # See: https://github.com/flowfree/pyocean/issues/2
+        # Just check they have the same ID.
         self.assertEqual(expected_kernel.id, updated_droplet.kernel['id'])
