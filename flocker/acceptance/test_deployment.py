@@ -3,6 +3,9 @@
 """
 Tests for deploying applications.
 """
+
+from pyrsistent import pmap
+
 from twisted.trial.unittest import TestCase
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
@@ -36,9 +39,10 @@ class DeploymentTests(TestCase):
             application = create_application(
                 MONGO_APPLICATION, MONGO_IMAGE,
                 volume=create_attached_volume(
-                    name=MONGO_APPLICATION,
+                    dataset_id=None,
                     mountpoint=b'/data/db',
-                    maximum_size=None
+                    maximum_size=None,
+                    metadata=pmap({"name": MONGO_APPLICATION}),
                 )
             )
             config_deployment = {
@@ -62,6 +66,12 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_1)
+
+            # The configuration doesn't provide a uuid for the volume so one is
+            # generated.  There's no way to know in advance what will be
+            # generated so just avoid comparing the value against anything.
+            state[MONGO_APPLICATION].volume.manifestation.dataset.dataset_id = None
+
             self.assertEqual(state[MONGO_APPLICATION], application)
             # now we've verified the initial deployment has succeeded
             # with the expected result, we will redeploy the same application
