@@ -75,6 +75,7 @@ def provision_digitalocean(node, package_source, distribution, token):
     # * https://developers.digitalocean.com/#change-the-kernel
     # But libcloud only supports the DO v1 API
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api # noqa
+    # * https://issues.apache.org/jira/browse/JCLOUDS-613
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
 
