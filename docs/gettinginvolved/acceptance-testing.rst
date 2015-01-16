@@ -84,7 +84,7 @@ Ensure that they all pass, with no skips:
 Rackspace
 ---------
 
-To run the acceptance on Rackspace, you need
+To run the acceptance tests on Rackspace, you need:
 
 - a Rackspace account and the associated API key
 - an ssh-key registered with the Rackspace account.
@@ -111,7 +111,7 @@ You will need a ssh agent running with access to the corresponding private key.
 AWS
 ---
 
-To run the acceptance on AWS, you need
+To run the acceptance tests on AWS, you need:
 
 - a AWS account and the associated API key
 - an ssh-key registered with the AWS account.
@@ -138,7 +138,7 @@ You will need a ssh agent running with access to the corresponding private key.
 DigitalOcean
 ------------
 
-To run the acceptance on DigitalOcean, you need:
+To run the acceptance tests on DigitalOcean, you need:
 
 - a DigitalOcean account,
 - a "Legacy API v1" Client ID and API key
