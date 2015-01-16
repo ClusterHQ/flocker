@@ -50,6 +50,10 @@ class DatasetAPIUserV1(object):
         return {u"flocker":  __version__}
 
     @app.route("/configuration", methods=["GET"])
+    @user_documentation("""
+        Return the full configuration of the cluster in the Application
+        and Deployment YAML configuration formats.
+        """, examples=[u"get configuration"])
     def configuration(self):
         """
         Return the current configuration.
