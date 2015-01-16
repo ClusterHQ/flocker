@@ -27,3 +27,20 @@ VersionsTests = build_schema_test(
         {'flocker': '0.3.0-10-dirty'},
     ],
 )
+
+
+ConfigurationTests = build_schema_test(
+    name="ConfigurationTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/configuration'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Missing one or both keys
+        {}, {"applications": {}}, {"application_deployment": {}},
+    ],
+    passing_instances=[
+        # We don't have schema for config files yet:
+        # https://clusterhq.atlassian.net/browse/FLOC-1234
+        {'applications': {"x": 1},
+         'application_deployment': {"y": 2}},
+    ],
+)

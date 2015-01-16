@@ -54,6 +54,10 @@ class DatasetAPIUserV1(object):
         Return the full configuration of the cluster in the Application
         and Deployment YAML configuration formats.
         """, examples=[u"get configuration"])
+    @structured(inputSchema={},
+                outputSchema={
+                    '$ref': '/v1/endpoints.json#/definitions/configuration'},
+                schema_store=SCHEMAS)
     def configuration(self):
         """
         Return the current configuration.
