@@ -104,7 +104,7 @@ def retry_if_pending(callable, *args, **kwargs):
     return retry_on_error([pending_event], callable, *args, **kwargs)
 
 
-from characteristic import attributes, Attribute
+from characteristic import attributes
 
 @attributes(
     ['version', 'release', 'distribution', 'architecture']
@@ -112,6 +112,12 @@ from characteristic import attributes, Attribute
 class Kernel(object):
     """
     """
+    @property
+    def version_tuple(self):
+        """
+        Return a tuple of integer version components for use in sorting.
+        """
+        return map(int, self.version.split('.'))
 
 
 SUPPORTED_KERNEL = Kernel(
@@ -153,8 +159,9 @@ def set_droplet_kernel(droplet, required_kernel):
     """
     Change the kernel of the droplet with ``droplet_id``.
 
-    :param ``pyocean.Droplet`` droplet: The droplet whose kernel will be
+    :param pyocean.Droplet droplet: The droplet whose kernel will be
         configured.
+    :param Kernel required_kernel: The kernel version to be installed.
     :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
     """
     full_version = kernel_to_digitalocean_version(required_kernel)
@@ -171,6 +178,12 @@ def set_droplet_kernel(droplet, required_kernel):
 def latest_droplet_kernel(droplet,
                           required_distribution, required_architecture):
     """
+    Return the newest kernel available for the supplied droplet, with the given
+    distribution and architecture.
+
+    :param required_distribution: Only look for kernels for this distribution.
+    :param required_architecture: Only look for kernels for this architecture.
+    :return: A ``Kernel`` with the latest version information.
     """
     matching_kernels = []
     for do_kernel in droplet.get_available_kernels():
@@ -187,7 +200,7 @@ def latest_droplet_kernel(droplet,
 
     latest_kernel = sorted(
         matching_kernels,
-        key=lambda kernel: (kernel.version, kernel.release),
+        key=lambda kernel: (kernel.version_tuple, kernel.release),
         reverse=True)[0]
 
     return latest_kernel
