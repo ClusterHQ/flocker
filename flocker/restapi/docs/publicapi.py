@@ -26,19 +26,6 @@ from twisted.python.filepath import FilePath
 
 from .._schema import LocalRefResolver, resolveSchema
 
-# sphinxcontrib-httpdomain only supports a limited way of describing JSON
-# The following is monkey-patching part of
-# https://bitbucket.org/birkenfeld/sphinx-contrib/pull-request/54/issue-41-describe-response-json-with/diff
-# but I think perhaps we will want to go with a richer presentation
-from sphinxcontrib.httpdomain import HTTPResource
-from sphinx.util.docfields import TypedField
-HTTPResource.doc_field_types.append(
-    TypedField(
-        'responsejsonparameter', label='Response JSON Parameters',
-        names=('responsejsonparameter', 'responsejsonparam', 'responsejson'),
-        typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
-)
-del HTTPResource, TypedField
 # Disable "HTTP Routing Table" index:
 httpdomain.HTTPDomain.indices = []
 
@@ -128,6 +115,7 @@ def _parseSchema(schema, schema_store):
         attr['description'] = prepare_docstring(
             propSchema['description'])
         attr['required'] = property in schema.get('required', [])
+        attr['type'] = propSchema['type']
 
     with resolver.resolving(schema[u'$ref']) as schema:
         if schema[u'type'] != u'object':
@@ -228,7 +216,8 @@ def _formatSchema(data, param):
             required = '*(required)* '
         else:
             required = ''
-        yield ':%s %s: %s%s' % (param, property, required, attr['title'])
+        yield ':%s %s %s: %s%s' % (param, attr['type'], property, required,
+                                   attr['title'])
         yield ''
         for line in attr['description']:
             yield '   ' + line
@@ -329,11 +318,11 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
-        for line in _formatSchema(data['input'], 'jsonparam'):
+        for line in _formatSchema(data['input'], '<json'):
             yield line
 
     if 'output' in data:
-        for line in _formatSchema(data['output'], 'responsejsonparam'):
+        for line in _formatSchema(data['output'], '>json'):
             yield line
 
 

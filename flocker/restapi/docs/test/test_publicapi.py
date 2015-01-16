@@ -175,6 +175,7 @@ class MakeRstTests(SynchronousTestCase):
             'type': {
                 'title': 'TITLE',
                 'description': 'one\ntwo',
+                'type': 'string',
             },
         }}
 
@@ -212,11 +213,13 @@ class MakeRstTests(SynchronousTestCase):
             '           "properties": {',
             '               "optional": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "string"',
             '               },',
             '               "param": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "string"',
             '               }',
             '           },',
             '           "required": [',
@@ -226,12 +229,12 @@ class MakeRstTests(SynchronousTestCase):
             '       }',
             '   ',
             # YAML is unorderd :(
-            '   :jsonparam optional: TITLE',
+            '   :<json string optional: TITLE',
             '   ',
             '      one',
             '      two',
             '      ',
-            '   :jsonparam param: *(required)* TITLE',
+            '   :<json string param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
@@ -251,6 +254,7 @@ class MakeRstTests(SynchronousTestCase):
             'type': {
                 'title': 'TITLE',
                 'description': 'one\ntwo',
+                'type': 'integer',
             },
         }}
 
@@ -288,7 +292,8 @@ class MakeRstTests(SynchronousTestCase):
             '           "properties": {',
             '               "param": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "integer"',
             '               }',
             '           },',
             '           "required": [',
@@ -297,7 +302,7 @@ class MakeRstTests(SynchronousTestCase):
             '           "type": "object"',
             '       }',
             '   ',
-            '   :responsejsonparam param: *(required)* TITLE',
+            '   :>json integer param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
