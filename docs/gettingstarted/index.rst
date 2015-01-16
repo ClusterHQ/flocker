@@ -1,4 +1,5 @@
 :tocdepth: 2
+:layout: homepage
 
 ===============
 Getting Started
