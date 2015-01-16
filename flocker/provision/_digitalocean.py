@@ -148,7 +148,7 @@ def location_by_slug(driver, location_slug):
 
     # XXX: ``libcloud.DigitalOceanDriver.list_locations`` discards the slug
     # so we make a direct call to the v1 API and parse the returned dictionary.
-    #
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-653
 
     :param driver: The libcloud driver to query for sizes.
     :param bytes location_slug: A DigitalOcean location "slug".
