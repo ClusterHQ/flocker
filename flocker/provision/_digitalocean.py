@@ -170,7 +170,7 @@ def size_by_slug(driver, size_slug):
 
     # XXX: ``libcloud.DigitalOceanDriver.list_sizes`` discards the slug
     # so we make a direct call to the v1 API and parse the returned dictionary.
-    # See
+    # See https://issues.apache.org/jira/browse/LIBCLOUD-654
 
     :param driver: The libcloud driver to query for sizes.
     :param bytes size_slug: A DigitalOcean size "slug".
