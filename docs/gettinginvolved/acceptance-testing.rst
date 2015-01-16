@@ -147,7 +147,7 @@ To run the acceptance tests on DigitalOcean, you need:
   (https://cloud.digitalocean.com/generate_api_key),
 - an "API v2" token, which will be used to update the kernel of new droplets,
   (https://cloud.digitalocean.com/settings/applications), and
-- an ssh-key registered with the AWS account.
+- an SSH key registered with the DigitalOcean account.
 
 .. code-block:: yaml
 
