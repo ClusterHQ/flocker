@@ -7,6 +7,7 @@ Sphinx extension for automatically documenting api endpoints.
 from inspect import getsourcefile
 from collections import namedtuple
 import json
+import os.path
 
 from yaml import safe_load
 from docutils import nodes
@@ -394,7 +395,9 @@ class AutoKleinDirective(Directive):
     option_spec = {
         # The URL prefix of the URLs in this application.
         'prefix': directives.unchanged,
-        # Path to examples YAML file.
+        # Path to examples YAML file, relative to document which includes
+        # the directive. Using just passed in path is no good, since it's
+        # relative to sphinx-build working directory which may vary.
         'examples_path': directives.unchanged,
         # Python import path of schema store.
         'schema_store_fqpn': directives.unchanged}
@@ -404,7 +407,13 @@ class AutoKleinDirective(Directive):
 
         appContainer = namedAny(self.arguments[0])
 
-        examples_path = FilePath(self.options["examples_path"])
+        # For now we ignore this and just hardcode, due to
+        # https://github.com/sphinx-doc/sphinx/issues/1685
+        # examples_path = FilePath(self.src).preauthChild(
+        #     options["examples_path"]))
+        examples_path = FilePath(os.path.join(
+            __file__,
+            "../../../../docs/advanced/api_examples.yml"))
         self._examples = _loadExamples(examples_path)
 
         # The contents of the example file are included in the output so the
