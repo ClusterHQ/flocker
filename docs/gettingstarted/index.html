@@ -11,12 +11,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-        <style>
-            body {
-                padding-top: 50px;
-                padding-bottom: 20px;
-            }
-        </style>
+        <link type="text/css" rel="stylesheet" href="http://fast.fonts.net/cssapi/b20e6cd5-c1a4-4878-9d69-da3806cb86b8.css"/>
         <link rel="stylesheet" href="assets/css/main.css">
 
         <script src="assets/js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
@@ -25,7 +20,7 @@
         <!--[if lt IE 7]>
             <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
-    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
       <div class="container">
         <div class="navbar-header">
           <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
@@ -36,20 +31,33 @@
           </button>
           <a class="navbar-brand" href="#"><img src="assets/img/clusterhq.png" alt="ClusterHQ Container Data Management" /></a>
         </div>
-        <div id="navbar" class="navbar-collapse collapse">
-        </div><!--/.navbar-collapse -->
+
+        <div class="collapse navbar-collapse" id="navbar">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Getting Started</a></li>
+            <li><a href="#">Docs</a></li>
+            <li><a href="#">Solutions</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Careers</a></li>
+          </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li class="button menu"><a href="#">Try Flocker Now</a></li>            
+            </ul>          
+        </div>
+
       </div>
     </nav>
+    
+    <header>
+        <h1 class="text-center">Getting started with Flocker</h1>    
+    </header>
+   	<div class="flocker-logo pull-right"></div>
 
-    <div class="jumbotron">
+    <div class="jumbotron jumbo-flocker">
       <div class="container">
     	<div class="row">
 		<div class="col-md-9">
-	        <h1>Getting started with Flocker</h1>
 	       	<p>Flocker lets you run microservices apps with database containers and move them around between servers. It comes in two pieces and you’ll need both.</p>
-		</div>
-		<div class="col-md-3">
-	    	<div class="flocker-logo"></div>
 		</div>
     	</div>
       </div>
@@ -207,7 +215,8 @@ $ flocker-deploy deployment-node2.yml app.yml
             </div>
         </div>
       </div>
-
+    </div>
+    
     <div class="jumbotron signup">
       <div class="container">
     	<div class="row">
@@ -227,15 +236,75 @@ $ flocker-deploy deployment-node2.yml app.yml
         
         <h2 class="heading text-center">See our <a href="http://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
 
-      <footer>
-        <p>Copyright &copy; 2014 ClusterHQ</p>
-      </footer>
-    </div>
+    
+	<footer>
+	<div id="footer-head">
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-1 col-xs-1 small-logo">
+					<p><img src="assets/img/small-logo.png" width="47" height="52"/></p>
+				</div>
+				<div class="col-sm-11 pull-right">
+					<p class="text-right">ClusterHQ: The Container Data People &trade;</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="row">
+			<div class="col-sm-4">
+				<div><span class="widget-title">Company</span>		
+					<ul>
+						<li class="page_item page-item-13"><a href="https://clusterhq.com/about/">About</a></li>
+						<li class="page_item page-item-10"><a href="https://clusterhq.com/careers/">Careers</a></li>
+						<li class="page_item page-item-8"><a href="https://clusterhq.com/solutions/">Solutions</a></li>
+					</ul>
+				</div>			
+			</div>
+			<div class="col-sm-4">
+				<div><span class="widget-title">Documentation</span>			
+				<div class="textwidget">
+				<ul>
+					<li><a href="#">Getting Started</a></li>
+					<li><a href="#">Collaborate</a></li>
+					<li><a href="#">View Flocker on Github</a></li>
+				</ul>
+				</div>
+				</div>
+				<div>
+				<span class="widget-title">Install Flocker on:</span>			
+				<div class="textwidget">
+				<ul>
+					<li><a href="#">AWS</a></li>
+					<li><a href="#">Rackspace</a></li>
+					<li><a href="#">Digital Ocean</a></li>
+					<li><a href="#">Vagrant Machine</a></li>
+				</ul>
+				</div>
+				</div>			
+			</div>
+			<div class="col-sm-4">
+				<div><span class="widget-title">Get in touch</span>			
+				<div class="textwidget">
+					<ul>
+						<li><a href="#">Twitter (@clusterhq)</a></li>
+						<li><a href="#">Facebook (clusterhq)</a></li>
+						<li><a href="#">GitHub (clusterhq)</a></li>
+						<li><a href="#">Email us  (info@clusterhq.com)</a></li>
+					</ul>
+				</div>
+				</div>			
+			</div>
+			<div class="clear"></div>
+			<div class="col-sm-12 copyright"><p>&copy; 2014 Hybrid Logic Ltd. DBA ClusterHQ. Registered company number 06573757 in the United Kingdom. VAT number GB104879795.</p></div>
+		</div>
+	</div>
+    </footer>    
+    
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="assets/js/vendor/jquery-1.11.1.min.js"><\/script>')</script>
 
         <script src="assets/js/vendor/bootstrap.min.js"></script>
-
         <script src="assets/js/plugins.js"></script>
         <script src="assets/js/main.js"></script>
 
