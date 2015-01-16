@@ -379,6 +379,11 @@ footer .copyright p {
         text-decoration:underline;
         background-color:transparent;
     }
+    
+    #tabs.nav>li>a:hover, #tabs-node.nav>li>a:hover {
+        background-color: #343a3d;
+        text-decoration: none;
+    }
 
     .nav>li>a:active,.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
         background-color:transparent;
