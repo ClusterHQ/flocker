@@ -11,9 +11,9 @@ import pyocean
 from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision, run,
-    task_install_kernel,
+    task_install_digitalocean_kernel, DIGITALOCEAN_KERNEL
 )
-
+from ._common import Kernel
 
 def retry_on_error(error_checkers, callable, *args, **kwargs):
     """
@@ -104,33 +104,12 @@ def retry_if_pending(callable, *args, **kwargs):
     return retry_on_error([pending_event], callable, *args, **kwargs)
 
 
-from characteristic import attributes
-
-@attributes(
-    ['version', 'release', 'distribution', 'architecture']
-)
-class Kernel(object):
-    """
-    """
-    @property
-    def version_tuple(self):
-        """
-        Return a tuple of integer version components for use in sorting.
-        """
-        return map(int, self.version.split('.'))
-
-
-SUPPORTED_KERNEL = Kernel(
-    version="3.17.8",
-    release="200",
-    distribution="fc20",
-    architecture="x86_64"
-)
-
-
 def kernel_from_digitalocean_version(version):
     """
     Parse a DigitalOcean kernel version string into its component parts.
+
+    :param bytes version: The DigitalOcean kernel version string.
+    :return: ``Kernel`` with version information.
     """
     version, remaining = version.split('-', 1)
     release, distribution, architecture = remaining.split('.', 2)
@@ -147,6 +126,9 @@ DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE = (
 )
 
 def kernel_to_digitalocean_version(kernel):
+    """
+    Return a DigitalOcean style kernel string for the supplied ``Kernel``.
+    """
     return DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE.format(
         version=kernel.version,
         release=kernel.release,
@@ -227,13 +209,11 @@ def provision_digitalocean(node, package_source, distribution, token):
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
 
-    kernel = set_droplet_kernel(v2droplet, SUPPORTED_KERNEL)
+    set_droplet_kernel(v2droplet, DIGITALOCEAN_KERNEL)
     run(
         username='root',
         address=node.address,
-        commands=task_install_kernel(version=version, release=release,
-                                     distribution='fc20',
-                                     architecture='x86_64')
+        commands=task_install_digitalocean_kernel()
     )
 
     # Libcloud doesn't support shutting down DO vms.

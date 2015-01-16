@@ -12,7 +12,7 @@ from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
     set_droplet_kernel, retry_if_pending, latest_droplet_kernel,
-    kernel_from_digitalocean_version, SUPPORTED_KERNEL)
+    kernel_from_digitalocean_version, DIGITALOCEAN_KERNEL)
 from flocker.testtools import random_name
 
 
@@ -66,7 +66,7 @@ class SetDropletKernelTests(SynchronousTestCase):
         ``set_droplet_kernel`` assigns the supplied kernel to the droplet.
         to the droplet, returning the selected DigitalOcean kernel instance.
         """
-        expected_kernel = SUPPORTED_KERNEL
+        expected_kernel = DIGITALOCEAN_KERNEL
         set_droplet_kernel(self.droplet, expected_kernel)
 
         # Need to query again for the droplet after updating its kernel
@@ -102,7 +102,7 @@ class LatestDropletKernelTests(SynchronousTestCase):
         ``latest_droplet_kernel`` should return the same kernel that we ask
         users to install in our documentation.
         """
-        expected_kernel = SUPPORTED_KERNEL
+        expected_kernel = DIGITALOCEAN_KERNEL
         actual_kernel = latest_droplet_kernel(self.droplet, 'fc20', 'x86_64')
 
         self.assertEqual(expected_kernel, actual_kernel)

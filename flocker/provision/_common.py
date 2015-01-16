@@ -22,3 +22,18 @@ class PackageSource(object):
     :ivar bytes build_server: The builderver to install from.
         Only meaningful if a branch is specified.
     """
+
+
+@attributes(
+    ['version', 'release', 'distribution', 'architecture']
+)
+class Kernel(object):
+    """
+    Represents the version information for a kernel package.
+    """
+    @property
+    def version_tuple(self):
+        """
+        Return a tuple of integer version components for use in sorting.
+        """
+        return map(int, self.version.split('.'))

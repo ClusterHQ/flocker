@@ -11,7 +11,7 @@ from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
 
-from ._common import PackageSource
+from ._common import PackageSource, Kernel
 
 ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
@@ -121,25 +121,32 @@ KOJI_URL_TEMPLATE = (
 )
 
 
-def koji_kernel_url(version, release, distribution, architecture):
+def koji_kernel_url(kernel):
     """
     Return the koji URL for the given kernel version.
     """
     url = KOJI_URL_TEMPLATE.format(
-        version=version,
-        release=release,
-        distribution=distribution,
-        architecture=architecture
+        version=kernel.version,
+        release=kernel.release,
+        distribution=kernel.distribution,
+        architecture=kernel.architecture
     )
     return url
 
 
-def task_install_kernel(version='3.16.6', release='203', distribution='fc20',
-                        architecture='x86_64'):
+DIGITALOCEAN_KERNEL = Kernel(
+    version="3.17.8",
+    release="200",
+    distribution="fc20",
+    architecture="x86_64"
+)
+
+
+def task_install_digitalocean_kernel():
     """
-    Install a specific Fedora kernel version.
+    Install a specific Fedora kernel version for DigitalOcean.
     """
-    url = koji_kernel_url(version, release, distribution, architecture)
+    url = koji_kernel_url(DIGITALOCEAN_KERNEL)
     return [
         Run.from_args(['yum', 'update', '-y', url]),
     ]

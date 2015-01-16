@@ -271,7 +271,7 @@ You'll probably want to setup at least two nodes.
 
       The selected kernel may no-longer be available from the standard Fedora 20 repositories, so we install from ``koji``.
 
-      .. task:: install_kernel
+      .. task:: install_digitalocean_kernel
          :prompt: [root@digitalocean]#
 
    #. Power Cycle the Droplet
