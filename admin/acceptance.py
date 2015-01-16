@@ -106,6 +106,13 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
+        from flocker.provision._install import run, task_pull_docker_images
+        for node in self.NODE_ADDRESSES:
+            run(
+                username='root',
+                address=node,
+                commands=task_pull_docker_images()
+            )
         return self.NODE_ADDRESSES
 
     def stop_nodes(self):
