@@ -391,7 +391,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(b"GET FOO", b"200 OK")
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'**example request**',
+            [u'**Example request**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -399,7 +399,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**example response**',
+             u'**Example response**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -421,7 +421,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(request, response)
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'**example request**',
+            [u'**Example request**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -429,7 +429,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**example response**',
+             u'**Example response**',
              u'',
              u'.. sourcecode:: http',
              u'',
