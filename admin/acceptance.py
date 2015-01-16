@@ -17,6 +17,9 @@ from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
 from flocker.provision import PackageSource
 import flocker
+from flocker.provision._install import (
+    run_tasks_on_node, task_pull_docker_images
+)
 
 
 def extend_environ(**kwargs):
@@ -106,10 +109,8 @@ class VagrantRunner(object):
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
-        # Import this here, since `run` isn't a good generic name.
-        from flocker.provision._install import run, task_pull_docker_images
         for node in self.NODE_ADDRESSES:
-            run(
+            run_tasks_on_node(
                 username='root',
                 address=node,
                 commands=task_pull_docker_images()
