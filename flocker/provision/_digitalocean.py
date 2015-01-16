@@ -141,19 +141,26 @@ IMAGE_NAMES = {
 }
 
 
-def get_location(driver, location_id):
+def location_by_slug(driver, location_slug):
     """
-    Return a ``NodeLocation`` corresponding to a given id.
+    Look up a DigitalOcean by its short human readable "slug" code.
 
-    XXX: Find out if DigitalOcean Locations have short human readable labels
-    instead. The webui shows eg lon1 and ams3 so I guess it's possible.
+    # XXX: ``libcloud.DigitalOceanDriver.list_locations`` discards the slug
+    # so we make a direct call to the v1 API and parse the returned dictionary.
+    #
 
     :param driver: The libcloud driver to query for sizes.
+    :param bytes location_slug: A DigitalOcean location "slug".
+    :returns: ``NodeLocation``.
     """
-    try:
-        return [l for l in driver.list_locations() if l.id == location_id][0]
-    except IndexError:
-        raise ValueError("Unknown location.", location_id)
+    result = driver.connection.request('/regions')
+    for location_dict in result.object['regions']:
+        if location_dict['slug'] == location_slug:
+            break
+    else:
+        raise ValueError("Unknown location slug.", location_slug)
+
+    return driver._to_location(location_dict)
 
 
 def get_ssh_key_id(driver, ssh_key_name):
@@ -168,14 +175,14 @@ def get_ssh_key_id(driver, ssh_key_name):
         raise ValueError("Unknown SSH keyname.", ssh_key_name)
 
 
-def digitalocean_provisioner(client_id, api_key, token, location_id, keyname):
+def digitalocean_provisioner(client_id, api_key, token, location, keyname):
     """
     Create a LibCloudProvisioner for provisioning nodes on DigitalOcean.
 
     :param bytes client_id: A V1 API client ID.
     :param bytes api_key: A V1 API key.
     :param bytes token: A V2 API token.
-    :param bytes location_id: The location id in which new nodes will be
+    :param bytes location: The slug for the location in which new nodes will be
         created.
     :param bytes keyname: The name of an existing ssh public key configured in
        DigitalOcean. The provision step assumes the corresponding private key
@@ -193,7 +200,7 @@ def digitalocean_provisioner(client_id, api_key, token, location_id, keyname):
         :param disk_size: Unused
         """
         return {
-            "location": get_location(driver, location_id),
+            "location": location_by_slug(driver, location),
             # XXX: DigitalOcean driver doesn't use the standard ex_keyname
             # parameter. Perhaps ``_libcloud.LibcloudProvisioner.create_node
             # needs refactoring.
