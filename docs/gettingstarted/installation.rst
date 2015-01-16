@@ -270,7 +270,7 @@ You'll probably want to setup at least two nodes.
 
    #. Upgrade the kernel package inside the virtual machine:
 
-      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from the ``kojipkgs`` repository directly.
+      This specific kernel is no-longer available from the standard Fedora 20 repositories, so we install from ``koji``.
 
       .. task:: install_kernel
          :prompt: [root@digitalocean]#
