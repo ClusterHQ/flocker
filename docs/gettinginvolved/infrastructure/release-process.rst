@@ -146,6 +146,8 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
+   In addition, review the link-check step of the documentation builder to ensure that all the errors are expected.
+
 #. Update the staging documentation.
 
    TODO: find a better way to get the current version.
@@ -155,7 +157,6 @@ Preparing For a Release
       gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
       gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
       gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
-
 
 #. Make a pull request on GitHub
 
