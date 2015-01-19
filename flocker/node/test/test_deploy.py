@@ -10,7 +10,7 @@ from zope.interface.verify import verifyObject
 from zope.interface import implementer
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import (
@@ -2512,7 +2512,7 @@ class CreateVolumeTests(SynchronousTestCase):
             _to_volume_name(u"myvol")))
 
 
-class ResizeVolumeTests(SynchronousTestCase):
+class ResizeVolumeTests(TestCase):
     """
     Tests for ``ResizeVolume``.
     """
