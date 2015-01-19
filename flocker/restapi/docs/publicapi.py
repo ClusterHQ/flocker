@@ -7,7 +7,6 @@ Sphinx extension for automatically documenting api endpoints.
 from inspect import getsourcefile
 from collections import namedtuple
 import json
-import os.path
 
 from yaml import safe_load
 from docutils import nodes
