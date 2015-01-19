@@ -63,20 +63,25 @@
     <div class="menubar">
         <div class="container">
             <div class="row">
-                <div class="col-sm-12 col-md-3 logo">
+                <div class="col-sm-12 col-md-3 col-xs-6 logo">
                     <a href="https://clusterhq.com/">
                         <img src="{{ pathto('_static/logo@2x.png', 1) }}" width="200" height="50">
                     </a>
                 </div>
-                <nav>
-                    <div class="col-sm-12 col-md-9 hidden-xs">
+                <div class="visible-xs-block col-xs-6 mob-nav">
+                    <a href="javascript:$('nav ul').toggleClass('hidden-xs').toggleClass('visible-xs');">
+                        <img src="{{ pathto('_static/menu@2x.png', 1) }}" width="60" height="47" class="pull-right"/>
+                    </a>
+                </div>
+                <nav class="clearfix">
+                    <div class="col-sm-12 col-md-9">
                         <ul class="menu">
                             <li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/index.html">Getting Started</a></li>
                             <li class="current-menu-item"><a href="https://docs.clusterhq.com/en/latest/">Docs</a></li>
                             <li><a href="https://clusterhq.com/solutions/">Solutions</a></li>
                             <li><a href="https://clusterhq.com/about/">About</a></li>
                             <li><a href="https://clusterhq.com/careers/">Careers</a></li>
-                            <li class="button menu"><a href="https://docs.clusterhq.com/en/latest/gettingstarted/index.html">Try Flocker</a></li>
+                            <li class="button menu hidden-xs"><a href="https://docs.clusterhq.com/en/latest/gettingstarted/index.html">Try Flocker</a></li>
                         </ul>
                     </div>
                 </nav>
