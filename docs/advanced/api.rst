@@ -8,4 +8,4 @@ While this API is not yet directly accessible in a standard Flocker setup, the d
 .. autoklein:: flocker.control.httpapi.DatasetAPIUserV1
     :schema_store_fqpn: flocker.control.httpapi.SCHEMAS
     :prefix: /v1
-    :examples_path: docs/advanced/api_examples.yml
+    :examples_path: api_examples.yml
