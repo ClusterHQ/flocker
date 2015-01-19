@@ -162,6 +162,27 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     line-height: 47px;
 }
 
+a.button {
+    font-family: "Soho Gothic W01 Medium";
+    border-radius: 8px;
+    text-decoration: none;
+    color: #ffffff;
+    background-color: #f15c30;
+    padding: 10px;
+    cursor: pointer;
+    width: 150px;
+}
+
+a.button:hover {
+    background-color: #343a3d;
+}
+
+a.button.rel {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-top: 10px;
+}
 
 /* Search bar */
 .search input {
@@ -283,6 +304,10 @@ a.download:before {
     
     .contents-menu>ul {
         width: 83%;
+    }
+    
+    a.button.rel {
+        width: 100px;
     }
 }
 @media all and (min-width: 992px) {
