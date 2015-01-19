@@ -319,10 +319,14 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
+        # <json is what sphinxcontrib-httpdomain wants to call "json in a
+        # request body"
         for line in _formatSchema(data['input'], '<json'):
             yield line
 
     if 'output' in data:
+        # >json is what sphinxcontrib-httpdomain wants to call "json in a
+        # response body"
         for line in _formatSchema(data['output'], '>json'):
             yield line
 
