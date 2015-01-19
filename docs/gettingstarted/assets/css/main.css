@@ -225,10 +225,6 @@ td>p {
     top: 36px;
 }
 
-.arrow-offset {
-    left: -52.8%;
-}
-
 .hr-offset {
     margin-top: 32px;
 }
@@ -305,6 +301,21 @@ td>p {
     color:#FFF;
 }
 
+.flocker-orange {
+    background:#ef5731;
+    color:#FFF;
+}
+
+.flocker-label {
+    padding: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 20px;
+    width: 33%;
+    margin-top:18px;
+    margin-bottom: 18px;
+}
+
 .form-inline {
     margin-top:24px;
 }
@@ -376,9 +387,16 @@ footer .copyright p {
     img.offset-top {
         margin-top:32px;
     }
+    .heading {
+        line-height:42px;
+    }
 }
 
 @media screen and (min-width:992px) {
+    .arrow-offset {
+        left: -52.8%;
+    }    
+
     img.offset-top {
         margin-top:-23px;
     }
