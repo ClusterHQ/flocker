@@ -34,6 +34,7 @@ header h1 {
 
 .jumbo-flocker p {
     font-size:32px;
+    font-family: "Soho Gothic W01 Regular", sans-serif;
 }
 
 .navbar-inverse {
@@ -178,7 +179,7 @@ td>p {
     background: #468b87;
     color:#FFF;
     padding-top: 68px;
-    padding-bottom: 0px;
+    padding-bottom: 48px;
 }
 
 .flocker-logo {
@@ -253,6 +254,7 @@ td>p {
     font-size: 32px;
     font-weight: 500;
     line-height: 80px;
+    font-family: "Soho Gothic W01 Regular", sans-serif;    
 }
 
 .heading a {
@@ -370,6 +372,12 @@ footer .copyright p {
 }
 
 
+@media screen and (max-width:992px) {
+    img.offset-top {
+        margin-top:32px;
+    }
+}
+
 @media screen and (min-width:992px) {
     img.offset-top {
         margin-top:-23px;
@@ -394,7 +402,25 @@ footer .copyright p {
     .navbar-nav {
        margin-top:22px;
     }
-
+}
+@media (max-width:1200px) {
+    .flocker-logo {
+        background: url(../img/flocker.png);
+        height: 266px;
+        background-size: 309px 266px;
+        background-repeat: no-repeat;
+        display: block;
+        position: absolute;
+        top: 208px;
+        width: 309px;
+        left: 860px;    
+    }
+    .jumbo-flocker p {
+        font-size:26px;
+        font-family: "Soho Gothic W01 Regular", sans-serif;
+    }
+}
+@media (min-width:1201px) {
     li.button.menu a {
         font-family: "Soho Gothic W01 Regular";
         border: 1px solid #ffffff;
@@ -413,5 +439,31 @@ footer .copyright p {
         background:#202325;
         text-decoration:none;
     }    
+    .jumbo-flocker {
+        padding-bottom:0px;
+    }
 }
-
+@media (min-width:1201px) and (max-width:1400px) {
+    .flocker-logo {
+        left:-60px;
+    }
+}
+@media (min-width:1201px) and (max-width:1217px) {
+    .flocker-logo {
+        left: 860px;
+        position: absolute;
+        top: 208px;    
+    }
+}
+@media (min-width:1401px) and (max-width:1635px) {
+    .flocker-logo {
+        left:-60px;
+    }
+}
+@media (min-width:992px) and (max-width:1199px) {
+    .flocker-logo {
+        left: -20px;
+        top: -54px;
+        position: relative;
+    }
+}

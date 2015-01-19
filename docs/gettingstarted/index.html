@@ -51,7 +51,7 @@
     <header>
         <h1 class="text-center">Getting started with Flocker</h1>    
     </header>
-   	<div class="flocker-logo pull-right"></div>
+   	<div class="flocker-logo pull-right hidden-xs hidden-sm"></div>
 
     <div class="jumbotron jumbo-flocker">
       <div class="container">
@@ -69,7 +69,7 @@
             <h2 class="heading bottom-spaced text-center">Step 1: Installing Flocker CLI & Node</h2>
         </div>
         <div class="col-md-6 bordered bordered-right bordered-bottom bordered-gray">
-            <img class="center-block" src="assets/img/macbook.png" alt="Flocker CLI diagram" />
+            <img class="center-block img-responsive" src="assets/img/macbook.png" alt="Flocker CLI diagram" />
             <h2 class="heading text-center">Flocker CLI</h2>
             <table class="table table-striped">
                 <tbody>
@@ -81,7 +81,7 @@
             <div class="arrow-down center-block"></div>
         </div>
         <div class="col-md-6 bordered bordered-bottom bordered-gray">
-            <img class="center-block offset-top" src="assets/img/nodes.png" alt="Flocker Node diagram" />
+            <img class="center-block offset-top img-responsive" src="assets/img/nodes.png" alt="Flocker Node diagram" />
             <h2 class="heading text-center">Flocker Node</h2>
             <table class="table table-striped">
                 <tbody>
@@ -150,7 +150,7 @@ $ vagrant up
         <div class="col-md-12 text-larger">
             <h2 class="heading bottom-spaced text-center">Step 2: Deploying a demo app</h2>
             <div class="row row-centered">
-                <div class="col-md-9 col-centered">
+                <div class="col-md-9 col-sm-12 col-xs-12 col-centered">
                     <p>You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.<p>
                     <p>Now you can try our simple tutorial: a Python web application and a Redis server.</p>
                     <pre>
@@ -195,7 +195,7 @@ $ flocker-deploy deployment-node1.yml fig.yml
         <div class="col-md-12 text-larger">
             <h2 class="heading bottom-spaced text-center heading-offset-top">Step 3: Migrating a container</h2>
             <div class="row row-centered">
-                <div class="col-md-9 col-centered">
+                <div class="col-md-9 col-sm-12 col-xs-12 col-centered">
                 <p>Now we are going to use a different depoyment config to show moving the Redis container with its data volume.</p>
                 <h2 class="heading bottom-spaced">deployment-node2.yml</h2>
                 <pre>
@@ -208,7 +208,7 @@ $ flocker-deploy deployment-node1.yml fig.yml
 $ flocker-deploy deployment-node2.yml app.yml                
                 </pre>
                 <br />
-                <img src="assets/img/migration.png" alt="Flocker Deployment migration diagram" />
+                <img src="assets/img/migration.png" class="img-responsive" alt="Flocker Deployment migration diagram" />
                 <br />&nbsp;<br />
                 <p>In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!</p>
                 </div>
