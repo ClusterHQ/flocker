@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    {{ metatags }}
+    {%- if not embedded and docstitle %}
+        {%- set titlesuffix = " &mdash; "|safe + docstitle|e %}
+    {%- else %}
+        {%- set titlesuffix = "" %}
+    {%- endif %}
+    {%- block htmltitle %}
+        <title>{{ title|striptags|e }}{{ titlesuffix }}</title>
+    {%- endblock %}
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" href="{{ pathto('_static/assets/', 1) }}css/bootstrap.min.css">
+        <link type="text/css" rel="stylesheet" href="http://fast.fonts.net/cssapi/b20e6cd5-c1a4-4878-9d69-da3806cb86b8.css"/>
+        <link rel="stylesheet" href="{{ pathto('_static/assets/', 1) }}css/main.css">
+
+        <script src="{{ pathto('_static/assets/', 1) }}js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+    <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#"><img src="{{ pathto('_static/assets/', 1) }}img/clusterhq.png" alt="ClusterHQ Container Data Management" /></a>
+        </div>
+
+        <div class="collapse navbar-collapse" id="navbar">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Getting Started</a></li>
+            <li><a href="#">Docs</a></li>
+            <li><a href="#">Solutions</a></li>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Careers</a></li>
+          </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li class="button menu"><a href="#">Try Flocker Now</a></li>            
+            </ul>          
+        </div>
+
+      </div>
+    </nav>
+    
+    {%- block content %}
+    {%- block document %}
+    {% block body %} {% endblock %}
+    {%- endblock %}
+    {%- endblock %}
+    
+    <div class="jumbotron signup">
+      <div class="container">
+    	<div class="row">
+		<div class="col-md-9">
+	        <h1>Get Involved</h1>
+	       	<p>Sign up for email updates about Flocker</p>
+	       	<form class="form-inline">
+                <div class="form-group">
+                    <input type="email" class="form-control input-lg" id="email" name="email" placeholder="Email address">
+                </div>
+                <button type="submit" class="btn btn-signup btn-lg">Sign up</button>
+	       	</form>
+		</div>
+    	</div>
+      </div>
+    </div>
+        
+        <h2 class="heading text-center">See our <a href="http://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
+
+    
+	<footer>
+	<div id="footer-head">
+		<div class="container">
+			<div class="row">
+				<div class="col-sm-1 col-xs-1 small-logo">
+					<p><img src="{{ pathto('_static/assets/', 1) }}img/small-logo.png" width="47" height="52"/></p>
+				</div>
+				<div class="col-sm-11 pull-right">
+					<p class="text-right">ClusterHQ: The Container Data People &trade;</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="container">
+		<div class="row">
+			<div class="col-sm-4">
+				<div><span class="widget-title">Company</span>		
+					<ul>
+						<li class="page_item page-item-13"><a href="https://clusterhq.com/about/">About</a></li>
+						<li class="page_item page-item-10"><a href="https://clusterhq.com/careers/">Careers</a></li>
+						<li class="page_item page-item-8"><a href="https://clusterhq.com/solutions/">Solutions</a></li>
+					</ul>
+				</div>			
+			</div>
+			<div class="col-sm-4">
+				<div><span class="widget-title">Documentation</span>			
+				<div class="textwidget">
+				<ul>
+					<li><a href="#">Getting Started</a></li>
+					<li><a href="#">Collaborate</a></li>
+					<li><a href="#">View Flocker on Github</a></li>
+				</ul>
+				</div>
+				</div>
+				<div>
+				<span class="widget-title">Install Flocker on:</span>			
+				<div class="textwidget">
+				<ul>
+					<li><a href="#">AWS</a></li>
+					<li><a href="#">Rackspace</a></li>
+					<li><a href="#">Digital Ocean</a></li>
+					<li><a href="#">Vagrant Machine</a></li>
+				</ul>
+				</div>
+				</div>			
+			</div>
+			<div class="col-sm-4">
+				<div><span class="widget-title">Get in touch</span>			
+				<div class="textwidget">
+					<ul>
+						<li><a href="#">Twitter (@clusterhq)</a></li>
+						<li><a href="#">Facebook (clusterhq)</a></li>
+						<li><a href="#">GitHub (clusterhq)</a></li>
+						<li><a href="#">Email us  (info@clusterhq.com)</a></li>
+					</ul>
+				</div>
+				</div>			
+			</div>
+			<div class="clear"></div>
+			<div class="col-sm-12 copyright"><p>&copy; 2014 Hybrid Logic Ltd. DBA ClusterHQ. Registered company number 06573757 in the United Kingdom. VAT number GB104879795.</p></div>
+		</div>
+	</div>
+    </footer>    
+    
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="{{ pathto('_static/assets/', 1) }}js/vendor/jquery-1.11.1.min.js"><\/script>')</script>
+
+        <script src="{{ pathto('_static/assets/', 1) }}js/vendor/bootstrap.min.js"></script>
+        <script src="{{ pathto('_static/assets/', 1) }}js/plugins.js"></script>
+        <script src="{{ pathto('_static/assets/', 1) }}js/main.js"></script>
+
+        <!-- Google Analytics -->
+        <script>
+            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
+            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
+            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
+            e.src='//www.google-analytics.com/analytics.js';
+            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
+            ga('create','UA-XXXXX-X');ga('send','pageview');
+        </script>
+    </body>
+</html>
