@@ -31,7 +31,7 @@ Software
 - A web browser.
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
-- `gsutil <https://pypi.python.org/pypi/gsutil>`_
+- `gsutil`_
 - ``yumdownloader`` (from the Fedora or Ubuntu ``yum-utils`` package)
 - ``createrepo`` (from the Fedora or Ubuntu ``createrepo`` package)
 
@@ -40,7 +40,7 @@ Access
 
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
-- Access to `Google Cloud Storage`_ using `gsutil`_.
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
