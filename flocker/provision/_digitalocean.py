@@ -15,6 +15,7 @@ from ._install import (
 )
 from ._common import Kernel
 
+
 def retry_on_error(error_checkers, callable, *args, **kwargs):
     """
     This function repeats the API call if it raises an exception and if that
@@ -57,11 +58,11 @@ def pending_event(exception):
     pyocean doesn't consistently return the event info. E.g. droplet.create
     returns a ``droplet`` instance instead whose status is difficult to check.
 
-    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-cal
+    See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-cal # noqa
     """
-    if (isinstance(exception, pyocean.exceptions.ClientError)
-        and exception.message == 'Droplet already has a pending event.'):
-        return True
+    if isinstance(exception, pyocean.exceptions.ClientError):
+        if exception.message == 'Droplet already has a pending event.':
+            return True
     return False
 
 
@@ -125,6 +126,7 @@ DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE = (
     '{version}-{release}.{distribution}.{architecture}'
 )
 
+
 def kernel_to_digitalocean_version(kernel):
     """
     Return a DigitalOcean style kernel string for the supplied ``Kernel``.
@@ -171,8 +173,9 @@ def latest_droplet_kernel(droplet,
     for do_kernel in droplet.get_available_kernels():
         kernel = kernel_from_digitalocean_version(do_kernel.version)
 
-        if ((required_distribution, required_architecture)
-            == (kernel.distribution, kernel.architecture)):
+        if ((required_distribution,
+             required_architecture) == (kernel.distribution,
+                                        kernel.architecture)):
             matching_kernels.append(kernel)
 
     if not matching_kernels:

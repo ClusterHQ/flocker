@@ -77,7 +77,9 @@ class SetDropletKernelTests(SynchronousTestCase):
         # both used a dedicated ``Kernel`` type which could easily be
         # compared.
         # See: https://github.com/flowfree/pyocean/issues/2
-        actual_kernel = kernel_from_digitalocean_version(updated_droplet.kernel['version'])
+        actual_kernel = kernel_from_digitalocean_version(
+            updated_droplet.kernel['version']
+        )
         self.assertEqual(expected_kernel, actual_kernel)
 
 
