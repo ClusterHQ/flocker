@@ -31,7 +31,7 @@ Software
 - A web browser.
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
-- `gsutil`_
+- `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_.
 - ``yumdownloader`` (from the Fedora or Ubuntu ``yum-utils`` package)
 - ``createrepo`` (from the Fedora or Ubuntu ``createrepo`` package)
 
