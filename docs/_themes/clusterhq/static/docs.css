@@ -10,14 +10,16 @@ nav ul {
     padding:0;
     margin:0;
     font-family: lato;
-    height: 40px;
-    padding-top: 15px;
+    min-height: 40px;
+    padding-top: 0px;
     font-size: 1.125em;
 }
 
 nav li {
-    display: inline;
+    display: block;
+    width: 100%;
     padding-right:33px;
+    height: 40px;
 }
 
 nav li:last-child {
@@ -309,6 +311,11 @@ a.download:before {
     font-size: 1.05em;
 }
 
+.mob-nav {
+    height:97px;
+    padding: 25px;
+}
+
 @media all and (min-width: 768px) {
     /* sm */
     body {
@@ -338,6 +345,16 @@ a.download:before {
     
     a.button.rel {
         width: 100px;
+    }
+    
+    nav li {
+        display: inline;
+        padding-right:33px;
+        height: auto;
+    }
+    
+    nav ul {
+        padding-top: 20px;
     }
 }
 @media all and (min-width: 992px) {
