@@ -212,6 +212,10 @@ a.button.rel {
     padding: 7px 7px 7px 10px;
     border: 1px solid #c8c9d4;
     border-radius: 4px;
+    height: 45px;
+    background: url(search-icon@2x.png) no-repeat;
+    background-size: 23px 22px;
+    background-position: 99% 50%;
 }
 
 .search {
