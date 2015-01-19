@@ -1,0 +1,310 @@
+/* Docs */
+
+/* Nav Style from website */
+
+nav {
+    padding-top: 22px;
+}
+
+nav ul {
+    padding:0;
+    margin:0;
+    font-family: lato;
+    height: 40px;
+    padding-top: 15px;
+    font-size: 1.125em;
+}
+
+nav li {
+    display: inline;
+    padding-right:33px;
+}
+
+nav li:last-child {
+    padding-right: 0px;
+}
+
+nav a {
+    color: #fff;
+    font-size: 1.125em;
+    padding-bottom: 4px;
+}
+
+nav a:hover, nav a:focus {
+    border-bottom: 1px solid white;
+    text-decoration: none;
+    color: #fff;
+}
+
+nav li.current-menu-item a {
+    border-bottom: 1px solid white;
+}
+
+li.button.menu a {
+    font-family: lato;
+    border: 1px solid #ffffff;
+    background-color: transparent;
+    display: inline-block;
+    text-align: center;
+    line-height: 38px;
+    font-size: 1.125em;
+    margin-top: -6px;
+	border-radius: 8px;
+	float:right;
+	position:relative;
+    padding: 0 15px 0px 15px;
+}
+
+li.button.menu a:hover {
+    color: #a2dad7; 
+    border: 1px solid #a2dad7;
+}
+
+/* End of Nav styles */
+
+.menubar {
+    background: #1e2021; /* Old browsers */
+    /* IE9 SVG, needs conditional override of 'filter' to 'none' */
+    background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPGxpbmVhckdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMWUyMDIxIiBzdG9wLW9wYWNpdHk9IjEiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzM0M2EzZCIgc3RvcC1vcGFjaXR5PSIxIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIiBmaWxsPSJ1cmwoI2dyYWQtdWNnZy1nZW5lcmF0ZWQpIiAvPgo8L3N2Zz4=);
+    background: -moz-linear-gradient(-45deg, #1e2021 0%, #343a3d 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,#1e2021), color-stop(100%,#343a3d)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%); /* IE10+ */
+    background: linear-gradient(135deg, #1e2021 0%,#343a3d 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e2021', endColorstr='#343a3d',GradientType=1 ); /* IE6-8 fallback on horizontal gradient */
+}
+
+.menubar .logo {
+    padding-top: 25px;
+}
+
+h1, h2, h3, h4, h5 {
+    font-family:'Soho Gothic W01 Medium';
+    padding-bottom: 25px;
+}
+
+a.headerlink {
+    visibility: hidden;
+}
+
+h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:hover > a.headerlink, h5:hover > a.headerlink, h6:hover > a.headerlink, dt:hover > a.headerlink {
+    visibility: visible;
+}
+
+.contents-menu {
+    background-color: #646570;
+}
+
+.contents-menu>ul {
+    list-style: none;
+    padding: 0;
+    font-size: 1.4em;
+    font-family: lato;
+    color: #FFFFFF;
+    width: 100%;
+}
+
+.contents-menu>ul  a {
+    text-decoration: none;
+    color: #ffffff;
+}
+
+.contents-menu>ul  a:hover {
+    color: #9ac4c4;
+}
+
+.contents-menu>ul >li {
+    border-top: solid #a2dad7 1px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.contents-menu>ul >li:first-child {
+    border-top: none;
+}
+
+.contents-menu>ul ul>li {
+    font-size: 14px;
+    list-style: none;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.contents-menu>ul  ul>li:first-child {
+    padding-top: 15px;
+}
+
+.contents-menu>ul  .current>a {
+    color: #9ac4c4;
+}
+
+.contents-menu>ul ul:not(.current){
+    display:none;
+}
+
+.contents-menu>ul li.current ul{
+    display: block;
+}
+
+#disqus_thread {
+    margin-top: 50px;
+}
+
+.footer {
+    margin-top: 40px;
+    padding-top:20px;
+    padding-bottom: 20px;
+    background:#e5e6eb;
+    box-shadow: #fff 0 5000px 0 5000px; /* Extremely hacky, try to fix when less asleep */
+    font-family: lato;
+    font-weight: 600;
+    line-height: 47px;
+}
+
+
+/* Search bar */
+.search input {
+    width: 100%;
+    padding: 7px 7px 7px 10px;
+    border: 1px solid #c8c9d4;
+    border-radius: 4px;
+}
+
+.search {
+    padding-bottom: 20px;
+}
+
+/* Sphinx stuff */
+.highlight {
+    background-color: #343a3d;
+    color: #ffffff;
+    padding: 20px 20px 15px 20px;
+    margin-bottom: 20px;
+}
+
+.highlight>pre {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1em;
+}
+
+.highlight>pre>.gp {
+    color: #a2dad7;
+}
+
+p {
+    color: #646570;
+    font-family: lato;
+}
+
+.admonition {
+    padding-top: 15px;
+    background: url(exclamation@2x.png) no-repeat #f3f0d9;
+    background-size: 36px 34px;
+    background-position: 30px 20px;
+    padding-left: 90px;
+    min-height: 75px;
+}
+
+.admonition.warning {
+    background: url(exclamation-white@2x.png) no-repeat #f3f0d9;
+    background-size: 32px 32px;
+    background-position: 30px 20px;
+    background-color: #f08c8c;
+}
+
+.admonition.warning p {
+    color: #ffffff;
+}
+
+.admonition-title {
+    display: none;
+}
+
+.admonition a {
+    color: #f15c30;
+}
+
+.admonition p.last {
+    padding-right: 15px;
+    padding-bottom: 15px;
+}
+
+a.download {
+    color: #f15c30;
+    font-family: lato;
+}
+
+a.download:before {
+    content: "";
+    display: block;
+    background: url(download@2x.png) no-repeat;
+    background-size: 15px 11px;
+    background-position-y: 5px;
+    width: 15px;
+    height: 16px;
+    float: left;
+    margin: 0 6px 0 0;
+}
+
+.page img {
+    max-width: 100%;
+}
+
+.page ul {
+    color: #646570;
+    font-family: lato;
+}
+
+.section {
+    font-size: 1.05em;
+}
+
+@media all and (min-width: 768px) {
+    /* sm */
+    body {
+        background: linear-gradient(to right, #646570, #646570 35%, white 35%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
+        background-size: 1170px, 100%;
+    }
+    
+    .menubar {
+        height: 140px;
+    }
+    
+    .contents-menu>ul ul {
+        padding-left:15px; /* Don't waste horizontal space on low res */
+    }
+    
+    .page {
+        padding-top: 40px;
+    }
+    
+    .contents-menu>ul {
+        width: 83%;
+    }
+}
+@media all and (min-width: 992px) {
+    /* md */
+    body {
+        background: linear-gradient(to right, #646570, #646570 30%, white 30%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
+        background-size: 1170px, 100%;
+    }
+    
+    .menubar {
+        height: 97px;
+    }
+    
+    .contents-menu>ul ul {
+        padding-left:30px;
+    }
+
+}
+@media all and (min-width: 1200px) {
+    /* lg */
+    body {
+        background: linear-gradient(to right, #646570, #646570 25%, white 25%) center repeat-y, linear-gradient(to right, #646570, #646570 50%, white 50%) center repeat-y;
+        background-size: 1170px, 100%;
+    }
+}
