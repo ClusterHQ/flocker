@@ -32,7 +32,7 @@
   # this.  Ditto about the harness translating pseudo-HTTP into real HTTP.
   # %(VARIABLES)s are substituted in the response body as well.
   response: |
-    HTTP/1.1 200 Created
+    HTTP/1.1 200 OK
 
     {
         "flocker": "0.4.0"
