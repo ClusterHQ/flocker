@@ -103,6 +103,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     font-family: lato;
     color: #FFFFFF;
     width: 100%;
+    display: none;
 }
 
 .contents-menu>ul  a {
@@ -145,6 +146,27 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 
 .contents-menu>ul li.current ul{
     display: block;
+}
+
+.mob-contents {
+    font-size: 2em;
+    font-family: lato;
+    color: white;
+    padding: 20px 10px 20px 0px;
+    margin-bottom: 15px;
+}
+
+.mob-contents .plus a {
+    text-decoration: none;
+    background-color: #a3a4b2;
+    border-radius: 20px;
+    width: 40px;
+    height: 40px;
+    display: block;
+    line-height: 37px;
+    font-size: 0.9em;
+    color: #000000;
+    text-align: center;
 }
 
 #disqus_thread {
@@ -292,6 +314,10 @@ a.download:before {
     
     .menubar {
         height: 140px;
+    }
+    
+    .contents-menu>ul{
+        display: block;
     }
     
     .contents-menu>ul ul {

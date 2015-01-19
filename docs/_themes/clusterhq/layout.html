@@ -30,9 +30,11 @@
     {%- for scriptfile in script_files %}
         <script type="text/javascript" src="{{ pathto(scriptfile, 1) }}"></script>
     {%- endfor %}
+    {%- if pagename == "search" %}
     <script type="text/javascript">
         jQuery(function() { Search.loadIndex("searchindex.js"); });
     </script>
+    {%- endif %}
     <link rel="top" title="{{ docstitle|e }}" href="{{ pathto('index') }}"/>
     
     {% if theme_analytics_code %}
@@ -87,15 +89,28 @@
         <div class="row">
             <!-- Contents menu -->
             <div class="col-sm-3 page contents-menu">
+                <div class="visible-xs-block mob-contents">
+                    Contents
+                    <div class="pull-right plus">
+                        <a href="javascript:$('.contents-menu>ul').toggle();">+</a>
+                    </div>
+                </div>
                 <!-- Menu area start -->
                 {{ toctree(collapse=false, maxdepth=4) }}
-                <!-- Menu area end -->                        
+                <!-- Menu area end -->
+                <script>
+                $( window ).resize(function() {
+                    if($( window ).width() >= 768) {
+                        $('.contents-menu>ul').show();
+                    }
+                });
+                </script>
             </div>
             
             <!-- Main contents area -->
             <div class="col-sm-8 col-sm-offset-1 page white-bg">
                 {%- if pagename != "search" %}
-                <form class="search" action="search.html" method="get" _lpchecked="1">
+                <form class="search" action="{{ pathto('search') }}" method="get" _lpchecked="1">
                     <input type="text" name="q" placeholder="Type here to search docs..." id="search">
                     <input type="hidden" name="check_keywords" value="yes">
                     <input type="hidden" name="area" value="default">
