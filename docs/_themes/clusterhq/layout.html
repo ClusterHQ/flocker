@@ -119,6 +119,18 @@
                         {% block body %} {% endblock %}
                 {%- endblock %}
                 <!-- END OF DOCS PAGE DATA -->
+                <div class="row">
+                    <div class="col-xs-12 col-sm-6">
+                        {%- if prev %}
+                            <a href="{{ prev.link|e }}" title="{{ prev.title|striptags|e }}" class="button rel">Previous</a>
+                        {%- endif %}
+                    </div>
+                    <div class="col-xs-12 col-sm-6">
+                        {%- if next %}
+                            <a href="{{ next.link|e }}" title="{{ next.title|striptags|e }}" class="button rel pull-right">Next</a>
+                        {%- endif %}
+                    </div>
+                </div>
                 
                 <!-- Disqus -->
                 {% if theme_disqus_shortname %}
