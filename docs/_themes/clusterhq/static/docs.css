@@ -180,7 +180,6 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     padding-top:20px;
     padding-bottom: 20px;
     background:#e5e6eb;
-    box-shadow: #fff 0 5000px 0 5000px; /* Extremely hacky, try to fix when less asleep */
     font-family: lato;
     font-weight: 600;
     line-height: 47px;
