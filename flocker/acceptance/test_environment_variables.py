@@ -4,11 +4,16 @@
 Tests for environment variables.
 """
 from unittest import skipUnless
+from uuid import uuid4
+
+from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._model import Application, DockerImage, AttachedVolume, Port
+from flocker.node._model import (
+    Application, DockerImage, AttachedVolume, Port, Dataset,
+    Manifestation)
 from flocker.testtools import loop_until
 
 from .testtools import (assert_expected_deployment, flocker_deploy, get_nodes,
@@ -38,7 +43,11 @@ MYSQL_APPLICATION = Application(
              external_port=MYSQL_EXTERNAL_PORT),
     ]),
     volume=AttachedVolume(
-        name=MYSQL_APPLICATION_NAME,
+        manifestation=Manifestation(
+            dataset=Dataset(
+                dataset_id=unicode(uuid4()),
+                metadata=pmap({"name": MYSQL_APPLICATION_NAME})),
+            primary=True),
         mountpoint=FilePath(MYSQL_VOLUME_MOUNTPOINT),
     ),
 )
@@ -92,6 +101,8 @@ class EnvironmentVariableTests(TestCase):
                             u"external": MYSQL_EXTERNAL_PORT,
                         }],
                         u"volume": {
+                            u"dataset_id":
+                                MYSQL_APPLICATION.volume.dataset.dataset_id,
                             u"mountpoint": MYSQL_VOLUME_MOUNTPOINT,
                         },
                     },
