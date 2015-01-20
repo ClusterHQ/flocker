@@ -105,7 +105,6 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     font-family: lato;
     color: #FFFFFF;
     width: 100%;
-    display: none;
 }
 
 .contents-menu>ul  a {
@@ -117,28 +116,33 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     color: #9ac4c4;
 }
 
-.contents-menu>ul >li {
+.contents-menu>ul li{
+    list-style: none;
+}
+
+.contents-menu>ul>li {
     border-top: solid #a2dad7 1px;
     padding-top: 10px;
     padding-bottom: 10px;
 }
 
-.contents-menu>ul >li:first-child {
+.contents-menu>ul>li:first-child {
     border-top: none;
 }
 
-.contents-menu>ul ul>li {
-    font-size: 14px;
-    list-style: none;
-    padding-top: 5px;
-    padding-bottom: 5px;
+.contents-menu>ul>li>ul>li {
+    font-size: 0.7em;
 }
 
 .contents-menu>ul  ul>li:first-child {
     padding-top: 15px;
 }
 
-.contents-menu>ul  .current>a {
+.contents-menu>ul  ul>li {
+    padding-top: 10px;
+}
+
+.contents-menu>ul .current>a {
     color: #9ac4c4;
 }
 
