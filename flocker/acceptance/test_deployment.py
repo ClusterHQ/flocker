@@ -22,18 +22,6 @@ class DeploymentTests(TestCase):
     http://doc-dev.clusterhq.com/gettingstarted/tutorial/
     moving-applications.html#starting-an-application
     """
-    def assertEqualWithoutDatasetID(self, expected, observed):
-        """
-        Compare expected and actual application states without comparing the
-        dataset id of the attached volume.
-
-        :return: The dataset id of the attached volume.
-        """
-        dataset_id = observed.volume.manifestation.dataset.dataset_id
-        observed.volume.manifestation.dataset.dataset_id = None
-        self.assertEqual(expected, observed)
-        return dataset_id
-
     @require_flocker_cli
     def test_application_volume_quotas_changed(self):
         """
@@ -45,18 +33,22 @@ class DeploymentTests(TestCase):
         """
         SIZE_100_MB = u"104857600"
         nodes = get_nodes(self, num_nodes=2)
+        mongo_dataset_id = unicode(uuid4())
 
-        def deploy_with_quotas(nodes):
-            node_1, node_2 = nodes
-            application = create_application(
+        def mongo_application(maximum_size):
+            return create_application(
                 MONGO_APPLICATION, MONGO_IMAGE,
                 volume=create_attached_volume(
-                    dataset_id=None,
+                    dataset_id=mongo_dataset_id,
                     mountpoint=b'/data/db',
-                    maximum_size=None,
+                    maximum_size=maximum_size,
                     metadata=pmap({"name": MONGO_APPLICATION}),
                 )
             )
+
+        def deploy_with_quotas(nodes):
+            node_1, node_2 = nodes
+            application = mongo_application(None)
             config_deployment = {
                 u"version": 1,
                 u"nodes": {
@@ -70,6 +62,7 @@ class DeploymentTests(TestCase):
                     MONGO_APPLICATION: {
                         u"image": MONGO_IMAGE,
                         u"volume": {
+                            u"dataset_id": mongo_dataset_id,
                             u"mountpoint": b"/data/db",
                         }
                     }
@@ -79,8 +72,7 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_1)
 
-            dataset_id = self.assertEqualWithoutDatasetID(
-                application, state[MONGO_APPLICATION])
+            self.assertEqual(application, state[MONGO_APPLICATION])
 
             # now we've verified the initial deployment has succeeded
             # with the expected result, we will redeploy the same application
@@ -95,15 +87,7 @@ class DeploymentTests(TestCase):
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_2)
 
-            application = create_application(
-                MONGO_APPLICATION, MONGO_IMAGE,
-                volume=create_attached_volume(
-                    dataset_id=dataset_id,
-                    mountpoint=b'/data/db',
-                    maximum_size=int(SIZE_100_MB),
-                    metadata=pmap({"name": MONGO_APPLICATION}),
-                )
-            )
+            application = mongo_application(int(SIZE_100_MB))
 
             # now we verify that the second deployment has moved the app and
             # flocker-reportstate on the new host gives the expected maximum
@@ -126,13 +110,14 @@ class DeploymentTests(TestCase):
         """
         SIZE_100_MB = u"104857600"
         nodes = get_nodes(self, num_nodes=2)
+        mongo_dataset_id = unicode(uuid4())
 
         def deploy_with_quotas(nodes):
             node_1, node_2 = nodes
             application = create_application(
                 MONGO_APPLICATION, MONGO_IMAGE,
                 volume=create_attached_volume(
-                    dataset_id=None,
+                    dataset_id=mongo_dataset_id,
                     mountpoint=b'/data/db',
                     maximum_size=int(SIZE_100_MB),
                     metadata=pmap({"name": MONGO_APPLICATION}),
@@ -151,6 +136,7 @@ class DeploymentTests(TestCase):
                     MONGO_APPLICATION: {
                         u"image": MONGO_IMAGE,
                         u"volume": {
+                            u"dataset_id": mongo_dataset_id,
                             u"mountpoint": b"/data/db",
                             u"maximum_size": SIZE_100_MB
                         }
@@ -160,13 +146,12 @@ class DeploymentTests(TestCase):
 
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_1)
-            self.assertEqualWithoutDatasetID(
-                application, state[MONGO_APPLICATION])
+            self.assertEqual(application, state[MONGO_APPLICATION])
             config_deployment[u"nodes"][node_2] = [MONGO_APPLICATION]
             config_deployment[u"nodes"][node_1] = []
             flocker_deploy(self, config_deployment, config_application)
             state = get_node_state(node_2)
-            self.assertEqualWithoutDatasetID(application, state[MONGO_APPLICATION])
+            self.assertEqual(application, state[MONGO_APPLICATION])
 
         nodes.addCallback(deploy_with_quotas)
         return nodes
