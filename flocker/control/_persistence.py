@@ -13,7 +13,7 @@ from ._model import Deployment
 
 
 # These should not use Pickle!@!
-# https://clusterhq.atlassian.net/browse/FLOC-1241x
+# https://clusterhq.atlassian.net/browse/FLOC-1241
 def serialize_deployment(deployment):
     """
     Convert a ``Deployment`` object to ``bytes``.
