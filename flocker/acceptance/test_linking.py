@@ -144,6 +144,7 @@ class LinkingTests(TestCase):
                 },
             }
 
+            es_dataset_id = ELASTICSEARCH_APPLICATION.volume.dataset.dataset_id
             self.elk_application = {
                 u"version": 1,
                 u"applications": {
@@ -154,8 +155,7 @@ class LinkingTests(TestCase):
                             u"external": ELASTICSEARCH_EXTERNAL_PORT,
                         }],
                         u"volume": {
-                            u"dataset_id":
-                                ELASTICSEARCH_APPLICATION.volume.dataset.dataset_id,
+                            u"dataset_id": es_dataset_id,
                             u"mountpoint": ELASTICSEARCH_VOLUME_MOUNTPOINT,
                         },
                     },
