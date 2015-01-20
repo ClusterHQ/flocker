@@ -4,6 +4,8 @@
 Tests for deploying applications.
 """
 
+from uuid import uuid4
+
 from pyrsistent import pmap
 
 from twisted.trial.unittest import TestCase
