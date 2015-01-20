@@ -60,7 +60,7 @@ class ConfigurationPersistenceServiceTests(TestCase):
         """
         path = FilePath(self.mktemp())
         self.service(path)
-        self.assertTrue(path.child(b"current_configuration.json").exists())
+        self.assertTrue(path.child(b"current_configuration.pickle").exists())
 
     def test_save_then_get(self):
         """
