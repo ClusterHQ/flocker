@@ -6,7 +6,7 @@ Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
-from pyrsistent import pmap
+from pyrsistent import pmap, pset
 from zope.interface import Interface, implementer
 
 
@@ -200,7 +200,8 @@ class Dataset(object):
     """
 
 
-@attributes(["hostname", "applications"])
+@attributes(["hostname", "applications",
+             Attribute("other_manifestations", default_value=pset())])
 class Node(object):
     """
     A single node on which applications will be managed (deployed,
@@ -212,6 +213,10 @@ class Node(object):
 
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
+
+    :ivar PSet other_manifestations: ``Manifestation`` instances that
+        are present on the node but are not attached as volumes to any
+        applications.
     """
 
 
