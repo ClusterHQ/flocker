@@ -300,6 +300,27 @@ def make_istoragepool_tests(fixture):
             d.addCallback(resized_filesystem)
             return d
 
+        def test_resize_volume_already_unlimited_size(self):
+            """
+            If an attempt is made to remove the limit on maximum size of an
+            existing volume which already has no maximum size limit, no change
+            is made.
+            """
+            pool = fixture(self)
+            service = service_for_pool(self, pool)
+            volume = service.get(MY_VOLUME)
+            d = pool.create(volume)
+
+            def created_filesystem(filesystem):
+                return pool.set_maximum_size(volume)
+            d.addCallback(created_filesystem)
+
+            def didnt_resize(filesystem):
+                self.assertEqual(
+                    VolumeSize(maximum_size=None), filesystem.size)
+            d.addCallback(didnt_resize)
+            return d
+
         def test_resize_volume_invalid_max_size(self):
             """
             If an existing volume is resized to a new maximum size which is

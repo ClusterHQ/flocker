@@ -137,7 +137,7 @@ class MakeRstTests(SynchronousTestCase):
              '   Demonstrates examples.',
              '   ',
              # This is a header introducing the request portion of the session.
-             '   **example request**',
+             '   **Example request**',
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              '   .. sourcecode:: http',
@@ -150,7 +150,7 @@ class MakeRstTests(SynchronousTestCase):
              # This blank line is necessary to satisfy reST for some reason.
              '   ',
              # The same again but for the HTTP response.
-             '   **example response**',
+             '   **Example response**',
              '   ',
              '   .. sourcecode:: http',
              '   ',
@@ -175,6 +175,7 @@ class MakeRstTests(SynchronousTestCase):
             'type': {
                 'title': 'TITLE',
                 'description': 'one\ntwo',
+                'type': 'string',
             },
         }}
 
@@ -212,11 +213,13 @@ class MakeRstTests(SynchronousTestCase):
             '           "properties": {',
             '               "optional": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "string"',
             '               },',
             '               "param": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "string"',
             '               }',
             '           },',
             '           "required": [',
@@ -226,12 +229,12 @@ class MakeRstTests(SynchronousTestCase):
             '       }',
             '   ',
             # YAML is unorderd :(
-            '   :jsonparam optional: TITLE',
+            '   :<json string optional: TITLE',
             '   ',
             '      one',
             '      two',
             '      ',
-            '   :jsonparam param: *(required)* TITLE',
+            '   :<json string param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
@@ -251,6 +254,7 @@ class MakeRstTests(SynchronousTestCase):
             'type': {
                 'title': 'TITLE',
                 'description': 'one\ntwo',
+                'type': 'integer',
             },
         }}
 
@@ -288,7 +292,8 @@ class MakeRstTests(SynchronousTestCase):
             '           "properties": {',
             '               "param": {',
             '                   "description": "one\\ntwo",',
-            '                   "title": "TITLE"',
+            '                   "title": "TITLE",',
+            '                   "type": "integer"',
             '               }',
             '           },',
             '           "required": [',
@@ -297,7 +302,75 @@ class MakeRstTests(SynchronousTestCase):
             '           "type": "object"',
             '       }',
             '   ',
-            '   :responsejsonparam param: *(required)* TITLE',
+            '   :>json integer param: *(required)* TITLE',
+            '   ',
+            '      one',
+            '      two',
+            '      ',
+            '',
+            ])
+
+    INLINED_SCHEMAS = {
+        b'/v0/test.json': {
+            'endpoint': {
+                'type': 'object',
+                'properties': {
+                    'param': {
+                        'title': 'TITLE',
+                        'description': 'one\ntwo',
+                        'type': 'integer',
+                    },
+                },
+                'required': ['param'],
+            },
+        }}
+
+    def test_inlinePropertyInSchema(self):
+        """
+        The generated API documentation support JSON schemas with inlined
+        properties.
+        """
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @structured(
+            inputSchema={},
+            outputSchema={'$ref': '/v0/test.json#/endpoint'},
+            schema_store=self.INLINED_SCHEMAS,
+        )
+        def f():
+            """
+            Developer docs,
+            """
+
+        rest = list(makeRst(b"/prefix", app, None, self.OUTPUT_SCHEMAS))
+
+        self.assertEqual(rest, [
+            '',
+            '.. http:get:: /prefix/',
+            '',
+            '   Undocumented.',
+            '   ',
+            '   .. hidden-code-block:: json',
+            '       :label: + Response JSON Schema',
+            '       :starthidden: True',
+            '   ',
+            '       {',
+            '           "$schema": "http://json-schema.org/draft-04/schema#",',
+            '           "properties": {',
+            '               "param": {',
+            '                   "description": "one\\ntwo",',
+            '                   "title": "TITLE",',
+            '                   "type": "integer"',
+            '               }',
+            '           },',
+            '           "required": [',
+            '               "param"',
+            '           ],',
+            '           "type": "object"',
+            '       }',
+            '   ',
+            '   :>json integer param: *(required)* TITLE',
             '   ',
             '      one',
             '      two',
@@ -318,7 +391,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(b"GET FOO", b"200 OK")
         lines = list(_formatExample(example, {u"DOMAIN": u"example.com"}))
         self.assertEqual(
-            [u'**example request**',
+            [u'**Example request**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -326,7 +399,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**example response**',
+             u'**Example response**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -348,7 +421,7 @@ class FormatExampleTests(SynchronousTestCase):
         example = Example(request, response)
         lines = list(_formatExample(example, substitutions))
         self.assertEqual(
-            [u'**example request**',
+            [u'**Example request**',
              u'',
              u'.. sourcecode:: http',
              u'',
@@ -356,7 +429,7 @@ class FormatExampleTests(SynchronousTestCase):
              u'   Host: api.example.com',
              u'   Content-Type: application/json',
              u'',
-             u'**example response**',
+             u'**Example response**',
              u'',
              u'.. sourcecode:: http',
              u'',

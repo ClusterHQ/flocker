@@ -220,9 +220,10 @@ class ResizeVolume(object):
     :ivar AttachedVolume volume: Volume to resize.
     """
     def run(self, deployer):
+        dataset = self.volume.manifestation.dataset
         volume = deployer.volume_service.get(
-            name=_to_volume_name(self.volume.name),
-            size=VolumeSize(maximum_size=self.volume.maximum_size)
+            name=_to_volume_name(dataset.dataset_id),
+            size=VolumeSize(maximum_size=dataset.maximum_size)
         )
         return deployer.volume_service.set_maximum_size(volume)
 
