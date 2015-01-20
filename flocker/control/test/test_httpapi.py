@@ -19,10 +19,6 @@ from ...restapi.testtools import (
 
 from ..httpapi import DatasetAPIUserV1, create_api_service
 from .._persistence import ConfigurationPersistenceService
-from .._config import (
-    marshal_to_application_config_format, marshal_to_deployment_config_format,
-    )
-from .test_persistence import TEST_DEPLOYMENT
 from ... import __version__
 
 

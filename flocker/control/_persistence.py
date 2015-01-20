@@ -4,15 +4,36 @@
 Persistence of cluster configuration.
 """
 
-from json import dumps, loads
+from cPickle import dumps, loads
 
 from twisted.application.service import Service
 
-from ._config import (
-    marshal_to_application_config_format, marshal_to_deployment_config_format,
-    deployment_from_configuration_files
-    )
 from ._model import Deployment
+
+
+# These should not use Pickle!@!
+# https://clusterhq.atlassian.net/browse/FLOC-1241x
+def serialize_deployment(deployment):
+    """
+    Convert a ``Deployment`` object to ``bytes``.
+
+    :param Deployment deployment: Object to serialize.
+
+    :return bytes: Serialized object.
+    """
+    return dumps(deployment)
+
+
+def deserialize_deployment(data):
+    """
+    Create a ``Deployment`` object that was previously serialized to given
+    ``bytes``.
+
+    :param bytes data: Output of ``serialize_deployment``.
+
+    :return Deployment: Deserialized object.
+    """
+    return loads(data)
 
 
 class ConfigurationPersistenceService(Service):
@@ -34,9 +55,8 @@ class ConfigurationPersistenceService(Service):
             self._path.makedirs()
         self._config_path = self._path.child(b"current_configuration.json")
         if self._config_path.exists():
-            data = loads(self._config_path.getContent())
-            self._deployment = deployment_from_configuration_files(
-                data[u"applications"], data[u"deployment"])
+            self._deployment = deserialize_deployment(
+                self._config_path.getContent())
         else:
             self._deployment = Deployment(nodes=frozenset())
             self._sync_save(self._deployment)
@@ -45,11 +65,7 @@ class ConfigurationPersistenceService(Service):
         """
         Save and flush new deployment to disk synchronously.
         """
-        data = {
-            u"applications": marshal_to_application_config_format(deployment),
-            u"deployment": marshal_to_deployment_config_format(deployment),
-            }
-        self._config_path.setContent(dumps(data))
+        self._config_path.setContent(serialize_deployment(deployment))
 
     def save(self, deployment):
         """
