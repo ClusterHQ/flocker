@@ -12,23 +12,3 @@ definitions:
     required:
       - flocker
     additionalProperties: false
-
-  # We don't have schema for config files yet:
-  # https://clusterhq.atlassian.net/browse/FLOC-1234
-  configuration:
-    type: object
-    properties:
-      applications:
-        title: Applications configuration
-        description:
-          The applications configuration file.
-        type: object
-      application_deployment:
-        title: Deployment configuration
-        description:
-          The deployment configuration file.
-        type: object
-    required:
-      - applications
-      - application_deployment
-    additionalProperties: false

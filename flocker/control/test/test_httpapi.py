@@ -62,22 +62,6 @@ class APITestsMixin(object):
         return self.assertGoodResult(b"GET", b"/version",
                                      {u'flocker': __version__})
 
-    def test_configuration(self):
-        """
-        The ``/configuration`` commands returns the current ``Deployment``
-        encoded into the two configuration formats (application and
-        deployment).
-        """
-        d = self.persistence_service.save(TEST_DEPLOYMENT)
-        d.addCallback(
-            lambda _: self.assertGoodResult(
-                b"GET", b"/configuration",
-                {u'applications':
-                 marshal_to_application_config_format(TEST_DEPLOYMENT),
-                 u'application_deployment':
-                 marshal_to_deployment_config_format(TEST_DEPLOYMENT)}))
-        return d
-
 
 def _build_app(test):
     test.initialize()

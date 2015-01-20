@@ -12,9 +12,6 @@ from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ._config import (
-    marshal_to_application_config_format, marshal_to_deployment_config_format,
-    )
 from ..restapi import structured, user_documentation
 from .. import __version__
 
@@ -55,25 +52,6 @@ class DatasetAPIUserV1(object):
         Return the ``flocker`` version string.
         """
         return {u"flocker":  __version__}
-
-    @app.route("/configuration", methods=["GET"])
-    @user_documentation("""
-        Return the full configuration of the cluster in the Application
-        and Deployment YAML configuration formats.
-        """, examples=[u"get configuration"])
-    @structured(inputSchema={},
-                outputSchema={
-                    '$ref': '/v1/endpoints.json#/definitions/configuration'},
-                schema_store=SCHEMAS)
-    def configuration(self):
-        """
-        Return the current configuration.
-        """
-        deployment = self.persistence_service.get()
-        return {"applications":
-                marshal_to_application_config_format(deployment),
-                "application_deployment":
-                marshal_to_deployment_config_format(deployment)}
 
 
 def create_api_service(persistence_service, endpoint):
