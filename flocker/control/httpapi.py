@@ -31,6 +31,13 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
+    def __init__(self, persistence_service):
+        """
+        :param ConfigurationPersistenceService persistence_service: Service
+            for retrieving and setting desired configuration.
+        """
+        self.persistence_service = persistence_service
+
     @app.route("/version", methods=['GET'])
     @user_documentation("""
         Get the version of Flocker being run.
@@ -47,10 +54,17 @@ class DatasetAPIUserV1(object):
         return {u"flocker":  __version__}
 
 
-def create_api_service(endpoint):
+def create_api_service(persistence_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
+
+    :param ConfigurationPersistenceService persistence_service: Service
+        for retrieving and setting desired configuration.
+    :param endpoint: Twisted endpoint to listen on.
+
+    :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    api_root.putChild('v1', DatasetAPIUserV1().app.resource())
+    api_root.putChild(
+        'v1', DatasetAPIUserV1(persistence_service).app.resource())
     return StreamServerEndpointService(endpoint, Site(api_root))

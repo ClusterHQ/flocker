@@ -15,14 +15,15 @@ from twisted.internet.defer import fail, FirstError, succeed, Deferred
 from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
-from .. import (
-    Deployer, Application, DockerImage, Deployment, Node, Port, Link,
+from .. import Deployer
+from ...control import (
+    Application, DockerImage, Deployment, Node, Port, Link,
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
     ResizeVolume, _link_environment, _to_volume_name)
-from .._model import AttachedVolume, Dataset, Manifestation
+from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
     DockerClient, Volume as DockerVolume)

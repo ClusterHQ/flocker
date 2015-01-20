@@ -17,7 +17,7 @@ from twisted.python.procutils import which
 
 from pyrsistent import pmap
 
-from ..node import (
+from ..control import (
     Application, AttachedVolume, DockerImage, Manifestation, Dataset,
     FlockerConfiguration
 )

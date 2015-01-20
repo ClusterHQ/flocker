@@ -1,5 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: flocker.node.test.test_model -*-
+# -*- test-case-name: flocker.control.test.test_model -*-
 
 """
 Record types for representing deployment models.
