@@ -343,7 +343,7 @@ class Deployer(object):
             primary_manifestations = {}
             for volume in volumes:
                 if volume.node_id == self.volume_service.node_id:
-                    # FLOC-1181 non-primaries should be added in too
+                    # FLOC-1240 non-primaries should be added in too
                     path = volume.get_filesystem().get_path()
                     primary_manifestations[path] = (
                         volume.name.dataset_id, volume.size.maximum_size)
@@ -375,6 +375,10 @@ class Deployer(object):
                             manifestation=Manifestation(
                                 dataset=Dataset(
                                     dataset_id=dataset_id,
+                                    # Ideally we wouldn't need this, but
+                                    # we need to keep it for compatibility
+                                    # with config file where dataset_id
+                                    # isn't present.
                                     metadata=pmap({u"name": unit.name}),
                                     maximum_size=max_size),
                                 primary=True),
@@ -420,13 +424,32 @@ class Deployer(object):
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                # FLOC-1181 will want to add here the manifestations that
-                # are not attached to any application.
+                # FLOC-1181 will want to add here the remaining
+                # manifestations that are not attached to any application.
             )
         d.addCallback(applications_from_units)
         return d
 
-    def _add_dataset_ids(self, desired_state, current_cluster_state):
+    def _add_dataset_metadata_to_current(
+            self, desired_state, current_cluster_state):
+        """
+        Add metadata to the current cluster state's datasets.
+
+        Metadata has no side-effects, and as such the only place it really
+        resides is in the desired configuration.
+
+        :param Deployment desired_state: The intended configuration of all
+            nodes.
+        :param Deployment current_cluster_state: The current configuration
+            of all nodes.
+
+        :return Deployment: Current state updated with dataset metadata.
+        """
+        # 1. find all datasets in desired_state, map dataset_id to metadata
+        # 2. for each dataset in current_cluster_state, set metadata from #1
+
+    def _add_dataset_ids_to_desired(
+            self, desired_state, current_cluster_state):
         """
         Add missing dataset IDs to the desired configuration.
 
@@ -505,8 +528,17 @@ class Deployer(object):
         :return: A ``Deferred`` which fires with a ``IStateChange``
             provider.
         """
-        desired_state = self._add_dataset_ids(desired_state,
-                                              current_cluster_state)
+        # First, add dataset IDs to desired configuration based on
+        # matching names; the names are deduced based on FLOC-49
+        # restriction of having application name match volume name:
+        desired_state = self._add_dataset_ids_to_desired(
+            desired_state, current_cluster_state)
+        # Next, update current cluster state to have correct metadata
+        # based on desired state which is canonical source of metadata.
+        # Perhaps metadata should be stored elsewhere in future?
+        current_cluster_state = self._add_dataset_metadata_to_current(
+            desired_state, current_cluster_state)
+
         phases = []
 
         desired_proxies = set()
@@ -672,9 +704,6 @@ def find_volume_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
-    XXX Comparison is done via volume name, rather than AttachedVolume
-    objects, until https://clusterhq.atlassian.net/browse/FLOC-289 is fixed.
-
     :param unicode hostname: The name of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
@@ -692,10 +721,13 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
+    # XXX also add primary manifestations from node.other_manifestations:
     local_desired_datasets = set(volume.dataset.dataset_id for volume in
                                  local_desired_volumes)
+    # XXX also add primary manifestations from node.other_manifestations:
     local_current_datasets = set(volume.dataset.dataset_id for volume in
                                  current_volumes.get(hostname, set()))
+    # XXX also add primary manifestations from node.other_manifestations:
     remote_current_datasets = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
