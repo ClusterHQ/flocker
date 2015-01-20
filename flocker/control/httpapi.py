@@ -31,7 +31,7 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    def __init__(self, persistence_service=None):
+    def __init__(self, persistence_service):
         """
         :param ConfigurationPersistenceService persistence_service: Service
             for retrieving and setting desired configuration.
@@ -66,5 +66,5 @@ def create_api_service(persistence_service, endpoint):
     """
     api_root = Resource()
     api_root.putChild(
-        'v1', DatasetAPIUserV1().app.resource())
+        'v1', DatasetAPIUserV1(persistence_service).app.resource())
     return StreamServerEndpointService(endpoint, Site(api_root))
