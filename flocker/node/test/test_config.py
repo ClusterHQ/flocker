@@ -7,6 +7,9 @@ Tests for ``flocker.node._config``.
 from __future__ import unicode_literals, absolute_import
 
 import copy
+from uuid import uuid4
+
+from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
@@ -21,7 +24,8 @@ from .._config import (
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
-    NodeState, RestartNever, RestartAlways, RestartOnFailure
+    NodeState, RestartNever, RestartAlways, RestartOnFailure, Dataset,
+    Manifestation,
 )
 
 
@@ -39,7 +43,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
             'applications': {
                 'wordpress': {
                     'image': 'sample/wordpress:latest',
-                    'volume': {'mountpoint': b'/var/www/wordpress'},
+                    'volume': {'mountpoint': '/var/www/wordpress'},
                     'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
                     'ports': [{'internal': 80, 'external': 8080}],
                     'links': [
@@ -202,7 +206,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
             'applications': {
                 'wordpress': {
                     'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'volume': {'mountpoint': b'/var/www/wordpress'},
+                    'volume': {'mountpoint': '/var/www/wordpress'},
                     'image': 'sample/wordpress',
                     'ports': [{'internal': 80, 'external': 8080}],
                     'links': [
@@ -290,7 +294,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                 'postgres': {
                     'image': 'sample/postgres',
                     'ports': [{'internal': 5432, 'external': 5432}],
-                    'volume': {'mountpoint': b'/var/lib/data'},
+                    'volume': {'mountpoint': '/var/lib/data'},
                 }
             }
         }
@@ -374,7 +378,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                     config['wordpress']['environment'].items()
                 ),
                 volume=AttachedVolume(
-                    name='wordpress',
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=None,
+                                        metadata=pmap({"name": "wordpress"})),
+                        primary=True),
                     mountpoint=FilePath(b'/var/www/wordpress'))),
             'mysql': Application(
                 name='mysql',
@@ -496,7 +503,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         }
         parser = FigConfiguration(config)
         expected_result = AttachedVolume(
-            name='postgres',
+            manifestation=Manifestation(
+                dataset=Dataset(dataset_id=None,
+                                metadata=pmap({"name": "postgres"})),
+                primary=True),
             mountpoint=FilePath(b'/var/db/data')
         )
         volume = parser._parse_app_volumes(
@@ -536,7 +546,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         config = {
             'postgres': {
                 'image': 'sample/postgres',
-                'volumes': [b'/var/db/data']
+                'volumes': ['/var/db/data']
             },
             'wordpress': {
                 'image': 'sample/wordpress',
@@ -1510,7 +1520,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(
                     image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': b'/var/mysql/data'}
+                    volume={'mountpoint': '/var/mysql/data'}
                 ),
                 'site-hybridcluster': {
                     'image': 'flocker/wordpress:v1.0.0',
@@ -1531,7 +1541,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset(),
                 links=frozenset(),
                 volume=AttachedVolume(
-                    name='mysql-hybridcluster',
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'mysql-hybridcluster'})),
+                        primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
@@ -1560,14 +1574,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql'},
+                    'volume': {'mountpoint': '/var/lib/mysql'},
                 },
                 'site-hybridcluster': {
                     'image': 'clusterhq/wordpress:v1.0.0',
                     'ports': [dict(internal=80, external=8080)],
                     'links': [{'alias': 'mysql', 'local_port': 3306,
                                'remote_port': 3306}],
-                    'volume': {'mountpoint': b'/var/www/data'},
+                    'volume': {'mountpoint': '/var/www/data'},
                     'environment': {
                         'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                     },
@@ -1583,8 +1597,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=3306,
                                       external_port=3306)]),
                 links=frozenset(),
-                volume=AttachedVolume(name='mysql-hybridcluster',
-                                      mountpoint=FilePath(b'/var/lib/mysql'))
+                volume=AttachedVolume(manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=None,
+                                    metadata=pmap(
+                                        {'name': 'mysql-hybridcluster'})),
+                    primary=True),
+                    mountpoint=FilePath(b'/var/lib/mysql'))
             ),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
@@ -1593,8 +1611,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80, external_port=8080)]),
                 links=frozenset([Link(local_port=3306, remote_port=3306,
                                       alias=u'mysql')]),
-                volume=AttachedVolume(name='site-hybridcluster',
-                                      mountpoint=FilePath(b'/var/www/data')),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'site-hybridcluster'})),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/www/data')),
                 environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                 }.items())
@@ -1615,7 +1639,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': "-10M"},
                 },
             }
@@ -1665,7 +1689,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'100F'},
                 },
             }
@@ -1717,7 +1741,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': 1000000},
                 },
             }
@@ -1744,7 +1768,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'100M'},
                 },
             }
@@ -1752,7 +1776,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 104857600)
+        self.assertEqual(volume.dataset.maximum_size, 104857600)
 
     def test_volume_max_size_string_bytes(self):
         """
@@ -1766,7 +1790,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1000000'},
                 },
             }
@@ -1774,7 +1798,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 1000000)
+        self.assertEqual(volume.dataset.maximum_size, 1000000)
 
     def test_volume_max_size_kilobytes(self):
         """
@@ -1789,7 +1813,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1000K'},
                 },
             }
@@ -1797,7 +1821,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 1024000)
+        self.assertEqual(volume.dataset.maximum_size, 1024000)
 
     def test_volume_max_size_gigabytes(self):
         """
@@ -1812,7 +1836,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1G'},
                 },
             }
@@ -1820,7 +1844,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 1073741824)
+        self.assertEqual(volume.dataset.maximum_size, 1073741824)
 
     def test_volume_max_size_terabytes(self):
         """
@@ -1835,7 +1859,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1T'},
                 },
             }
@@ -1843,7 +1867,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 1099511627776)
+        self.assertEqual(volume.dataset.maximum_size, 1099511627776)
 
     def test_volume_max_size_fractional(self):
         """
@@ -1858,7 +1882,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql',
+                    'volume': {'mountpoint': '/var/lib/mysql',
                                'maximum_size': b'1.5G'},
                 },
             }
@@ -1866,7 +1890,28 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         parser = FlockerConfiguration(config)
         volume_config = config['applications']['mysql-hybridcluster']['volume']
         volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
-        self.assertEqual(volume.maximum_size, 1610612736)
+        self.assertEqual(volume.dataset.maximum_size, 1610612736)
+
+    def test_volume_dataset_id(self):
+        """
+        If a volume has a ``dataset_id`` attribute then it is set on the
+        created ``Dataset`` object.
+        """
+        dataset_id = unicode(uuid4())
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'dataset_id': dataset_id},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.dataset_id, dataset_id)
 
     def test_volume_max_size_parse_valid_unit(self):
         """
@@ -2155,7 +2200,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'/var/mysql/data',
+                volume={'mountpoint': '/var/mysql/data',
                         'bar': 'baz',
                         'foo': 215},
             )}
@@ -2201,7 +2246,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'./.././var//'},
+                volume={'mountpoint': './.././var//'},
             )}
         )
         parser = FlockerConfiguration(config)
@@ -2857,8 +2902,11 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
+                volume=AttachedVolume(manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=None,
+                        metadata=pmap({'name': 'mysql-hybridcluster'})),
+                    primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))
             ),
             Application(
@@ -2880,7 +2928,7 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
+                    'volume': {'mountpoint': '/var/mysql/data'},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2902,9 +2950,14 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
                 volume=AttachedVolume(
-                    name='mysql-hybridcluster',
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'mysql-hybridcluster'}),
+                            maximum_size=EXPECTED_MAX_SIZE),
+                        primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'),
-                    maximum_size=EXPECTED_MAX_SIZE)
+                ),
             )
         ]
         result = marshal_configuration(
@@ -2913,8 +2966,46 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data',
+                    'volume': {'mountpoint': '/var/mysql/data',
                                'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_application_with_volume_includes_dataset_id(self):
+        """
+        If the supplied applications has a volume with a dataset that has a
+        dataset ID, the resulting yaml will also include this dataset ID.
+        """
+        dataset_id = unicode(uuid4())
+
+        applications = [
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            metadata=pmap({'name': 'mysql-hybridcluster'})),
+                        primary=True),
+                    mountpoint=FilePath(b'/var/mysql/data'),
+                ),
+            )
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        expected = {
+            'used_ports': [],
+            'applications': {
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'dataset_id': dataset_id},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2932,10 +3023,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
             name='mysql-hybridcluster',
             image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
             ports=frozenset(),
-            volume=AttachedVolume(
-                name='mysql-hybridcluster',
-                mountpoint=FilePath(b'/var/mysql/data')
-            ),
         )
 
         not_running = Application(
@@ -2957,7 +3044,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                     'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
                     'image': u'flocker/mysql:v1.0.0',
                     'restart_policy': {'name': 'never'},
                 }
@@ -2994,9 +3080,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
                 links=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
-                    mountpoint=FilePath(b"/var/lib/data"))
             ),
             Application(
                 name='site-hybridcluster',
@@ -3016,10 +3099,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset(),
                 links=frozenset(),
-                volume=AttachedVolume(
-                    name=b'mysql-hybridcluster',
-                    mountpoint=FilePath(b"/var/lib/data")
-                )
             ),
             b'site-hybridcluster': Application(
                 name=b'site-hybridcluster',
@@ -3136,8 +3215,7 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                               config)
         expected = (
             "Application 'mysql-hybridcluster' has a config error. Invalid "
-            "volume specification. Mountpoint \"None\" contains non-ASCII "
-            "(unsupported)."
+            "volume specification. Mountpoint \"None\" is not a string."
         )
         self.assertEqual(e.message, expected)
 

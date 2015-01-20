@@ -11,7 +11,7 @@ from ._config import (
     )
 from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
-    NodeState)
+    NodeState, Manifestation, Dataset)
 from ._deploy import Deployer
 
 __all__ = [
@@ -30,4 +30,6 @@ __all__ = [
     'Link',
     'AttachedVolume',
     'NodeState',
+    'Manifestation',
+    'Dataset',
 ]

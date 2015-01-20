@@ -3,12 +3,14 @@
 """
 Tests for ``flocker.node._model``.
 """
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from ...testtools import make_with_init_tests
 from .._model import (
-    Application, DockerImage, Node, Deployment,
-    RestartOnFailure, RestartAlways, RestartNever,
+    Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
+    RestartOnFailure, RestartAlways, RestartNever, Manifestation,
 )
 
 
@@ -132,6 +134,32 @@ class DeploymentInitTests(make_with_init_tests(
     """
 
 
+class DeploymentTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment``.
+    """
+    def test_applications(self):
+        """
+        ``Deployment.applications()`` returns applications from all nodes.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        deployment = Deployment(nodes=frozenset([node, another_node]))
+        self.assertEqual(sorted(list(deployment.applications())),
+                         sorted(list(node.applications) +
+                                list(another_node.applications)))
+
+
 class RestartOnFailureTests(SynchronousTestCase):
     """
     Tests for ``RestartOnFailure``.
@@ -178,3 +206,19 @@ class RestartOnFailureTests(SynchronousTestCase):
             TypeError,
             RestartOnFailure, maximum_retry_count='foo'
         )
+
+
+class AttachedVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``AttachedVolume``.
+    """
+    def test_dataset(self):
+        """
+        ``AttachedVolume.dataset`` is the same as
+        ``AttachedVolume.manifestation.dataset``.
+        """
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=Dataset(dataset_id=u"jalkjlk"),
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+        self.assertIs(volume.dataset, volume.manifestation.dataset)

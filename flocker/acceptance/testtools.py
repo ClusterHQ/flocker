@@ -15,8 +15,12 @@ from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.python.procutils import which
 
-from flocker.node._config import FlockerConfiguration
-from flocker.node._model import Application, AttachedVolume, DockerImage
+from pyrsistent import pmap
+
+from ..node import (
+    Application, AttachedVolume, DockerImage, Manifestation, Dataset,
+    FlockerConfiguration
+)
 from flocker.testtools import loop_until
 
 try:
@@ -76,13 +80,31 @@ def create_application(name, image, ports=frozenset(), volume=None,
     )
 
 
-def create_attached_volume(name, mountpoint, maximum_size=None):
+def create_attached_volume(dataset_id, mountpoint, maximum_size=None,
+                           metadata=pmap()):
     """
     Create an ``AttachedVolume`` instance with the supplied parameters and
     return it.
+
+    :param unicode dataset_id: The unique identifier of the dataset of the
+        attached volume.
+    :param bytes mountpoint: The path at which the volume is attached.
+    :param int maximum_size: An optional maximum size for the volume.
+
+    :return: A new ``AttachedVolume`` instance referencing a primary
+        manifestation of a dataset with the given unique identifier.
     """
     return AttachedVolume(
-        name=name, mountpoint=FilePath(mountpoint), maximum_size=maximum_size)
+        manifestation=Manifestation(
+            dataset=Dataset(
+                dataset_id=dataset_id,
+                maximum_size=maximum_size,
+                metadata=metadata,
+            ),
+            primary=True,
+        ),
+        mountpoint=FilePath(mountpoint),
+    )
 
 
 def get_node_state(node):
