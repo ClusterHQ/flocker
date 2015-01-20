@@ -83,10 +83,10 @@ The upshot if which is that you shouldn't need to change the apps at all, except
 Security
 ~~~~~~~~
 
-I think I’ve found a security problem! What should I do?
+I think I've found a security problem! What should I do?
 ********************************************************
 
-If you think you’ve found a security problem with Flocker (or any other ClusterHQ software), please send a message to security@clusterhq.com.
+If you think you've found a security problem with Flocker (or any other ClusterHQ software), please send a message to security@clusterhq.com.
 Your message will be forwarded to the ClusterHQ security team (a small group of trusted developers) for triage and it will not be publicly readable.
 
 Due to the sensitive nature of security issues, we ask you not to send a message to one of the public mailing lists.
