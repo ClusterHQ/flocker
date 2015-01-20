@@ -37,28 +37,3 @@
     {
         "flocker": "0.4.0"
     }
-
-- id: "get configuration"
-  doc: |
-    Retrieve full configuration of the Flocker cluster.
-  request: |
-    GET /v1/configuration HTTP/1.1
-  response: |
-    HTTP/1.1 200 OK
-
-    {
-        "applications": {
-              "version": 1,
-              "applications": {
-              "mongodb-example": {
-                  "image": "clusterhq/mongodb"
-              }
-        },
-        "application_deployment": {
-              "version": 1,
-              "nodes": {
-                   "172.16.255.250": ["mongodb-example"],
-                    "172.16.255.251": []
-              }
-         }
-    }

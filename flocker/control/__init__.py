@@ -18,7 +18,8 @@ from ._config import (
     )
 from ._model import (
     Application, Deployment, DockerImage, Node, Port, Link, AttachedVolume,
-    NodeState)
+    NodeState, Manifestation, Dataset,
+    )
 
 __all__ = [
     'FlockerConfiguration',
@@ -35,4 +36,6 @@ __all__ = [
     'Link',
     'AttachedVolume',
     'NodeState',
+    'Manifestation',
+    'Dataset',
 ]

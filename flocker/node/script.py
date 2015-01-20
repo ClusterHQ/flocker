@@ -16,7 +16,9 @@ from yaml.error import YAMLError
 
 from zope.interface import implementer
 
-from ..control._config import marshal_configuration
+from ..control._config import (
+    FlockerConfiguration, marshal_configuration,
+    )
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
@@ -24,8 +26,9 @@ from ..volume.service import (
 from ..volume.script import flocker_volume_options
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
-from ..control import (ConfigurationError, current_from_configuration,
-                       deployment_from_configuration_files)
+from ..control import (
+    ConfigurationError, current_from_configuration, model_from_configuration,
+)
 from . import Deployer
 
 
@@ -111,8 +114,11 @@ class ChangeStateOptions(Options):
             )
 
         try:
-            self['deployment'] = deployment_from_configuration_files(
-                application_config, deployment_config)
+            configuration = FlockerConfiguration(application_config)
+            parsed_applications = configuration.applications()
+            self['deployment'] = model_from_configuration(
+                applications=parsed_applications,
+                deployment_configuration=deployment_config)
         except ConfigurationError as e:
             raise UsageError(
                 'Configuration Error: {error}'
