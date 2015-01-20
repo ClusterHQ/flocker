@@ -83,6 +83,10 @@ class ConfigurationPersistenceService(Service):
 
     def get(self):
         """
+        Retrieve current configuration.
+
+        It should not be mutated.
+
         :return Deployment: The current desired configuration.
         """
         return self._deployment
