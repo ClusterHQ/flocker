@@ -7,6 +7,7 @@ Persistence of cluster configuration.
 from pickle import dumps, loads
 
 from twisted.application.service import Service
+from twisted.internet.defer import succeed
 
 from ._model import Deployment
 
@@ -75,8 +76,9 @@ class ConfigurationPersistenceService(Service):
         """
         self._sync_save(deployment)
         self._deployment = deployment
-        # Switch to thread at some point in future:
-        from twisted.internet.defer import succeed
+        # At some future point this will likely involve talking to a
+        # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
+        # guarantee immediate saving of the data.
         return succeed(None)
 
     def get(self):
