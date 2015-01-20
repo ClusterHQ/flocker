@@ -17,8 +17,7 @@ from ...testtools import (
     FlockerScriptTestsMixin, StandardOptionsTestsMixin, make_with_init_tests)
 from ..script import DeployScript, DeployOptions, NodeTarget
 from .._sshconfig import DEFAULT_SSH_DIRECTORY
-from ...control import Application, DockerImage, Node
-from ...node import Deployment
+from ...control import Application, Deployment, DockerImage, Node
 from ...common import ProcessNode, FakeNode
 
 

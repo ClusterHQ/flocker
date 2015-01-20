@@ -11,7 +11,7 @@ from pyrsistent import pmap
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from flocker.node._model import (
+from flocker.control import (
     Application, DockerImage, AttachedVolume, Port, Dataset,
     Manifestation)
 from flocker.testtools import loop_until
