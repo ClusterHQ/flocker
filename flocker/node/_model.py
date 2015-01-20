@@ -308,8 +308,9 @@ class VolumeChanges(object):
     """
 
 
-@attributes(["running", "not_running", "used_ports"],
-            defaults={"used_ports": frozenset()})
+@attributes(["running", "not_running",
+             Attribute("used_ports", default_value=frozenset()),
+             Attribute("other_manifestations", default_value=pset())])
 class NodeState(object):
     """
     The current state of a node.
@@ -320,4 +321,7 @@ class NodeState(object):
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
+    :ivar PSet other_manifestations: ``Manifestation`` instances that
+        are present on the node but are not attached as volumes to any
+        applications.
     """
