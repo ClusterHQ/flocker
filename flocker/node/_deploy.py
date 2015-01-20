@@ -420,8 +420,8 @@ class Deployer(object):
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                # FLOC-1181 will want to add here the manifestations that
-                # are not attached to any application.
+                # FLOC-1181 will want to add here the remaining
+                # manifestations that are not attached to any application.
             )
         d.addCallback(applications_from_units)
         return d
@@ -672,9 +672,6 @@ def find_volume_changes(hostname, current_state, desired_state):
     coverage for those situations is not implemented. See
     https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
-    XXX Comparison is done via volume name, rather than AttachedVolume
-    objects, until https://clusterhq.atlassian.net/browse/FLOC-289 is fixed.
-
     :param unicode hostname: The name of the node for which to find changes.
 
     :param Deployment current_state: The old state of the cluster on which the
@@ -692,10 +689,13 @@ def find_volume_changes(hostname, current_state, desired_state):
                                           if application.volume)
                        for node in current_state.nodes}
     local_desired_volumes = desired_volumes.get(hostname, set())
+    # XXX also add primary manifestations from node.other_manifestations:
     local_desired_datasets = set(volume.dataset.dataset_id for volume in
                                  local_desired_volumes)
+    # XXX also add primary manifestations from node.other_manifestations:
     local_current_datasets = set(volume.dataset.dataset_id for volume in
                                  current_volumes.get(hostname, set()))
+    # XXX also add primary manifestations from node.other_manifestations:
     remote_current_datasets = set()
     for volume_hostname, current in current_volumes.items():
         if volume_hostname != hostname:
