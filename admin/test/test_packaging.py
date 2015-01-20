@@ -1273,7 +1273,7 @@ class MakeDependenciesTests(TestCase):
     def test_node(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``clusterhq-python-flocker`` for ``flocker-node``.
+        ``clusterhq-python-flocker`` for ``clusterhq-flocker-node``.
         """
         expected_version = '1.2.3'
         self.assertIn(
@@ -1289,7 +1289,7 @@ class MakeDependenciesTests(TestCase):
     def test_cli(self):
         """
         ``make_dependencies`` includes the supplied ``version`` of
-        ``clusterhq-python-flocker`` for ``flocker-cli``.
+        ``clusterhq-python-flocker`` for ``clusterhq-flocker-cli``.
         """
         expected_version = '1.2.3'
         self.assertIn(
