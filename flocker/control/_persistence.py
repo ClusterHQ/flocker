@@ -4,7 +4,7 @@
 Persistence of cluster configuration.
 """
 
-from cPickle import dumps, loads
+from pickle import dumps, loads
 
 from twisted.application.service import Service
 
