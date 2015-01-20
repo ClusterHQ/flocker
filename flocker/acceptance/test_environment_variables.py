@@ -101,6 +101,8 @@ class EnvironmentVariableTests(TestCase):
                             u"external": MYSQL_EXTERNAL_PORT,
                         }],
                         u"volume": {
+                            u"dataset_id":
+                                MYSQL_APPLICATION.volume.dataset.dataset_id,
                             u"mountpoint": MYSQL_VOLUME_MOUNTPOINT,
                         },
                     },
