@@ -7,7 +7,6 @@ Sphinx extension for automatically documenting api endpoints.
 from inspect import getsourcefile
 from collections import namedtuple
 import json
-import os.path
 
 from yaml import safe_load
 from docutils import nodes
@@ -319,10 +318,14 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
+        # <json is what sphinxcontrib-httpdomain wants to call "json in a
+        # request body"
         for line in _formatSchema(data['input'], '<json'):
             yield line
 
     if 'output' in data:
+        # >json is what sphinxcontrib-httpdomain wants to call "json in a
+        # response body"
         for line in _formatSchema(data['output'], '>json'):
             yield line
 
@@ -407,13 +410,14 @@ class AutoKleinDirective(Directive):
 
         appContainer = namedAny(self.arguments[0])
 
-        # For now we ignore this and just hardcode, due to
-        # https://github.com/sphinx-doc/sphinx/issues/1685
-        # examples_path = FilePath(self.src).preauthChild(
-        #     options["examples_path"]))
-        examples_path = FilePath(os.path.join(
-            __file__,
-            "../../../../docs/advanced/api_examples.yml"))
+        # This is the path of the file that contains the autoklein directive.
+        src_path = FilePath(self.state_machine.get_source(self.lineno))
+
+        # self.options["examples_path"] is a path relative to the source file
+        # containing it to a file containing examples to include.
+        examples_path = src_path.parent().preauthChild(
+            self.options["examples_path"])
+
         self._examples = _loadExamples(examples_path)
 
         # The contents of the example file are included in the output so the

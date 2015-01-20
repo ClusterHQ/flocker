@@ -12,7 +12,7 @@ from zope.interface import implementer
 from pyrsistent import pmap
 
 from twisted.internet.defer import fail, FirstError, succeed, Deferred
-from twisted.trial.unittest import SynchronousTestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.python.filepath import FilePath
 
 from .. import Deployer
@@ -2605,6 +2605,54 @@ class CreateVolumeTests(SynchronousTestCase):
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
             _to_volume_name(volume.dataset.dataset_id)))
+
+
+class ResizeVolumeTests(TestCase):
+    """
+    Tests for ``ResizeVolume``.
+    """
+    def test_sets_size(self):
+        """
+        ``ResizeVolume.run`` changes the maximum size of the named volume.
+        """
+        size = VolumeSize(maximum_size=1234567890)
+        volume_service = create_volume_service(self)
+        volume_name = VolumeName(namespace=u"default", dataset_id=b"myvol")
+        volume = volume_service.get(volume_name)
+        d = volume_service.create(volume)
+
+        def created(ignored):
+            dataset = Dataset(
+                dataset_id=volume_name.dataset_id,
+                maximum_size=size.maximum_size,
+            )
+            change = ResizeVolume(
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=dataset,
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b"/opt"),
+                )
+            )
+            deployer = Deployer(
+                volume_service, docker_client=FakeDockerClient(),
+                network=make_memory_network())
+            return change.run(deployer)
+        d.addCallback(created)
+
+        def resized(ignored):
+            # enumerate re-loads size data from the system
+            # get does not.
+            # so use enumerate.
+            return volume_service.pool.enumerate()
+        d.addCallback(resized)
+
+        def got_filesystems(filesystems):
+            (filesystem,) = filesystems
+            self.assertEqual(size, filesystem.size)
+        d.addCallback(resized)
+        return d
 
 
 class WaitForVolumeTests(SynchronousTestCase):

@@ -94,6 +94,8 @@ class PostgresTests(TestCase):
                             u"external": POSTGRES_EXTERNAL_PORT,
                         }],
                         u"volume": {
+                            u"dataset_id":
+                                POSTGRES_APPLICATION.volume.dataset.dataset_id,
                             # The location within the container where the data
                             # volume will be mounted; see:
                             # https://github.com/docker-library/postgres/blob/

@@ -63,8 +63,6 @@ class AttachedVolume(object):
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
-
-    :ivar Dataset dataset: The dataset for this attached volume.
     """
     @property
     def dataset(self):
@@ -169,7 +167,7 @@ class Manifestation(object):
     """
     A dataset that is mounted on a node.
 
-    :ivar Dataset: The dataset being mounted.
+    :ivar Dataset dataset: The dataset being mounted.
 
     :ivar bool primary: If true, this is a primary, otherwise it is a replica.
     """
