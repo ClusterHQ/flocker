@@ -11,12 +11,12 @@ import math
 import os
 import re
 import types
-from json import dumps
 
 from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 
+from yaml import safe_dump
 from zope.interface import Interface, implementer
 
 from ._model import (
@@ -310,8 +310,6 @@ def applications_to_flocker_yaml(applications):
     Converts a ``dict`` of ``Application`` instances to Flocker's
     application configuration YAML.
 
-    We actually do JSON, because that is subset of YAML.
-
     :param applications: A ``dict`` mapping application names to
         ``Application`` instances.
 
@@ -323,7 +321,7 @@ def applications_to_flocker_yaml(applications):
         converter = ApplicationMarshaller(application)
         value = converter.convert()
         config['applications'][application_name] = value
-    return dumps(config)
+    return safe_dump(config)
 
 
 @implementer(IApplicationConfiguration)
@@ -1337,24 +1335,4 @@ def marshal_configuration(state):
         "version": 1,
         "applications": result,
         "used_ports": sorted(state.used_ports),
-    }
-
-
-def marshal_to_application_config_format(deployment):
-    """
-    Convert ``Deployment`` into application configuration format.
-
-    :param Deployment deployment: The current desired configuration.
-
-    :return: Simple Python types suitable for serialization to JSON or
-        YAML, in the application configuration format.
-    """
-    result = {}
-    for application in deployment.applications():
-        converter = ApplicationMarshaller(application)
-        result[application.name] = converter.convert()
-
-    return {
-        "version": 1,
-        "applications": result,
     }
