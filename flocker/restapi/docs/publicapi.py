@@ -26,19 +26,8 @@ from twisted.python.filepath import FilePath
 
 from .._schema import LocalRefResolver, resolveSchema
 
-# sphinxcontrib-httpdomain only supports a limited way of describing JSON
-# The following is monkey-patching part of
-# https://bitbucket.org/birkenfeld/sphinx-contrib/pull-request/54/issue-41-describe-response-json-with/diff
-# but I think perhaps we will want to go with a richer presentation
-from sphinxcontrib.httpdomain import HTTPResource
-from sphinx.util.docfields import TypedField
-HTTPResource.doc_field_types.append(
-    TypedField(
-        'responsejsonparameter', label='Response JSON Parameters',
-        names=('responsejsonparameter', 'responsejsonparam', 'responsejson'),
-        typerolename='obj', typenames=('jsonparamtype', 'jsontype')),
-)
-del HTTPResource, TypedField
+# Disable "HTTP Routing Table" index:
+httpdomain.HTTPDomain.indices = []
 
 
 class KleinRoute(namedtuple('KleinRoute', 'path methods endpoint attributes')):
@@ -121,6 +110,13 @@ def _parseSchema(schema, schema_store):
     if schema.get(u'$ref') is None:
         raise Exception('Non-$ref top-level definitions not supported.')
 
+    def fill_in_attribute(attr, propSchema):
+        attr['title'] = propSchema['title']
+        attr['description'] = prepare_docstring(
+            propSchema['description'])
+        attr['required'] = property in schema.get('required', [])
+        attr['type'] = propSchema['type']
+
     with resolver.resolving(schema[u'$ref']) as schema:
         if schema[u'type'] != u'object':
             raise Exception('Non-object top-level definitions not supported.')
@@ -128,11 +124,11 @@ def _parseSchema(schema, schema_store):
         result['properties'] = {}
         for property, propSchema in schema[u'properties'].iteritems():
             attr = result['properties'][property] = {}
-            with resolver.resolving(propSchema['$ref']) as propSchema:
-                attr['title'] = propSchema['title']
-                attr['description'] = prepare_docstring(
-                    propSchema['description'])
-                attr['required'] = property in schema.get('required', [])
+            if "$ref" in propSchema:
+                with resolver.resolving(propSchema['$ref']) as propSchema:
+                    fill_in_attribute(attr, propSchema)
+            else:
+                fill_in_attribute(attr, propSchema)
     return result
 
 
@@ -220,7 +216,8 @@ def _formatSchema(data, param):
             required = '*(required)* '
         else:
             required = ''
-        yield ':%s %s: %s%s' % (param, property, required, attr['title'])
+        yield ':%s %s %s: %s%s' % (param, attr['type'], property, required,
+                                   attr['title'])
         yield ''
         for line in attr['description']:
             yield '   ' + line
@@ -261,7 +258,7 @@ def _formatExample(example, substitutions):
     @return: A generator which yields L{unicode} strings each of which should
         be a line in the resulting rst document.
     """
-    yield u"**example request**"
+    yield u"**Example request**"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -273,7 +270,7 @@ def _formatExample(example, substitutions):
         yield u"   " + line.rstrip()
     yield u""
 
-    yield u"**example response**"
+    yield u"**Example response**"
     yield u""
     yield u".. sourcecode:: http"
     yield u""
@@ -299,23 +296,10 @@ def _formatRouteBody(data, schema_store):
     """
     baseSubstitutions = {
         u"DOMAIN": u"example.com",
-        u"SERVER_IP": u"10.0.42.1",
-        u"USER_ID": u"54321",
         }
 
     for line in data['description']:
         yield line
-
-    if 'paged' in data:
-        yield ("This endpoint is a collection and supports the " +
-               ":ref:`common query parameters<api-collections>` " +
-               "associated to them.")
-        yield "It supports the following sort keys:"
-        yield ""
-        yield "  * ``%s`` *(default)*" % (data['paged']['defaultKey'],)
-        for key in data['paged']['otherKeys']:
-            yield "  * ``%s``" % (key,)
-        yield ""
 
     if 'input' in data:
         for line in _formatActualSchema(data['input_schema'],
@@ -334,11 +318,15 @@ def _formatRouteBody(data, schema_store):
             yield line
 
     if 'input' in data:
-        for line in _formatSchema(data['input'], 'jsonparam'):
+        # <json is what sphinxcontrib-httpdomain wants to call "json in a
+        # request body"
+        for line in _formatSchema(data['input'], '<json'):
             yield line
 
     if 'output' in data:
-        for line in _formatSchema(data['output'], 'responsejsonparam'):
+        # >json is what sphinxcontrib-httpdomain wants to call "json in a
+        # response body"
+        for line in _formatSchema(data['output'], '>json'):
             yield line
 
 
@@ -410,7 +398,9 @@ class AutoKleinDirective(Directive):
     option_spec = {
         # The URL prefix of the URLs in this application.
         'prefix': directives.unchanged,
-        # Path to examples YAML file.
+        # Path to examples YAML file, relative to document which includes
+        # the directive. Using just passed in path is no good, since it's
+        # relative to sphinx-build working directory which may vary.
         'examples_path': directives.unchanged,
         # Python import path of schema store.
         'schema_store_fqpn': directives.unchanged}
@@ -420,7 +410,14 @@ class AutoKleinDirective(Directive):
 
         appContainer = namedAny(self.arguments[0])
 
-        examples_path = FilePath(self.options["examples_path"])
+        # This is the path of the file that contains the autoklein directive.
+        src_path = FilePath(self.state_machine.get_source(self.lineno))
+
+        # self.options["examples_path"] is a path relative to the source file
+        # containing it to a file containing examples to include.
+        examples_path = src_path.parent().preauthChild(
+            self.options["examples_path"])
+
         self._examples = _loadExamples(examples_path)
 
         # The contents of the example file are included in the output so the

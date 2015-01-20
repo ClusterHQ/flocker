@@ -1,0 +1,39 @@
+# The whole file is a list of examples.  Unless otherwise indicated, examples
+# are independent of each other.  For complicated examples that involve state
+# that can't be established using a single HTTP request, requirements (in the
+# form of other examples) can be declared.
+#
+# Some variable substitution is done to some of the content in this file.  The
+# details of what and how are explained below but here is the list of variables
+# that are globally defined and always available to be substituted:
+#
+# DOMAIN - The domain name of the cluster API server.
+
+-
+  # Every element must have a unique identifier.  Documentation can use these
+  # identifiers to select examples to include.  Examples can also declare other
+  # examples as dependencies using this identifier.
+  id:
+    "get version"
+
+  # Every example has docs explaining what it is an example of.
+  doc: |
+    Retrieve the version of the Flocker cluster.
+
+  # Half of the example is the HTTP request you issue to trigger some behavior.
+  # The harness knows this is HTTP so it turns this pseudo-HTTP into real HTTP
+  # that can be rendered into the documentation or issued against a server for
+  # validation.  A User-Agent should automatically be inserted.  %(VARIABLES)s
+  # in the request body get values substituted in for them.
+  request: |
+    GET /v1/version HTTP/1.1
+
+  # The other half of the example is the HTTP response you'll get if you do
+  # this.  Ditto about the harness translating pseudo-HTTP into real HTTP.
+  # %(VARIABLES)s are substituted in the response body as well.
+  response: |
+    HTTP/1.1 200 OK
+
+    {
+        "flocker": "0.4.0"
+    }
