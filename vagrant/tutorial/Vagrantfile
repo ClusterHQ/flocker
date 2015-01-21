@@ -18,6 +18,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Cleanup
   config.vm.provision :shell, :path => "../cleanup.sh", :privileged => true
 
+  # Don't install new key, since this box will be publicly uploaded.
+  config.ssh.insert_key = False
+
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
   end
