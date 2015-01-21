@@ -367,6 +367,7 @@ a.download:before {
     .highlight pre {
         word-wrap: normal;
         display: inline;
+        padding-left: 0;
     }
 }
 @media all and (min-width: 992px) {
