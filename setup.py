@@ -85,8 +85,6 @@ setup(
     },
 
     install_requires=[
-        # Any changes here must be reflected in the yumdownloader lines in
-        # "Appendix: Pre-populating RPM Repository" in the Release Process.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
