@@ -33,7 +33,7 @@ header h1 {
     font-weight:bold;   
 }
 
-#quick-start>h1 {
+#quick-start>h1, #one-page-quick-start>h1 {
     display:none;
 }
 
