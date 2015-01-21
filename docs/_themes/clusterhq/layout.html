@@ -28,14 +28,6 @@
             HAS_SOURCE:  {{ has_source|lower }}
         };
     </script>
-    {%- for scriptfile in script_files %}
-        <script type="text/javascript" src="{{ pathto(scriptfile, 1) }}"></script>
-    {%- endfor %}
-    {%- if pagename == "search" %}
-    <script type="text/javascript">
-        jQuery(function() { Search.loadIndex("searchindex.js"); });
-    </script>
-    {%- endif %}
     <link rel="top" title="{{ docstitle|e }}" href="{{ pathto('index') }}"/>
     
     {% if theme_analytics_code %}
@@ -104,13 +96,6 @@
                 <!-- Menu area start -->
                 {{ toctree(collapse=false, maxdepth=4) }}
                 <!-- Menu area end -->
-                <script>
-                $( window ).resize(function() {
-                    if($( window ).width() >= 768) {
-                        $('.contents-menu>ul').show();
-                    }
-                });
-                </script>
             </div>
             
             <!-- Main contents area -->
@@ -156,21 +141,6 @@
                 {% if theme_disqus_shortname %}
                     <div id="disqus_thread"></div>
                     <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-                    
-                    <script type="text/javascript">
-                        var disqus_title = '{{ title|striptags|e }}{{ titlesuffix }}';
-                        var disqus_identifier ='code' + '.' + "{{ theme_disqus_shortname }}" + window.location.pathname.replace('/', '.');
-                    </script>
-
-                    <script type="text/javascript">
-                        var disqus_shortname = "{{ theme_disqus_shortname }}";
-
-                        (function() {
-                            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-                            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-                            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-                        })();
-                    </script>
                 {% endif %}
                 <!-- End of Disqus -->
             </div>
@@ -188,5 +158,34 @@
             </div>
         </div>
     </div>
+    {%- for scriptfile in script_files %}
+        <script type="text/javascript" src="{{ pathto(scriptfile, 1) }}"></script>
+    {%- endfor %}
+    {%- if pagename == "search" %}
+    <script type="text/javascript">
+        jQuery(function() { Search.loadIndex("searchindex.js"); });
+    </script>
+    {%- endif %}
+    <script>
+        $( window ).resize(function() {
+            if($( window ).width() >= 768) {
+                $('.contents-menu>ul').show();
+            }
+        });
+    </script>
+    {% if theme_disqus_shortname %}
+        <script type="text/javascript">
+            var disqus_title = '{{ title|striptags|e }}{{ titlesuffix }}';
+            var disqus_identifier ='code' + '.' + "{{ theme_disqus_shortname }}" + window.location.pathname.replace('/', '.');
+
+            var disqus_shortname = "{{ theme_disqus_shortname }}";
+
+            (function() {
+                var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+                (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+            })();
+        </script>
+    {% endif %}
   </body>
 </html>
