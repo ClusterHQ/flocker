@@ -359,6 +359,14 @@ a.download:before {
     nav ul {
         padding-top: 20px;
     }
+    
+    .highlight {
+        overflow-x: auto;
+    }
+
+    .highlight pre {
+        float: left;
+    }
 }
 @media all and (min-width: 992px) {
     /* md */
