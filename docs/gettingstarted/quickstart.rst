@@ -1,7 +1,7 @@
 :layout: website
 
-Quick Start
-===========
+Getting Started
+===============
 
 .. raw:: html
    :file: gettingstarted_website.html

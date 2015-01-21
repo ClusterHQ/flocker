@@ -60,16 +60,15 @@
                     <samp>
 $ brew update &amp;&amp; \
     brew tap clusterhq/flocker &amp;&amp; \
-    brew install flocker-0.3.2.
+    brew install flocker-0.3.2
                     </samp>
                 </div>
                 <div class="tab-pane" id="cli-linux">
                     <p>Install the flocker-cli client on your Linux machine:</p>
                     <samp>
-$ virtualenv --python=/usr/bin/python2.7 \
-    flocker-tutorial
-$ flocker-tutorial/bin/pip install --upgrade pip
-$ pip install --quiet flocker-cli
+$ virtualenv flocker-tutorial &amp;&amp; \
+    flocker-tutorial/bin/pip install --upgrade pip &amp;&amp; \
+    flocker-tutorial/bin/pip install --quiet flocker-cli
                     </samp>
                 </div>
             </div>
@@ -87,13 +86,13 @@ $ pip install --quiet flocker-cli
                     <p>Simulate a flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):</p>
                     <samp>
 $ git clone \
-    https://github.com/clusterhq/vagrant-flocker
-$ cd vagrant-flocker
-$ vagrant up
+    https://github.com/clusterhq/vagrant-flocker &amp;&amp; \
+cd vagrant-flocker &amp;&amp; \
+vagrant up
                     </samp>
                 </div>
                 <div class="tab-pane" id="node-aws">
-                    <p>Stuff here...</p>
+                    <p>Please see our separate <a href="http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services">AWS install instructions</a> to get started.</p>
                 </div>
             </div>
            <div class="arrow-down arrow-offset center-block"></div>
@@ -170,4 +169,3 @@ $ flocker-deploy deployment-node2.yml app.yml
         </div>
       </div>
     </div>
-

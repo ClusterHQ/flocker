@@ -6,15 +6,8 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    {{ metatags }}
-    {%- if not embedded and docstitle %}
-        {%- set titlesuffix = " &mdash; "|safe + docstitle|e %}
-    {%- else %}
-        {%- set titlesuffix = "" %}
-    {%- endif %}
-    {%- block htmltitle %}
         <title>{{ title|striptags|e }}{{ titlesuffix }}</title>
-    {%- endblock %}
+        <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <link rel="stylesheet" href="{{ pathto('_static/assets/', 1) }}css/bootstrap.min.css">
@@ -22,6 +15,9 @@
         <link rel="stylesheet" href="{{ pathto('_static/assets/', 1) }}css/main.css">
 
         <script src="{{ pathto('_static/assets/', 1) }}js/vendor/modernizr-2.6.2-respond-1.1.0.min.js"></script>
+        <script>(function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){ic('reattach_activator');ic('update',intercomSettings);}else{var d=document;var i=function(){i.c(arguments)};i.q=[];i.c=function(args){i.q.push(args)};w.Intercom=i;function l(){var s=d.createElement('script');s.type='text/javascript';s.async=true;
+        s.src='https://widget.intercom.io/widget/6f60bd754398773e9bb9976f4ca3e630d9fffeed';
+        var x=d.getElementsByTagName('script')[0];x.parentNode.insertBefore(s,x);}if(w.attachEvent){w.attachEvent('onload',l);}else{w.addEventListener('load',l,false);}}})()</script>        
     </head>
     <body>
         <!--[if lt IE 7]>
@@ -42,10 +38,10 @@
         <div class="collapse navbar-collapse" id="navbar">
           <ul class="nav navbar-nav">
             <li class="active"><a href="#">Getting Started</a></li>
-            <li><a href="#">Docs</a></li>
-            <li><a href="#">Solutions</a></li>
-            <li><a href="#">About</a></li>
-            <li><a href="#">Careers</a></li>
+            <li><a href="https://docs.clusterhq.com/en/latest/">Docs</a></li>
+            <li><a href="https://clusterhq.com/storage-solutions-docker/">Solutions</a></li>
+            <li><a href="https://clusterhq.com/about/">About</a></li>
+            <li><a href="https://clusterhq.com/careers/">Careers</a></li>
           </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li class="button menu"><a href="#">Try Flocker Now</a></li>            
@@ -53,43 +49,40 @@
         </div>
 
       </div>
-    </nav>
-    
+    </nav> 
     {%- block content %}
     {%- block document %}
     {% block body %} {% endblock %}
     {%- endblock %}
-    {%- endblock %}
-    
+    {%- endblock %}    
     <div class="jumbotron signup">
       <div class="container">
     	<div class="row">
-		<div class="col-md-9">
+		<div class="col-md-9" id="signup-form">
+		    <div id="signup-content">
 	        <h1>Get Involved</h1>
 	       	<p>Sign up for email updates about Flocker</p>
-	       	<form class="form-inline">
+	       	<form class="form-inline" id="form-signup">
                 <div class="form-group">
-                    <input type="email" class="form-control input-lg" id="email" name="email" placeholder="Email address">
+                    <input type="email" required="required" class="form-control input-lg" id="email" name="email" placeholder="Email address">
                 </div>
-                <button type="submit" class="btn btn-signup btn-lg">Sign up</button>
+                <button type="submit" id="btn-signup" class="btn btn-signup btn-lg">Sign up</button>
 	       	</form>
+	       	</div>
 		</div>
     	</div>
       </div>
     </div>
         
-        <h2 class="heading text-center">See our <a href="http://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
+    <h2 class="heading text-center doc-banner">See our <a href="http://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
 
     
 	<footer>
 	<div id="footer-head">
 		<div class="container">
 			<div class="row">
-				<div class="col-sm-1 col-xs-1 small-logo">
-					<p><img src="{{ pathto('_static/assets/', 1) }}img/small-logo.png" width="47" height="52"/></p>
-				</div>
-				<div class="col-sm-11 pull-right">
-					<p class="text-right">ClusterHQ: The Container Data People &trade;</p>
+				<div class="col-sm-12 col-xs-12 small-logo">
+					<p class="text-right"><img src="{{ pathto('_static/assets/', 1) }}img/small-logo.png" class="pull-left" /> ClusterHQ: The Container Data People &trade;</p>
 				</div>
 			</div>
 		</div>
@@ -101,7 +94,9 @@
 					<ul>
 						<li class="page_item page-item-13"><a href="https://clusterhq.com/about/">About</a></li>
 						<li class="page_item page-item-10"><a href="https://clusterhq.com/careers/">Careers</a></li>
-						<li class="page_item page-item-8"><a href="https://clusterhq.com/solutions/">Solutions</a></li>
+						<li class="page_item page-item-8"><a href="https://clusterhq.com/storage-solutions-docker/">Solutions</a></li>
+						<li class="page_item page-item-8"><a href="https://clusterhq.com/projects/">Open Source Projects</a></li>
+						<li class="page_item page-item-8"><a href="https://clusterhq.com/blog/">Blog</a></li>
 					</ul>
 				</div>			
 			</div>
@@ -110,8 +105,8 @@
 				<div class="textwidget">
 				<ul>
 					<li><a href="#">Getting Started</a></li>
-					<li><a href="#">Collaborate</a></li>
-					<li><a href="#">View Flocker on Github</a></li>
+					<li><a href="https://docs.clusterhq.com/en/latest/gettinginvolved/index.html">Collaborate</a></li>
+					<li><a href="https://github.com/ClusterHQ/flocker">View Flocker on Github</a></li>
 				</ul>
 				</div>
 				</div>
@@ -119,10 +114,10 @@
 				<span class="widget-title">Install Flocker on:</span>			
 				<div class="textwidget">
 				<ul>
-					<li><a href="#">AWS</a></li>
-					<li><a href="#">Rackspace</a></li>
-					<li><a href="#">Digital Ocean</a></li>
-					<li><a href="#">Vagrant Machine</a></li>
+					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services">AWS</a></li>
+					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-rackspace">Rackspace</a></li>
+					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-digitalocean">Digital Ocean</a></li>
+					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#vagrant">Vagrant Machine</a></li>
 				</ul>
 				</div>
 				</div>			
@@ -131,10 +126,10 @@
 				<div><span class="widget-title">Get in touch</span>			
 				<div class="textwidget">
 					<ul>
-						<li><a href="#">Twitter (@clusterhq)</a></li>
-						<li><a href="#">Facebook (clusterhq)</a></li>
-						<li><a href="#">GitHub (clusterhq)</a></li>
-						<li><a href="#">Email us  (info@clusterhq.com)</a></li>
+						<li><a href="https://twitter.com/clusterhq">Twitter (@clusterhq)</a></li>
+						<li><a href="https://www.facebook.com/clusterhq">Facebook (clusterhq)</a></li>
+						<li><a href="https://github.com/ClusterHQ">GitHub (clusterhq)</a></li>
+						<li><a href="mailto:info@clusterhq.com">Email us (info@clusterhq.com)</a></li>
 					</ul>
 				</div>
 				</div>			
@@ -149,6 +144,7 @@
         <script>window.jQuery || document.write('<script src="{{ pathto('_static/assets/', 1) }}js/vendor/jquery-1.11.1.min.js"><\/script>')</script>
 
         <script src="{{ pathto('_static/assets/', 1) }}js/vendor/bootstrap.min.js"></script>
+        <script src="{{ pathto('_static/assets/', 1) }}js/vendor/retina.min.js"></script>
         <script src="{{ pathto('_static/assets/', 1) }}js/plugins.js"></script>
         <script src="{{ pathto('_static/assets/', 1) }}js/main.js"></script>
 
