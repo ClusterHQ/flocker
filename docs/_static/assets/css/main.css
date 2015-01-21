@@ -33,6 +33,10 @@ header h1 {
     font-weight:bold;   
 }
 
+#quick-start>h1 {
+    display:none;
+}
+
 .jumbo-flocker p {
     font-size:32px;
     font-family: "Soho Gothic W01 Regular", sans-serif;
