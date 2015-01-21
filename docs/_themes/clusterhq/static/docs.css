@@ -305,7 +305,7 @@ a.download:before {
     max-width: 100%;
 }
 
-.page ul {
+.page ul, ol {
     color: #646570;
     font-family: lato;
 }
