@@ -1145,7 +1145,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         volume1 = self.successResultOf(self.volume_service.create(
             self.volume_service.get(_to_volume_name(DATASET_ID))
         ))
-        volume2 = self.successResultOf(self.volume_service.create(
+        self.successResultOf(self.volume_service.create(
             self.volume_service.get(_to_volume_name(DATASET_ID2))
         ))
 
