@@ -343,7 +343,7 @@ class Deployer(object):
             primary_manifestations = {}
             for volume in volumes:
                 if volume.node_id == self.volume_service.node_id:
-                    # FLOC-1181 non-primaries should be added in too
+                    # FLOC-1240 non-primaries should be added in too
                     path = volume.get_filesystem().get_path()
                     primary_manifestations[path] = (
                         volume.name.dataset_id, volume.size.maximum_size)
@@ -365,8 +365,8 @@ class Deployer(object):
                     # we assume all volumes are datasets
                     docker_volume = list(unit.volumes)[0]
                     try:
-                        dataset_id, max_size = available_manifestations[
-                            docker_volume.node_path]
+                        dataset_id, max_size = available_manifestations.pop(
+                            docker_volume.node_path)
                     except KeyError:
                         # Apparently not a dataset we're managing, give up.
                         volume = None
@@ -416,12 +416,19 @@ class Deployer(object):
                     running.append(application)
                 else:
                     not_running.append(application)
+
+            # Any manifestations left over are unattached to any application:
+            other_manifestations = frozenset((
+                Manifestation(dataset=Dataset(dataset_id=dataset_id,
+                                              maximum_size=maximum_size),
+                              primary=True)
+                for (dataset_id, maximum_size) in
+                available_manifestations.values()))
             return NodeState(
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
-                # FLOC-1181 will want to add here the remaining
-                # manifestations that are not attached to any application.
+                other_manifestations=other_manifestations,
             )
         d.addCallback(applications_from_units)
         return d

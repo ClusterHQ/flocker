@@ -1135,6 +1135,46 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         self.assertEqual(sorted(applications),
                          sorted(self.successResultOf(d).running))
 
+    def test_discover_unattached_datasets(self):
+        """
+        Datasets that are not attached to any applications are added to
+        ``NodeState.other_manifestations``.
+        """
+        DATASET_ID = u"uuid123"
+        DATASET_ID2 = u"uuid456"
+        volume1 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID))
+        ))
+        volume2 = self.successResultOf(self.volume_service.create(
+            self.volume_service.get(_to_volume_name(DATASET_ID2))
+        ))
+
+        unit1 = Unit(name=u'site-example.com',
+                     container_name=u'site-example.com',
+                     container_image=u"clusterhq/wordpress:latest",
+                     volumes=frozenset(
+                         [DockerVolume(
+                             node_path=volume1.get_filesystem().get_path(),
+                             container_path=FilePath(b'/var/lib/data')
+                         )]
+                     ),
+                     activation_state=u'active')
+        units = {unit1.name: unit1}
+
+        fake_docker = FakeDockerClient(units=units)
+        api = Deployer(
+            self.volume_service,
+            docker_client=fake_docker,
+            network=self.network
+        )
+        d = api.discover_node_configuration()
+
+        self.assertEqual(
+            frozenset([Manifestation(
+                dataset=Dataset(dataset_id=DATASET_ID2),
+                primary=True)]),
+            self.successResultOf(d).other_manifestations)
+
 
 # A deployment with no information:
 EMPTY = Deployment(nodes=frozenset())
