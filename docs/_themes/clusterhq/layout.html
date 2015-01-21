@@ -172,6 +172,12 @@
                 $('.contents-menu>ul').show();
             }
         });
+        
+        $(function() {
+            if($( window ).width() < 768){
+                $('.contents-menu>ul').hide();
+            }
+        });
     </script>
     {% if theme_disqus_shortname %}
         <script type="text/javascript">
