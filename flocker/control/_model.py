@@ -218,6 +218,15 @@ class Node(object):
         are present on the node but are not attached as volumes to any
         applications.
     """
+    def manifestations(self):
+        """
+        All manifestations present on this node.
+
+        :return frozenset: All ``Manifestation`` instances from this node.
+        """
+        return frozenset([application.volume.manifestation
+                          for application in self.applications
+                          if application.volume is not None])
 
 
 @attributes(["nodes"])

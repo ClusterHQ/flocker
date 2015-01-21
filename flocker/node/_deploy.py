@@ -688,69 +688,61 @@ def find_dataset_changes(hostname, current_state, desired_state):
     :return DatasetChanges: Changes to datasets that will be needed in
          order to match desired configuration.
     """
-    desired_volumes = {node.hostname: set(application.volume for application
-                                          in node.applications
-                                          if application.volume)
-                       for node in desired_state.nodes}
-    current_volumes = {node.hostname: set(application.volume for application
-                                          in node.applications
-                                          if application.volume)
-                       for node in current_state.nodes}
-    local_desired_volumes = desired_volumes.get(hostname, set())
-    # XXX also add primary manifestations from node.other_manifestations:
-    local_desired_datasets = set(volume.dataset.dataset_id for volume in
-                                 local_desired_volumes)
-    # XXX also add primary manifestations from node.other_manifestations:
-    local_current_datasets = set(volume.dataset.dataset_id for volume in
-                                 current_volumes.get(hostname, set()))
-    # XXX also add primary manifestations from node.other_manifestations:
-    remote_current_datasets = set()
-    for volume_hostname, current in current_volumes.items():
-        if volume_hostname != hostname:
-            remote_current_datasets |= set(
-                volume.dataset.dataset_id for volume in current)
+    desired_datasets = {node.hostname:
+                        set(manifestation.dataset for manifestation
+                            in node.manifestations())
+                        for node in desired_state.nodes}
+    current_datasets = {node.hostname:
+                        set(manifestation.dataset for manifestation
+                            in node.manifestations())
+                        for node in current_state.nodes}
+    local_desired_datasets = desired_datasets.get(hostname, set())
+    local_desired_dataset_ids = set(dataset.dataset_id for dataset in
+                                    local_desired_datasets)
+    local_current_dataset_ids = set(dataset.dataset_id for dataset in
+                                    current_datasets.get(hostname, set()))
+    remote_current_dataset_ids = set()
+    for dataset_hostname, current in current_datasets.items():
+        if dataset_hostname != hostname:
+            remote_current_dataset_ids |= set(
+                dataset.dataset_id for dataset in current)
 
-    # If a volume exists locally and is desired anywhere on the cluster, and
-    # the desired volume is a different maximum_size to the existing volume,
-    # the existing local volume should be resized before any other action
+    # If a dataset exists locally and is desired anywhere on the cluster, and
+    # the desired dataset is a different maximum_size to the existing dataset,
+    # the existing local dataset should be resized before any other action
     # is taken on it.
     resizing = set()
-    for _, desired in desired_volumes.items():
-        for volume in desired:
-            if volume.dataset.dataset_id in local_current_datasets:
-                for existing_volume in current_volumes[hostname]:
-                    cur_dataset = existing_volume.dataset
-                    new_dataset = volume.dataset
+    for desired in desired_datasets.values():
+        for new_dataset in desired:
+            if new_dataset.dataset_id in local_current_dataset_ids:
+                for cur_dataset in current_datasets[hostname]:
                     if cur_dataset.dataset_id != new_dataset.dataset_id:
                         continue
                     if cur_dataset.maximum_size != new_dataset.maximum_size:
                         resizing.add(new_dataset)
 
-    # Look at each application volume that is going to be running
-    # elsewhere and is currently running here, and add a VolumeHandoff for
-    # it to `going`.
+    # Look at each dataset that is going to be running elsewhere and is
+    # currently running here, and add a DatasetHandoff for it to `going`.
     going = set()
-    for volume_hostname, desired in desired_volumes.items():
-        if volume_hostname != hostname:
-            for volume in desired:
-                if volume.dataset.dataset_id in local_current_datasets:
-                    going.add(DatasetHandoff(dataset=volume.dataset,
-                                             hostname=volume_hostname))
+    for dataset_hostname, desired in desired_datasets.items():
+        if dataset_hostname != hostname:
+            for dataset in desired:
+                if dataset.dataset_id in local_current_dataset_ids:
+                    going.add(DatasetHandoff(dataset=dataset,
+                                             hostname=dataset_hostname))
 
-    # Look at each application volume that is going to be started on this
-    # node.  If it was running somewhere else, we want that Volume to be
-    # in `coming`.
-    coming_datasets = local_desired_datasets.intersection(
-        remote_current_datasets)
-    coming = set(volume.dataset for volume in local_desired_volumes
-                 if volume.dataset.dataset_id in coming_datasets)
+    # Look at each dataset that is going to be hosted on this node.  If it
+    # was running somewhere else, we want that dataset to be in `coming`.
+    coming_dataset_ids = local_desired_dataset_ids.intersection(
+        remote_current_dataset_ids)
+    coming = set(dataset for dataset in local_desired_datasets
+                 if dataset.dataset_id in coming_dataset_ids)
 
-    # For each application volume that is going to be started on this node
-    # that was not running anywhere previously, make sure that Volume is
-    # in `creating`.
-    creating_datasets = local_desired_datasets.difference(
-        local_current_datasets | remote_current_datasets)
-    creating = set(volume.dataset for volume in local_desired_volumes
-                   if volume.dataset.dataset_id in creating_datasets)
+    # For each dataset that is going to be hosted on this node and did not
+    # exist previously, make sure that dataset is in `creating`.
+    creating_dataset_ids = local_desired_dataset_ids.difference(
+        local_current_dataset_ids | remote_current_dataset_ids)
+    creating = set(dataset for dataset in local_desired_datasets
+                   if dataset.dataset_id in creating_dataset_ids)
     return DatasetChanges(going=going, coming=coming,
                           creating=creating, resizing=resizing)
