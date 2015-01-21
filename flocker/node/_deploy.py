@@ -18,7 +18,7 @@ from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
 from ..control._model import (
-    Application, VolumeChanges, AttachedVolume, VolumeHandoff,
+    Application, DatasetChanges, AttachedVolume, DatasetHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset
     )
 from ..route import make_host_network, Proxy
@@ -590,49 +590,48 @@ class Deployer(object):
                     if sequence not in restart_containers:
                         restart_containers.append(sequence)
 
-            # Find any applications with volumes that are moving to or from
-            # this node - or that are being newly created by this new
-            # configuration.
-            volumes = find_volume_changes(hostname, current_cluster_state,
-                                          desired_state)
+            # Find any dataset that are moving to or from this node - or
+            # that are being newly created by this new configuration.
+            dataset_changes = find_dataset_changes(
+                hostname, current_cluster_state, desired_state)
 
-            if volumes.resizing:
+            if dataset_changes.resizing:
                 phases.append(InParallel(changes=[
-                    ResizeDataset(dataset=volume.dataset)
-                    for volume in volumes.resizing]))
+                    ResizeDataset(dataset=dataset)
+                    for dataset in dataset_changes.resizing]))
 
             # Do an initial push of all volumes that are going to move, so
             # that the final push which happens during handoff is a quick
             # incremental push. This should significantly reduces the
             # application downtime caused by the time it takes to copy
             # data.
-            if volumes.going:
+            if dataset_changes.going:
                 phases.append(InParallel(changes=[
-                    PushDataset(dataset=handoff.volume.dataset,
+                    PushDataset(dataset=handoff.dataset,
                                 hostname=handoff.hostname)
-                    for handoff in volumes.going]))
+                    for handoff in dataset_changes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))
-            if volumes.going:
+            if dataset_changes.going:
                 phases.append(InParallel(changes=[
-                    HandoffDataset(dataset=handoff.volume.dataset,
+                    HandoffDataset(dataset=handoff.dataset,
                                    hostname=handoff.hostname)
-                    for handoff in volumes.going]))
-            # any volumes coming to this node should also be
+                    for handoff in dataset_changes.going]))
+            # any datasets coming to this node should also be
             # resized to the appropriate quota max size once they
             # have been received
-            if volumes.coming:
+            if dataset_changes.coming:
                 phases.append(InParallel(changes=[
-                    WaitForDataset(dataset=volume.dataset)
-                    for volume in volumes.coming]))
+                    WaitForDataset(dataset=dataset)
+                    for dataset in dataset_changes.coming]))
                 phases.append(InParallel(changes=[
-                    ResizeDataset(dataset=volume.dataset)
-                    for volume in volumes.coming]))
-            if volumes.creating:
+                    ResizeDataset(dataset=dataset)
+                    for dataset in dataset_changes.coming]))
+            if dataset_changes.creating:
                 phases.append(InParallel(changes=[
-                    CreateDataset(dataset=volume.dataset)
-                    for volume in volumes.creating]))
+                    CreateDataset(dataset=dataset)
+                    for dataset in dataset_changes.creating]))
             start_restart = start_containers + restart_containers
             if start_restart:
                 phases.append(InParallel(changes=start_restart))
@@ -664,7 +663,7 @@ class Deployer(object):
         return d
 
 
-def find_volume_changes(hostname, current_state, desired_state):
+def find_dataset_changes(hostname, current_state, desired_state):
     """
     Find what actions need to be taken to deal with changes in dataset
     manifestations between current state and desired state of the cluster.
@@ -685,6 +684,9 @@ def find_volume_changes(hostname, current_state, desired_state):
 
     :param Deployment desired_state: The new state of the cluster towards which
         the changes are working.
+
+    :return DatasetChanges: Changes to datasets that will be needed in
+         order to match desired configuration.
     """
     desired_volumes = {node.hostname: set(application.volume for application
                                           in node.applications
@@ -722,7 +724,7 @@ def find_volume_changes(hostname, current_state, desired_state):
                     if cur_dataset.dataset_id != new_dataset.dataset_id:
                         continue
                     if cur_dataset.maximum_size != new_dataset.maximum_size:
-                        resizing.add(volume)
+                        resizing.add(new_dataset)
 
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for
@@ -732,15 +734,15 @@ def find_volume_changes(hostname, current_state, desired_state):
         if volume_hostname != hostname:
             for volume in desired:
                 if volume.dataset.dataset_id in local_current_datasets:
-                    going.add(VolumeHandoff(volume=volume,
-                                            hostname=volume_hostname))
+                    going.add(DatasetHandoff(dataset=volume.dataset,
+                                             hostname=volume_hostname))
 
     # Look at each application volume that is going to be started on this
     # node.  If it was running somewhere else, we want that Volume to be
     # in `coming`.
     coming_datasets = local_desired_datasets.intersection(
         remote_current_datasets)
-    coming = set(volume for volume in local_desired_volumes
+    coming = set(volume.dataset for volume in local_desired_volumes
                  if volume.dataset.dataset_id in coming_datasets)
 
     # For each application volume that is going to be started on this node
@@ -748,7 +750,7 @@ def find_volume_changes(hostname, current_state, desired_state):
     # in `creating`.
     creating_datasets = local_desired_datasets.difference(
         local_current_datasets | remote_current_datasets)
-    creating = set(volume for volume in local_desired_volumes
+    creating = set(volume.dataset for volume in local_desired_volumes
                    if volume.dataset.dataset_id in creating_datasets)
-    return VolumeChanges(going=going, coming=coming,
-                         creating=creating, resizing=resizing)
+    return DatasetChanges(going=going, coming=coming,
+                          creating=creating, resizing=resizing)

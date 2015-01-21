@@ -269,42 +269,42 @@ class Link(object):
     """
 
 
-@attributes(["volume", "hostname"])
-class VolumeHandoff(object):
+@attributes(["dataset", "hostname"])
+class DatasetHandoff(object):
     """
-    A record representing a volume handoff that needs to be performed from this
-    node.
+    A record representing a dataset handoff that needs to be performed
+    from this node.
 
     See :cls:`flocker.volume.service.VolumeService.handoff`` for more details.
 
-    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar Dataset dataset: The dataset to hand off.
     :ivar bytes hostname: The hostname of the node to which the volume is
          meant to be handed off.
     """
 
 
 @attributes(["going", "coming", "creating", "resizing"])
-class VolumeChanges(object):
+class DatasetChanges(object):
     """
-    ``VolumeChanges`` describes the volume-related changes necessary to change
-    the current state to the desired state.
+    The dataset-related changes necessary to change the current state to
+    the desired state.
 
-    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
-        nodes take over hosting of any volume-having applications being moved
-        away from a node.  These must be handed off.
+    :ivar frozenset going: The ``DatasetHandoff``\ s necessary to let
+        other nodes take over hosting datasets being moved away from a
+        node.  These must be handed off.
 
-    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
-        node take over hosting of any volume-having applications being moved to
+    :ivar frozenset coming: The ``Dataset``\ s necessary to let this
+        node take over hosting of any datasets being moved to
         this node.  These must be acquired.
 
-    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
-        node create any new volume-having applications meant to be hosted on
+    :ivar frozenset creating: The ``Dataset``\ s necessary to let this
+        node create any new datasets meant to be hosted on
         this node.  These must be created.
 
-    :ivar frozenset resizing: The ``AttachedVolume``\ s necessary to let this
-        node resize any existing volumes that are desired somewhere on the
-        cluster and locally exist with a different maximum_size to the desired
-        maximum_size. These must be resized.
+    :ivar frozenset resizing: The ``Dataset``\ s necessary to let this
+        node resize any existing datasets that are desired somewhere on
+        the cluster and locally exist with a different maximum_size to the
+        desired maximum_size. These must be resized.
     """
 
 
