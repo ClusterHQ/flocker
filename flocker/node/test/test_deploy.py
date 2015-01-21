@@ -21,8 +21,8 @@ from ...control import (
     NodeState)
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
-    CreateVolume, WaitForVolume, HandoffVolume, SetProxies, PushVolume,
-    ResizeVolume, _link_environment, _to_volume_name)
+    CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
+    ResizeDataset, _link_environment, _to_volume_name)
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -126,15 +126,15 @@ StopApplicationIStageChangeTests = make_istatechange_tests(
 SetProxiesIStateChangeTests = make_istatechange_tests(
     SetProxies, dict(ports=[1]), dict(ports=[2]))
 WaitForVolumeIStateChangeTests = make_istatechange_tests(
-    WaitForVolume, dict(volume=1), dict(volume=2))
+    WaitForDataset, dict(dataset=1), dict(dataset=2))
 CreateVolumeIStateChangeTests = make_istatechange_tests(
-    CreateVolume, dict(volume=1), dict(volume=2))
+    CreateDataset, dict(dataset=1), dict(dataset=2))
 HandoffVolumeIStateChangeTests = make_istatechange_tests(
-    HandoffVolume, dict(volume=1, hostname=b"123"),
-    dict(volume=2, hostname=b"123"))
+    HandoffDataset, dict(dataset=1, hostname=b"123"),
+    dict(dataset=2, hostname=b"123"))
 PushVolumeIStateChangeTests = make_istatechange_tests(
-    PushVolume, dict(volume=1, hostname=b"123"),
-    dict(volume=2, hostname=b"123"))
+    PushDataset, dict(dataset=1, hostname=b"123"),
+    dict(dataset=2, hostname=b"123"))
 
 
 NOT_CALLED = object()
@@ -1448,7 +1448,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         volume = APPLICATION_WITH_VOLUME.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[CreateVolume(volume=volume)]),
+            InParallel(changes=[CreateDataset(dataset=volume.dataset)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname="node1.example.com")])])
@@ -1499,8 +1499,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         volume = APPLICATION_WITH_VOLUME.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[WaitForVolume(volume=volume)]),
-            InParallel(changes=[ResizeVolume(volume=volume)]),
+            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME,
                 hostname="node1.example.com")])])
@@ -1557,15 +1557,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         volume = APPLICATION_WITH_VOLUME.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[PushVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[PushDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
                                         image=DockerImage.from_string(
                                             unit.container_image
                                         )),)]),
-            InParallel(changes=[HandoffVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
         ])
         self.assertEqual(expected, changes)
 
@@ -1686,8 +1686,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         changes = self.successResultOf(calculating)
         expected = Sequentially(changes=[
             InParallel(
-                changes=[ResizeVolume(
-                    volume=APPLICATION_WITH_VOLUME_SIZE.volume,
+                changes=[ResizeDataset(
+                    dataset=APPLICATION_WITH_VOLUME_SIZE.volume.dataset,
                     )]
             ),
             InParallel(
@@ -1770,11 +1770,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # expected is: resize volume, push, stop application, handoff
         expected = Sequentially(changes=[
             InParallel(
-                changes=[ResizeVolume(volume=volume)],
+                changes=[ResizeDataset(dataset=volume.dataset)],
             ),
             InParallel(
-                changes=[PushVolume(
-                    volume=volume,
+                changes=[PushDataset(
+                    dataset=volume.dataset,
                     hostname=u'node2.example.com')]
             ),
             InParallel(
@@ -1783,8 +1783,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
                 ]
             ),
             InParallel(
-                changes=[HandoffVolume(
-                    volume=volume,
+                changes=[HandoffDataset(
+                    dataset=volume.dataset,
                     hostname=u'node2.example.com')]
             )])
         self.assertEqual(expected, changes)
@@ -1832,8 +1832,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         volume = APPLICATION_WITH_VOLUME_SIZE.volume
 
         expected = Sequentially(changes=[
-            InParallel(changes=[WaitForVolume(volume=volume)]),
-            InParallel(changes=[ResizeVolume(volume=volume)]),
+            InParallel(changes=[WaitForDataset(dataset=volume.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume.dataset)]),
             InParallel(changes=[StartApplication(
                 application=APPLICATION_WITH_VOLUME_SIZE,
                 hostname="node1.example.com")])])
@@ -1972,16 +1972,16 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         changes = self.successResultOf(calculating)
 
         expected = Sequentially(changes=[
-            InParallel(changes=[PushVolume(
-                volume=volume, hostname=another_node.hostname)]),
+            InParallel(changes=[PushDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
             InParallel(changes=[StopApplication(
                 application=Application(name=APPLICATION_WITH_VOLUME_NAME,
                                         image=DockerImage.from_string(
                                             u'clusterhq/postgresql:9.1'),),)]),
-            InParallel(changes=[HandoffVolume(
-                volume=volume, hostname=another_node.hostname)]),
-            InParallel(changes=[WaitForVolume(volume=volume2)]),
-            InParallel(changes=[ResizeVolume(volume=volume2)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=volume.dataset, hostname=another_node.hostname)]),
+            InParallel(changes=[WaitForDataset(dataset=volume2.dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=volume2.dataset)]),
             InParallel(changes=[
                 StartApplication(application=another_application,
                                  hostname="node1.example.com")]),
@@ -2039,7 +2039,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         )
 
         expected = Sequentially(changes=[
-            InParallel(changes=[CreateVolume(volume=new_postgres_app.volume)]),
+            InParallel(changes=[
+                CreateDataset(dataset=new_postgres_app.volume.dataset)]),
             InParallel(changes=[
                 Sequentially(changes=[
                     StopApplication(application=new_postgres_app),
@@ -2285,8 +2286,8 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # which is why a resize is happening:
         expected = Sequentially(changes=[
             InParallel(
-                changes=[ResizeVolume(
-                    volume=APPLICATION_WITH_VOLUME.volume,
+                changes=[ResizeDataset(
+                    dataset=APPLICATION_WITH_VOLUME.volume.dataset,
                     )]
             ),
             InParallel(
@@ -2331,7 +2332,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         d = api.calculate_necessary_state_changes(desired, actual, u"node")
         result = self.successResultOf(d)
         # CreateVolume:
-        dataset = result.changes[0].changes[0].volume.dataset
+        dataset = result.changes[0].changes[0].dataset
         # StartApplication:
         dataset2 = result.changes[1].changes[0].application.volume.dataset
         # New UUID was generated, but only once:
@@ -2601,7 +2602,7 @@ class CreateVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         volume = APPLICATION_WITH_VOLUME.volume
-        create = CreateVolume(volume=volume)
+        create = CreateDataset(dataset=volume.dataset)
         create.run(deployer)
         self.assertIn(
             volume_service.get(_to_volume_name(volume.dataset.dataset_id)),
@@ -2621,7 +2622,7 @@ class CreateVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         volume = APPLICATION_WITH_VOLUME_SIZE.volume
-        create = CreateVolume(volume=volume)
+        create = CreateDataset(dataset=volume.dataset)
         create.run(deployer)
         enumerated_volumes = list(
             self.successResultOf(volume_service.enumerate())
@@ -2641,7 +2642,7 @@ class CreateVolumeTests(SynchronousTestCase):
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
         volume = APPLICATION_WITH_VOLUME.volume
-        create = CreateVolume(volume=volume)
+        create = CreateDataset(dataset=volume.dataset)
         result = self.successResultOf(create.run(deployer))
         self.assertEqual(result, deployer.volume_service.get(
             _to_volume_name(volume.dataset.dataset_id)))
@@ -2666,15 +2667,7 @@ class ResizeVolumeTests(TestCase):
                 dataset_id=volume_name.dataset_id,
                 maximum_size=size.maximum_size,
             )
-            change = ResizeVolume(
-                volume=AttachedVolume(
-                    manifestation=Manifestation(
-                        dataset=dataset,
-                        primary=True,
-                    ),
-                    mountpoint=FilePath(b"/opt"),
-                )
-            )
+            change = ResizeDataset(dataset=dataset)
             deployer = Deployer(
                 volume_service, docker_client=FakeDockerClient(),
                 network=make_memory_network())
@@ -2712,8 +2705,8 @@ class WaitForVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        wait = WaitForVolume(
-            volume=APPLICATION_WITH_VOLUME.volume)
+        wait = WaitForDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset)
         wait.run(deployer)
         self.assertEqual(result,
                          [VolumeName(namespace=u"default",
@@ -2730,7 +2723,7 @@ class WaitForVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        wait = WaitForVolume(volume=APPLICATION_WITH_VOLUME.volume)
+        wait = WaitForDataset(dataset=APPLICATION_WITH_VOLUME.volume.dataset)
         wait_result = wait.run(deployer)
         self.assertIs(wait_result, result)
 
@@ -2755,8 +2748,8 @@ class HandoffVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        handoff = HandoffVolume(
-            volume=APPLICATION_WITH_VOLUME.volume,
+        handoff = HandoffDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
         handoff.run(deployer)
         self.assertEqual(
@@ -2776,8 +2769,8 @@ class HandoffVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        handoff = HandoffVolume(
-            volume=APPLICATION_WITH_VOLUME.volume,
+        handoff = HandoffDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
         handoff_result = handoff.run(deployer)
         self.assertIs(handoff_result, result)
@@ -2803,8 +2796,8 @@ class PushVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        push = PushVolume(
-            volume=APPLICATION_WITH_VOLUME.volume,
+        push = PushDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=hostname)
         push.run(deployer)
         self.assertEqual(
@@ -2824,8 +2817,8 @@ class PushVolumeTests(SynchronousTestCase):
         deployer = Deployer(volume_service,
                             docker_client=FakeDockerClient(),
                             network=make_memory_network())
-        push = PushVolume(
-            volume=APPLICATION_WITH_VOLUME.volume,
+        push = PushDataset(
+            dataset=APPLICATION_WITH_VOLUME.volume.dataset,
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)

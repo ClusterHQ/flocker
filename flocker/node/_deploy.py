@@ -196,90 +196,89 @@ class StopApplication(object):
 
 
 @implementer(IStateChange)
-@attributes(["volume"])
-class CreateVolume(object):
+@attributes(["dataset"])
+class CreateDataset(object):
     """
-    Create a new locally-owned volume.
+    Create a new locally-owned dataset.
 
-    :ivar AttachedVolume volume: Volume to create.
+    :ivar Dataset dataset: Dataset to create.
     """
     def run(self, deployer):
         volume = deployer.volume_service.get(
-            name=_to_volume_name(self.volume.dataset.dataset_id),
-            size=VolumeSize(maximum_size=self.volume.dataset.maximum_size)
+            name=_to_volume_name(self.dataset.dataset_id),
+            size=VolumeSize(maximum_size=self.dataset.maximum_size)
         )
         return deployer.volume_service.create(volume)
 
 
 @implementer(IStateChange)
-@attributes(["volume"])
-class ResizeVolume(object):
+@attributes(["dataset"])
+class ResizeDataset(object):
     """
-    Resize an existing locally-owned volume.
+    Resize an existing locally-owned dataset.
 
-    :ivar AttachedVolume volume: Volume to resize.
+    :ivar Dataset dataset: Dataset to resize.
     """
     def run(self, deployer):
-        dataset = self.volume.manifestation.dataset
         volume = deployer.volume_service.get(
-            name=_to_volume_name(dataset.dataset_id),
-            size=VolumeSize(maximum_size=dataset.maximum_size)
+            name=_to_volume_name(self.dataset.dataset_id),
+            size=VolumeSize(maximum_size=self.dataset.maximum_size)
         )
         return deployer.volume_service.set_maximum_size(volume)
 
 
 @implementer(IStateChange)
-@attributes(["volume"])
-class WaitForVolume(object):
+@attributes(["dataset"])
+class WaitForDataset(object):
     """
-    Wait for a volume to exist and be owned locally.
+    Wait for a dataset to exist and be owned locally.
 
-    :ivar AttachedVolume volume: Volume to wait for.
+    :ivar Dataset dataset: Dataset to wait for.
     """
     def run(self, deployer):
         return deployer.volume_service.wait_for_volume(
-            _to_volume_name(self.volume.dataset.dataset_id))
+            _to_volume_name(self.dataset.dataset_id))
 
 
 @implementer(IStateChange)
-@attributes(["volume", "hostname"])
-class HandoffVolume(object):
+@attributes(["dataset", "hostname"])
+class HandoffDataset(object):
     """
-    A volume handoff that needs to be performed from this node to another
+    A dataset handoff that needs to be performed from this node to another
     node.
 
     See :cls:`flocker.volume.VolumeService.handoff` for more details.
 
-    :ivar AttachedVolume volume: The volume to hand off.
-    :ivar bytes hostname: The hostname of the node to which the volume is
+    :ivar Dataset dataset: The dataset to hand off.
+    :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be handed off.
     """
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.handoff(
-            service.get(_to_volume_name(self.volume.dataset.dataset_id)),
+            service.get(_to_volume_name(self.dataset.dataset_id)),
             RemoteVolumeManager(destination))
 
 
 @implementer(IStateChange)
-@attributes(["volume", "hostname"])
-class PushVolume(object):
+@attributes(["dataset", "hostname"])
+class PushDataset(object):
     """
-    A volume push that needs to be performed from this node to another
+    A dataset push that needs to be performed from this node to another
     node.
 
     See :cls:`flocker.volume.VolumeService.push` for more details.
 
-    :ivar AttachedVolume volume: The volume to push.
-    :ivar bytes hostname: The hostname of the node to which the volume is
+    :ivar Dataset: The dataset to push.
+    :ivar bytes hostname: The hostname of the node to which the dataset is
          meant to be pushed.
     """
     def run(self, deployer):
         service = deployer.volume_service
         destination = standard_node(self.hostname)
         return service.push(
-            service.get(_to_volume_name(self.volume.dataset.dataset_id)),
+            service.get(_to_volume_name(self.dataset.dataset_id)),
             RemoteVolumeManager(destination))
 
 
@@ -599,7 +598,7 @@ class Deployer(object):
 
             if volumes.resizing:
                 phases.append(InParallel(changes=[
-                    ResizeVolume(volume=volume)
+                    ResizeDataset(dataset=volume.dataset)
                     for volume in volumes.resizing]))
 
             # Do an initial push of all volumes that are going to move, so
@@ -609,30 +608,30 @@ class Deployer(object):
             # data.
             if volumes.going:
                 phases.append(InParallel(changes=[
-                    PushVolume(volume=handoff.volume,
-                               hostname=handoff.hostname)
+                    PushDataset(dataset=handoff.volume.dataset,
+                                hostname=handoff.hostname)
                     for handoff in volumes.going]))
 
             if stop_containers:
                 phases.append(InParallel(changes=stop_containers))
             if volumes.going:
                 phases.append(InParallel(changes=[
-                    HandoffVolume(volume=handoff.volume,
-                                  hostname=handoff.hostname)
+                    HandoffDataset(dataset=handoff.volume.dataset,
+                                   hostname=handoff.hostname)
                     for handoff in volumes.going]))
             # any volumes coming to this node should also be
             # resized to the appropriate quota max size once they
             # have been received
             if volumes.coming:
                 phases.append(InParallel(changes=[
-                    WaitForVolume(volume=volume)
+                    WaitForDataset(dataset=volume.dataset)
                     for volume in volumes.coming]))
                 phases.append(InParallel(changes=[
-                    ResizeVolume(volume=volume)
+                    ResizeDataset(dataset=volume.dataset)
                     for volume in volumes.coming]))
             if volumes.creating:
                 phases.append(InParallel(changes=[
-                    CreateVolume(volume=volume)
+                    CreateDataset(dataset=volume.dataset)
                     for volume in volumes.creating]))
             start_restart = start_containers + restart_containers
             if start_restart:
@@ -667,8 +666,8 @@ class Deployer(object):
 
 def find_volume_changes(hostname, current_state, desired_state):
     """
-    Find what actions need to be taken to deal with changes in volume
-    location between current state and desired state of the cluster.
+    Find what actions need to be taken to deal with changes in dataset
+    manifestations between current state and desired state of the cluster.
 
     XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
