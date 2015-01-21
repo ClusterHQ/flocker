@@ -8,7 +8,7 @@ Requirements
 To replicate the steps demonstrated in this tutorial, you will need:
 
 * Linux, FreeBSD, or OS X
-* `Vagrant`_ (1.6.2 or newer)
+* `Vagrant`_ (1.7.0 or newer)
 * `VirtualBox`_
 * At least 10GB disk space available for the two virtual machines
 * The OpenSSH client (the ``ssh``, ``ssh-agent``, and ``ssh-add`` command-line programs)
@@ -89,6 +89,13 @@ Note that you will need to make the same substitution in commands used throughou
 .. note:: The two virtual machines are each assigned a 10GB virtual disk.
           The underlying disk files grow to about 5GB.
           So you will need at least 10GB of free disk space on your workstation.
+
+#. Make sure you have Vagrant version of at least 1.7.2; older versions have issues communicating with the Vagrant image hosting service.
+
+   .. code-block:: console
+
+      alice@mercury:~/$ vagrant --version
+      1.7.2
 
 #. Create a tutorial directory:
 
