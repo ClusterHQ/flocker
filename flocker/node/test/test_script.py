@@ -24,7 +24,7 @@ from ..script import (
     ReportStateOptions, ReportStateScript)
 from .._docker import FakeDockerClient, Unit
 from .._deploy import Deployer
-from .._model import (
+from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
 

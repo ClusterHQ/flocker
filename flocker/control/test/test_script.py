@@ -2,6 +2,7 @@
 
 from twisted.web.server import Site
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
@@ -30,6 +31,23 @@ class ControlOptionsTests(StandardOptionsTestsMixin,
         options.parseOptions([b"--port", b"1234"])
         self.assertEqual(options["port"], 1234)
 
+    def test_default_path(self):
+        """
+        The default data path configured by ``ControlOptions`` is
+        ``b"/var/lib/flocker"``.
+        """
+        options = ControlOptions()
+        options.parseOptions([])
+        self.assertEqual(options["data-path"], FilePath(b"/var/lib/flocker"))
+
+    def test_path(self):
+        """
+        The ``--data-path`` command-line option is converted to ``FilePath``.
+        """
+        options = ControlOptions()
+        options.parseOptions([b"--data-path", b"/var/xxx"])
+        self.assertEqual(options["data-path"], FilePath(b"/var/xxx"))
+
 
 class ControlScriptEffectsTests(SynchronousTestCase):
     """
@@ -39,8 +57,11 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         """
         ``ControlScript.main`` starts a HTTP server on the given port.
         """
+        options = ControlOptions()
+        options.parseOptions(
+            [b"--port", b"8001", b"--data-path", self.mktemp()])
         reactor = MemoryCoreReactor()
-        ControlScript().main(reactor, {"port": 8001})
+        ControlScript().main(reactor, options)
         server = reactor.tcpServers[0]
         port = server[0]
         factory = server[1].__class__
@@ -51,4 +72,17 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         The ``Deferred`` returned from ``ControlScript`` is not fired.
         """
         script = ControlScript()
-        self.assertNoResult(script.main(MemoryCoreReactor(), ControlOptions()))
+        options = ControlOptions()
+        options.parseOptions([b"--data-path", self.mktemp()])
+        self.assertNoResult(script.main(MemoryCoreReactor(), options))
+
+    def test_starts_persistence_service(self):
+        """
+        ``ControlScript.main`` starts a configuration persistence service.
+        """
+        path = FilePath(self.mktemp())
+        options = ControlOptions()
+        options.parseOptions([b"--data-path", path.path])
+        reactor = MemoryCoreReactor()
+        ControlScript().main(reactor, options)
+        self.assertTrue(path.isdir())

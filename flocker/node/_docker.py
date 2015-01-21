@@ -22,7 +22,7 @@ from twisted.internet.defer import succeed, fail
 from twisted.internet.threads import deferToThread
 from twisted.web.http import NOT_FOUND, INTERNAL_SERVER_ERROR
 
-from flocker.node._model import RestartNever, RestartAlways, RestartOnFailure
+from ..control._model import RestartNever, RestartAlways, RestartOnFailure
 
 
 class AlreadyExists(Exception):

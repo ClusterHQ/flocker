@@ -17,7 +17,7 @@ from pickle import loads, dumps
 from twisted.internet.defer import gatherResults, fail, succeed
 
 from ._docker import DockerClient, PortMap, Environment, Volume as DockerVolume
-from ._model import (
+from ..control._model import (
     Application, VolumeChanges, AttachedVolume, VolumeHandoff,
     NodeState, DockerImage, Port, Link, Manifestation, Dataset
     )

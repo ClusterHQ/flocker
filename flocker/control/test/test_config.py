@@ -29,6 +29,49 @@ from .._model import (
 )
 
 
+COMPLEX_APPLICATION_YAML = {
+    'version': 1,
+    'applications': {
+        'wordpress': {
+            'image': 'sample/wordpress:latest',
+            'volume': {'mountpoint': '/var/www/wordpress'},
+            'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+            'ports': [{'internal': 80, 'external': 8080}],
+            'links': [
+                {'local_port': 3306,
+                 'remote_port': 3306,
+                 'alias': 'db'},
+                {'local_port': 3307,
+                 'remote_port': 3307,
+                 'alias': 'db'}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        },
+        'mysql': {
+            'image': 'sample/mysql:latest',
+            'ports': [
+                {'internal': 3306, 'external': 3306},
+                {'internal': 3307, 'external': 3307}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        }
+    }
+}
+
+
+COMPLEX_DEPLOYMENT_YAML = {
+    'version': 1,
+    'nodes': {
+        'node1.example.com': ['wordpress'],
+        'node2.example.com': ['mysql'],
+    }
+}
+
+
 class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
     """
     Tests for ``applications_to_flocker_yaml``.
@@ -38,38 +81,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         The YAML returned by ``applications_to_flocker_yaml" can be
         successfully parsed as YAML.
         """
-        expected = {
-            'version': 1,
-            'applications': {
-                'wordpress': {
-                    'image': 'sample/wordpress:latest',
-                    'volume': {'mountpoint': '/var/www/wordpress'},
-                    'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'links': [
-                        {'local_port': 3306,
-                         'remote_port': 3306,
-                         'alias': 'db'},
-                        {'local_port': 3307,
-                         'remote_port': 3307,
-                         'alias': 'db'}
-                    ],
-                    'restart_policy': {
-                        'name': 'never',
-                    },
-                },
-                'mysql': {
-                    'image': 'sample/mysql:latest',
-                    'ports': [
-                        {'internal': 3306, 'external': 3306},
-                        {'internal': 3307, 'external': 3307}
-                    ],
-                    'restart_policy': {
-                        'name': 'never',
-                    },
-                }
-            }
-        }
+        expected = COMPLEX_APPLICATION_YAML
         config = copy.deepcopy(expected)
         applications = FlockerConfiguration(config).applications()
         yaml = safe_load(applications_to_flocker_yaml(applications))

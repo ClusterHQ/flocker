@@ -1,5 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: flocker.node.test.test_config -*-
+# -*- test-case-name: flocker.control.test.test_config -*-
 
 """
 APIs for parsing and validating configuration.

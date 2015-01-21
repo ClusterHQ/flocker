@@ -11,9 +11,10 @@ from pyrsistent import pmap
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
 
-from .. import (
-    Deployer, Deployment, Application, DockerImage, Node, AttachedVolume, Link)
-from .._model import Manifestation, Dataset
+from .. import Deployer
+from ...control._model import (
+    Deployment, Application, DockerImage, Node, AttachedVolume, Link,
+    Manifestation, Dataset)
 from .._docker import DockerClient
 from ..testtools import wait_for_unit_state, if_docker_configured
 from ...testtools import (
