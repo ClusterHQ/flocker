@@ -54,6 +54,44 @@ class DatasetAPIUserV1(object):
         return {u"flocker":  __version__}
 
 
+    @app.route("/datasets", methods=['POST'])
+    @user_documentation("""
+        Create a new dataset.
+        """, examples=[
+            u"create dataset",
+            u"create dataset with dataset_id",
+            u"create dataset with maximum_size",
+            u"create dataset with metadata",
+        ])
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        schema_store=SCHEMAS
+    )
+    def create_dataset(self):
+        """
+        Create a new dataset on the cluster.
+        """
+        # Use persistence_service to get a Deployment for the cluster
+        # configuration.
+        #
+        # Create a new Dataset with given parameters (generate dataset_id if
+        # necessary).
+        #
+        # Create a new Manifestation with that Dataset.
+        #
+        # Add the new Manifestation to a Node in the Deployment
+        # (other_manifestations) (need to merge FLOC-1214 for this).
+        #
+        # Persist the new Deployment using persistence_service.
+        #
+        # Return information about the new Manifestation???  But this is
+        # create_dataset.  I guess we'll squish information from the
+        # manifestation (eg the address of the primary) into the representation
+        # of the dataset.
+
+
+
 def create_api_service(persistence_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.

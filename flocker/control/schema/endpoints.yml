@@ -12,3 +12,46 @@ definitions:
     required:
       - flocker
     additionalProperties: false
+
+  datasets:
+    type: object
+    properties:
+
+      dataset_id:
+        title: "Unique identifier"
+        description: |
+          An opaque identifier, unique across the cluster, identifying a
+          particular dataset.  If not given, a new identifier will be generated
+          and returned.
+        type: string
+        # The length of a stringified uuid
+        maxLength: 36
+
+      metadata:
+        title: "Data about a dataset"
+        description: |
+          Additional key/value data describing the dataset.  These items are
+          not interpreted by Flocker.  If not given, no metadata will be
+          associated with the new dataset.
+        type: object
+        additionalProperties:
+          type: string
+          # Arbitrary
+          maxLength: 256
+        # Arbitrary
+        maxProperties: 16
+
+      primary:
+        title: "Primary manifestation"
+        description: |
+          The address of the node which will be given the primary manifestation
+          of the newly created dataset.  This must be the address of a node
+          that has introduced itself to the cluster.
+        type: string
+        oneOf:
+          - format: ipv4
+
+      required:
+        # Temporarily required until volume backends settle down and we know
+        # more about what it means to not have a primary manifestation.
+        - primary

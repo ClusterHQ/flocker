@@ -51,6 +51,8 @@ class APITestsMixin(object):
             goodResult(expected_good_result), loads(body)))
         return requesting
 
+    # Factor this onto a class dedicated to the version endpoint so the above
+    # methods can be re-used by another class for dataset creation endpoint.
     def test_version(self):
         """
         The ``/version`` command returns JSON-encoded ``__version__``.
@@ -62,8 +64,38 @@ class APITestsMixin(object):
 def _build_app(test):
     test.initialize()
     return DatasetAPIUserV1(test.persistence_service).app
+# Make these use the version endpoint class and change their names
 RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)
+
+
+class CreateDatasetAPITestsMixin(object):
+    def test_wrong_schema(self):
+        # If the input data doesn't match the schema for a dataset, fail with
+        # an error.
+        pass
+
+    def test_dataset_id_collision(self):
+        # Given dataset_id is already in use, fail with an error.
+        pass
+
+    def test_unknown_primary_node(self):
+        # unknown IPv4 address for primary, fail with an error.
+        pass
+
+    # ... etc
+
+    def test_minimal_create_dataset(self):
+        # minimal arguments given (valid primary), dataset is added to
+        # configuration
+        # verify persisted configuration has it
+        # verify response has parameters matching it (mainly generated dataset_id)
+
+    def test_create_with_metadata(self):
+        # verify given metadata is persisted, success response includes it
+
+    # ... etc
+
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
