@@ -41,6 +41,8 @@ DatasetsSchemaTests = build_schema_test(
     # - too-long string property value in metadata
     # - too many metadata properties
     #
+    # - test maximum_size cases
+    #
     # - missing primary
     # - wrong type for primary
     # - non-IPv4-address for primary
