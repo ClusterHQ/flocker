@@ -16,7 +16,6 @@ definitions:
   datasets:
     type: object
     properties:
-
       dataset_id:
         title: "Unique identifier"
         description: |
@@ -51,7 +50,21 @@ definitions:
         oneOf:
           - format: ipv4
 
-      required:
-        # Temporarily required until volume backends settle down and we know
-        # more about what it means to not have a primary manifestation.
-        - primary
+      maximum_size:
+        title: "Maximum size"
+        description: |
+          The upper limit on how much data the dataset will be allowed to
+          store, as an integer number of bytes.
+        type: number
+        # 64 MiB.  Sort of an arbitrary limit but inspired by the lower bound
+        # on what this can be set to for the ZFS backend.  Could probably be
+        # considered more carefully.
+        minimum: 67108864
+        # This is how you require integers, of course.
+        divisibleBy: 1
+
+    required:
+      # Temporarily required until volume backends settle down and we know
+      # more about what it means to not have a primary manifestation.
+      - primary
+    additionalProperties: false
