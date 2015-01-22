@@ -456,35 +456,6 @@ Appendix: Back Porting Changes From Master
 XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
 
 
-.. _pre-populating-rpm-repository:
-
-Appendix: Pre-populating RPM Repository
----------------------------------------
-
-.. warning:: This only needs to be done if the dependency packages for Flocker (e.g. 3rd party Python libraries) change; it should *not* be done every release.
-             If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository index!
-
-These steps must be performed from a :doc:`Flocker development environment <vagrant>` because it has the HybridLogic Copr repository pre-installed.
-
-::
-
-   mkdir repo
-   mkdir srpm
-
-   # Download all the latest binary and source packages from the Copr repository.
-   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil python-klein python-jsonschema
-   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil python-klein python-jsonschema
-
-   # Create local repositories.
-   createrepo repo
-   createrepo srpm
-
-   # Upload to Google Cloud Storage using ``gsutil``.
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
-   gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
-
-.. note: XXX: Move or automate this documentation https://clusterhq.atlassian.net/browse/FLOC-327
-
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
 .. _Google cloud storage: https://console.developers.google.com/project/apps~hybridcluster-docker/storage/archive.clusterhq.com/
