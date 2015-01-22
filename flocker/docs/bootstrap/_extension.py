@@ -4,7 +4,7 @@
 Bootstrap extension entry point.
 """
 
-from . import _jumbotron, _logo, _columns
+from . import _simple, _tabs
 
 
 def setup(app):
@@ -12,5 +12,5 @@ def setup(app):
     Entry point for sphinx extension.
     """
 
-    for module in [_jumbotron, _logo, _columns]:
+    for module in [_simple, _tabs]:
         module.setup(app)

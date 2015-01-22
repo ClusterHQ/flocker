@@ -1,52 +1,6 @@
 :tocdepth: 2
 :layout: homepage
 
-===============
-Getting Started
-===============
-
-.. jumbotron::
-
-   Flocker lets you run microservices apps with database containers and move them around between servers. It comes in two pieces and you’ll need both.
-
 .. logo::
 
-.. columns::
-
-   .. column::
-
-      +-----------------------------------------------------+
-      | Runs on your laptop                                 |
-      +-----------------------------------------------------+
-      | Uses application and deployment configuration files |
-      +-----------------------------------------------------+
-      | Deploys containers to a cluster of servers          |
-      +-----------------------------------------------------+
-
-   .. column::
-
-      +-----------------------------------------------------+
-      |   Runs on each server in a cluster                  |
-      +-----------------------------------------------------+
-      |   Links, ports and volumes work across hosts        |
-      +-----------------------------------------------------+
-      |   After deployment, containers can move around      |
-      +-----------------------------------------------------+
-
-Flocker is a lightweight volume and container manager.
-It lets you:
-
-* Define your application as a set of connected Docker containers
-* Deploy them to one or multiple hosts
-* Easily migrate them along with their data between hosts
-
-The goal of Flocker is to simplify the operational tasks that come along with running databases, key-value stores, queues and other data-backed services in containers.
-This Getting Started guide will walk you step-by-step through installing Flocker and provide some tutorials that demonstrate the essential features of Flocker.
-
-.. toctree::
-   :maxdepth: 2
-
-   installation
-   tutorial/index
-   examples/apps
-   examples/features
+.. include:: ../../sample-quickstart.rst
