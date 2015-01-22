@@ -150,15 +150,32 @@ Preparing For a Release
 
 #. Update the staging documentation.
 
-   TODO: find a better way to get the current version.
-   TODO: Automate this.
-   .. prompt:: bash $
+   .. TODO: The following steps should be automated
 
-      gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
-      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
-      gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+   #. Copy release documentation from clusthq-dev-docs to clusterhq-staging-docs.
 
-   Update the redirect rules to point to the new release. (TODO: Link or sample)
+      .. prompt:: bash $
+
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+
+   #. Update redirects to point to new documentation.
+
+      .. warning:: Skip this step for weekly releases and pre-releases.
+
+      .. prompt:: bash $
+
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+
+   #. Update the redirect rules in S3 to point to the new release. (TODO: details)
+   #. Create an invalidation for the following paths in CloudFront (TODO: detilas)::
+
+      /
+      /index.html
+      /en/
+      /en/index.html
+      /en/latest/*
+      /en/devel/*
 
 #. Make a pull request on GitHub
 
@@ -387,20 +404,18 @@ Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
-   #. Update the redirect rules to point to the new release. (TODO: Link or sample)
+   #. Update the redirect rules in S3 to point to the new release. (TODO: details)
       /latest/ and /devel/ if this is a marketing release.
       /devel/ if this is a weekly or pre-release.
 
-   TODO:
+   #. Create an invalidation for the following paths in CloudFront (TODO: detilas)::
 
-   - We probably need to purge some documents from cloudfront and cloudflare.
-
-     - /
-     - /index.html
-     - /en/
-     - /en/index.html
-     - /en/latest/
-     - /en/latest/index.html (or /en/latest/* if we do deep-linking)
+      /
+      /index.html
+      /en/
+      /en/index.html
+      /en/latest/*
+      /en/devel/*
 
 #. Submit the release pull request for review again.
 
