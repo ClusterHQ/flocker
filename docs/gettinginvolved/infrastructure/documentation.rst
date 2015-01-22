@@ -1,7 +1,7 @@
 Documentation Hosting
 =====================
 
-Flocker's documentation is hosted on S3, fronted by cloudfront and cloudflare.
+Flocker's documentation is hosted on S3, fronted by CloudFront.
 
 S3 Buckets
 ----------
@@ -19,7 +19,7 @@ Configuration
 `````````````
 It is configured to allow static website hosting, with an index document of ``index.html``.
 
-It has the following bucket policy configured
+To allow CloudFront to access the bucket, it has the following bucket policy configured:
 
 .. code:: json
 
@@ -37,7 +37,7 @@ It has the following bucket policy configured
 
 It has logging enabled. (TODO: figure out what configuration we want, or if this should be at a different layer).
 
-There are empty files at `/index.html` and `/en/index.html` that redirect to the latest docuemntation.
+There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to the latest docuemntation.
 
 .. prompt:: bash $
 
@@ -47,7 +47,6 @@ There are empty files at `/index.html` and `/en/index.html` that redirect to the
 TODO
 ````
 - Figure out what to do about error pages.
-- Do we want content on the redirect page.
 
 clusterhq-staging-docs
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -61,7 +60,8 @@ clusterhq-dev-docs
 
 This bucket has documentation uploaded to it from buildbot.
 Buildbot will upload documentation from all builds of release branches or tags here.
-
+The build will be uploaded to a folded named after the python version
+(i.e. the output of ``python setup.py --version``).
 
 Configuration
 `````````````
@@ -82,7 +82,7 @@ pointed to.
 
 Configuration
 ~~~~~~~~~~~~~
-The following settins should be set:
+The following settings should be set:
 
 - Origin Domain Name: clusterhq-docs.s3-website-us-east-1.amazonaws.com
 - Origin Path:
@@ -110,3 +110,4 @@ CloudFlare
 ----------
 
 `docs.clusterhq.com` and `docs.staging.clusterhq.com` are configured to point a the corresponding cloudfront distributions.
+This is going away once we have proper TLS certificates.
