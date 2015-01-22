@@ -58,7 +58,11 @@ To allow CloudFront to access the bucket, it has the following bucket policy con
       }]
    }
 
-It has logging enabled. (TODO: figure out what configuration we want, or if this should be at a different layer).
+
+It has logging enabled with the following settings:
+
+- Target Bucket: clusterhq-logs.s3.amazonaws.com
+- Target Prefix: docs.clusterhq.com/s/
 
 There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to the latest docuemntation.
 
@@ -113,7 +117,9 @@ The following settings should be set:
 - Origin Protocol Policy: HTTP Only
 - Alternate Domain Names: docs.clusterhq.com
 - Viewer Protocol Policy: HTTPS Only
-- Logging: ??
+- Logging: enabled
+- Bucket for Logs: clusterhq-logs.s3.amazonaws.com
+- Log Prefix: docs.staging.clusterhq.com/cloudfront/
 
 The rest can be left at their defaults.
 
