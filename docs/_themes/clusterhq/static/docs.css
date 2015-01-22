@@ -314,6 +314,10 @@ a.download:before {
     font-size: 1.05em;
 }
 
+.section .highlighted   {
+    background-color: #FFFF00
+}
+
 .mob-nav {
     height:97px;
     padding: 25px;
