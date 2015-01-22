@@ -60,6 +60,7 @@ class DatasetAPIUserV1(object):
         """, examples=[
             u"create dataset",
             u"create dataset with dataset_id",
+            u"create dataset with duplicate dataset_id",
             u"create dataset with maximum_size",
             u"create dataset with metadata",
         ])
