@@ -171,11 +171,12 @@ class FilesystemStoragePool(Service):
     def set_maximum_size(self, volume):
         filesystem = self.get(volume)
         root = filesystem.get_path()
+        size_path = root.child(b".size")
         if volume.size.maximum_size is not None:
-            root.child(b".size").setContent(
+            size_path.setContent(
                 u"{0}".format(volume.size.maximum_size).encode("ascii"))
-        else:
-            root.child(b".size").remove()
+        elif size_path.exists():
+            size_path.remove()
         return succeed(filesystem)
 
     def clone_to(self, parent, volume):

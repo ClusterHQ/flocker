@@ -2,15 +2,14 @@
 
 """
 Helper utilities for the Flocker release process.
-
-Since this is imported from setup.py, we need to ensure that it only imports
-things from the stdlib.
 """
 
 from collections import namedtuple
 
 __all__ = ['rpm_version', 'make_rpm_version']
 
+# Use characteristic instead.
+# https://clusterhq.atlassian.net/browse/FLOC-1223
 rpm_version = namedtuple('rpm_version', 'version release')
 
 

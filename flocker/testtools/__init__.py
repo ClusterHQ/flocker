@@ -14,14 +14,17 @@ from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from subprocess import check_call
+from subprocess import check_call, check_output
 from functools import wraps
 from unittest import skipIf
+from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
 
-from twisted.internet.interfaces import IProcessTransport, IReactorProcess
+from twisted.internet.interfaces import (
+    IProcessTransport, IReactorProcess, IReactorCore,
+    )
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred
@@ -29,6 +32,9 @@ from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, Protocol
+from twisted.test.proto_helpers import MemoryReactor
+from twisted.python.procutils import which
+from twisted.trial.unittest import TestCase
 
 from characteristic import attributes
 
@@ -669,3 +675,51 @@ def assertContainsAll(haystack, needles, test_case):
 
 # Skip decorator for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+
+
+# TODO: This should be provided by Twisted (also it should be more complete
+# instead of 1/3rd done).
+from twisted.internet.base import _ThreePhaseEvent
+
+
+@implementer(IReactorCore)
+class MemoryCoreReactor(MemoryReactor):
+    """
+    Fake reactor with listenTCP and just enough of an implementation of
+    IReactorCore.
+    """
+    def __init__(self):
+        MemoryReactor.__init__(self)
+        self._triggers = {}
+
+    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.addTrigger(phase, callable, *args, **kw)
+        # removeSystemEventTrigger isn't implemented so the return value here
+        # isn't useful.
+        return object()
+
+    def fireSystemEvent(self, eventType):
+        event = self._triggers.get(eventType)
+        if event is not None:
+            event.fireEvent()
+
+
+def make_script_tests(executable):
+    """
+    Generate a test suite which applies to any Flocker-installed node script.
+
+    :param bytes executable: The basename of the script to be tested.
+
+    :return: A ``TestCase`` subclass which defines some tests applied to the
+        given executable.
+    """
+    class ScriptTests(TestCase):
+        @skipUnless(which(executable), executable + " not installed")
+        def test_version(self):
+            """
+            The script is a command available on the system path.
+            """
+            result = check_output([executable] + [b"--version"])
+            self.assertEqual(result, b"%s\n" % (__version__,))
+    return ScriptTests

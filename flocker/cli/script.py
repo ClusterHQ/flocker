@@ -20,9 +20,9 @@ from characteristic import attributes
 
 from ..common.script import (flocker_standard_options, ICommandLineScript,
                              FlockerScriptRunner)
-from ..node import (FlockerConfiguration, ConfigurationError,
-                    FigConfiguration, applications_to_flocker_yaml,
-                    model_from_configuration)
+from ..control import (FlockerConfiguration, ConfigurationError,
+                       FigConfiguration, applications_to_flocker_yaml,
+                       model_from_configuration)
 
 from ..common import ProcessNode, gather_deferreds
 from ._sshconfig import DEFAULT_SSH_DIRECTORY, OpenSSHConfiguration

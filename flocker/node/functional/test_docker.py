@@ -7,9 +7,13 @@ Functional tests for :module:`flocker.node._docker`.
 from __future__ import absolute_import
 
 import time
+from functools import partial
 
 from docker.errors import APIError
 from docker import Client
+# Docker-py uses 1.16 API by default, which isn't supported by docker, so force
+# the use of the 1.15 API until we upgrade docker in flocker-dev
+Client = partial(Client, version="1.15")
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath
@@ -27,7 +31,7 @@ from ..test.test_docker import make_idockerclient_tests
 from .._docker import (
     DockerClient, PortMap, Environment, NamespacedDockerClient,
     BASE_NAMESPACE, Volume)
-from .._model import RestartNever, RestartAlways, RestartOnFailure
+from ...control._model import RestartNever, RestartAlways, RestartOnFailure
 from ..testtools import if_docker_configured, wait_for_unit_state
 
 

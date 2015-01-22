@@ -327,3 +327,9 @@ a.download:before {
 .sidebar-heading {
     font-size: 24px;
 }
+
+/* Necessary for "Request JSON Schema" etc. to look right in generated REST API
+   documentation. */
+th.field-name {
+    text-align: left;
+}
