@@ -682,6 +682,8 @@ APPLICATION_WITH_VOLUME = Application(
     ),
     links=frozenset(),
 )
+MANIFESTATION = APPLICATION_WITH_VOLUME.volume.manifestation
+
 DATASET_WITH_SIZE = Dataset(dataset_id=DATASET_ID,
                             metadata=DATASET.metadata,
                             maximum_size=1024 * 1024 * 100)
@@ -696,6 +698,8 @@ APPLICATION_WITH_VOLUME_SIZE = Application(
     ),
     links=frozenset(),
 )
+
+MANIFESTATION_WITH_SIZE = APPLICATION_WITH_VOLUME_SIZE.volume.manifestation
 
 # Placeholder in case at some point discovered application is different
 # than requested application:
@@ -2337,6 +2341,364 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         dataset2 = result.changes[1].changes[0].application.volume.dataset
         # New UUID was generated, but only once:
         self.assertEqual(UUID(dataset.dataset_id), UUID(dataset2.dataset_id))
+
+
+class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
+        SynchronousTestCase):
+    """
+    Tests for ``Deployer.calculate_necessary_state_changes`` when only
+    datasets are involved which are not attached to applications.
+    """
+    def test_dataset_created(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a new
+        dataset must be created if the desired configuration specifies
+        that a dataset that previously existed nowhere is going to be
+        on this node.
+        """
+        hostname = u"node1.example.com"
+
+        current = Deployment(nodes=frozenset({
+            Node(hostname=hostname, applications=frozenset()),
+        }))
+
+        api = Deployer(
+            create_volume_service(self),
+            docker_client=FakeDockerClient(units={}),
+            network=make_memory_network()
+        )
+
+        node = Node(
+            hostname=hostname,
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        desired = Deployment(nodes=frozenset({node}))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+        expected = Sequentially(changes=[
+            InParallel(changes=[CreateDataset(
+                dataset=MANIFESTATION.dataset)])])
+        self.assertEqual(expected, changes)
+
+    def test_volume_wait(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        dataset previously stored on another node must be waited for, in
+        anticipation of that node handing it off to us.
+        """
+        # The application is not running here - therefore there is no container
+        # for it.
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running somewhere else.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 other_manifestations=frozenset({MANIFESTATION})),
+            Node(hostname=another_node.hostname,
+                 applications=frozenset()),
+        }))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[
+                WaitForDataset(dataset=MANIFESTATION.dataset)]),
+            InParallel(changes=[
+                ResizeDataset(dataset=MANIFESTATION.dataset)])])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_handoff(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that the
+        dataset which was previously hosted on this node but is now
+        supposed to be on another node must be handed off.
+        """
+        docker = FakeDockerClient(units={})
+
+        node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+        )
+
+        # The discovered current configuration of the cluster reveals the
+        # application is running here.
+        current = Deployment(nodes=frozenset([node, another_node]))
+
+        api = Deployer(
+            create_volume_service(self), docker_client=docker,
+            network=make_memory_network()
+        )
+
+        desired = Deployment(nodes=frozenset({
+            Node(hostname=node.hostname,
+                 applications=frozenset()),
+            Node(hostname=another_node.hostname,
+                 other_manifestations=frozenset({MANIFESTATION}))}))
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+        dataset = MANIFESTATION.dataset
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[PushDataset(
+                dataset=dataset, hostname=another_node.hostname)]),
+            InParallel(changes=[HandoffDataset(
+                dataset=dataset, hostname=another_node.hostname)]),
+        ])
+        self.assertEqual(expected, changes)
+
+    def test_no_dataset_changes(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies no work for
+        the dataset if it was and continues to be on the node.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        )
+
+        docker = FakeDockerClient(units={})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset({MANIFESTATION}),
+        )
+        desired_node = current_node
+
+        current = Deployment(nodes=frozenset([current_node]))
+        desired = Deployment(nodes=frozenset([desired_node]))
+
+        api = Deployer(
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=current_node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+
+        expected = Sequentially(changes=[])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_resize(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a dataset
+        will be resized if a dataset which was previously hosted on this
+        node continues to be on this node but specifies a dataset maximum_size
+        that differs to the existing dataset size.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        )
+
+        docker = FakeDockerClient(units={})
+
+        current_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset([MANIFESTATION]),
+        )
+        desired_node = Node(
+            hostname=u"node1.example.com",
+            other_manifestations=frozenset([MANIFESTATION_WITH_SIZE]),
+        )
+
+        current = Deployment(nodes=frozenset([current_node]))
+        desired = Deployment(nodes=frozenset([desired_node]))
+
+        api = Deployer(
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=current_node.hostname,
+        )
+
+        changes = self.successResultOf(calculating)
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(
+                    dataset=APPLICATION_WITH_VOLUME_SIZE.volume.dataset,
+                    )]
+            )
+        ])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_resized_before_move(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if it is to be relocated to a different
+        node but specifies a maximum_size that differs to the existing
+        size. The dataset will be resized before moving.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        )
+        docker = FakeDockerClient(units={})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                other_manifestations=frozenset([MANIFESTATION]),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+            )
+        ]
+        desired_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+            ),
+        ]
+
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        api = Deployer(
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname=u"node1.example.com",
+        )
+
+        dataset = MANIFESTATION_WITH_SIZE.dataset
+
+        changes = self.successResultOf(calculating)
+        # expected is: resize, push, handoff
+        expected = Sequentially(changes=[
+            InParallel(
+                changes=[ResizeDataset(dataset=dataset)],
+            ),
+            InParallel(
+                changes=[PushDataset(
+                    dataset=dataset,
+                    hostname=u'node2.example.com')]
+            ),
+            InParallel(
+                changes=[HandoffDataset(
+                    dataset=dataset,
+                    hostname=u'node2.example.com')]
+            )])
+        self.assertEqual(expected, changes)
+
+    def test_dataset_max_size_preserved_after_move(self):
+        """
+        ``Deployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if it is to be relocated to a different
+        node but specifies a maximum_size that differs to the existing
+        size. The dataset on the new target node will be resized after it
+        has been received.
+        """
+        volume_service = create_volume_service(self)
+        self.successResultOf(volume_service.create(
+            volume_service.get(
+                _to_volume_name(DATASET.dataset_id))
+            )
+        )
+        docker = FakeDockerClient(units={})
+
+        current_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+                other_manifestations=frozenset([MANIFESTATION]),
+            ),
+            Node(
+                hostname=u"node2.example.com",
+            )
+        ]
+
+        desired_nodes = [
+            Node(
+                hostname=u"node1.example.com",
+            ),
+            Node(
+                hostname=u"node2.example.com",
+                other_manifestations=frozenset({MANIFESTATION_WITH_SIZE}),
+            ),
+        ]
+
+        current = Deployment(nodes=frozenset(current_nodes))
+        desired = Deployment(nodes=frozenset(desired_nodes))
+
+        api = Deployer(
+            volume_service, docker_client=docker,
+            network=make_memory_network()
+        )
+
+        calculating = api.calculate_necessary_state_changes(
+            desired_state=desired,
+            current_cluster_state=current,
+            hostname="node2.example.com",
+        )
+
+        changes = self.successResultOf(calculating)
+        dataset = MANIFESTATION_WITH_SIZE.dataset
+
+        expected = Sequentially(changes=[
+            InParallel(changes=[WaitForDataset(dataset=dataset)]),
+            InParallel(changes=[ResizeDataset(dataset=dataset)]),
+        ])
+        self.assertEqual(expected, changes)
 
 
 class SetProxiesTests(SynchronousTestCase):

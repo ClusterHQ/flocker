@@ -200,7 +200,8 @@ class Dataset(object):
     """
 
 
-@attributes(["hostname", "applications",
+@attributes(["hostname",
+             Attribute("applications", default_value=frozenset()),
              Attribute("other_manifestations", default_value=frozenset())])
 class Node(object):
     """
@@ -224,9 +225,10 @@ class Node(object):
 
         :return frozenset: All ``Manifestation`` instances from this node.
         """
-        return frozenset([application.volume.manifestation
-                          for application in self.applications
-                          if application.volume is not None])
+        return self.other_manifestations | frozenset(
+            [application.volume.manifestation
+             for application in self.applications
+             if application.volume is not None])
 
 
 @attributes(["nodes"])
