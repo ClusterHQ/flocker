@@ -177,6 +177,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 
 #disqus_thread {
     margin-top: 50px;
+    max-width: 100%;
 }
 
 .footer {
