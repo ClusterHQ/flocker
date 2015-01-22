@@ -131,17 +131,3 @@ The rest can be left at their defaults.
 .. note::
 
    We can't use an S3 origin, as redirects won't work.
-
-Improvements
-~~~~~~~~~~~~
-
-Perhaps we can have two origins, one being S3, and only
-point URLs that need redirections to the website backed one.
-
-
-
-CloudFlare
-----------
-
-`docs.clusterhq.com` and `docs.staging.clusterhq.com` are configured to point a the corresponding cloudfront distributions.
-This is going away once we have proper TLS certificates.
