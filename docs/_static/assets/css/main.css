@@ -247,7 +247,15 @@ td>p {
 }
 
 .navbar-inverse {
-   background:  #343a3d;
+    background: #1e2021;
+    background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJod…IgaGVpZ2h0PSIxIiBmaWxsPSJ1cmwoI2dyYWQtdWNnZy1nZW5lcmF0ZWQpIiAvPgo8L3N2Zz4=);
+    background: -moz-linear-gradient(-45deg, #1e2021 0%, #343a3d 100%);
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,#1e2021), color-stop(100%,#343a3d));
+    background: -webkit-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%);
+    background: -o-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%);
+    background: -ms-linear-gradient(-45deg, #1e2021 0%,#343a3d 100%);
+    background: linear-gradient(135deg, #1e2021 0%,#343a3d 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e2021', endColorstr='#343a3d',GradientType=1 );
 }
 
 .heading {
