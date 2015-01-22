@@ -2,19 +2,23 @@ from textwrap import dedent
 from docutils.parsers.rst import Directive
 
 from docutils import nodes
-from docutils.statemachine import StringList
 
 
 class tabpanel(nodes.General, nodes.Element):
     pass
 
+
 def visit_tabpanel_html(self, node):
     pass
+
+
 def depart_tabpanel_html(self, node):
     pass
 
+
 class tabcontent(nodes.General, nodes.Element):
     pass
+
 
 def visit_tabcontent_html(self, node):
     self.body.append(dedent("""
@@ -31,6 +35,7 @@ def depart_tabcontent_html(self, node):
 class tab(nodes.General, nodes.Element):
     pass
 
+
 def visit_tab_html(self, node):
     classes = ['tab-pane']
     if node['active']:
@@ -44,6 +49,7 @@ def depart_tab_html(self, node):
     self.body.append(dedent("""
     </div>
     """))
+
 
 class tablink(nodes.General, nodes.Element):
     pass
@@ -64,13 +70,17 @@ def depart_tablink_html(self, node):
     </a></li>
     """))
 
+
 class tablist(nodes.General, nodes.Element):
     pass
+
 
 def visit_tablist_html(self, node):
     self.body.append(dedent("""
     <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
     """))
+
+
 def depart_tablist_html(self, node):
     self.body.append(dedent("""
     </ul>
