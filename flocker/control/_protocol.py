@@ -1,11 +1,33 @@
 """
 Communication protocol between control service and convergence agent.
+
+THIS CODE IS INSECURE AND SHOULD NOT BE DEPLOYED IN ANY FORM UNTIL
+https://clusterhq.atlassian.net/browse/FLOC-1241 IS FIXED.
+
+The cluster is composed of a control service server, and convergence
+agents. The code below implicitly assumes convergence agents are
+node-specific, but that will likely change and involve additinal commands.
+
+Interactions:
+
+* The control service knows the desired configuration for the cluster.
+  Every time it changes it notifies the convergence agents using the
+  ClusterStatusCommand.
+* The convergence agents know the state of nodes. Whenever node state
+  changes they notify the control service with a NodeStateCommand.
+* The control service caches the current state of all nodes. Whenever the
+  control service receives an update to the state of a specific node via a
+  NodeStateCommand, the control service then aggregates that update with
+  the rest of the nodes' state and sends a ClusterStatusCommand to all
+  convergence agents.
 """
+
+from pickle import dumps, loads
 
 from twisted.protocols.amp import Argument, Command, Integer, String
 
 from .._model import NodeState, Deployment
-from .__config import current_from_configuration, marshal_configuration
+from ._persistence import serialize_deployment, deserialize_deployment
 
 
 class NodeStateArgument(Argument):
@@ -13,11 +35,11 @@ class NodeStateArgument(Argument):
     AMP argument that takes a ``NodeState`` object.
     """
     def fromString(self, in_bytes):
-        #return json.loads(in_bytes) then decode NodeState
+        #return loads(in_bytes)
         pass
 
     def toString(self, node_state):
-        #return json.dumps(marshal_configuration(node_state))
+        #return dumps(node_state)
         pass
 
 
@@ -30,15 +52,10 @@ class DeploymentArgument(Argument):
     AMP argument that takes a ``Deployment`` object.
     """
     def fromString(self, in_bytes):
-        #values = json.loads(in_bytes))
-        #deployment_config = values["deployment"]
-        #application_config = values["applications"]
-        # XXX this is wrong function cause _config is terrible, but basic idea:
-        #return deployment_from_configuration(deployment_config, application_config)
-        pass
+        #return deserialize_deployment(in_bytes)
 
     def toString(self, deployment):
-        # Use code in FLOC-1159 to serialize Deployment object to two JSON objects
+        #return serialize_deployment(node_state)
         pass
 
 
@@ -46,12 +63,10 @@ class VersionCommand(Command):
     """
     Return configuration protocol version of the control service.
 
-    Semantic versioning: Major version changes implies incompatibility,
-    minor version implies compatible extension.
+    Semantic versioning: Major version changes implies incompatibility.
     """
     arguments = []
-    response = [('major', Integer()),
-                ('minor', Integer())]
+    response = [('major', Integer())]
 
 
 class ClusterStatusCommand(Command):
