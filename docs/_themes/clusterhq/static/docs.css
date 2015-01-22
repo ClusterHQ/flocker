@@ -254,22 +254,21 @@ p {
 
 .admonition {
     padding-top: 15px;
-    background: url(exclamation@2x.png) no-repeat #f3f0d9;
-    background-size: 36px 34px;
+    background: url(exclamation@2x.png) no-repeat #fff098;
+    background-size: 32px 32px;
     background-position: 30px 20px;
     padding-left: 90px;
     min-height: 75px;
 }
 
-.admonition.warning {
-    background: url(exclamation-white@2x.png) no-repeat #f3f0d9;
-    background-size: 32px 32px;
-    background-position: 30px 20px;
-    background-color: #f08c8c;
+.admonition p {
+    color: #000000;
 }
 
-.admonition.warning p {
-    color: #ffffff;
+.admonition.warning {
+    background: url(warning@2x.png) no-repeat #f99696;
+    background-size: 32px 32px;
+    background-position: 30px 20px;
 }
 
 .admonition-title {
@@ -277,7 +276,7 @@ p {
 }
 
 .admonition a {
-    color: #f15c30;
+    color: #000000;
 }
 
 .admonition p.last {
