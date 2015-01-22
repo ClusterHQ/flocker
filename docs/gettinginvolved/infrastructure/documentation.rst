@@ -18,6 +18,29 @@ It has documentation for all marketing releases.
 Configuration
 `````````````
 It is configured to allow static website hosting, with an index document of ``index.html``.
+To allow deep-linking to the latest documentation, the following redirect configuration is
+specified (replace the versions with the latest marketing and development releases).
+
+.. code:: xml
+
+   <RoutingRules>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/0.3.2/</ReplaceKeyPrefixWith>
+       </Redirect>
+     </RoutingRule>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/devel/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/0.3.3dev3/</ReplaceKeyPrefixWith>
+       </Redirect>
+     </RoutingRule>
+   </RoutingRules>
 
 To allow CloudFront to access the bucket, it has the following bucket policy configured:
 

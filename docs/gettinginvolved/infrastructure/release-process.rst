@@ -158,6 +158,8 @@ Preparing For a Release
       gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
       gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
 
+   Update the redirect rules to point to the new release. (TODO: Link or sample)
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
@@ -385,12 +387,11 @@ Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
-   TODO:
+   #. Update the redirect rules to point to the new release. (TODO: Link or sample)
+      /latest/ and /devel/ if this is a marketing release.
+      /devel/ if this is a weekly or pre-release.
 
-   - Do we want to have a ``/latest`` or ``/stable`` link.
-   - If so, do we want to support deep-linking to them, or can we just have those be redirects.
-     (Maybe deep-linking can be supported by having a redirect rule on S3 bucket).
-   - If not, we need to update links to on the main page and maybe elsewhere.
+   TODO:
 
    - We probably need to purge some documents from cloudfront and cloudflare.
 
