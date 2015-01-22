@@ -17,22 +17,32 @@ class tabcontent(nodes.General, nodes.Element):
     pass
 
 def visit_tabcontent_html(self, node):
-    pass
+    self.body.append(dedent("""
+    <div class="tab-content">
+    """))
+
+
 def depart_tabcontent_html(self, node):
-    pass
+    self.body.append(dedent("""
+    </div>
+    """))
 
 
 class tab(nodes.General, nodes.Element):
     pass
 
 def visit_tab_html(self, node):
+    classes = ['tab-pane']
+    if node['active']:
+        classes.append("active")
     self.body.append(dedent("""
-    <div id="tab-content-%(id)s" class="tab-content">
-    <div class="tab-pane active" id="li-%(id)s">
-    """ % {"id": node['ids'][0]}))
+    <div class="%(classes)s" id="li-%(id)s">
+    """ % {"classes": " ".join(classes), "id": node['ids'][0]}))
+
+
 def depart_tab_html(self, node):
     self.body.append(dedent("""
-    </div></div>
+    </div>
     """))
 
 class tablink(nodes.General, nodes.Element):
@@ -40,9 +50,15 @@ class tablink(nodes.General, nodes.Element):
 
 
 def visit_tablink_html(self, node):
+    if node['active']:
+        active = 'class="active"'
+    else:
+        active = ''
     self.body.append(dedent("""
     <li %(active)s><a href="#li-%(id)s" data-toggle="tab">
-    """ % {"active": 'class="active"' if node['active'] else '', "id": node['refid']}))
+    """ % {"active": active, "id": node['refid']}))
+
+
 def depart_tablink_html(self, node):
     self.body.append(dedent("""
     </a></li>
