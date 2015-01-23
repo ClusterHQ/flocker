@@ -142,4 +142,4 @@
   response: |
     HTTP/1.1 201 Created
 
-    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"metadata": {"name": "demo", "owner": "alice"}}}
+    {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
