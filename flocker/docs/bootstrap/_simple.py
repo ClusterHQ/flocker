@@ -20,7 +20,7 @@ def parse_general_division(
         options['meta'] = ''
     html = '<div class="{meta}"></div>'.format(meta=options['meta'])
 
-    return [nodes.raw('', html, format='html')]
+    return [nodes.raw('', html, format='html')]    
 
 
 def create_simple_html_directive(name, pre, post,
@@ -82,6 +82,20 @@ intro_text, IntroTextDirective, intro_text_setup = (
         </p></div></div></div></div>
         """),
     ))
+    
+    
+tutorial_step_condensed, TutorialStepCondensedDirective, tutorial_step_condensed_setup = (
+    create_simple_html_directive(
+        "tutorial-step-condensed",
+        pre=dedent("""\
+        <div class="container"><div class="row"><div class="col-md-12"><div class="col-md-9 col-sm-12 col-xs-12 col-centered">
+        """),
+        post=dedent("""\
+        </div></div></div></div>
+        """),
+        match_titles=True,
+    ))
+
 
 tutorial_step, TutorialStepDirective, tutorial_step_setup = (
     create_simple_html_directive(
@@ -145,6 +159,7 @@ def setup(app):
     directives.register_directive('general-division', parse_general_division)
     intro_text_setup(app)
     header_hero_setup(app)
+    tutorial_step_condensed_setup(app)
     tutorial_step_setup(app)
     mobile_label_setup(app)
     parallel_setup(app)

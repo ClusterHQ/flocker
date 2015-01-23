@@ -18,6 +18,7 @@ pre {
     padding-bottom: 0px;
     padding-top: 32px;
     font-size:16px;
+    border: none;
 }
 
 header {
@@ -31,6 +32,10 @@ header h1 {
     padding:12px;
     font-size:48px;
     font-weight:bold;   
+}
+
+#getting-started-with-flocker>h1:first-child, .headerlink {
+    display:none;
 }
 
 .navbar-brand>img {
@@ -66,7 +71,7 @@ header h1 {
     background-color: #343a3d;
     padding:12px 16px;
     font-size: 16px;
-    min-height:284px;
+    min-height:300px;
 }
 
 .tab-pane {
@@ -257,19 +262,20 @@ hr.docutils {
     filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e2021', endColorstr='#343a3d',GradientType=1 );
 }
 
-.heading {
+h2, h3 {
     color: #1e2021;
     font-size: 32px;
     font-weight: 500;
     line-height: 80px;
-    font-family: "Soho Gothic W01 Regular", sans-serif;    
+    font-family: "Soho Gothic W01 Regular", sans-serif;
+    text-align:center;
 }
 
-.heading a, p>a {
+h2 a, p>a {
     color:#f15c30;
 }
 
-.heading a:hover, p>a:hover {
+h2 a:hover, p>a:hover {
     color:#d44b22;
     text-decoration:none;
 }

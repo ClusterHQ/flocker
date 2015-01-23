@@ -134,6 +134,8 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+# The HTMLTranslator class
+html_translator_class = 'flocker.docs.bootstrap.HTMLWriter'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'bootstrap'

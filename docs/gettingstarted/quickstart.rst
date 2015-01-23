@@ -26,7 +26,8 @@ Getting started with Flocker
 
          Local
 
-      |Flocker CLI diagram|
+      .. image:: assets/img/macbook.png
+         :class: center-block img-responsive
 
       Flocker CLI
       -----------
@@ -48,7 +49,8 @@ Getting started with Flocker
 
          Live
 
-      |Flocker Node diagram|
+      .. image:: assets/img/nodes.png
+         :class: center-block offset-top img-responsive
 
       Flocker Node
       ------------
@@ -134,7 +136,7 @@ Getting started with Flocker
       .. general-division::
          :meta: arrow-down arrow-offset center-block
 
-.. tutorial-step::
+.. tutorial-step-condensed::
 
    Step 2: Deploying a demo app
    ============================
@@ -191,7 +193,7 @@ Getting started with Flocker
    .. general-division::
       :meta: arrow-hr arrow-down center-block
 
-.. tutorial-step::
+.. tutorial-step-condensed::
 
    Step 3: Migrating a container
    =============================
@@ -212,11 +214,8 @@ Getting started with Flocker
 
       $ flocker-deploy deployment-node2.yml app.yml
 
-   |Flocker Deployment migration diagram|
+   .. image:: assets/img/migration.png
+      :class: img-responsive
 
    In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
 
-
-.. |Flocker CLI diagram| image:: assets/img/macbook.png
-.. |Flocker Node diagram| image:: assets/img/nodes.png
-.. |Flocker Deployment migration diagram| image:: assets/img/migration.png
