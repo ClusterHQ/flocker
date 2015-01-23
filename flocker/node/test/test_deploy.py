@@ -2359,7 +2359,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         hostname = u"node1.example.com"
 
         current = Deployment(nodes=frozenset({
-            Node(hostname=hostname, applications=frozenset()),
+            Node(hostname=hostname),
         }))
 
         api = Deployer(
@@ -2386,14 +2386,12 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
                 dataset=MANIFESTATION.dataset)])])
         self.assertEqual(expected, changes)
 
-    def test_volume_wait(self):
+    def test_dataset_wait(self):
         """
         ``Deployer.calculate_necessary_state_changes`` specifies that the
         dataset previously stored on another node must be waited for, in
         anticipation of that node handing it off to us.
         """
-        # The application is not running here - therefore there is no container
-        # for it.
         docker = FakeDockerClient(units={})
 
         node = Node(
@@ -2405,8 +2403,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
             other_manifestations=frozenset({MANIFESTATION}),
         )
 
-        # The discovered current configuration of the cluster reveals the
-        # application is running somewhere else.
         current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
@@ -2417,8 +2413,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         desired = Deployment(nodes=frozenset({
             Node(hostname=node.hostname,
                  other_manifestations=frozenset({MANIFESTATION})),
-            Node(hostname=another_node.hostname,
-                 applications=frozenset()),
+            Node(hostname=another_node.hostname),
         }))
 
         calculating = api.calculate_necessary_state_changes(
@@ -2450,11 +2445,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
         another_node = Node(
             hostname=u"node2.example.com",
-            applications=frozenset(),
         )
 
-        # The discovered current configuration of the cluster reveals the
-        # application is running here.
         current = Deployment(nodes=frozenset([node, another_node]))
 
         api = Deployer(
@@ -2463,8 +2455,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         )
 
         desired = Deployment(nodes=frozenset({
-            Node(hostname=node.hostname,
-                 applications=frozenset()),
+            Node(hostname=node.hostname),
             Node(hostname=another_node.hostname,
                  other_manifestations=frozenset({MANIFESTATION}))}))
 
@@ -2491,12 +2482,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         the dataset if it was and continues to be on the node.
         """
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        )
-
         docker = FakeDockerClient(units={})
 
         current_node = Node(
@@ -2532,12 +2517,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         that differs to the existing dataset size.
         """
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        )
-
         docker = FakeDockerClient(units={})
 
         current_node = Node(
@@ -2581,11 +2560,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         size. The dataset will be resized before moving.
         """
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        )
         docker = FakeDockerClient(units={})
 
         current_nodes = [
@@ -2650,11 +2624,6 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         has been received.
         """
         volume_service = create_volume_service(self)
-        self.successResultOf(volume_service.create(
-            volume_service.get(
-                _to_volume_name(DATASET.dataset_id))
-            )
-        )
         docker = FakeDockerClient(units={})
 
         current_nodes = [
@@ -2688,7 +2657,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         calculating = api.calculate_necessary_state_changes(
             desired_state=desired,
             current_cluster_state=current,
-            hostname="node2.example.com",
+            hostname=u"node2.example.com",
         )
 
         changes = self.successResultOf(calculating)

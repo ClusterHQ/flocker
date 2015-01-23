@@ -2,11 +2,12 @@
 """
 Run the acceptance tests.
 """
-from subprocess import call, check_call
+from subprocess import Popen, CalledProcessError
 
 import sys
 import os
 import yaml
+import signal
 
 from zope.interface import Interface, implementer
 from characteristic import attributes
@@ -21,6 +22,37 @@ from flocker.provision._install import (
     run as run_tasks_on_node,
     task_pull_docker_images
 )
+
+
+def safe_call(command, **kwargs):
+    """
+    Run a process and kill it if the process is interrupted.
+
+    Takes the same arguments as ``subprocess.Popen``.
+    """
+    process = Popen(command, **kwargs)
+    try:
+        return process.wait()
+    except:
+        # We expect KeyboardInterrupt (from C-c) and
+        # SystemExit (from signal_handler below) here.
+        # But we'll cleanup on any execption.
+        process.terminate()
+        raise
+
+
+def check_safe_call(command, **kwargs):
+    """
+    Run a process and kill it if the process is interrupted.
+
+    Takes the same arguments as ``subprocess.Popen``.
+
+    :raises CalledProcessError: if the program exits with a failure.
+    """
+    result = safe_call(command, **kwargs)
+    if result != 0:
+        raise CalledProcessError(result, command[0])
+    return result
 
 
 def extend_environ(**kwargs):
@@ -46,7 +78,7 @@ def run_tests(nodes, trial_args):
     """
     if not trial_args:
         trial_args = ['flocker.acceptance']
-    return call(
+    return safe_call(
         ['trial'] + list(trial_args),
         env=extend_environ(
             FLOCKER_ACCEPTANCE_NODES=':'.join(nodes)))
@@ -99,13 +131,13 @@ class VagrantRunner(object):
     def start_nodes(self):
         # Destroy the box to begin, so that we are guaranteed
         # a clean build.
-        check_call(
+        check_safe_call(
             ['vagrant', 'destroy', '-f'],
             cwd=self.vagrant_path.path)
 
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
-        check_call(
+        check_safe_call(
             ['vagrant', 'up'],
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
@@ -119,7 +151,7 @@ class VagrantRunner(object):
         return self.NODE_ADDRESSES
 
     def stop_nodes(self):
-        check_call(
+        check_safe_call(
             ['vagrant', 'destroy', '-f'],
             cwd=self.vagrant_path.path)
 
@@ -299,6 +331,16 @@ class RunOptions(Options):
         )
 
 
+def signal_handler(signal, frame):
+    """
+    Exit gracefully when receiving a signal.
+
+    :param int signal: The signal that was received.
+    :param frame: The running frame.
+    """
+    raise SystemExit(1)
+
+
 def main(args, base_path, top_level):
     """
     :param list args: The arguments passed to the script.
@@ -314,6 +356,14 @@ def main(args, base_path, top_level):
         raise SystemExit(1)
 
     runner = options.runner
+
+    # We register a signal handler for SIGTERM here.
+    # When a signal is received, python will call this function
+    # from the main thread.
+    # We raise SystemExit to shutdown gracefully.
+    # In particular, we will kill any processes we spawned
+    # and cleanup and VMs we created.
+    signal.signal(signal.SIGTERM, signal_handler)
 
     try:
         nodes = runner.start_nodes()
