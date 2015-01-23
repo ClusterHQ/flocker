@@ -20,7 +20,7 @@ def parse_general_division(
         options['meta'] = ''
     html = '<div class="{meta}"></div>'.format(meta=options['meta'])
 
-    return [nodes.raw('', html, format='html')]    
+    return [nodes.raw('', html, format='html')]
 
 
 def create_simple_html_directive(name, pre, post,
@@ -82,26 +82,29 @@ intro_text, IntroTextDirective, intro_text_setup = (
         </p></div></div></div></div>
         """),
     ))
-    
-    
-tutorial_step_condensed, TutorialStepCondensedDirective, tutorial_step_condensed_setup = (
-    create_simple_html_directive(
-        "tutorial-step-condensed",
-        pre=dedent("""\
-        <div class="row row-centered"><div class="col-md-9 col-sm-12 col-xs-12 col-centered">
-        """),
-        post=dedent("""\
-        </div></div>
-        """),
-        match_titles=True,
-    ))
+
+
+tutorial_step_condensed, TutorialStepCondensedDirective, \
+    tutorial_step_condensed_setup = (
+        create_simple_html_directive(
+            "tutorial-step-condensed",
+            pre=dedent("""\
+            <div class="row row-centered"><div class="\
+    col-md-9 col-sm-12 col-xs-12 col-centered">
+            """),
+            post=dedent("""\
+            </div></div>
+            """),
+            match_titles=True,
+        ))
 
 
 tutorial_step, TutorialStepDirective, tutorial_step_setup = (
     create_simple_html_directive(
         "tutorial-step",
         pre=dedent("""\
-        <div class="container"><div class="row"><div class="col-md-12 text-larger">
+        <div class="container"><div class="row"><div class="\
+col-md-12 text-larger">
         """),
         post=dedent("""\
         </div></div></div>

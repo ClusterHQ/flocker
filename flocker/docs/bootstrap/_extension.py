@@ -16,14 +16,14 @@ def setup(app):
 
     for module in [_simple, _tabs]:
         module.setup(app)
-        
+
 
 class HTMLWriter(HTMLTranslator):
     """
     Overrides part of the default HTMLTranslator to provide specific
     class names on some generated HTML elements.
     """
-    
+
     def visit_table(self, node):
         self._table_row_index = 0
         self.context.append(self.compact_p)
@@ -57,4 +57,4 @@ class HTMLWriter(HTMLTranslator):
         self.context.append('</p></%s>\n' % tagname.lower())
         if len(node) == 0:              # empty cell
             self.body.append('&nbsp;')
-        self.set_first_last(node)    
+        self.set_first_last(node)
