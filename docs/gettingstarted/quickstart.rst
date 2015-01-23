@@ -28,6 +28,7 @@ Getting started with Flocker
 
       .. image:: assets/img/macbook.png
          :class: center-block img-responsive
+         :alt: Flocker CLI diagram
 
       Flocker CLI
       -----------
@@ -51,6 +52,7 @@ Getting started with Flocker
 
       .. image:: assets/img/nodes.png
          :class: center-block offset-top img-responsive
+         :alt: Flocker Node diagram
 
       Flocker Node
       ------------
@@ -219,7 +221,8 @@ Getting started with Flocker
          $ flocker-deploy deployment-node2.yml app.yml
 
       .. image:: assets/img/migration.png
-         :class: img-responsive img-spaced         
+         :class: img-responsive img-spaced
+         :alt: Flocker migration diagram
 
       In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
 
