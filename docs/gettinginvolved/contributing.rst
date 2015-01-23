@@ -1,12 +1,12 @@
 .. include:: ../../CONTRIBUTING.rst
 
-Maintence Branches
-==================
+Maintenance Branches
+====================
 
 .. note::
 
    As :ref`bugfix releases<bugfix-releases>` aren't currently being produced,
-   the following instructions are only relevenat for documentation fixes.
+   the following instructions are only relevant for documentation fixes.
 
 
 Occasionally, issues will be discovered that want to be fixed before the next full release.
@@ -24,7 +24,7 @@ The following is the procedure for fixing them.
 
    .. prompt:: bash $
 
-      git checkout -b release-maintence/flocker-1.2.3/fix-a-bug-FLOC-1235 origin/release/flocker-1.2.3
+      git checkout -b release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1235 origin/release/flocker-1.2.3
 
 #. Fix the bug.
 
@@ -33,15 +33,15 @@ The following is the procedure for fixing them.
       vi ...
       git commit -m'Fixed the bug.'
 
-#. Push the branch to github.
+#. Push the branch to GitHub.
 
    .. prompt:: bash $
 
-      git push origin --set-upstream release-maintence/flocker-1.2.3/fix-a-bug-FLOC-1235
+      git push origin --set-upstream release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1235
 
 #. Create a pull-request against the release branch.
 
-   https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintence/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1
+   https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1
 
 #. Wait for the pull-request to be accepted.
 
@@ -49,16 +49,16 @@ The following is the procedure for fixing them.
 
    .. prompt:: bash $
 
-      git checkout -b release-maintence/flocker-1.2.4/fix-a-bug-FLOC-1236 origin/release-maintence/flocker-1.2.3/fix-a-bug-FLOC-1235
+      git checkout -b release-maintenance/flocker-1.2.4/fix-a-bug-FLOC-1236 origin/release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1235
       # The following command is only necesary if there are merge conflicts to resolve
       git merge origin/release/flocker-1.2.4
-      git push origin --set-upstream release-maintence/flocker-1.2.4/fix-a-bug-FLOC-1236
+      git push origin --set-upstream release-maintenance/flocker-1.2.4/fix-a-bug-FLOC-1236
 
 #. If master is affected, create a branch against master, merge-forward, then create a pull-request.
 
    .. prompt:: bash $
 
-      git checkout -b fix-a-bug-FLOC-1236 origin/release-maintence/flocker-1.2.3/fix-a-bug-FLOC-1235
+      git checkout -b fix-a-bug-FLOC-1236 origin/release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1235
       # The following command is only necesary if there are merge conflicts to resolve
       git merge origin/master
       git push origin --set-upstream fix-a-bug-FLOC-1236
