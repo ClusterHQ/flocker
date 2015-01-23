@@ -13,10 +13,8 @@ pre {
     background: #343a3d;
     color: #FFF;
     margin: 20px 0px 20px 0px;
-    padding: 16px;
+    padding: 32px 16px 22px 16px;
     line-height: 1.6;
-    padding-bottom: 0px;
-    padding-top: 32px;
     font-size:16px;
     border: none;
 }
@@ -36,6 +34,14 @@ header h1 {
 
 #getting-started-with-flocker>h1:first-child, .headerlink {
     display:none;
+}
+
+#getting-started-with-flocker>.container:nth-of-type(5) {
+    margin-top: -56px;
+}
+
+.img-spaced {
+    margin-bottom:24px;
 }
 
 .navbar-brand>img {
@@ -72,6 +78,7 @@ header h1 {
     padding:12px 16px;
     font-size: 16px;
     min-height:300px;
+    max-height:300px;
 }
 
 .tab-pane {

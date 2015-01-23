@@ -107,7 +107,7 @@ Getting started with Flocker
 
       .. mobile-label::
 
-         Local
+         Live
 
 
       Installation
@@ -136,56 +136,58 @@ Getting started with Flocker
       .. general-division::
          :meta: arrow-down arrow-offset center-block
 
-.. tutorial-step-condensed::
+.. tutorial-step::
 
    Step 2: Deploying a demo app
    ============================
+   
+   .. tutorial-step-condensed::
 
-   You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
-   Now you can try our simple tutorial: a Python web application and a Redis server.
+      You should have flocker-cli installed on your laptop and flocker-node installed on some servers: either VMs on your laptop, or real instances on cloud infrastructure.
+      Now you can try our simple tutorial: a Python web application and a Redis server.
 
-   .. code-block:: console
+      .. code-block:: console
 
-      $ git clone https://github.com/clusterhq/flocker-tutorial
-      $ cd flocker-tutorial
+         $ git clone https://github.com/clusterhq/flocker-tutorial
+         $ cd flocker-tutorial
 
-   fig.yml
-   -------
+      fig.yml
+      -------
 
-   .. code-block:: yaml
+      .. code-block:: yaml
 
-      web:
-        image: lmarsden/flask:v0.16
-        links:
-         - "redis:redis"
-        ports:
-         - "80:80"
-      redis:
-        image: dockerfile/redis
-        ports:
-         - "6379:6379"
-        volumes: ["/data"]
-
-
-   deployment-node1.yml
-   --------------------
-
-   .. code-block:: yaml
-
-      "version": 1
-      "nodes":
-        "172.16.255.250": ["web", "redis"]
-        "172.16.255.251": []
+         web:
+           image: lmarsden/flask:v0.16
+           links:
+            - "redis:redis"
+           ports:
+            - "80:80"
+         redis:
+           image: dockerfile/redis
+           ports:
+            - "6379:6379"
+           volumes: ["/data"]
 
 
-   The fig.yml describes your distributed application. The deployment.yml describes which containers to deploy where.
-   If you are using real servers on AWS, you'll need to change the IP addresses in the deployment file.
+      deployment-node1.yml
+      --------------------
 
-   .. code-block:: console
+      .. code-block:: yaml
 
-      $ flocker-deploy deployment-node1.yml fig.yml
+         "version": 1
+         "nodes":
+           "172.16.255.250": ["web", "redis"]
+           "172.16.255.251": []
 
-   Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes. It works!
+
+      The fig.yml describes your distributed application. The deployment.yml describes which containers to deploy where.
+      If you are using real servers on AWS, you'll need to change the IP addresses in the deployment file.
+
+      .. code-block:: console
+
+         $ flocker-deploy deployment-node1.yml fig.yml
+
+      Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes. It works!
 
 
    ---------------------------------------------
@@ -193,29 +195,31 @@ Getting started with Flocker
    .. general-division::
       :meta: arrow-hr arrow-down center-block
 
-.. tutorial-step-condensed::
+.. tutorial-step::
 
    Step 3: Migrating a container
    =============================
+   
+   .. tutorial-step-condensed::
 
-   Now we are going to use a different depoyment config to show moving the Redis container with its data volume.
+      Now we are going to use a different depoyment config to show moving the Redis container with its data volume.
 
-   deployment-node2.yml
-   --------------------
+      deployment-node2.yml
+      --------------------
 
-   .. code-block:: yaml
+      .. code-block:: yaml
 
-      "version": 1
-      "nodes":
-        "172.16.255.250": ["web"]
-        "172.16.255.251": ["redis"]
+         "version": 1
+         "nodes":
+           "172.16.255.250": ["web"]
+           "172.16.255.251": ["redis"]
 
-   .. code-block:: console
+      .. code-block:: console
 
-      $ flocker-deploy deployment-node2.yml app.yml
+         $ flocker-deploy deployment-node2.yml app.yml
 
-   .. image:: assets/img/migration.png
-      :class: img-responsive
+      .. image:: assets/img/migration.png
+         :class: img-responsive img-spaced         
 
-   In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
+      In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
 

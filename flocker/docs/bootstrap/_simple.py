@@ -88,10 +88,10 @@ tutorial_step_condensed, TutorialStepCondensedDirective, tutorial_step_condensed
     create_simple_html_directive(
         "tutorial-step-condensed",
         pre=dedent("""\
-        <div class="container"><div class="row"><div class="col-md-12"><div class="col-md-9 col-sm-12 col-xs-12 col-centered">
+        <div class="row row-centered"><div class="col-md-9 col-sm-12 col-xs-12 col-centered">
         """),
         post=dedent("""\
-        </div></div></div></div>
+        </div></div>
         """),
         match_titles=True,
     ))
@@ -101,7 +101,7 @@ tutorial_step, TutorialStepDirective, tutorial_step_setup = (
     create_simple_html_directive(
         "tutorial-step",
         pre=dedent("""\
-        <div class="container"><div class="row"><div class="col-md-12">
+        <div class="container"><div class="row"><div class="col-md-12 text-larger">
         """),
         post=dedent("""\
         </div></div></div>

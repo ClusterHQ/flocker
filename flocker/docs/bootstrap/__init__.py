@@ -6,4 +6,4 @@ Sphinx extensions exposing bootstrap constructs.
 
 from ._extension import setup, HTMLWriter
 
-__all__ = ["setup"]
+__all__ = ["setup", "HTMLWriter"]
