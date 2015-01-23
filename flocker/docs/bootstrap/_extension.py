@@ -4,6 +4,7 @@
 Bootstrap extension entry point.
 """
 
+from docutils import nodes
 from sphinx.writers.html import HTMLTranslator
 from . import _simple, _tabs
 
@@ -31,4 +32,29 @@ class HTMLWriter(HTMLTranslator):
                             self.settings.table_style]).strip()
         self.body.append(
             self.starttag(node, 'table', CLASS=classes, border="0"))
-    
+
+    def visit_entry(self, node):
+        atts = {'class': []}
+        if isinstance(node.parent.parent, nodes.thead):
+            atts['class'].append('head')
+        if node.parent.parent.parent.stubs[node.parent.column]:
+            # "stubs" list is an attribute of the tgroup element
+            atts['class'].append('stub')
+        if atts['class']:
+            tagname = 'th'
+            atts['class'] = ' '.join(atts['class'])
+        else:
+            tagname = 'td'
+            del atts['class']
+        node.parent.column += 1
+        if 'morerows' in node:
+            atts['rowspan'] = node['morerows'] + 1
+        if 'morecols' in node:
+            atts['colspan'] = node['morecols'] + 1
+            node.parent.column += node['morecols']
+        self.body.append(self.starttag(node, tagname, '', **atts))
+        self.body.append(self.starttag(node, 'p', '', dict()))
+        self.context.append('</p></%s>\n' % tagname.lower())
+        if len(node) == 0:              # empty cell
+            self.body.append('&nbsp;')
+        self.set_first_last(node)    
