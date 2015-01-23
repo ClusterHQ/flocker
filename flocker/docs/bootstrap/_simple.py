@@ -43,9 +43,9 @@ def create_simple_html_directive(name, pre, post, has_content=True, match_titles
     return node_class, directive_class, setup
 
 
-intro_text, IntroTextDirective, intro_text_setup = (
+header_hero, HeaderHeroDirective, header_hero_setup = (
     create_simple_html_directive(
-        "intro-text",
+        "header-hero",
         pre=dedent("""\
         <header><h1 class="text-center">
         """),
@@ -54,6 +54,18 @@ intro_text, IntroTextDirective, intro_text_setup = (
         """),
     ))
 
+intro_text, IntroTextDirective, intro_text_setup = (
+    create_simple_html_directive(
+        "intro-text",
+        pre=dedent("""\
+        <div class="jumbotron jumbo-flocker">
+        <div class="container"><div class="row">
+        <div class="col-md-9"><p>
+        """),
+        post=dedent("""\
+        </p></div></div></div></div>
+        """),
+    ))
 
 tutorial_step, TutorialStepDirective, tutorial_step_setup = (
     create_simple_html_directive(
@@ -101,7 +113,7 @@ logo, LogoDirective, logo_setup = (
         post=dedent("""\
         </div>
         """),
-        has_content=True,
+        has_content=False,
     ))
 
 
@@ -110,6 +122,7 @@ def setup(app):
     Entry point for sphinx extension.
     """
     intro_text_setup(app)
+    header_hero_setup(app)
     tutorial_step_setup(app)
     mobile_label_setup(app)
     parallel_setup(app)
