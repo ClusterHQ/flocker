@@ -40,9 +40,9 @@ DISCOVERING:
 Discovery is ongoing.
 When discovery result is received send it (asynchronously) to control
 service, start changing local state appropriately, switch to CHANGING.
-If STOP is received switch to DISCOVERING_STOPPED.
+If STOP is received switch to DISCOVERING_STOPPING.
 
-DISCOVERING_STOPPED:
+DISCOVERING_STOPPING:
 
 If discovery result is received switch to STOPPED.
 If GO is received switch to DISCOVERING.
@@ -51,9 +51,9 @@ CHANGING:
 
 Change is ongoing.
 If changes finish start discovery and switch to DISCOVERING.
-If STOP is received switch to CHANGING_STOPPED.
+If STOP is received switch to CHANGING_STOPPING.
 
-CHANGING_STOPPED:
+CHANGING_STOPPING:
 
 If changes finish switch to STOPPED.
 If GO is received switch to CHANGING.
