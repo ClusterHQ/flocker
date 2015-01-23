@@ -1,7 +1,7 @@
 """
 Convergence loop for the agent.
 
-The convergence agent runs a loop that attempts to converge the node's
+The convergence agent runs a loop that attempts to converge the local
 state with the desired configuration as transmitted by the control
 service. This involves two state machines: ClusterStatus and AgentOperation.
 The ClusterStatus state machine receives inputs from the connection to the
@@ -15,7 +15,7 @@ When started, attempt to connect to server, switch to DISCONNECTED:
 
 DISCONNECTED:
 
-The node is not connected to the control service.
+The agent is not connected to the control service.
 If connected switch to IGNORANT.
 If connection failed try to connect again.
 
@@ -42,7 +42,7 @@ DISCOVERING:
 
 Discovery is ongoing.
 When discovery result is received send it (asynchronously) to control
-service, start changing node appropriately, switch to CHANGING.
+service, start changing local state appropriately, switch to CHANGING.
 If STOP is received switch to DISCOVERING_STOPPED.
 
 DISCOVERING_STOPPED:
