@@ -4,15 +4,17 @@ A HTTP REST API for controlling the Dataset Manager.
 """
 
 import yaml
+from uuid import uuid4
 
 from twisted.python.filepath import FilePath
+from twisted.web.http import CONFLICT
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ..restapi import structured, user_documentation
+from ..restapi import structured, user_documentation, make_bad_request
 from .. import __version__
 
 
@@ -23,6 +25,10 @@ SCHEMAS = {
     b'/v1/endpoints.json': yaml.safe_load(
         SCHEMA_BASE.child(b'endpoints.yml').getContent()),
     }
+
+
+DATASET_ID_COLLISION = make_bad_request(
+    code=CONFLICT, description=u"The provided dataset_id is already in use.")
 
 
 class DatasetAPIUserV1(object):
@@ -69,12 +75,21 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset(self):
+    def create_dataset(self, primary, dataset_id=None):
         """
         Create a new dataset on the cluster.
         """
+        if dataset_id is None:
+            dataset_id = u"x" * 36 # unicode(uuid4())
+
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
+        deployment = self.persistence_service.get()
+        for node in deployment.nodes:
+            for manifestation in node.manifestations():
+                if manifestation.dataset.dataset_id == dataset_id:
+                    raise DATASET_ID_COLLISION
+
         #
         # Create a new Dataset with given parameters (generate dataset_id if
         # necessary).
@@ -90,6 +105,11 @@ class DatasetAPIUserV1(object):
         # create_dataset.  I guess we'll squish information from the
         # manifestation (eg the address of the primary) into the representation
         # of the dataset.
+        return {
+            u"dataset_id": dataset_id,
+            u"primary": primary,
+            u"metadata": {},
+        }
 
 
 
