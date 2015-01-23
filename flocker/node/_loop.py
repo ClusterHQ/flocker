@@ -5,13 +5,9 @@ The convergence agent runs a loop that attempts to converge the local
 state with the desired configuration as transmitted by the control
 service. This involves two state machines: ClusterStatus and AgentOperation.
 The ClusterStatus state machine receives inputs from the connection to the
-control service, and sends outputs to the AgentOperation state machine.
+control service, and sends inputs to the AgentOperation state machine.
 
 ClusterStatus has the following states:
-
-STOPPED:
-
-When started, attempt to connect to server, switch to DISCONNECTED:
 
 DISCONNECTED:
 
@@ -24,10 +20,11 @@ IGNORANT:
 The status of the cluster is unknown.
 If desired configuration and cluster state are received send a GO input
 symbol to the AgentOperation state machine. switch to KNOWN.
-If disconnected the switch to DISCONNECTED.
+If disconnected then switch to DISCONNECTED.
 
 KNOWLEDGEABLE:
 
+The status of the cluster is known.
 If disconnected send a STOP input to AgentOperation and switch to DISCONNECTED.
 
 
