@@ -8,12 +8,27 @@ Simple directives that just wrap content.
 from textwrap import dedent
 
 from docutils import nodes
+from docutils.parsers.rst import directives
 from docutils.parsers.rst import Directive
 
 
-def create_simple_html_directive(name, pre, post, has_content=True, match_titles=False):
+def parse_general_division(
+    name, arguments, options, content, lineno,
+    content_offset, block_text, state, state_machine
+):
+    if 'meta' not in options:
+        options['meta'] = ''
+    html = '<div class="{meta}"></div>'.format(meta=options['meta'])
 
-    node_class = type(name.replace('-', '_'), (nodes.General, nodes.Element), {})
+    return [nodes.raw('', html, format='html')]
+
+
+def create_simple_html_directive(name, pre, post,
+                                 has_content=True, match_titles=False):
+
+    node_class = type(
+        name.replace('-', '_'), (nodes.General, nodes.Element), {}
+    )
 
     def visit_html(self, node):
         self.body.append(pre)
@@ -25,7 +40,8 @@ def create_simple_html_directive(name, pre, post, has_content=True, match_titles
         node = node_class()
         if has_content:
             text = self.content
-            self.state.nested_parse(text, self.content_offset, node, match_titles=match_titles)
+            self.state.nested_parse(text, self.content_offset,
+                                    node, match_titles=match_titles)
         # FIXME: This should add more stuff.
         self.state.document.settings.record_dependencies.add(__file__)
         return [node]
@@ -84,7 +100,8 @@ mobile_label, MobileLabelDirective, mobile_label_setup = (
     create_simple_html_directive(
         "mobile-label",
         pre=dedent("""\
-        <p class="hidden-sm hidden-md hidden-lg center-block flocker-orange flocker-label">
+        <p class="hidden-sm hidden-md hidden-lg center-block \
+flocker-orange flocker-label">
         """),
         post=dedent("""\
         </p>
@@ -96,7 +113,8 @@ parallel, ParallelDirective, parallel_setup = (
     create_simple_html_directive(
         "parallel",
         pre=dedent("""\
-        <div class="col-md-6 bordered bordered-right bordered-bottom bordered-gray">
+        <div class="col-md-6 bordered bordered-right \
+bordered-bottom bordered-gray">
         """),
         post=dedent("""\
         </div>
@@ -121,6 +139,10 @@ def setup(app):
     """
     Entry point for sphinx extension.
     """
+    parse_general_division.content = False
+    parse_general_division.arguments = (0, 0, False)
+    parse_general_division.options = dict(meta=directives.unchanged)
+    directives.register_directive('general-division', parse_general_division)
     intro_text_setup(app)
     header_hero_setup(app)
     tutorial_step_setup(app)

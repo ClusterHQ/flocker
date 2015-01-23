@@ -39,9 +39,8 @@ Getting started with Flocker
       | Deploys containers to a cluster of servers                               |
       +--------------------------------------------------------------------------+
 
-      .. container:: arrow-down center-block hidden-xs hidden-sm
-
-         .
+      .. general-division::
+         :meta: arrow-down center-block hidden-xs hidden-sm
 
    .. parallel::
 
@@ -62,9 +61,8 @@ Getting started with Flocker
       | After deployment, containers can move around                             |
       +--------------------------------------------------------------------------+
 
-      .. container:: arrow-down center-block
-
-         .
+      .. general-division::
+         :meta: arrow-down center-block
 
    .. parallel::
 
@@ -100,9 +98,8 @@ Getting started with Flocker
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet flocker-cli
 
-      .. container:: arrow-down center-block invisible
-
-         .
+      .. general-division::
+         :meta: arrow-down center-block invisible
 
    .. parallel::
 
@@ -134,9 +131,8 @@ Getting started with Flocker
          Please see our separate `AWS install instructions <http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services>`_ to get started.
 
 
-      .. container:: arrow-down arrow-offset center-block
-
-         .
+      .. general-division::
+         :meta: arrow-down arrow-offset center-block
 
 .. tutorial-step::
 
@@ -189,9 +185,11 @@ Getting started with Flocker
 
    Now load http://172.16.255.250/ in a web browser or the external IP of one of your AWS nodes. It works!
 
-   .. container:: arrow-hr arrow-down
 
-         .
+   ---------------------------------------------
+   
+   .. general-division::
+      :meta: arrow-hr arrow-down center-block
 
 .. tutorial-step::
 
