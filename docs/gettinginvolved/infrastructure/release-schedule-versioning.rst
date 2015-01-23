@@ -105,7 +105,7 @@ Our current intention is to adopt `semantic versioning`_ at that time, with rega
 .. _`semantic versioning`: http://semver.org/
 
 
-.. _`bugfix-releases`
+.. _`bugfix-releases`:
 
 Bugfix Releases
 ^^^^^^^^^^^^^^^
