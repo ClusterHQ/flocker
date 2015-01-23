@@ -7,12 +7,15 @@ Public utilities for testing code that uses the REST API.
 __all__ = ["buildIntegrationTests", "goodResult", "badResult", "dumps",
            "loads", "dummyRequest", "CloseEnoughJSONResponse",
            "CloseEnoughResponse",
-           "extractSuccessfulJSONResult", "render", "asResponse"]
+           "extractSuccessfulJSONResult", "render", "asResponse",
+           "build_schema_test"]
 
 
 from io import BytesIO
 from json import dumps, loads as _loads
 from itertools import count
+
+from jsonschema.exceptions import ValidationError
 
 from zope.interface import implementer
 
@@ -23,7 +26,7 @@ from twisted.internet import defer
 from twisted.web.client import ProxyAgent, readBody
 from twisted.web.server import NOT_DONE_YET, Site
 from twisted.web.resource import getChildForRequest
-from twisted.trial.unittest import TestCase
+from twisted.trial.unittest import SynchronousTestCase, TestCase
 from twisted.web.http import urlparse, unquote
 from twisted.internet.address import IPv4Address
 from twisted.test.proto_helpers import StringTransport
@@ -32,6 +35,8 @@ from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
 from twisted.internet import reactor
 from twisted.web.http_headers import Headers
+
+from flocker.restapi._schema import getValidator
 
 
 def loads(s):
@@ -533,3 +538,40 @@ from twisted.python.components import registerAdapter
 from klein.app import KleinRequest
 from klein.interfaces import IKleinRequest
 registerAdapter(KleinRequest, _DummyRequest, IKleinRequest)
+
+
+def build_schema_test(name, schema, schema_store,
+                      failing_instances, passing_instances):
+    """
+    Create test case verifying that various instances pass and fail
+    verification with a given JSON Schema.
+
+    :param bytes name: Name of test case to create.
+    :param dict schema: Schema to test.
+    :param dict schema_store: The schema definitions.
+    :param list failing_instances: Instances which should fail validation.
+    :param list passing_instances: Instances which should pass validation.
+
+    :returns: The test case; a ``SynchronousTestCase} subclass.
+    """
+    body = {
+        'schema': schema,
+        'schema_store': schema_store,
+        'validator': getValidator(schema, schema_store),
+        'passing_instances': passing_instances,
+        'failing_instances': failing_instances,
+        }
+    for i, inst in enumerate(failing_instances):
+        def test(self, inst=inst):
+            self.assertRaises(ValidationError,
+                              self.validator.validate, inst)
+        test.__name__ = 'test_fails_validation_%d' % (i,)
+        body[test.__name__] = test
+
+    for i, inst in enumerate(passing_instances):
+        def test(self, inst=inst):
+            self.validator.validate(inst)
+        test.__name__ = 'test_passes_validation_%d' % (i,)
+        body[test.__name__] = test
+
+    return type(name, (SynchronousTestCase, object), body)

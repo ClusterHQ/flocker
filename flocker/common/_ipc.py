@@ -76,7 +76,7 @@ class ProcessNode(object):
             exit_code = process.wait()
             if exit_code:
                 # We should really capture this and stderr better:
-                # https://github.com/ClusterHQ/flocker/issues/155
+                # https://clusterhq.atlassian.net/browse/FLOC-155
                 raise IOError("Bad exit", remote_command, exit_code)
 
     def get_output(self, remote_command):
@@ -86,7 +86,7 @@ class ProcessNode(object):
                 tuple(map(self._quote, remote_command)))
         except CalledProcessError as e:
             # We should really capture this and stderr better:
-            # https://github.com/ClusterHQ/flocker/issues/155
+            # https://clusterhq.atlassian.net/browse/FLOC-155
             raise IOError("Bad exit", remote_command, e.returncode, e.output)
 
     @classmethod
@@ -116,6 +116,7 @@ class ProcessNode(object):
             # On some Ubuntu versions (and perhaps elsewhere) not
             # disabling this leads for mDNS lookups on every SSH, which
             # can slow down connections very noticeably:
+            b"-o", b"IgnoreUnknown=GSSAPIAuthentication",
             b"-o", b"GSSAPIAuthentication=no",
             b"-p", b"%d" % (port,), host), quote=quote)
 

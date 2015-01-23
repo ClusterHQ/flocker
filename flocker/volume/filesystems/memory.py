@@ -11,7 +11,7 @@ from io import BytesIO
 
 from zope.interface import implementer
 
-from characteristic import attributes
+from characteristic import with_init, with_cmp, with_repr
 
 from twisted.internet.defer import succeed, fail
 from twisted.application.service import Service
@@ -20,6 +20,8 @@ from .interfaces import (
     IFilesystemSnapshots, IStoragePool, IFilesystem,
     FilesystemAlreadyExists)
 from .zfs import Snapshot
+
+from .._model import VolumeSize
 
 
 @implementer(IFilesystemSnapshots)
@@ -43,7 +45,10 @@ class CannedFilesystemSnapshots(object):
 
 
 @implementer(IFilesystem)
-@attributes(["path"])
+@with_cmp(["path"])
+@with_repr(["path", "size"])
+@with_init(["path", "size"],
+           defaults=dict(size=VolumeSize(maximum_size=None)))
 class DirectoryFilesystem(object):
     """
     A directory pretending to be an independent filesystem.
@@ -52,6 +57,9 @@ class DirectoryFilesystem(object):
     directory recording the names of snapshots which supposedly have been
     taken.  No other state related to snapshots is tracked (eg, the state of
     the directory at the time of those snapshots is not recorded).
+
+    :ivar FilePath path: The directory where data for this "filesystem" is
+        stored.
     """
     def get_path(self):
         return self.path
@@ -131,7 +139,7 @@ class DirectoryFilesystem(object):
             tarball.extractall(self.path.path)
         except:
             # This should really be dealt with, e.g. logged:
-            # https://github.com/ClusterHQ/flocker/issues/122
+            # https://clusterhq.atlassian.net/browse/FLOC-122
             pass
 
 
@@ -153,7 +161,22 @@ class FilesystemStoragePool(Service):
 
     def create(self, volume):
         filesystem = self.get(volume)
-        filesystem.get_path().makedirs()
+        root = filesystem.get_path()
+        root.makedirs()
+        if volume.size.maximum_size is not None:
+            root.child(b".size").setContent(
+                u"{0}".format(volume.size.maximum_size).encode("ascii"))
+        return succeed(filesystem)
+
+    def set_maximum_size(self, volume):
+        filesystem = self.get(volume)
+        root = filesystem.get_path()
+        size_path = root.child(b".size")
+        if volume.size.maximum_size is not None:
+            size_path.setContent(
+                u"{0}".format(volume.size.maximum_size).encode("ascii"))
+        elif size_path.exists():
+            size_path.remove()
         return succeed(filesystem)
 
     def clone_to(self, parent, volume):
@@ -185,11 +208,22 @@ class FilesystemStoragePool(Service):
     def get(self, volume):
         return DirectoryFilesystem(
             path=self._root.child(b"%s.%s" % (
-                volume.uuid.encode("ascii"), volume.name.to_bytes())))
+                volume.node_id.encode("ascii"), volume.name.to_bytes())),
+            size=volume.size)
 
     def enumerate(self):
+        filesystems = set()
         if self._root.isdir():
-            return succeed({
-                DirectoryFilesystem(path=path)
-                for path in self._root.children()})
-        return succeed(set())
+            for path in self._root.children():
+                if path.child(b".size").exists():
+                    maximum_size = int(
+                        path.child(b".size").getContent().decode("ascii"))
+                else:
+                    maximum_size = None
+                filesystems.add(
+                    DirectoryFilesystem(
+                        path=path,
+                        size=VolumeSize(maximum_size=maximum_size),
+                    )
+                )
+        return succeed(filesystems)

@@ -9,7 +9,7 @@ tools.
 import sys
 
 from twisted.python.usage import Options, UsageError
-from twisted.internet.defer import Deferred, maybeDeferred
+
 
 from yaml import safe_load, safe_dump
 from yaml.error import YAMLError
@@ -20,16 +20,17 @@ from ._config import marshal_configuration
 
 from ..volume.service import (
     ICommandLineVolumeScript, VolumeScript)
+
 from ..volume.script import flocker_volume_options
 from ..common.script import (
-    flocker_standard_options, FlockerScriptRunner)
+    flocker_standard_options, FlockerScriptRunner, main_for_service)
 from . import (ConfigurationError, model_from_configuration, Deployer,
                FlockerConfiguration, current_from_configuration)
 
 __all__ = [
     "flocker_changestate_main",
     "flocker_reportstate_main",
-    "flocker_serve_main",
+    "flocker_volume_main",
 ]
 
 
@@ -207,69 +208,26 @@ def flocker_reportstate_main():
     ).main()
 
 
-def _chain_stop_result(service, stop):
-    """
-    Stop a service and chain the resulting ``Deferred`` to another
-    ``Deferred``.
-
-    :param IService service: The service to stop.
-    :param Deferred stop: The ``Deferred`` which will be fired when the service
-        has stopped.
-    """
-    maybeDeferred(service.stopService).chainDeferred(stop)
-
-
-def _main_for_service(reactor, service):
-    """
-    Start a service and integrate its shutdown with reactor shutdown.
-
-    This is useful for hooking driving an ``IService`` provider with
-    ``twisted.internet.task.react``.  For example::
-
-        from twisted.internet.task import react
-        from yourapp import YourService
-        react(_main_for_service, [YourService()])
-
-    :param IReactorCore reactor: The reactor the run lifetime of which to tie
-        to the given service.  When the reactor is shutdown, the service will
-        be shutdown.
-
-    :param IService service: The service to tie to the run lifetime of the
-        given reactor.  It will be started immediately and made to stop when
-        the reactor stops.
-
-    :return: A ``Deferred`` which fires after the service has finished
-        stopping.
-    """
-    service.startService()
-    stop = Deferred()
-    reactor.addSystemEventTrigger(
-        "before", "shutdown", _chain_stop_result, service, stop)
-    return stop
-
-
 @flocker_standard_options
 @flocker_volume_options
-class ServeOptions(Options):
+class VolumeServeOptions(Options):
     """
-    Command line options for ``flocker-serve`` cluster management process.
+    Command line options for ``flocker-zfs-agent`` cluster management process.
     """
-    # Maybe options for things like what port to listen on or perhaps where to
-    # find certificate material to use for TLS.
 
 
 @implementer(ICommandLineVolumeScript)
-class ServeScript(object):
+class VolumeServeScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        return _main_for_service(reactor, volume_service)
+        return main_for_service(reactor, volume_service)
 
 
-def flocker_serve_main():
+def flocker_volume_main():
     return FlockerScriptRunner(
-        script=VolumeScript(ServeScript()),
-        options=ServeOptions()
+        script=VolumeScript(VolumeServeScript()),
+        options=VolumeServeOptions()
     ).main()

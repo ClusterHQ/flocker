@@ -5,11 +5,12 @@ Tests for communication to applications across nodes.
 """
 from twisted.trial.unittest import TestCase
 
-from flocker.node._docker import BASE_NAMESPACE, PortMap, Unit
+from flocker.node._model import Port
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
-                        get_mongo_client, get_nodes, MONGO_APPLICATION,
-                        MONGO_IMAGE, require_flocker_cli, require_mongo)
+                        get_mongo_client, get_mongo_application, get_nodes,
+                        MONGO_APPLICATION, MONGO_IMAGE, require_flocker_cli,
+                        require_mongo)
 
 
 class PortsTests(TestCase):
@@ -25,7 +26,7 @@ class PortsTests(TestCase):
         Deploy an application with an internal port mapped to a different
         external port.
         """
-        getting_nodes = get_nodes(num_nodes=2)
+        getting_nodes = get_nodes(self, num_nodes=2)
 
         def deploy_port_application(node_ips):
             self.node_1, self.node_2 = node_ips
@@ -61,25 +62,42 @@ class PortsTests(TestCase):
 
     def test_deployment_with_ports(self):
         """
-        Ports are exposed as specified in the application configuration.
-        Docker has internal representations of the port mappings given by the
+        Flocker has internal representations of the port mappings given by the
         configuration files supplied to flocker-deploy.
         """
-        unit = Unit(name=MONGO_APPLICATION,
-                    container_name=BASE_NAMESPACE + MONGO_APPLICATION,
-                    activation_state=u'active',
-                    container_image=MONGO_IMAGE + u':latest',
-                    ports=frozenset([
-                        PortMap(internal_port=self.internal_port,
-                                external_port=self.external_port)
-                    ]))
+        ports = frozenset([
+            Port(internal_port=self.internal_port,
+                 external_port=self.external_port)
+        ])
+
+        application = get_mongo_application()
+        application.ports = ports
 
         d = assert_expected_deployment(self, {
-            self.node_1: set([unit]),
+            self.node_1: set([application]),
             self.node_2: set([]),
         })
 
         return d
+
+    @require_mongo
+    def test_mongo_accessible(self):
+        """
+        The port is exposed on the host where Mongo was configured.
+        """
+        getting_client = get_mongo_client(self.node_1, self.external_port)
+
+        def verify_traffic_routed(client_1):
+            posts_1 = client_1.example.posts
+            posts_1.insert({u"the data": u"it moves"})
+
+            self.assertEqual(
+                u"it moves",
+                client_1.example.posts.find_one()[u"the data"]
+            )
+
+        getting_client.addCallback(verify_traffic_routed)
+        return getting_client
 
     @require_mongo
     def test_traffic_routed(self):

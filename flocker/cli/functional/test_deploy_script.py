@@ -10,7 +10,7 @@ from twisted.python.procutils import which
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import TestCase
 
-from ...testtools import create_ssh_server, create_ssh_agent
+from ...testtools.ssh import create_ssh_server, create_ssh_agent
 from .._sshconfig import OpenSSHConfiguration
 from ...node import Deployment, Node
 

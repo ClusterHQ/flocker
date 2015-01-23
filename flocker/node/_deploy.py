@@ -18,22 +18,23 @@ from ._model import (
     )
 from ..route import make_host_network, Proxy
 from ..volume._ipc import RemoteVolumeManager, standard_node
+from ..volume._model import VolumeSize
 from ..volume.service import VolumeName
 from ..common import gather_deferreds
 
 
-def _to_volume_name(name):
+def _to_volume_name(dataset_id):
     """
     Convert unicode name to ``VolumeName`` with ``u"default"`` namespace.
 
-    To be replaced in https://github.com/ClusterHQ/flocker/issues/737 with
+    To be replaced in https://clusterhq.atlassian.net/browse/FLOC-737 with
     real namespace support.
 
-    :param unicode name: Volume name.
+    :param unicode dataset_id: Dataset ID.
 
     :return: ``VolumeName`` with default namespace.
     """
-    return VolumeName(namespace=u"default", id=name)
+    return VolumeName(namespace=u"default", dataset_id=dataset_id)
 
 
 class IStateChange(Interface):
@@ -145,6 +146,7 @@ class StartApplication(object):
             volumes=volumes,
             mem_limit=application.memory_limit,
             cpu_shares=application.cpu_shares,
+            restart_policy=application.restart_policy,
         )
 
 
@@ -196,8 +198,27 @@ class CreateVolume(object):
     :ivar AttachedVolume volume: Volume to create.
     """
     def run(self, deployer):
-        return deployer.volume_service.create(
-            _to_volume_name(self.volume.name))
+        volume = deployer.volume_service.get(
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
+        )
+        return deployer.volume_service.create(volume)
+
+
+@implementer(IStateChange)
+@attributes(["volume"])
+class ResizeVolume(object):
+    """
+    Resize an existing locally-owned volume.
+
+    :ivar AttachedVolume volume: Volume to resize.
+    """
+    def run(self, deployer):
+        volume = deployer.volume_service.get(
+            name=_to_volume_name(self.volume.name),
+            size=VolumeSize(maximum_size=self.volume.maximum_size)
+        )
+        return deployer.volume_service.set_maximum_size(volume)
 
 
 @implementer(IStateChange)
@@ -264,7 +285,7 @@ class SetProxies(object):
     def run(self, deployer):
         results = []
         # XXX: The proxy manipulation operations are blocking. Convert to a
-        # non-blocking API. See https://github.com/ClusterHQ/flocker/issues/320
+        # non-blocking API. See https://clusterhq.atlassian.net/browse/FLOC-320
         for proxy in deployer.network.enumerate_proxies():
             try:
                 deployer.network.delete_proxy(proxy)
@@ -305,25 +326,31 @@ class Deployer(object):
             instance.
         """
         # Add real namespace support in
-        # https://github.com/ClusterHQ/flocker/issues/737; for now we just
+        # https://clusterhq.atlassian.net/browse/FLOC-737; for now we just
         # strip the namespace since there will only ever be one.
         volumes = self.volume_service.enumerate()
-        volumes.addCallback(lambda volumes: set(
-            volume.name.id for volume in volumes
-            if volume.uuid == self.volume_service.uuid))
+
+        def map_volumes_to_size(volumes):
+            managed_volumes = dict()
+            for volume in volumes:
+                if volume.node_id == self.volume_service.node_id:
+                    managed_volumes[volume.name.dataset_id] = (
+                        volume.size.maximum_size)
+            return managed_volumes
+        volumes.addCallback(map_volumes_to_size)
         d = gatherResults([self.docker_client.list(), volumes])
 
         def applications_from_units(result):
             units, available_volumes = result
-
             running = []
             not_running = []
             for unit in units:
                 image = DockerImage.from_string(unit.container_image)
                 if unit.name in available_volumes:
                     # XXX we only support one volume per container at this time
-                    # https://github.com/ClusterHQ/flocker/issues/49
+                    # https://clusterhq.atlassian.net/browse/FLOC-49
                     volume = AttachedVolume.from_unit(unit).pop()
+                    volume.maximum_size = available_volumes[unit.name]
                 else:
                     volume = None
                 ports = []
@@ -354,7 +381,8 @@ class Deployer(object):
                     image=image,
                     ports=frozenset(ports),
                     volume=volume,
-                    links=frozenset(links)
+                    links=frozenset(links),
+                    restart_policy=unit.restart_policy,
                 )
                 if unit.activation_state == u"active":
                     running.append(application)
@@ -377,7 +405,7 @@ class Deployer(object):
         Currently this involves the following phases:
 
         1. Change proxies to point to new addresses (should really be
-           last, see https://github.com/ClusterHQ/flocker/issues/380)
+           last, see https://clusterhq.atlassian.net/browse/FLOC-380)
         2. Stop all relevant containers.
         3. Handoff volumes.
         4. Wait for volumes.
@@ -407,7 +435,7 @@ class Deployer(object):
                 for application in node.applications:
                     for port in application.ports:
                         # XXX: also need to do DNS resolution. See
-                        # https://github.com/ClusterHQ/flocker/issues/322
+                        # https://clusterhq.atlassian.net/browse/FLOC-322
                         desired_proxies.add(Proxy(ip=node.hostname,
                                                   port=port.external_port))
         if desired_proxies != set(self.network.enumerate_proxies()):
@@ -479,6 +507,11 @@ class Deployer(object):
             volumes = find_volume_changes(hostname, current_cluster_state,
                                           desired_state)
 
+            if volumes.resizing:
+                phases.append(InParallel(changes=[
+                    ResizeVolume(volume=volume)
+                    for volume in volumes.resizing]))
+
             # Do an initial push of all volumes that are going to move, so
             # that the final push which happens during handoff is a quick
             # incremental push. This should significantly reduces the
@@ -497,9 +530,15 @@ class Deployer(object):
                     HandoffVolume(volume=handoff.volume,
                                   hostname=handoff.hostname)
                     for handoff in volumes.going]))
+            # any volumes coming to this node should also be
+            # resized to the appropriate quota max size once they
+            # have been received
             if volumes.coming:
                 phases.append(InParallel(changes=[
                     WaitForVolume(volume=volume)
+                    for volume in volumes.coming]))
+                phases.append(InParallel(changes=[
+                    ResizeVolume(volume=volume)
                     for volume in volumes.coming]))
             if volumes.creating:
                 phases.append(InParallel(changes=[
@@ -543,15 +582,15 @@ def find_volume_changes(hostname, current_state, desired_state):
 
     XXX The logic here assumes the mountpoints have not changed,
     and will act unexpectedly if that is the case. See
-    https://github.com/ClusterHQ/flocker/issues/351 for more details.
+    https://clusterhq.atlassian.net/browse/FLOC-351 for more details.
 
     XXX The logic here assumes volumes are never added or removed to
     existing applications, merely moved across nodes. As a result test
     coverage for those situations is not implemented. See
-    https://github.com/ClusterHQ/flocker/issues/352 for more details.
+    https://clusterhq.atlassian.net/browse/FLOC-352 for more details.
 
     XXX Comparison is done via volume name, rather than AttachedVolume
-    objects, until https://github.com/ClusterHQ/flocker/issues/289 is fixed.
+    objects, until https://clusterhq.atlassian.net/browse/FLOC-289 is fixed.
 
     :param unicode hostname: The name of the node for which to find changes.
 
@@ -580,6 +619,19 @@ def find_volume_changes(hostname, current_state, desired_state):
             remote_current_volume_names |= set(
                 volume.name for volume in current)
 
+    # If a volume exists locally and is desired anywhere on the cluster, and
+    # the desired volume is a different maximum_size to the existing volume,
+    # the existing local volume should be resized before any other action
+    # is taken on it.
+    resizing = set()
+    for _, desired in desired_volumes.items():
+        for volume in desired:
+            if volume.name in local_current_volume_names:
+                for existing_volume in current_volumes[hostname]:
+                    if existing_volume.name == volume.name:
+                        if existing_volume.maximum_size != volume.maximum_size:
+                            resizing.add(volume)
+
     # Look at each application volume that is going to be running
     # elsewhere and is currently running here, and add a VolumeHandoff for
     # it to `going`.
@@ -606,5 +658,5 @@ def find_volume_changes(hostname, current_state, desired_state):
         local_current_volume_names | remote_current_volume_names)
     creating = set(volume for volume in local_desired_volumes
                    if volume.name in creating_names)
-
-    return VolumeChanges(going=going, coming=coming, creating=creating)
+    return VolumeChanges(going=going, coming=coming,
+                         creating=creating, resizing=resizing)

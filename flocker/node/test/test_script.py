@@ -6,22 +6,18 @@ Tests for :module:`flocker.node.script`.
 
 from StringIO import StringIO
 
-from zope.interface import implementer
-
-from twisted.internet.interfaces import IReactorCore
-from twisted.internet.defer import Deferred
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
 
 from yaml import safe_dump, safe_load
-from ...testtools import StandardOptionsTestsMixin
+from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
 from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    ServeOptions, ServeScript,
+    VolumeServeOptions, VolumeServeScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
 from .._docker import FakeDockerClient, Unit
@@ -237,7 +233,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [deployment_bad_yaml, b'', b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Deployment config could not be parsed as YAML')
@@ -254,7 +250,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', application_bad_yaml, b'{}', b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Application config could not be parsed as YAML')
@@ -271,7 +267,7 @@ class ChangeStateOptionsTests(StandardOptionsTestsMixin, SynchronousTestCase):
             UsageError, options.parseOptions,
             [b'', b'', bad_yaml, b'node1.example.com'])
 
-        # See https://github.com/ClusterHQ/flocker/issues/282 for more complete
+        # See https://clusterhq.atlassian.net/browse/FLOC-282 for more complete
         # testing of this string.
         self.assertTrue(
             str(e).startswith('Current config could not be parsed as YAML')
@@ -378,8 +374,14 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {
-                'site-example.net': {'image': unit2.container_image},
-                'site-example.com': {'image': unit1.container_image}
+                'site-example.net': {
+                    'image': unit2.container_image,
+                    'restart_policy': {'name': 'never'},
+                },
+                'site-example.com': {
+                    'image': unit1.container_image,
+                    'restart_policy': {'name': 'never'},
+                }
             },
             'version': 1,
         }
@@ -393,128 +395,28 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-# TODO: This should be provided by Twisted (also it should be more complete
-# instead of 1/3rd done).
-from twisted.internet.base import _ThreePhaseEvent
-
-
-@implementer(IReactorCore)
-class MemoryCoreReactor(object):
+class VolumeServeScriptOptions(SynchronousTestCase):
     """
-    Just enough of an implementation of IReactorCore to pass to
-    ``_main_for_service`` in the unit tests.
+    Tests for ``VolumeServeScript``.
     """
-    def __init__(self):
-        self._triggers = {}
-
-    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
-        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
-        event.addTrigger(phase, callable, *args, **kw)
-        # removeSystemEventTrigger isn't implemented so the return value here
-        # isn't useful.
-        return object()
-
-    def fireSystemEvent(self, eventType):
-        event = self._triggers.get(eventType)
-        if event is not None:
-            event.fireEvent()
-
-
-class AsyncStopService(Service):
-    """
-    An ``IService`` implementation which can return an unfired ``Deferred``
-    from its ``stopService`` method.
-
-    :ivar Deferred stop_result: The object to return from ``stopService``.
-        ``AsyncStopService`` won't do anything more than return it.  If it is
-        ever going to fire, some external code is responsible for firing it.
-    """
-    def __init__(self, stop_result):
-        self.stop_result = stop_result
-
-    def stopService(self):
-        Service.stopService(self)
-        return self.stop_result
-
-
-class ServeScriptMainTests(SynchronousTestCase):
-    """
-    Tests for ``ServeScript.main``.
-    """
-    def setUp(self):
-        self.reactor = MemoryCoreReactor()
-        self.service = Service()
-        self.script = ServeScript()
-
-    def main(self, reactor, service):
-        return self.script.main(reactor, {}, service)
-
-    def _shutdown_reactor(self, reactor):
+    def test_main_starts_service(self):
         """
-        Simulate reactor shutdown.
+        ``VolumeServeScript.main`` starts the given service.
+        """
+        service = Service()
+        VolumeServeScript().main(MemoryCoreReactor(), None, service)
+        self.assertTrue(service.running)
 
-        :param IReactorCore reactor: The reactor to shut down.
+    def test_no_immediate_stop(self):
         """
-        reactor.fireSystemEvent("shutdown")
-
-    def test_starts_service(self):
+        The ``Deferred`` returned from ``VolumeServeScript`` is not fired.
         """
-        ``ServeScript.main`` accepts an ``IService`` provider and starts it.
-        """
-        self.main(self.reactor, self.service)
-        self.assertTrue(
-            self.service.running, "The service should have been started.")
-
-    def test_returns_unfired_deferred(self):
-        """
-        ``ServeScript.main`` returns a ``Deferred`` which has not fired.
-        """
-        result = self.main(self.reactor, self.service)
-        self.assertNoResult(result)
-
-    def test_fire_on_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` fires with ``None``
-        when the reactor is stopped.
-        """
-        result = self.main(self.reactor, self.service)
-        self._shutdown_reactor(self.reactor)
-        self.assertIs(None, self.successResultOf(result))
-
-    def test_stops_service(self):
-        """
-        When the reactor is stopped, ``ServeScript.main`` stops the service it
-        was called with.
-        """
-        self.main(self.reactor, self.service)
-        self._shutdown_reactor(self.reactor)
-        self.assertFalse(
-            self.service.running, "The service should have been stopped.")
-
-    def test_wait_for_service_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` does not fire before
-        the ``Deferred`` returned by the service's ``stopService`` method
-        fires.
-        """
-        result = self.main(self.reactor, AsyncStopService(Deferred()))
-        self._shutdown_reactor(self.reactor)
-        self.assertNoResult(result)
-
-    def test_fire_after_service_stop(self):
-        """
-        The ``Deferred`` returned by ``ServeScript.main`` fires once the
-        ``Deferred`` returned by the service's ``stopService`` method fires.
-        """
-        async = Deferred()
-        result = self.main(self.reactor, AsyncStopService(async))
-        self._shutdown_reactor(self.reactor)
-        async.callback(None)
-        self.assertIs(None, self.successResultOf(result))
+        script = VolumeServeScript()
+        self.assertNoResult(script.main(MemoryCoreReactor(), None, Service()))
 
 
 class StandardServeOptionsTests(
-        make_volume_options_tests(ServeOptions)):
+        make_volume_options_tests(VolumeServeOptions)):
     """
-    Tests for the volume configuration arguments of ``ServeOptions``.
+    Tests for the volume configuration arguments of ``VolumeServeOptions``.
     """

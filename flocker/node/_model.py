@@ -5,7 +5,8 @@
 Record types for representing deployment models.
 """
 
-from characteristic import attributes
+from characteristic import attributes, Attribute
+from zope.interface import Interface, implementer
 
 
 @attributes(["repository", "tag"], defaults=dict(tag=u'latest'))
@@ -58,13 +59,13 @@ class AttachedVolume(object):
     :ivar unicode name: A short, human-readable identifier for this
         volume. For now this is always the same as the name of the
         application it is attached to (see
-        https://github.com/ClusterHQ/flocker/issues/49).
+        https://clusterhq.atlassian.net/browse/FLOC-49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
 
     :ivar int maximum_size: The maximum size in bytes of this volume, or
-        ``None`` for no limit.
+        ``None`` if there is no specified limit.
     """
 
     @classmethod
@@ -82,19 +83,78 @@ class AttachedVolume(object):
         volumes = set(unit.volumes)
         name = unit.name
         # XXX we only support one data volume per container at this time
-        # https://github.com/ClusterHQ/flocker/issues/49
+        # https://clusterhq.atlassian.net/browse/FLOC-49
         try:
             volume = volumes.pop()
+            # XXX Docker Volume objects do not contain size information
+            # at this time.
             return {cls(name=name, mountpoint=volume.container_path)}
         except KeyError:
             return None
 
 
-@attributes(["name", "image", "ports", "volume", "links", "environment",
-             "memory_limit", "cpu_shares"],
-            defaults=dict(ports=frozenset(), volume=None,
-                          links=frozenset(), environment=None,
-                          memory_limit=None, cpu_shares=None))
+class IRestartPolicy(Interface):
+    """
+    Restart policy for an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
+class RestartNever(object):
+    """
+    A restart policy that never restarts an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([], apply_immutable=True,
+            # https://github.com/hynek/characteristic/pull/22
+            apply_with_init=False)
+class RestartAlways(object):
+    """
+    A restart policy that always restarts an application.
+    """
+
+
+@implementer(IRestartPolicy)
+@attributes([Attribute("maximum_retry_count", default_value=None)],
+            apply_immutable=True)
+class RestartOnFailure(object):
+    """
+    A restart policy that restarts an application when it fails.
+
+    :ivar int maximum_retry_count: The number of times the application is
+        allowed to fail, before the giving up.
+    """
+
+    def __init__(self):
+        """
+        Check that ``maximum_retry_count`` is positive or None
+
+        :raises ValueError: If maximum_retry_count is invalid.
+        """
+        if self.maximum_retry_count is not None:
+            if not isinstance(self.maximum_retry_count, int):
+                raise TypeError(
+                    "maximum_retry_count must be an integer or None, "
+                    "got %r" % (self.maximum_retry_count,))
+            if self.maximum_retry_count < 1:
+                raise ValueError(
+                    "maximum_retry_count must be positive, "
+                    "got %r" % (self.maximum_retry_count,))
+
+
+@attributes(["name", "image",
+             Attribute("ports", default_value=frozenset()),
+             Attribute("volume", default_value=None),
+             Attribute("links", default_value=frozenset()),
+             Attribute("environment", default_value=None),
+             Attribute("memory_limit", default_value=None),
+             Attribute("cpu_shares", default_value=None),
+             Attribute("restart_policy", default_value=RestartNever())])
 class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
@@ -123,6 +183,9 @@ class Application(object):
         that should be exposed in the ``Application`` container, or ``None``
         if no environment variables are specified. A ``frozenset`` of
         variables contains a ``tuple`` series mapping (key, value).
+
+    :ivar IRestartPolicy restart_policy: The restart policy for this
+        application.
     """
 
 
@@ -195,7 +258,7 @@ class VolumeHandoff(object):
     """
 
 
-@attributes(["going", "coming", "creating"])
+@attributes(["going", "coming", "creating", "resizing"])
 class VolumeChanges(object):
     """
     ``VolumeChanges`` describes the volume-related changes necessary to change
@@ -212,6 +275,11 @@ class VolumeChanges(object):
     :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
         node create any new volume-having applications meant to be hosted on
         this node.  These must be created.
+
+    :ivar frozenset resizing: The ``AttachedVolume``\ s necessary to let this
+        node resize any existing volumes that are desired somewhere on the
+        cluster and locally exist with a different maximum_size to the desired
+        maximum_size. These must be resized.
     """
 
 
