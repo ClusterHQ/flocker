@@ -125,9 +125,13 @@ The following settings should be set:
 - Logging: enabled
 - Bucket for Logs: clusterhq-logs.s3.amazonaws.com
 - Log Prefix: docs.staging.clusterhq.com/cloudfront/
+- SSL Certificate: Custom SSL Certificate: docs.clusterhq.com
+- Custom SSL Client Support: Only Clients that Support Server Name Indication (SNI)
 
 The rest can be left at their defaults.
 
 .. note::
 
    We can't use an S3 origin, as redirects won't work.
+
+See the `cloudfront documetation <http://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/SecureConnections.html>`_ for details on uploading SSL key material.
