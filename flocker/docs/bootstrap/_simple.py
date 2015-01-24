@@ -12,15 +12,14 @@ from docutils.parsers.rst import directives
 from docutils.parsers.rst import Directive
 
 
-def parse_general_division(
-    name, arguments, options, content, lineno,
-    content_offset, block_text, state, state_machine
-):
-    if 'meta' not in options:
-        options['meta'] = ''
-    html = '<div class="{meta}"></div>'.format(meta=options['meta'])
+class EmptyDiv(Directive):
+    has_content = False
+    required_arguments = 1
+    final_argument_whitespace = 1
 
-    return [nodes.raw('', html, format='html')]
+    def run(self):
+        html = '<div class="{meta}"></div>'.format(meta=self.arguments[0])
+        return [nodes.raw('', html, format='html')]
 
 
 def create_simple_html_directive(name, pre, post,
@@ -145,10 +144,7 @@ def setup(app):
     """
     Entry point for sphinx extension.
     """
-    parse_general_division.content = False
-    parse_general_division.arguments = (0, 0, False)
-    parse_general_division.options = dict(meta=directives.unchanged)
-    directives.register_directive('general-division', parse_general_division)
+    directives.register_directive('general-division', EmptyDiv)
     intro_text_setup(app)
     tutorial_step_condensed_setup(app)
     tutorial_step_setup(app)

@@ -37,8 +37,7 @@ Getting started with Flocker
       | Deploys containers to a cluster of servers                               |
       +--------------------------------------------------------------------------+
 
-      .. general-division::
-         :meta: arrow-down center-block hidden-xs hidden-sm
+      .. empty-div:: arrow-down center-block hidden-xs hidden-sm
 
    .. parallel::
 
@@ -61,8 +60,7 @@ Getting started with Flocker
       | After deployment, containers can move around                             |
       +--------------------------------------------------------------------------+
 
-      .. general-division::
-         :meta: arrow-down center-block
+      .. empty-div:: arrow-down center-block
 
    .. parallel::
 
@@ -98,8 +96,7 @@ Getting started with Flocker
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet flocker-cli
 
-      .. general-division::
-         :meta: arrow-down center-block invisible
+      .. empty-div:: arrow-down center-block invisible
 
    .. parallel::
 
@@ -131,8 +128,7 @@ Getting started with Flocker
          Please see our separate `AWS install instructions <http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services>`_ to get started.
 
 
-      .. general-division::
-         :meta: arrow-down arrow-offset center-block
+      .. empty-div:: arrow-down arrow-offset center-block
 
 .. tutorial-step::
 
@@ -190,8 +186,7 @@ Getting started with Flocker
 
    ---------------------------------------------
    
-   .. general-division::
-      :meta: arrow-hr arrow-down center-block
+   .. empty-div:: arrow-hr arrow-down center-block
 
 .. tutorial-step::
 
