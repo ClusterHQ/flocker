@@ -26,7 +26,7 @@ Getting started with Flocker
 
          Local
 
-      .. image:: assets/img/macbook.png
+      .. image:: images/macbook.png
          :class: center-block img-responsive
          :alt: Flocker CLI diagram
 
@@ -50,7 +50,7 @@ Getting started with Flocker
 
          Live
 
-      .. image:: assets/img/nodes.png
+      .. image:: images/nodes.png
          :class: center-block offset-top img-responsive
          :alt: Flocker Node diagram
 
@@ -220,7 +220,7 @@ Getting started with Flocker
 
          $ flocker-deploy deployment-node2.yml app.yml
 
-      .. image:: assets/img/migration.png
+      .. image:: images/migration.png
          :class: img-responsive img-spaced
          :alt: Flocker migration diagram
 
