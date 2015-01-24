@@ -6,6 +6,8 @@ A HTTP REST API for controlling the Dataset Manager.
 import yaml
 from uuid import uuid4
 
+from pyrsistent import pmap
+
 from twisted.python.filepath import FilePath
 from twisted.web.http import CONFLICT
 from twisted.web.server import Site
@@ -78,12 +80,15 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset(self, primary, dataset_id=None):
+    def create_dataset(self, primary, dataset_id=None, metadata=None):
         """
         Create a new dataset on the cluster.
         """
         if dataset_id is None:
             dataset_id = u"x" * 36 # unicode(uuid4())
+
+        if metadata is None:
+            metadata = {}
 
         # Use persistence_service to get a Deployment for the cluster
         # configuration.
@@ -93,18 +98,17 @@ class DatasetAPIUserV1(object):
                 if manifestation.dataset.dataset_id == dataset_id:
                     raise DATASET_ID_COLLISION
 
-        dataset = Dataset(dataset_id=dataset_id)
-        manifestation = Manifestation(dataset=dataset, primary=False)
+        # XXX Check cluster state to determine if the given primary node
+        # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+
+        dataset = Dataset(dataset_id=dataset_id, metadata=pmap(metadata))
+        manifestation = Manifestation(dataset=dataset, primary=True)
 
         primary_nodes = list(
             node for node in deployment.nodes if primary == node.hostname
         )
         if len(primary_nodes) == 0:
-            # XXX This really needs to be a check of current configuration
-            # instead of desired configuration.  As written now, it's
-            # impossible to ever create a dataset because there's no way to get
-            # the right Node into the configuration Deployment instance.
-            raise PRIMARY_NODE_NOT_FOUND
+            primary_node = Node(hostname=primary)
         else:
             (primary_node,) = primary_nodes
 
@@ -125,7 +129,7 @@ class DatasetAPIUserV1(object):
             return {
                 u"dataset_id": dataset_id,
                 u"primary": primary,
-                u"metadata": {},
+                u"metadata": metadata,
             }
         saving.addCallback(saved)
         return saving

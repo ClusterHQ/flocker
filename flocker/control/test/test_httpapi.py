@@ -6,6 +6,8 @@ Tests for ``flocker.control.httpapi``.
 from io import BytesIO
 from uuid import uuid4
 
+from pyrsistent import pmap
+
 from zope.interface.verify import verifyObject
 
 from twisted.internet import reactor
@@ -58,7 +60,7 @@ class APITestsMixin(object):
         requesting.addCallback(check_code)
         return requesting
 
-    def assertGoodResult(self, method, path, expected_good_result):
+    def assertGoodResult(self, method, path, request_body, expected_good_result):
         """
         Assert a particular JSON response for the given API request.
 
@@ -68,7 +70,7 @@ class APITestsMixin(object):
 
         :return Deferred: Fires when test is done.
         """
-        requesting = self.assertResponseCode(method, path, None, OK)
+        requesting = self.assertResponseCode(method, path, request_body, OK)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
             goodResult(expected_good_result), loads(body)))
@@ -102,8 +104,9 @@ class VersionTestsMixin(APITestsMixin):
         """
         The ``/version`` command returns JSON-encoded ``__version__``.
         """
-        return self.assertGoodResult(b"GET", b"/version",
-                                     {u'flocker': __version__})
+        return self.assertGoodResult(
+            b"GET", b"/version", None, {u'flocker': __version__}
+        )
 
 
 def _build_app(test):
@@ -188,6 +191,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
                     u"The provided primary node is not part of the cluster."
             }
         )
+    test_unknown_primary_node.todo = (
+        "XXX File a ticket.  Make this pass by inspecting cluster state "
+        "instead of desired configuration to determine whether a node is "
+        "valid or not."
+    )
 
     def test_minimal_create_dataset(self):
         """
@@ -199,17 +207,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
         description of the new dataset is returned in a success response to the
         client.
         """
-        saving = self.persistence_service.save(Deployment(
-            nodes=frozenset({Node(hostname=self.NODE_A)})
-        ))
-        def saved(ignored):
-            creating = self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A},
-                OK)
-            creating.addCallback(readBody)
-            creating.addCallback(loads)
-            return creating
-        creating = saving.addCallback(saved)
+        creating = self.assertResponseCode(
+            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            OK)
+        creating.addCallback(readBody)
+        creating.addCallback(loads)
 
         def got_result(result):
             result = result[u"result"]
@@ -222,8 +224,41 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return creating
 
     def test_create_with_metadata(self):
-        # verify given metadata is persisted, success response includes it
-        pass
+        """
+        Metadata included with the creation of a dataset is included in the
+        persisted configuration and response body.
+        """
+        dataset_id = unicode(uuid4())
+        metadata = {u"foo": u"bar", u"baz": u"quux"}
+        dataset = {
+            u"primary": self.NODE_A,
+            u"dataset_id": dataset_id,
+            u"metadata": metadata,
+        }
+        creating = self.assertGoodResult(
+            b"POST", b"/datasets", dataset, dataset
+        )
+        def created(ignored):
+            deployment = self.persistence_service.get()
+            self.assertEqual(
+                Deployment(nodes=frozenset({
+                    Node(
+                        hostname=self.NODE_A,
+                        other_manifestations=frozenset({
+                            Manifestation(
+                                dataset=Dataset(
+                                    dataset_id=dataset_id,
+                                    metadata=pmap(metadata)
+                                ),
+                                primary=True
+                            )
+                        })
+                    )
+                })),
+                deployment
+            )
+        creating.addCallback(created)
+        return creating
 
     # ... etc
 
