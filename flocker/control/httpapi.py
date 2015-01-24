@@ -80,7 +80,7 @@ class DatasetAPIUserV1(object):
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset(self, primary, dataset_id=None, metadata=None):
+    def create_dataset(self, primary, dataset_id=None, maximum_size=None, metadata=None):
         """
         Create a new dataset on the cluster.
         """
@@ -101,7 +101,11 @@ class DatasetAPIUserV1(object):
         # XXX Check cluster state to determine if the given primary node
         # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
 
-        dataset = Dataset(dataset_id=dataset_id, metadata=pmap(metadata))
+        dataset = Dataset(
+            dataset_id=dataset_id,
+            maximum_size=maximum_size,
+            metadata=pmap(metadata)
+        )
         manifestation = Manifestation(dataset=dataset, primary=True)
 
         primary_nodes = list(
@@ -126,11 +130,14 @@ class DatasetAPIUserV1(object):
 
         saving = self.persistence_service.save(new_deployment)
         def saved(ignored):
-            return {
+            result = {
                 u"dataset_id": dataset_id,
                 u"primary": primary,
                 u"metadata": metadata,
             }
+            if maximum_size is not None:
+                result[u"maximum_size"] = maximum_size
+            return result
         saving.addCallback(saved)
         return saving
 
