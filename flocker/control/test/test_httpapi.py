@@ -191,18 +191,24 @@ class CreateDatasetTestsMixin(APITestsMixin):
         description of the new dataset is returned in a success response to the
         client.
         """
-        creating = self.assertResponseCode(
-            b"POST", b"/datasets", {u"primary": self.NODE_A},
-            OK)
-        creating.addCallback(readBody)
-        creating.addCallback(loads)
+        saving = self.persistence_service.save(Deployment(
+            nodes=frozenset({Node(hostname=self.NODE_A)})
+        ))
+        def saved(ignored):
+            creating = self.assertResponseCode(
+                b"POST", b"/datasets", {u"primary": self.NODE_A},
+                OK)
+            creating.addCallback(readBody)
+            creating.addCallback(loads)
+            return creating
+        creating = saving.addCallback(saved)
 
         def got_result(result):
             result = result[u"result"]
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual({u"primary": self.NODE_A, u"metadata": {}}, result)
             deployment = self.persistence_service.get()
-            self.assertEqual({dataset_id}, get_dataset_ids(deployment))
+            self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
         creating.addCallback(got_result)
 
         return creating
@@ -213,6 +219,11 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
     # ... etc
 
+
+def get_dataset_ids(deployment):
+    for node in deployment.nodes:
+        for manifestation in node.manifestations():
+            yield manifestation.dataset.dataset_id
 
 RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)

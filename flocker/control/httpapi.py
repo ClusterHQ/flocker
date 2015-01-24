@@ -15,6 +15,7 @@ from twisted.application.internet import StreamServerEndpointService
 from klein import Klein
 
 from ..restapi import structured, user_documentation, make_bad_request
+from . import Dataset, Manifestation, Node, Deployment
 from .. import __version__
 
 
@@ -90,27 +91,41 @@ class DatasetAPIUserV1(object):
                 if manifestation.dataset.dataset_id == dataset_id:
                     raise DATASET_ID_COLLISION
 
-        #
-        # Create a new Dataset with given parameters (generate dataset_id if
-        # necessary).
-        #
-        # Create a new Manifestation with that Dataset.
-        #
-        # Add the new Manifestation to a Node in the Deployment
-        # (other_manifestations) (need to merge FLOC-1214 for this).
-        #
-        # Persist the new Deployment using persistence_service.
-        #
-        # Return information about the new Manifestation???  But this is
-        # create_dataset.  I guess we'll squish information from the
-        # manifestation (eg the address of the primary) into the representation
-        # of the dataset.
-        return {
-            u"dataset_id": dataset_id,
-            u"primary": primary,
-            u"metadata": {},
-        }
+        dataset = Dataset(dataset_id=dataset_id)
+        manifestation = Manifestation(dataset=dataset, primary=False)
 
+        # XXX The node might not be in the cluster yet.  How do we deal with
+        # that?
+        (primary_node,) = (
+            node for node in deployment.nodes if primary == node.hostname
+        )
+        new_node_config = Node(
+            hostname=primary_node.hostname,
+            applications=primary_node.applications,
+            other_manifestations=
+                primary_node.other_manifestations | frozenset({manifestation})
+        )
+        new_deployment = Deployment(
+            # The Node which was reconfigured has been consumed from nodes
+            # already so we don't get a duplicatehere.
+            nodes=frozenset(
+                node for node in deployment.nodes if node is not primary_node
+            ) | frozenset({new_node_config})
+        )
+
+        saving = self.persistence_service.save(new_deployment)
+        def saved(ignored):
+            # Return information about the new Manifestation???  But this is
+            # create_dataset.  I guess we'll squish information from the
+            # manifestation (eg the address of the primary) into the representation
+            # of the dataset.
+            return {
+                u"dataset_id": dataset_id,
+                u"primary": primary,
+                u"metadata": {},
+            }
+        saving.addCallback(saved)
+        return saving
 
 
 def create_api_service(persistence_service, endpoint):
