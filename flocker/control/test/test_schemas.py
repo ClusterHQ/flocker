@@ -29,21 +29,86 @@ VersionsTests = build_schema_test(
 )
 
 DatasetsSchemaTests = build_schema_test(
-    # failing instances
-    # - wrong type for dataset_id
-    # - too short string for dataset_id
-    # - too long string for dataset_id
-    #
-    # - wrong type for metadata
-    # - wrong type for key in metadata
-    # - wrong type for value in metadata
-    # - too-long string property name in metadata
-    # - too-long string property value in metadata
-    # - too many metadata properties
-    #
-    # - test maximum_size cases
-    #
-    # - missing primary
-    # - wrong type for primary
-    # - non-IPv4-address for primary
-    )
+    name="DatasetsSchemaTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # wrong type for dataset_id
+        {u"primary": u"10.0.0.1", u"dataset_id": 10},
+
+        # too short string for dataset_id
+        {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 35},
+
+        # too long string for dataset_id
+        {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 37},
+
+        # wrong type for metadata
+        {u"primary": u"10.0.0.1", u"metadata": 10},
+
+        # wrong type for key in metadata
+        {u"primary": u"10.0.0.1", u"metadata": {10: u"foo"}},
+
+        # wrong type for value in metadata
+        {u"primary": u"10.0.0.1", u"metadata": {u"foo": 10}},
+
+        # too-long string property name in metadata
+        {u"primary": u"10.0.0.1", u"metadata": {u"x" * 257: 10}},
+
+        # too-long string property value in metadata
+        {u"primary": u"10.0.0.1", u"metadata": {u"foo": u"x" * 257}},
+
+        # too many metadata properties
+        {u"primary": u"10.0.0.1",
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(257)), u"value")},
+
+        #
+        # test maximum_size cases
+        #
+        # missing primary
+        {u"metadata": {},
+         u"maximum_size": 1024 * 1024 * 1024,
+         u"dataset_id": u"x" * 36},
+
+        # wrong type for primary
+        {u"primary": 10,
+         u"metadata": {},
+         u"maximum_size": 1024 * 1024 * 1024,
+         u"dataset_id": u"x" * 36},
+
+        # non-IPv4-address for primary
+        {u"primary": u"10.0.0.257",
+         u"metadata": {},
+         u"maximum_size": 1024 * 1024 * 1024,
+         u"dataset_id": u"x" * 36},
+        {u"primary": u"example.com",
+         u"metadata": {},
+         u"maximum_size": 1024 * 1024 * 1024,
+         u"dataset_id": u"x" * 36},
+    ],
+
+    passing_instances=[
+        # everything optional except primary
+        {u"primary": u"10.0.0.1"},
+
+        # metadata is an object with a handful of short string key/values
+        {u"primary": u"10.0.0.1",
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(256)), u"x" * 256)
+        },
+
+        # maximum_size is an integer of at least 64MiB
+        {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64},
+
+        # dataset_id is a string of 36 characters
+        {u"primary": u"10.0.0.1", u"dataset_id": u"x" * 36},
+
+        # All of them can be combined.
+        {u"primary": u"10.0.0.1",
+         u"metadata":
+             dict.fromkeys((unicode(i) for i in range(256)), u"x" * 256),
+         u"maximum_size": 1024 * 1024 * 64,
+         u"dataset_id": u"x" * 36,
+        },
+    ]
+)
