@@ -199,7 +199,7 @@ td>p {
 }
 
 .flocker-logo {
-    background: url(../img/flocker.png);
+    background: url(../images/flocker.png);
     height: 266px;
     background-size: 309px 266px;
     background-repeat: no-repeat;
@@ -211,7 +211,7 @@ td>p {
 }
 
 .signup {
-    background:url(../img/signup.png) no-repeat center;
+    background:url(../images/signup.png) no-repeat center;
     background-size:cover;
     font-family:"Soho Gothic W01 Medium";
     font-weight:300;    
@@ -231,7 +231,7 @@ td>p {
 }
 
 .arrow-down {
-    background: url(../img/arrow.png);
+    background: url(../images/arrow.png);
     background-size: 50px;
     background-repeat: no-repeat;
     height: 50px;
@@ -488,7 +488,7 @@ footer .copyright p {
 }
 @media (max-width:1200px) {
     .flocker-logo {
-        background: url(../img/flocker.png);
+        background: url(../images/flocker.png);
         height: 266px;
         background-size: 309px 266px;
         background-repeat: no-repeat;
@@ -556,18 +556,18 @@ footer .copyright p {
         only screen and (        min-device-pixel-ratio: 1.5),  
         only screen and (min-resolution: 192dpi) {  
             .flocker-logo {
-                background: url(../img/flocker@2x.png);
+                background: url(../images/flocker@2x.png);
                 background-size: 309px 266px;
                 background-repeat: no-repeat;
             }
 
             .signup {
-                background:url(../img/signup@2x.png) no-repeat center;
+                background:url(../images/signup@2x.png) no-repeat center;
                 background-size:cover;
             }
         
             .arrow-down {
-                background: url(../img/arrow@2x.png);
+                background: url(../images/arrow@2x.png);
                 background-size: 50px;
                 background-repeat: no-repeat;
             }
