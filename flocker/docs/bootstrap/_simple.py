@@ -59,17 +59,6 @@ def create_simple_html_directive(name, pre, post,
     return node_class, directive_class, setup
 
 
-header_hero, HeaderHeroDirective, header_hero_setup = (
-    create_simple_html_directive(
-        "header-hero",
-        pre=dedent("""\
-        <header><h1 class="text-center">
-        """),
-        post=dedent("""\
-        </h1></header>
-        """),
-    ))
-
 intro_text, IntroTextDirective, intro_text_setup = (
     create_simple_html_directive(
         "intro-text",
@@ -161,7 +150,6 @@ def setup(app):
     parse_general_division.options = dict(meta=directives.unchanged)
     directives.register_directive('general-division', parse_general_division)
     intro_text_setup(app)
-    header_hero_setup(app)
     tutorial_step_condensed_setup(app)
     tutorial_step_setup(app)
     mobile_label_setup(app)

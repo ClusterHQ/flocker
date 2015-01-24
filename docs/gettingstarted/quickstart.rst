@@ -2,10 +2,6 @@
 Getting started with Flocker
 ============================
 
-.. header-hero::
-
-   Getting started with Flocker
-   
 .. logo::
 
 .. intro-text::

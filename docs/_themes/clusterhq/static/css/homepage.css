@@ -19,21 +19,23 @@ pre {
     border: none;
 }
 
-header {
-    background:#343a3d;
-    padding:48px 0px;
-    color:#FFF;
-}
-
-header h1 {
+h1 {
     margin:0px;
     padding:12px;
     font-size:48px;
-    font-weight:bold;   
+    font-weight:bold;
+    background:#343a3d;
+    padding:48px 0px;
+    color:#FFF;
+    text-align: center;
 }
 
-#getting-started-with-flocker>h1:first-child, .headerlink {
-    display:none;
+a.headerlink {
+    visibility: hidden;
+}
+
+h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:hover > a.headerlink, h5:hover > a.headerlink, h6:hover > a.headerlink, dt:hover > a.headerlink {
+    visibility: visible;
 }
 
 #getting-started-with-flocker>.container:nth-of-type(5) {
@@ -257,7 +259,7 @@ hr.docutils {
     height: 90px;
 }
 
-.navbar-inverse, header {
+.navbar-inverse, h1 {
     background: #1e2021;
     background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJod…IgaGVpZ2h0PSIxIiBmaWxsPSJ1cmwoI2dyYWQtdWNnZy1nZW5lcmF0ZWQpIiAvPgo8L3N2Zz4=);
     background: -moz-linear-gradient(-10deg, #1e2021 0%, #343a3d 100%);
