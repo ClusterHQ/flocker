@@ -176,10 +176,18 @@ class CreateDatasetTestsMixin(APITestsMixin):
         return posting
 
     def test_unknown_primary_node(self):
-        # unknown IPv4 address for primary, fail with an error.
-        pass
-
-    # ... etc
+        """
+        If a ``POST`` request made to the endpoint indicates a non-existent
+        node as the location of the primary manifestation, the configuration is
+        unchanged and an error response is returned to the client.
+        """
+        return self.assertBadResult(
+            b"POST", b"/datasets", {u"primary": self.NODE_A},
+            BAD_REQUEST, {
+                u"description":
+                    u"The provided primary node is not part of the cluster."
+            }
+        )
 
     def test_minimal_create_dataset(self):
         """

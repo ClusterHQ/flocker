@@ -30,6 +30,8 @@ SCHEMAS = {
 
 DATASET_ID_COLLISION = make_bad_request(
     code=CONFLICT, description=u"The provided dataset_id is already in use.")
+PRIMARY_NODE_NOT_FOUND = make_bad_request(
+    description=u"The provided primary node is not part of the cluster.")
 
 
 class DatasetAPIUserV1(object):
@@ -94,11 +96,14 @@ class DatasetAPIUserV1(object):
         dataset = Dataset(dataset_id=dataset_id)
         manifestation = Manifestation(dataset=dataset, primary=False)
 
-        # XXX The node might not be in the cluster yet.  How do we deal with
-        # that?
-        (primary_node,) = (
+        primary_nodes = list(
             node for node in deployment.nodes if primary == node.hostname
         )
+        if len(primary_nodes) == 0:
+            raise PRIMARY_NODE_NOT_FOUND
+        else:
+            (primary_node,) = primary_nodes
+
         new_node_config = Node(
             hostname=primary_node.hostname,
             applications=primary_node.applications,
