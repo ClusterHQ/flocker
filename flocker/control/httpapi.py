@@ -100,6 +100,10 @@ class DatasetAPIUserV1(object):
             node for node in deployment.nodes if primary == node.hostname
         )
         if len(primary_nodes) == 0:
+            # XXX This really needs to be a check of current configuration
+            # instead of desired configuration.  As written now, it's
+            # impossible to ever create a dataset because there's no way to get
+            # the right Node into the configuration Deployment instance.
             raise PRIMARY_NODE_NOT_FOUND
         else:
             (primary_node,) = primary_nodes
@@ -111,8 +115,6 @@ class DatasetAPIUserV1(object):
                 primary_node.other_manifestations | frozenset({manifestation})
         )
         new_deployment = Deployment(
-            # The Node which was reconfigured has been consumed from nodes
-            # already so we don't get a duplicatehere.
             nodes=frozenset(
                 node for node in deployment.nodes if node is not primary_node
             ) | frozenset({new_node_config})
@@ -120,10 +122,6 @@ class DatasetAPIUserV1(object):
 
         saving = self.persistence_service.save(new_deployment)
         def saved(ignored):
-            # Return information about the new Manifestation???  But this is
-            # create_dataset.  I guess we'll squish information from the
-            # manifestation (eg the address of the primary) into the representation
-            # of the dataset.
             return {
                 u"dataset_id": dataset_id,
                 u"primary": primary,
