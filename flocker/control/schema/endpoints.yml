@@ -24,6 +24,7 @@ definitions:
           and returned.
         type: string
         # The length of a stringified uuid
+        minLength: 36
         maxLength: 36
 
       metadata:
