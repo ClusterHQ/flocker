@@ -34,10 +34,11 @@ definitions:
           not interpreted by Flocker.  If not given, no metadata will be
           associated with the new dataset.
         type: object
-        additionalProperties:
-          type: string
-          # Arbitrary
-          maxLength: 256
+        patternProperties:
+          ".{1,256}":
+            type: string
+            # Arbitrary
+            maxLength: 256
         # Arbitrary
         maxProperties: 16
 
