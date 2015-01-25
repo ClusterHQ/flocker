@@ -45,9 +45,6 @@ DatasetsSchemaTests = build_schema_test(
         # wrong type for metadata
         {u"primary": u"10.0.0.1", u"metadata": 10},
 
-        # wrong type for key in metadata
-        {u"primary": u"10.0.0.1", u"metadata": {10: u"foo"}},
-
         # wrong type for value in metadata
         {u"primary": u"10.0.0.1", u"metadata": {u"foo": 10}},
 
