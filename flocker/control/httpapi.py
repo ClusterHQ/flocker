@@ -112,7 +112,7 @@ class DatasetAPIUserV1(object):
             possible.
         """
         if dataset_id is None:
-            dataset_id = u"x" * 36 # unicode(uuid4())
+            dataset_id = unicode(uuid4())
 
         if metadata is None:
             metadata = {}

@@ -11,9 +11,10 @@ from pyrsistent import pmap
 from zope.interface.verify import verifyObject
 
 from twisted.internet import reactor
+from twisted.internet.defer import gatherResults
+from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.web.http import OK, CONFLICT, BAD_REQUEST
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
@@ -221,6 +222,26 @@ class CreateDatasetTestsMixin(APITestsMixin):
             self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
         creating.addCallback(got_result)
 
+        return creating
+
+    def test_create_generates_different_dataset_ids(self):
+        """
+        If two ``POST`` requests are made to create two different datasets,
+        each dataset created is assigned a distinct ``dataset_id``.
+        """
+        creating = gatherResults([
+            self.assertResponseCode(
+                b"POST", b"/datasets", {u"primary": self.NODE_A}, OK
+            ).addCallback(readBody).addCallback(loads),
+            self.assertResponseCode(
+                b"POST", b"/datasets", {u"primary": self.NODE_A}, OK
+            ).addCallback(readBody).addCallback(loads),
+        ])
+        def created(datasets):
+            first = datasets[0][u"result"]
+            second = datasets[1][u"result"]
+            self.assertNotEqual(first[u"dataset_id"], second[u"dataset_id"])
+        creating.addCallback(created)
         return creating
 
     def test_create_with_metadata(self):
