@@ -39,6 +39,10 @@ PRIMARY_NODE_NOT_FOUND = make_bad_request(
 class DatasetAPIUserV1(object):
     """
     A user accessing the API.
+
+    The APIs exposed here typically operate on cluster configuration.  They
+    frequently return success results when a configuration change has been made
+    durable but has not yet been deployed onto the cluster.
     """
     app = Klein()
 
@@ -82,7 +86,30 @@ class DatasetAPIUserV1(object):
     )
     def create_dataset(self, primary, dataset_id=None, maximum_size=None, metadata=None):
         """
-        Create a new dataset on the cluster.
+        Create a new dataset in the cluster configuration.
+
+        :param unicode primary: The address of the node on which the primary
+            manifestation of the dataset will be created.
+
+        :param unicode dataset_id: A unique identifier to assign to the
+            dataset.  This is typically a UUID.  If no value is given, one will
+            be generated and returned in the response.  This is not for easy
+            human use.  For human-friendly identifiers, use items in
+            ``metadata``.
+
+        :param int maximum_size: The maximum number of bytes the dataset will
+            be capable of storing.  This may be optional or required depending
+            on the dataset backend.
+
+        :param dict metadata: A small collection of unicode key/value pairs to
+            associate with the dataset.  These items are not interpreted.  They
+            are only stored and made available for later retrieval.  Use this
+            for things like human-friendly dataset naming, ownership
+            information, etc.
+
+        :return: A ``dict`` describing the dataset which has been added to the
+            cluster configuration or giving error information if this is not
+            possible.
         """
         if dataset_id is None:
             dataset_id = u"x" * 36 # unicode(uuid4())
