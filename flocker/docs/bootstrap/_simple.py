@@ -144,7 +144,7 @@ def setup(app):
     """
     Entry point for sphinx extension.
     """
-    directives.register_directive('general-division', EmptyDiv)
+    directives.register_directive('empty-div', EmptyDiv)
     intro_text_setup(app)
     tutorial_step_condensed_setup(app)
     tutorial_step_setup(app)
