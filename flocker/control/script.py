@@ -11,6 +11,7 @@ from twisted.application.service import MultiService
 
 from .httpapi import create_api_service
 from ._persistence import ConfigurationPersistenceService
+from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
 
@@ -37,7 +38,9 @@ class ControlScript(object):
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])
         persistence.setServiceParent(top_service)
-        create_api_service(persistence, TCP4ServerEndpoint(
+        cluster_state = ClusterStateService()
+        cluster_state.setServiceParent(top_service)
+        create_api_service(persistence, cluster_state, TCP4ServerEndpoint(
             reactor, options["port"])).setServiceParent(top_service)
         return main_for_service(reactor, top_service)
 

@@ -31,13 +31,16 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    # XXX Take persistence_service and cluster state service.
-    def __init__(self, persistence_service):
+    def __init__(self, persistence_service, cluster_state_service):
         """
         :param ConfigurationPersistenceService persistence_service: Service
             for retrieving and setting desired configuration.
+
+        :param ClusterStateService cluster_state_service: Service that
+            knows about the current state of the cluster.
         """
         self.persistence_service = persistence_service
+        self.cluster_state_service = cluster_state_service
 
     @app.route("/version", methods=['GET'])
     @user_documentation("""
@@ -55,18 +58,22 @@ class DatasetAPIUserV1(object):
         return {u"flocker":  __version__}
 
 
-# XXX Take persistence_service and cluster state service.
-def create_api_service(persistence_service, endpoint):
+def create_api_service(persistence_service, cluster_state_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
 
     :param ConfigurationPersistenceService persistence_service: Service
         for retrieving and setting desired configuration.
+
+    :param ClusterStateService cluster_state_service: Service that
+        knows about the current state of the cluster.
+
     :param endpoint: Twisted endpoint to listen on.
 
     :return: Service that will listen on the endpoint using HTTP API server.
     """
     api_root = Resource()
-    api_root.putChild(
-        'v1', DatasetAPIUserV1(persistence_service).app.resource())
+    user = DatasetAPIUserV1(persistence_service, cluster_state_service)
+    api_root.putChild('v1', user.app.resource())
+    api_root._v1_user = user  # For unit testing purposes, alas
     return StreamServerEndpointService(endpoint, Site(api_root))
