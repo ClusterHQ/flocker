@@ -14,13 +14,13 @@ The following is the procedure for fixing them.
 
 #. File an issue in JIRA_. For example, "FLOC-1234: Fix a bug.".
    If the issue affects in multiple versions (including master),
-   create an sub-task for each affected version:
+   create a sub-task for each affected, supported version:
 
    - FLOC-1235: Fix a bug in 1.2.3.
    - FLOC-1236: Fix a bug in 1.2.4.
    - FLOC-1237: Fix a bug in master.
 
-#. Create branch off the oldest affected release.
+#. Create branch off the oldest affected, supported release.
 
    .. prompt:: bash $
 
@@ -30,7 +30,7 @@ The following is the procedure for fixing them.
 
    .. prompt:: bash $
 
-      vi ...
+      ed ...
       git commit -m'Fixed the bug.'
 
 #. Push the branch to GitHub.
