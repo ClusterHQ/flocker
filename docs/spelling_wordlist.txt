@@ -20,6 +20,7 @@ filename
 filesystem
 filesystems
 firewalld
+flocker
 flocker-cli
 flocker-deploy
 flocker-node
