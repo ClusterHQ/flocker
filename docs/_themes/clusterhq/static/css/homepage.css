@@ -19,7 +19,7 @@ pre {
     border: none;
 }
 
-h1 {
+#getting-started-with-flocker>h1:first-child {
     margin:0px;
     padding:12px;
     font-size:48px;
@@ -259,7 +259,7 @@ hr.docutils {
     height: 90px;
 }
 
-.navbar-inverse, h1 {
+.navbar-inverse, #getting-started-with-flocker>h1:first-child {
     background: #1e2021;
     background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJod…IgaGVpZ2h0PSIxIiBmaWxsPSJ1cmwoI2dyYWQtdWNnZy1nZW5lcmF0ZWQpIiAvPgo8L3N2Zz4=);
     background: -moz-linear-gradient(-10deg, #1e2021 0%, #343a3d 100%);
