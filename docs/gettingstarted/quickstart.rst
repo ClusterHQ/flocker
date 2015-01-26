@@ -1,3 +1,5 @@
+:layout: homepage
+
 ============================
 Getting started with Flocker
 ============================

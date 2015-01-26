@@ -1,4 +1,6 @@
 :tocdepth: 2
-:layout: homepage
 
-.. include:: quickstart.rst
+.. toctree::
+   :maxdepth: 2
+
+   quickstart.rst
