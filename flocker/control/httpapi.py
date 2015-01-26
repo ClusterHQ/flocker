@@ -31,9 +31,7 @@ class DatasetAPIUserV1(object):
     """
     app = Klein()
 
-    # Take the main service instead of a persistence_service, loopkup
-    #individual services by service class, e.g.
-    # self.persistence_service = main_service.getServiceByName(ConfigurationPersistenceService)
+    # XXX Take persistence_service and cluster state service.
     def __init__(self, persistence_service):
         """
         :param ConfigurationPersistenceService persistence_service: Service
@@ -57,7 +55,7 @@ class DatasetAPIUserV1(object):
         return {u"flocker":  __version__}
 
 
-# Take the main service instead of a persistence_service
+# XXX Take persistence_service and cluster state service.
 def create_api_service(persistence_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
