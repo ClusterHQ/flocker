@@ -79,7 +79,7 @@ Getting started with Flocker
          OS X
          ^^^^
 
-         Install the flocker-cli client on your Mac (requires homebrew):
+         Install the flocker-cli client on your Mac (requires Homebrew):
 
          .. code-block:: console
 
@@ -115,7 +115,7 @@ Getting started with Flocker
          Vagrant
          ^^^^^^^
 
-         Simulate a flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):
+         Simulate a Flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):
 
          .. code-block:: console
 
@@ -197,7 +197,7 @@ Getting started with Flocker
    
    .. tutorial-step-condensed::
 
-      Now we are going to use a different depoyment config to show moving the Redis container with its data volume.
+      Now we are going to use a different deployment configuration to show moving the Redis container with its data volume.
 
       deployment-node2.yml
       --------------------

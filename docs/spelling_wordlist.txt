@@ -7,6 +7,8 @@ bugfix
 Buildbot
 checksum
 chmod
+cli
+CLI
 Copr
 dataset
 Deis
@@ -18,6 +20,9 @@ filename
 filesystem
 filesystems
 firewalld
+flocker-cli
+flocker-deploy
+flocker-node
 Flocker
 Freenode
 handoff
@@ -31,6 +36,7 @@ Kubernetes
 libswarm
 Mesos
 metadata
+microservices
 multi
 mv
 namespace
@@ -43,6 +49,7 @@ programmatically
 proxied
 proxying
 Rackspace
+Redis
 snapshotting
 stateful
 sysadmin
@@ -51,5 +58,6 @@ virtualization
 VMware
 webhook
 workflow
+yml
 yourlaptop
 ZFS
