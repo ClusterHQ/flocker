@@ -1,7 +1,12 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Combine and retrieve current cluster state.
 """
+
 from twisted.application.service import Service
+
+from ._model import Deployment, Node
 
 
 class ClusterStateService(Service):
@@ -29,5 +34,8 @@ class ClusterStateService(Service):
         """
         Return cluster state as a Deployment object.
         """
-        # convert self._nodes to a Deployment, mostly by losing some
-        # information.
+        return Deployment(nodes=frozenset([
+            Node(hostname=hostname,
+                 applications=frozenset(
+                     node_state.running + node_state.not_running))
+            for hostname, node_state in self._nodes.items()]))
