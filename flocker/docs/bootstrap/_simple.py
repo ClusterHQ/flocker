@@ -13,6 +13,10 @@ from docutils.parsers.rst import Directive
 
 
 class EmptyDiv(Directive):
+    """
+    Creates a new directive that takes class names as arguments and when
+    parsed to HTML, wraps those class names in an empty div.
+    """
     has_content = False
     required_arguments = 1
     final_argument_whitespace = 1
@@ -24,7 +28,18 @@ class EmptyDiv(Directive):
 
 def create_simple_html_directive(name, pre, post,
                                  has_content=True, match_titles=False):
-
+    """
+    Creates a node class, directive class and setup method for the given
+    parameters.
+    
+    :param name: String representing the RST directive to add.
+    :param pre: String representing HTML to come before directive content.
+    :param post: String representing HTML to come after directive content.
+    :param has_content: Boolean indicating whether the directive accepts
+        a content block.
+    :param match_titles: Boolean indicating whether headings and titles may
+        be included in the block contained within this directive. 
+    """
     node_class = type(
         name.replace('-', '_'), (nodes.General, nodes.Element), {}
     )
