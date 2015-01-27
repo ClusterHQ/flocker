@@ -38,6 +38,7 @@ class ClusterStateService(Service):
         """
         return Deployment(nodes=frozenset([
             Node(hostname=hostname,
+                 other_manifestations=node_state.other_manifestations,
                  applications=frozenset(
                      node_state.running + node_state.not_running))
             for hostname, node_state in self._nodes.items()]))

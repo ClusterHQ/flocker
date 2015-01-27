@@ -4,17 +4,22 @@
 Tests for ``flocker.control._clusterstate``.
 """
 
+from uuid import uuid4
+
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._clusterstate import ClusterStateService
 from .._model import (
-    Application, DockerImage, NodeState, Node, Deployment,
+    Application, DockerImage, NodeState, Node, Deployment, Manifestation,
+    Dataset,
 )
 
 APP1 = Application(
     name=u"webserver", image=DockerImage.from_string(u"apache"))
 APP2 = Application(
     name=u"database", image=DockerImage.from_string(u"postgresql"))
+MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                              primary=True)
 
 
 class ClusterStateServiceTests(SynchronousTestCase):
@@ -40,6 +45,23 @@ class ClusterStateServiceTests(SynchronousTestCase):
                          Deployment(nodes=frozenset([Node(
                              hostname=u"host1",
                              applications=frozenset([APP1, APP2]))])))
+
+    def test_other_manifestations(self):
+        """
+        ``ClusterStateService.as_deployment`` copies over other manifestations
+        to the ``Node`` instances it creates.
+        """
+        service = self.service()
+        service.update_node_state(
+            u"host2",
+            NodeState(running=[], not_running=[],
+                      other_manifestations=frozenset([MANIFESTATION])))
+        self.assertEqual(service.as_deployment(),
+                         Deployment(nodes=frozenset([Node(
+                             hostname=u"host2",
+                             applications=frozenset(),
+                             other_manifestations=frozenset(
+                                 [MANIFESTATION]))])))
 
     def test_update(self):
         """
