@@ -160,6 +160,8 @@ Preparing For a Release
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
+   The pull request will not be automatically linked to the JIRA issue because it does not use the standard branch naming scheme.
+   Therefore, you will have to manually submit the release issue for review, and link to the pull request in a comment.
 
    Wait for an accepted code review before continuing.
 
