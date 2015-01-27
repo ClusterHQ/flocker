@@ -19,7 +19,7 @@ IGNORANT:
 
 The status of the cluster is unknown.
 If desired configuration and cluster state are received send a GO input
-symbol to the AgentOperation state machine. switch to KNOWN.
+symbol to the AgentOperation state machine. switch to KNOWLEDGEABLE.
 If disconnected then switch to DISCONNECTED.
 
 KNOWLEDGEABLE:
