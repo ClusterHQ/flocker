@@ -22,9 +22,20 @@ class HTMLWriter(HTMLTranslator):
     """
     Overrides part of the default HTMLTranslator to provide specific
     class names on some generated HTML elements.
+    
+    Code modified from docutils.writers.html4css1.Writer and
+    sphinx.writers.html.HTMLTranslator
+    
+    http://sphinx-doc.org/
+    http://docutils.sourceforge.net/
     """
 
     def visit_table(self, node):
+        """
+        Modified version of sphinx.writers.html.HTMLTranslator.visit_table
+        and including code from docutils.writers.html4css1.Writer.visit_table
+        Adds additional class names to <table> tags.
+        """
         self._table_row_index = 0
         self.context.append(self.compact_p)
         self.compact_p = True
@@ -34,6 +45,10 @@ class HTMLWriter(HTMLTranslator):
             self.starttag(node, 'table', CLASS=classes, border="0"))
 
     def visit_entry(self, node):
+        """
+        Modified version of docutils.writers.html4css1.Writer.visit_entry
+        Adds a wrapping <p> tag to table cell content.
+        """
         atts = {'class': []}
         if isinstance(node.parent.parent, nodes.thead):
             atts['class'].append('head')
