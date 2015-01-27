@@ -232,6 +232,10 @@ td>p {
     font-size:42px;
 }
 
+.signup, .nav-tabs, .tab-content {
+    display:none;
+}
+
 .arrow-down {
     background: url(../images/arrow.png);
     background-size: 50px;

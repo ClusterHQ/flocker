@@ -1,4 +1,5 @@
 $(document).ready(function() {
+    $('div.signup, .nav-tabs, .tab-content').show();
     $('#form-signup').submit(function(e) {
         var email_addr = $('#email').val();
         if (email_addr == '') {

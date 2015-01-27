@@ -74,6 +74,32 @@ Getting started with Flocker
       Installation
       ------------
 
+      .. noscript-content::
+      
+         OS X
+         ^^^^
+
+         Install the flocker-cli client on your Mac (requires Homebrew):
+
+         .. code-block:: console
+
+            $ brew update && \
+              brew tap clusterhq/flocker && \
+              brew install flocker-0.3.2
+            
+      .. noscript-content::
+
+         Linux
+         ^^^^^
+
+         Install the flocker-cli client on your Linux machine:
+
+         .. code-block:: console
+
+            $ virtualenv flocker-tutorial && \
+              flocker-tutorial/bin/pip install --upgrade pip && \
+              flocker-tutorial/bin/pip install --quiet https://archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+
       .. tabs::
 
          OS X
@@ -109,6 +135,25 @@ Getting started with Flocker
 
       Installation
       ------------
+
+      .. noscript-content::
+
+         Vagrant
+         ^^^^^^^
+
+         Simulate a Flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):
+
+         .. code-block:: console
+
+            $ git clone \
+              https://github.com/clusterhq/vagrant-flocker && \
+              cd vagrant-flocker && \
+              vagrant up
+
+         AWS
+         ^^^
+
+         Please see our separate `AWS install instructions <http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services>`_ to get started.
 
       .. tabs::
 

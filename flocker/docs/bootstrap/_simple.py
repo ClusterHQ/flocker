@@ -114,6 +114,19 @@ col-md-12 text-larger">
         """),
         match_titles=True,
     ))
+    
+
+noscript_content, NoScriptContentDirective, noscript_content_setup = (
+    create_simple_html_directive(
+        "noscript-content",
+        pre=dedent("""\
+        <noscript>
+        """),
+        post=dedent("""\
+        </noscript>
+        """),
+        match_titles=True,
+    ))    
 
 
 mobile_label, MobileLabelDirective, mobile_label_setup = (
@@ -142,6 +155,7 @@ bordered-bottom bordered-gray">
         match_titles=True,
     ))
 
+
 logo, LogoDirective, logo_setup = (
     create_simple_html_directive(
         "logo",
@@ -161,6 +175,7 @@ def setup(app):
     """
     directives.register_directive('empty-div', EmptyDiv)
     intro_text_setup(app)
+    noscript_content_setup(app)
     tutorial_step_condensed_setup(app)
     tutorial_step_setup(app)
     mobile_label_setup(app)
