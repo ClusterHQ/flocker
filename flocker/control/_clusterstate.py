@@ -14,9 +14,9 @@ class ClusterStateService(Service):
     Store known current cluster state, and combine partial updates with
     the existing known state.
 
-    (Follow up issue will deal with semantics of expiring data, which
-    should happen so stale information isn't stored. This needs some extra
-    work for the agent resending state even when it doesn't change, etc..)
+    https://clusterhq.atlassian.net/browse/FLOC-1269 will deal with
+    semantics of expiring data, which should happen so stale information
+    isn't treated as correct.
     """
     def __init__(self):
         self._nodes = {}
