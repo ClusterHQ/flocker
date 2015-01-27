@@ -114,7 +114,7 @@ col-md-12 text-larger">
         """),
         match_titles=True,
     ))
-    
+
 
 noscript_content, NoScriptContentDirective, noscript_content_setup = (
     create_simple_html_directive(
@@ -126,7 +126,7 @@ noscript_content, NoScriptContentDirective, noscript_content_setup = (
         </noscript>
         """),
         match_titles=True,
-    ))    
+    ))
 
 
 mobile_label, MobileLabelDirective, mobile_label_setup = (

@@ -22,10 +22,10 @@ class HTMLWriter(HTMLTranslator):
     """
     Overrides part of the default HTMLTranslator to provide specific
     class names on some generated HTML elements.
-    
+
     Code modified from docutils.writers.html4css1.Writer and
     sphinx.writers.html.HTMLTranslator
-    
+
     http://sphinx-doc.org/
     http://docutils.sourceforge.net/
     """
