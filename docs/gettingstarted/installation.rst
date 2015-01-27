@@ -96,6 +96,10 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
    ...
    alice@mercury:~$
 
+.. foo::
+
+   alice@mercury:~$ brew test flocker-|release|
+
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:

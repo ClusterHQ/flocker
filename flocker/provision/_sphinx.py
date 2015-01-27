@@ -41,6 +41,42 @@ HANDLERS = {
 }
 
 
+class FooDirective(Directive):
+    """
+    Implementation of the C{task} directive.
+    """
+    has_content = True
+    def run(self):
+        import pdb; pdb.set_trace()
+
+        task = getattr(tasks, 'task_%s' % (self.arguments[0],))
+        prompt = self.options.get('prompt', '$')
+
+        commands = task()
+        lines = ['.. prompt:: bash %s' % (prompt,), '']
+
+        for command in commands:
+            try:
+                handler = HANDLERS[type(command)]
+            except KeyError:
+                raise self.error("task: %s not supported"
+                                 % (type(command).__name__,))
+            lines += ['   %s' % (line,) for line in handler(command)]
+
+        # The following three lines record (some?) of the dependencies of the
+        # directive, so automatic regeneration happens.  Specifically, it
+        # records this file, and the file where the task is declared.
+        task_file = getsourcefile(task)
+        tasks_file = getsourcefile(tasks)
+        self.state.document.settings.record_dependencies.add(task_file)
+        self.state.document.settings.record_dependencies.add(tasks_file)
+        self.state.document.settings.record_dependencies.add(__file__)
+
+        node = nodes.Element()
+        text = StringList(lines)
+        self.state.nested_parse(text, self.content_offset, node)
+        return node.children
+
 class TaskDirective(Directive):
     """
     Implementation of the C{task} directive.
@@ -86,3 +122,5 @@ def setup(app):
     Entry point for sphinx extension.
     """
     app.add_directive('task', TaskDirective)
+    app.add_directive('foo', FooDirective)
+
