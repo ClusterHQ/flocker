@@ -13,7 +13,11 @@
 
 from twisted.python.filepath import FilePath
 
-import sys, os
+import sys
+import os
+import re
+
+sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
 # Check if we are building on readthedocs
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
@@ -52,11 +56,9 @@ copyright = u'2014, ClusterHQ'
 # built documents.
 #
 # The short X.Y version.
-sys.path.insert(0, FilePath(__file__).parent().parent().path)
-from flocker import __version__ as version
-if version.endswith("-dirty"):
-    version = version[:-6]
-del sys.path[0]
+from flocker import __version__
+from flocker.docs import get_version
+version = get_version(__version__)
 
 # The full version, including alpha/beta/rc tags.
 release = version
