@@ -6,14 +6,20 @@ Tests for ``flocker.control._protocol``.
 
 from uuid import uuid4
 
+from zope.interface import implementer
+
+from characteristic import attributes, Attribute
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.test.proto_helpers import StringTransport
 from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 
 from .._protocol import (
     NodeStateArgument, DeploymentArgument, ControlServiceLocator,
-    VersionCommand, ClusterStatusCommand, NodeStateCommand,
+    VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
+    AgentClient
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -139,3 +145,68 @@ class ControlServiceLocatorTests(SynchronousTestCase):
                                       applications=frozenset([APP1, APP2]),
                                       other_manifestations=frozenset(
                                           [MANIFESTATION]))])))
+
+
+@implementer(IConvergenceAgent)
+@attributes([Attribute("is_connected", default_value=False),
+             Attribute("is_disconnected", default_value=False),
+             Attribute("desired", default_value=None),
+             Attribute("actual", default_value=None)])
+class FakeAgent(object):
+    """
+    Fake agent for testing.
+
+    Not a full verified fake since
+    https://clusterhq.atlassian.net/browse/FLOC-1255 may change this a
+    little.
+    """
+    def connected(self):
+        self.is_connected = True
+
+    def disconnected(self):
+        self.is_disconnected = True
+
+    def cluster_updated(self, configuration, cluster_state):
+        self.desired = configuration
+        self.actual = cluster_state
+
+
+class AgentClientTests(SynchronousTestCase):
+    """
+    Tests for ``AgentClient``.
+    """
+    def setUp(self):
+        self.agent = FakeAgent()
+        self.client = AgentClient(self.agent)
+        self.client.makeConnection(StringTransport())
+        # The server needs to send commands to the client, so it acts as
+        # an AMP client in that regard:
+        self.server = LoopbackAMPClient(self.client)
+
+    def test_connection_made(self):
+        """
+        Connection made events are passed on to the agent.
+        """
+        self.assertEqual(self.agent, FakeAgent(is_connected=True))
+
+    def test_connection_lost(self):
+        """
+        Connection lost events are passed on to the agent.
+        """
+        self.client.connectionLost(Failure(ConnectionLost()))
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               is_disconnected=True))
+
+    def test_cluster_updated(self):
+        """
+        ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
+        having cluster state updated.
+        """
+        actual = Deployment(nodes=frozenset([]))
+        d = self.server.callRemote(ClusterStatusCommand,
+                                   configuration=TEST_DEPLOYMENT,
+                                   state=actual)
+        self.successResultOf(d)
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               desired=TEST_DEPLOYMENT,
+                                               actual=actual))

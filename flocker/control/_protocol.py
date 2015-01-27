@@ -26,6 +26,8 @@ Interactions:
 
 from pickle import dumps, loads
 
+from zope.interface import Interface
+
 from twisted.protocols.amp import (
     Argument, Command, Integer, String, CommandLocator, AMP,
 )
@@ -109,23 +111,56 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
-class AgentLocator(AMP):
+class IConvergenceAgent(Interface):
+    """
+    The agent that will receive notifications from control service.
+
+    This is a little sketchy; it will be solidified in
+    https://clusterhq.atlassian.net/browse/FLOC-1255
+    """
+    def connected():
+        """
+        The client has connected to the control service.
+        """
+
+    def disconnected():
+        """
+        The client has disconnected from the control service.
+        """
+
+    def cluster_updated(configuration, cluster_state):
+        """
+        The cluster's desired configuration or actual state have changed.
+
+        :param Deployment configuration: The desired configuration for the
+            cluster.
+
+        :param Deployment cluster_state: The current state of the
+            cluster. Mostly useful for what it tells the agent about
+            non-local state, since the agent's knowledge of local state is
+            canonical.
+        """
+
+
+class AgentClient(AMP):
     """
     Convergence agent side of the protocol.
     """
     def __init__(self, agent):
         """
-        :param ConvergenceAgent agent: Convergence agent to notify of changes.
+        :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
         AMP.__init__(self)
-        pass#self.agent = agent
+        self.agent = agent
 
     def connectionMade(self):
-        pass#self.agent.connected()
+        self.agent.connected()
 
     def connectionLost(self, reason):
-        pass#self.agent.disconnected()
+        AMP.connectionLost(self, reason)
+        self.agent.disconnected()
 
     @ClusterStatusCommand.responder
     def cluster_updated(self, configuration, state):
         self.agent.cluster_updated(configuration, state)
+        return {}
