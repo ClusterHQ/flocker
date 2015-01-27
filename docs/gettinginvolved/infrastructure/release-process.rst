@@ -63,10 +63,10 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
-#. Create an issue:
+#. Create an issue in JIRA:
 
-   #. Set the title to "Release Flocker $VERSION"
-   #. Assign it to yourself
+   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create a clean, local Flocker release branch with no modifications:
 
