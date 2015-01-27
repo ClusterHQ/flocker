@@ -298,5 +298,9 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
 linkcheck_anchors = False
 
-# Don't check links to tutorial IPs
-linkcheck_ignore = [r'http://172\.16\.255\.']
+linkcheck_ignore = [
+    # Don't check links to tutorial IPs
+    r'http://172\.16\.255\.',
+    # This is an example GitHub URL made up
+    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1'
+]
