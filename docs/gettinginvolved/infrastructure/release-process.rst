@@ -152,11 +152,11 @@ Preparing For a Release
 
    .. TODO: The following steps should be automated
 
-   #. Copy release documentation from clusthq-dev-docs to clusterhq-staging-docs.
+   #. Copy release documentation from clusterhq-dev-docs to clusterhq-staging-docs.
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+         gsutil -m rsync -d -r s3://clusterhq-staging-docs/en/${VERSION}/clusterhq-staging-docs/en/${VERSION}/
 
    #. Update redirects to point to new documentation.
 
@@ -167,8 +167,26 @@ Preparing For a Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
 
-   #. Update the redirect rules in S3 to point to the new release. (TODO: details)
-   #. Create an invalidation for the following paths in CloudFront (TODO: detilas)::
+   #. Update the redirect rules in S3 to point to the new release.
+
+      In the properties of `S3 <https://console.aws.amazon.com/s3/home>` `clusterhq-staging-docs` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketting release) or ``en/devel`` to point at the new release.
+      Update the `RoutingRule` block matching the appropriate key prefix, leaving other `RoutingRule`s unchanged.
+
+      .. code-block:: xml
+
+         <RoutingRule>
+           <Condition>
+             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+           </Condition>
+           <Redirect>
+             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
+             <HttpRedirectCode>302</HttpRedirectCode>
+           </Redirect>
+         </RoutingRule>
+
+   #. Create an invalidation for the following paths in `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_,
+      for the ``docs.staging.clustrehq.com` distribution.
 
       /
       /index.html
@@ -259,6 +277,19 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
 
 #. Check documentation. (TODO)
+
+   The docuemtation is available at
+
+   https://docs.staging.clusterhq.com/en/${VERSION}/
+
+   For a marketing release, the following URLs should redirect to the above URL.
+
+   https://docs.staging.clusterhq.com/
+   https://docs.staging.clusterhq.com/en/
+   https://docs.staging.clusterhq.com/en/latest/
+
+
+   .. TODO: Check that deep links work.
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
@@ -404,18 +435,32 @@ Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
-   #. Update the redirect rules in S3 to point to the new release. (TODO: details)
-      /latest/ and /devel/ if this is a marketing release.
-      /devel/ if this is a weekly or pre-release.
+   #. Update the redirect rules in S3 to point to the new release.
 
-   #. Create an invalidation for the following paths in CloudFront (TODO: detilas)::
+      In the properties of `S3 <https://console.aws.amazon.com/s3/home>` `clusterhq-docs` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketting release) or ``en/devel`` to point at the new release.
+      Update the `RoutingRule` block matching the appropriate key prefix, leaving other `RoutingRule`s unchanged.
+
+      .. code-block:: xml
+
+         <RoutingRule>
+           <Condition>
+             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+           </Condition>
+           <Redirect>
+             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
+             <HttpRedirectCode>302</HttpRedirectCode>
+           </Redirect>
+         </RoutingRule>
+
+   #. Create an invalidation for the following paths in `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_,
+      for the ``docs.clustrehq.com` distribution.
 
       /
       /index.html
       /en/
       /en/index.html
       /en/latest/*
-      /en/devel/*
 
 #. Submit the release pull request for review again.
 

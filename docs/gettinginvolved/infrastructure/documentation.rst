@@ -30,6 +30,7 @@ specified (replace the versions with the latest marketing and development releas
        </Condition>
        <Redirect>
          <ReplaceKeyPrefixWith>en/0.3.2/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
      <RoutingRule>
@@ -38,6 +39,7 @@ specified (replace the versions with the latest marketing and development releas
        </Condition>
        <Redirect>
          <ReplaceKeyPrefixWith>en/0.3.3dev3/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
    </RoutingRules>
@@ -85,7 +87,9 @@ clusterhq-staging-docs
 
 This bucket is for staging changes to the main ``clusterhq-docs`` bucket.
 It is also used as part of the pre-release testing.
-It is configured the same as that bucket (with the name changed throughout).
+
+The staging configuration is the same as the production configuration,
+with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clusterhq-staging-docs`` replacing `clusterhq-docs``.
 
 clusterhq-dev-docs
 ~~~~~~~~~~~~~~~~~~
@@ -106,15 +110,13 @@ It has a lifecycle rule that deletes all objects older than 14 days.
 CloudFront Distributions
 ------------------------
 
-docs/staging-docs
-
-pointed at s3 website URL
-There are two cloudfront distributions, configured the same except for the bucket
-pointed to.
+We use CloudFront to provide SSL in front of the above S3 buckets.
+There are 2 CloudFront distributions, one for docs.clusterhq.com and one for docs.staging.clusterhq.com.
+They are pointed at the S3 website URLs (`<bucket-name>.s3-website-us-east-1.awazonaws.com`).
 
 Configuration
 ~~~~~~~~~~~~~
-The following settings should be set:
+The configuration of the ``docs.clusterhq.com`` distribution is:
 
 - Origin Domain Name: clusterhq-docs.s3-website-us-east-1.amazonaws.com
 - Origin Path:
@@ -128,7 +130,9 @@ The following settings should be set:
 - SSL Certificate: Custom SSL Certificate: docs.clusterhq.com
 - Custom SSL Client Support: Only Clients that Support Server Name Indication (SNI)
 
-The rest can be left at their defaults.
+The rest of the settings can be left at their defaults.
+The staging configuration is the same,
+with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clusterhq-staging-docs`` replacing `clusterhq-docs``.
 
 .. note::
 
