@@ -38,7 +38,12 @@ Access
 
 - A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
-- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation.
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
+  Set up ``gsutil`` authentication by following the instructions from the following command:
+
+  .. code-block:: console
+
+      $ gsutil config
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
@@ -302,13 +307,6 @@ Release
           "dist/Flocker-${VERSION}-py2-none-any.whl" \
           gs://archive.clusterhq.com/downloads/flocker/
 
-
-   .. note:: Set up ``gsutil`` authentication by following the instructions from the following command:
-
-             .. code-block:: console
-
-                $ gsutil config
-
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
@@ -319,7 +317,6 @@ Release
 
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
-                This means that ``gsutil`` must be installed and configured on your workstation.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
