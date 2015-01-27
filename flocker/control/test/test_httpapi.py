@@ -194,7 +194,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             }
         )
     test_unknown_primary_node.todo = (
-        "XXX File a ticket.  Make this pass by inspecting cluster state "
+        "See FLOC-1278.  Make this pass by inspecting cluster state "
         "instead of desired configuration to determine whether a node is "
         "valid or not."
     )
