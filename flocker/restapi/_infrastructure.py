@@ -6,7 +6,7 @@ This module implements tools for exposing Python methods as API endpoints.
 from __future__ import absolute_import
 
 __all__ = [
-    "EndpointResponse", "structured", "userDocumentation",
+    "EndpointResponse", "structured", "user_documentation",
     ]
 
 from functools import wraps
@@ -197,7 +197,7 @@ def structured(inputSchema, outputSchema, schema_store=None):
     return deco
 
 
-def userDocumentation(doc, examples=None):
+def user_documentation(doc, examples=None):
     """
     Annotate a klein-style endpoint to include user-facing documentation.
 

@@ -7,7 +7,7 @@ Specific volume managers ("nodes") may wish to push data to other
 nodes. In the current iteration this is done over SSH using a blocking
 API. In some future iteration this will be replaced with an actual
 well-specified communication protocol between daemon processes using
-Twisted's event loop (https://github.com/ClusterHQ/flocker/issues/154).
+Twisted's event loop (https://clusterhq.atlassian.net/browse/FLOC-154).
 """
 
 from contextlib import contextmanager
@@ -28,7 +28,7 @@ from .filesystems.zfs import Snapshot
 # Path to SSH private key available on nodes and used to communicate
 # across nodes.
 # XXX duplicate of same information in flocker.cli:
-# https://github.com/ClusterHQ/flocker/issues/390
+# https://clusterhq.atlassian.net/browse/FLOC-390
 SSH_PRIVATE_KEY_PATH = FilePath(b"/etc/flocker/id_rsa_flocker")
 
 
@@ -79,7 +79,7 @@ class IRemoteVolumeManager(Interface):
         :param Volume volume: The volume which will be acquired by the
             remote volume manager.
 
-        :return: The UUID of the remote volume manager (as ``unicode``).
+        :return: The node ID of the remote volume manager (as ``unicode``).
         """
 
     def clone_to(parent, name):
@@ -119,7 +119,7 @@ class RemoteVolumeManager(object):
             [b"flocker-volume",
              b"--config", self._config_path.path,
              b"snapshots",
-             volume.uuid.encode("ascii"),
+             volume.node_id.encode("ascii"),
              volume.name.to_bytes()]
         )
         return succeed([
@@ -132,7 +132,7 @@ class RemoteVolumeManager(object):
         return self._destination.run([b"flocker-volume",
                                       b"--config", self._config_path.path,
                                       b"receive",
-                                      volume.uuid.encode(b"ascii"),
+                                      volume.node_id.encode(b"ascii"),
                                       volume.name.to_bytes()])
 
     def acquire(self, volume):
@@ -140,7 +140,7 @@ class RemoteVolumeManager(object):
             [b"flocker-volume",
              b"--config", self._config_path.path,
              b"acquire",
-             volume.uuid.encode(b"ascii"),
+             volume.node_id.encode(b"ascii"),
              volume.name.to_bytes()]).decode("ascii")
 
     def clone_to(self, parent, name):
@@ -148,7 +148,7 @@ class RemoteVolumeManager(object):
             [b"flocker-volume",
              b"--config", self._config_path.path,
              b"clone_to",
-             parent.uuid.encode(b"ascii"),
+             parent.node_id.encode(b"ascii"),
              parent.name.to_bytes(),
              name.to_bytes()]).decode("ascii")
 
@@ -176,11 +176,11 @@ class LocalVolumeManager(object):
         input_file = BytesIO()
         yield input_file
         input_file.seek(0, 0)
-        self._service.receive(volume.uuid, volume.name, input_file)
+        self._service.receive(volume.node_id, volume.name, input_file)
 
     def acquire(self, volume):
-        self._service.acquire(volume.uuid, volume.name)
-        return self._service.uuid
+        self._service.acquire(volume.node_id, volume.name)
+        return self._service.node_id
 
     def clone_to(self, parent, name):
         return self._service.clone_to(parent, name)
