@@ -7,12 +7,62 @@ Tests for ``flocker.control._protocol``.
 from uuid import uuid4
 
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
+from twisted.python.failure import Failure
+from twisted.internet.error import ConnectionLost
 
-from .._protocol import NodeStateArgument, DeploymentArgument
+from .._protocol import (
+    NodeStateArgument, DeploymentArgument, ControlServiceLocator,
+    VersionCommand, ClusterStatusCommand, NodeStateCommand,
+)
+
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset,
 )
+
+
+class LoopbackAMPClient(object):
+    """
+    Allow sending commands, in-memory, to an AMP command locator.
+    """
+    def __init__(self, command_locator):
+        """
+        :param command_locator: A ``CommandLocator`` instance that
+            will handle commands sent using ``callRemote``.
+        """
+        self._locator = command_locator
+
+    def callRemote(self, command, **kwargs):
+        """
+        Call the corresponding responder on the configured locator.
+
+        @param commandType: a subclass of L{AMP_MODULE.Command}.
+
+        @param kwargs: Keyword arguments taken by the command, a C{dict}.
+
+        @return: A C{Deferred} that fires with the result of the responder.
+        """
+        arguments = command.makeArguments(kwargs, self._locator)
+        responder = self._locator.locateResponder(command.commandName)
+        d = responder(arguments)
+        d.addCallback(command.parseResponse, self._locator)
+
+        def massage_error(error):
+            if error.check(RemoteAmpError):
+                rje = error.value
+                errorType = command.reverseErrors.get(
+                    rje.errorCode, UnknownRemoteError)
+                return Failure(errorType(rje.description))
+
+            # In this case the actual AMP implementation closes the connection.
+            # Weakly simulate that here by failing how things fail if the
+            # connection closes and commands are outstanding.  This is sort of
+            # terrible behavior but oh well.  https://tm.tl/7055
+            return Failure(ConnectionLost())
+
+        d.addErrback(massage_error)
+        return d
 
 
 APP1 = Application(
@@ -53,3 +103,22 @@ class SerializationTests(SynchronousTestCase):
         deserialized = argument.fromString(as_bytes)
         self.assertEqual([bytes, TEST_DEPLOYMENT],
                          [type(as_bytes), deserialized])
+
+
+class ControlServiceLocatorTests(SynchronousTestCase):
+    """
+    Tests for ``ControlServiceLocator``.
+    """
+    def setUp(self):
+        self.cluster_state = None
+        self.client = LoopbackAMPClient(ControlServiceLocator(
+            self.cluster_state))
+
+    def test_version(self):
+        """
+        ``VersionCommand`` to the control service returns the current internal
+        protocol version.
+        """
+        self.assertEqual(
+            self.successResultOf(self.client.callRemote(VersionCommand)),
+            {"major": 1})

@@ -101,7 +101,7 @@ class ControlServiceLocator(CommandLocator):
 
     @VersionCommand.responder
     def version(self):
-        pass#return {"major": 1, "minor": 0}
+        return {"major": 1}
 
     @NodeStateCommand.responder
     def node_changed(self, hostname, node_state):
