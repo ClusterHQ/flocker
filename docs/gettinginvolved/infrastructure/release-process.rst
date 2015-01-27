@@ -16,9 +16,9 @@ By the end of the release process we will have:
 - a tag in version control,
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
-- a Vagrant base tutorial image and
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
-- an updated Homebrew recipe
+- a Vagrant base tutorial image,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- an updated Homebrew recipe.
 
 
 Prerequisites
@@ -63,10 +63,10 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
-#. Create an issue:
+#. Create an issue in JIRA:
 
-   #. Set the title to "Release Flocker $VERSION"
-   #. Assign it to yourself
+   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create a clean, local Flocker release branch with no modifications:
 
@@ -138,6 +138,7 @@ Preparing For a Release
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
    - The list of years near the end of :file:`LICENSE` should include each year in which commits were made to the project.
+   - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
    .. code-block:: console
@@ -154,7 +155,7 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
-   In addition, review the link-check step of the documentation builder to ensure that all the errors are expected.
+   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Make a pull request on GitHub
 
@@ -442,6 +443,7 @@ Improving the Release Process
 
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.
+Search for "labels = release_process AND status != done" to find existing issues relating to the release process.
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
