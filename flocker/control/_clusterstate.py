@@ -33,6 +33,8 @@ class ClusterStateService(Service):
     def as_deployment(self):
         """
         Return cluster state as a Deployment object.
+
+        :return Deployment: Current state of the cluster.
         """
         return Deployment(nodes=frozenset([
             Node(hostname=hostname,
