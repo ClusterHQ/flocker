@@ -58,3 +58,43 @@ CHANGING_STOPPING:
 If changes finish switch to STOPPED.
 If GO is received switch to CHANGING.
 """
+
+
+from ._protocol import AgentClient
+
+
+class AgentLoopService(Service):
+    def __init__(self, host, port):
+        self.agent_operation = AgentOperation()
+        self.cluster_status = ClusterStatus(self.agent_operation)
+
+    def startService(self):
+        self.factory = ReconnectingClientFactory()
+        self.factory.protocol = lambda: AgentClient(self)
+        reactor.connectTCP(self.host, self.port)
+
+    def stopService(self):
+        # stop factory
+
+    def connected(self, client):
+        # input CONNECTED to self.agent_operation, pass reference to client in
+        pass
+
+    def disconnected(self):
+        # input DISCONNECTED to self.agent_operation
+        pass
+
+    def cluster_updated(configuration, cluster_state):
+        # input UPDATE with config and state to self.agent_operation
+        pass
+
+
+# Rich inputs for CONNECTED (AgetnClient) and UPDATE (two Deployments, desired and actual)
+# Rich input for GO (AgentClient)
+
+
+# AgentOperation as in state machine description above; uses AgentClient to send discovered NodeState
+
+class AgentOperation(object):
+    def __init__(self, deployer):
+        # ...

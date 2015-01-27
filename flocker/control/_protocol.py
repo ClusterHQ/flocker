@@ -118,9 +118,11 @@ class IConvergenceAgent(Interface):
     This is a little sketchy; it will be solidified in
     https://clusterhq.atlassian.net/browse/FLOC-1255
     """
-    def connected():
+    def connected(client):
         """
         The client has connected to the control service.
+
+        :param AgentClient client: The connected client.
         """
 
     def disconnected():
@@ -154,7 +156,7 @@ class AgentClient(AMP):
         self.agent = agent
 
     def connectionMade(self):
-        self.agent.connected()
+        self.agent.connected(self)
 
     def connectionLost(self, reason):
         AMP.connectionLost(self, reason)
