@@ -152,7 +152,7 @@ Preparing For a Release
 
    .. TODO: The following steps should be automated
 
-   #. Copy release documentation from clusterhq-dev-docs to clusterhq-staging-docs.
+   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
 
       .. prompt:: bash $
 
@@ -167,11 +167,11 @@ Preparing For a Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
 
-   #. Update the redirect rules in S3 to point to the new release.
+   #. Update the redirect rules in `S3`_ to point to the new release.
 
-      In the properties of `S3 <https://console.aws.amazon.com/s3/home>` `clusterhq-staging-docs` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketting release) or ``en/devel`` to point at the new release.
-      Update the `RoutingRule` block matching the appropriate key prefix, leaving other `RoutingRule`s unchanged.
+      In the properties of the `clusterhq-staging-docs`` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
+      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
 
       .. code-block:: xml
 
@@ -185,15 +185,14 @@ Preparing For a Release
            </Redirect>
          </RoutingRule>
 
-   #. Create an invalidation for the following paths in `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_,
-      for the ``docs.staging.clustrehq.com` distribution.
+   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.staging.clusterhq.com`` distribution::
 
-      /
-      /index.html
-      /en/
-      /en/index.html
-      /en/latest/*
-      /en/devel/*
+         /
+         /index.html
+         /en/
+         /en/index.html
+         /en/latest/*
+         /en/devel/*
 
 #. Make a pull request on GitHub
 
@@ -278,7 +277,7 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
 #. Check documentation. (TODO)
 
-   The docuemtation is available at
+   The documentation is available at
 
    https://docs.staging.clusterhq.com/en/${VERSION}/
 
@@ -435,11 +434,11 @@ Release
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
          gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
 
-   #. Update the redirect rules in S3 to point to the new release.
+   #. Update the redirect rules in `S3`_ to point to the new release.
 
-      In the properties of `S3 <https://console.aws.amazon.com/s3/home>` `clusterhq-docs` bucket under static website hosting,
-      update the redirect for ``en/latest`` (for a marketting release) or ``en/devel`` to point at the new release.
-      Update the `RoutingRule` block matching the appropriate key prefix, leaving other `RoutingRule`s unchanged.
+      In the properties of the ``clusterhq-docs`` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
+      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
 
       .. code-block:: xml
 
@@ -453,14 +452,14 @@ Release
            </Redirect>
          </RoutingRule>
 
-   #. Create an invalidation for the following paths in `CloudFront <https://console.aws.amazon.com/cloudfront/home>`_,
-      for the ``docs.clustrehq.com` distribution.
+   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.clusterhq.com`` distribution::
 
-      /
-      /index.html
-      /en/
-      /en/index.html
-      /en/latest/*
+         /
+         /index.html
+         /en/
+         /en/index.html
+         /en/latest/*
+         /en/devel/*
 
 #. Submit the release pull request for review again.
 
@@ -573,3 +572,5 @@ These steps must be performed from a :doc:`Flocker development environment <vagr
 .. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
+.. _CloudFront: https://console.aws.amazon.com/cloudfront/home
+.. _S3: https://console.aws.amazon.com/s3/home

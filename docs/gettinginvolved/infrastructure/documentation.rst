@@ -8,8 +8,8 @@ S3 Buckets
 
 There are 3 S3 buckets used for documentation.
 
-clusterhq-docs
-~~~~~~~~~~~~~~
+``clusterhq-docs``
+~~~~~~~~~~~~~~~~~~
 
 This bucket hosts our public facing documentation.
 
@@ -63,10 +63,10 @@ To allow CloudFront to access the bucket, it has the following bucket policy con
 
 It has logging enabled with the following settings:
 
-- Target Bucket: clusterhq-logs.s3.amazonaws.com
-- Target Prefix: docs.clusterhq.com/s/
+- Target Bucket: ``clusterhq-logs.s3.amazonaws.com``
+- Target Prefix: ``docs.clusterhq.com/s3/``
 
-There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to the latest docuemntation.
+There are empty files at ``/index.html`` and ``/en/index.html`` that redirect to the latest documentation.
 
 .. prompt:: bash $
 
@@ -82,8 +82,8 @@ There is an ``error.html`` uploaded to the root of the bucket. It is uploaded wi
    gsutil -m cp 404.html s3://clusterhq-docs/404.html
 
 
-clusterhq-staging-docs
-~~~~~~~~~~~~~~~~~~~~~~
+``clusterhq-staging-docs``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This bucket is for staging changes to the main ``clusterhq-docs`` bucket.
 It is also used as part of the pre-release testing.
@@ -91,8 +91,8 @@ It is also used as part of the pre-release testing.
 The staging configuration is the same as the production configuration,
 with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clusterhq-staging-docs`` replacing `clusterhq-docs``.
 
-clusterhq-dev-docs
-~~~~~~~~~~~~~~~~~~
+``clusterhq-dev-docs``
+~~~~~~~~~~~~~~~~~~~~~~
 
 This bucket has documentation uploaded to it from buildbot.
 Buildbot will upload documentation from all builds of release branches or tags here.
@@ -111,23 +111,23 @@ CloudFront Distributions
 ------------------------
 
 We use CloudFront to provide SSL in front of the above S3 buckets.
-There are 2 CloudFront distributions, one for docs.clusterhq.com and one for docs.staging.clusterhq.com.
+There are 2 CloudFront distributions, one for https://docs.clusterhq.com/ and one for https://docs.staging.clusterhq.com/.
 They are pointed at the S3 website URLs (`<bucket-name>.s3-website-us-east-1.awazonaws.com`).
 
 Configuration
 ~~~~~~~~~~~~~
 The configuration of the ``docs.clusterhq.com`` distribution is:
 
-- Origin Domain Name: clusterhq-docs.s3-website-us-east-1.amazonaws.com
+- Origin Domain Name: ``clusterhq-docs.s3-website-us-east-1.amazonaws.com``
 - Origin Path:
-- Origin ID: clusterhq-docs
+- Origin ID: ``clusterhq-docs``
 - Origin Protocol Policy: HTTP Only
-- Alternate Domain Names: docs.clusterhq.com
+- Alternate Domain Names: ``docs.clusterhq.com``
 - Viewer Protocol Policy: HTTPS Only
 - Logging: enabled
-- Bucket for Logs: clusterhq-logs.s3.amazonaws.com
-- Log Prefix: docs.staging.clusterhq.com/cloudfront/
-- SSL Certificate: Custom SSL Certificate: docs.clusterhq.com
+- Bucket for Logs: ``clusterhq-logs.s3.amazonaws.com``
+- Log Prefix: ``docs.staging.clusterhq.com/cloudfront/``
+- SSL Certificate: Custom SSL Certificate: ``docs.clusterhq.com``
 - Custom SSL Client Support: Only Clients that Support Server Name Indication (SNI)
 
 The rest of the settings can be left at their defaults.
@@ -138,4 +138,4 @@ with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clust
 
    We can't use an S3 origin, as redirects won't work.
 
-See the `cloudfront documetation <http://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/SecureConnections.html>`_ for details on uploading SSL key material.
+See the `CloudFront documetation <http://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/SecureConnections.html>`_ for details on uploading SSL key material.
