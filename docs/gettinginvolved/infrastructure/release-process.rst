@@ -67,6 +67,8 @@ Preparing For a Release
 
 #. Check that all required versions of the dependency packages are built:
 
+   .. note:: Skip this step for a documentation release.
+
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
    #. Compare it to the package versions listed in the "Requires" lines in ``python-flocker.spec.in``.
    #. If there are any mismatches, change ``python-flocker.spec.in`` appropriately, commit the changes, and add any missing package names to the lists of downloaded packages in :ref:`pre-populating-rpm-repository`.
@@ -103,6 +105,8 @@ Preparing For a Release
 
 #. Update the version numbers in:
 
+   .. note:: Skip this step for a documentation release.
+
    - the ``pip install`` line in
      `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
    - the ``box_version`` in
@@ -115,6 +119,7 @@ Preparing For a Release
      .. code-block:: console
 
         git commit -am "Bumped version numbers"
+   .. note:: Skip this step for a documentation release.
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
@@ -308,6 +313,8 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       python setup.py sdist bdist_wheel
@@ -325,17 +332,23 @@ Release
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
 #. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
 
+   .. note:: Skip this step for a documentation release.
+
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
                 This means that ``gsutil`` must be installed and configured on your workstation.
 
 #. Update the Homebrew recipe
+
+   .. note:: Skip this step for a documentation release.
 
    The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
 
