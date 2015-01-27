@@ -34,12 +34,15 @@ definitions:
           not interpreted by Flocker.  If not given, no metadata will be
           associated with the new dataset.
         type: object
+        # We limit the total number of properties and the lengths of the keys
+        # and values of those properties in order to put an upper bound on the
+        # total amount of metadata we're committing to accept and store.  The
+        # particular values in these limits are arbitrary and aren't as
+        # important as just having some "reasonably" small limits.
         patternProperties:
           "^.{1,256}$":
             type: string
-            # Arbitrary
             maxLength: 256
-        # Arbitrary
         maxProperties: 16
         additionalProperties: false
 
