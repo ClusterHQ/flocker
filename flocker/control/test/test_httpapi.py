@@ -122,8 +122,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset creation endpoint at ``/datasets``.
     """
-    # This address taken from RFC 5737 (TEST-NET-1)
+    # These addresses taken from RFC 5737 (TEST-NET-1)
     NODE_A = b"192.0.2.1"
+    NODE_B = b"192.0.2.2"
 
     def test_wrong_schema(self):
         """
@@ -139,12 +140,18 @@ class CreateDatasetTestsMixin(APITestsMixin):
                  u"Additional properties are not allowed (u'junk' was unexpected)"]}
         )
 
-    def test_dataset_id_collision(self):
+    def _dataset_id_collision_test(self, primary):
         """
-        If the value for the ``dataset_id`` in the request body is already
-        assigned to an existing dataset, the response is an error indicating
-        the collision and the dataset is not added to the desired
-        configuration.
+        Assert that an attempt to create a dataset with a dataset_id that is
+        already assigned somewhere on the cluster results in an error response
+        and no configuration change.
+
+        A configuration with two nodes, ``NODE_A`` and ``NODE_B``, is created.
+        ``NODE_A`` is given one unattached manifestation.  An attempt is made
+        to configure a new dataset is on ``primary`` which should be either
+        ``NODE_A`` or ``NODE_B``.
+
+        :return: A ``Deferred`` that fires with the result of the test.
         """
         dataset_id = unicode(uuid4())
         existing_dataset = Dataset(dataset_id=dataset_id)
@@ -156,14 +163,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 Node(
                     hostname=self.NODE_A,
                     other_manifestations=frozenset({existing_manifestation})
-                )
+                ),
+                Node(hostname=self.NODE_B),
             }
         ))
 
         def saved(ignored):
             return self.assertBadResult(
                 b"POST", b"/datasets",
-                {u"primary": self.NODE_A, u"dataset_id": dataset_id},
+                {u"primary": primary, u"dataset_id": dataset_id},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
             )
@@ -171,14 +179,36 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def failed(reason):
             deployment = self.persistence_service.get()
-            (node_a,) = deployment.nodes
+            (node_a, node_b) = deployment.nodes
+            if node_a.hostname != self.NODE_A:
+                # They came out of the set backwards.
+                node_a, node_b = node_b, node_a
             self.assertEqual(
-                frozenset({existing_manifestation}),
-                node_a.other_manifestations
+                (frozenset({existing_manifestation}), frozenset()),
+                (node_a.other_manifestations, node_b.other_manifestations)
             )
 
         posting.addCallback(failed)
         return posting
+
+
+    def test_dataset_id_collision_different_node(self):
+        """
+        If the value for the ``dataset_id`` in the request body is already
+        assigned to an existing dataset on a node other than the indicated
+        primary, the response is an error indicating the collision and the
+        dataset is not added to the desired configuration.
+        """
+        return self._dataset_id_collision_test(self.NODE_B)
+
+    def test_dataset_id_collision_same_node(self):
+        """
+        If the value for the ``dataset_id`` in the request body is already
+        assigned to an existing dataset on the indicated primary, the response
+        is an error indicating the collision and the dataset is not added to
+        the desired configuration.
+        """
+        return self._dataset_id_collision_test(self.NODE_A)
 
     def test_unknown_primary_node(self):
         """
