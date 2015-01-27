@@ -77,7 +77,7 @@ class tablist(nodes.General, nodes.Element):
 
 def visit_tablist_html(self, node):
     self.body.append(dedent("""
-    <ul id="tabs" class="nav nav-tabs" data-tabs="tabs">
+    <ul class="nav nav-tabs" data-tabs="tabs">
     """))
 
 

@@ -477,7 +477,7 @@ footer .copyright p {
         background-color:transparent;
     }
     
-    #tabs.nav>li>a:hover, #tabs-node.nav>li>a:hover {
+    ul[data-tabs="tabs"].nav>li>a:hover, #tabs-node.nav>li>a:hover {
         background-color: #343a3d;
         text-decoration: none;
     }
