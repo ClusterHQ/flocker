@@ -60,6 +60,11 @@ from flocker.docs import get_doc_version, is_release
 # The short X.Y version.
 version = get_doc_version(__version__)
 
+html_context = {
+    # This is used to show the development version warning.
+    'is_release': is_release(__version__),
+}
+
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -68,6 +73,7 @@ release = version
 # We override with our own variant to improve search results slightly.
 from sphinx.search.en import SearchEnglish
 from sphinx.search import languages as sphinx_languages
+
 
 class FlockerLanguage(SearchEnglish):
     """
