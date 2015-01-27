@@ -15,7 +15,7 @@ from .._protocol import (
     NodeStateArgument, DeploymentArgument, ControlServiceLocator,
     VersionCommand, ClusterStatusCommand, NodeStateCommand,
 )
-
+from .._clusterstate import ClusterStateService
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset,
@@ -76,6 +76,9 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
+NODE_STATE = NodeState(running=[APP1], not_running=[APP2],
+                       used_ports=[1, 2],
+                       other_manifestations=frozenset([MANIFESTATION]))
 
 
 class SerializationTests(SynchronousTestCase):
@@ -87,12 +90,9 @@ class SerializationTests(SynchronousTestCase):
         ``NodeStateArgument`` can round-trip a ``NodeState`` instance.
         """
         argument = NodeStateArgument()
-        node_state = NodeState(running=[APP1], not_running=[APP2],
-                               used_ports=[1, 2],
-                               other_manifestations=frozenset([MANIFESTATION]))
-        as_bytes = argument.toString(node_state)
+        as_bytes = argument.toString(NODE_STATE)
         deserialized = argument.fromString(as_bytes)
-        self.assertEqual([bytes, node_state], [type(as_bytes), deserialized])
+        self.assertEqual([bytes, NODE_STATE], [type(as_bytes), deserialized])
 
     def test_deployment(self):
         """
@@ -110,7 +110,9 @@ class ControlServiceLocatorTests(SynchronousTestCase):
     Tests for ``ControlServiceLocator``.
     """
     def setUp(self):
-        self.cluster_state = None
+        self.cluster_state = ClusterStateService()
+        self.cluster_state.startService()
+        self.addCleanup(self.cluster_state.stopService)
         self.client = LoopbackAMPClient(ControlServiceLocator(
             self.cluster_state))
 
@@ -122,3 +124,18 @@ class ControlServiceLocatorTests(SynchronousTestCase):
         self.assertEqual(
             self.successResultOf(self.client.callRemote(VersionCommand)),
             {"major": 1})
+
+    def test_nodestate(self):
+        """
+        ``NodeStateCommand`` updates the node state.
+        """
+        self.successResultOf(
+            self.client.callRemote(NodeStateCommand, hostname=u"example1",
+                                   node_state=NODE_STATE))
+        self.assertEqual(self.cluster_state.as_deployment(),
+                         Deployment(
+                             nodes=frozenset([
+                                 Node(hostname=u'example1',
+                                      applications=frozenset([APP1, APP2]),
+                                      other_manifestations=frozenset(
+                                          [MANIFESTATION]))])))

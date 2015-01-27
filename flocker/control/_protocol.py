@@ -97,7 +97,7 @@ class ControlServiceLocator(CommandLocator):
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         """
-        pass#self.cluster_state = cluster_state
+        self.cluster_state = cluster_state
 
     @VersionCommand.responder
     def version(self):
@@ -105,7 +105,8 @@ class ControlServiceLocator(CommandLocator):
 
     @NodeStateCommand.responder
     def node_changed(self, hostname, node_state):
-        pass#self.cluster_state.node_changed(hostname, node_state)
+        self.cluster_state.update_node_state(hostname, node_state)
+        return {}
 
 
 class AgentLocator(AMP):
@@ -116,6 +117,7 @@ class AgentLocator(AMP):
         """
         :param ConvergenceAgent agent: Convergence agent to notify of changes.
         """
+        AMP.__init__(self)
         pass#self.agent = agent
 
     def connectionMade(self):
