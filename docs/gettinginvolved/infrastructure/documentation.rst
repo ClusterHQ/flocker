@@ -44,6 +44,8 @@ specified (replace the versions with the latest marketing and development releas
      </RoutingRule>
    </RoutingRules>
 
+.. TODO deep-links for old versions (SEO)
+
 To allow CloudFront to access the bucket, it has the following bucket policy configured:
 
 .. code:: json
