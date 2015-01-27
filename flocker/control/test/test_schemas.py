@@ -49,7 +49,7 @@ DatasetsSchemaTests = build_schema_test(
         {u"primary": u"10.0.0.1", u"metadata": {u"foo": 10}},
 
         # too-long string property name in metadata
-        {u"primary": u"10.0.0.1", u"metadata": {u"x" * 257: 10}},
+        {u"primary": u"10.0.0.1", u"metadata": {u"x" * 257: u"10"}},
 
         # too-long string property value in metadata
         {u"primary": u"10.0.0.1", u"metadata": {u"foo": u"x" * 257}},

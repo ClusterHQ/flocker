@@ -35,12 +35,13 @@ definitions:
           associated with the new dataset.
         type: object
         patternProperties:
-          ".{1,256}":
+          "^.{1,256}$":
             type: string
             # Arbitrary
             maxLength: 256
         # Arbitrary
         maxProperties: 16
+        additionalProperties: false
 
       primary:
         title: "Primary manifestation"
