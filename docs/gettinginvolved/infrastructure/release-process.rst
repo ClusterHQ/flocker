@@ -155,7 +155,7 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
-   In addition, review the link-check step of the documentation builder to ensure that all the errors are expected.
+   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Make a pull request on GitHub
 
