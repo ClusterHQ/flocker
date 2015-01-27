@@ -302,5 +302,5 @@ linkcheck_ignore = [
     # Don't check links to tutorial IPs
     r'http://172\.16\.255\.',
     # This is an example GitHub URL made up
-    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1'
+    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
 ]
