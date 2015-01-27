@@ -127,6 +127,7 @@ class DatasetAPIUserV1(object):
 
         # XXX Check cluster state to determine if the given primary node
         # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+        # See FLOC-1278
 
         dataset = Dataset(
             dataset_id=dataset_id,
