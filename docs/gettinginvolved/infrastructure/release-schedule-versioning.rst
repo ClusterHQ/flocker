@@ -55,7 +55,7 @@ The version of a minor marketing release will have the micro version number incr
 
 Documentation Release
 ^^^^^^^^^^^^^^^^^^^^^
-Documentation releases will be made when documentation for a major or minor marketting release is to be updated, without doing a full release.
+Documentation releases will be made when documentation for a major or minor marketing release is to be updated, without doing a full release.
 
 Documentation releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 

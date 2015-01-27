@@ -119,7 +119,6 @@ Preparing For a Release
      .. code-block:: console
 
         git commit -am "Bumped version numbers"
-   .. note:: Skip this step for a documentation release.
 
 #. Ensure the notes in `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_ are up-to-date:
 
