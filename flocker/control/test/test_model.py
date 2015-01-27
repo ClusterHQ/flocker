@@ -122,6 +122,48 @@ class NodeInitTests(make_with_init_tests(
     """
 
 
+class NodeTests(SynchronousTestCase):
+    """
+    Tests for ``Node``.
+    """
+    def test_manifestations_from_applications(self):
+        """
+        ``Node.manifestations()`` includes all manifestations from
+        applications on the node.
+        """
+        m1 = object()
+        m2 = object()
+        node = Node(hostname=u'node1.example.com',
+                    applications=frozenset([
+                        Application(name=u'a',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m1, mountpoint=None)),
+                        Application(name=u'b',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m2, mountpoint=None)),
+                    ]))
+        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+
+    def test_manifestations_non_applications(self):
+        """
+        ``Node.manifestations()`` includes all manifestations that
+        are on the node but not on applications.
+        """
+        m1 = object()
+        m2 = object()
+        node = Node(hostname=u'node1.example.com',
+                    applications=frozenset([
+                        Application(name=u'a',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m1, mountpoint=None))]),
+                    other_manifestations=frozenset([m2]))
+
+        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+
+
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
         kwargs=dict(nodes=frozenset([
