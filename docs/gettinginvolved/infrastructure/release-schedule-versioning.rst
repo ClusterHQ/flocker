@@ -53,6 +53,15 @@ Minor marketing releases will be planned and scheduled by ClusterHQ's product te
 
 The version of a minor marketing release will have the micro version number incremented from the previous marketing release.
 
+Documentation Release
+^^^^^^^^^^^^^^^^^^^^^
+Documentation releases will be made when documentation for a major or minor marketting release is to be updated, without doing a full release.
+
+Documentation releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
+
+The version of a documentation will have the version of the corresponding marketing release, with a ``+doc.X`` release, where ``X`` starts at ``1`` and is incremented for each pre-release.
+
+
 Weekly Development Release
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Weekly releases are made primarily to facilitate the testing and automation of the release process itself.
@@ -74,21 +83,23 @@ Examples
 
 For example:
 
-+---------------+-------------------------------------------------+
-| ``0.3.0``     | 0.3.0 released                                  |
-+---------------+-------------------------------------------------+
-| ``0.3.1dev1`` | Weekly releases of 0.3.1                        |
-+---------------+-------------------------------------------------+
-| ``0.3.1``     | Micro marketing release                         |
-+---------------+-------------------------------------------------+
-| ``0.3.2dev1`` | Weekly release                                  |
-+---------------+-------------------------------------------------+
-| ``0.3.2dev2`` | Weekly release                                  |
-+---------------+-------------------------------------------------+
-| ``0.4.0pre1`` | Pre-release of 0.4.0                            |
-+---------------+-------------------------------------------------+
-| ``0.4.0``     | Major marketing release                         |
-+---------------+-------------------------------------------------+
++----------------+-------------------------------------------------+
+| ``0.3.0``      | 0.3.0 released                                  |
++----------------+-------------------------------------------------+
+| ``0.3.1dev1``  | Weekly releases of 0.3.1                        |
++----------------+-------------------------------------------------+
+| ``0.3.1``      | Micro marketing release                         |
++----------------+-------------------------------------------------+
+| ``0.3.1+doc1`` | Documentation release of 0.3.1                  |
++----------------+-------------------------------------------------+
+| ``0.3.2dev1``  | Weekly release                                  |
++----------------+-------------------------------------------------+
+| ``0.3.2dev2``  | Weekly release                                  |
++----------------+-------------------------------------------------+
+| ``0.4.0pre1``  | Pre-release of 0.4.0                            |
++----------------+-------------------------------------------------+
+| ``0.4.0``      | Major marketing release                         |
++----------------+-------------------------------------------------+
 
 Production Releases
 ^^^^^^^^^^^^^^^^^^^
