@@ -140,8 +140,12 @@ class DatasetAPIUserV1(object):
             node for node in deployment.nodes if primary == node.hostname
         )
         if len(primary_nodes) == 0:
+            # The node wasn't found in the configuration so create a new node
+            # to which a manifestation can be added.  FLOC-1278 will make sure
+            # we're not creating nonsense configuration in this step.
             primary_node = Node(hostname=primary)
         else:
+            # One was found.  Add the manifestation to it.
             (primary_node,) = primary_nodes
 
         new_node_config = Node(
