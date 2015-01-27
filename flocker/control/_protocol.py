@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Communication protocol between control service and convergence agent.
 
@@ -24,9 +26,10 @@ Interactions:
 
 from pickle import dumps, loads
 
-from twisted.protocols.amp import Argument, Command, Integer, String
+from twisted.protocols.amp import (
+    Argument, Command, Integer, String, CommandLocator, AMP,
+)
 
-from .._model import NodeState, Deployment
 from ._persistence import serialize_deployment, deserialize_deployment
 
 
@@ -35,28 +38,21 @@ class NodeStateArgument(Argument):
     AMP argument that takes a ``NodeState`` object.
     """
     def fromString(self, in_bytes):
-        #return loads(in_bytes)
-        pass
+        return loads(in_bytes)
 
     def toString(self, node_state):
-        #return dumps(node_state)
-        pass
+        return dumps(node_state)
 
 
-# XXX This should suffice for both both communicating global current state
-# and the deployment configuration from control service to convergence
-# agent. We don't need to transfer used ports because the control service
-# will be the one to assign ports for links.
 class DeploymentArgument(Argument):
     """
     AMP argument that takes a ``Deployment`` object.
     """
     def fromString(self, in_bytes):
-        #return deserialize_deployment(in_bytes)
+        return deserialize_deployment(in_bytes)
 
     def toString(self, deployment):
-        #return serialize_deployment(node_state)
-        pass
+        return serialize_deployment(deployment)
 
 
 class VersionCommand(Command):
@@ -98,38 +94,36 @@ class ControlServiceLocator(CommandLocator):
     """
     def __init__(self, cluster_state):
         """
-        :param ClusterState cluster_state: Object that records known cluster
-            state.
+        :param ClusterStateService cluster_state: Object that records known
+            cluster state.
         """
-        self.cluster_state = cluster_state
+        pass#self.cluster_state = cluster_state
 
     @VersionCommand.responder
     def version(self):
-        return {"major": 1, "minor": 0}
+        pass#return {"major": 1, "minor": 0}
 
     @NodeStateCommand.responder
     def node_changed(self, hostname, node_state):
-        self.cluster_state.node_changed(hostname, node_state)
+        pass#self.cluster_state.node_changed(hostname, node_state)
 
 
-class AgentLocator(CommandLocator):
+class AgentLocator(AMP):
     """
     Convergence agent side of the protocol.
     """
     def __init__(self, agent):
         """
-        :param IConvergenceAgent agent: Convergence agent to notify of changes.
+        :param ConvergenceAgent agent: Convergence agent to notify of changes.
         """
-        self.agent = agent
+        pass#self.agent = agent
+
+    def connectionMade(self):
+        pass#self.agent.connected()
+
+    def connectionLost(self, reason):
+        pass#self.agent.disconnected()
 
     @ClusterStatusCommand.responder
     def cluster_updated(self, configuration, state):
         self.agent.cluster_updated(configuration, state)
-
-
-# In addition to the above I would need to implement IConvergenceAgent, a
-# testing-oriented IConvergenceAgent implementation, and minimal
-# ClusterState (the latter would be just enough to test, would be fleshed
-# out in later issues).
-
-# Might end up porting tiny bit of AMP testing infrastructure from HybridCluster too.
