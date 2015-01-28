@@ -287,20 +287,25 @@ This review step is to ensure that all acceptance tests pass on the release bran
         $ admin/run-acceptance-tests --distribution fedora-20
 
 
-#. Check documentation. (TODO)
+#. Check documentation.
 
-   The documentation is available at
+   - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
 
-   https://docs.staging.clusterhq.com/en/${VERSION}/
+   - For a marketing release, the following URLs should redirect to the above URL.
 
-   For a marketing release, the following URLs should redirect to the above URL.
+     - https://docs.staging.clusterhq.com/
+     - https://docs.staging.clusterhq.com/en/
+     - https://docs.staging.clusterhq.com/en/latest/
 
-   https://docs.staging.clusterhq.com/
-   https://docs.staging.clusterhq.com/en/
-   https://docs.staging.clusterhq.com/en/latest/
+     In addtion, check that deep-links to `/en/latest/` work.
+     https://docs.staging.clusterhq.com/en/latest/authors.html
+     should redirect to
+     https://docs.staging.clusterhq.com/en/${VERSION}/authors.html
 
+   - For a development release, the following redirects should work.
 
-   .. TODO: Check that deep links work.
+     - https://docs.staging.clusterhq.com/en/devel/ should redirect to https://docs.staging.clusterhq.com/en/${VERSION}/
+     - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to https://docs.staging.clusterhq.com/en/${VERSION}/authors.html
 
 #. Accept or reject the release issue depending on whether everything has worked.
 
@@ -478,16 +483,23 @@ Post-Release Review Process
 
 #. Check that the documentation is set up correctly:
 
-   The following link should have the latest documentation.
+   - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
 
-   * https://docs.clusterhq.com/en/<version>
+   - For a marketing release, the following URLs should redirect to the above URL.
 
-   The following links should all redirect to the latest release.
-   (Except in the case of weekly release or pre-release)
+     - https://docs.clusterhq.com/
+     - https://docs.clusterhq.com/en/
+     - https://docs.clusterhq.com/en/latest/
 
-   * https://docs.clusterhq.com/en/latest
-   * https://docs.clusterhq.com/en/
-   * https://docs.clusterhq.com/
+     In addtion, check that deep-links to `/en/latest/` work.
+     https://docs.clusterhq.com/en/latest/authors.html
+     should redirect to
+     https://docs.clusterhq.com/en/${VERSION}/authors.html
+
+   - For a development release, the following redirects should work.
+
+     - https://docs.clusterhq.com/en/devel/ should redirect to https://docs.clusterhq.com/en/${VERSION}/
+     - https://docs.clusterhq.com/en/latest/authors.html should redirect to https://docs.clusterhq.com/en/${VERSION}/authors.html
 
 #. Verify that the tutorial works on all supported platforms:
 
