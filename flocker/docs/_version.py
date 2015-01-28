@@ -8,6 +8,10 @@ from characteristic import attributes, Attribute
 _VERSION_RE = re.compile(
     # The base version
     r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
+    # Pre-release
+    r"(pre(?P<pre_release>[0-9]+))?"
+    # Weekly release
+    r"(dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
     r"(\+doc\.(?P<documentation_revision>[0-9]+))?"
     # Development version
@@ -29,6 +33,8 @@ class UnparseableVersion(Exception):
     'major',
     'minor',
     'micro',
+    Attribute('pre_release', default_value=None),
+    Attribute('weekly_release', default_value=None),
     Attribute('documentation_revision', default_value=None),
     Attribute('commit_count', default_value=None),
     Attribute('commit_hash', default_value=None),
@@ -41,11 +47,15 @@ class FlockerVersion(object):
     :ivar str major: The major number of the (most recent) release.
     :ivar str minor: The minor number of the (most recent) release.
     :ivar str micro: The micro number of the (most recent) release.
+    :ivar str pre_release: The number of the (most recent) pre-release,
+        or ``None`` if there hasn't been a pre release.
+    :ivar str weekly_release: The number of the (most recent) weekly release,
+        or ``None`` if there hasn't been a weekly release.
     :ivar str documentation_revision: The documentation revision of the
         (most recent) release or ``None`` if there hasn't been a documentation
-        release..
+        release.
     :ivar str commit_count: The number of commits since the last release or
-        ``None if this is a release.
+        ``None`` if this is a release.
     :ivar str commit_hash: The hash of the current commit, or ``None`` if this
         is a release.
     :ivar str dirty: If the tree is dirty, the string '-dirty'.
@@ -90,8 +100,11 @@ def get_doc_version(version):
 
 def is_release(version):
     """
-    Return whether the version corresponds to a release.
+    Return whether the version corresponds to a marketing or documentation
+    release.
     """
     parsed_version = parse_version(version)
     return (parsed_version.commit_count is None
+            and parsed_version.pre_release is None
+            and parsed_version.weekly_release is None
             and parsed_version.dirty is None)

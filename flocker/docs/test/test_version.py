@@ -30,12 +30,28 @@ class ParseVersionTests(SynchronousTestCase):
         parts.update(expected_parts)
         self.assertEqual(parse_version(version), FlockerVersion(**parts))
 
-    def test_release(self):
+    def test_marketing_release(self):
         """
-        When the version is from a release, the documentation version is left
-        unchanged.
+        When the version is from a marketing release, the documentation version
+        is left unchanged.
         """
         self.assertParsedVersion('0.3.2')
+
+    def test_weekly_release(self):
+        """
+        When the version is from a weekly release, the documentation version
+        is left unchanged.
+        """
+        self.assertParsedVersion('0.3.2dev1',
+                                 weekly_release='1')
+
+    def test_pre_release(self):
+        """
+        When the version is from a pre-release, the documentation version
+        is left unchanged.
+        """
+        self.assertParsedVersion('0.3.2pre1',
+                                 pre_release='1')
 
     def test_development_vesion(self):
         """
@@ -78,12 +94,26 @@ class GetDocVersionTests(SynchronousTestCase):
     Tests for :function:`get_doc_version`.
     """
 
-    def test_release(self):
+    def test_marketing_release(self):
         """
-        When the version is from a release, the documentation version is left
-        unchanged.
+        When the version is from a marketing release, the documentation version
+        is left unchanged.
         """
         self.assertEqual(get_doc_version('0.3.2'), '0.3.2')
+
+    def test_weekly_release(self):
+        """
+        When the version is from a weekly release, the documentation version
+        is left unchanged.
+        """
+        self.assertEqual(get_doc_version('0.3.2dev1'), '0.3.2dev1')
+
+    def test_pre_release(self):
+        """
+        When the version is from a pre-release, the documentation version
+        is left unchanged.
+        """
+        self.assertEqual(get_doc_version('0.3.2pre1'), '0.3.2pre1')
 
     def test_development_vesion(self):
         """
@@ -121,11 +151,23 @@ class IsReleaseTests(SynchronousTestCase):
     Tests for :function:`is_release`.
     """
 
-    def test_release(self):
+    def test_marketing_release(self):
         """
-        When the version is from a release, it is a release.
+        When the version is from a marketing release, it is a release.
         """
         self.assertTrue(is_release('0.3.2'))
+
+    def test_weekly_release(self):
+        """
+        When the version is from a weekly release, it isn't a release.
+        """
+        self.assertFalse(is_release('0.3.2dev1'))
+
+    def test_pre_release(self):
+        """
+        When the version is from a pre-release, it isn't a release.
+        """
+        self.assertFalse(is_release('0.3.2pre1'))
 
     def test_development_vesion(self):
         """
