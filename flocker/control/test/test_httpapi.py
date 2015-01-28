@@ -384,6 +384,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
 
 def get_dataset_ids(deployment):
+    """
+    Get an iterator of all of the ``dataset_id`` values on all nodes in the
+    given deployment.
+
+    :param Deployment deployment: The deployment to inspect.
+
+    :return: An iterator of ``unicode`` giving the unique identifiers of all of
+        the datasets.
+    """
     for node in deployment.nodes:
         for manifestation in node.manifestations():
             yield manifestation.dataset.dataset_id
