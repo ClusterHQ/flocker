@@ -198,7 +198,7 @@ Getting started with Flocker
       .. code-block:: yaml
 
          web:
-           image: lmarsden/flask:v0.16
+           image: clusterhq/flask
            links:
             - "redis:redis"
            ports:

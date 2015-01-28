@@ -15,3 +15,5 @@ systemctl restart docker
 
 docker pull busybox
 docker pull clusterhq/mongodb
+docker pull clusterhq/flask
+docker pull dockerfile/redis
