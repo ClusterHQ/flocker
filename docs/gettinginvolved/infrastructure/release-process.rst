@@ -425,11 +425,11 @@ Release
 
 #. Update the documentation.
 
-   #. Copy release documentation to ...
+   #. Copy release documentation from ``clusterhq-staging-docs`` to ``clusterhq-staging-docs``.
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/${VERSION}/ s3://clusterhq-docs/en/${VERSION}/
+         gsutil -m rsync -d -r s3://clusterhq-staging-docs/en/${VERSION}/ s3://clusterhq-docs/en/${VERSION}/
 
    #. Update redirects to point to new documentation.
 
