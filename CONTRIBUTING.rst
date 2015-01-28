@@ -40,7 +40,7 @@ Talk to Us
 Have questions or need help?
 
 * If you want to follow our development plans, our main issue tracker is https://clusterhq.atlassian.net.
-* You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports.
+* You can open an account there to file issues, but we're also happy to accept `GitHub issues`_ with feature requests or bug reports and :ref:`security issues should be reported directly to our security team<reporting-security-issues>`.
 * You can also join us on the ``#clusterhq`` channel on the ``irc.freenode.net`` IRC network or on the `flocker-users Google Group`_.
 
 .. _GitHub issues: https://github.com/ClusterHQ/flocker/issues
@@ -191,3 +191,17 @@ Done
     Some final work may remain to address review comments; once this is done and the branch is merged the GitHub PR will be closed.
 
 .. _JIRA workflow: https://clusterhq.atlassian.net/
+
+
+.. _reporting-security-issues:
+
+Reporting Security Issues
+=========================
+
+Please report security issues by emailing security@clusterhq.com.
+
+Flocker bugs should normally be :ref:`reported publicly<talk-to-us>`, but due to the sensitive nature of security issues, we ask that they not be publicly reported in this fashion.
+
+Instead, if you believe you have found something in Flocker (or any other ClusterHQ software) which has security implications, please send a description of the issue via email to security@clusterhq.com.
+Your message will be forwarded to the ClusterHQ security team (a small group of trusted developers) for triage and it will not be publicly readable.
+Once you have submitted an issue via email, you should receive an acknowledgment from a member of the security team within 48 hours, and depending on the action to be taken, you may receive further follow up emails.

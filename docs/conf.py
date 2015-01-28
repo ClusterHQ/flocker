@@ -30,6 +30,9 @@ extensions = [
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
     'sphinx-prompt',
+    'sphinxcontrib.httpdomain',
+    'flocker.restapi.docs.publicapi',
+    'flocker.restapi.docs.hidden_code_block',
 ]
 
 if not on_rtd:
@@ -137,7 +140,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'bootstrap'
+html_theme = 'clusterhq'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -295,5 +298,9 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
 linkcheck_anchors = False
 
-# Don't check links to tutorial IPs
-linkcheck_ignore = [r'http://172\.16\.255\.']
+linkcheck_ignore = [
+    # Don't check links to tutorial IPs
+    r'http://172\.16\.255\.',
+    # This is an example GitHub URL
+    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
+]

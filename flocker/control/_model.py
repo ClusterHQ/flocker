@@ -1,11 +1,12 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: flocker.node.test.test_model -*-
+# -*- test-case-name: flocker.control.test.test_model -*-
 
 """
 Record types for representing deployment models.
 """
 
 from characteristic import attributes, Attribute
+from pyrsistent import pmap
 from zope.interface import Interface, implementer
 
 
@@ -50,47 +51,22 @@ class DockerImage(object):
         return cls(**kwargs)
 
 
-@attributes(["name", "mountpoint", "maximum_size"],
-            defaults=dict(maximum_size=None))
+@attributes(["manifestation", "mountpoint"])
 class AttachedVolume(object):
     """
     A volume attached to an application to be deployed.
 
-    :ivar unicode name: A short, human-readable identifier for this
-        volume. For now this is always the same as the name of the
-        application it is attached to (see
+    :ivar Manifestation manifestation: The ``Manifestation`` that is being
+        attached as a volume. For now this is always from a ``Dataset``
+        with the same as the name of the application it is attached to
         https://clusterhq.atlassian.net/browse/FLOC-49).
 
     :ivar FilePath mountpoint: The path within the container where this
         volume should be mounted.
-
-    :ivar int maximum_size: The maximum size in bytes of this volume, or
-        ``None`` if there is no specified limit.
     """
-
-    @classmethod
-    def from_unit(cls, unit):
-        """
-        Given a Docker ``Unit``, return a :class:`AttachedVolume`.
-
-        :param Unit unit: A Docker ``Unit`` from which to create an
-            ``AttachedVolume`` where the volume name will be the unit name
-            and the mountpoint will be the unit's volume's container path.
-
-        :returns: A set of ``AttachedVolume`` instances, or None if there
-            is no volume within the supplied ``Unit`` instance.
-        """
-        volumes = set(unit.volumes)
-        name = unit.name
-        # XXX we only support one data volume per container at this time
-        # https://clusterhq.atlassian.net/browse/FLOC-49
-        try:
-            volume = volumes.pop()
-            # XXX Docker Volume objects do not contain size information
-            # at this time.
-            return {cls(name=name, mountpoint=volume.container_path)}
-        except KeyError:
-            return None
+    @property
+    def dataset(self):
+        return self.manifestation.dataset
 
 
 class IRestartPolicy(Interface):
@@ -159,9 +135,6 @@ class Application(object):
     """
     A single `application <http://12factor.net/>`_ to be deployed.
 
-    XXX The links attribute defaults to ``None`` until we have a way to
-    interrogate configured links.
-
     :ivar unicode name: A short, human-readable identifier for this
         application.  For example, ``u"site-example.com"`` or
         ``u"pgsql-payroll"``.
@@ -189,7 +162,47 @@ class Application(object):
     """
 
 
-@attributes(["hostname", "applications"])
+@attributes(["dataset", "primary"])
+class Manifestation(object):
+    """
+    A dataset that is mounted on a node.
+
+    :ivar Dataset dataset: The dataset being mounted.
+
+    :ivar bool primary: If true, this is a primary, otherwise it is a replica.
+    """
+
+
+@attributes(["dataset_id",
+             Attribute("maximum_size", default_value=None),
+             Attribute("metadata", default_value=pmap())])
+class Dataset(object):
+    """
+    The filesystem data for a particular application.
+
+    At some point we'll want a way of reserving metadata for ourselves.
+
+    maximum_size really should be metadata:
+    https://clusterhq.atlassian.net/browse/FLOC-1215
+
+    :ivar dataset_id: A unique identifier, as ``unicode``. May also be ``None``
+        if this is coming out of human-supplied configuration, in which
+        case it will need to be looked up from actual state for existing
+        datasets, or a new one generated if a new dataset will need tbe
+        created.
+
+    :ivar PMap metadata: Mapping between ``unicode`` keys and
+        corresponding values. Typically there will be a ``"name"`` key whose
+        value is a a human-readable name, e.g. ``"main-postgres"``.
+
+    :ivar int maximum_size: The maximum size in bytes of this dataset, or
+        ``None`` if there is no specified limit.
+    """
+
+
+@attributes(["hostname",
+             Attribute("applications", default_value=frozenset()),
+             Attribute("other_manifestations", default_value=frozenset())])
 class Node(object):
     """
     A single node on which applications will be managed (deployed,
@@ -201,7 +214,21 @@ class Node(object):
 
     :ivar frozenset applications: A ``frozenset`` of ``Application`` instances
         describing the applications which are to run on this ``Node``.
+
+    :ivar frozenset other_manifestations: ``Manifestation`` instances that
+        are present on the node but are not attached as volumes to any
+        applications.
     """
+    def manifestations(self):
+        """
+        All manifestations present on this node.
+
+        :return frozenset: All ``Manifestation`` instances from this node.
+        """
+        return self.other_manifestations | frozenset(
+            [application.volume.manifestation
+             for application in self.applications
+             if application.volume is not None])
 
 
 @attributes(["nodes"])
@@ -214,6 +241,15 @@ class Deployment(object):
     :ivar frozenset nodes: A ``frozenset`` containing ``Node`` instances
         describing the configuration of each cooperating node.
     """
+    def applications(self):
+        """
+        Return all applications in all nodes.
+
+        :return: Iterable returning all applications.
+        """
+        for node in self.nodes:
+            for application in node.applications:
+                yield application
 
 
 @attributes(['internal_port', 'external_port'])
@@ -244,47 +280,48 @@ class Link(object):
     """
 
 
-@attributes(["volume", "hostname"])
-class VolumeHandoff(object):
+@attributes(["dataset", "hostname"])
+class DatasetHandoff(object):
     """
-    A record representing a volume handoff that needs to be performed from this
-    node.
+    A record representing a dataset handoff that needs to be performed
+    from this node.
 
     See :cls:`flocker.volume.service.VolumeService.handoff`` for more details.
 
-    :ivar AttachedVolume volume: The volume to hand off.
+    :ivar Dataset dataset: The dataset to hand off.
     :ivar bytes hostname: The hostname of the node to which the volume is
          meant to be handed off.
     """
 
 
 @attributes(["going", "coming", "creating", "resizing"])
-class VolumeChanges(object):
+class DatasetChanges(object):
     """
-    ``VolumeChanges`` describes the volume-related changes necessary to change
-    the current state to the desired state.
+    The dataset-related changes necessary to change the current state to
+    the desired state.
 
-    :ivar frozenset going: The ``VolumeHandoff``\ s necessary to let other
-        nodes take over hosting of any volume-having applications being moved
-        away from a node.  These must be handed off.
+    :ivar frozenset going: The ``DatasetHandoff``\ s necessary to let
+        other nodes take over hosting datasets being moved away from a
+        node.  These must be handed off.
 
-    :ivar frozenset coming: The ``AttachedVolume``\ s necessary to let this
-        node take over hosting of any volume-having applications being moved to
+    :ivar frozenset coming: The ``Dataset``\ s necessary to let this
+        node take over hosting of any datasets being moved to
         this node.  These must be acquired.
 
-    :ivar frozenset creating: The ``AttachedVolume``\ s necessary to let this
-        node create any new volume-having applications meant to be hosted on
+    :ivar frozenset creating: The ``Dataset``\ s necessary to let this
+        node create any new datasets meant to be hosted on
         this node.  These must be created.
 
-    :ivar frozenset resizing: The ``AttachedVolume``\ s necessary to let this
-        node resize any existing volumes that are desired somewhere on the
-        cluster and locally exist with a different maximum_size to the desired
-        maximum_size. These must be resized.
+    :ivar frozenset resizing: The ``Dataset``\ s necessary to let this
+        node resize any existing datasets that are desired somewhere on
+        the cluster and locally exist with a different maximum_size to the
+        desired maximum_size. These must be resized.
     """
 
 
-@attributes(["running", "not_running", "used_ports"],
-            defaults={"used_ports": frozenset()})
+@attributes(["running", "not_running",
+             Attribute("used_ports", default_value=frozenset()),
+             Attribute("other_manifestations", default_value=frozenset())])
 class NodeState(object):
     """
     The current state of a node.
@@ -295,4 +332,7 @@ class NodeState(object):
         node that are currently shutting down or stopped.
     :ivar used_ports: A ``frozenset`` of ``int``\ s giving the TCP port numbers
         in use (by anything) on this node.
+    :ivar frozenset other_manifestations: ``Manifestation`` instances that
+        are present on the node but are not attached as volumes to any
+        applications.
     """

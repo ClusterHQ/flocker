@@ -3,12 +3,14 @@
 """
 Tests for ``flocker.node._model``.
 """
+
 from twisted.trial.unittest import SynchronousTestCase
+from twisted.python.filepath import FilePath
 
 from ...testtools import make_with_init_tests
 from .._model import (
-    Application, DockerImage, Node, Deployment,
-    RestartOnFailure, RestartAlways, RestartNever,
+    Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
+    RestartOnFailure, RestartAlways, RestartNever, Manifestation,
 )
 
 
@@ -120,6 +122,48 @@ class NodeInitTests(make_with_init_tests(
     """
 
 
+class NodeTests(SynchronousTestCase):
+    """
+    Tests for ``Node``.
+    """
+    def test_manifestations_from_applications(self):
+        """
+        ``Node.manifestations()`` includes all manifestations from
+        applications on the node.
+        """
+        m1 = object()
+        m2 = object()
+        node = Node(hostname=u'node1.example.com',
+                    applications=frozenset([
+                        Application(name=u'a',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m1, mountpoint=None)),
+                        Application(name=u'b',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m2, mountpoint=None)),
+                    ]))
+        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+
+    def test_manifestations_non_applications(self):
+        """
+        ``Node.manifestations()`` includes all manifestations that
+        are on the node but not on applications.
+        """
+        m1 = object()
+        m2 = object()
+        node = Node(hostname=u'node1.example.com',
+                    applications=frozenset([
+                        Application(name=u'a',
+                                    image=DockerImage.from_string(u'x'),
+                                    volume=AttachedVolume(
+                                        manifestation=m1, mountpoint=None))]),
+                    other_manifestations=frozenset([m2]))
+
+        self.assertEqual(node.manifestations(), frozenset([m1, m2]))
+
+
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
         kwargs=dict(nodes=frozenset([
@@ -130,6 +174,32 @@ class DeploymentInitTests(make_with_init_tests(
     """
     Tests for ``Deployment.__init__``.
     """
+
+
+class DeploymentTests(SynchronousTestCase):
+    """
+    Tests for ``Deployment``.
+    """
+    def test_applications(self):
+        """
+        ``Deployment.applications()`` returns applications from all nodes.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        deployment = Deployment(nodes=frozenset([node, another_node]))
+        self.assertEqual(sorted(list(deployment.applications())),
+                         sorted(list(node.applications) +
+                                list(another_node.applications)))
 
 
 class RestartOnFailureTests(SynchronousTestCase):
@@ -178,3 +248,19 @@ class RestartOnFailureTests(SynchronousTestCase):
             TypeError,
             RestartOnFailure, maximum_retry_count='foo'
         )
+
+
+class AttachedVolumeTests(SynchronousTestCase):
+    """
+    Tests for ``AttachedVolume``.
+    """
+    def test_dataset(self):
+        """
+        ``AttachedVolume.dataset`` is the same as
+        ``AttachedVolume.manifestation.dataset``.
+        """
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=Dataset(dataset_id=u"jalkjlk"),
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+        self.assertIs(volume.dataset, volume.manifestation.dataset)

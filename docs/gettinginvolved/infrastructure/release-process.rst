@@ -16,9 +16,9 @@ By the end of the release process we will have:
 - a tag in version control,
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
-- a Vagrant base tutorial image and
-- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
-- an updated Homebrew recipe
+- a Vagrant base tutorial image,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
+- an updated Homebrew recipe.
 
 
 Prerequisites
@@ -31,11 +31,22 @@ Software
 - A web browser.
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
+- `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
 
 Access
 ~~~~~~
 
-- Access to `Google Cloud Storage`_ and `Amazon S3` using `gsutil`_.
+
+- Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
+  Set up ``gsutil`` authentication by following the instructions from the following command:
+
+  .. code-block:: console
+
+      $ gsutil config
+
+- Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
+  Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
+
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
@@ -55,10 +66,10 @@ Preparing For a Release
 
       export VERSION=0.1.2
 
-#. Create an issue:
+#. Create an issue in JIRA:
 
-   #. Set the title to "Release Flocker $VERSION"
-   #. Assign it to yourself
+   This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
+   The issue does not need a design, so move the issue to the "Coding" state.
 
 #. Create a clean, local Flocker release branch with no modifications:
 
@@ -130,6 +141,7 @@ Preparing For a Release
 #. Ensure copyright dates in :file:`LICENSE` are up-to-date:
 
    - The list of years near the end of :file:`LICENSE` should include each year in which commits were made to the project.
+   - This is already the case up to and including 2015.
    - If any such years are not present in the list, add them and commit the changes:
 
    .. code-block:: console
@@ -146,7 +158,7 @@ Preparing For a Release
 
    Go to the `BuildBot web status`_ and force a build on the just-created branch.
 
-   In addition, review the link-check step of the documentation builder to ensure that all the errors are expected.
+   In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
 
@@ -363,13 +375,6 @@ Release
           "dist/Flocker-${VERSION}-py2-none-any.whl" \
           gs://archive.clusterhq.com/downloads/flocker/
 
-
-   .. note:: Set up ``gsutil`` authentication by following the instructions from the following command:
-
-             .. code-block:: console
-
-                $ gsutil config
-
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
    .. code-block:: console
@@ -380,7 +385,6 @@ Release
 
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
-                This means that ``gsutil`` must be installed and configured on your workstation.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
 
@@ -523,6 +527,7 @@ Improving the Release Process
 
 The release engineer should aim to spend up to one day improving the release process in whichever way they find most appropriate.
 If there is no existing issue for the planned improvements then a new one should be made.
+Search for "labels = release_process AND status != done" to find existing issues relating to the release process.
 The issue(s) for the planned improvements should be put into the next sprint.
 
 
@@ -534,35 +539,6 @@ Appendix: Back Porting Changes From Master
 
 XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/FLOC-877
 
-
-.. _pre-populating-rpm-repository:
-
-Appendix: Pre-populating RPM Repository
----------------------------------------
-
-.. warning:: This only needs to be done if the dependency packages for Flocker (e.g. 3rd party Python libraries) change; it should *not* be done every release.
-             If you do run this you need to do it *before* running the release process above as it removes the ``flocker-cli`` etc. packages from the repository index!
-
-These steps must be performed from a :doc:`Flocker development environment <vagrant>` because it has the HybridLogic Copr repository pre-installed.
-
-::
-
-   mkdir repo
-   mkdir srpm
-
-   # Download all the latest binary and source packages from the Copr repository.
-   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=repo python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil python-klein python-jsonschema
-   yumdownloader --disablerepo='*' --enablerepo=tomprince-hybridlogic --destdir=srpm --source python-characteristic python-eliot python-idna python-netifaces python-service-identity python-treq python-twisted python-docker-py python-psutil python-klein python-jsonschema
-
-   # Create local repositories.
-   createrepo repo
-   createrepo srpm
-
-   # Upload to Google Cloud Storage using ``gsutil``.
-   gsutil cp -a public-read -R repo gs://archive.clusterhq.com/fedora/20/x86_64
-   gsutil cp -a public-read -R srpm gs://archive.clusterhq.com/fedora/20/SRPMS
-
-.. note: XXX: Move or automate this documentation https://clusterhq.atlassian.net/browse/FLOC-327
 
 .. _gsutil: https://developers.google.com/storage/docs/gsutil
 .. _wheel: https://pypi.python.org/pypi/wheel
