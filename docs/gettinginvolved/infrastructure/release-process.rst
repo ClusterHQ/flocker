@@ -32,6 +32,7 @@ Software
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
+- ``envsubst`` (XXX instructions to install on OS X) available on your PATH.
 
 Access
 ~~~~~~
@@ -84,11 +85,12 @@ Preparing For a Release
 
 #. Update the version numbers in:
 
-   - the ``pip install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
-   - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
    - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
+
+      .. code-block:: console
+
+         $ envsubst < docs/gettingstarted/linux-install.sh.template > docs/gettingstarted/linux-install.sh
+         $ envsubst < docs/gettingstarted/tutorial/Vagrantfile.template > docs/gettingstarted/tutorial/Vagrantfile
 
    Commit the changes:
 
