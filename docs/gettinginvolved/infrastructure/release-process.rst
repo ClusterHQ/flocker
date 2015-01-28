@@ -168,7 +168,7 @@ Preparing For a Release
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-staging-docs/en/${VERSION}/clusterhq-staging-docs/en/${VERSION}/
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
 
    #. Update redirects to point to new documentation.
 
@@ -425,11 +425,11 @@ Release
 
 #. Update the documentation.
 
-   #. Copy release documentation from ``clusterhq-staging-docs`` to ``clusterhq-staging-docs``.
+   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-staging-docs/en/${VERSION}/ s3://clusterhq-docs/en/${VERSION}/
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
 
    #. Update redirects to point to new documentation.
 
