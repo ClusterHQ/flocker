@@ -124,8 +124,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
     Tests for the dataset creation endpoint at ``/datasets``.
     """
     # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = b"192.0.2.1"
-    NODE_B = b"192.0.2.2"
+    NODE_A = u"192.0.2.1"
+    NODE_B = u"192.0.2.2"
 
     def test_wrong_schema(self):
         """
