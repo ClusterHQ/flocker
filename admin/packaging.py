@@ -189,7 +189,8 @@ class Dependency(object):
 
 # The minimum required versions of Docker and ZFS. The package names vary
 # between operating systems and are supplied later.
-DockerDependency = partial(Dependency, compare='==', version='1.3.3')
+MinimumDockerDependency = partial(Dependency, compare='>=', version='1.3.0')
+MaximumDockerDependency = partial(Dependency, compare='<', version='1.4.0')
 ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
@@ -212,20 +213,23 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
-            DockerDependency(package='docker-io'),
+            MinimumDockerDependency(package='docker-io'),
+            MaximumDockerDependency(package='docker-io'),
             Dependency(package='/usr/sbin/iptables'),
             ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'centos': (
-            DockerDependency(package='docker'),
+            MinimumDockerDependency(package='docker'),
+            MaximumDockerDependency(package='docker'),
             Dependency(package='/usr/sbin/iptables'),
             ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
         ),
         'ubuntu': (
             # trust-updates version
-            DockerDependency(package='docker.io'),
+            MinimumDockerDependency(package='docker.io'),
+            MaximumDockerDependency(package='docker.io'),
             Dependency(package='iptables'),
             ZFSDependency(package='zfsutils'),
             Dependency(package='openssh-client'),
