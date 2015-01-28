@@ -258,7 +258,7 @@ Getting started with Flocker
 
       .. code-block:: console
 
-         $ flocker-deploy deployment-node2.yml app.yml
+         $ flocker-deploy deployment-node2.yml fig.yml
 
       .. image:: images/migration.png
          :class: img-responsive img-spaced
