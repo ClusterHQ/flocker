@@ -89,7 +89,7 @@ def _logging(original):
             request.setResponseCode(code)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
-            return dumps({u"error": True, u"result": result})
+            return dumps(result)
         d.addErrback(failure)
         d.addActionFinish()
         return d.result
@@ -117,7 +117,7 @@ def _serialize(outputValidator):
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             request.setResponseCode(code)
-            return dumps({u"error": False, u"result": result})
+            return dumps(result)
 
         def doit(self, request, **routeArguments):
             result = maybeDeferred(original, self, request, **routeArguments)

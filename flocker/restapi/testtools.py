@@ -4,7 +4,7 @@
 Public utilities for testing code that uses the REST API.
 """
 
-__all__ = ["buildIntegrationTests", "goodResult", "badResult", "dumps",
+__all__ = ["buildIntegrationTests", "dumps",
            "loads", "dummyRequest", "CloseEnoughJSONResponse",
            "CloseEnoughResponse",
            "extractSuccessfulJSONResult", "render", "asResponse",
@@ -149,28 +149,12 @@ def extractSuccessfulJSONResult(response):
     result = readBody(response)
     result.addCallback(loads)
 
-    def getResult(dictionary):
-        if dictionary[u"error"]:
-            raise AssertionError(dictionary)
-        return dictionary[u"result"]
+    def getResult(data):
+        if response.code > 299:
+            raise AssertionError((response.code, data))
+        return data
     result.addCallback(getResult)
     return result
-
-
-def goodResult(result):
-    """
-    Construct the boilerplate structure around an application-specified result
-    object for a successful API response.
-    """
-    return {u"error": False, u"result": result}
-
-
-def badResult(result):
-    """
-    Construct the boilerplate structure around an application-specified result
-    object for an error API response.
-    """
-    return {u"error": True, u"result": result}
 
 
 def buildIntegrationTests(mixinClass, name, fixture):

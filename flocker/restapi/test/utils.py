@@ -91,25 +91,3 @@ class _anything(object):
         return False
 
 anything = _anything()
-
-
-class _incident(object):
-    """
-    An instance of this class compares equal to the kind of L{dict} which
-    represents an error response from the API.
-
-    Such a L{dict} has an C{u"error"} key with a C{True} value and a
-    C{u"result"} key with a L{unicode} value.
-    """
-    def __eq__(self, other):
-        return (
-            isinstance(other, dict) and
-            set(other) == {u"error", u"result"} and
-            other[u"error"] is True and
-            isinstance(other[u"result"], unicode)
-            )
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-incident = _incident()

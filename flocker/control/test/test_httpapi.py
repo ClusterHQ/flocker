@@ -15,7 +15,7 @@ from twisted.application.service import IService
 from twisted.python.filepath import FilePath
 
 from ...restapi.testtools import (
-    buildIntegrationTests, loads, goodResult)
+    buildIntegrationTests, loads)
 
 from ..httpapi import DatasetAPIUserV1, create_api_service
 from .._persistence import ConfigurationPersistenceService
@@ -46,9 +46,13 @@ class APITestsMixin(object):
         :return Deferred: Fires when test is done.
         """
         requesting = self.agent.request(method, path)
-        requesting.addCallback(readBody)
+
+        def got_response(response):
+            self.assertTrue(response.code < 300)
+            return readBody(response)
+        requesting.addCallback(got_response)
         requesting.addCallback(lambda body: self.assertEqual(
-            goodResult(expected_good_result), loads(body)))
+            expected_good_result, loads(body)))
         return requesting
 
     def test_version(self):
