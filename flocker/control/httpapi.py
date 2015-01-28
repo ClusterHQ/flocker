@@ -95,10 +95,10 @@ class DatasetAPIUserV1(object):
             manifestation of the dataset will be created.
 
         :param unicode dataset_id: A unique identifier to assign to the
-            dataset.  This is expected to be a UUID.  If no value is given, one
-            will be generated and returned in the response.  This is not for
-            easy human use.  For human-friendly identifiers, use items in
-            ``metadata``.
+            dataset.  This is a string giving a UUID (per RFC 4122).  If no
+            value is given, one will be generated and returned in the response.
+            This is not for easy human use.  For human-friendly identifiers,
+            use items in ``metadata``.
 
         :param int maximum_size: The maximum number of bytes the dataset will
             be capable of storing.  This may be optional or required depending
