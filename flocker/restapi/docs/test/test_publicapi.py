@@ -123,7 +123,7 @@ class MakeRstTests(SynchronousTestCase):
                 u"response":
                     u"HTTP/1.1 200 OK\n"
                     u"\n"
-                    u'{"error": false, "result": "%(DOMAIN)s"}\n',
+                    u'"%(DOMAIN)s"\n',
                 },
             }
 
@@ -157,7 +157,7 @@ class MakeRstTests(SynchronousTestCase):
              '      HTTP/1.1 200 OK',
              '      Content-Type: application/json',
              '      ',
-             '      {"error": false, "result": "example.com"}',
+             '      "example.com"',
              '   ',
              '',
              ], rest)
