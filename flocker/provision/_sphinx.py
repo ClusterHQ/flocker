@@ -44,68 +44,16 @@ HANDLERS = {
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.roles import set_classes
 from docutils.utils.code_analyzer import Lexer, LexerError, NumberLines
-class FooDirective(Directive):
+from docutils.parsers.rst.directives.body import CodeBlock
+class FooDirective(CodeBlock):
     """
-    Implementation of the C{task} directive.
+    Like code-block but replaces |release|.
     """
-    optional_arguments = 1
-    option_spec = {'class': directives.class_option,
-                   'name': directives.unchanged,
-                   'number-lines': directives.unchanged # integer or None
-                  }
-    has_content = True
-
     def run(self):
-        self.assert_has_content()
-
         replacement = '0.3.5'
         release_to_replace = u'|release|'
         self.content = [item.replace(release_to_replace, replacement) for item in self.content]
-
-        if self.arguments:
-            language = self.arguments[0]
-        else:
-            language = ''
-        set_classes(self.options)
-        classes = ['code']
-        if language:
-            classes.append(language)
-        if 'classes' in self.options:
-            classes.extend(self.options['classes'])
-
-        # set up lexical analyzer
-        try:
-            tokens = Lexer(u'\n'.join(self.content), language,
-                           self.state.document.settings.syntax_highlight)
-        except LexerError, error:
-            raise self.warning(error)
-
-        if 'number-lines' in self.options:
-            # optional argument `startline`, defaults to 1
-            try:
-                startline = int(self.options['number-lines'] or 1)
-            except ValueError:
-                raise self.error(':number-lines: with non-integer start value')
-            endline = startline + len(self.content)
-            # add linenumber filter:
-            tokens = NumberLines(tokens, startline, endline)
-
-        node = nodes.literal_block('\n'.join(self.content), classes=classes)
-        self.add_name(node)
-
-        # if called from "include", set the source
-        if 'source' in self.options:
-            node.attributes['source'] = self.options['source']
-        # analyze content and add nodes for every token
-        for classes, value in tokens:
-            # print (classes, value)
-            if classes:
-                node += nodes.inline(value, value, classes=classes)
-            else:
-                # insert as Text to decrease the verbosity of the output
-                node += nodes.Text(value, value)
-
-        return [node]
+        return CodeBlock.run(self)
 
 class TaskDirective(Directive):
     """
