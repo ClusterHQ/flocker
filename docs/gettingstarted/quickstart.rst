@@ -189,8 +189,8 @@ Getting started with Flocker
 
       .. code-block:: console
 
-         $ git clone https://github.com/clusterhq/flocker-tutorial
-         $ cd flocker-tutorial
+         $ git clone https://github.com/clusterhq/flocker-quickstart
+         $ cd flocker-quickstart
 
       fig.yml
       -------
