@@ -130,7 +130,7 @@ This bucket is for staging changes to the main ``clusterhq-docs`` bucket.
 It is also used as part of the pre-release testing.
 
 The staging configuration is the same as the production configuration,
-with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clusterhq-staging-docs`` replacing `clusterhq-docs``.
+with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clusterhq-staging-docs`` replacing ``clusterhq-docs``.
 
 ``clusterhq-dev-docs``
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -167,7 +167,7 @@ The configuration of the ``docs.clusterhq.com`` distribution is:
 - Viewer Protocol Policy: HTTPS Only
 - Logging: enabled
 - Bucket for Logs: ``clusterhq-logs.s3.amazonaws.com``
-- Log Prefix: ``docs.staging.clusterhq.com/cloudfront/``
+- Log Prefix: ``docs.clusterhq.com/cloudfront/``
 - SSL Certificate: Custom SSL Certificate: ``docs.clusterhq.com``
 - Custom SSL Client Support: Only Clients that Support Server Name Indication (SNI)
 

@@ -181,7 +181,7 @@ Preparing For a Release
 
    #. Update the redirect rules in `S3`_ to point to the new release.
 
-      In the properties of the `clusterhq-staging-docs`` bucket under static website hosting,
+      In the properties of the ``clusterhq-staging-docs`` bucket under static website hosting,
       update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
       Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
 
