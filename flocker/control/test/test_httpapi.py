@@ -146,7 +146,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
             }
         )
 
-    def _dataset_id_collision_test(self, primary):
+    def _dataset_id_collision_test(self, primary, modifier=lambda uuid: uuid):
         """
         Assert that an attempt to create a dataset with a dataset_id that is
         already assigned somewhere on the cluster results in an error response
@@ -177,7 +177,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def saved(ignored):
             return self.assertBadResult(
                 b"POST", b"/datasets",
-                {u"primary": primary, u"dataset_id": dataset_id},
+                {u"primary": primary, u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
                 {u"description": u"The provided dataset_id is already in use."}
             )
@@ -214,6 +214,15 @@ class CreateDatasetTestsMixin(APITestsMixin):
         the desired configuration.
         """
         return self._dataset_id_collision_test(self.NODE_A)
+
+    def test_dataset_id_collision_different_case(self):
+        """
+        If the value for the ``dataset_id`` in the request body differs only in
+        alphabetic case from a ``dataset_id`` assigned to an existing dataset,
+        the response is an error indicating the collision and the dataset is
+        not added to the desired configuration.
+        """
+        return self._dataset_id_collision_test(self.NODE_A, unicode.title)
 
     def test_unknown_primary_node(self):
         """

@@ -116,6 +116,7 @@ class DatasetAPIUserV1(object):
         """
         if dataset_id is None:
             dataset_id = unicode(uuid4())
+        dataset_id = dataset_id.lower()
 
         if metadata is None:
             metadata = {}
