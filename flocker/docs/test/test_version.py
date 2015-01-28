@@ -74,9 +74,9 @@ class ParseVersionTests(SynchronousTestCase):
     def test_doc(self):
         """
         When the documentation version is from a documentation release, the
-        trailing '+doc.X' is stripped.
+        trailing '+docX' is stripped.
         """
-        self.assertParsedVersion('0.3.2+doc.11',
+        self.assertParsedVersion('0.3.2+doc11',
                                  documentation_revision='11')
 
     def test_doc_dirty(self):
@@ -84,7 +84,7 @@ class ParseVersionTests(SynchronousTestCase):
         When the version is from a documentation release but is dirty, the
         documentation version is left unchanged.
         """
-        self.assertParsedVersion('0.3.2+doc.11-dirty',
+        self.assertParsedVersion('0.3.2+doc11-dirty',
                                  documentation_revision='11',
                                  dirty='-dirty')
 
@@ -133,17 +133,17 @@ class GetDocVersionTests(SynchronousTestCase):
     def test_doc(self):
         """
         When the documentation version is from a documentation release, the
-        trailing '+doc.X' is stripped.
+        trailing '+docX' is stripped.
         """
-        self.assertEqual(get_doc_version('0.3.2+doc.11'), '0.3.2')
+        self.assertEqual(get_doc_version('0.3.2+doc11'), '0.3.2')
 
     def test_doc_dirty(self):
         """
         When the version is from a documentation release but is dirty, the
         documentation version is left unchanged.
         """
-        self.assertEqual(get_doc_version('0.3.2+doc.0-dirty'),
-                         '0.3.2+doc.0-dirty')
+        self.assertEqual(get_doc_version('0.3.2+doc0-dirty'),
+                         '0.3.2+doc0-dirty')
 
 
 class IsReleaseTests(SynchronousTestCase):
@@ -185,11 +185,11 @@ class IsReleaseTests(SynchronousTestCase):
         """
         When the documentation version is from a documentation release, it is a
         release.  """
-        self.assertTrue(is_release('0.3.2+doc.11'))
+        self.assertTrue(is_release('0.3.2+doc11'))
 
     def test_doc_dirty(self):
         """
         When the version is from a documentation release but is dirty, it isn't
         a release.
         """
-        self.assertFalse(is_release('0.3.2+doc.0-dirty'))
+        self.assertFalse(is_release('0.3.2+doc0-dirty'))

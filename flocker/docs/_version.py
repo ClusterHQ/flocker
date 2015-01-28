@@ -13,7 +13,7 @@ _VERSION_RE = re.compile(
     # Weekly release
     r"(dev(?P<weekly_release>[0-9]+))?"
     # The documentation release
-    r"(\+doc\.(?P<documentation_revision>[0-9]+))?"
+    r"(\+doc(?P<documentation_revision>[0-9]+))?"
     # Development version
     r"(-(?P<commit_count>[0-9]+)-g(?P<commit_hash>[0-9a-f]+))?"
     # Wether the tree is dirty.
