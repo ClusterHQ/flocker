@@ -255,6 +255,37 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         return creating
 
+    def test_create_ignores_other_nodes(self):
+        """
+        Nodes in the configuration other than the one specified as the primary
+        for the new dataset have their configuration left alone by the
+        operation.
+        """
+        saving = self.persistence_service.save(Deployment(nodes={
+            Node(hostname=self.NODE_A)
+        }))
+        def saved(ignored):
+            return self.assertResponseCode(
+                b"POST", b"/datasets", {u"primary": self.NODE_B}, OK
+            )
+        saving.addCallback(saved)
+
+        def created(ignored):
+            deployment = self.persistence_service.get()
+            (node_a,) = (
+                node
+                for node
+                in deployment.nodes
+                if node.hostname == self.NODE_A
+            )
+            self.assertEqual(
+                # No state, just like it started.
+                Node(hostname=self.NODE_A),
+                node_a
+            )
+        saving.addCallback(created)
+        return saving
+
     def test_create_generates_different_dataset_ids(self):
         """
         If two ``POST`` requests are made to create two different datasets,
