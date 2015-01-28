@@ -189,7 +189,7 @@ class Dependency(object):
 
 # The minimum required versions of Docker and ZFS. The package names vary
 # between operating systems and are supplied later.
-DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
+DockerDependency = partial(Dependency, compare='==', version='1.3.3')
 ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
