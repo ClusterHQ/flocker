@@ -91,8 +91,7 @@ DatasetsSchemaTests = build_schema_test(
         # metadata is an object with a handful of short string key/values
         {u"primary": u"10.0.0.1",
          u"metadata":
-             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)
-        },
+             dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256)},
 
         # maximum_size is an integer of at least 64MiB
         {u"primary": u"10.0.0.1", u"maximum_size": 1024 * 1024 * 64},
@@ -105,7 +104,6 @@ DatasetsSchemaTests = build_schema_test(
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(16)), u"x" * 256),
          u"maximum_size": 1024 * 1024 * 64,
-         u"dataset_id": u"x" * 36,
-        },
+         u"dataset_id": u"x" * 36},
     ]
 )

@@ -61,7 +61,8 @@ class APITestsMixin(object):
         requesting.addCallback(check_code)
         return requesting
 
-    def assertGoodResult(self, method, path, request_body, expected_good_result):
+    def assertGoodResult(self, method, path, request_body,
+                         expected_good_result):
         """
         Assert a particular JSON response for the given API request.
 
@@ -133,11 +134,16 @@ class CreateDatasetTestsMixin(APITestsMixin):
         error indication a validation failure.
         """
         return self.assertBadResult(
-            b"POST", b"/datasets", {u"primary": self.NODE_A, u"junk": u"garbage"},
-            BAD_REQUEST,
-            {u'description': u"The provided JSON doesn't match the required schema.",
-             u'errors': [
-                 u"Additional properties are not allowed (u'junk' was unexpected)"]}
+            b"POST", b"/datasets",
+            {u"primary": self.NODE_A, u"junk": u"garbage"},
+            BAD_REQUEST, {
+                u'description':
+                    u"The provided JSON doesn't match the required schema.",
+                u'errors': [
+                    u"Additional properties are not allowed "
+                    u"(u'junk' was unexpected)"
+                ]
+            }
         )
 
     def _dataset_id_collision_test(self, primary):
@@ -190,7 +196,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         posting.addCallback(failed)
         return posting
-
 
     def test_dataset_id_collision_different_node(self):
         """
@@ -248,7 +253,9 @@ class CreateDatasetTestsMixin(APITestsMixin):
         def got_result(result):
             result = result[u"result"]
             dataset_id = result.pop(u"dataset_id")
-            self.assertEqual({u"primary": self.NODE_A, u"metadata": {}}, result)
+            self.assertEqual(
+                {u"primary": self.NODE_A, u"metadata": {}}, result
+            )
             deployment = self.persistence_service.get()
             self.assertEqual({dataset_id}, set(get_dataset_ids(deployment)))
         creating.addCallback(got_result)
@@ -264,6 +271,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         saving = self.persistence_service.save(Deployment(nodes={
             Node(hostname=self.NODE_A)
         }))
+
         def saved(ignored):
             return self.assertResponseCode(
                 b"POST", b"/datasets", {u"primary": self.NODE_B}, OK
@@ -299,6 +307,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
                 b"POST", b"/datasets", {u"primary": self.NODE_A}, OK
             ).addCallback(readBody).addCallback(loads),
         ])
+
         def created(datasets):
             first = datasets[0][u"result"]
             second = datasets[1][u"result"]
@@ -321,6 +330,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating = self.assertGoodResult(
             b"POST", b"/datasets", dataset, dataset
         )
+
         def created(ignored):
             deployment = self.persistence_service.get()
             self.assertEqual(
@@ -360,6 +370,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating = self.assertGoodResult(
             b"POST", b"/datasets", dataset, response
         )
+
         def created(ignored):
             deployment = self.persistence_service.get()
             self.assertEqual(

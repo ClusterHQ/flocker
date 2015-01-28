@@ -68,23 +68,26 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
-
     @app.route("/datasets", methods=['POST'])
-    @user_documentation("""
+    @user_documentation(
+        """
         Create a new dataset.
-        """, examples=[
+        """,
+        examples=[
             u"create dataset",
             u"create dataset with dataset_id",
             u"create dataset with duplicate dataset_id",
             u"create dataset with maximum_size",
             u"create dataset with metadata",
-        ])
+        ]
+    )
     @structured(
         inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
         schema_store=SCHEMAS
     )
-    def create_dataset(self, primary, dataset_id=None, maximum_size=None, metadata=None):
+    def create_dataset(self, primary, dataset_id=None, maximum_size=None,
+                       metadata=None):
         """
         Create a new dataset in the cluster configuration.
 
@@ -151,16 +154,18 @@ class DatasetAPIUserV1(object):
         new_node_config = Node(
             hostname=primary_node.hostname,
             applications=primary_node.applications,
-            other_manifestations=
+            other_manifestations=(
                 primary_node.other_manifestations | frozenset({manifestation})
+            )
+        )
+        other_nodes = frozenset(
+            node for node in deployment.nodes if node is not primary_node
         )
         new_deployment = Deployment(
-            nodes=frozenset(
-                node for node in deployment.nodes if node is not primary_node
-            ) | frozenset({new_node_config})
+            nodes=other_nodes | frozenset({new_node_config})
         )
-
         saving = self.persistence_service.save(new_deployment)
+
         def saved(ignored):
             result = {
                 u"dataset_id": dataset_id,

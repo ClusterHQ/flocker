@@ -486,6 +486,7 @@ class VariableInterpolationTests(SynchronousTestCase):
             )
         )
         app = Klein()
+
         @app.route(b"/", methods=[b"GET"])
         @user_documentation("", ["dummy id"])
         def f():
