@@ -30,6 +30,8 @@ clusterhq_repo_url = (
     'fedora/clusterhq-release%s.noarch.rpm') % (rpm_dist,)
 check_call(['yum', 'install', '-y', clusterhq_repo_url])
 
+check_call(['yum', 'install', '-y', 'https://kojipkgs.fedoraproject.org//work/tasks/7645/8757645/docker-io-1.4.1-8.fc20.x86_64.rpm'])
+
 if branch:
     # If a branch is specified, add a repo pointing at the
     # buildserver repository corresponding to that branch.
