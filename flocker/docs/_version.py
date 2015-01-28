@@ -3,15 +3,15 @@
 
 import re
 
+from characteristic import attributes, Attribute
+
 _VERSION_RE = re.compile(
-    # The base version (in 'release')
-    r"(?P<release>[0-9]\.[0-9]+\.[0-9]+)"
-    # For a documentation release, the release number.
-    # (in 'doc-release').
-    r"(\+doc\.(?P<doc>[0-9]+))?"
-    # For development version, the number of commits since the last
-    # release and git hash
-    r"((?P<development>-[0-9]+-g[0-9a-f]+))?"
+    # The base version
+    r"(?P<major>[0-9])\.(?P<minor>[0-9]+)\.(?P<micro>[0-9]+)"
+    # The documentation release
+    r"(\+doc\.(?P<documentation_revision>[0-9]+))?"
+    # Development version
+    r"(-(?P<commit_count>[0-9]+)-g(?P<commit_hash>[0-9a-f]+))?"
     # Wether the tree is dirty.
     r"((?P<dirty>-dirty))?"
     # Always match the entire version string.
@@ -25,40 +25,73 @@ class UnparseableVersion(Exception):
     """
 
 
+@attributes([
+    'major',
+    'minor',
+    'micro',
+    Attribute('documentation_revision', default_value=None),
+    Attribute('commit_count', default_value=None),
+    Attribute('commit_hash', default_value=None),
+    Attribute('dirty', default_value=None),
+])
+class FlockerVersion(object):
+    """
+    A version of Flocker.
+
+    :ivar str major: The major number of the (most recent) release.
+    :ivar str minor: The minor number of the (most recent) release.
+    :ivar str micro: The micro number of the (most recent) release.
+    :ivar str documentation_revision: The documentation revision of the
+        (most recent) release or ``None`` if there hasn't been a documentation
+        release..
+    :ivar str commit_count: The number of commits since the last release or
+        ``None if this is a release.
+    :ivar str commit_hash: The hash of the current commit, or ``None`` if this
+        is a release.
+    :ivar str dirty: If the tree is dirty, the string '-dirty'.
+        Otherwise, ``None``.
+    """
+
+    @property
+    def release(self):
+        """
+        The version string of the last full relase.
+        """
+        return "%s.%s.%s" % (self.major, self.minor, self.micro)
+
+
 def parse_version(version):
     """
-    Parse a flocker version.
+    Parse a version of Flocker.
 
-    :return dict: with the following keys. If a key isn't relevant, the value
-        is ``None``.
+    :return FlockerVersion: The parsed version.
 
-        release
-            The base release
-        development
-            For development versions, the number of commits since the last
-            release and the commit hash, in the format used by ``git describe`.
-        doc
-            For a documentation only release, the relase number.
-        dirty
-            If the tree is dirty, the string '-dirty'.
-
-    :raises UnparseableVersion: If the version can't be parsed as a flocker
+    :raises UnparseableVersion: If the version can't be parsed as a Flocker
         version.
     """
     match = _VERSION_RE.match(version)
     if match is None:
         raise UnparseableVersion(version)
-    return match.groupdict()
+    parts = match.groupdict()
+    return FlockerVersion(**parts)
 
 
 def get_doc_version(version):
-    parts = parse_version(version)
-    if is_release(version) and parts['doc'] is not None:
-        return parts['release']
+    """
+    Get the version string of Flocker to display in documentation.
+    """
+    parsed_version = parse_version(version)
+    if (is_release(version)
+            and parsed_version.documentation_revision is not None):
+        return parsed_version.release
     else:
         return version
 
 
 def is_release(version):
-    parts = parse_version(version)
-    return (parts['development'] is None and parts['dirty'] is None)
+    """
+    Return whether the version corresponds to a release.
+    """
+    parsed_version = parse_version(version)
+    return (parsed_version.commit_count is None
+            and parsed_version.dirty is None)

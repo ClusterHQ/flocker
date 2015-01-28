@@ -7,7 +7,10 @@ Test for :module:`flocker.docs.version`.
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from .._version import parse_version, get_doc_version, is_release
+from .._version import (
+    parse_version, FlockerVersion,
+    get_doc_version, is_release,
+)
 
 
 class ParseVersionTests(SynchronousTestCase):
@@ -17,23 +20,22 @@ class ParseVersionTests(SynchronousTestCase):
     def assertParsedVersion(self, version, **expected_parts):
         """
         Assert that :function:`parse_version` returns ``expected_parts``.
-        Any parts not specified in ``expected_parts`` must be ``None``.
+        The release is expected to be `0.3.2`.
         """
         parts = {
-            'release': None,
-            'development': None,
-            'doc': None,
-            'dirty': None
+            'major': '0',
+            'minor': '3',
+            'micro': '2',
         }
         parts.update(expected_parts)
-        self.assertEqual(parse_version(version), parts)
+        self.assertEqual(parse_version(version), FlockerVersion(**parts))
 
     def test_release(self):
         """
         When the version is from a release, the documentation version is left
         unchanged.
         """
-        self.assertParsedVersion('0.3.2', release='0.3.2')
+        self.assertParsedVersion('0.3.2')
 
     def test_development_vesion(self):
         """
@@ -41,16 +43,16 @@ class ParseVersionTests(SynchronousTestCase):
         version is left unchanged.
         """
         self.assertParsedVersion('0.3.2-1-gf661a6a',
-                                 release='0.3.2',
-                                 development='-1-gf661a6a')
+                                 commit_count='1',
+                                 commit_hash='f661a6a')
 
     def test_dirty(self):
         """
         When the version is dirty, the documentation version is left unchanged.
         """
         self.assertParsedVersion('0.3.2-1-gf661a6a-dirty',
-                                 release='0.3.2',
-                                 development='-1-gf661a6a',
+                                 commit_count='1',
+                                 commit_hash='f661a6a',
                                  dirty='-dirty')
 
     def test_doc(self):
@@ -59,8 +61,7 @@ class ParseVersionTests(SynchronousTestCase):
         '+doc.X' is stripped.
         """
         self.assertParsedVersion('0.3.2+doc.11',
-                                 release='0.3.2',
-                                 doc='11')
+                                 documentation_revision='11')
 
     def test_doc_dirty(self):
         """
@@ -68,8 +69,7 @@ class ParseVersionTests(SynchronousTestCase):
         version is left unchanged.
         """
         self.assertParsedVersion('0.3.2+doc.11-dirty',
-                                 release='0.3.2',
-                                 doc='11',
+                                 documentation_revision='11',
                                  dirty='-dirty')
 
 
