@@ -45,6 +45,20 @@ class APITestsMixin(object):
         self.addCleanup(self.persistence_service.stopService)
 
     def assertResponseCode(self, method, path, request_body, expected_code):
+        """
+        Issue an HTTP request and make an assertion about the response code.
+
+        :param bytes method: The HTTP method to use in the request.
+        :param bytes path: The resource path to use in the request.
+        :param dict request_body: A JSON-encodable object to encode (as JSON)
+            into the request body.  Or ``None`` for no request body.
+        :param int expected_code: The status code expected in the response.
+
+        :return: A ``Deferred`` that will fire when the response has been
+            received.  It will fire with a failure if the status code is
+            not what was expected.  Otherwise it will fire with an
+            ``IResponse`` provider representing the response.
+        """
         if request_body is None:
             headers = None
             body_producer = None
@@ -53,7 +67,8 @@ class APITestsMixin(object):
             body_producer = FileBodyProducer(BytesIO(dumps(request_body)))
 
         requesting = self.agent.request(
-            method, path, headers, body_producer)
+            method, path, headers, body_producer
+        )
 
         def check_code(response):
             self.assertEqual(expected_code, response.code)
