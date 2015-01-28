@@ -20,8 +20,8 @@ Configuration
 It is configured to allow static website hosting, with an index document of ``index.html`` and an error document of ``404.html``.
 To allow deep-linking to the latest documentation, the following redirect configuration is
 specified (replace the versions with the latest marketing and development releases).
-The latest marketting and development releases are redirected with temporary redirects to the most recent version;
-obsolete releases that are no longer hosted are permantly redirected to the latest version.
+The latest marketing and development releases are redirected with temporary redirects to the most recent version;
+obsolete releases that are no longer hosted are permanently redirected to the latest version.
 
 .. code:: xml
 
