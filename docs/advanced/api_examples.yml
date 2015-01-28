@@ -12,7 +12,7 @@
 # NODE_N - The hostname specifically identifying one of the nodes of the
 #     cluster.  Use any integer suffix for N starting with 0.  For example,
 #     NODE_3 is replaced with the hostname for a hypothetical fourth cluster
-#     node.
+#     node.  (Only NODE_0 is implemented.  See FLOC-1288.)
 
 -
   # Every element must have a unique identifier.  Documentation can use these
