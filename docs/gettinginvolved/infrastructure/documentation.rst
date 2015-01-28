@@ -18,8 +18,10 @@ It has documentation for all marketing releases.
 Configuration
 `````````````
 It is configured to allow static website hosting, with an index document of ``index.html`` and an error document of ``404.html``.
-To allow deep-linking to the latest documentation, the following redirect configuration is
-specified (replace the versions with the latest marketing and development releases).
+
+To allow deep-linking to the latest documentation, a redirect configuration is specified.
+The following configuration is a sample configuration, with versions current as of 2015-01-28.
+Replace the versions for the latest marketing and development releases, and add sections for obsolete version.
 The latest marketing and development releases are redirected with temporary redirects to the most recent version;
 obsolete releases that are no longer hosted are permanently redirected to the latest version.
 
