@@ -98,7 +98,13 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
 .. foo::
 
+   alice@mercury:~$ brew tap ClusterHQ/tap
+   ...
+   alice@mercury:~$ brew install flocker-|release|
+   ...
    alice@mercury:~$ brew test flocker-|release|
+   ...
+   alice@mercury:~$
 
 You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 

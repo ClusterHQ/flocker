@@ -58,8 +58,9 @@ class FooDirective(Directive):
     def run(self):
         self.assert_has_content()
 
-        replacement = 'HERE IS RELEASE'
-        self.content = [replacement if u'|release|' in item else item for item in self.content]
+        replacement = '0.3.5'
+        release_to_replace = u'|release|'
+        self.content = [item.replace(release_to_replace, replacement) for item in self.content]
 
         if self.arguments:
             language = self.arguments[0]
