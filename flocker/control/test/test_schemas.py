@@ -59,9 +59,12 @@ DatasetsSchemaTests = build_schema_test(
          u"metadata":
              dict.fromkeys((unicode(i) for i in range(257)), u"value")},
 
-        #
-        # test maximum_size cases
-        #
+        # wrong type for maximum size
+        {u"primary": u"10.0.0.1", u"maximum_size": u"123"},
+
+        # too-small value for maximum size
+        {u"primary": u"10.0.0.1", u"maximum_size": 123},
+
         # missing primary
         {u"metadata": {},
          u"maximum_size": 1024 * 1024 * 1024,
