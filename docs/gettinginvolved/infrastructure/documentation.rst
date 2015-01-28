@@ -20,10 +20,13 @@ Configuration
 It is configured to allow static website hosting, with an index document of ``index.html`` and an error document of ``404.html``.
 To allow deep-linking to the latest documentation, the following redirect configuration is
 specified (replace the versions with the latest marketing and development releases).
+The latest marketting and development releases are redirected with temporary redirects to the most recent version;
+obsolete releases that are no longer hosted are permantly redirected to the latest version.
 
 .. code:: xml
 
    <RoutingRules>
+     <!-- Marketing Release Documentation -->
      <RoutingRule>
        <Condition>
          <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
@@ -33,6 +36,7 @@ specified (replace the versions with the latest marketing and development releas
          <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
+     <!-- Development Release Documentation -->
      <RoutingRule>
        <Condition>
          <KeyPrefixEquals>en/devel/</KeyPrefixEquals>
@@ -42,9 +46,44 @@ specified (replace the versions with the latest marketing and development releas
          <HttpRedirectCode>302</HttpRedirectCode>
        </Redirect>
      </RoutingRule>
+     <!-- Obsolete Release Documentation -->
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.3.1/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.3.0/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.2.1/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
+     <RoutingRule>
+       <Condition>
+         <KeyPrefixEquals>en/0.1.2/</KeyPrefixEquals>
+       </Condition>
+       <Redirect>
+         <ReplaceKeyPrefixWith>en/latest/</ReplaceKeyPrefixWith>
+         <HttpRedirectCode>301</HttpRedirectCode>
+       </Redirect>
+     </RoutingRule>
    </RoutingRules>
-
-.. TODO deep-links for old versions (SEO)
 
 To allow CloudFront to access the bucket, it has the following bucket policy configured:
 
