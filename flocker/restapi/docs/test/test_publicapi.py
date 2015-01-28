@@ -507,7 +507,7 @@ class VariableInterpolationTests(SynchronousTestCase):
              u'      Content-Type: application/json',
              u'      ',
              # Here is the important line.
-             u'      node000.example.com',
+             u'      192.0.2.1',
              u'   ',
              u'   **Example response**',
              u'   ',
