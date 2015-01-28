@@ -44,6 +44,9 @@ Access
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_
 
 
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+
+
 Preparing For a Release
 -----------------------
 
