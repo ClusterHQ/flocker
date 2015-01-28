@@ -77,7 +77,7 @@ class APITestsMixin(object):
         return requesting
 
     def assertResult(self, method, path, request_body,
-                           expected_code, expected_result):
+                     expected_code, expected_result):
         """
         Assert a particular JSON response for the given API request.
 
