@@ -1,7 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Test for :module:`flocker.docs.version`.
+Tests for :module:`flocker.docs.version`.
 """
 
 
@@ -15,7 +15,7 @@ from .._version import (
 
 class ParseVersionTests(SynchronousTestCase):
     """
-    Test for :function:`parse_version`.
+    Tests for :function:`parse_version`.
     """
     def assertParsedVersion(self, version, **expected_parts):
         """
@@ -75,7 +75,7 @@ class ParseVersionTests(SynchronousTestCase):
 
 class GetDocVersionTests(SynchronousTestCase):
     """
-    Test for :function:`get_doc_version`.
+    Tests for :function:`get_doc_version`.
     """
 
     def test_release(self):
@@ -118,7 +118,7 @@ class GetDocVersionTests(SynchronousTestCase):
 
 class IsReleaseTests(SynchronousTestCase):
     """
-    Test for :function:`is_release`.
+    Tests for :function:`is_release`.
     """
 
     def test_release(self):
