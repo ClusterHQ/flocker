@@ -15,7 +15,7 @@ from twisted.internet.defer import gatherResults
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import MemoryReactor
-from twisted.web.http import OK, CONFLICT, BAD_REQUEST
+from twisted.web.http import CREATED, OK, CONFLICT, BAD_REQUEST
 from twisted.web.http_headers import Headers
 from twisted.web.server import Site
 from twisted.web.client import FileBodyProducer, readBody
@@ -61,40 +61,30 @@ class APITestsMixin(object):
         requesting.addCallback(check_code)
         return requesting
 
-    def assertGoodResult(self, method, path, request_body,
-                         expected_good_result):
+    def assertResult(self, method, path, request_body,
+                           expected_code, expected_result):
         """
         Assert a particular JSON response for the given API request.
 
         :param bytes method: HTTP method to request.
         :param bytes path: HTTP path.
-        :param unicode expected_good_result: Successful good result we expect.
+        :param unicode expected_code: The code expected in the response.
+            response.
+        :param unicode expected_result: The body expected in the response.
+            response.
 
         :return Deferred: Fires when test is done.
         """
-        requesting = self.assertResponseCode(method, path, request_body, OK)
-        requesting.addCallback(readBody)
-        requesting.addCallback(lambda body: self.assertEqual(
-            goodResult(expected_good_result), loads(body)))
-        return requesting
+        if expected_code // 100 in (4, 5):
+            result_wrapper = badResult
+        else:
+            result_wrapper = goodResult
 
-    def assertBadResult(self, method, path, request_body,
-                        expected_code, expected_bad_result):
-        """
-        Assert a particular JSON response for the given API request.
-
-        :param bytes method: HTTP method to request.
-        :param bytes path: HTTP path.
-        :param unicode expected_bad_result: The result expected in the error
-            respones.
-
-        :return Deferred: Fires when test is done.
-        """
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
-            badResult(expected_bad_result), loads(body)))
+            result_wrapper(expected_result), loads(body)))
         return requesting
 
 
@@ -106,8 +96,8 @@ class VersionTestsMixin(APITestsMixin):
         """
         The ``/version`` command returns JSON-encoded ``__version__``.
         """
-        return self.assertGoodResult(
-            b"GET", b"/version", None, {u'flocker': __version__}
+        return self.assertResult(
+            b"GET", b"/version", None, OK, {u'flocker': __version__}
         )
 
 
@@ -133,7 +123,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         doesn't match the ``definitions/datasets`` schema, the response is an
         error indication a validation failure.
         """
-        return self.assertBadResult(
+        return self.assertResult(
             b"POST", b"/datasets",
             {u"primary": self.NODE_A, u"junk": u"garbage"},
             BAD_REQUEST, {
@@ -175,7 +165,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         ))
 
         def saved(ignored):
-            return self.assertBadResult(
+            return self.assertResult(
                 b"POST", b"/datasets",
                 {u"primary": primary, u"dataset_id": modifier(dataset_id)},
                 CONFLICT,
@@ -230,7 +220,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         node as the location of the primary manifestation, the configuration is
         unchanged and an error response is returned to the client.
         """
-        return self.assertBadResult(
+        return self.assertResult(
             b"POST", b"/datasets", {u"primary": self.NODE_A},
             BAD_REQUEST, {
                 u"description":
@@ -255,7 +245,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = self.assertResponseCode(
             b"POST", b"/datasets", {u"primary": self.NODE_A},
-            OK)
+            CREATED)
         creating.addCallback(readBody)
         creating.addCallback(loads)
 
@@ -283,7 +273,7 @@ class CreateDatasetTestsMixin(APITestsMixin):
 
         def saved(ignored):
             return self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_B}, OK
+                b"POST", b"/datasets", {u"primary": self.NODE_B}, CREATED
             )
         saving.addCallback(saved)
 
@@ -310,10 +300,10 @@ class CreateDatasetTestsMixin(APITestsMixin):
         """
         creating = gatherResults([
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, OK
+                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
             ).addCallback(readBody).addCallback(loads),
             self.assertResponseCode(
-                b"POST", b"/datasets", {u"primary": self.NODE_A}, OK
+                b"POST", b"/datasets", {u"primary": self.NODE_A}, CREATED
             ).addCallback(readBody).addCallback(loads),
         ])
 
@@ -336,8 +326,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
             u"dataset_id": dataset_id,
             u"metadata": metadata,
         }
-        creating = self.assertGoodResult(
-            b"POST", b"/datasets", dataset, dataset
+        creating = self.assertResult(
+            b"POST", b"/datasets", dataset, CREATED, dataset
         )
 
         def created(ignored):
@@ -376,8 +366,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         }
         response = dataset.copy()
         response[u"metadata"] = {}
-        creating = self.assertGoodResult(
-            b"POST", b"/datasets", dataset, response
+        creating = self.assertResult(
+            b"POST", b"/datasets", dataset, CREATED, response
         )
 
         def created(ignored):

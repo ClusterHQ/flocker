@@ -9,14 +9,16 @@ from uuid import uuid4
 from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
-from twisted.web.http import CONFLICT
+from twisted.web.http import CONFLICT, CREATED
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.application.internet import StreamServerEndpointService
 
 from klein import Klein
 
-from ..restapi import structured, user_documentation, make_bad_request
+from ..restapi import (
+    EndpointResponse, structured, user_documentation, make_bad_request
+)
 from . import Dataset, Manifestation, Node, Deployment
 from .. import __version__
 
@@ -175,7 +177,7 @@ class DatasetAPIUserV1(object):
             }
             if maximum_size is not None:
                 result[u"maximum_size"] = maximum_size
-            return result
+            return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
 
