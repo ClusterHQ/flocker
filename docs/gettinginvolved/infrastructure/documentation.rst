@@ -135,7 +135,7 @@ with ``docs.staging.clusterhq.com`` replacing ``docs.clusterhq.com`` and ``clust
 ``clusterhq-dev-docs``
 ~~~~~~~~~~~~~~~~~~~~~~
 
-This bucket has documentation uploaded to it from buildbot as an intermediate stage to being copied to the above buckets.
+This bucket has documentation uploaded to it from Buildbot as an intermediate stage to being copied to the above buckets.
 Buildbot will upload documentation from all builds of release branches or tags here.
 The build will be uploaded to a folded named after the python version
 (i.e. the output of ``python setup.py --version``).
