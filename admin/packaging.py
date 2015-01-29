@@ -190,12 +190,16 @@ class Dependency(object):
 # The minimum required versions of Docker and ZFS. The package names vary
 # between operating systems and are supplied later.
 DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
-# A temporary measure while we wait for
-# https://bugzilla.redhat.com/show_bug.cgi?id=1185423 to be resolved and
-# backported to Fedora20.
+# This ensures that servers with the broken docker-io-1.4.1 package get
+# upgraded when Flocker is installed.
+# See https://bugzilla.redhat.com/show_bug.cgi?id=1185423
+# The working 1.4.1-8 package is temporarily being hosted in the ClusterHQ
+# repo, but will soon be backported to Fedora20.
+# See https://admin.fedoraproject.org/updates/docker-io-1.4.1-8.fc20
+# In future this specific minimum version dependency can be removed.
 # See https://clusterhq.atlassian.net/browse/FLOC-1293
 FedoraDockerDependency = partial(
-    Dependency, package='docker-io', compare='==', version='1.4.1-8.fc20')
+    Dependency, package='docker-io', compare='>=', version='1.4.1-8.fc20')
 
 ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
