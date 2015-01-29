@@ -94,12 +94,10 @@ class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
     """
-    def __init__(self, cluster_state):
+    def __init__(self, control_amp_service):
         """
-        :param ClusterStateService cluster_state: Object that records known
-            cluster state.
+        :param ControlAMPService control_amp_service: ...
         """
-        self.cluster_state = cluster_state
 
     @VersionCommand.responder
     def version(self):
@@ -107,8 +105,55 @@ class ControlServiceLocator(CommandLocator):
 
     @NodeStateCommand.responder
     def node_changed(self, hostname, node_state):
-        self.cluster_state.update_node_state(hostname, node_state)
+        self.control_amp_service.node_changed(hostname, node_state)
         return {}
+
+
+class ControlServiceAMP(AMP):
+    # Use ControlServiceLocator as locator
+    # connectionMade - add self to ControlAMPService with connected()
+    # connectionLost - remove self from ControlAMPService disconnected()
+
+
+class ControlAMPService(Service):
+    """
+    Control Service AMP server.
+    """
+    def __init__(self, cluster_state, configuration_persistence_service):
+        """
+        :param ClusterStateService cluster_state: Object that records known
+            cluster state.
+        """
+        self.connections = set()
+
+    def startService(self):
+        # ... start listening on AMP using ControlServiceAMP
+        pass
+
+    def stopService(self):
+        # ... stop listening
+        pass
+
+    def _send_state_to_connections(self, connections):
+        configuration = self.configuration_persistence_service.get()
+        state = self.cluster_state.as_deployment()
+        for connection in connections:
+            connection.callRemote(ClusterStatusCommand(),
+                                  configuration=configuration,
+                                  state=state)
+
+    def connected(self, connection):
+        #self.connectioins.add(connection)
+        #self._send_state_to_connections([connection])
+
+    def disconnected(self, connection):
+        #self.connections.remove(connection)
+        pass
+
+    def node_changed(self, hostname, node_state):
+        #self.cluster_state.update_node_state(hostname, node_state)
+        #self._send_state_to_connections(self.connections)
+        pass
 
 
 class IConvergenceAgent(Interface):

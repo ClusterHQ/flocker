@@ -24,7 +24,8 @@ class ControlOptions(Options):
     optParameters = [
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
-        ["port", "p", 4523, "The port to listen on.", int],
+        ["port", "p", 4523, "The external API port to listen on.", int],
+        # FLOC-1281 Add option for internal AMP port.
         ]
 
 
@@ -34,6 +35,7 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
+        # FLOC-1281 also add ControlAMPService
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])
