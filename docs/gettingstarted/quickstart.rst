@@ -166,7 +166,7 @@ Getting started with Flocker
          Vagrant
          ^^^^^^^
 
-         Simulate a Flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):
+         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
          .. code-block:: console
 
@@ -185,7 +185,7 @@ Getting started with Flocker
          Vagrant
          ^^^^^^^
 
-         Simulate a Flocker cluster with virtual machines on your laptop (requires Vagrant, VirtualBox):
+         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
 
          .. code-block:: console
 
