@@ -73,7 +73,7 @@ Documentation releases will be made when documentation for a major or minor mark
 
 Documentation releases will be planned and scheduled by ClusterHQ's product team, in consultation with the marketing and engineering teams.
 
-The version of a documentation will have the version of the corresponding marketing release, with a ``+doc.X`` release, where ``X`` starts at ``1`` and is incremented for each pre-release.
+The version of a documentation will have the version of the corresponding marketing release, with a ``+doc.X`` release, where ``X`` starts at ``1`` and is incremented for each documentation release.
 
 
 Weekly Development Release

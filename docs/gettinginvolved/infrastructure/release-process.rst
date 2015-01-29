@@ -20,6 +20,11 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
+For a documentation release, we will have:
+
+- a tag in version control,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+
 
 Prerequisites
 -------------
@@ -46,6 +51,9 @@ Access
       $ gsutil config
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
+
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+
 
 Preparing For a Release
 -----------------------
