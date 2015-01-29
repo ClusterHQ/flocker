@@ -28,6 +28,7 @@ from ...restapi.testtools import (
 from .. import Dataset, Manifestation, Node, Deployment
 from ..httpapi import DatasetAPIUserV1, create_api_service
 from .._persistence import ConfigurationPersistenceService
+from .._clusterstate import ClusterStateService
 from ... import __version__
 
 
@@ -42,6 +43,9 @@ class APITestsMixin(object):
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
+        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service.startService()
+        self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
 
     def assertResponseCode(self, method, path, request_body, expected_code):
@@ -118,10 +122,10 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service).app
-
-RealTestsVersion, MemoryTestsVersion = buildIntegrationTests(
-    VersionTestsMixin, "Version", _build_app)
+    return DatasetAPIUserV1(test.persistence_service,
+                            test.cluster_state_service).app
+RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
+    VersionTestsMixin, "API", _build_app)
 
 
 class CreateDatasetTestsMixin(APITestsMixin):
@@ -436,7 +440,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        verifyObject(IService, create_api_service(None, endpoint))
+        verifyObject(IService, create_api_service(None, None, endpoint))
 
     def test_listens_endpoint(self):
         """
@@ -445,7 +449,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, endpoint)
+        service = create_api_service(None, None, endpoint)
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]

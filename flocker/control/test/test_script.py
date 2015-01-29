@@ -6,6 +6,7 @@ from twisted.python.filepath import FilePath
 
 from ..script import ControlOptions, ControlScript
 from ...testtools import MemoryCoreReactor, StandardOptionsTestsMixin
+from .._clusterstate import ClusterStateService
 
 
 class ControlOptionsTests(StandardOptionsTestsMixin,
@@ -86,3 +87,17 @@ class ControlScriptEffectsTests(SynchronousTestCase):
         reactor = MemoryCoreReactor()
         ControlScript().main(reactor, options)
         self.assertTrue(path.isdir())
+
+    def test_starts_cluster_state_service(self):
+        """
+        ``ControlScript.main`` starts a cluster state service.
+        """
+        options = ControlOptions()
+        options.parseOptions(
+            [b"--port", b"8001", b"--data-path", self.mktemp()])
+        reactor = MemoryCoreReactor()
+        ControlScript().main(reactor, options)
+        server = reactor.tcpServers[0]
+        service = server[1].resource._v1_user.cluster_state_service
+        self.assertEqual((service.__class__, service.running),
+                         (ClusterStateService, True))
