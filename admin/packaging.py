@@ -189,7 +189,14 @@ class Dependency(object):
 
 # The minimum required versions of Docker and ZFS. The package names vary
 # between operating systems and are supplied later.
-DockerDependency = partial(Dependency, compare='==', version='1.4.1-8.fc20')
+DockerDependency = partial(Dependency, compare='>=', version='1.3.0')
+# A temporary measure while we wait for
+# https://bugzilla.redhat.com/show_bug.cgi?id=1185423 to be resolved and
+# backported to Fedora20.
+# See https://clusterhq.atlassian.net/browse/FLOC-1293
+FedoraDockerDependency = partial(
+    Dependency, package='docker-io', compare='==', version='1.4.1-8.fc20')
+
 ZFSDependency = partial(Dependency, compare='>=', version='0.6.3')
 
 # We generate three packages.  ``clusterhq-python-flocker`` contains the entire
@@ -212,7 +219,7 @@ DEPENDENCIES = {
     },
     'node': {
         'fedora': (
-            DockerDependency(package='docker-io'),
+            FedoraDockerDependency(),
             Dependency(package='/usr/sbin/iptables'),
             ZFSDependency(package='zfs'),
             Dependency(package='openssh-clients'),
