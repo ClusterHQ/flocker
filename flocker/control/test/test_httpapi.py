@@ -71,6 +71,9 @@ RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
     APITestsMixin, "API", _build_app)
 
 
+# Add a DatasetsAPIMixin here and build real and in-memory test cases
+# Merge in master to get latest testing helpers.
+
 class CreateAPIServiceTests(SynchronousTestCase):
     """
     Tests for ``create_api_service``.
