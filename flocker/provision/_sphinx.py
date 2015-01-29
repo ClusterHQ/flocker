@@ -45,16 +45,48 @@ HANDLERS = {
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.roles import set_classes
 from docutils.utils.code_analyzer import Lexer, LexerError, NumberLines
-from docutils.parsers.rst.directives.body import CodeBlock
-class FooDirective(CodeBlock):
+# from sphinx.directives.code import CodeBlock
+from sphinx import addnodes
+from sphinx.util import parselinenos
+from sphinx.util.nodes import set_source_info
+class FooDirective(Directive):
     """
     Like code-block but replaces |release|.
     """
+    has_content = True
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = False
+    option_spec = {
+        'linenos': directives.flag,
+        'emphasize-lines': directives.unchanged_required,
+    }
+
     def run(self):
-        release_to_replace = u'|release|'
+        code = u'\n'.join(self.content)
         # Use the WIP function to get the latest release version
-        self.content = [item.replace(release_to_replace, version) for item in self.content]
-        return CodeBlock.run(self)
+        release_to_replace = u'|release|'
+        code = code.replace(release_to_replace, version)
+
+        linespec = self.options.get('emphasize-lines')
+        if linespec:
+            try:
+                nlines = len(self.content)
+                hl_lines = [x+1 for x in parselinenos(linespec, nlines)]
+            except ValueError, err:
+                document = self.state.document
+                return [document.reporter.warning(str(err), line=self.lineno)]
+        else:
+            hl_lines = None
+
+        literal = nodes.literal_block(code, code)
+        literal['language'] = self.arguments[0]
+        literal['linenos'] = 'linenos' in self.options
+        if hl_lines is not None:
+            literal['highlight_args'] = {'hl_lines': hl_lines}
+        set_source_info(self, literal)
+        return [literal]
+
 
 class TaskDirective(Directive):
     """

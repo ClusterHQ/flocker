@@ -96,7 +96,7 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
    ...
    alice@mercury:~$
 
-.. foo::
+.. foo:: console
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
