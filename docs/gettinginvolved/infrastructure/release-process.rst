@@ -17,6 +17,10 @@ By the end of the release process we will have:
 - a Python wheel in the `ClusterHQ package index <http://archive.clusterhq.com>`_,
 - Fedora 20 RPMs for software on the node and client,
 - a Vagrant base tutorial image and
+
+For a documentation release, we will have:
+
+- a tag in version control,
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
 
 
@@ -38,6 +42,9 @@ Access
   with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
 - Access to `Google Cloud Storage`_ using `gsutil`_.
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/organization/clusterhq/teams>`_
+
+
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
 
 
 Preparing For a Release
@@ -66,6 +73,8 @@ Preparing For a Release
       git push origin --set-upstream release/flocker-${VERSION}
 
 #. Check that all required versions of the dependency packages are built:
+
+   .. note:: Skip this step for a documentation release.
 
    #. Inspect the package versions listed in the ``install_requires`` section of ``setup.py``.
    #. Compare it to the package versions listed in the "Requires" lines in ``python-flocker.spec.in``.
@@ -102,6 +111,8 @@ Preparing For a Release
    See :ref:`back-porting-changes`\ .
 
 #. Update the version numbers in:
+
+   .. note:: Skip this step for a documentation release.
 
    - the ``pip install`` line in
      `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
@@ -308,6 +319,8 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       python setup.py sdist bdist_wheel
@@ -325,17 +338,23 @@ Release
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
 #. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
 
+   .. note:: Skip this step for a documentation release.
+
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
                 This means that ``gsutil`` must be installed and configured on your workstation.
 
 #. Update the Homebrew recipe
+
+   .. note:: Skip this step for a documentation release.
 
    The aim of this step is to provide a version specific ``Homebrew`` recipe for each release.
 
