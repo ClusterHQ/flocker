@@ -43,6 +43,9 @@ The following is the procedure for fixing them.
 
    https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234?expand=1
 
+   Note in the pull request, that the branch shouldn't be deleted until every affect release and master have received the fix.
+   Otherwise, commits are liable to be lost between branches.
+
 #. Wait for the pull-request to be accepted.
 
 #. For each other affected release, create a branch against that release, merge-forward, then create a pull-request.
@@ -62,3 +65,5 @@ The following is the procedure for fixing them.
       # The following command is only necesary if there are merge conflicts to resolve
       git merge origin/master
       git push origin --set-upstream fix-a-bug-FLOC-1236
+
+#. Delete all the merged branches.
