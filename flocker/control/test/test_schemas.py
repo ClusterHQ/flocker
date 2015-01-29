@@ -27,3 +27,7 @@ VersionsTests = build_schema_test(
         {'flocker': '0.3.0-10-dirty'},
     ],
 )
+
+
+# Add Dataset schema validation tests here.
+# Perhaps we can also re-use the code in master.
