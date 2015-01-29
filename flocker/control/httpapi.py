@@ -57,6 +57,20 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
+    # # Will we also have a /state endpoint? Or just route directly to the datasets path?
+    # @app.route("/state/datasets", methods=['GET'])
+    # @user_documentation("""
+    #     Get current cluster datasets
+    #     """, examples=[u"get state datasets"])
+    # @structured(
+    #     inputSchema={},
+    #     outputSchema={'$ref': '/v1/endpoints.json#/definitions/state/datasets'},
+    #     schema_store=SCHEMAS
+    # )
+    # def datasets(self):
+    #     """
+    #     Return all datasets in the cluster.
+    #     """
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):
     """
