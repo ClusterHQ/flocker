@@ -254,5 +254,3 @@ class EnvironmentVariableTests(TestCase):
 
         verifying_data_moves = getting_mysql_2.addCallback(verify_data_moves)
         return verifying_data_moves
-
-    test_moving_data.timeout = 10*60
