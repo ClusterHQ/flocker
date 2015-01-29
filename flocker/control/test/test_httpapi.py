@@ -97,3 +97,9 @@ class CreateAPIServiceTests(SynchronousTestCase):
         port = server[0]
         factory = server[1].__class__
         self.assertEqual((port, factory), (6789, Site))
+
+
+# class DatasetsFromDeploymentTests(SynchronousTestCase):
+#     """
+#     Tests for ``datasets_from_deployment``
+#     """
