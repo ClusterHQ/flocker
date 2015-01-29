@@ -85,8 +85,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     background-color: #343a3d;
     padding:12px 16px;
     font-size: 16px;
-    min-height:300px;
-    max-height:300px;
+    min-height:520px;
 }
 
 .tab-pane {
@@ -108,7 +107,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
   margin-bottom: -1px;
   font-size:24px;
   font-weight:bold;
-  min-width:50%;
+  min-width:30%;
   text-align:center;
 }
 .nav-tabs > li > a {

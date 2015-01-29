@@ -89,16 +89,40 @@ Getting started with Flocker
             
       .. noscript-content::
 
-         Linux
-         ^^^^^
+         Ubuntu / Debian
+         ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the dependencies:
+         
+         .. code-block:: console
+         
+            $ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+
+         Next, install the flocker-cli client on your Linux machine:
 
          .. code-block:: console
 
             $ virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+
+         Fedora 20
+         ^^^^^^^^^
+
+         Install the dependencies:
+         
+         .. code-block:: console
+         
+            $ sudo yum install @buildsys-build python python-devel python-virtualenv
+         
+         Next, install the flocker-cli client on your Linux machine:
+
+         .. code-block:: console
+
+            $ virtualenv flocker-tutorial && \
+              flocker-tutorial/bin/pip install --upgrade pip && \
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+
 
       .. tabs::
 
@@ -113,10 +137,33 @@ Getting started with Flocker
               brew tap clusterhq/flocker && \
               brew install flocker-0.3.2
 
-         Linux
-         ^^^^^
+         Ubuntu / Debian
+         ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+         Install the dependencies:
+         
+         .. code-block:: console
+         
+            $ sudo apt-get install gcc python2.7 python-virtualenv python2.7-dev
+
+         Next, install the flocker-cli client on your Linux machine:
+
+         .. code-block:: console
+
+            $ virtualenv flocker-tutorial && \
+              flocker-tutorial/bin/pip install --upgrade pip && \
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+
+         Fedora 20
+         ^^^^^^^^^
+
+         Install the dependencies:
+         
+         .. code-block:: console
+         
+            $ sudo yum install @buildsys-build python python-devel python-virtualenv
+         
+         Next, install the flocker-cli client on your Linux machine:
 
          .. code-block:: console
 
