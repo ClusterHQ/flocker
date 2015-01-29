@@ -21,6 +21,7 @@ from docutils.statemachine import StringList
 from . import _tasks as tasks
 from ._install import Run, Sudo, Comment
 
+from flocker import __version__ as version
 
 def run(command):
     return [command.command]
@@ -50,9 +51,9 @@ class FooDirective(CodeBlock):
     Like code-block but replaces |release|.
     """
     def run(self):
-        replacement = '0.3.5'
         release_to_replace = u'|release|'
-        self.content = [item.replace(release_to_replace, replacement) for item in self.content]
+        # Use the WIP function to get the latest release version
+        self.content = [item.replace(release_to_replace, version) for item in self.content]
         return CodeBlock.run(self)
 
 class TaskDirective(Directive):
