@@ -96,13 +96,13 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
    ...
    alice@mercury:~$
 
-.. foo:: console
+.. version-code-block:: console
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-|release|
+   alice@mercury:~$ brew install flocker-|RELEASE|
    ...
-   alice@mercury:~$ brew test flocker-|release|
+   alice@mercury:~$ brew test flocker-|RELEASE|
    ...
    alice@mercury:~$
 
