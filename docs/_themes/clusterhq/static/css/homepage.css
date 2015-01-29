@@ -48,6 +48,12 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 
 .navbar-brand>img {
     width: 200px;
+    margin-top: 10px;
+}
+
+.tryflocker {
+    left: -34px;
+    top: 4px;
 }
 
 .jumbo-flocker p {
@@ -260,7 +266,7 @@ hr.docutils {
 }
 
 .navbar-header {
-    height: 90px;
+    height: 97px;
 }
 
 .navbar-inverse, #getting-started-with-flocker>h1:first-child {
@@ -578,4 +584,11 @@ footer .copyright p {
                 background-repeat: no-repeat;
             }
       
-}  
+}
+
+@media (min-width: 768px) {
+    .navbar-nav>li {
+        float: left;
+        margin-right: 6px;
+    }
+}

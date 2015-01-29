@@ -98,7 +98,7 @@ Getting started with Flocker
 
             $ virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+              flocker-tutorial/bin/pip install --quiet http://archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
 
       .. tabs::
 
@@ -122,7 +122,7 @@ Getting started with Flocker
 
             $ virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
+              flocker-tutorial/bin/pip install --quiet http://archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
 
       .. empty-div:: arrow-down center-block invisible
 

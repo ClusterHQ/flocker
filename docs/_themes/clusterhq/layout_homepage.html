@@ -33,6 +33,8 @@
         <![endif]-->
     <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
       <div class="container">
+        <div class="row">
+        <div class="col-md-3">      
         <div class="navbar-header">
           <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
             <span class="sr-only">Toggle navigation</span>
@@ -41,6 +43,7 @@
             <span class="icon-bar"></span>
           </button>
           <a class="navbar-brand" href="#"><img src="{{ pathto('_static/images/', 1) }}logo@2x.png" alt="ClusterHQ Container Data Management" /></a>
+        </div>
         </div>
 
         <div class="collapse navbar-collapse" id="navbar">
@@ -52,10 +55,11 @@
             <li><a href="https://clusterhq.com/careers/">Careers</a></li>
           </ul>
             <ul class="nav navbar-nav navbar-right">
-                <li class="button menu"><a href="#">Try Flocker</a></li>            
+                <li class="button menu tryflocker"><a href="#">Try Flocker</a></li>            
             </ul>          
         </div>
 
+      </div>
       </div>
     </nav>    
 {%- block content %}
