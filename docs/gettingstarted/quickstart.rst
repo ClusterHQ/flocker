@@ -115,6 +115,17 @@ Getting started with Flocker
 
       .. tabs::
 
+         OS X
+         ^^^^
+
+         Install the flocker-cli client on your Mac (requires Homebrew):
+
+         .. code-block:: console
+
+            you@laptop:~$ brew update && \
+              brew tap clusterhq/flocker && \
+              brew install flocker-0.3.2
+
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
@@ -138,17 +149,6 @@ Getting started with Flocker
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
-
-         OS X
-         ^^^^
-
-         Install the flocker-cli client on your Mac (requires Homebrew):
-
-         .. code-block:: console
-
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
 
       .. empty-div:: arrow-down center-block invisible
 
