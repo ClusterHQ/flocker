@@ -71,6 +71,14 @@ class DatasetAPIUserV1(object):
     #     """
     #     Return all datasets in the cluster.
     #     """
+    #     deployment = self.cluster_state_service.as_deployment()
+    #     # Filter out the datasets and their current nodes.
+    #     return datasets_from_deployment(deployment)
+
+# def datasets_from_deployment(deployment):
+#     """
+#     Return a dictionary of nodes and their datasets.
+#     """
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):
     """
