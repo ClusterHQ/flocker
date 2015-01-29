@@ -66,13 +66,12 @@ Getting started with Flocker
 
    .. parallel::
 
+      Installation
+      ------------
+
       .. mobile-label::
 
          Local
-
-
-      Installation
-      ------------
 
       .. noscript-content::
       
@@ -175,13 +174,12 @@ Getting started with Flocker
 
    .. parallel::
 
+      Installation
+      ------------
+
       .. mobile-label::
 
          Live
-
-
-      Installation
-      ------------
 
       .. noscript-content::
 
