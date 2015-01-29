@@ -843,6 +843,10 @@ def omnibus_package_builder(
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-volume'),
                      flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-control'),
+                     flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
+                     flocker_node_path),
                 ]
             ),
             BuildPackage(
