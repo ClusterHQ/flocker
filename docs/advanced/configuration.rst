@@ -73,16 +73,31 @@ The following parameters are optional when defining an application:
   .. note::
      Only TCP links are supported by Flocker, therefore the ``TCP`` portion of the environment variable names and the ``tcp`` value of the ``_PROTO`` and ``_TCP`` variables are not configurable.
 
+.. _volume configuration:
+
 - ``volume``
 
   This specifies that the application container requires a volume.
   It also allows you to specify where in the container the volume will be mounted via the ``mountpoint`` key.
   The value for this key must be a string giving an absolute path.
+  Optionally, you can also specify the maximum size of the volume via the ``maximum_size`` key.
+  The value for this key must be either a string giving the maximum size in bytes, or a string giving the maximum size including the first letter of the storage unit, for example 1G for 1 Gigabyte.
+  Supported units are K for kilobytes, M for megabytes, G for gigabytes and T for terabytes.
+  The following examples are all valid ways to specify a maximum size:
+
+  .. code-block:: yaml
+
+    "maximum_size": "500M"
+    "maximum_size": "1073741824"
+    "maximum_size": "2.5G"
+
+  Here is a complete example of a ``volume`` entry:
 
   .. code-block:: yaml
 
      "volume":
        "mountpoint": "/var/www/data"
+       "maximum_size": "500M"
 
 - ``environment``
 
@@ -113,6 +128,22 @@ The following parameters are optional when defining an application:
 
      "cpu_shares": 512
 
+.. _restart configuration:
+
+- ``restart_policy``
+
+  This specifies the restart policy for this Application.
+  There must be a ``name`` sub-key whose value may be one of: ``never``, ``always``, or ``on-failure``.
+  The ``on-failure`` restart policy accepts an optional ``maximum_retry_count`` sub-key, which specifies how many times Docker will attempt to restart the application container in the event of repeated failures.
+  See the `Docker Restart Policy reference <https://docs.docker.com/reference/commandline/cli/#restart-policies>`_ for more information on restart policies.
+
+  .. code-block:: yaml
+
+     "restart_policy":
+       "name": "on-failure"
+       "maximum_retry_count": 10
+
+
 Here's an example of a simple but complete configuration defining one application:
 
 .. code-block:: yaml
@@ -130,6 +161,9 @@ Here's an example of a simple but complete configuration defining one applicatio
       "mem_limit": 100000000
       "volume":
         "mountpoint": "/var/mysql/data"
+     "restart_policy":
+       "name": "on-failure"
+       "maximum_retry_count": 10
 
 
 .. _fig-compatible-config:

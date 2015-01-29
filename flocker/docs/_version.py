@@ -65,7 +65,7 @@ class FlockerVersion(object):
     @property
     def release(self):
         """
-        The version string of the last full relase.
+        The version string of the last full release.
         """
         return "%s.%s.%s" % (self.major, self.minor, self.micro)
 

@@ -11,11 +11,16 @@ from twisted.python import usage
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 from twisted.python.log import msg
+from twisted.internet.defer import Deferred
+from twisted.application.service import Service
 
-from ..script import flocker_standard_options, FlockerScriptRunner
+from ..script import (
+    flocker_standard_options, FlockerScriptRunner, main_for_service,
+    )
 from ...testtools import (
     help_problems, FakeSysModule, StandardOptionsTestsMixin,
     skip_on_broken_permissions, attempt_effective_uid,
+    MemoryCoreReactor,
     )
 
 
@@ -262,3 +267,92 @@ class FlockerStandardOptionsTests(StandardOptionsTestsMixin,
     Using a decorating an unmodified ``usage.Options`` subclass.
     """
     options = TestOptions
+
+
+class AsyncStopService(Service):
+    """
+    An ``IService`` implementation which can return an unfired ``Deferred``
+    from its ``stopService`` method.
+
+    :ivar Deferred stop_result: The object to return from ``stopService``.
+        ``AsyncStopService`` won't do anything more than return it.  If it is
+        ever going to fire, some external code is responsible for firing it.
+    """
+    def __init__(self, stop_result):
+        self.stop_result = stop_result
+
+    def stopService(self):
+        Service.stopService(self)
+        return self.stop_result
+
+
+class MainForServiceTests(SynchronousTestCase):
+    """
+    Tests for ``main_for_service``.
+    """
+    def setUp(self):
+        self.reactor = MemoryCoreReactor()
+        self.service = Service()
+
+    def _shutdown_reactor(self, reactor):
+        """
+        Simulate reactor shutdown.
+
+        :param IReactorCore reactor: The reactor to shut down.
+        """
+        reactor.fireSystemEvent("shutdown")
+
+    def test_starts_service(self):
+        """
+        ``main_for_service`` accepts an ``IService`` provider and starts it.
+        """
+        main_for_service(self.reactor, self.service)
+        self.assertTrue(
+            self.service.running, "The service should have been started.")
+
+    def test_returns_unfired_deferred(self):
+        """
+        ``main_for_service`` returns a ``Deferred`` which has not fired.
+        """
+        result = main_for_service(self.reactor, self.service)
+        self.assertNoResult(result)
+
+    def test_fire_on_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` fires with ``None``
+        when the reactor is stopped.
+        """
+        result = main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertIs(None, self.successResultOf(result))
+
+    def test_stops_service(self):
+        """
+        When the reactor is stopped, ``main_for_service`` stops the service it
+        was called with.
+        """
+        main_for_service(self.reactor, self.service)
+        self._shutdown_reactor(self.reactor)
+        self.assertFalse(
+            self.service.running, "The service should have been stopped.")
+
+    def test_wait_for_service_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` does not fire before
+        the ``Deferred`` returned by the service's ``stopService`` method
+        fires.
+        """
+        result = main_for_service(self.reactor, AsyncStopService(Deferred()))
+        self._shutdown_reactor(self.reactor)
+        self.assertNoResult(result)
+
+    def test_fire_after_service_stop(self):
+        """
+        The ``Deferred`` returned by ``main_for_service`` fires once the
+        ``Deferred`` returned by the service's ``stopService`` method fires.
+        """
+        async = Deferred()
+        result = main_for_service(self.reactor, AsyncStopService(async))
+        self._shutdown_reactor(self.reactor)
+        async.callback(None)
+        self.assertIs(None, self.successResultOf(result))

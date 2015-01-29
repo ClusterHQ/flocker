@@ -5,8 +5,13 @@ Infrastructure for publishing a REST HTTP API.
 """
 
 from ._infrastructure import (
-    structured, EndpointResponse, userDocumentation,
+    structured, EndpointResponse, user_documentation,
     )
 
+from ._error import makeBadRequest as make_bad_request
 
-__all__ = ["structured", "EndpointResponse", "userDocumentation"]
+
+__all__ = [
+    "structured", "EndpointResponse", "user_documentation",
+    "make_bad_request",
+]

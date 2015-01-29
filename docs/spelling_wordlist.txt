@@ -29,6 +29,7 @@ installable
 internet
 Kubernetes
 libswarm
+lifecycle
 Mesos
 metadata
 multi
@@ -47,6 +48,7 @@ snapshotting
 stateful
 sysadmin
 timestamp
+versioning
 virtualization
 VMware
 webhook

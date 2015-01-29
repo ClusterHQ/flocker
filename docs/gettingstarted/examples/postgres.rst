@@ -4,6 +4,9 @@
 Running PostgreSQL
 ==================
 
+.. This section is tested in flocker.acceptance.test_postgres.PostgresTests.
+   Reflect any relevant changes here in those tests.
+
 Create the Virtual Machines
 ===========================
 

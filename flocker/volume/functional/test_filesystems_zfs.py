@@ -1,6 +1,7 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
-"""Functional tests for ZFS filesystem implementation.
+"""
+Functional tests for ZFS filesystem implementation.
 
 These tests require the ability to create a new ZFS storage pool (using
 ``zpool``) and the ability to interact with that pool (using ``zfs``).
@@ -21,11 +22,13 @@ from ..test.filesystemtests import (
     make_ifilesystemsnapshots_tests, make_istoragepool_tests, create_and_copy,
     copy, assertVolumesEqual,
 )
+from ..filesystems.errors import MaximumSizeTooSmall
 from ..filesystems.zfs import (
     Snapshot, ZFSSnapshots, Filesystem, StoragePool, volume_to_dataset,
     zfs_command,
 )
 from ..service import Volume, VolumeName
+from .._model import VolumeSize
 from ..testtools import create_zfs_pool, service_for_pool
 
 
@@ -53,23 +56,25 @@ class IStoragePoolTests(make_istoragepool_tests(build_pool)):
     """
 
 
-MY_VOLUME = VolumeName(namespace=u"myns", id=u"myvolume")
-MY_VOLUME2 = VolumeName(namespace=u"myns", id=u"myvolume2")
+MY_VOLUME = VolumeName(namespace=u"myns", dataset_id=u"myvolume")
+MY_VOLUME2 = VolumeName(namespace=u"myns", dataset_id=u"myvolume2")
 
 
 class VolumeToDatasetTests(TestCase):
     """Tests for ``volume_to_dataset``."""
     def test_volume_to_dataset(self):
-        """``volume_to_dataset`` includes the UUID, dataset
+        """``volume_to_dataset`` includes the node ID, dataset
         name and (for future functionality) a default branch name.
         """
-        volume = Volume(uuid=u"my-uuid", name=MY_VOLUME, service=None)
+        volume = Volume(node_id=u"my-uuid", name=MY_VOLUME, service=None)
         self.assertEqual(volume_to_dataset(volume),
                          b"my-uuid.myns.myvolume")
 
 
 class StoragePoolTests(TestCase):
-    """ZFS-specific ``StoragePool`` tests."""
+    """
+    ZFS-specific ``StoragePool`` tests.
+    """
 
     def test_mount_root(self):
         """Mountpoints are children of the mount root."""
@@ -88,7 +93,9 @@ class StoragePoolTests(TestCase):
         return d
 
     def test_filesystem_identity(self):
-        """Filesystems are created with the correct pool and dataset names."""
+        """
+        Filesystems are created with the correct pool and dataset names.
+        """
         mount_root = FilePath(self.mktemp())
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
@@ -105,7 +112,9 @@ class StoragePoolTests(TestCase):
         return d
 
     def test_actual_mountpoint(self):
-        """The mountpoint of the filesystem is the actual ZFS mountpoint."""
+        """
+        The mountpoint of the filesystem is the actual ZFS mountpoint.
+        """
         mount_root = FilePath(self.mktemp())
         pool_name = create_zfs_pool(self)
         pool = StoragePool(reactor, pool_name, mount_root)
@@ -123,6 +132,62 @@ class StoragePoolTests(TestCase):
         d.addCallback(gotFilesystem)
         return d
 
+    def test_no_maximum_size(self):
+        """
+        The filesystem is created with no ``refquota`` property if the maximum
+        size is unspecified.
+        """
+        mount_root = FilePath(self.mktemp())
+        pool_name = create_zfs_pool(self)
+        pool = StoragePool(reactor, pool_name, mount_root)
+        service = service_for_pool(self, pool)
+        volume = service.get(MY_VOLUME)
+
+        d = pool.create(volume)
+
+        def created_filesystem(filesystem):
+            refquota = subprocess.check_output([
+                b"zfs", b"get", b"-H", b"-o", b"value", b"refquota",
+                filesystem.name]).strip()
+            self.assertEqual(b"none", refquota)
+        d.addCallback(created_filesystem)
+        return d
+
+    def test_maximum_size_sets_refquota(self):
+        """
+        The filesystem is created with a ``refquota`` property set to the value
+        of the volume's maximum size if that value is not ``None``.
+        """
+        size = VolumeSize(maximum_size=1024 * 64)
+        mount_root = FilePath(self.mktemp())
+        pool_name = create_zfs_pool(self)
+        pool = StoragePool(reactor, pool_name, mount_root)
+        service = service_for_pool(self, pool)
+        volume = service.get(MY_VOLUME, size=size)
+
+        d = pool.create(volume)
+
+        def created_filesystem(filesystem):
+            refquota = subprocess.check_output([
+                b"zfs", b"get",
+                # Skip displaying the header
+                b"-H",
+                # Display machine-parseable (exact) values
+                b"-p",
+                # Output only the value
+                b"-o", b"value",
+                # Get the value of the refquota property
+                b"refquota",
+                # For this filesystem
+                filesystem.name]).decode("ascii").strip()
+            if refquota == u"none":
+                refquota = None
+            else:
+                refquota = int(refquota)
+            self.assertEqual(size.maximum_size, refquota)
+        d.addCallback(created_filesystem)
+        return d
+
     def test_change_owner_does_not_remove_non_empty_mountpoint(self):
         """
         ``StoragePool.change_owner()`` doesn't delete the contents of the
@@ -136,7 +201,7 @@ class StoragePoolTests(TestCase):
                            FilePath(self.mktemp()))
         service = service_for_pool(self, pool)
         volume = service.get(MY_VOLUME)
-        new_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        new_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                             service=service)
         original_mount = volume.get_filesystem().get_path()
         d = pool.create(volume)
@@ -195,7 +260,7 @@ class StoragePoolTests(TestCase):
         """
         pool = build_pool(self)
         service = service_for_pool(self, pool)
-        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
+        volume = Volume(node_id=u"remoteone", name=MY_VOLUME, service=service)
 
         d = pool.create(volume)
 
@@ -230,7 +295,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         parent = service.get(MY_VOLUME2)
-        volume = Volume(uuid=u"remoteone", name=MY_VOLUME, service=service)
+        volume = Volume(node_id=u"remoteone", name=MY_VOLUME, service=service)
 
         d = pool.create(parent)
         d.addCallback(lambda _: pool.clone_to(parent, volume))
@@ -260,7 +325,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(MY_VOLUME)
-        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        remote_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(remote_volume)
@@ -283,7 +348,7 @@ class StoragePoolTests(TestCase):
         pool = build_pool(self)
         service = service_for_pool(self, pool)
         local_volume = service.get(MY_VOLUME)
-        remote_volume = Volume(uuid=u"other-uuid", name=MY_VOLUME2,
+        remote_volume = Volume(node_id=u"other-uuid", name=MY_VOLUME2,
                                service=service)
 
         d = pool.create(local_volume)
@@ -440,3 +505,38 @@ class FilesystemTests(TestCase):
 
         loading.addCallback(loaded)
         return loading
+
+    def test_maximum_size_too_small(self):
+        """
+        If the maximum size specified for filesystem creation is smaller than
+        the storage pool allows, ``MaximumSizeTooSmall`` is raised.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        # This happens to be too small for any ZFS filesystem.
+        volume = service.get(MY_VOLUME, size=VolumeSize(maximum_size=10))
+        creating = pool.create(volume)
+        return self.assertFailure(creating, MaximumSizeTooSmall)
+
+    def test_maximum_size_enforced(self):
+        """
+        The maximum size specified for a filesystem is enforced by the ZFS
+        implementation.  Attempts to write more data than the maximum size
+        fail.
+        """
+        pool = build_pool(self)
+        service = service_for_pool(self, pool)
+        # There is a lower-bound on the value of refquota in ZFS.  It seems to
+        # be 64MB (but perhaps this isn't universal).
+        volume = service.get(
+            MY_VOLUME, size=VolumeSize(maximum_size=64 * 1024 * 1024))
+        creating = pool.create(volume)
+
+        def created(filesystem):
+            path = filesystem.get_path()
+            # Try to write more than 64MB of data.
+            with path.child(b"ok").open("w") as fObj:
+                self.assertRaises(
+                    IOError, fObj.write, b"x" * 64 * 1024 * 1024)
+        creating.addCallback(created)
+        return creating

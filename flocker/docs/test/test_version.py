@@ -8,7 +8,7 @@ Tests for :module:`flocker.docs.version`.
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._version import (
-    parse_version, FlockerVersion,
+    parse_version, FlockerVersion, UnparseableVersion,
     get_doc_version, is_release,
 )
 
@@ -87,6 +87,13 @@ class ParseVersionTests(SynchronousTestCase):
         self.assertParsedVersion('0.3.2+doc11-dirty',
                                  documentation_revision='11',
                                  dirty='-dirty')
+
+    def test_invalid_Version(self):
+        """
+        If an invalid vesion is passed to ``parse_version``,
+        ``UnparseableVersion`` is raised.
+        """
+        self.assertRaises(UnparseableVersion, parse_version, 'unparseable')
 
 
 class GetDocVersionTests(SynchronousTestCase):

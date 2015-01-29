@@ -29,7 +29,15 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.intersphinx', 'sphinx.ext.ifconfig']
+extensions = [
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.ifconfig',
+    'flocker.provision._sphinx',
+    'sphinx-prompt',
+    'sphinxcontrib.httpdomain',
+    'flocker.restapi.docs.publicapi',
+    'flocker.restapi.docs.hidden_code_block',
+]
 
 if not on_rtd:
     # readthedocs doesn't install dependencies
@@ -102,7 +110,7 @@ if not on_rtd:
     sys.path.insert(0, FilePath(__file__).parent().path)
     from filters import IgnoreWordsFilterFactory
     # Don't spell check the version:
-    spelling_filters = [IgnoreWordsFilterFactory({version})]
+    spelling_filters = [IgnoreWordsFilterFactory(words={version})]
     del sys.path[0]
 
 # There are two options for replacing |today|: either, you set today to some
@@ -298,5 +306,9 @@ intersphinx_mapping = {'http://docs.python.org/': None}
 # http://sphinx-doc.org/config.html#confval-linkcheck_anchors
 linkcheck_anchors = False
 
-# Don't check links to tutorial IPs
-linkcheck_ignore = [r'http://172\.16\.255\.']
+linkcheck_ignore = [
+    # Don't check links to tutorial IPs
+    r'http://172\.16\.255\.',
+    # This is an example GitHub URL
+    r'https://github.com/ClusterHQ/flocker/compare/release/flocker-1.2.3...release-maintenance/flocker-1.2.3/fix-a-bug-FLOC-1234\?expand=1'
+]

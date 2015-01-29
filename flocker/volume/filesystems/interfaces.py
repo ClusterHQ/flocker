@@ -4,7 +4,7 @@
 
 from __future__ import absolute_import
 
-from zope.interface import Interface
+from zope.interface import Attribute, Interface
 
 
 class FilesystemAlreadyExists(Exception):
@@ -19,7 +19,7 @@ class IFilesystemSnapshots(Interface):
     Support creating and listing snapshots of a specific filesystem.
 
     Sort of silly, at the moment, since we don't yet have structured
-    representation (https://github.com/ClusterHQ/flocker/issues/668).
+    representation (https://clusterhq.atlassian.net/browse/FLOC-668).
     """
 
     def create(name):
@@ -42,7 +42,15 @@ class IFilesystemSnapshots(Interface):
 
 
 class IFilesystem(Interface):
-    """A filesystem that is part of a pool."""
+    """
+    A filesystem that is part of a pool.
+    """
+
+    size = Attribute("""
+    A ``VolumeSize`` instance giving capacity information for this filesystem.
+    This value is not necessarily up-to-date but represents information that
+    was correct when this ``IFilesystem`` provider was created.
+    """)
 
     def get_path():
         """Retrieve the filesystem's local path.
@@ -109,7 +117,9 @@ class IFilesystem(Interface):
 
 
 class IStoragePool(Interface):
-    """Pool of on-disk storage where filesystems are stored."""
+    """
+    Pool of on-disk storage where filesystems are stored.
+    """
 
     def create(volume):
         """
@@ -119,7 +129,24 @@ class IStoragePool(Interface):
         :type volume: :class:`flocker.volume.service.Volume`
 
         :return: Deferred that fires on filesystem creation with a
-            :class:`IFilesystem` provider, or errbacks if creation failed.
+            :class:`IFilesystem` provider, or errbacks if creation failed.  The
+            reason passed to the errback may be a ``MaximumSizeTooSmall``
+            exception or an implementation-specific exception for other
+            problems.
+        """
+
+    def set_maximum_size(volume):
+        """
+        Set the maximum size of a filesystem for the given volume.
+
+        :param volume: The volume whose filesystem quota should be modified.
+        :type volume: :class:`flocker.volume.service.Volume`
+
+        :return: Deferred that fires on filesystem modification with a
+            :class:`IFilesystem` provider, or errbacks if setting the quota
+            failed.  The reason passed to the errback may be a
+            ``MaximumSizeTooSmall`` exception or an implementation-specific
+            exception for other problems.
         """
 
     def clone_to(parent, volume):

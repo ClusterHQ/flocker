@@ -6,6 +6,12 @@ What's New
 
 .. note:: If you already have an old version of ``flocker-cli`` installed, delete the install script and directory before installing the newer version.
 
+Next Release
+============
+
+* Applications can now be configured with a :ref:`restart policy<restart configuration>`.
+* Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
+
 v0.3.2
 ======
 
