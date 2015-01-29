@@ -107,7 +107,7 @@ Getting started with Flocker
          
          .. code-block:: console
          
-            you@laptop:~$ sudo yum install @buildsys-build python python-devel python-virtualenv && \
+            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
@@ -134,7 +134,7 @@ Getting started with Flocker
          
          .. code-block:: console
          
-            you@laptop:~$ sudo yum install @buildsys-build python python-devel python-virtualenv && \
+            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl
