@@ -552,7 +552,7 @@ def build_schema_test(name, schema, schema_store,
     :param list failing_instances: Instances which should fail validation.
     :param list passing_instances: Instances which should pass validation.
 
-    :returns: The test case; a ``SynchronousTestCase} subclass.
+    :returns: The test case; a ``SynchronousTestCase`` subclass.
     """
     body = {
         'schema': schema,

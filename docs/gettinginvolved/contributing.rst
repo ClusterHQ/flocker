@@ -5,7 +5,7 @@ Maintenance Branches
 
 .. note::
 
-   As :ref`bugfix releases<bugfix-releases>` aren't currently being produced,
+   As :ref:`bugfix releases<bugfix-releases>` aren't currently being produced,
    the following instructions are only relevant for documentation fixes.
 
 
