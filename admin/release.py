@@ -108,6 +108,29 @@ def set_base_redirect(doc_version, bucket_name):
         key.set_contents_from_string('', replace=True)
 
 
+def configure_s3_routing_rules(doc_version, bucket_name, is_dev):
+    s3 = boto.connect_s3()
+    bucket = s3.get_bucket(bucket_name)
+    config = bucket.get_website_configuration_obj()
+    key = 'en/devel/' if is_dev else 'en/latest'
+    rule = [rule for rule in config.routing_rules if
+            rule.condition.key_prefix == key][0]
+    rule.redirect.replace_key_prefix = '/en/%s/' % (doc_version,)
+    bucket.set_website_configuration()
+
+
+def create_cloudfront_invalidation(doc_version, bucket_name, is_dev):
+    cf = boto.connect_cloudfront()
+    distribution = [dist for dist in cf.get_all_distributions()
+                    if 'docs.staging.clusterhq.com' in dist.cnames][0]
+    if is_dev:
+        paths = ["/en/devel/*"]
+    else:
+        paths = ["/en/latest/*"]
+    paths += ["/en/%s/" % (doc_version,)]
+    cf.create_invalidation_request(distribution.id, paths)
+
+
 def publish_docs(flocker_version, doc_version, bucket_name):
     ((lambda _: None) or check_call)([
         'gsutil', '-m',
