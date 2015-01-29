@@ -47,6 +47,8 @@ Access
 - Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
+- Access to `S3` and cloudfront via web.
+
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
 
@@ -77,7 +79,7 @@ Preparing For a Release
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/master
+      git checkout -b release/flocker-${VERSION} origin/{master or release/flocker-${BASE_VERSION} for a doc release}
       git push origin --set-upstream release/flocker-${VERSION}
 
 #. Back port features from master (optional)
@@ -173,6 +175,7 @@ Preparing For a Release
    #. Update redirects to point to new documentation.
 
       .. warning:: Skip this step for weekly releases and pre-releases.
+      .. note:: these don't work, use ``cp - s3://... < /dev/null``:
 
       .. prompt:: bash $
 
@@ -207,6 +210,8 @@ Preparing For a Release
          /en/devel/*
 
 #. Make a pull request on GitHub
+
+   .. something about maintence release branches changing under the pull request - will only happen if multiple ones are happening in a row.
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
 
