@@ -6,7 +6,7 @@ Sphinx extension to add a ``version-code-block`` directive
 This directive allows Flocker's release version to be inserted into code
 blocks.
 
-.. version-code-block:: rest
+.. version-code-block:: console
 
    $ brew install flocker-|RELEASE|
 """
