@@ -85,7 +85,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     background-color: #343a3d;
     padding:12px 16px;
     font-size: 16px;
-    min-height:520px;
+    min-height:422px;
 }
 
 .tab-pane {
@@ -107,8 +107,8 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
   margin-bottom: -1px;
   font-size:24px;
   font-weight:bold;
-  min-width:30%;
   text-align:center;
+  margin-right:1px;
 }
 .nav-tabs > li > a {
   margin-right: 0px;
@@ -118,7 +118,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
   color:#343a3d;
 }
 .nav-tabs > li > a:hover {
-  /*border-color: #343a3d #343a3d #343a3d;*/
+  border-color: #343a3d;
 }
 .nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:focus {
     background-color: #080808;
