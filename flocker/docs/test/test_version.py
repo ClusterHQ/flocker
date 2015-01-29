@@ -142,8 +142,8 @@ class GetDocVersionTests(SynchronousTestCase):
         When the version is from a documentation release but is dirty, the
         documentation version is left unchanged.
         """
-        self.assertEqual(get_doc_version('0.3.2+doc0-dirty'),
-                         '0.3.2+doc0-dirty')
+        self.assertEqual(get_doc_version('0.3.2+doc1-dirty'),
+                         '0.3.2+doc1-dirty')
 
 
 class IsReleaseTests(SynchronousTestCase):
@@ -192,4 +192,4 @@ class IsReleaseTests(SynchronousTestCase):
         When the version is from a documentation release but is dirty, it isn't
         a release.
         """
-        self.assertFalse(is_release('0.3.2+doc0-dirty'))
+        self.assertFalse(is_release('0.3.2+doc1-dirty'))
