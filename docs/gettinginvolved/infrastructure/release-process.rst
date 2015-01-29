@@ -92,22 +92,13 @@ Preparing For a Release
    The release may require certain changes to be back ported from the master branch.
    See :ref:`back-porting-changes`\ .
 
-#. Update the version numbers in:
-
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
-
-      .. code-block:: console
-
-         $ envsubst < docs/gettingstarted/linux-install.sh.template > docs/gettingstarted/linux-install.sh
-         $ envsubst < docs/gettingstarted/tutorial/Vagrantfile.template > docs/gettingstarted/tutorial/Vagrantfile
-
-   Commit the changes:
+#. Update the version numbers in the install and Vagrant scripts:
 
    .. code-block:: console
 
-      $ git commit -am "Bumped version numbers"
-
-   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
+      envsubst < docs/gettingstarted/linux-install.sh.template > docs/gettingstarted/linux-install.sh
+      envsubst < docs/gettingstarted/tutorial/Vagrantfile.template > docs/gettingstarted/tutorial/Vagrantfile
+      git commit -am "Bumped version numbers"
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 

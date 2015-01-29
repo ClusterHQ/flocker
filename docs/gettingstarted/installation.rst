@@ -52,21 +52,21 @@ Save the script to a file and then run it:
 
 The ``flocker-deploy`` command line program will now be available in ``flocker-tutorial/bin/``:
 
-.. code-block:: console
+.. version-code-block:: console
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   0.3.2
+   |RELEASE|
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
 You'll need to do this every time you start a new shell.
 
-.. code-block:: console
+.. version-code-block:: console
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   0.3.2
+   |RELEASE|
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -86,16 +86,6 @@ Fix anything which ``brew doctor`` recommends that you fix by following the inst
 
 Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
-.. code-block:: console
-
-   alice@mercury:~$ brew tap ClusterHQ/tap
-   ...
-   alice@mercury:~$ brew install flocker-0.3.2
-   ...
-   alice@mercury:~$ brew test flocker-0.3.2
-   ...
-   alice@mercury:~$
-
 .. version-code-block:: console
 
    alice@mercury:~$ brew tap ClusterHQ/tap
@@ -110,10 +100,10 @@ You can see the Homebrew recipe in the `homebrew-tap`_ repository.
 
 The ``flocker-deploy`` command line program will now be available:
 
-.. code-block:: console
+.. version-code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   0.3.2
+   |RELEASE|
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
