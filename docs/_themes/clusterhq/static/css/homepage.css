@@ -38,6 +38,10 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
     visibility: visible;
 }
 
+.gp {
+    color:#fdce93;
+}
+
 #getting-started-with-flocker>.container:nth-of-type(5) {
     margin-top: -56px;
 }
