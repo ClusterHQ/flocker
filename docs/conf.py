@@ -29,6 +29,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.ifconfig',
     'flocker.provision._sphinx',
+    'flocker.docs.version_code_block',
     'sphinx-prompt',
     'sphinxcontrib.httpdomain',
     'flocker.restapi.docs.publicapi',
