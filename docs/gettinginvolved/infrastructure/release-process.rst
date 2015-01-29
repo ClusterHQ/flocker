@@ -171,7 +171,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
-   (For a documentation release ``${VERSION}`` be the base release version in this step).
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    .. TODO: The following steps should be automated
 
@@ -443,7 +443,7 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
-   (For a documentation release ``${VERSION}`` be the base release version in this step).
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
