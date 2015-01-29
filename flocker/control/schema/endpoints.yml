@@ -12,3 +12,8 @@ definitions:
     required:
       - flocker
     additionalProperties: false
+
+
+# Add /state/datasets type definitions here
+# But is this the same "datasets" type that has already been added here in master?
+# We think so, in which case we just need to merge forward and somehow re-use that type definition in this context.
