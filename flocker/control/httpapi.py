@@ -207,9 +207,12 @@ def datasets_from_deployment(deployment):
     """
     Extract the primary datasets from the supplied deployment instance.
 
-    XXX: What would be the point in returning non-primary dataset dictionaries
+    XXX: What would be the point in returning secondary dataset dictionaries
     here? They'd be exactly the same as the primary...unless the metadata or
     maximum_size has changed since the dataset was migrated between nodes.
+    And without a change to the ``datasets`` schema, there's no way to mark a
+    dataset as secondary. Perhaps there needs to be a current_node key...or
+    something? We need to understand how this API is likely to be used.
 
     :return: Iterable returning all datasets.
     """
