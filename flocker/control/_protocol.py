@@ -97,7 +97,8 @@ class ControlServiceLocator(CommandLocator):
     """
     def __init__(self, control_amp_service):
         """
-        :param ControlAMPService control_amp_service: ...
+        :param ControlAMPService control_amp_service: The service managing AMP
+             connections to the control service.
         """
         CommandLocator.__init__(self)
         self.control_amp_service = control_amp_service
@@ -117,10 +118,20 @@ class ControlAMP(AMP):
     AMP protocol for control service server.
     """
     def __init__(self, control_amp_service):
+        """
+        :param ControlAMPService control_amp_service: The service managing AMP
+             connections to the control service.
+        """
         AMP.__init__(self, locator=ControlServiceLocator(control_amp_service))
+        self.control_amp_service = control_amp_service
 
-    # connectionMade - add self to ControlAMPService with connected()
-    # connectionLost - remove self from ControlAMPService disconnected()
+    def connectionMade(self):
+        AMP.connectionMade(self)
+        self.control_amp_service.connected(self)
+
+    def connectionLost(self, reason):
+        AMP.connectionLost(self, reason)
+        self.control_amp_service.disconnected(self)
 
 
 class ControlAMPService(Service):
@@ -157,13 +168,21 @@ class ControlAMPService(Service):
             # XXX handle errors from callRemote
 
     def connected(self, connection):
-        #self.connectioins.add(connection)
+        """
+        A new connection has been made to the server.
+
+        :param ControlAMP connection: The new connection.
+        """
+        self.connections.add(connection)
         #self._send_state_to_connections([connection])
-        pass
 
     def disconnected(self, connection):
-        #self.connections.remove(connection)
-        pass
+        """
+        An existing connection has been disconnected.
+
+        :param ControlAMP connection: The lost connection.
+        """
+        self.connections.remove(connection)
 
     def node_changed(self, hostname, node_state):
         """

@@ -140,6 +140,29 @@ class ControlAMPTests(SynchronousTestCase):
         self.protocol = ControlAMP(self.control_amp_service)
         self.client = LoopbackAMPClient(self.protocol.locator)
 
+    def test_connection_made(self):
+        """
+        When a connection is made the ``ControlAMP`` is added to the services
+        set of connections.
+        """
+        marker = object()
+        self.control_amp_service.connections.add(marker)
+        current = self.control_amp_service.connections.copy()
+        self.protocol.makeConnection(StringTransport())
+        self.assertEqual((current, self.control_amp_service.connections),
+                         ({marker}, {marker, self.protocol}))
+
+    def test_connection_lost(self):
+        """
+        When a connection is lost the ``ControlAMP`` is removed the services
+        set of connections.
+        """
+        marker = object()
+        self.control_amp_service.connections.add(marker)
+        self.protocol.makeConnection(StringTransport())
+        self.protocol.connectionLost(Failure(ConnectionLost()))
+        self.assertEqual(self.control_amp_service.connections, {marker})
+
     def test_version(self):
         """
         ``VersionCommand`` to the control service returns the current internal
