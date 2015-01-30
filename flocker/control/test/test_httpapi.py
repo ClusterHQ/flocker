@@ -524,16 +524,17 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
     """
     def test_empty(self):
         """
-        ``Deployment.datasets()`` returns datasets from all nodes.
+        ``datasets_from_deployment`` returns an empty list if no Manifestations
+        are found in the supplied Deployment.
         """
         deployment = Deployment(nodes=frozenset())
         expected = []
         self.assertEqual(expected, list(datasets_from_deployment(deployment)))
 
-    def test_applications(self):
+    def test_application_volumes(self):
         """
-        ``Deployment.datasets()`` returns datasets from all applications on all
-        nodes.
+        ``datasets_from_deployment`` returns dataset dictionaries for the
+        volumes attached to applications on all nodes.
         """
         expected_hostname = u"node1.example.com"
         expected_dataset = Dataset(dataset_id=u"jalkjlk")
@@ -562,7 +563,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
 
     def test_other_manifestations(self):
         """
-        ``Deployment.datasets()`` includes datasets from all
+        ``datasets_from_deployment`` returns dataset dictionaries for the
         other_manifestations on all nodes.
         """
         expected_hostname = u"node1.example.com"
@@ -583,10 +584,11 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
-    def test_datasets_both(self):
+    def test_secondary_manifestations(self):
         """
-        ``Deployment.datasets()`` returns datasets from both applications and
-        the other_manifestations on those nodes.
+        ``datasets_from_deployment`` returns dataset dictionaries for the
+        volumes attached to applications on all nodes and their secondary
+        manifestations on other nodes.
         """
 
         expected_hostname = u"node1.example.com"
