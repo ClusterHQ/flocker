@@ -13,7 +13,6 @@ import flocker
 from twisted.python.usage import Options, UsageError
 
 import boto
-from boto.s3.key import Key
 
 
 # TODO: Get this from https://github.com/ClusterHQ/flocker/pull/1092
@@ -89,19 +88,6 @@ class NotARelease(Exception):
     """
 
 
-def set_base_redirect(doc_version, bucket_name):
-    """
-    Set the redirects for / and /en/.
-    """
-    s3 = boto.connect_s3()
-    bucket = s3.get_bucket(bucket_name)
-    redirect_path = '/en/%s/' % (doc_version,)
-    for path in ('index.html', 'en/index.html'):
-        key = Key(bucket, name=path)
-        key.set_metadata('x-amz-website-redirect-location', redirect_path)
-        key.set_contents_from_string('', replace=True)
-
-
 def configure_s3_routing_rules(doc_version, bucket_name, is_dev):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(bucket_name)
@@ -133,8 +119,16 @@ def publish_docs(flocker_version, doc_version, bucket_name):
         's3://%s/en/%s/' % (bucket_name, doc_version),
     ])
 
-    if is_release(doc_version):
-        set_base_redirect(doc_version=doc_version, bucket_name=bucket_name)
+    # Wether the latest, or the devel link should be updated.
+    is_devel = not is_release(doc_version)
+    configure_s3_routing_rules(
+        doc_version=doc_version,
+        bucket_name=bucket_name,
+        is_devel=is_devel)
+    create_cloudfront_invalidation(
+        doc_version=doc_version,
+        bucket_name=bucket_name,
+        is_dev=is_devel)
 
 
 class PublishDocsOptions(Options):
@@ -168,6 +162,11 @@ def publish_docs_main(args, base_path, top_level):
         options.parseOptions(args)
     except UsageError as e:
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
+        raise SystemExit(1)
+
+    if not (is_release(options['doc_version'])
+            or is_weekly_release(options['doc_version'])):
+        sys.stderr.write("%s: Can't publish non-release.")
         raise SystemExit(1)
 
     publish_docs(
