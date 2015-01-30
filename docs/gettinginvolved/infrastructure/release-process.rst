@@ -105,6 +105,8 @@ Preparing For a Release
 
 #. Update the version numbers in the install and Vagrant scripts:
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       envsubst < docs/gettingstarted/linux-install.sh.template > docs/gettingstarted/linux-install.sh
