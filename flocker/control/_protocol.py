@@ -141,6 +141,7 @@ class ControlAMPService(Service):
             connection.callRemote(ClusterStatusCommand(),
                                   configuration=configuration,
                                   state=state)
+            # XXX handle errors from callRemote
 
     def connected(self, connection):
         #self.connectioins.add(connection)
