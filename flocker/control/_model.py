@@ -257,7 +257,16 @@ class Deployment(object):
 
         :return: Iterable returning all datasets.
         """
-        return []
+        for node in self.nodes:
+            for manifestation in node.manifestations():
+                if manifestation.primary:
+                    dataset = manifestation.dataset
+                    yield dict(
+                        dataset_id=dataset.dataset_id,
+                        primary=node.hostname,
+                        maximum_size=dataset.maximum_size,
+                        metadata=dataset.metadata
+                    )
 
 
 @attributes(['internal_port', 'external_port'])
