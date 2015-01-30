@@ -17,13 +17,7 @@ from boto.s3.key import Key
 
 
 # TODO: Get this from https://github.com/ClusterHQ/flocker/pull/1092
-# from flocker.docs import get_doc_version, is_release
-def get_doc_version(version):
-    return version
-
-
-def is_release(version):
-    return 'dev' not in version
+from flocker.docs import get_doc_version, is_release, is_weekly_release
 
 
 __all__ = ['rpm_version', 'make_rpm_version']
