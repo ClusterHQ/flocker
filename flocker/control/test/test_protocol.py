@@ -178,21 +178,30 @@ class AgentClientTests(SynchronousTestCase):
     def setUp(self):
         self.agent = FakeAgent()
         self.client = AgentClient(self.agent)
-        self.client.makeConnection(StringTransport())
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard:
         self.server = LoopbackAMPClient(self.client)
+
+    def test_initially_not_connected(self):
+        """
+        The agent does not get told a connection was made or lost before it's
+        actually happened.
+        """
+        self.assertEqual(self.agent, FakeAgent(is_connected=False,
+                                               is_disconnected=False))
 
     def test_connection_made(self):
         """
         Connection made events are passed on to the agent.
         """
+        self.client.makeConnection(StringTransport())
         self.assertEqual(self.agent, FakeAgent(is_connected=True))
 
     def test_connection_lost(self):
         """
         Connection lost events are passed on to the agent.
         """
+        self.client.makeConnection(StringTransport())
         self.client.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                is_disconnected=True))
@@ -202,6 +211,7 @@ class AgentClientTests(SynchronousTestCase):
         ``ClusterStatusCommand`` sent to the ``AgentClient`` result in agent
         having cluster state updated.
         """
+        self.client.makeConnection(StringTransport())
         actual = Deployment(nodes=frozenset([]))
         d = self.server.callRemote(ClusterStatusCommand,
                                    configuration=TEST_DEPLOYMENT,
