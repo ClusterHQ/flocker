@@ -801,6 +801,9 @@ def omnibus_package_builder(
             ),
 
             # flocker-cli steps
+
+            # First, link command-line tools that should be available.  If you
+            # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
                     (FilePath('/opt/flocker/bin/flocker-deploy'),
@@ -835,6 +838,9 @@ def omnibus_package_builder(
             ),
 
             # flocker-node steps
+
+            # First, link command-line tools that should be available.  If you
+            # change this you may also want to change entry_points in setup.py.
             CreateLinks(
                 links=[
                     (FilePath('/opt/flocker/bin/flocker-reportstate'),
@@ -842,6 +848,10 @@ def omnibus_package_builder(
                     (FilePath('/opt/flocker/bin/flocker-changestate'),
                      flocker_node_path),
                     (FilePath('/opt/flocker/bin/flocker-volume'),
+                     flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-control'),
+                     flocker_node_path),
+                    (FilePath('/opt/flocker/bin/flocker-zfs-agent'),
                      flocker_node_path),
                 ]
             ),

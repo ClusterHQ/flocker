@@ -109,19 +109,15 @@
                 {%- endif %}
                 <!-- DOCS PAGE DATA HERE -->
                 {%- block document %}
-                        <script>
-                            var release_re = /^[0-9]+\.[0-9]+\.[0-9]+$/
-                            if (!'{{ release }}'.match(release_re)) {
-                                document.write(
-                        '<div class="admonition note warning"> \
-                            <p class="last"> \
-                                You are reading an <strong>in-development version</strong> \
-                                of the documentation. \
-                                Some of the functionality may not work as expected.</p> \
-                        </div>');
-                            }
-                        </script>
-                        {% block body %} {% endblock %}
+                    {%- if not is_release -%}
+                        <div class="admonition note warning">
+                            <p class="last">
+                                You are reading an <strong>in-development version</strong>
+                                of the documentation.
+                                Some of the functionality may not work as expected.</p>
+                        </div>
+                    {%- endif -%}
+                    {% block body %} {% endblock %}
                 {%- endblock %}
                 <!-- END OF DOCS PAGE DATA -->
                 <div class="row">

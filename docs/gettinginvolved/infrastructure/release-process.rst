@@ -20,6 +20,11 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
+For a documentation release, we will have:
+
+- a tag in version control,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+
 
 Prerequisites
 -------------
@@ -49,6 +54,9 @@ Access
 
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
+
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+
 
 Preparing For a Release
 -----------------------
@@ -86,6 +94,8 @@ Preparing For a Release
    See :ref:`back-porting-changes`\ .
 
 #. Update the version numbers in:
+
+   .. note:: Skip this step for a documentation release.
 
    - the ``pip install`` line in
      `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
@@ -161,6 +171,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    .. TODO: The following steps should be automated
 
@@ -372,6 +383,8 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       python setup.py sdist bdist_wheel
@@ -382,16 +395,22 @@ Release
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
 #. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
 
+   .. note:: Skip this step for a documentation release.
+
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
+
+   .. note:: Skip this step for a documentation release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
@@ -424,6 +443,7 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 

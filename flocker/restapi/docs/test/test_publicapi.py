@@ -464,3 +464,60 @@ class LoadExamplesTests(SynchronousTestCase):
         path = FilePath(self.mktemp())
         path.setContent(safe_dump([foo, foo, bar]))
         self.assertRaises(Exception, _loadExamples, path)
+
+
+class VariableInterpolationTests(SynchronousTestCase):
+    """
+    Tests for interpolation into route bodies done by L{makeRst}.
+    """
+    def test_node_substitution(self):
+        """
+        A fake hostname is substituted for I{NODE_0} in the route body.
+        """
+        example = dict(
+            request=(
+                "GET / HTTP/1.1\n"
+                "\n"
+                "%(NODE_0)s\n"
+            ),
+            response=(
+                "HTTP/1.1 200 OK\n"
+                "\n"
+            )
+        )
+        app = Klein()
+
+        @app.route(b"/", methods=[b"GET"])
+        @user_documentation("", ["dummy id"])
+        def f():
+            pass
+
+        rst = makeRst(b"/prefix", app, lambda identifier: example, {})
+        self.assertEqual(
+            # Unfortunately a lot of stuff that's not relevant to this test
+            # comes back from makeRst.
+            [u'',
+             u'.. http:get:: /prefix/',
+             u'',
+             u'   **Example request**',
+             u'   ',
+             u'   .. sourcecode:: http',
+             u'   ',
+             u'      GET / HTTP/1.1',
+             u'      Host: api.example.com',
+             u'      Content-Type: application/json',
+             u'      ',
+             # Here is the important line.
+             u'      192.0.2.1',
+             u'   ',
+             u'   **Example response**',
+             u'   ',
+             u'   .. sourcecode:: http',
+             u'   ',
+             u'      HTTP/1.1 200 OK',
+             u'      Content-Type: application/json',
+             u'      ',
+             u'   ',
+             u''],
+            list(rst)
+        )
