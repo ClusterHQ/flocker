@@ -20,6 +20,11 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
+For a documentation release, we will have:
+
+- a tag in version control,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+
 
 Prerequisites
 -------------
@@ -46,16 +51,22 @@ Software
 Access
 ~~~~~~
 
-- A Read the Docs account (`registration <https://readthedocs.org/accounts/signup/>`_),
-  with `maintainer access <https://readthedocs.org/dashboard/flocker/users/>`_ to the Flocker project.
+
 - Access to `Google Cloud Storage`_ using `gsutil`_ on your workstation and your :doc:`Flocker development machine <vagrant>`.
   Set up ``gsutil`` authentication by following the instructions from the following command:
 
   .. code-block:: console
 
       $ gsutil config
+
+- Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
+  Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
+
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
+
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+
 
 Preparing For a Release
 -----------------------
@@ -159,6 +170,53 @@ Preparing For a Release
 
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
+#. Update the staging documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
+
+   .. TODO: The following steps should be automated
+
+   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
+
+      .. prompt:: bash $
+
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+
+   #. Update redirects to point to new documentation.
+
+      .. warning:: Skip this step for weekly releases and pre-releases.
+
+      .. prompt:: bash $
+
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/en/index.html
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-staging-docs/index.html
+
+   #. Update the redirect rules in `S3`_ to point to the new release.
+
+      In the properties of the ``clusterhq-staging-docs`` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
+      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
+
+      .. code-block:: xml
+
+         <RoutingRule>
+           <Condition>
+             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+           </Condition>
+           <Redirect>
+             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
+             <HttpRedirectCode>302</HttpRedirectCode>
+           </Redirect>
+         </RoutingRule>
+
+   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.staging.clusterhq.com`` distribution::
+
+         /
+         /index.html
+         /en/
+         /en/index.html
+         /en/latest/*
+         /en/devel/*
+
 #. Make a pull request on GitHub
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
@@ -239,6 +297,27 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
         $ admin/run-acceptance-tests --distribution fedora-20
 
+
+#. Check documentation.
+
+   - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
+
+   - For a marketing release, the following URLs should redirect to the above URL.
+
+     - https://docs.staging.clusterhq.com/
+     - https://docs.staging.clusterhq.com/en/
+     - https://docs.staging.clusterhq.com/en/latest/
+
+     In addition, check that deep-links to `/en/latest/` work.
+     https://docs.staging.clusterhq.com/en/latest/authors.html
+     should redirect to
+     ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+
+   - For a development release, the following redirects should work.
+
+     - https://docs.staging.clusterhq.com/en/devel/ should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/``
+     - https://docs.staging.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.staging.clusterhq.com/en/${VERSION}/authors.html``
+
 #. Accept or reject the release issue depending on whether everything has worked.
 
    - If accepting the issue, comment that the release engineer can continue by following :ref:`the Release section <release>` (do not merge the pull request).
@@ -304,6 +383,8 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       python setup.py sdist bdist_wheel
@@ -314,16 +395,22 @@ Release
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
 #. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
 
+   .. note:: Skip this step for a documentation release.
+
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
+
+   .. note:: Skip this step for a documentation release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
@@ -355,35 +442,53 @@ Release
    - Do not continue until the pull request is merged.
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
-#. Build tagged docs at Read the Docs:
+#. Update the documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   #. Force Read the Docs to reload the repository
+   #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
-      There is a GitHub webhook which should notify Read The Docs about changes in the Flocker repository, but it sometimes fails.
-      Force an update by running:
+      .. prompt:: bash $
 
-      .. code-block:: console
+         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
 
-         curl -X POST http://readthedocs.org/build/flocker
-
-   #. Go to the `Read the Docs dashboard Versions section`_.
-   #. Set the version being released to be "Active".
-   #. Unset "Active" for each previous weekly release or pre-release of the version being released.
-   #. Wait for the documentation to build.
-      The documentation will be visible at http://docs.clusterhq.com/en/${VERSION} when it has been built.
-   #. Set the default version and latest version to that version:
+   #. Update redirects to point to new documentation.
 
       .. warning:: Skip this step for weekly releases and pre-releases.
-                   The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
-                   We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
-                   Other users choose to try the weekly releases, by clicking on the latest weekly version in the ReadTheDocs version panel.
 
-      - In the `Read the Docs dashboard Versions section`_ set the "Default Version" dropdown to the version being released.
+         The features and documentation in weekly releases and pre-releases may not be complete and may not have been tested.
+         We want new users' first experience with Flocker to be as smooth as possible so we direct them to the tutorial for the last stable release.
 
-      - In the `Advanced Settings section <https://readthedocs.org/dashboard/flocker/advanced/>`_ change the "Default branch" to the version being released.
+      .. prompt:: bash $
 
-      - In the `Builds section <https://readthedocs.org/builds/flocker/>`_ "Build Version" with "latest" selected in the dropdown.
-        Wait for the new HTML build to pass.
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/en/index.html
+         gsutil -h x-amz-website-redirect-location:/en/${VERSION} setmeta s3://clusterhq-docs/index.html
+
+   #. Update the redirect rules in `S3`_ to point to the new release.
+
+      In the properties of the ``clusterhq-docs`` bucket under static website hosting,
+      update the redirect for ``en/latest`` (for a marketing release) or ``en/devel`` to point at the new release.
+      Update the ``RoutingRule`` block matching the appropriate key prefix, leaving other ``RoutingRule``\ s unchanged.
+
+      .. code-block:: xml
+
+         <RoutingRule>
+           <Condition>
+             <KeyPrefixEquals>en/latest/</KeyPrefixEquals>
+           </Condition>
+           <Redirect>
+             <ReplaceKeyPrefixWith>en/${VERSION}/</ReplaceKeyPrefixWith>
+             <HttpRedirectCode>302</HttpRedirectCode>
+           </Redirect>
+         </RoutingRule>
+
+   #. Create an invalidation for the following paths in `CloudFront`_, for the ``docs.clusterhq.com`` distribution::
+
+         /
+         /index.html
+         /en/
+         /en/index.html
+         /en/latest/*
+         /en/devel/*
 
 #. Submit the release pull request for review again.
 
@@ -396,13 +501,25 @@ Post-Release Review Process
 
       $ vagrant box remove clusterhq/flocker-tutorial
 
-#. Check that Read The Docs is set up correctly:
+#. Check that the documentation is set up correctly:
 
-   The following links should both point to the latest release.
-   (Except in the case of weekly release or pre-release)
+   - The documentation should be available at https://docs.clusterhq.com/en/${VERSION}/.
 
-   * https://docs.clusterhq.com/en/latest and
-   * https://docs.clusterhq.com/
+   - For a marketing release, the following URLs should redirect to the above URL.
+
+     - https://docs.clusterhq.com/
+     - https://docs.clusterhq.com/en/
+     - https://docs.clusterhq.com/en/latest/
+
+     In addition, check that deep-links to `/en/latest/` work.
+     https://docs.clusterhq.com/en/latest/authors.html
+     should redirect to
+     ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
+
+   - For a development release, the following redirects should work.
+
+     - https://docs.clusterhq.com/en/devel/ should redirect to ``https://docs.clusterhq.com/en/${VERSION}/``
+     - https://docs.clusterhq.com/en/latest/authors.html should redirect to ``https://docs.clusterhq.com/en/${VERSION}/authors.html``
 
 #. Verify that the tutorial works on all supported platforms:
 
@@ -437,9 +554,6 @@ Post-Release Review Process
 #. Merge the release pull request.
 
 
-.. _Read the Docs dashboard Versions section: https://readthedocs.org/dashboard/flocker/versions/
-
-
 Improving the Release Process
 -----------------------------
 
@@ -466,3 +580,5 @@ XXX: This process needs documenting. See https://clusterhq.atlassian.net/browse/
 .. _virtualenvwrapper: https://pypi.python.org/pypi/virtualenvwrapper
 .. _virtualenv: https://pypi.python.org/pypi/virtualenv
 .. _Homebrew: http://brew.sh
+.. _CloudFront: https://console.aws.amazon.com/cloudfront/home
+.. _S3: https://console.aws.amazon.com/s3/home
