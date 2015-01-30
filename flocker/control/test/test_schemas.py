@@ -110,3 +110,22 @@ DatasetsSchemaTests = build_schema_test(
          u"dataset_id": u"x" * 36},
     ]
 )
+
+DatasetsArrayTests = build_schema_test(
+    name="DatasetsArrayTests",
+    schema={'$ref': '/v1/endpoints.json#/definitions/datasets_array'},
+    schema_store=SCHEMAS,
+    failing_instances=[
+        # Incorrect type
+        {},
+        # Wrong item type
+        ["string"],
+        # Failing dataset type
+        [{u"primary": u"10.0.0.1", u"maximum_size": 123}]
+    ],
+    passing_instances=[
+        [],
+        [{u"primary": u"10.0.0.1"}],
+        [{u"primary": u"10.0.0.1"}, {u"primary": u"10.0.0.2"}]
+    ],
+)

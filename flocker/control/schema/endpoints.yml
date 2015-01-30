@@ -80,4 +80,6 @@ definitions:
     type: array
     items:
       description: "The dataset"
-      type: { "$ref": "#/definitions/datasets" }
+      type: object
+      oneOf:
+        - {"$ref": "#/definitions/datasets" }
