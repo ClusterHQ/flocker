@@ -220,16 +220,24 @@ def datasets_from_deployment(deployment):
                 # implement consistency checking when state is reported by each
                 # node.
                 # See https://clusterhq.atlassian.net/browse/FLOC-1303
-                dataset = manifestation.dataset
-                result = dict(
-                    dataset_id=dataset.dataset_id,
-                    primary=node.hostname,
-                    metadata=thaw(dataset.metadata)
+                yield api_dataset_from_dataset_and_node(
+                    manifestation.dataset, node.hostname
                 )
-                if dataset.maximum_size is not None:
-                    result['maximum_size'] = dataset.maximum_size
-                yield result
 
+
+def api_dataset_from_dataset_and_node(dataset, node_hostname):
+    """
+    Return a dataset dict which conforms to
+    ``/v1/endpoints.json#/definitions/datasets_array``
+    """
+    result = dict(
+        dataset_id=dataset.dataset_id,
+        primary=node_hostname,
+        metadata=thaw(dataset.metadata)
+    )
+    if dataset.maximum_size is not None:
+        result['maximum_size'] = dataset.maximum_size
+    return result
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):

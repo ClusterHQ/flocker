@@ -27,7 +27,8 @@ from ...restapi.testtools import (
 
 from .. import Dataset, Manifestation, Node, Deployment, AttachedVolume
 from ..httpapi import (
-    DatasetAPIUserV1, create_api_service, datasets_from_deployment
+    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    api_dataset_from_dataset_and_node
 )
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
@@ -682,4 +683,49 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             set([manifestation1.dataset.dataset_id,
                  manifestation2.dataset.dataset_id,]),
             set(d['dataset_id'] for d in datasets_from_deployment(deployment))
+        )
+
+
+class ApiDatasetFromDatasetAndNodeTests(SynchronousTestCase):
+    """
+    Tests for ``ApiDatasetFromDatasetAndNodeTests``.
+    """
+    def test_without_maximum_size(self):
+        """
+        ``maximum_size`` is omitted from the returned dict if the dataset
+        maximum_size is None.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={},
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )
+
+
+    def test_with_maximum_size(self):
+        """
+        ``maximum_size`` is included in the returned dict if the dataset
+        maximum_size is set.
+        """
+        expected_size = 1024 * 1024 * 1024 * 42
+        dataset = Dataset(
+            dataset_id=unicode(uuid4()),
+            maximum_size=expected_size,
+        )
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            maximum_size=expected_size,
+            metadata={},
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
         )
