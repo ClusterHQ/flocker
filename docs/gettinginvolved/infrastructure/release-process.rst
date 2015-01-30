@@ -86,7 +86,7 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Back port features from master (optional)
 
@@ -352,7 +352,7 @@ Release
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
       cd homebrew-tap-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
