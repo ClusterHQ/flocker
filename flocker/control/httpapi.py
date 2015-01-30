@@ -204,10 +204,10 @@ class DatasetAPIUserV1(object):
         return []
         # return datasets_from_deployment(deployment)
 
-# def datasets_from_deployment(deployment):
-#     """
-#     Return a dictionary of nodes and their datasets.
-#     """
+def datasets_from_deployment(deployment):
+    """
+    Return a dictionary of nodes and their datasets.
+    """
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):

@@ -26,7 +26,9 @@ from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads, goodResult, badResult)
 
 from .. import Dataset, Manifestation, Node, Deployment
-from ..httpapi import DatasetAPIUserV1, create_api_service
+from ..httpapi import (
+    DatasetAPIUserV1, create_api_service, datasets_from_deployment
+)
 from .._persistence import ConfigurationPersistenceService
 from .._clusterstate import ClusterStateService
 from ... import __version__
@@ -500,3 +502,14 @@ class DatasetsStateTestsMixin(APITestsMixin):
 
 RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
     DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
+
+
+
+
+class DatasetsFromDeploymentTests(SynchronousTestCase):
+    def test_empty(self):
+        """
+        """
+        expected = []
+        actual = datasets_from_deployment(object())
+        self.assertEqual(expected, actual)
