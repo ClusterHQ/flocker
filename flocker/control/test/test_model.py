@@ -175,19 +175,6 @@ class DeploymentInitTests(make_with_init_tests(
     Tests for ``Deployment.__init__``.
     """
 
-# from .._model import (
-#     Application, DockerImage, NodeState, Node, Deployment, Manifestation,
-#     Dataset,
-# )
-
-# APP1 = Application(
-#     name=u"webserver", image=DockerImage.from_string(u"apache"))
-# APP2 = Application(
-#     name=u"database", image=DockerImage.from_string(u"postgresql"))
-# MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
-#                               primary=True)
-
-
 
 class DeploymentTests(SynchronousTestCase):
     """
@@ -213,62 +200,6 @@ class DeploymentTests(SynchronousTestCase):
         self.assertEqual(sorted(list(deployment.applications())),
                          sorted(list(node.applications) +
                                 list(another_node.applications)))
-
-    def test_datasets_empty(self):
-        """
-        ``Deployment.datasets()`` returns datasets from all nodes.
-        """
-        deployment = Deployment(nodes=frozenset())
-        expected = []
-        self.assertEqual(expected, list(deployment.datasets()))
-
-    def test_datasets_applications(self):
-        """
-        ``Deployment.datasets()`` returns datasets from all applications on all
-        nodes.
-        """
-        expected_hostname = u"node1.example.com"
-        expected_dataset = Dataset(dataset_id=u"jalkjlk")
-        volume = AttachedVolume(
-            manifestation=Manifestation(dataset=expected_dataset,
-                                        primary=True),
-            mountpoint=FilePath(b"/blah"))
-
-        node = Node(
-            hostname=expected_hostname,
-            applications=frozenset({Application(name=u'mysql-clusterhq',
-                                                image=object()),
-                                    Application(name=u'site-clusterhq.com',
-                                                image=object(),
-                                                volume=volume)}),
-        )
-
-        deployment = Deployment(nodes=frozenset([node]))
-        expected = dict(
-            dataset_id=expected_dataset.dataset_id,
-            primary=expected_hostname,
-            maximum_size=expected_dataset.maximum_size,
-            metadata=expected_dataset.metadata
-        )
-        self.assertEqual([expected], list(deployment.datasets()))
-
-    # def test_datasets_other_manifestations(self):
-    #     """
-    #     ``Deployment.datasets()`` includes datasets from all
-    #     other_manifestations on all nodes.
-    #     """
-    #     deployment = Deployment(nodes=frozenset())
-    #     expected = []
-    #     self.assertEqual(expected, deployment.datasets())
-
-    # def test_datasets_both(self):
-    #     """
-    #     ``Deployment.datasets()`` returns datasets from both applications and
-    #     the other_manifestations on those nodes.
-    #     """
-    #     deployment = Deployment(nodes=frozenset())
-    #     expected = []
-    #     self.assertEqual(expected, deployment.datasets())
 
 
 class RestartOnFailureTests(SynchronousTestCase):

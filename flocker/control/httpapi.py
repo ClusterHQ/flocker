@@ -205,6 +205,24 @@ class DatasetAPIUserV1(object):
         # return datasets_from_deployment(deployment)
 
 
+def datasets_from_deployment(deployment):
+    """
+    Return all datasets in all nodes.
+
+    :return: Iterable returning all datasets.
+    """
+    for node in deployment.nodes:
+        for manifestation in node.manifestations():
+            if manifestation.primary:
+                dataset = manifestation.dataset
+                yield dict(
+                    dataset_id=dataset.dataset_id,
+                    primary=node.hostname,
+                    maximum_size=dataset.maximum_size,
+                    metadata=dataset.metadata
+                )
+
+
 def create_api_service(persistence_service, cluster_state_service, endpoint):
     """
     Create a Twisted Service that serves the API on the given endpoint.
