@@ -521,6 +521,7 @@ RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
 
 class DatasetsFromDeploymentTests(SynchronousTestCase):
     """
+    Tests for ``datasets_from_deployment``.
     """
     def test_empty(self):
         """
