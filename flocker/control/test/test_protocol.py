@@ -213,7 +213,7 @@ class AgentClientTests(SynchronousTestCase):
         having cluster state updated.
         """
         self.client.makeConnection(StringTransport())
-        actual = Deployment(nodes=frozenset([]))
+        actual = Deployment(nodes=frozenset())
         d = self.server.callRemote(ClusterStatusCommand,
                                    configuration=TEST_DEPLOYMENT,
                                    state=actual)
