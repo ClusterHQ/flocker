@@ -6,7 +6,7 @@ Tests for ``flocker.control.httpapi``.
 from io import BytesIO
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, thaw
 
 from zope.interface.verify import verifyObject
 
@@ -493,8 +493,23 @@ class DatasetsStateTestsMixin(APITestsMixin):
         """
         One dataset
         """
-        self.cluster_state_service.update_node_state(u"host1", NodeState(running=[APP1], not_running=[]))
-        response = []
+        expected_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation = Manifestation(
+            dataset=expected_dataset, primary=True)
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            expected_hostname, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation])
+            )
+        )
+        expected_dict = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={}
+        )
+        response = [expected_dict]
         return self.assertResult(
             b"GET", b"/state/datasets", None, OK, response
         )
@@ -540,8 +555,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            maximum_size=expected_dataset.maximum_size,
-            metadata=expected_dataset.metadata
+            metadata=thaw(expected_dataset.metadata)
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
@@ -565,8 +579,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            maximum_size=expected_dataset.maximum_size,
-            metadata=expected_dataset.metadata
+            metadata=thaw(expected_dataset.metadata)
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
@@ -603,7 +616,6 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         expected = dict(
             dataset_id=expected_dataset.dataset_id,
             primary=expected_hostname,
-            maximum_size=expected_dataset.maximum_size,
-            metadata=expected_dataset.metadata
+            metadata=thaw(expected_dataset.metadata)
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))

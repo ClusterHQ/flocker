@@ -6,7 +6,7 @@ A HTTP REST API for controlling the Dataset Manager.
 import yaml
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.web.http import CONFLICT, CREATED
@@ -199,10 +199,8 @@ class DatasetAPIUserV1(object):
         """
         Return all datasets in the cluster.
         """
-        # deployment = self.cluster_state_service.as_deployment()
-        # Filter out the datasets and their current nodes.
-        return []
-        # return datasets_from_deployment(deployment)
+        deployment = self.cluster_state_service.as_deployment()
+        return list(datasets_from_deployment(deployment))
 
 
 def datasets_from_deployment(deployment):
@@ -217,12 +215,15 @@ def datasets_from_deployment(deployment):
                 # Should we check for inconsistency here? ie datasets which
                 # have been migrated between two nodes reporting their state.
                 dataset = manifestation.dataset
-                yield dict(
+                result = dict(
                     dataset_id=dataset.dataset_id,
                     primary=node.hostname,
-                    maximum_size=dataset.maximum_size,
-                    metadata=dataset.metadata
+                    metadata=thaw(dataset.metadata)
                 )
+                if dataset.maximum_size is not None:
+                    result['maximum_size'] = dataset.maximum_size
+                yield result
+
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):
