@@ -33,10 +33,7 @@ class VersionCodeBlock(CodeBlock):
 
         self.content = [item.replace(u'|latest-packaged-version|', latest) for
                         item in self.content]
-        block = CodeBlock(self.name, self.arguments, self.options,
-                          self.content, self.lineno, self.content_offset,
-                          self.block_text, self.state, self.state_machine)
-        return block.run()
+        return CodeBlock.run(self)
 
 
 def setup(app):
