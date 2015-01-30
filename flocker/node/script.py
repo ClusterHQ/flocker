@@ -219,6 +219,8 @@ class VolumeServeOptions(Options):
     """
     Command line options for ``flocker-zfs-agent`` cluster management process.
     """
+    # XXX add options for accessing host and port of control service AMP
+    # protocol
 
 
 @implementer(ICommandLineVolumeScript)
@@ -228,6 +230,8 @@ class VolumeServeScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
+        # XXX Create Deployer instance, and instead of running
+        # volume_service run AgentLoopService.
         return main_for_service(reactor, volume_service)
 
 
