@@ -13,7 +13,11 @@
 
 from twisted.python.filepath import FilePath
 
-import sys, os
+import sys
+import os
+import re
+
+sys.path.insert(0, FilePath(__file__).parent().parent().path)
 
 # Check if we are building on readthedocs
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
@@ -59,12 +63,15 @@ copyright = u'2014, ClusterHQ'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
+from flocker import __version__
+from flocker.docs import get_doc_version, is_release
 # The short X.Y version.
-sys.path.insert(0, FilePath(__file__).parent().parent().path)
-from flocker import __version__ as version
-if version.endswith("-dirty"):
-    version = version[:-6]
-del sys.path[0]
+version = get_doc_version(__version__)
+
+html_context = {
+    # This is used to show the development version warning.
+    'is_release': is_release(__version__),
+}
 
 # The full version, including alpha/beta/rc tags.
 release = version
@@ -74,6 +81,7 @@ release = version
 # We override with our own variant to improve search results slightly.
 from sphinx.search.en import SearchEnglish
 from sphinx.search import languages as sphinx_languages
+
 
 class FlockerLanguage(SearchEnglish):
     """
