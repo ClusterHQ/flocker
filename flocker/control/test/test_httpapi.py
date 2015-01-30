@@ -502,20 +502,3 @@ class DatasetsStateTestsMixin(APITestsMixin):
 
 RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
     DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
-
-
-
-
-class DatasetsFromDeploymentTests(SynchronousTestCase):
-    """
-    Tests for ``datasets_from_deployment``.
-    """
-    def test_empty(self):
-        """
-        ``datasets_from_deployment`` returns an empty list when supplied with
-        an empty ``Deployment``.
-        """
-        deployment = Deployment(nodes=frozenset())
-        expected = []
-        actual = datasets_from_deployment(deployment)
-        self.assertEqual(expected, actual)

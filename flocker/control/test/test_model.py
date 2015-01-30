@@ -201,6 +201,14 @@ class DeploymentTests(SynchronousTestCase):
                          sorted(list(node.applications) +
                                 list(another_node.applications)))
 
+    def test_datasets(self):
+        """
+        ``Deployment.datasets()`` returns datasets from all nodes.
+        """
+        deployment = Deployment(nodes=frozenset())
+        expected = []
+        self.assertEqual(expected, deployment.datasets())
+
 
 class RestartOnFailureTests(SynchronousTestCase):
     """

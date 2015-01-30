@@ -251,6 +251,14 @@ class Deployment(object):
             for application in node.applications:
                 yield application
 
+    def datasets(self):
+        """
+        Return all datasets in all nodes.
+
+        :return: Iterable returning all datasets.
+        """
+        return []
+
 
 @attributes(['internal_port', 'external_port'])
 class Port(object):
