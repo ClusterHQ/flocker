@@ -545,14 +545,30 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
-    # def test_datasets_other_manifestations(self):
-    #     """
-    #     ``Deployment.datasets()`` includes datasets from all
-    #     other_manifestations on all nodes.
-    #     """
-    #     deployment = Deployment(nodes=frozenset())
-    #     expected = []
-    #     self.assertEqual(expected, deployment.datasets())
+
+    def test_other_manifestations(self):
+        """
+        ``Deployment.datasets()`` includes datasets from all
+        other_manifestations on all nodes.
+        """
+        expected_hostname = u"node1.example.com"
+        expected_dataset = Dataset(dataset_id=u"jalkjlk")
+        expected_manifestation = Manifestation(dataset=expected_dataset,
+                                               primary=True)
+        node = Node(
+            hostname=expected_hostname,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+
+        deployment = Deployment(nodes=frozenset([node]))
+        expected = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            maximum_size=expected_dataset.maximum_size,
+            metadata=expected_dataset.metadata
+        )
+        self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
     # def test_datasets_both(self):
     #     """
