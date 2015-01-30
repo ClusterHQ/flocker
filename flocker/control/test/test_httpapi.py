@@ -585,11 +585,10 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
-    def test_secondary_manifestations(self):
+    def test_primary_and_secondary_manifestations(self):
         """
-        ``datasets_from_deployment`` returns dataset dictionaries for the
-        volumes attached to applications on all nodes and their secondary
-        manifestations on other nodes.
+        ``datasets_from_deployment`` does not return secondary manifestations
+        on other nodes.
         """
 
         expected_hostname = u"node1.example.com"
@@ -622,3 +621,33 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             metadata=thaw(expected_dataset.metadata)
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
+
+    def test_secondary_manifestations_only(self):
+        """
+        ``datasets_from_deployment`` does not return datasets if there are only
+        secondary manifestations.
+        """
+        manifestation1 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        manifestation2 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+
+        node1 = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation1])
+        )
+
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation2])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+
+        self.assertEqual([], list(datasets_from_deployment(deployment)))
