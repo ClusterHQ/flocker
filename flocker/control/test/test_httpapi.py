@@ -651,3 +651,35 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node1, node2]))
 
         self.assertEqual([], list(datasets_from_deployment(deployment)))
+
+    def test_multiple_primary_manifestations(self):
+        """
+        ``datasets_from_deployment`` may return multiple primary datasets.
+        """
+        manifestation1 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=True
+        )
+        manifestation2 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=True
+        )
+
+        node1 = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation1])
+        )
+
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation2])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+        self.assertEqual(
+            set([manifestation1.dataset.dataset_id,
+                 manifestation2.dataset.dataset_id,]),
+            set(d['dataset_id'] for d in datasets_from_deployment(deployment))
+        )
