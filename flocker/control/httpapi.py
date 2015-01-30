@@ -197,7 +197,7 @@ class DatasetAPIUserV1(object):
     )
     def datasets(self):
         """
-        Return all datasets in the cluster.
+        Return the current primary datasets in the cluster.
         """
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
@@ -205,15 +205,20 @@ class DatasetAPIUserV1(object):
 
 def datasets_from_deployment(deployment):
     """
-    Return all datasets in all nodes.
+    Extract the primary datasets from the supplied deployment instance.
+
+    XXX: What would be the point in returning non-primary dataset dictionaries
+    here? They'd be exactly the same as the primary...unless the metadata or
+    maximum_size has changed since the dataset was migrated between nodes.
 
     :return: Iterable returning all datasets.
     """
     for node in deployment.nodes:
         for manifestation in node.manifestations():
             if manifestation.primary:
-                # Should we check for inconsistency here? ie datasets which
-                # have been migrated between two nodes reporting their state.
+                # There may be multiple datasets marked as primary until we
+                # implement consistency checking when state is reported by each
+                # node.
                 # See https://clusterhq.atlassian.net/browse/FLOC-1303
                 dataset = manifestation.dataset
                 result = dict(
