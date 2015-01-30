@@ -14,6 +14,7 @@ from ._persistence import ConfigurationPersistenceService
 from ._clusterstate import ClusterStateService
 from ..common.script import (
     flocker_standard_options, FlockerScriptRunner, main_for_service)
+from ._protocol import ControlAMPService
 
 
 @flocker_standard_options
@@ -25,8 +26,9 @@ class ControlOptions(Options):
         ["data-path", "d", FilePath(b"/var/lib/flocker"),
          "The directory where data will be persisted.", FilePath],
         ["port", "p", 4523, "The external API port to listen on.", int],
-        # FLOC-1281 Add option for internal AMP port.
-        ]
+        ["agent-port", "a", 4524,
+         "The port convergence agents will connect to.", int],
+    ]
 
 
 class ControlScript(object):
@@ -35,7 +37,6 @@ class ControlScript(object):
     cluster.
     """
     def main(self, reactor, options):
-        # FLOC-1281 also add ControlAMPService
         top_service = MultiService()
         persistence = ConfigurationPersistenceService(
             reactor, options["data-path"])
@@ -44,6 +45,10 @@ class ControlScript(object):
         cluster_state.setServiceParent(top_service)
         create_api_service(persistence, cluster_state, TCP4ServerEndpoint(
             reactor, options["port"])).setServiceParent(top_service)
+        amp_service = ControlAMPService(
+            cluster_state, persistence, TCP4ServerEndpoint(
+                reactor, options["agent-port"]))
+        amp_service.setServiceParent(top_service)
         return main_for_service(reactor, top_service)
 
 

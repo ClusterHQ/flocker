@@ -32,6 +32,8 @@ from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
 )
+from twisted.internet.protocol import ServerFactory
+from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import serialize_deployment, deserialize_deployment
 
@@ -140,22 +142,27 @@ class ControlAMPService(Service):
 
     Convergence agents connect to this server.
     """
-    def __init__(self, cluster_state, persistence_service):
+    def __init__(self, cluster_state, persistence_service, endpoint):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
         :param ConfigurationPersistenceService persistence_service: Persistence
             service for desired cluster configuration.
+        :param endpoint: Endpoint to listen on.
         """
         self.connections = set()
         self.cluster_state = cluster_state
+        self.endpoint_service = StreamServerEndpointService(
+            endpoint, ServerFactory.forProtocol(lambda: ControlAMP(self)))
 
     def startService(self):
+        self.endpoint_service.startService()
         # ... start listening on AMP using ControlServiceAMP
         pass
 
     def stopService(self):
         # ... stop listening
+        # ... disconnect existing connections
         pass
 
     def _send_state_to_connections(self, connections):

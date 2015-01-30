@@ -128,7 +128,7 @@ def build_control_amp_service(test):
         None, FilePath(test.mktemp()))
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
-    return ControlAMPService(cluster_state, persistence_service)
+    return ControlAMPService(cluster_state, persistence_service, None)
 
 
 class ControlAMPTests(SynchronousTestCase):
