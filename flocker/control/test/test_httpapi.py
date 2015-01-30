@@ -25,7 +25,8 @@ from twisted.python.filepath import FilePath
 from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads, goodResult, badResult)
 
-from .. import Dataset, Manifestation, Node, Deployment, AttachedVolume
+from .. import (Application, Dataset, Manifestation, Node, NodeState,
+    Deployment, AttachedVolume)
 from ..httpapi import (
     DatasetAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
@@ -433,9 +434,6 @@ RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)
 
 
-# Add a DatasetsAPIMixin here and build real and in-memory test cases
-# Merge in master to get latest testing helpers.
-
 class CreateAPIServiceTests(SynchronousTestCase):
     """
     Tests for ``create_api_service``.
@@ -462,19 +460,6 @@ class CreateAPIServiceTests(SynchronousTestCase):
         port = server[0]
         factory = server[1].__class__
         self.assertEqual((port, factory), (6789, Site))
-
-
-from .._model import (
-    Application, DockerImage, NodeState, Node, Deployment, Manifestation,
-    Dataset,
-)
-
-APP1 = Application(
-    name=u"webserver", image=DockerImage.from_string(u"apache"))
-APP2 = Application(
-    name=u"database", image=DockerImage.from_string(u"postgresql"))
-MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
-                              primary=True)
 
 
 class DatasetsStateTestsMixin(APITestsMixin):
@@ -560,8 +545,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             primary=expected_hostname,
             metadata=thaw(expected_dataset.metadata)
         )
-        self.assertEqual([expected], list(datasets_from_deployment(deployment)))
-
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
 
     def test_other_manifestations(self):
         """
@@ -584,7 +569,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             primary=expected_hostname,
             metadata=thaw(expected_dataset.metadata)
         )
-        self.assertEqual([expected], list(datasets_from_deployment(deployment)))
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
 
     def test_primary_and_secondary_manifestations(self):
         """
@@ -621,7 +607,8 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
             primary=expected_hostname,
             metadata=thaw(expected_dataset.metadata)
         )
-        self.assertEqual([expected], list(datasets_from_deployment(deployment)))
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
 
     def test_secondary_manifestations_only(self):
         """
