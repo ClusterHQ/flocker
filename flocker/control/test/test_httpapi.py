@@ -570,11 +570,40 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
         self.assertEqual([expected], list(datasets_from_deployment(deployment)))
 
-    # def test_datasets_both(self):
-    #     """
-    #     ``Deployment.datasets()`` returns datasets from both applications and
-    #     the other_manifestations on those nodes.
-    #     """
-    #     deployment = Deployment(nodes=frozenset())
-    #     expected = []
-    #     self.assertEqual(expected, deployment.datasets())
+    def test_datasets_both(self):
+        """
+        ``Deployment.datasets()`` returns datasets from both applications and
+        the other_manifestations on those nodes.
+        """
+
+        expected_hostname = u"node1.example.com"
+        expected_dataset = Dataset(dataset_id=u"jalkjlk")
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=expected_dataset,
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+
+        node1 = Node(
+            hostname=expected_hostname,
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object(),
+                                                volume=volume)}),
+        )
+        expected_manifestation = Manifestation(dataset=expected_dataset,
+                                               primary=False)
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+        expected = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            maximum_size=expected_dataset.maximum_size,
+            metadata=expected_dataset.metadata
+        )
+        self.assertEqual([expected], list(datasets_from_deployment(deployment)))
