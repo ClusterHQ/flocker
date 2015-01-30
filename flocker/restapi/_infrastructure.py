@@ -40,8 +40,8 @@ class EndpointResponse(object):
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
 
-        @param result: The (structured) value to put into the C{u"result"}
-            field of the response body.  This must be JSON encodeable.
+        @param result: The (structured) value to put into the response
+            body.  This must be JSON encodeable.
         """
         self.code = code
         self.result = result
