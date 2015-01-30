@@ -73,7 +73,9 @@ setup(
     },
 
     entry_points = {
-        # Command-line programs we want setuptools to install:
+        # These are the command-line programs we want setuptools to install.
+        # Don't forget to modify the omnibus packaging tool
+        # (admin/packaging.py) if you make changes here.
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
