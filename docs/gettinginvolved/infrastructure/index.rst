@@ -10,3 +10,4 @@ Contents:
    packaging
    release-process
    release-schedule-versioning
+   documentation

@@ -29,7 +29,7 @@ from pickle import dumps, loads
 from zope.interface import Interface
 
 from twisted.protocols.amp import (
-    Argument, Command, Integer, String, CommandLocator, AMP,
+    Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
 )
 
 from ._persistence import serialize_deployment, deserialize_deployment
@@ -144,25 +144,52 @@ class IConvergenceAgent(Interface):
         """
 
 
-class AgentClient(AMP):
+class _AgentLocator(CommandLocator):
     """
-    Convergence agent side of the protocol.
+    Command locator for convergence agent.
     """
     def __init__(self, agent):
         """
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
         """
-        AMP.__init__(self)
+        CommandLocator.__init__(self)
         self.agent = agent
-
-    def connectionMade(self):
-        self.agent.connected(self)
-
-    def connectionLost(self, reason):
-        AMP.connectionLost(self, reason)
-        self.agent.disconnected()
 
     @ClusterStatusCommand.responder
     def cluster_updated(self, configuration, state):
         self.agent.cluster_updated(configuration, state)
         return {}
+
+
+class _AgentBoxReceiver(BoxDispatcher):
+    """
+    Box receiver for convergence agent.
+    """
+    def __init__(self, agent, locator):
+        """
+        :param IConvergenceAgent agent: Convergence agent to notify of changes.
+        :param _AgentLocator locator: The locator.
+        """
+        BoxDispatcher.__init__(self, locator)
+        self.agent = agent
+
+    def startReceivingBoxes(self, box_sender):
+        BoxDispatcher.startReceivingBoxes(self, box_sender)
+        self.agent.connected(self) # XXX FLOC-1255 added this
+
+    def stopReceivingBoxes(self, reason):
+        BoxDispatcher.stopReceivingBoxes(self, reason)
+        self.agent.disconnected()
+
+
+def build_agent_client(agent):
+    """
+    Create convergence agent side of the protocol.
+
+    :param IConvergenceAgent agent: Convergence agent to notify of changes.
+
+    :return AMP: protocol instance setup for client.
+    """
+    locator = _AgentLocator(agent)
+    return AMP(boxReceiver=_AgentBoxReceiver(agent, locator),
+               locator=locator)

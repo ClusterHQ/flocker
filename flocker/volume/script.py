@@ -141,7 +141,7 @@ class _AcquireSubcommandOptions(Options):
     * name: The name of the volume.
     """
 
-    synopsis = "<owner-uuid> <name>"
+    synopsis = "<owner-node-id> <name>"
 
     def parseArgs(self, node_id, name):
         self["node_id"] = node_id.decode("ascii")
