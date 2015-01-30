@@ -56,7 +56,7 @@ The ``flocker-deploy`` command line program will now be available in ``flocker-t
 
    alice@mercury:~$ cd flocker-tutorial
    alice@mercury:~/flocker-tutorial$ bin/flocker-deploy --version
-   |RELEASE|
+   |latest-packaged-version|
    alice@mercury:~/flocker-tutorial$
 
 If you want to omit the prefix path you can add the appropriate directory to your ``$PATH``.
@@ -66,7 +66,7 @@ You'll need to do this every time you start a new shell.
 
    alice@mercury:~/flocker-tutorial$ export PATH="${PATH:+${PATH}:}${PWD}/bin"
    alice@mercury:~/flocker-tutorial$ flocker-deploy --version
-   |RELEASE|
+   |latest-packaged-version|
    alice@mercury:~/flocker-tutorial$
 
 OS X
@@ -90,9 +90,9 @@ Add the ``ClusterHQ/flocker`` tap to Homebrew and install ``flocker``:
 
    alice@mercury:~$ brew tap ClusterHQ/tap
    ...
-   alice@mercury:~$ brew install flocker-|RELEASE|
+   alice@mercury:~$ brew install flocker-|latest-packaged-version|
    ...
-   alice@mercury:~$ brew test flocker-|RELEASE|
+   alice@mercury:~$ brew test flocker-|latest-packaged-version|
    ...
    alice@mercury:~$
 
@@ -103,7 +103,7 @@ The ``flocker-deploy`` command line program will now be available:
 .. version-code-block:: console
 
    alice@mercury:~$ flocker-deploy --version
-   |RELEASE|
+   |latest-packaged-version|
    alice@mercury:~$
 
 .. _Homebrew: http://brew.sh
