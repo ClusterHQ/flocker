@@ -14,6 +14,7 @@ blocks.
 from sphinx.directives.code import CodeBlock
 
 from flocker import __version__ as version
+from flocker.docs import parse_version
 
 
 class VersionCodeBlock(CodeBlock):
@@ -22,9 +23,15 @@ class VersionCodeBlock(CodeBlock):
     version.
     """
     def run(self):
-        # Use the WIP get_doc_version to get the latest release version
-        # from https://github.com/ClusterHQ/flocker/pull/1092/
-        self.content = [item.replace(u'|RELEASE|', version) for item in
+        parsed_version = parse_version(version)
+        latest = parsed_version.release
+
+        if parsed_version.weekly_release is not None:
+            latest = latest + 'dev' + parsed_version.weekly_release
+        elif parsed_version.pre_release is not None:
+            latest = latest + 'pre' + parsed_version.pre_release
+
+        self.content = [item.replace(u'|RELEASE|', latest) for item in
                         self.content]
         block = CodeBlock(self.name, self.arguments, self.options,
                           self.content, self.lineno, self.content_offset,
