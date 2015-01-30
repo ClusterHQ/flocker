@@ -214,6 +214,8 @@ def datasets_from_deployment(deployment):
     for node in deployment.nodes:
         for manifestation in node.manifestations():
             if manifestation.primary:
+                # Should we check for inconsistency here? ie datasets which
+                # have been migrated between two nodes reporting their state.
                 dataset = manifestation.dataset
                 yield dict(
                     dataset_id=dataset.dataset_id,
