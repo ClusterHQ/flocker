@@ -214,6 +214,7 @@ def datasets_from_deployment(deployment):
             if manifestation.primary:
                 # Should we check for inconsistency here? ie datasets which
                 # have been migrated between two nodes reporting their state.
+                # See https://clusterhq.atlassian.net/browse/FLOC-1303
                 dataset = manifestation.dataset
                 result = dict(
                     dataset_id=dataset.dataset_id,
