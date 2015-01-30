@@ -15,17 +15,19 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
+from twisted.python.filepath import FilePath
 
 from .._protocol import (
     NodeStateArgument, DeploymentArgument, ControlServiceLocator,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    build_agent_client,
+    build_agent_client, ControlAMPService, ControlAMP
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
     Deployment, Application, DockerImage, Node, NodeState, Manifestation,
     Dataset,
 )
+from .._persistence import ConfigurationPersistenceService
 
 
 class LoopbackAMPClient(object):
@@ -111,16 +113,32 @@ class SerializationTests(SynchronousTestCase):
                          [type(as_bytes), deserialized])
 
 
-class ControlServiceLocatorTests(SynchronousTestCase):
+def build_control_amp_service(test):
     """
-    Tests for ``ControlServiceLocator``.
+    Create a new ``ControlAMPService``.
+
+    :param TestCase test: The test this service is for.
+
+    :return ControlAMPService: Not started.
+    """
+    cluster_state = ClusterStateService()
+    cluster_state.startService()
+    test.addCleanup(cluster_state.stopService)
+    persistence_service = ConfigurationPersistenceService(
+        None, FilePath(test.mktemp()))
+    persistence_service.startService()
+    test.addCleanup(persistence_service.stopService)
+    return ControlAMPService(cluster_state, persistence_service)
+
+
+class ControlAMPTests(SynchronousTestCase):
+    """
+    Tests for ``ControlAMP`` and ``ControlServiceLocator``.
     """
     def setUp(self):
-        self.cluster_state = ClusterStateService()
-        self.cluster_state.startService()
-        self.addCleanup(self.cluster_state.stopService)
-        self.client = LoopbackAMPClient(ControlServiceLocator(
-            self.cluster_state))
+        self.control_amp_service = build_control_amp_service(self)
+        self.protocol = ControlAMP(self.control_amp_service)
+        self.client = LoopbackAMPClient(self.protocol.locator)
 
     def test_version(self):
         """
@@ -131,20 +149,21 @@ class ControlServiceLocatorTests(SynchronousTestCase):
             self.successResultOf(self.client.callRemote(VersionCommand)),
             {"major": 1})
 
-    def test_nodestate(self):
+    def test_nodestate_updates_node_state(self):
         """
         ``NodeStateCommand`` updates the node state.
         """
         self.successResultOf(
             self.client.callRemote(NodeStateCommand, hostname=u"example1",
                                    node_state=NODE_STATE))
-        self.assertEqual(self.cluster_state.as_deployment(),
-                         Deployment(
-                             nodes=frozenset([
-                                 Node(hostname=u'example1',
-                                      applications=frozenset([APP1, APP2]),
-                                      other_manifestations=frozenset(
-                                          [MANIFESTATION]))])))
+        self.assertEqual(
+            self.control_amp_service.cluster_state.as_deployment(),
+            Deployment(
+                nodes=frozenset([
+                    Node(hostname=u'example1',
+                         applications=frozenset([APP1, APP2]),
+                         other_manifestations=frozenset(
+                             [MANIFESTATION]))])))
 
 
 @implementer(IConvergenceAgent)

@@ -28,6 +28,7 @@ from pickle import dumps, loads
 
 from zope.interface import Interface
 
+from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
 )
@@ -98,6 +99,8 @@ class ControlServiceLocator(CommandLocator):
         """
         :param ControlAMPService control_amp_service: ...
         """
+        CommandLocator.__init__(self)
+        self.control_amp_service = control_amp_service
 
     @VersionCommand.responder
     def version(self):
@@ -109,8 +112,13 @@ class ControlServiceLocator(CommandLocator):
         return {}
 
 
-class ControlServiceAMP(AMP):
-    # Use ControlServiceLocator as locator
+class ControlAMP(AMP):
+    """
+    AMP protocol for control service server.
+    """
+    def __init__(self, control_amp_service):
+        AMP.__init__(self, locator=ControlServiceLocator(control_amp_service))
+
     # connectionMade - add self to ControlAMPService with connected()
     # connectionLost - remove self from ControlAMPService disconnected()
 
@@ -118,13 +126,18 @@ class ControlServiceAMP(AMP):
 class ControlAMPService(Service):
     """
     Control Service AMP server.
+
+    Convergence agents connect to this server.
     """
-    def __init__(self, cluster_state, configuration_persistence_service):
+    def __init__(self, cluster_state, persistence_service):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
+        :param ConfigurationPersistenceService persistence_service: Persistence
+            service for desired cluster configuration.
         """
         self.connections = set()
+        self.cluster_state = cluster_state
 
     def startService(self):
         # ... start listening on AMP using ControlServiceAMP
@@ -146,13 +159,20 @@ class ControlAMPService(Service):
     def connected(self, connection):
         #self.connectioins.add(connection)
         #self._send_state_to_connections([connection])
+        pass
 
     def disconnected(self, connection):
         #self.connections.remove(connection)
         pass
 
     def node_changed(self, hostname, node_state):
-        #self.cluster_state.update_node_state(hostname, node_state)
+        """
+        We've received a node state updated from a connected client.
+
+        :param bytes hostname: The hostname of the node.
+        :param NodeState node_state: The changed state for the node.
+        """
+        self.cluster_state.update_node_state(hostname, node_state)
         #self._send_state_to_connections(self.connections)
         pass
 
