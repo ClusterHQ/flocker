@@ -595,3 +595,25 @@ footer .copyright p {
         margin-right: 6px;
     }
 }
+@media screen and (min-width:768px) and (max-width:1200px) {
+    .tryflocker {
+        top: 0px;
+    }
+    .flocker-logo {
+        left: 670px;
+        top: 190px;
+        position: absolute;
+    }       
+}
+
+@media screen and (min-width:768px) and (max-width:992px) {
+    .flocker-logo {
+        display:none;
+    }
+}
+
+@media screen and (min-width:1024px) and (max-width:1200px) {
+    .flocker-logo {
+        display:none;
+    }
+}
