@@ -110,6 +110,3 @@ DatasetsSchemaTests = build_schema_test(
          u"dataset_id": u"x" * 36},
     ]
 )
-
-# Add Dataset schema validation tests here.
-# Perhaps we can also re-use the code in master.

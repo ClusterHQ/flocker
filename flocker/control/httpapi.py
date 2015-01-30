@@ -185,28 +185,30 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    # # Will we also have a /state endpoint? Or just route directly to the datasets path?
-    # @app.route("/state/datasets", methods=['GET'])
-    # @user_documentation("""
-    #     Get current cluster datasets
-    #     """, examples=[u"get state datasets"])
-    # @structured(
-    #     inputSchema={},
-    #     outputSchema={'$ref': '/v1/endpoints.json#/definitions/state/datasets'},
-    #     schema_store=SCHEMAS
-    # )
-    # def datasets(self):
-    #     """
-    #     Return all datasets in the cluster.
-    #     """
-    #     deployment = self.cluster_state_service.as_deployment()
-    #     # Filter out the datasets and their current nodes.
-    #     return datasets_from_deployment(deployment)
+    # Will we also have a /state endpoint? Or just route directly to the datasets path?
+    @app.route("/state/datasets", methods=['GET'])
+    @user_documentation("""
+        Get current cluster datasets
+        """, examples=[u"get state datasets"])
+    @structured(
+        inputSchema={},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets_array'},
+        schema_store=SCHEMAS
+    )
+    def datasets(self):
+        """
+        Return all datasets in the cluster.
+        """
+        # deployment = self.cluster_state_service.as_deployment()
+        # Filter out the datasets and their current nodes.
+        return []
+        # return datasets_from_deployment(deployment)
 
 # def datasets_from_deployment(deployment):
 #     """
 #     Return a dictionary of nodes and their datasets.
 #     """
+
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):
     """

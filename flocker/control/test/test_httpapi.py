@@ -461,7 +461,60 @@ class CreateAPIServiceTests(SynchronousTestCase):
         self.assertEqual((port, factory), (6789, Site))
 
 
-# class DatasetsFromDeploymentTests(SynchronousTestCase):
-#     """
-#     Tests for ``datasets_from_deployment``
-#     """
+class DatasetsStateTestsMixin(APITestsMixin):
+    """
+    Tests for the service version description endpoint at ``/state/datasets``.
+    """
+    def test_empty(self):
+        """
+        Initial state is no datasets
+        """
+        response = []
+        creating = self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+        return creating
+
+    # def test_create_with_maximum_size(self):
+    #     """
+    #     A maximum size included with the creation of a dataset is included in
+    #     the persisted configuration and response body.
+    #     """
+    #     # self.cluster_state_service
+    #     dataset_id = unicode(uuid4())
+    #     maximum_size = 1024 * 1024 * 1024 * 42
+    #     dataset = {
+    #         u"primary": self.NODE_A,
+    #         u"dataset_id": dataset_id,
+    #         u"maximum_size": maximum_size,
+    #     }
+    #     response = dataset.copy()
+    #     response[u"metadata"] = {}
+    #     creating = self.assertResult(
+    #         b"GET", b"/state/datasets", None, OK, response
+    #     )
+
+    #     def created(ignored):
+    #         deployment = self.persistence_service.get()
+    #         self.assertEqual(
+    #             Deployment(nodes=frozenset({
+    #                 Node(
+    #                     hostname=self.NODE_A,
+    #                     other_manifestations=frozenset({
+    #                         Manifestation(
+    #                             dataset=Dataset(
+    #                                 dataset_id=dataset_id,
+    #                                 maximum_size=maximum_size
+    #                             ),
+    #                             primary=True
+    #                         )
+    #                     })
+    #                 )
+    #             })),
+    #             deployment
+    #         )
+    #     creating.addCallback(created)
+    #     return creating
+
+RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
+    DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
