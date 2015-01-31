@@ -118,9 +118,11 @@ class IConvergenceAgent(Interface):
     This is a little sketchy; it will be solidified in
     https://clusterhq.atlassian.net/browse/FLOC-1255
     """
-    def connected():
+    def connected(client):
         """
         The client has connected to the control service.
+
+        :param AgentClient client: The connected client.
         """
 
     def disconnected():
@@ -173,7 +175,7 @@ class _AgentBoxReceiver(BoxDispatcher):
 
     def startReceivingBoxes(self, box_sender):
         BoxDispatcher.startReceivingBoxes(self, box_sender)
-        self.agent.connected()
+        self.agent.connected(self) # XXX FLOC-1255 added this
 
     def stopReceivingBoxes(self, reason):
         BoxDispatcher.stopReceivingBoxes(self, reason)
