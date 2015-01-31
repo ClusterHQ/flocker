@@ -13,5 +13,7 @@ echo "TMPDIR=/var/tmp" >> /etc/sysconfig/docker
 # Restart docker to ensure that it picks up the new tmpdir configuration.
 systemctl restart docker
 
-docker pull busybox
-docker pull clusterhq/mongodb
+for image in busybox clusterhq/mongodb dockerfile/redis clusterhq/flask; do
+    docker pull "${image}"
+done
+
