@@ -9,7 +9,7 @@ from sphinx.directives.code import CodeBlock, LiteralInclude
 from sphinx.roles import XRefRole
 
 from flocker import __version__ as version
-from flocker.docs import parse_version
+from flocker.docs import get_installable_version
 
 from sphinx import addnodes
 from sphinx.util import ws_re
@@ -38,8 +38,7 @@ def make_changed_file(rel_filename):
 
     :param unicode rel_filename: The relative filename of a template file.
     """
-    parsed_version = parse_version(version)
-    latest = parsed_version.client_release
+    latest = get_installable_version(version)
     new_rel_filename = remove_extension(rel_filename)
     with open(rel_filename, 'r') as templated_file:
         with open(new_rel_filename, 'w') as new_file:
@@ -90,9 +89,7 @@ class VersionCodeBlock(CodeBlock):
        $ brew install flocker-|latest-installable|
     """
     def run(self):
-        parsed_version = parse_version(version)
-        latest = parsed_version.client_release
-
+        latest = get_installable_version(version)
         self.content = [item.replace(PLACEHOLDER, latest) for
                         item in self.content]
         return CodeBlock.run(self)
