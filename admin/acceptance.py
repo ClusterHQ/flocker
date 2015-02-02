@@ -172,9 +172,15 @@ class LibcloudRunner(object):
 
         self.metadata = self.config.get('metadata', {})
         try:
-            self.creator = self.metadata['creator']
+            creator = self.metadata['creator']
         except KeyError:
             raise UsageError("Must specify creator metadata.")
+
+        if not creator.isalnum():
+            raise UsageError(
+                "Creator must be alphanumeric. Found {!r}".format(creator)
+            )
+        self.creator = creator
 
     def start_nodes(self):
         """
