@@ -25,8 +25,10 @@ from twisted.python.filepath import FilePath
 from ...restapi.testtools import (
     buildIntegrationTests, dumps, loads, goodResult, badResult)
 
-from .. import (Application, Dataset, Manifestation, Node, NodeState,
-    Deployment, AttachedVolume)
+from .. import (
+    Application, Dataset, Manifestation, Node, NodeState,
+    Deployment, AttachedVolume
+)
 from ..httpapi import (
     DatasetAPIUserV1, create_api_service, datasets_from_deployment,
     api_dataset_from_dataset_and_node
@@ -91,10 +93,9 @@ class APITestsMixin(object):
 
         :param bytes method: HTTP method to request.
         :param bytes path: HTTP path.
-        :param unicode expected_code: The code expected in the response.
+        :param int expected_code: The code expected in the response.
             response.
-        :param unicode expected_result: The body expected in the response.
-            response.
+        :param list|dict expected_result: The body expected in the response.
 
         :return Deferred: Fires when test is done.
         """
@@ -107,6 +108,34 @@ class APITestsMixin(object):
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
+            result_wrapper(expected_result), loads(body)))
+        return requesting
+
+    def assertResultItems(self, method, path, request_body,
+                          expected_code, expected_result):
+        """
+        Assert a JSON array response for the given API request.
+
+        The API returns a JSON array, which matches a Python list, b
+
+        :param bytes method: HTTP method to request.
+        :param bytes path: HTTP path.
+        :param int expected_code: The code expected in the response.
+            response.
+        :param list expected_result: A list of items expects in a
+            JSON array response.
+
+        :return Deferred: Fires when test is done.
+        """
+        if expected_code // 100 in (4, 5):
+            result_wrapper = badResult
+        else:
+            result_wrapper = goodResult
+
+        requesting = self.assertResponseCode(
+            method, path, request_body, expected_code)
+        requesting.addCallback(readBody)
+        requesting.addCallback(lambda body: self.assertItemsEqual(
             result_wrapper(expected_result), loads(body)))
         return requesting
 
@@ -501,6 +530,46 @@ class DatasetsStateTestsMixin(APITestsMixin):
             b"GET", b"/state/datasets", None, OK, response
         )
 
+    def test_two_datasets(self):
+        """
+        Test case where cluster contains two datasets.
+        """
+        expected_dataset1 = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation1 = Manifestation(
+            dataset=expected_dataset1, primary=True)
+        expected_hostname1 = u"192.0.2.101"
+        expected_dataset2 = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation2 = Manifestation(
+            dataset=expected_dataset2, primary=True)
+        expected_hostname2 = u"192.0.2.102"
+        self.cluster_state_service.update_node_state(
+            expected_hostname1, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation1])
+            )
+        )
+        self.cluster_state_service.update_node_state(
+            expected_hostname2, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation2])
+            )
+        )
+        expected_dict1 = dict(
+            dataset_id=expected_dataset1.dataset_id,
+            primary=expected_hostname1,
+            metadata={}
+        )
+        expected_dict2 = dict(
+            dataset_id=expected_dataset2.dataset_id,
+            primary=expected_hostname2,
+            metadata={}
+        )
+        response = [expected_dict1, expected_dict2]
+        return self.assertResultItems(
+            b"GET", b"/state/datasets", None, OK, response
+        )
 
 RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
     DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
@@ -669,7 +738,7 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         deployment = Deployment(nodes=frozenset([node1, node2]))
         self.assertEqual(
             set([manifestation1.dataset.dataset_id,
-                 manifestation2.dataset.dataset_id,]),
+                 manifestation2.dataset.dataset_id]),
             set(d['dataset_id'] for d in datasets_from_deployment(deployment))
         )
 
@@ -694,7 +763,6 @@ class ApiDatasetFromDatasetAndNodeTests(SynchronousTestCase):
             expected,
             api_dataset_from_dataset_and_node(dataset, expected_hostname)
         )
-
 
     def test_with_maximum_size(self):
         """

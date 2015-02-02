@@ -120,7 +120,7 @@ DatasetsArrayTests = build_schema_test(
         {},
         # Wrong item type
         ["string"],
-        # Failing dataset type
+        # Failing dataset type (maximum_size less than minimum allowed)
         [{u"primary": u"10.0.0.1", u"maximum_size": 123}]
     ],
     passing_instances=[
