@@ -70,9 +70,9 @@ def droplet_still_on(exception):
     """
     Check for a droplet still on exception.
 
-    Sorry about this, but shutdown returns the following, indicating that the
-    droplet has halted, but it still seems to require some time before
-    powering on.
+    Shutdown returns the following event, indicating that the
+    droplet has halted.
+
     {u'completed_at': u'2015-01-15T20:52:36Z',
      u'id': 41364967,
      u'region': u'ams3',
@@ -81,6 +81,9 @@ def droplet_still_on(exception):
      u'started_at': u'2015-01-15T20:52:31Z',
      u'status': u'completed',
      u'type': u'shutdown'}
+
+    But it still seems to require some time before powering on, so catch the
+    "currently on" exception and retry in that case.
     """
     if (isinstance(exception, pyocean.exceptions.ClientError)
         and exception.message == ('Droplet is currently on. '
