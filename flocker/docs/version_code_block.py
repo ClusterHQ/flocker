@@ -23,7 +23,13 @@ from sphinx.util import ws_re
 CLI_RELEASE = u'|cli-release|'
 
 class VersionDownload(XRefRole):
-    """docstring for VersionRole"""
+    """
+    Similar to downloadable files, but:
+        * Replaces a placeholder in the downloadable file with the latest
+          version of the Flocker CLI.
+        * Replaces the download link with one which strips '.template' from the
+          end of the file name.
+    """
     nodeclass = addnodes.download_reference
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
@@ -39,13 +45,11 @@ class VersionDownload(XRefRole):
 
 class VersionLiteralInclude(LiteralInclude):
     """
-    Similar to LiteralInclude but replaces |latest-packaged-version| with the latest
-    packaged version of Flocker.
+    Similar to LiteralInclude but replaces a placeholder with the latest
+    version of the Flocker CLI.
 
-    # TODO remove linux-install.sh and Vagrantfile
     # Rename this file / change comment to version_directives
     # changes in _version
-    # Docstrings for these things
     # separate out the file replacement code
     """
     def run(self):
@@ -64,8 +68,8 @@ class VersionLiteralInclude(LiteralInclude):
 
 class VersionCodeBlock(CodeBlock):
     """
-    Similar to CodeBlock but replaces |latest-packaged-version| with the latest
-    packaged version of Flocker.
+    Similar to CodeBlock but replaces a placeholder with the latest version of
+    the Flocker CLI.
     """
     def run(self):
         parsed_version = parse_version(version)
