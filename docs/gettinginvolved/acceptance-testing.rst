@@ -144,7 +144,7 @@ To run the acceptance tests on DigitalOcean, you need:
 
 - a DigitalOcean account,
 - a "Legacy API v1" Client ID and API key
-  (https://cloud.digitalocean.com/generate_api_key),
+  (https://cloud.digitalocean.com/api_access),
 - an "API v2" token, which will be used to update the kernel of new droplets,
   (https://cloud.digitalocean.com/settings/applications), and
 - an SSH key registered with the DigitalOcean account.
