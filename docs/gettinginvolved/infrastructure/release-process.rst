@@ -103,16 +103,6 @@ Preparing For a Release
    The release may require certain changes to be back ported from the master branch.
    See :ref:`back-porting-changes`\ .
 
-#. Update the version numbers in the install and Vagrant scripts:
-
-   .. note:: Skip this step for a documentation release.
-
-   .. code-block:: console
-
-      envsubst < docs/gettingstarted/linux-install.sh.template > docs/gettingstarted/linux-install.sh
-      envsubst < docs/gettingstarted/tutorial/Vagrantfile.template > docs/gettingstarted/tutorial/Vagrantfile
-      git commit -am "Bumped version numbers"
-
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
