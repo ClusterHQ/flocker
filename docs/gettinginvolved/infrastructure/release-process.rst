@@ -547,8 +547,8 @@ Post-Release Review Process
      `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
      ).
 
-   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
