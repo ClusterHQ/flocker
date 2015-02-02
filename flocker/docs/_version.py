@@ -75,14 +75,11 @@ class FlockerVersion(object):
         The version string of the last release of the Flocker CLI. The CLI is
         updated for marketing releases, pre-releases and weekly releases but
         not documentation releases.
-
-        # TODO docstring
-        # TODO tests
         """
         if self.weekly_release is not None:
-            return self.release + 'dev' + parsed_version.weekly_release
+            return self.release + 'dev' + self.weekly_release
         elif self.pre_release is not None:
-            return self.release + 'pre' + parsed_version.pre_release
+            return self.release + 'pre' + self.pre_release
         return self.release
 
 
