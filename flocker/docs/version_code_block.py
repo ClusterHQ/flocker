@@ -11,11 +11,32 @@ blocks.
    $ brew install flocker-|latest-packaged-version|
 """
 
-from sphinx.directives.code import CodeBlock
+from sphinx.directives.code import CodeBlock, LiteralInclude
 
 from flocker import __version__ as version
 from flocker.docs import parse_version
 
+
+class VersionLiteralInclude(LiteralInclude):
+    """
+    Similar to LiteralInclude but replaces |latest-packaged-version| with the latest
+    packaged version of Flocker.
+
+    # TODO same with download
+    # TODO remove linux-install.sh and other templated files
+    # Rename this file / change comment to version_directives
+    """
+    def run(self):
+        document = self.state.document
+        env = document.settings.env
+        extension_length = len('.template')
+        rel_filename, filename = env.relfn2path(self.arguments[0])
+        with open(rel_filename, 'r') as templated_file:
+            with open(rel_filename[:-extension_length], 'w') as new_file:
+                new_file.write(templated_file.read().replace('Python', 'HELLO ADAM'))
+        self.arguments[0] = self.arguments[0][:-extension_length]
+
+        return LiteralInclude.run(self)
 
 class VersionCodeBlock(CodeBlock):
     """
@@ -38,3 +59,4 @@ class VersionCodeBlock(CodeBlock):
 
 def setup(app):
     app.add_directive('version-code-block', VersionCodeBlock)
+    app.add_directive('version-literalinclude', VersionLiteralInclude)
