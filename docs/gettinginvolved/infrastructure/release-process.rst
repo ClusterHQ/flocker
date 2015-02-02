@@ -544,6 +544,12 @@ Post-Release Review Process
      XXX: This step should performed by buildbot.
      See `FLOC-1304 <https://clusterhq.atlassian.net/browse/FLOC-1304>`_.
 
+     .. note::
+
+        DigitalOcean does not allow fine grained access control.
+        Use the dedicated testing account for running acceptance tests.
+        See LastPass for account details.
+
 #. Merge the release pull request.
 
 
