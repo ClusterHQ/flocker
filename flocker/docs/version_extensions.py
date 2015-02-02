@@ -43,7 +43,6 @@ class VersionLiteralInclude(LiteralInclude):
     Similar to LiteralInclude but replaces a placeholder with the latest
     version of the Flocker CLI.
 
-    # Rename this file to version_extensions
     # changes in _version
     # separate out the file replacement code
     # pep8
