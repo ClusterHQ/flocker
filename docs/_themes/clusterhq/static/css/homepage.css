@@ -56,7 +56,7 @@ h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:ho
 }
 
 .tryflocker {
-    left: -34px;
+    left: -10px;
     top: 4px;
 }
 
@@ -493,13 +493,20 @@ footer .copyright p {
 
     .nav>li>a:active,.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
         background-color:transparent;
-        text-decoration:underline;
-        color:#FFF;
+        border-bottom:1px solid #FFF;
+        color:#FFF;                
     }
 
     .navbar-nav {
        margin-top:22px;
     }
+    .navbar-nav>li>a,.navbar-inverse .navbar-nav>li>a,.nav>li>a:active, .navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
+        padding-top: 15px;
+        padding-left: 0px;
+        padding-right: 0px;
+        padding-bottom: 6px;
+        margin: 0px 14px;
+    }    
 }
 @media (max-width:1200px) {
     .flocker-logo {
@@ -525,7 +532,7 @@ footer .copyright p {
         background-color: transparent;
         text-align: center;
         line-height: 38px;
-        font-size: 1.125em;
+        font-size: 17.7px;
         margin-top: 4px;
         padding: 0px 18px;
         border-radius: 8px;
@@ -616,4 +623,7 @@ footer .copyright p {
     .flocker-logo {
         display:none;
     }
+}
+@media (min-width: 768px)
+
 }
