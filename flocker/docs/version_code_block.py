@@ -12,9 +12,23 @@ blocks.
 """
 
 from sphinx.directives.code import CodeBlock, LiteralInclude
+from sphinx.roles import XRefRole
 
 from flocker import __version__ as version
 from flocker.docs import parse_version
+
+from sphinx import addnodes
+from sphinx.util import ws_re
+class VersionRole(XRefRole):
+    """docstring for VersionRole"""
+    nodeclass = addnodes.download_reference
+    def process_link(self, env, refnode, has_explicit_title, title, target):
+        rel_filename, filename = env.relfn2path(target)
+        extension_length = len('.template')
+        with open(rel_filename, 'r') as templated_file:
+            with open(rel_filename[:-extension_length], 'w') as new_file:
+                new_file.write(templated_file.read().replace('Python', 'HELLO ADAM'))
+        return title[:-extension_length], ws_re.sub(' ', target[:-extension_length])
 
 
 class VersionLiteralInclude(LiteralInclude):
@@ -60,3 +74,4 @@ class VersionCodeBlock(CodeBlock):
 def setup(app):
     app.add_directive('version-code-block', VersionCodeBlock)
     app.add_directive('version-literalinclude', VersionLiteralInclude)
+    app.add_role('version-download', VersionRole())
