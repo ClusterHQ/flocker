@@ -67,10 +67,6 @@ class VersionLiteralInclude(LiteralInclude):
     """
     Similar to LiteralInclude but replaces a placeholder with the latest
     version of the Flocker CLI.
-
-    # changes in _version
-    # separate out the file replacement code
-    # pep8
     """
     def run(self):
         document = self.state.document
