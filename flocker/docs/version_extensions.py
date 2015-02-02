@@ -2,7 +2,7 @@
 
 """
 Sphinx extension to add directives to allow files and code to include the
-latest version of Flocker CLI.
+latest installable version of Flocker.
 """
 
 from sphinx.directives.code import CodeBlock, LiteralInclude
@@ -14,7 +14,7 @@ from flocker.docs import parse_version
 from sphinx import addnodes
 from sphinx.util import ws_re
 
-CLI_RELEASE = u'|cli-release|'
+PLACEHOLDER = u'|latest-installable|'
 
 
 def remove_extension(template):
@@ -33,8 +33,8 @@ def make_changed_file(rel_filename):
     """
     Given the relative filename of a template file, write a new file with:
         * The same filename, except without '.template' at the end.
-        * A placeholder in the new file changed to the latest version of
-          Flocker CLI.
+        * A placeholder in the new file changed to the latest installable
+          version of Flocker.
 
     :param unicode rel_filename: The relative filename of a template file.
     """
@@ -43,14 +43,14 @@ def make_changed_file(rel_filename):
     new_rel_filename = remove_extension(rel_filename)
     with open(rel_filename, 'r') as templated_file:
         with open(new_rel_filename, 'w') as new_file:
-            new_file.write(templated_file.read().replace(CLI_RELEASE, latest))
+            new_file.write(templated_file.read().replace(PLACEHOLDER, latest))
 
 
 class VersionDownload(XRefRole):
     """
     Similar to downloadable files, but:
         * Replaces a placeholder in the downloadable file with the latest
-          version of the Flocker CLI.
+          installable version of Flocker.
         * Replaces the download link with one which strips '.template' from the
           end of the file name.
     """
@@ -66,7 +66,7 @@ class VersionDownload(XRefRole):
 class VersionLiteralInclude(LiteralInclude):
     """
     Similar to LiteralInclude but replaces a placeholder with the latest
-    version of the Flocker CLI.
+    installable version of Flocker.
     """
     def run(self):
         document = self.state.document
@@ -80,20 +80,20 @@ class VersionLiteralInclude(LiteralInclude):
 
 class VersionCodeBlock(CodeBlock):
     """
-    Similar to CodeBlock but replaces a placeholder with the latest version of
-    the Flocker CLI.
+    Similar to CodeBlock but replaces a placeholder with the latest installable
+    version of Flocker.
 
     Usage example:
 
     .. version-code-block:: console
 
-       $ brew install flocker-|cli-release|
+       $ brew install flocker-|latest-installable|
     """
     def run(self):
         parsed_version = parse_version(version)
         latest = parsed_version.client_release
 
-        self.content = [item.replace(CLI_RELEASE, latest) for
+        self.content = [item.replace(PLACEHOLDER, latest) for
                         item in self.content]
         return CodeBlock.run(self)
 

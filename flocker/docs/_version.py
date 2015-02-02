@@ -70,18 +70,18 @@ class FlockerVersion(object):
         return "%s.%s.%s" % (self.major, self.minor, self.micro)
 
     @property
-    def client_release(self):
+    def installable_release(self):
         """
-        The version string of the last release of the Flocker CLI. The CLI is
-        updated for marketing releases, pre-releases and weekly releases but
-        not documentation releases.
+        The version string of the last release of Flocker which can be
+        installed (CLI or node package). These are updated for marketing
+        releases, pre-releases and weekly releases but not documentation
+        releases.
         """
         if self.weekly_release is not None:
             return self.release + 'dev' + self.weekly_release
         elif self.pre_release is not None:
             return self.release + 'pre' + self.pre_release
         return self.release
-
 
 
 def parse_version(version):
@@ -111,6 +111,9 @@ def get_doc_version(version):
     else:
         return version
 
+def get_installable_version(version):
+    parsed_version = parse_version(version)
+    return parsed_version.installable_release
 
 def is_release(version):
     """
