@@ -59,12 +59,7 @@ class VersionCodeBlock(CodeBlock):
     """
     def run(self):
         parsed_version = parse_version(version)
-        latest = parsed_version.release
-
-        if parsed_version.weekly_release is not None:
-            latest = latest + 'dev' + parsed_version.weekly_release
-        elif parsed_version.pre_release is not None:
-            latest = latest + 'pre' + parsed_version.pre_release
+        latest = parsed_version.client_release
 
         self.content = [item.replace(u'|latest-packaged-version|', latest) for
                         item in self.content]
