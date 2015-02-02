@@ -44,8 +44,8 @@ class BadRequest(Exception):
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
 
-        @param result: The value to put into the C{u"result"} field of the
-            response body.
+        @param result: The value to put into the field of the response
+            body as JSON.
         """
         self.code = code
         self.result = result

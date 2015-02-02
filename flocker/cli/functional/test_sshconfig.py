@@ -10,12 +10,16 @@ from subprocess import CalledProcessError
 
 from twisted.trial.unittest import TestCase
 from twisted.python.filepath import FilePath, Permissions
-from twisted.conch.ssh.keys import Key
 from twisted.internet.threads import deferToThread
 
 from .. import configure_ssh
 from .._sshconfig import OpenSSHConfiguration
-from ...testtools import create_ssh_server, create_ssh_agent
+from ...testtools.ssh import create_ssh_server, create_ssh_agent, if_conch
+
+try:
+    from twisted.conch.ssh.keys import Key
+except ImportError:
+    pass
 
 
 def goodlines(path):
@@ -172,6 +176,8 @@ class CreateKeyPairTests(TestCase):
     """
     Tests for ``create_keypair``.
     """
+
+    @if_conch
     def test_key_generated(self):
         """
         ``create_keypair`` generates a new key pair and writes it locally to
@@ -193,6 +199,7 @@ class CreateKeyPairTests(TestCase):
                 type="OPENSSH", extra='test comment').split(None, 2)[:2],
             id_rsa_pub.getContent().split(None, 2)[:2])
 
+    @if_conch
     def test_key_not_regenerated(self):
         """
         ``create_keypair`` does not generate a new key pair if one can

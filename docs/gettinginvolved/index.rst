@@ -6,5 +6,6 @@ Getting Involved
    :maxdepth: 2
 
    contributing
+   acceptance-testing
    infrastructure/index
 

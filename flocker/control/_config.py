@@ -1,5 +1,5 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
-# -*- test-case-name: flocker.node.test.test_config -*-
+# -*- test-case-name: flocker.control.test.test_config -*-
 
 """
 APIs for parsing and validating configuration.
@@ -7,8 +7,12 @@ APIs for parsing and validating configuration.
 
 from __future__ import unicode_literals, absolute_import
 
+import math
 import os
+import re
 import types
+
+from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 
@@ -17,8 +21,22 @@ from zope.interface import Interface, implementer
 
 from ._model import (
     Application, AttachedVolume, Deployment, Link,
-    DockerImage, Node, Port
+    DockerImage, Node, Port, RestartAlways, RestartNever, RestartOnFailure,
+    Manifestation, Dataset,
 )
+
+# Map ``flocker.node.IRestartPolicy`` implementations to
+# ``restart_policy`` ``name`` strings found in Flocker's application.yml file.
+FLOCKER_RESTART_POLICY_POLICY_TO_NAME = {
+    RestartNever: 'never',
+    RestartAlways: 'always',
+    RestartOnFailure: 'on-failure',
+}
+# And vice-versa.
+FLOCKER_RESTART_POLICY_NAME_TO_POLICY = {
+    name: policy
+    for policy, name in FLOCKER_RESTART_POLICY_POLICY_TO_NAME.items()
+}
 
 
 class IApplicationConfiguration(Interface):
@@ -66,6 +84,30 @@ class ConfigurationError(Exception):
     """
 
 
+class ApplicationConfigurationError(ConfigurationError):
+    """
+    Part of the ``Application`` configuration was wrong.
+    """
+
+    message_template = (
+        "Application '{application_name}' has a configuration error. "
+        "{message}"
+    )
+
+    def __init__(self, application_name, message):
+        """
+        """
+        self.application_name = application_name
+        self.message = message
+
+    def __unicode__(self):
+        return self.message_template.format(
+            application_name=self.application_name, message=self.message)
+
+    def __str__(self):
+        return unicode(self).encode('ascii')
+
+
 def _check_type(value, types, description, application_name):
     """
     Checks ``value`` has type in ``types``.
@@ -86,6 +128,45 @@ def _check_type(value, types, description, application_name):
                 description=description,
                 type=type(value).__name__,
             ))
+
+
+def parse_storage_string(value):
+    """
+    Converts a string representing a quantity and a unit identifier in to
+    an integer value representing the number of bytes in that quantity, e.g.
+    an input of "1G" is parsed to 1073741824. Raises ``ValueError`` if
+    value cannot be converted.
+
+    An int is always returned, so conversions resulting in a floating-point
+    are always rounded UP to ensure sufficient bytes for the specified storage
+    size, e.g. input of "2.1M" is converted to 2202010 bytes, not 2202009.
+
+    :param StringTypes value: The string value to convert to integer bytes.
+
+    :returns: ``int`` representing the supplied value converted to bytes, e.g.
+        input of "2G" (2 gigabytes) returns 2147483648.
+    """
+    byte_multipliers = {
+        'K': 1024, 'M': 1048576,
+        'G': 1073741824, 'T': 1099511627776
+    }
+    if not isinstance(value, types.StringTypes):
+        raise ValueError("Value must be string, got {type}.".format(
+            type=type(value).__name__))
+    pattern = re.compile("^(\d+\.?\d*)(K|M|G|T)?$", re.I | re.U)
+    parsed = pattern.match(value)
+    if not parsed:
+        raise ValueError(
+            "Value '{value}' could not be parsed as a storage quantity.".
+            format(value=value)
+        )
+    quantity, unit = parsed.groups()
+    quantity = float(quantity)
+    if unit is not None:
+        unit = unit.upper()
+        quantity = quantity * byte_multipliers[unit]
+    quantity = int(math.ceil(quantity))
+    return quantity
 
 
 class ApplicationMarshaller(object):
@@ -126,7 +207,23 @@ class ApplicationMarshaller(object):
         volume = self.convert_volume()
         if volume:
             config['volume'] = volume
+        config['restart_policy'] = self.convert_restart_policy()
         return config
+
+    def convert_restart_policy(self):
+        """
+        :returns: A ``dict`` of ``IRestartPolicy`` attributes in a format
+            suitable for serialising to a Flocker Application configuration
+            file.
+        """
+        policy = self._application.restart_policy
+        policy_type = policy.__class__
+        output = dict(name=FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type])
+        if policy_type is RestartOnFailure:
+            maximum_retry_count = policy.maximum_retry_count
+            if maximum_retry_count is not None:
+                output['maximum_retry_count'] = maximum_retry_count
+        return output
 
     def convert_image(self):
         """
@@ -194,7 +291,17 @@ class ApplicationMarshaller(object):
         logic will need refactoring in future if this changes.
         """
         if self._application.volume:
-            return {u'mountpoint': self._application.volume.mountpoint.path}
+            volume_dict = {
+                u'mountpoint': self._application.volume.mountpoint.path
+            }
+            dataset = self._application.volume.dataset
+            if dataset.dataset_id is not None:
+                volume_dict[u'dataset_id'] = dataset.dataset_id
+            if dataset.maximum_size is not None:
+                volume_dict[u'maximum_size'] = (
+                    unicode(dataset.maximum_size)
+                )
+            return volume_dict
         return None
 
 
@@ -448,7 +555,10 @@ class FigConfiguration(object):
                      application=application)
             )
         volume = AttachedVolume(
-            name=application,
+            manifestation=Manifestation(
+                dataset=Dataset(dataset_id=None,
+                                metadata=pmap({"name": application})),
+                primary=True),
             mountpoint=FilePath(volumes[0])
         )
         return volume
@@ -662,11 +772,60 @@ class FigConfiguration(object):
         self._link_applications()
 
 
+def _parse_restart_policy(application_name, config):
+    """
+    :param unicode application_name: The name of the ``Application`` that has
+        the configured restart policy (supplied in order to identify the
+        location of ``ConfigurationError``).
+    :param dict config: The ``restart_policy`` configuration.
+    :returns: An ``IRestartPolicy`` provider chosen and initialised based on
+       the supplied ``restart_policy`` ``dict`` from a Flocker Application
+       configuration file.
+    """
+    if not isinstance(config, dict):
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must be a dict, "
+            "got {}".format(config)
+        )
+    try:
+        policy_name = config.pop('name')
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "'restart_policy' must include a 'name'."
+        )
+    try:
+        policy_factory = FLOCKER_RESTART_POLICY_NAME_TO_POLICY[policy_name]
+    except KeyError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: {}".format(
+                policy_name,
+                ', '.join(sorted(FLOCKER_RESTART_POLICY_NAME_TO_POLICY.keys()))
+            )
+        )
+
+    try:
+        policy = policy_factory(**config)
+    except TypeError:
+        raise ApplicationConfigurationError(
+            application_name,
+            "Invalid 'restart_policy' arguments for {}. "
+            "Got {}".format(policy_factory.__name__, config)
+        )
+    else:
+        return policy
+
+
 @implementer(IApplicationConfiguration)
 class FlockerConfiguration(object):
     """
     Validate and parse native Flocker-formatted configurations.
     """
+    _parse_restart_policy = staticmethod(_parse_restart_policy)
+
     def __init__(self, application_configuration):
         """
         :param dict application_configuration: The native parsed YAML
@@ -682,6 +841,7 @@ class FlockerConfiguration(object):
         self._allowed_keys = {
             "image", "environment", "ports",
             "links", "volume", "mem_limit", "cpu_shares",
+            "restart_policy",
         }
         self._applications = {}
 
@@ -796,7 +956,7 @@ class FlockerConfiguration(object):
                         application_name=application_name)
             for key, value in environment.iteritems():
                 # We should normailzie strings to either bytes or unicode here
-                # https://github.com/ClusterHQ/flocker/issues/636
+                # https://clusterhq.atlassian.net/browse/FLOC-636
                 _check_type(value=key, types=types.StringTypes,
                             description="Environment variable name "
                                         "must be a string",
@@ -848,7 +1008,7 @@ class FlockerConfiguration(object):
 
                 try:
                     # We should normailzie strings to either bytes or unicode
-                    # here. https://github.com/ClusterHQ/flocker/issues/636
+                    # here. https://clusterhq.atlassian.net/browse/FLOC-636
                     alias = link.pop('alias')
                     _check_type(value=alias, types=types.StringTypes,
                                 description="Link alias must be a string",
@@ -870,6 +1030,85 @@ class FlockerConfiguration(object):
                      application_name=application_name, message=e.message))
 
         return frozenset(links)
+
+    def _parse_volume(self, configured_volume, application_name):
+        """
+        Validate and parse the volume portion of a Flocker configuration.
+
+        :param dict configured_volume: The 'volume' portion of the parsed
+            application config.
+
+        :param unicode application_name: The name of the current application.
+
+        :returns ``AttachedVolume`` instance representing the parsed volume.
+
+        :raises: ValueError on any parsing error.
+        """
+        try:
+            maximum_size = configured_volume.pop('maximum_size')
+        except KeyError:
+            maximum_size = None
+        except AttributeError:
+            raise ValueError(
+                "Unexpected value: " + str(configured_volume)
+            )
+        else:
+            try:
+                maximum_size = parse_storage_string(maximum_size)
+                if maximum_size < 1:
+                    raise ValueError("Must be greater than zero.")
+            except ValueError as e:
+                raise ValueError('maximum_size: {msg}'.format(msg=e.message))
+        try:
+            mountpoint = configured_volume['mountpoint']
+        except KeyError:
+            raise ValueError("Missing mountpoint.")
+
+        if not isinstance(mountpoint, (str, unicode)):
+            raise ValueError("Mountpoint \"{path}\" is not a string.".format(
+                path=mountpoint))
+
+        try:
+            mountpoint.decode("ascii")
+        except UnicodeError:
+            raise ValueError(
+                "Mountpoint \"{path}\" contains non-ASCII "
+                "(unsupported).".format(
+                    path=mountpoint
+                )
+            )
+        if not os.path.isabs(mountpoint):
+            raise ValueError(
+                "Mountpoint \"{path}\" is not an absolute path."
+                .format(
+                    path=mountpoint
+                )
+            )
+        configured_volume.pop('mountpoint')
+
+        if 'dataset_id' in configured_volume:
+            dataset_id = configured_volume.pop('dataset_id')
+        else:
+            dataset_id = None
+
+        if configured_volume:
+            raise ValueError(
+                "Unrecognised keys: {keys}.".format(
+                    keys=', '.join(sorted(
+                        configured_volume.keys()))
+                ))
+        mountpoint = FilePath(mountpoint)
+
+        volume = AttachedVolume(
+            manifestation=Manifestation(
+                dataset=Dataset(dataset_id=dataset_id,
+                                metadata=pmap({"name": application_name}),
+                                maximum_size=maximum_size),
+                primary=True),
+            mountpoint=mountpoint,
+            )
+
+        return volume
 
     def _parse(self):
         """
@@ -924,42 +1163,8 @@ class FlockerConfiguration(object):
             if "volume" in config:
                 try:
                     configured_volume = config.pop('volume')
-                    try:
-                        mountpoint = configured_volume['mountpoint']
-                    except TypeError:
-                        raise ValueError(
-                            "Unexpected value: " + str(configured_volume)
-                        )
-                    except KeyError:
-                        raise ValueError("Missing mountpoint.")
-
-                    if not isinstance(mountpoint, str):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" contains non-ASCII "
-                            "(unsupported).".format(
-                                path=mountpoint
-                            )
-                        )
-                    if not os.path.isabs(mountpoint):
-                        raise ValueError(
-                            "Mountpoint \"{path}\" is not an absolute path."
-                            .format(
-                                path=mountpoint
-                            )
-                        )
-                    configured_volume.pop('mountpoint')
-                    if configured_volume:
-                        raise ValueError(
-                            "Unrecognised keys: {keys}.".format(
-                                keys=', '.join(sorted(
-                                    configured_volume.keys()))
-                            ))
-                    mountpoint = FilePath(mountpoint)
-
-                    volume = AttachedVolume(
-                        name=application_name,
-                        mountpoint=mountpoint
-                        )
+                    volume = self._parse_volume(configured_volume,
+                                                application_name)
                 except ValueError as e:
                     raise ConfigurationError(
                         ("Application '{application_name}' has a config "
@@ -989,7 +1194,7 @@ class FlockerConfiguration(object):
             else:
                 cpu_shares = None
 
-            self._applications[application_name] = Application(
+            attributes = dict(
                 name=application_name,
                 image=image,
                 volume=volume,
@@ -997,7 +1202,16 @@ class FlockerConfiguration(object):
                 links=links,
                 environment=environment,
                 memory_limit=mem_limit,
-                cpu_shares=cpu_shares)
+                cpu_shares=cpu_shares,
+            )
+
+            if 'restart_policy' in config:
+                attributes['restart_policy'] = self._parse_restart_policy(
+                    application_name=application_name,
+                    config=config.pop('restart_policy')
+                )
+
+            self._applications[application_name] = Application(**attributes)
 
 
 def deployment_from_configuration(deployment_configuration, all_applications):
