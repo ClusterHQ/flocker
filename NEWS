@@ -1,3 +1,8 @@
+Flocker 0.3.3 (Draft)
+=====================
+- ``run-acceptance-tests`` now supports DigitalOcean. (FLOC-958)
+
+
 Flocker 0.3.2 (2014-11-19)
 ==========================
 
