@@ -1,4 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+# Portions Copyright 2007-2014 by the Sphinx team.
+# Sphinx released under the BSD license
+# Portions taken from Docutils, http://docutils.sourceforge.net/
+# Docutils is public domain, http://docutils.sourceforge.net/COPYING.html
 
 """
 Bootstrap extension entry point.
