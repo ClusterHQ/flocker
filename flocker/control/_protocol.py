@@ -160,9 +160,9 @@ class ControlAMPService(Service):
         self.endpoint_service.startService()
 
     def stopService(self):
-        # ... stop listening
-        # ... disconnect existing connections
-        pass
+        self.endpoint_service.stopService()
+        for connection in self.connections:
+            connection.transport.loseConnection()
 
     def _send_state_to_connections(self, connections):
         print "sending", connections

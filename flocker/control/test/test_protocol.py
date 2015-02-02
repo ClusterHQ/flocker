@@ -11,14 +11,16 @@ from zope.interface import implementer
 from characteristic import attributes, Attribute
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.test.proto_helpers import StringTransport
+from twisted.test.proto_helpers import StringTransport, MemoryReactor
 from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
+from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.python.filepath import FilePath
+from twisted.application.internet import StreamServerEndpointService
 
 from .._protocol import (
-    NodeStateArgument, DeploymentArgument, ControlServiceLocator,
+    NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
     build_agent_client, ControlAMPService, ControlAMP
 )
@@ -128,7 +130,8 @@ def build_control_amp_service(test):
         None, FilePath(test.mktemp()))
     persistence_service.startService()
     test.addCleanup(persistence_service.stopService)
-    return ControlAMPService(cluster_state, persistence_service, None)
+    return ControlAMPService(cluster_state, persistence_service,
+                             TCP4ServerEndpoint(MemoryReactor(), 1234))
 
 
 class ControlAMPTests(SynchronousTestCase):
@@ -240,6 +243,47 @@ class ControlAMPServiceTests(SynchronousTestCase):
     """
     Unit tests for ``ControlAMPService``.
     """
+    def test_start_service(self):
+        """
+        Starting the service listens with a factory that creates
+        ``ControlAMP`` instances pointing at the service.
+        """
+        service = build_control_amp_service(self)
+        initial = service.endpoint_service.running
+        service.startService()
+        protocol = service.endpoint_service.factory.buildProtocol(None)
+        self.assertEqual(
+            (initial, service.endpoint_service.running,
+             service.endpoint_service.__class__,
+             protocol.__class__, protocol.control_amp_service),
+            (False, True, StreamServerEndpointService, ControlAMP, service))
+
+    def test_stop_service_endpoint(self):
+        """
+        Stopping the service stops listening on the endpoint.
+        """
+        service = build_control_amp_service(self)
+        service.startService()
+        service.stopService()
+        self.assertEqual(service.endpoint_service.running, False)
+
+    def test_stop_service_connections(self):
+        """
+        Stopping the service closes all connections.
+        """
+        service = build_control_amp_service(self)
+        service.startService()
+        connections = [ControlAMP(service) for i in range(3)]
+        initial_disconnecting = []
+        for c in connections:
+            c.makeConnection(StringTransport())
+            initial_disconnecting.append(c.transport.disconnecting)
+        service.stopService()
+        self.assertEqual(
+            (initial_disconnecting,
+             [c.transport.disconnecting for c in connections]),
+            ([False] * 3, [True] * 3))
+
 
 @implementer(IConvergenceAgent)
 @attributes([Attribute("is_connected", default_value=False),
