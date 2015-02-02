@@ -198,6 +198,8 @@ class DatasetAPIUserV1(object):
     def datasets(self):
         """
         Return the current primary datasets in the cluster.
+
+        :return: A ``list`` containing all datasets in the cluster.
         """
         deployment = self.cluster_state_service.as_deployment()
         return list(datasets_from_deployment(deployment))
@@ -213,6 +215,9 @@ def datasets_from_deployment(deployment):
     And without a change to the ``datasets`` schema, there's no way to mark a
     dataset as secondary. Perhaps there needs to be a current_node key...or
     something? We need to understand how this API is likely to be used.
+
+    :param Deployment deployment: A ``Deployment`` describing the state
+        of the cluster.
 
     :return: Iterable returning all datasets.
     """
@@ -232,6 +237,13 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
     """
     Return a dataset dict which conforms to
     ``/v1/endpoints.json#/definitions/datasets_array``
+
+    :param Dataset dataset: A dataset present in the cluster.
+    :param unicode node_hostname: Hostname of the primary node for the
+        `dataset`.
+    :return: A ``dict`` containing the dataset information and the
+        hostname of the primary node, conforming to
+        ``/v1/endpoints.json#/definitions/datasets_array``.
     """
     result = dict(
         dataset_id=dataset.dataset_id,
