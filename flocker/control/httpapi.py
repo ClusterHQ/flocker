@@ -185,10 +185,9 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
-    # Will we also have a /state endpoint? Or just route directly to the datasets path?
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
-        Get current cluster datasets
+        Get current cluster datasets.
         """, examples=[u"get state datasets"])
     @structured(
         inputSchema={},
@@ -209,12 +208,9 @@ def datasets_from_deployment(deployment):
     """
     Extract the primary datasets from the supplied deployment instance.
 
-    XXX: What would be the point in returning secondary dataset dictionaries
-    here? They'd be exactly the same as the primary...unless the metadata or
-    maximum_size has changed since the dataset was migrated between nodes.
-    And without a change to the ``datasets`` schema, there's no way to mark a
-    dataset as secondary. Perhaps there needs to be a current_node key...or
-    something? We need to understand how this API is likely to be used.
+    Currently does not support secondary datasets, but this info might be
+    useful to provide.  For ZFS, for example, may show how up-to-date they
+    are with respect to the primary.
 
     :param Deployment deployment: A ``Deployment`` describing the state
         of the cluster.
@@ -251,7 +247,7 @@ def api_dataset_from_dataset_and_node(dataset, node_hostname):
         metadata=thaw(dataset.metadata)
     )
     if dataset.maximum_size is not None:
-        result['maximum_size'] = dataset.maximum_size
+        result[u'maximum_size'] = dataset.maximum_size
     return result
 
 

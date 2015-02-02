@@ -642,9 +642,9 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
 
-    def test_primary_and_secondary_manifestations(self):
+    def test_primary_and_replica_manifestations(self):
         """
-        ``datasets_from_deployment`` does not return secondary manifestations
+        ``datasets_from_deployment`` does not return replica manifestations
         on other nodes.
         """
 
@@ -680,10 +680,10 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         self.assertEqual(
             [expected], list(datasets_from_deployment(deployment)))
 
-    def test_secondary_manifestations_only(self):
+    def test_replica_manifestations_only(self):
         """
         ``datasets_from_deployment`` does not return datasets if there are only
-        secondary manifestations.
+        replica manifestations.
         """
         manifestation1 = Manifestation(
             dataset=Dataset(dataset_id=unicode(uuid4())),
