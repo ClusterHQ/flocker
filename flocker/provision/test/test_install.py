@@ -144,7 +144,8 @@ class KojiKernelUrlTests(SynchronousTestCase):
     """
     def test_success(self):
         """
-        ``koji_kernel_url`` returns the expected URL.
+        ``koji_kernel_url`` returns a URL containing the attributes of the
+        supplied ``Kernel``.
         """
         kernel = Kernel(
             version='3.16.6',
