@@ -178,7 +178,7 @@ Getting started with Flocker
          AWS
          ^^^
 
-         Please see our separate `AWS install instructions <http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services>`_ to get started.
+         Please see our separate :ref:`AWS install instructions <using-amazon-web-services>`_ to get started.
 
       .. tabs::
 
@@ -197,7 +197,7 @@ Getting started with Flocker
          AWS
          ^^^
 
-         Please see our separate `AWS install instructions <http://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services>`_ to get started.
+         Please see our separate :ref:`AWS install instructions <using-amazon-web-services>`_ to get started.
 
 
       .. empty-div:: arrow-down arrow-offset center-block
