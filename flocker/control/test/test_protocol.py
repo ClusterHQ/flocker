@@ -67,7 +67,7 @@ class LoopbackAMPClient(object):
             # Weakly simulate that here by failing how things fail if the
             # connection closes and commands are outstanding.  This is sort of
             # terrible behavior but oh well.  https://tm.tl/7055
-            return Failure(ConnectionLost())
+            return Failure(ConnectionLost(str(error)))
 
         d.addErrback(massage_error)
         return d
@@ -152,6 +152,25 @@ class ControlAMPTests(SynchronousTestCase):
         self.assertEqual((current, self.control_amp_service.connections),
                          ({marker}, {marker, self.protocol}))
 
+    def test_connection_made_send_cluster_status(self):
+        """
+        When a connection is made the cluster status is sent to the new client.
+        """
+        sent = []
+        self.patch(self.protocol, "callRemote",
+                   lambda *args, **kwargs: sent.append((args, kwargs)))
+        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+        self.control_amp_service.cluster_state.update_node_state(
+            u"example3", NODE_STATE)
+
+        self.protocol.makeConnection(StringTransport())
+        cluster_state = self.control_amp_service.cluster_state.as_deployment()
+        self.assertEqual(
+            sent[0],
+            (((ClusterStatusCommand,),
+              dict(configuration=TEST_DEPLOYMENT,
+                   state=cluster_state))))
+
     def test_connection_lost(self):
         """
         When a connection is lost the ``ControlAMP`` is removed the services
@@ -159,6 +178,7 @@ class ControlAMPTests(SynchronousTestCase):
         """
         marker = object()
         self.control_amp_service.connections.add(marker)
+        self.patch(self.protocol, "callRemote", lambda *args, **kwargs: None)
         self.protocol.makeConnection(StringTransport())
         self.protocol.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.control_amp_service.connections, {marker})
@@ -188,6 +208,38 @@ class ControlAMPTests(SynchronousTestCase):
                          other_manifestations=frozenset(
                              [MANIFESTATION]))])))
 
+    def test_nodestate_notifies_all_connected(self):
+        """
+        ``NodeStateCommand`` results in all connected ``ControlAMP``
+        connections getting the updated cluster state along with the
+        desired configuration.
+        """
+        self.protocol.makeConnection(StringTransport())
+        another_protocol = ControlAMP(self.control_amp_service)
+        another_protocol.makeConnection(StringTransport())
+        sent1 = []
+        sent2 = []
+        self.patch(self.protocol, "callRemote",
+                   lambda *args, **kwargs: sent1.append((args, kwargs)))
+        self.patch(another_protocol, "callRemote",
+                   lambda *args, **kwargs: sent2.append((args, kwargs)))
+        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
+
+        self.successResultOf(
+            self.client.callRemote(NodeStateCommand, hostname=u"example2",
+                                   node_state=NODE_STATE))
+        cluster_state = self.control_amp_service.cluster_state.as_deployment()
+        self.assertListEqual(
+            [sent1[-1], sent2[-1]],
+            [(((ClusterStatusCommand,),
+              dict(configuration=TEST_DEPLOYMENT,
+                   state=cluster_state)))] * 2)
+
+
+class ControlAMPServiceTests(SynchronousTestCase):
+    """
+    Unit tests for ``ControlAMPService``.
+    """
 
 @implementer(IConvergenceAgent)
 @attributes([Attribute("is_connected", default_value=False),

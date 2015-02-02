@@ -142,23 +142,22 @@ class ControlAMPService(Service):
 
     Convergence agents connect to this server.
     """
-    def __init__(self, cluster_state, persistence_service, endpoint):
+    def __init__(self, cluster_state, configuration_service, endpoint):
         """
         :param ClusterStateService cluster_state: Object that records known
             cluster state.
-        :param ConfigurationPersistenceService persistence_service: Persistence
-            service for desired cluster configuration.
+        :param ConfigurationPersistenceService configuration_service:
+            Persistence service for desired cluster configuration.
         :param endpoint: Endpoint to listen on.
         """
         self.connections = set()
         self.cluster_state = cluster_state
+        self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
             endpoint, ServerFactory.forProtocol(lambda: ControlAMP(self)))
 
     def startService(self):
         self.endpoint_service.startService()
-        # ... start listening on AMP using ControlServiceAMP
-        pass
 
     def stopService(self):
         # ... stop listening
@@ -166,13 +165,15 @@ class ControlAMPService(Service):
         pass
 
     def _send_state_to_connections(self, connections):
-        configuration = self.configuration_persistence_service.get()
+        print "sending", connections
+        configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
         for connection in connections:
-            connection.callRemote(ClusterStatusCommand(),
+            connection.callRemote(ClusterStatusCommand,
                                   configuration=configuration,
                                   state=state)
-            # XXX handle errors from callRemote
+            # Handle errors from callRemote by logging them
+            # https://clusterhq.atlassian.net/browse/FLOC-1311
 
     def connected(self, connection):
         """
@@ -181,7 +182,7 @@ class ControlAMPService(Service):
         :param ControlAMP connection: The new connection.
         """
         self.connections.add(connection)
-        #self._send_state_to_connections([connection])
+        self._send_state_to_connections([connection])
 
     def disconnected(self, connection):
         """
@@ -199,8 +200,7 @@ class ControlAMPService(Service):
         :param NodeState node_state: The changed state for the node.
         """
         self.cluster_state.update_node_state(hostname, node_state)
-        #self._send_state_to_connections(self.connections)
-        pass
+        self._send_state_to_connections(self.connections)
 
 
 class IConvergenceAgent(Interface):
