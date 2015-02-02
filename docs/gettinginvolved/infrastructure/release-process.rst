@@ -37,16 +37,6 @@ Software
 - An up-to-date clone of the `Flocker repository <https://github.com/ClusterHQ/flocker.git>`_.
 - An up-to-date clone of the `homebrew-tap repository <https://github.com/ClusterHQ/homebrew-tap.git>`_.
 - `gsutil Python package <https://pypi.python.org/pypi/gsutil>`_ on your workstation.
-- ``envsubst`` available on your PATH.
-
-  .. note:: ``envsubst`` requires ``gettext`` to be installed on OS X.
-
-             Install `Homebrew`_.
-
-             .. code-block:: console
-
-                $ brew install gettext
-                $ brew link --force gettext
 
 Access
 ~~~~~~
