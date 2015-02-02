@@ -31,7 +31,7 @@ Architecture
 ============
 
 Below is a high-level overview of Flocker's architecture.  
-For more information, you can follow along with a :doc:`tutorial that walks you through deploying and migrating MongoDB</gettingstarted/tutorial/index>` or read more in our :doc:`advanced documentation</advanced/index>`.
+For more information, you can follow along with a :doc:`tutorial that walks you through deploying and migrating MongoDB</indepth/tutorial/index>` or read more in our :doc:`advanced documentation</advanced/index>`.
 
 Flocker - Orchestration
 -----------------------
