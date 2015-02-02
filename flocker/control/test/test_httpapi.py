@@ -122,16 +122,11 @@ class APITestsMixin(object):
 
         :return Deferred: Fires when test is done.
         """
-        if expected_code // 100 in (4, 5):
-            result_wrapper = badResult
-        else:
-            result_wrapper = goodResult
-
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertItemsEqual(
-            result_wrapper(expected_result), loads(body)))
+            expected_result, loads(body)))
         return requesting
 
 
