@@ -9,6 +9,7 @@ checksum
 chmod
 Copr
 dataset
+datasets
 Deis
 devel
 DigitalOcean
@@ -47,6 +48,7 @@ Rackspace
 snapshotting
 stateful
 sysadmin
+terabytes
 timestamp
 versioning
 virtualization

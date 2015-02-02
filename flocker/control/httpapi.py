@@ -191,7 +191,9 @@ class DatasetAPIUserV1(object):
         """, examples=[u"get state datasets"])
     @structured(
         inputSchema={},
-        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets_array'},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/datasets_array'
+            },
         schema_store=SCHEMAS
     )
     def datasets(self):
