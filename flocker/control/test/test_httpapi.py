@@ -464,11 +464,12 @@ class CreateAPIServiceTests(SynchronousTestCase):
 
 class DatasetsStateTestsMixin(APITestsMixin):
     """
-    Tests for the service version description endpoint at ``/state/datasets``.
+    Tests for the service datasets state description endpoint at
+    ``/state/datasets``.
     """
     def test_empty(self):
         """
-        Initial state is no datasets
+        Test case where cluster contains no datasets.
         """
         response = []
         return self.assertResult(
@@ -477,7 +478,7 @@ class DatasetsStateTestsMixin(APITestsMixin):
 
     def test_one_dataset(self):
         """
-        One dataset
+        Test case where cluster contains one dataset.
         """
         expected_dataset = Dataset(dataset_id=unicode(uuid4()))
         expected_manifestation = Manifestation(
