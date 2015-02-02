@@ -5,7 +5,7 @@ Tests for communication to applications across nodes.
 """
 from twisted.trial.unittest import TestCase
 
-from flocker.node._model import Port
+from flocker.control import Port
 
 from .testtools import (assert_expected_deployment, flocker_deploy,
                         get_mongo_client, get_mongo_application, get_nodes,

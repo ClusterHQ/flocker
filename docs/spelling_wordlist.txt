@@ -29,6 +29,7 @@ installable
 internet
 Kubernetes
 libswarm
+lifecycle
 Mesos
 metadata
 multi

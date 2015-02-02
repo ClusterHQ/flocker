@@ -16,35 +16,8 @@ versioneer.parentdir_prefix = "flocker-"
 
 from distutils.core import Command
 
-from admin.release import make_rpm_version
+cmdclass = {}
 
-class cmd_generate_spec(Command):
-    description = "Generate python-flocker.spec with current version."
-    user_options = []
-    boolean_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        with open('python-flocker.spec.in', 'r') as source:
-            spec = source.read()
-
-        flocker_version = versioneer.get_version()
-        version, release = make_rpm_version(flocker_version)
-        with open('python-flocker.spec', 'w') as destination:
-            destination.write(
-                "%%global flocker_version %s\n" % (flocker_version,))
-            destination.write(
-                "%%global flocker_version_underscore %s\n" % (
-                    flocker_version.replace('-', '_'),))
-            destination.write(
-                "%%global supplied_rpm_version %s\n" % (version,))
-            destination.write(
-                "%%global supplied_rpm_release %s\n" % (release,))
-            destination.write(spec)
-
-cmdclass = {'generate_spec': cmd_generate_spec}
 # Let versioneer hook into the various distutils commands so it can rewrite
 # certain data at appropriate times.
 cmdclass.update(versioneer.get_cmdclass())
@@ -94,32 +67,33 @@ setup(
             'env-docker/*',
             'retry-docker/*'
         ],
+        # These data files are used by the volumes API to define input and
+        # output schemas.
+        'flocker.control': ['schema/*.yml'],
     },
 
     entry_points = {
-        # Command-line programs we want setuptools to install:
+        # These are the command-line programs we want setuptools to install.
+        # Don't forget to modify the omnibus packaging tool
+        # (admin/packaging.py) if you make changes here.
         'console_scripts': [
             'flocker-volume = flocker.volume.script:flocker_volume_main',
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
-            'flocker-serve = flocker.node.script:flocker_serve_main',
+            'flocker-zfs-agent = flocker.node.script:flocker_volume_main',
+            'flocker-control = flocker.control.script:flocker_control_main',
         ],
     },
 
     install_requires=[
-        # Any changes here must be reflected in:
-        # * ``python-flocker.spec.in`` so that RPM dependencies match,
-        # * the yumdownloader lines in "Appendix: Pre-populating RPM
-        #   Repository" in the Release Process,
-        # * the internal ClusterHQ "Compliance" documentation.
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
         "zope.interface >= 4.0.5",
         "pytz",
         "characteristic >= 14.1.0",
-        "Twisted == 14.0.0",
+        "Twisted == 15.0.0",
 
         "PyYAML == 3.10",
 
@@ -128,10 +102,10 @@ setup(
         "psutil == 2.1.2",
         "netifaces >= 0.8",
         "ipaddr == 2.1.11",
-
-        "docker-py == 0.5.0",
+        "docker-py == 0.7.1",
         "jsonschema == 2.4.0",
         "klein == 0.2.3",
+        "pyrsistent == 0.7.0",
         ],
 
     extras_require={

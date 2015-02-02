@@ -151,7 +151,7 @@ class VolumeService(Service):
         :param Volume volume: The ``Volume`` instance to resize in the storage
             pool.
 
-        :return: A ``Deferred`` that fires with a :clas:`Volume`.
+        :return: A ``Deferred`` that fires with a :class:`Volume`.
         """
         d = self.pool.set_maximum_size(volume)
 
