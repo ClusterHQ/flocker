@@ -16,6 +16,7 @@ from sphinx.util import ws_re
 
 CLI_RELEASE = u'|cli-release|'
 
+
 class VersionDownload(XRefRole):
     """
     Similar to downloadable files, but:
@@ -60,6 +61,7 @@ class VersionLiteralInclude(LiteralInclude):
         self.arguments[0] = self.arguments[0][:-extension_length]
 
         return LiteralInclude.run(self)
+
 
 class VersionCodeBlock(CodeBlock):
     """
