@@ -1,14 +1,8 @@
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
-Sphinx extension to add a ``version-code-block`` directive.
-
-This directive allows Flocker's release version to be inserted into code
-blocks.
-
-.. version-code-block:: console
-
-   $ brew install flocker-|latest-packaged-version|
+Sphinx extension to add directives to allow files and code to include the
+latest version of Flocker CLI.
 """
 
 from sphinx.directives.code import CodeBlock, LiteralInclude
@@ -48,9 +42,10 @@ class VersionLiteralInclude(LiteralInclude):
     Similar to LiteralInclude but replaces a placeholder with the latest
     version of the Flocker CLI.
 
-    # Rename this file / change comment to version_directives
+    # Rename this file to version_extensions
     # changes in _version
     # separate out the file replacement code
+    # pep8
     """
     def run(self):
         parsed_version = parse_version(version)
@@ -70,6 +65,12 @@ class VersionCodeBlock(CodeBlock):
     """
     Similar to CodeBlock but replaces a placeholder with the latest version of
     the Flocker CLI.
+
+    Usage example:
+
+    .. version-code-block:: console
+
+       $ brew install flocker-|cli-release|
     """
     def run(self):
         parsed_version = parse_version(version)
