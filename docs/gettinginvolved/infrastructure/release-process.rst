@@ -541,7 +541,7 @@ Post-Release Review Process
         $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=rackspace --config-file=rackspace.config
         $ ./admin/run-acceptance-tests --distribution=fedora-20 --provider=digitalocean --config-file=digitalocean.config
 
-     XXX: This step should performed by buildbot.
+     XXX: This step should performed by BuildBot.
      See `FLOC-1304 <https://clusterhq.atlassian.net/browse/FLOC-1304>`_.
 
      .. note::
