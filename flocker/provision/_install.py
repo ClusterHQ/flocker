@@ -142,6 +142,13 @@ DIGITALOCEAN_KERNEL = Kernel(
 )
 
 
+DIGITALOCEAN_KERNEL_TITLE = (
+    "Fedora 20 x64 "
+    "vmlinuz-{kernel.version}-{kernel.release}"
+    ".{kernel.distribution}.{kernel.architecture}"
+).format(kernel=DIGITALOCEAN_KERNEL)
+
+
 def task_install_digitalocean_kernel():
     """
     Install a specific Fedora kernel version for DigitalOcean.

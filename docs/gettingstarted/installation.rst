@@ -267,6 +267,8 @@ You'll probably want to setup at least two nodes.
       * Go to the DigitalOcean control panel for your specific Droplet, and in the Settings section choose the Kernel tab.
       * Choose the newest kernel for Fedora 20 (scroll all the way to the bottom) and press "Change".
 
+        At the time of writing, the latest supported kernel is |digitalocean_kernel_title|.
+
    #. Upgrade the kernel package inside the virtual machine:
 
       The selected kernel may no-longer be available from the standard Fedora 20 repositories, so we install from ``koji``.
