@@ -17,6 +17,35 @@ from sphinx.util import ws_re
 CLI_RELEASE = u'|cli-release|'
 
 
+def remove_extension(template):
+    """
+    Given a filename or path of a template file, return the same without the
+    template suffix.
+
+    :param unicode template: The filename of or path to a template file which
+        ends with '.template'.
+    :return: The given filename or path without the '.template' suffix.
+    """
+    return template[:-len('.template')]
+
+
+def make_changed_file(rel_filename):
+    """
+    Given the relative filename of a template file, write a new file with:
+        * The same filename, except without '.template' at the end.
+        * A placeholder in the new file changed to the latest version of
+          Flocker CLI.
+
+    :param unicode rel_filename: The relative filename of a template file.
+    """
+    parsed_version = parse_version(version)
+    latest = parsed_version.client_release
+    new_rel_filename = remove_extension(rel_filename)
+    with open(rel_filename, 'r') as templated_file:
+        with open(new_rel_filename, 'w') as new_file:
+            new_file.write(templated_file.read().replace(CLI_RELEASE, latest))
+
+
 class VersionDownload(XRefRole):
     """
     Similar to downloadable files, but:
@@ -28,14 +57,10 @@ class VersionDownload(XRefRole):
     nodeclass = addnodes.download_reference
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
-        parsed_version = parse_version(version)
-        latest = parsed_version.client_release
         rel_filename, filename = env.relfn2path(target)
-        extension_length = len('.template')
-        with open(rel_filename, 'r') as templated_file:
-            with open(rel_filename[:-extension_length], 'w') as new_file:
-                new_file.write(templated_file.read().replace(CLI_RELEASE, latest))
-        return title[:-extension_length], ws_re.sub(' ', target[:-extension_length])
+        make_changed_file(rel_filename)
+        return (remove_extension(title),
+                ws_re.sub(' ', remove_extension(target)))
 
 
 class VersionLiteralInclude(LiteralInclude):
@@ -48,16 +73,11 @@ class VersionLiteralInclude(LiteralInclude):
     # pep8
     """
     def run(self):
-        parsed_version = parse_version(version)
-        latest = parsed_version.client_release
         document = self.state.document
         env = document.settings.env
-        extension_length = len('.template')
         rel_filename, filename = env.relfn2path(self.arguments[0])
-        with open(rel_filename, 'r') as templated_file:
-            with open(rel_filename[:-extension_length], 'w') as new_file:
-                new_file.write(templated_file.read().replace(CLI_RELEASE, latest))
-        self.arguments[0] = self.arguments[0][:-extension_length]
+        make_changed_file(rel_filename)
+        self.arguments[0] = remove_extension(self.arguments[0])
 
         return LiteralInclude.run(self)
 
