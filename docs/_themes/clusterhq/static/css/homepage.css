@@ -500,7 +500,7 @@ footer .copyright p {
     .navbar-nav {
        margin-top:22px;
     }
-    .navbar-nav>li>a,.navbar-inverse .navbar-nav>li>a,.nav>li>a:active, .navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
+    .navbar-nav>li>a,.navbar-inverse .navbar-nav>li>a, .navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
         padding-top: 15px;
         padding-left: 0px;
         padding-right: 0px;
