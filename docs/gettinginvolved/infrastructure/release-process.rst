@@ -115,10 +115,10 @@ Preparing For a Release
    .. note:: Skip this step for a documentation release.
 
    - the ``pip install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
+     `docs/indepth/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/linux-install.sh>`_,
    - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
+     `docs/indepth/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/tutorial/Vagrantfile>`_,
+   - `docs/indepth/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/installation.rst>`_ (including the sample command output) and
    - the "Next Release" line in
      `docs/advanced/whatsnew.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/advanced/whatsnew.rst>`_.
    - Commit the changes:
@@ -249,7 +249,7 @@ Reviewing "Preparing For a Release"
 
    Download the :download:`acceptance testing Vagrantfile <acceptance-Vagrantfile>` to a new directory and rename it ``Vagrantfile``.
 
-   Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` steps of the tutorial with a few changes:
+   Follow the :doc:`../../indepth/tutorial/vagrant-setup` steps of the tutorial with a few changes:
 
    - Instead of downloading the tutorial's ``Vagrantfile``, use the acceptance testing ``Vagrantfile``.
    - Substitute the tutorial Vagrant nodes' IP addresses (172.16.255.250 and 172.16.255.251) with the acceptance testing nodes' IP addresses (172.16.255.240 and 172.16.255.241).

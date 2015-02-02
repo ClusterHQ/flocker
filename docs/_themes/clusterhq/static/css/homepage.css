@@ -1,0 +1,629 @@
+@import url(http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic);
+
+body {
+    font-family: 'Lato', sans-serif;
+}
+
+samp {
+    white-space: pre;
+    word-wrap: break-word;
+}
+
+pre {
+    background: #343a3d;
+    color: #FFF;
+    margin: 20px 0px 20px 0px;
+    padding: 32px 16px 22px 16px;
+    line-height: 1.6;
+    font-size:16px;
+    border: none;
+}
+
+#getting-started-with-flocker>h1:first-child {
+    margin:0px;
+    padding:12px;
+    font-size:48px;
+    font-weight:bold;
+    background:#343a3d;
+    padding:48px 0px;
+    color:#FFF;
+    text-align: center;
+}
+
+a.headerlink {
+    visibility: hidden;
+}
+
+h1:hover > a.headerlink, h2:hover > a.headerlink, h3:hover > a.headerlink, h4:hover > a.headerlink, h5:hover > a.headerlink, h6:hover > a.headerlink, dt:hover > a.headerlink {
+    visibility: visible;
+}
+
+.gp {
+    color:#fdce93;
+}
+
+#getting-started-with-flocker>.container:nth-of-type(5) {
+    margin-top: -56px;
+}
+
+.img-spaced {
+    margin-bottom:24px;
+}
+
+.navbar-brand>img {
+    width: 200px;
+    margin-top: 10px;
+}
+
+.tryflocker {
+    left: -10px;
+    top: 4px;
+}
+
+.jumbo-flocker p {
+    font-size:32px;
+    font-family: "Soho Gothic W01 Regular", sans-serif;
+}
+
+.navbar-inverse {
+    border:none;
+}
+
+.text-larger {
+    font-size:18px;
+}
+
+.row-centered {
+    text-align:center;
+}
+
+.col-centered {
+    display:inline-block;
+    float:none;
+    text-align:left;
+    margin-right:-4px;
+}
+
+.tab-content {
+    color:#FFF;
+    background-color: #343a3d;
+    padding:12px 16px;
+    font-size: 16px;
+    min-height:422px;
+}
+
+.tab-pane {
+    padding:16px;
+}
+
+.navbar { 
+    margin-bottom: 0px;
+}
+
+.navbar-brand {
+}
+
+.nav-tabs {
+  border-bottom: 1px solid #343a3d;
+}
+.nav-tabs > li {
+  float: left;
+  margin-bottom: -1px;
+  font-size:24px;
+  font-weight:bold;
+  text-align:center;
+  margin-right:1px;
+}
+.nav-tabs > li > a {
+  margin-right: 0px;
+  line-height: 1.42857143;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0 0;
+  color:#343a3d;
+}
+.nav-tabs > li > a:hover {
+  border-color: #343a3d;
+}
+.nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:focus {
+    background-color: #080808;
+    color:#FFF;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover,
+.nav-tabs > li.active > a:focus {
+  color: #ffffff;
+  background-color: #343a3d;
+  border: 1px solid #343a3d;
+  border-bottom-color: transparent;
+  cursor: default;
+}
+.nav-tabs.nav-justified {
+  width: 100%;
+  border-bottom: 0;
+}
+.nav-tabs.nav-justified > li {
+  float: none;
+}
+.nav-tabs.nav-justified > li > a {
+  text-align: center;
+  margin-bottom: 5px;
+}
+.nav-tabs.nav-justified > .dropdown .dropdown-menu {
+  top: auto;
+  left: auto;
+}
+@media (min-width: 768px) {
+  .nav-tabs.nav-justified > li {
+    display: table-cell;
+    width: 1%;
+  }
+  .nav-tabs.nav-justified > li > a {
+    margin-bottom: 0;
+  }
+}
+.nav-tabs.nav-justified > li > a {
+  margin-right: 0;
+  border-radius: 4px;
+}
+.nav-tabs.nav-justified > .active > a,
+.nav-tabs.nav-justified > .active > a:hover,
+.nav-tabs.nav-justified > .active > a:focus {
+  border: 1px solid #343a3d;
+}
+@media (min-width: 768px) {
+  .nav-tabs.nav-justified > li > a {
+    border-bottom: 1px solid #343a3d;
+    border-radius: 4px 4px 0 0;
+  }
+  .nav-tabs.nav-justified > .active > a,
+  .nav-tabs.nav-justified > .active > a:hover,
+  .nav-tabs.nav-justified > .active > a:focus {
+    border-bottom-color: #272b30;
+  }
+}
+
+.table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th, .table>thead>tr>td, .table>tbody>tr>td, .table>tfoot>tr>td { 
+     border-top: none; 
+}
+
+.table {
+    margin-bottom: 0px;
+}
+
+td>p {
+    line-height:18px;
+    text-align:center;
+    padding-top:8px;
+    font-size:18px;
+}
+
+.table-striped>tbody>tr:nth-child(odd) {
+    background: #e5e6eb;
+}
+
+.jumbo-flocker {
+    background: #468b87;
+    color:#FFF;
+    padding-top: 68px;
+    padding-bottom: 48px;
+}
+
+.flocker-logo {
+    background: url(../images/flocker.png);
+    height: 266px;
+    background-size: 309px 266px;
+    background-repeat: no-repeat;
+    display: block;
+    position: relative;
+    top: -55px;
+    width: 309px;
+    left: -260px;
+}
+
+.signup {
+    background:url(../images/signup.png) no-repeat center;
+    background-size:cover;
+    font-family:"Soho Gothic W01 Medium";
+    font-weight:300;    
+    width:100%;
+    height:372px;
+    display:block;
+    margin-top:24px;
+    color:#1e2021;
+}
+
+.signup p {
+    font-family: "Soho Gothic W01 Regular";
+}
+
+.signup h1 {
+    font-size:42px;
+}
+
+.signup, .nav-tabs, .tab-content {
+    display:none;
+}
+
+.arrow-down {
+    background: url(../images/arrow.png);
+    background-size: 50px;
+    background-repeat: no-repeat;
+    height: 50px;
+    width: 50px;
+    display: block;
+    position: relative;
+    top: 36px;
+}
+
+hr.docutils {
+    margin-top: 32px;
+}
+
+.arrow-hr {
+    top: -46px;
+}
+
+.heading-offset-top {
+    margin-top: -40px;
+}
+
+.navbar-header {
+    height: 97px;
+}
+
+.navbar-inverse, #getting-started-with-flocker>h1:first-child {
+    background: #1e2021;
+    background: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJod…IgaGVpZ2h0PSIxIiBmaWxsPSJ1cmwoI2dyYWQtdWNnZy1nZW5lcmF0ZWQpIiAvPgo8L3N2Zz4=);
+    background: -moz-linear-gradient(-10deg, #1e2021 0%, #343a3d 100%);
+    background: -webkit-gradient(linear, left top, right bottom, color-stop(0%,#1e2021), color-stop(100%,#343a3d));
+    background: -webkit-linear-gradient(-10deg, #1e2021 0%,#343a3d 100%);
+    background: -o-linear-gradient(-10deg, #1e2021 0%,#343a3d 100%);
+    background: -ms-linear-gradient(-10deg, #1e2021 0%,#343a3d 100%);
+    background: linear-gradient(78deg, #1e2021 0%,#343a3d 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e2021', endColorstr='#343a3d',GradientType=1 );
+}
+
+h2, h3 {
+    color: #1e2021;
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 80px;
+    font-family: "Soho Gothic W01 Regular", sans-serif;
+    text-align:center;
+}
+
+h2 a, p>a {
+    color:#f15c30;
+}
+
+h2 a:hover, p>a:hover {
+    color:#d44b22;
+    text-decoration:none;
+}
+
+.bottom-spaced {
+    margin-bottom:24px;
+}
+
+.bordered {
+    padding-bottom: 14px;
+}
+
+.bordered-left {
+    border-left:1px solid;
+}
+
+.bordered-right {
+    border-right:1px solid;
+}
+
+.bordered-top {
+    border-top:1px solid;
+}
+
+.bordered-bottom {
+    border-bottom:1px solid;
+}
+
+.bordered-gray {
+    border-color: #e5e6eb;
+}
+
+.btn-signup {
+    background:#ef5731;
+    color:#FFF;
+    margin-left: 16px;
+}
+
+.btn-signup:hover {
+    background:#d44b22;
+    color:#FFF;
+}
+
+.flocker-orange {
+    background:#ef5731;
+    color:#FFF;
+}
+
+.flocker-label {
+    padding: 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 20px;
+    width: 33%;
+    margin-top:18px;
+    margin-bottom: 18px;
+}
+
+.form-inline {
+    margin-top:24px;
+}
+
+.input-lg {
+    min-width:400px;
+}
+
+/********** Nav and Footer ************/
+
+footer {
+	background-color:#1e2021;
+	font-family: "Soho Gothic W01 Regular";
+	font-size:18px;
+	margin-top: 24px;
+}
+
+footer .widget-title {
+	color:#c8c9d4;
+	padding-bottom:25px;
+	display:block;
+}
+
+footer ul {
+	list-style:none;
+	padding:0;
+	font-size:16px;
+}
+
+footer li {
+	padding-bottom:15px;
+}
+
+footer a {
+	color:#a2dad7;
+}
+footer a:hover, footer a:focus {
+	color:#a2dad7;
+}
+
+#footer-head {
+	height:90px;
+	line-height:90px;
+	background-color:#343a3d;
+	margin-bottom:35px;
+}
+
+#footer-head p  {
+	margin:0;
+	padding:0;
+	color:#FFFFFF;
+	font-size:18px;
+}
+
+footer .copyright p {
+	color:#FFFFFF;
+	font-size:12px;
+	padding:45px 0 35px 0;
+}
+
+.navbar-inverse .navbar-nav>li>a {
+    font-family: "Lato", sans-serif;
+    color:#FFF;
+    font-size:18px;
+    font-weight:500;
+}
+
+.small-logo img {
+    max-width: 60px;
+    margin-top: 12px;
+}
+
+@media screen and (max-width:768px) {
+    .btn-signup {
+        width: 100%;
+    }
+    .signup p {
+        font-size: 14px;
+    }
+    .small-logo img {
+        width:48px;
+        margin-top:14px;
+    }
+    #footer-head p {
+        font-size:12px;
+    }
+    footer {
+        margin-top:24px;
+    }
+    .doc-banner {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .signup {
+        background:#efedd6;
+    }    
+}
+
+@media screen and (max-width:500px) and (orientation:portrait) {
+}
+
+@media screen and (max-width:992px) {
+    img.offset-top {
+        margin-top:32px;
+    }
+    .heading {
+        line-height:42px;
+    }
+    .input-lg { 
+        min-width: 100%;
+    }
+    .btn-signup {
+        margin-left:0px;
+    }
+}
+
+@media screen and (min-width:992px) {
+    .arrow-offset {
+        left: -52.8%;
+    }    
+
+    img.offset-top {
+        margin-top:-23px;
+    }
+
+    .nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:hover, .navbar-inverse .navbar-nav>li>a:focus {
+        text-decoration:underline;
+        background-color:transparent;
+    }
+    
+    ul[data-tabs="tabs"].nav>li>a:hover, #tabs-node.nav>li>a:hover {
+        background-color: #343a3d;
+        text-decoration: none;
+    }
+
+    .nav>li>a:active,.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
+        background-color:transparent;
+        border-bottom:1px solid #FFF;
+        color:#FFF;                
+    }
+
+    .navbar-nav {
+       margin-top:22px;
+    }
+    .navbar-nav>li>a,.navbar-inverse .navbar-nav>li>a, .navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.active>a:hover, .navbar-inverse .navbar-nav>.active>a:focus {
+        padding-top: 15px;
+        padding-left: 0px;
+        padding-right: 0px;
+        padding-bottom: 6px;
+        margin: 0px 14px;
+    }    
+}
+@media (max-width:1200px) {
+    .flocker-logo {
+        background: url(../images/flocker.png);
+        height: 266px;
+        background-size: 309px 266px;
+        background-repeat: no-repeat;
+        display: block;
+        position: absolute;
+        top: 208px;
+        width: 309px;
+        left: 860px;    
+    }
+    .jumbo-flocker p {
+        font-size:26px;
+        font-family: "Soho Gothic W01 Regular", sans-serif;
+    }
+}
+@media (min-width:1201px) {
+    li.button.menu a {
+        font-family: "Soho Gothic W01 Regular";
+        border: 1px solid #ffffff;
+        background-color: transparent;
+        text-align: center;
+        line-height: 38px;
+        font-size: 17.7px;
+        margin-top: 4px;
+        padding: 0px 18px;
+        border-radius: 8px;
+    }
+
+    li.button.menu a:hover {
+        color: #a2dad7; 
+        border: 1px solid #a2dad7;
+        text-decoration:none;
+    }    
+    .jumbo-flocker {
+        padding-bottom:0px;
+    }
+}
+@media (min-width:1201px) and (max-width:1400px) {
+    .flocker-logo {
+        left:-60px;
+    }
+}
+@media (min-width:1201px) and (max-width:1217px) {
+    .flocker-logo {
+        left: 860px;
+        position: absolute;
+        top: 208px;    
+    }
+}
+@media (min-width:1401px) and (max-width:1635px) {
+    .flocker-logo {
+        left:-60px;
+    }
+}
+@media (min-width:992px) and (max-width:1199px) {
+    .flocker-logo {
+        left: -20px;
+        top: -54px;
+        position: relative;
+    }
+}
+
+@media  only screen and (-webkit-min-device-pixel-ratio: 1.5),  
+        only screen and (   min--moz-device-pixel-ratio: 1.5),  
+        only screen and (     -o-min-device-pixel-ratio: 3/2),  
+        only screen and (        min-device-pixel-ratio: 1.5),  
+        only screen and (min-resolution: 192dpi) {  
+            .flocker-logo {
+                background: url(../images/flocker@2x.png);
+                background-size: 309px 266px;
+                background-repeat: no-repeat;
+            }
+
+            .signup {
+                background:url(../images/signup@2x.png) no-repeat center;
+                background-size:cover;
+            }
+        
+            .arrow-down {
+                background: url(../images/arrow@2x.png);
+                background-size: 50px;
+                background-repeat: no-repeat;
+            }
+      
+}
+
+@media (min-width: 768px) {
+    .navbar-nav>li {
+        float: left;
+        margin-right: 6px;
+    }
+}
+@media screen and (min-width:768px) and (max-width:1200px) {
+    .tryflocker {
+        top: 0px;
+    }
+    .flocker-logo {
+        left: 670px;
+        top: 190px;
+        position: absolute;
+    }       
+}
+
+@media screen and (min-width:768px) and (max-width:992px) {
+    .flocker-logo {
+        display:none;
+    }
+}
+
+@media screen and (min-width:1024px) and (max-width:1200px) {
+    .flocker-logo {
+        display:none;
+    }
+}
+@media (min-width: 768px)
+
+}
