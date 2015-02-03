@@ -93,11 +93,12 @@ class APITestsMixin(object):
 
         :param bytes method: HTTP method to request.
         :param bytes path: HTTP path.
+        :param unicode request_body: Body of HTTP request.
         :param int expected_code: The code expected in the response.
             response.
         :param list|dict expected_result: The body expected in the response.
 
-        :return Deferred: Fires when test is done.
+        :return: A ``Deferred`` that fires when test is done.
         """
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
@@ -111,16 +112,18 @@ class APITestsMixin(object):
         """
         Assert a JSON array response for the given API request.
 
-        The API returns a JSON array, which matches a Python list, b
+        The API returns a JSON array, which matches a Python list, by
+        comparing that matching items exist in each sequence, but may
+        appear in a different order.
 
         :param bytes method: HTTP method to request.
         :param bytes path: HTTP path.
+        :param unicode request_body: Body of HTTP request.
         :param int expected_code: The code expected in the response.
-            response.
         :param list expected_result: A list of items expects in a
             JSON array response.
 
-        :return Deferred: Fires when test is done.
+        :return: A ``Deferred`` that fires when test is done.
         """
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
@@ -487,7 +490,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
     """
     def test_empty(self):
         """
-        Test case where cluster contains no datasets.
+        When the cluster state includes no datasets, the endpoint
+        returns an empty list.
         """
         response = []
         return self.assertResult(
@@ -496,7 +500,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
 
     def test_one_dataset(self):
         """
-        Test case where cluster contains one dataset.
+        When the cluster state includes one dataset, the endpoint
+        returns a single-element list containing the dataset.
         """
         expected_dataset = Dataset(dataset_id=unicode(uuid4()))
         expected_manifestation = Manifestation(
@@ -521,7 +526,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
 
     def test_two_datasets(self):
         """
-        Test case where cluster contains two datasets.
+        When the cluster state includes more than one dataset, the endpoint
+        returns a list containing the datasets in arbitrary order.
         """
         expected_dataset1 = Dataset(dataset_id=unicode(uuid4()))
         expected_manifestation1 = Manifestation(
@@ -732,9 +738,9 @@ class DatasetsFromDeploymentTests(SynchronousTestCase):
         )
 
 
-class ApiDatasetFromDatasetAndNodeTests(SynchronousTestCase):
+class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
     """
-    Tests for ``ApiDatasetFromDatasetAndNodeTests``.
+    Tests for ``api_dataset_from_dataset_and_node``.
     """
     def test_without_maximum_size(self):
         """
