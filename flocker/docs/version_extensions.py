@@ -5,6 +5,8 @@ Sphinx extension to add directives to allow files and code to include the
 latest installable version of Flocker.
 """
 
+import os
+
 from sphinx.directives.code import CodeBlock, LiteralInclude
 from sphinx.roles import XRefRole
 
@@ -29,20 +31,32 @@ def remove_extension(template):
     return template[:-len('.template')]
 
 
-def make_changed_file(path):
+def make_changed_file(path, env):
     """
     Given the path to a template file, write a new file with:
         * The same filename, except without '.template' at the end.
         * A placeholder in the new file changed to the latest installable
           version of Flocker.
 
+    This new file will be deleted on build completion.
+
     :param unicode path: The path to a template file.
+    :param sphinx.environment.BuildEnvironment env: The Sphinx build
+        environment
     """
+    def remove_file(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
     latest = get_installable_version(version)
     new_path = remove_extension(path)
     with open(path, 'r') as templated_file:
         with open(new_path, 'w') as new_file:
             new_file.write(templated_file.read().replace(PLACEHOLDER, latest))
+            env.app.connect('build-finished',
+                            lambda self, *args: remove_file(new_path))
 
 
 class VersionDownload(XRefRole):
@@ -57,7 +71,8 @@ class VersionDownload(XRefRole):
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
         rel_filename, filename = env.relfn2path(target)
-        make_changed_file(filename)
+        make_changed_file(filename, env)
+
         return (remove_extension(title),
                 ws_re.sub(' ', remove_extension(target)))
 
@@ -72,7 +87,7 @@ class VersionLiteralInclude(LiteralInclude):
         document = self.state.document
         env = document.settings.env
         rel_filename, filename = env.relfn2path(self.arguments[0])
-        make_changed_file(filename)
+        make_changed_file(filename, env)
         self.arguments[0] = remove_extension(self.arguments[0])
 
         return LiteralInclude.run(self)
