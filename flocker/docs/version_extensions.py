@@ -29,19 +29,19 @@ def remove_extension(template):
     return template[:-len('.template')]
 
 
-def make_changed_file(rel_filename):
+def make_changed_file(path):
     """
-    Given the relative filename of a template file, write a new file with:
+    Given the path to a template file, write a new file with:
         * The same filename, except without '.template' at the end.
         * A placeholder in the new file changed to the latest installable
           version of Flocker.
 
-    :param unicode rel_filename: The relative filename of a template file.
+    :param unicode path: The path to a template file.
     """
     latest = get_installable_version(version)
-    new_rel_filename = remove_extension(rel_filename)
-    with open(rel_filename, 'r') as templated_file:
-        with open(new_rel_filename, 'w') as new_file:
+    new_path = remove_extension(path)
+    with open(path, 'r') as templated_file:
+        with open(new_path, 'w') as new_file:
             new_file.write(templated_file.read().replace(PLACEHOLDER, latest))
 
 
@@ -57,7 +57,7 @@ class VersionDownload(XRefRole):
 
     def process_link(self, env, refnode, has_explicit_title, title, target):
         rel_filename, filename = env.relfn2path(target)
-        make_changed_file(rel_filename)
+        make_changed_file(filename)
         return (remove_extension(title),
                 ws_re.sub(' ', remove_extension(target)))
 
@@ -72,7 +72,7 @@ class VersionLiteralInclude(LiteralInclude):
         document = self.state.document
         env = document.settings.env
         rel_filename, filename = env.relfn2path(self.arguments[0])
-        make_changed_file(rel_filename)
+        make_changed_file(filename)
         self.arguments[0] = remove_extension(self.arguments[0])
 
         return LiteralInclude.run(self)
