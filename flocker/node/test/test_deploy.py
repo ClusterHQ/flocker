@@ -711,7 +711,7 @@ DISCOVERED_APPLICATION_WITH_VOLUME = APPLICATION_WITH_VOLUME
 
 class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.discover_local_state``.
+    Tests for ``P2PNodeDeployer.discover_local_state``.
     """
     def setUp(self):
         self.volume_service = create_volume_service(self)
@@ -719,7 +719,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
     def test_discover_none(self):
         """
-        ``Deployer.discover_local_state`` returns an empty
+        ``P2PNodeDeployer.discover_local_state`` returns an empty
         ``NodeState`` if there are no Docker containers on the host.
         """
         fake_docker = FakeDockerClient(units={})
@@ -736,7 +736,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
     def test_discover_one(self):
         """
-        ``Deployer.discover_local_state`` returns ``NodeState`` with a
+        ``P2PNodeDeployer.discover_local_state`` returns ``NodeState`` with a
         a list of running ``Application``\ s; one for each active container.
         """
         expected_application_name = u'site-example.com'
@@ -762,7 +762,7 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
 
     def test_discover_multiple(self):
         """
-        ``Deployer.discover_local_state`` returns a ``NodeState`` with
+        ``P2PNodeDeployer.discover_local_state`` returns a ``NodeState`` with
         a running ``Application`` for every active container on the host.
         """
         unit1 = Unit(name=u'site-example.com',
@@ -1206,10 +1206,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
     """
     def test_no_state_changes(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a ``Deferred``
-        which fires with a :class:`IStateChange` instance indicating that no
-        changes are necessary when there are no applications running or
-        desired, and no proxies exist or are desired.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
+        ``Deferred`` which fires with a :class:`IStateChange` instance
+        indicating that no changes are necessary when there are no
+        applications running or desired, and no proxies exist or are
+        desired.
         """
         fake_docker = FakeDockerClient(units={})
         api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
@@ -1225,7 +1226,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_proxy_needs_creating(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
         ``IStateChange``, specifically a ``SetProxies`` with a list of
         ``Proxy`` objects. One for each port exposed by ``Application``\ s
         hosted on a remote nodes.
@@ -1264,7 +1265,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_proxy_empty(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` returns a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` returns a
         ``SetProxies`` instance containing an empty `proxies`
         list if there are no remote applications that need proxies.
         """
@@ -1284,7 +1285,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_application_needs_stopping(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
         application must be stopped when it is running but not desired.
         """
         unit = Unit(name=u'site-example.com',
@@ -1309,7 +1310,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_application_needs_starting(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that an
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that an
         application must be started when it is desired on the given node but
         not running.
         """
@@ -1342,9 +1343,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_only_this_node(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` does not specify that an
-        application must be started if the desired changes apply to a different
-        node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        that an application must be started if the desired changes apply
+        to a different node.
         """
         fake_docker = FakeDockerClient(units={})
         api = P2PNodeDeployer(u'node.example.com', create_volume_service(self),
@@ -1373,9 +1374,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_no_change_needed(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` does not specify that an
-        application must be started or stopped if the desired configuration
-        is the same as the current configuration.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` does not specify
+        that an application must be started or stopped if the desired
+        configuration is the same as the current configuration.
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name=u'mysql-hybridcluster',
@@ -1411,9 +1412,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_node_not_described(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that all
-        applications on a node must be stopped if the desired configuration
-        does not include that node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        all applications on a node must be stopped if the desired
+        configuration does not include that node.
         """
         unit = Unit(name=u'mysql-hybridcluster',
                     container_name='mysql-hybridcluster',
@@ -1440,10 +1441,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_created(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a new
-        volume must be created if the desired configuration specifies that an
-        application which was previously running nowhere is going to be running
-        on *this* node and that application requires a volume.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        new volume must be created if the desired configuration specifies
+        that an application which was previously running nowhere is going
+        to be running on *this* node and that application requires a
+        volume.
         """
         hostname = u"node1.example.com"
 
@@ -1488,9 +1490,10 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_wait(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        volume for an application which was previously running on another node
-        must be waited for, in anticipation of that node handing it off to us.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the volume for an application which was previously running on
+        another node must be waited for, in anticipation of that node
+        handing it off to us.
         """
         # The application is not running here - therefore there is no container
         # for it.
@@ -1540,9 +1543,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_handoff(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        volume for an application which was previously running on this node but
-        is now running on another node must be handed off.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the volume for an application which was previously running on this
+        node but is now running on another node must be handed off.
         """
         # The application is running here.
         unit = Unit(
@@ -1602,9 +1605,9 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_no_volume_changes(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies no work for
-        the volume if an application which was previously running on this
-        node continues to run on this node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
+        work for the volume if an application which was previously running
+        on this node continues to run on this node.
         """
         volume_service = create_volume_service(self)
         node_path = self.successResultOf(volume_service.create(
@@ -1660,11 +1663,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_resize(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a volume
-        will be resized if an application which was previously running on this
-        node continues to run on this node but specifies a dataset maximum_size
-        that differs to the existing dataset size. The Application will also be
-        restarted.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node continues to run on this node but specifies a
+        dataset maximum_size that differs to the existing dataset
+        size. The Application will also be restarted.
         """
         volume_service = create_volume_service(self)
         node_path = self.successResultOf(volume_service.create(
@@ -1733,11 +1736,11 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_resized_before_move(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a volume
-        will be resized if an application which was previously running on this
-        node is to be relocated to a different node but specifies a volume
-        maximum_size that differs to the existing volume size. The volume will
-        be resized before moving.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node is to be relocated to a different node but
+        specifies a volume maximum_size that differs to the existing
+        volume size. The volume will be resized before moving.
         """
         volume_service = create_volume_service(self)
         node_path = self.successResultOf(volume_service.create(
@@ -1821,11 +1824,12 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 
     def test_volume_max_size_preserved_after_move(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a volume
-        will be resized if an application which was previously running on this
-        node is to be relocated to a different node but specifies a volume
-        maximum_size that differs to the existing volume size. The volume on
-        the new target node will be resized after it has been received.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        volume will be resized if an application which was previously
+        running on this node is to be relocated to a different node but
+        specifies a volume maximum_size that differs to the existing
+        volume size. The volume on the new target node will be resized
+        after it has been received.
         """
         docker = FakeDockerClient(units={})
 
@@ -2383,15 +2387,15 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
 class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
         SynchronousTestCase):
     """
-    Tests for ``Deployer.calculate_necessary_state_changes`` when only
+    Tests for ``P2PNodeDeployer.calculate_necessary_state_changes`` when only
     datasets are involved which are not attached to applications.
     """
     def test_dataset_created(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a new
-        dataset must be created if the desired configuration specifies
-        that a dataset that previously existed nowhere is going to be
-        on this node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        new dataset must be created if the desired configuration specifies
+        that a dataset that previously existed nowhere is going to be on
+        this node.
         """
         hostname = u"node1.example.com"
 
@@ -2425,9 +2429,9 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_dataset_wait(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        dataset previously stored on another node must be waited for, in
-        anticipation of that node handing it off to us.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the dataset previously stored on another node must be waited for,
+        in anticipation of that node handing it off to us.
         """
         docker = FakeDockerClient(units={})
 
@@ -2469,8 +2473,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_dataset_handoff(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that the
-        dataset which was previously hosted on this node but is now
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that
+        the dataset which was previously hosted on this node but is now
         supposed to be on another node must be handed off.
         """
         docker = FakeDockerClient(units={})
@@ -2514,8 +2518,8 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_no_dataset_changes(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies no work for
-        the dataset if it was and continues to be on the node.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies no
+        work for the dataset if it was and continues to be on the node.
         """
         volume_service = create_volume_service(self)
         docker = FakeDockerClient(units={})
@@ -2546,10 +2550,10 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_dataset_resize(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a dataset
-        will be resized if a dataset which was previously hosted on this
-        node continues to be on this node but specifies a dataset maximum_size
-        that differs to the existing dataset size.
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
+        dataset will be resized if a dataset which was previously hosted
+        on this node continues to be on this node but specifies a dataset
+        maximum_size that differs to the existing dataset size.
         """
         volume_service = create_volume_service(self)
         docker = FakeDockerClient(units={})
@@ -2589,7 +2593,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_dataset_resized_before_move(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
         dataset will be resized if it is to be relocated to a different
         node but specifies a maximum_size that differs to the existing
         size. The dataset will be resized before moving.
@@ -2652,7 +2656,7 @@ class DeployerCalculateNecessaryStateChangesDatasetOnlyTests(
 
     def test_dataset_max_size_preserved_after_move(self):
         """
-        ``Deployer.calculate_necessary_state_changes`` specifies that a
+        ``P2PNodeDeployer.calculate_necessary_state_changes`` specifies that a
         dataset will be resized if it is to be relocated to a different
         node but specifies a maximum_size that differs to the existing
         size. The dataset on the new target node will be resized after it
@@ -2842,7 +2846,7 @@ class SetProxiesTests(SynchronousTestCase):
 
 class DeployerChangeNodeStateTests(SynchronousTestCase):
     """
-    Tests for ``Deployer.change_node_state``.
+    Tests for ``P2PNodeDeployer.change_node_state``.
 
     XXX: Some of these tests are exercising code which has now been
     refactored into ``IStateChange`` objects. As such they can be
@@ -3265,4 +3269,3 @@ class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
     """
     ``IDeployer`` tests for ``P2PNodeDeployer``.
     """
-
