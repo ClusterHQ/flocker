@@ -318,5 +318,5 @@ linkcheck_ignore = [
 # Define some custom global variables
 # See http://sphinx.readthedocs.org/en/latest/config.html#confval-rst_epilog
 rst_epilog = """
-.. |digitalocean_kernel_title| replace:: {}
+.. |digitalocean_kernel_title| replace:: ``{}``
 """.format(DIGITALOCEAN_KERNEL_TITLE)
