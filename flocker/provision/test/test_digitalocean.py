@@ -10,9 +10,9 @@ from unittest import skipUnless
 try:
     import pyocean
 except ImportError:
-    PYOCEAN_INSTALLED=False
+    PYOCEAN_INSTALLED = False
 else:
-    PYOCEAN_INSTALLED=True
+    PYOCEAN_INSTALLED = True
 
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
