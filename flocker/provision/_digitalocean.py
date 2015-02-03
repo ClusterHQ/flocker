@@ -6,8 +6,6 @@ DigitalOcean provisioner.
 import time
 from functools import partial
 
-import pyocean
-
 from ._libcloud import LibcloudProvisioner
 from ._install import (
     provision, run,
@@ -60,6 +58,10 @@ def pending_event(exception):
 
     See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-cal # noqa
     """
+    # Import here, so that this can be added to ``flocker.provision`` without
+    # having to install ``pyocean``.
+    import pyocean
+
     if isinstance(exception, pyocean.exceptions.ClientError):
         if exception.message == 'Droplet already has a pending event.':
             return True
@@ -85,6 +87,10 @@ def droplet_still_on(exception):
     But it still seems to require some time before powering on, so catch the
     "currently on" exception and retry in that case.
     """
+    # Import here, so that this can be added to ``flocker.provision`` without
+    # having to install ``pyocean``.
+    import pyocean
+
     if (isinstance(exception, pyocean.exceptions.ClientError)
         and exception.message == ('Droplet is currently on. '
                                   'Please power it off to run this event.')):
@@ -212,6 +218,11 @@ def provision_digitalocean(node, package_source, distribution, token):
     # But libcloud only supports the DO v1 API
     # * https://www.digitalocean.com/community/questions/does-libcloud-work-with-digitalocean-s-v2-api # noqa
     # * https://issues.apache.org/jira/browse/JCLOUDS-613
+
+    # Import here, so that this can be added to ``flocker.provision`` without
+    # having to install ``pyocean``.
+    import pyocean
+
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
 

@@ -6,9 +6,14 @@ Tests for ``flocker.provision._digitalocean``.
 import copy
 import os
 
-import pyocean
+try:
+    import pyocean
+except ImportError:
+    PYOCEAN_INSTALLED=False
+else:
+    PYOCEAN_INSTALLED=True
 
-from twisted.trial.unittest import SynchronousTestCase, SkipTest
+from twisted.trial.unittest import SynchronousTestCase, SkipTest, skipUnless
 
 from flocker.provision._digitalocean import (
     set_droplet_kernel, retry_if_pending, latest_droplet_kernel,
@@ -23,6 +28,7 @@ TESTING_DROPLET_ATTRIBUTES = {
 }
 
 
+@skipUnless(PYOCEAN_INSTALLED, "pyocean not installed")
 def client_from_environment():
     token = os.environ.get('DIGITALOCEAN_TOKEN')
     if token is None:
