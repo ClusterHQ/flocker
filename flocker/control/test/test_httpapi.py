@@ -23,7 +23,7 @@ from twisted.application.service import IService
 from twisted.python.filepath import FilePath
 
 from ...restapi.testtools import (
-    buildIntegrationTests, dumps, loads, goodResult, badResult)
+    buildIntegrationTests, dumps, loads)
 
 from .. import Dataset, Manifestation, Node, Deployment
 from ..httpapi import DatasetAPIUserV1, create_api_service
@@ -94,16 +94,11 @@ class APITestsMixin(object):
 
         :return Deferred: Fires when test is done.
         """
-        if expected_code // 100 in (4, 5):
-            result_wrapper = badResult
-        else:
-            result_wrapper = goodResult
-
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
-            result_wrapper(expected_result), loads(body)))
+            expected_result, loads(body)))
         return requesting
 
 
@@ -269,7 +264,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating.addCallback(loads)
 
         def got_result(result):
-            result = result[u"result"]
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
                 {u"primary": self.NODE_A, u"metadata": {}}, result
@@ -327,8 +321,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         ])
 
         def created(datasets):
-            first = datasets[0][u"result"]
-            second = datasets[1][u"result"]
+            first = datasets[0]
+            second = datasets[1]
             self.assertNotEqual(first[u"dataset_id"], second[u"dataset_id"])
         creating.addCallback(created)
         return creating

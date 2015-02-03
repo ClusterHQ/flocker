@@ -40,8 +40,8 @@ class EndpointResponse(object):
         @param code: The HTTP response code to set in the response.
         @type code: L{int}
 
-        @param result: The (structured) value to put into the C{u"result"}
-            field of the response body.  This must be JSON encodeable.
+        @param result: The (structured) value to put into the response
+            body.  This must be JSON encodeable.
         """
         self.code = code
         self.result = result
@@ -89,7 +89,7 @@ def _logging(original):
             request.setResponseCode(code)
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
-            return dumps({u"error": True, u"result": result})
+            return dumps(result)
         d.addErrback(failure)
         d.addActionFinish()
         return d.result
@@ -117,7 +117,7 @@ def _serialize(outputValidator):
             request.responseHeaders.setRawHeaders(
                 b"content-type", [b"application/json"])
             request.setResponseCode(code)
-            return dumps({u"error": False, u"result": result})
+            return dumps(result)
 
         def doit(self, request, **routeArguments):
             result = maybeDeferred(original, self, request, **routeArguments)
