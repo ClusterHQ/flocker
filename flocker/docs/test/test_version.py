@@ -156,8 +156,6 @@ class GetDocVersionTests(SynchronousTestCase):
 class GetInstallableVersionTests(SynchronousTestCase):
     """
     Tests for :function:`get_installable_version`.
-
-    # TODO change docstrings
     """
 
     def test_marketing_release(self):
