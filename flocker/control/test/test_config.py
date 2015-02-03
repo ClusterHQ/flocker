@@ -7,6 +7,9 @@ Tests for ``flocker.node._config``.
 from __future__ import unicode_literals, absolute_import
 
 import copy
+from uuid import uuid4
+
+from pyrsistent import pmap
 
 from twisted.python.filepath import FilePath
 from twisted.trial.unittest import SynchronousTestCase
@@ -15,12 +18,58 @@ from .._config import (
     ConfigurationError, FlockerConfiguration, marshal_configuration,
     current_from_configuration, deployment_from_configuration,
     model_from_configuration, FigConfiguration,
-    applications_to_flocker_yaml
+    applications_to_flocker_yaml, parse_storage_string, ApplicationMarshaller,
+    FLOCKER_RESTART_POLICY_POLICY_TO_NAME, ApplicationConfigurationError,
+    _parse_restart_policy,
 )
 from .._model import (
     Application, AttachedVolume, DockerImage, Deployment, Node, Port, Link,
-    NodeState,
+    NodeState, RestartNever, RestartAlways, RestartOnFailure, Dataset,
+    Manifestation,
 )
+
+
+COMPLEX_APPLICATION_YAML = {
+    'version': 1,
+    'applications': {
+        'wordpress': {
+            'image': 'sample/wordpress:latest',
+            'volume': {'mountpoint': '/var/www/wordpress'},
+            'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
+            'ports': [{'internal': 80, 'external': 8080}],
+            'links': [
+                {'local_port': 3306,
+                 'remote_port': 3306,
+                 'alias': 'db'},
+                {'local_port': 3307,
+                 'remote_port': 3307,
+                 'alias': 'db'}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        },
+        'mysql': {
+            'image': 'sample/mysql:latest',
+            'ports': [
+                {'internal': 3306, 'external': 3306},
+                {'internal': 3307, 'external': 3307}
+            ],
+            'restart_policy': {
+                'name': 'never',
+            },
+        }
+    }
+}
+
+
+COMPLEX_DEPLOYMENT_YAML = {
+    'version': 1,
+    'nodes': {
+        'node1.example.com': ['wordpress'],
+        'node2.example.com': ['mysql'],
+    }
+}
 
 
 class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
@@ -32,32 +81,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
         The YAML returned by ``applications_to_flocker_yaml" can be
         successfully parsed as YAML.
         """
-        expected = {
-            'version': 1,
-            'applications': {
-                'wordpress': {
-                    'image': 'sample/wordpress:latest',
-                    'volume': {'mountpoint': b'/var/www/wordpress'},
-                    'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'ports': [{'internal': 80, 'external': 8080}],
-                    'links': [
-                        {'local_port': 3306,
-                         'remote_port': 3306,
-                         'alias': 'db'},
-                        {'local_port': 3307,
-                         'remote_port': 3307,
-                         'alias': 'db'}
-                    ]
-                },
-                'mysql': {
-                    'image': 'sample/mysql:latest',
-                    'ports': [
-                        {'internal': 3306, 'external': 3306},
-                        {'internal': 3307, 'external': 3307}
-                    ],
-                }
-            }
-        }
+        expected = COMPLEX_APPLICATION_YAML
         config = copy.deepcopy(expected)
         applications = FlockerConfiguration(config).applications()
         yaml = safe_load(applications_to_flocker_yaml(applications))
@@ -194,7 +218,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
             'applications': {
                 'wordpress': {
                     'environment': {'WORDPRESS_ADMIN_PASSWORD': 'admin'},
-                    'volume': {'mountpoint': b'/var/www/wordpress'},
+                    'volume': {'mountpoint': '/var/www/wordpress'},
                     'image': 'sample/wordpress',
                     'ports': [{'internal': 80, 'external': 8080}],
                     'links': [
@@ -282,7 +306,7 @@ class ApplicationsToFlockerYAMLTests(SynchronousTestCase):
                 'postgres': {
                     'image': 'sample/postgres',
                     'ports': [{'internal': 5432, 'external': 5432}],
-                    'volume': {'mountpoint': b'/var/lib/data'},
+                    'volume': {'mountpoint': '/var/lib/data'},
                 }
             }
         }
@@ -366,7 +390,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
                     config['wordpress']['environment'].items()
                 ),
                 volume=AttachedVolume(
-                    name='wordpress',
+                    manifestation=Manifestation(
+                        dataset=Dataset(dataset_id=None,
+                                        metadata=pmap({"name": "wordpress"})),
+                        primary=True),
                     mountpoint=FilePath(b'/var/www/wordpress'))),
             'mysql': Application(
                 name='mysql',
@@ -488,7 +515,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         }
         parser = FigConfiguration(config)
         expected_result = AttachedVolume(
-            name='postgres',
+            manifestation=Manifestation(
+                dataset=Dataset(dataset_id=None,
+                                metadata=pmap({"name": "postgres"})),
+                primary=True),
             mountpoint=FilePath(b'/var/db/data')
         )
         volume = parser._parse_app_volumes(
@@ -528,7 +558,7 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
         config = {
             'postgres': {
                 'image': 'sample/postgres',
-                'volumes': [b'/var/db/data']
+                'volumes': ['/var/db/data']
             },
             'wordpress': {
                 'image': 'sample/wordpress',
@@ -1101,6 +1131,10 @@ class ApplicationsFromFigConfigurationTests(SynchronousTestCase):
 
 
 class ApplicationsFromConfigurationTests(SynchronousTestCase):
+    """
+    Tests for ``FlockerConfiguration.applications`` and the private methods
+    that it calls.
+    """
     def test_error_on_environment_var_not_stringtypes(self):
         """
         ``Configuration._applications.from_configuration`` raises a
@@ -1498,7 +1532,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             applications={
                 'mysql-hybridcluster': dict(
                     image='flocker/mysql:v1.0.0',
-                    volume={'mountpoint': b'/var/mysql/data'}
+                    volume={'mountpoint': '/var/mysql/data'}
                 ),
                 'site-hybridcluster': {
                     'image': 'flocker/wordpress:v1.0.0',
@@ -1519,7 +1553,11 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset(),
                 links=frozenset(),
                 volume=AttachedVolume(
-                    name='mysql-hybridcluster',
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'mysql-hybridcluster'})),
+                        primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
@@ -1548,14 +1586,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 'mysql-hybridcluster': {
                     'image': 'clusterhq/mysql:v1.0.0',
                     'ports': [dict(internal=3306, external=3306)],
-                    'volume': {'mountpoint': b'/var/lib/mysql'},
+                    'volume': {'mountpoint': '/var/lib/mysql'},
                 },
                 'site-hybridcluster': {
                     'image': 'clusterhq/wordpress:v1.0.0',
                     'ports': [dict(internal=80, external=8080)],
                     'links': [{'alias': 'mysql', 'local_port': 3306,
                                'remote_port': 3306}],
-                    'volume': {'mountpoint': b'/var/www/data'},
+                    'volume': {'mountpoint': '/var/www/data'},
                     'environment': {
                         'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                     },
@@ -1571,8 +1609,12 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=3306,
                                       external_port=3306)]),
                 links=frozenset(),
-                volume=AttachedVolume(name='mysql-hybridcluster',
-                                      mountpoint=FilePath(b'/var/lib/mysql'))
+                volume=AttachedVolume(manifestation=Manifestation(
+                    dataset=Dataset(dataset_id=None,
+                                    metadata=pmap(
+                                        {'name': 'mysql-hybridcluster'})),
+                    primary=True),
+                    mountpoint=FilePath(b'/var/lib/mysql'))
             ),
             'site-hybridcluster': Application(
                 name='site-hybridcluster',
@@ -1581,8 +1623,14 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
                 ports=frozenset([Port(internal_port=80, external_port=8080)]),
                 links=frozenset([Link(local_port=3306, remote_port=3306,
                                       alias=u'mysql')]),
-                volume=AttachedVolume(name='site-hybridcluster',
-                                      mountpoint=FilePath(b'/var/www/data')),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'site-hybridcluster'})),
+                        primary=True,
+                    ),
+                    mountpoint=FilePath(b'/var/www/data')),
                 environment=frozenset({
                     'MYSQL_PORT_3306_TCP': 'tcp://172.16.255.250:3306'
                 }.items())
@@ -1591,6 +1639,305 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         applications_set = frozenset(applications.values())
         expected_applications_set = frozenset(expected_applications.values())
         self.assertEqual(applications_set, expected_applications_set)
+
+    def test_invalid_volume_max_size_negative_bytes(self):
+        """
+        A volume maximum_size config value given as a string cannot include
+        a sign symbol (and therefore cannot be negative).
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': "-10M"},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: "
+             "Value '-10M' could not be parsed as a storage quantity.")
+        )
+
+    def test_invalid_volume_max_size_zero_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a quantity of zero.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': b'/var/lib/mysql',
+                               'maximum_size': b'0M'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Must be greater than zero.")
+        )
+
+    def test_invalid_volume_max_size_unit_string(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quantity and a unit cannot have a unit that is not K, M, G or T.
+        A ``ConfigurationError`` is raised.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'100F'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        e = self.assertRaises(ConfigurationError, parser.applications)
+        self.assertEqual(
+            e.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Value '100F' could not be "
+             "parsed as a storage quantity.")
+        )
+
+    def test_invalid_volume_max_size_invalid_string(self):
+        """
+        ``parse_storage_string`` raises a ``ValueError`` when given a
+        string which is not in a valid format for parsing in to a quantity of
+        bytes.
+        """
+        exception = self.assertRaises(ValueError,
+                                      parse_storage_string,
+                                      "abcdef")
+        self.assertEqual(
+            exception.message,
+            "Value 'abcdef' could not be parsed as a storage quantity."
+        )
+
+    def test_parse_storage_string_invalid_not_string(self):
+        """
+        ``parse_storage_string`` raises a ``ValueError`` when given a
+        value which is not a string or unicode.
+        """
+        exception = self.assertRaises(ValueError,
+                                      parse_storage_string,
+                                      610.25)
+        self.assertEqual(
+            exception.message,
+            "Value must be string, got float."
+        )
+
+    def test_volume_max_size_bytes_integer(self):
+        """
+        A volume maximum_size config value given as an integer raises a
+        ``ConfigurationError`` in ``FlockerConfiguration.applications``.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': 1000000},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        exception = self.assertRaises(ConfigurationError,
+                                      parser.applications)
+        self.assertEqual(
+            exception.message,
+            ("Application 'mysql-hybridcluster' has a config error. Invalid "
+             "volume specification. maximum_size: Value must be string, "
+             "got int.")
+        )
+
+    def test_volume_max_size_bytes(self):
+        """
+        A volume maximum_size config value given as a string when parsed
+        creates an ``AttachedVolume`` instance with the corresponding
+        maximum_size.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'100M'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 104857600)
+
+    def test_volume_max_size_string_bytes(self):
+        """
+        A volume maximum_size config value given as a string containing only an
+        integer when parsed creates an ``AttachedVolume`` instance with the
+        corresponding maximum_size in bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'1000000'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 1000000)
+
+    def test_volume_max_size_kilobytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'1000K'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 1024000)
+
+    def test_volume_max_size_gigabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and G as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from gigabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'1G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 1073741824)
+
+    def test_volume_max_size_terabytes(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and K as a unit identifier when parsed creates an
+        ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from terabytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'1T'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 1099511627776)
+
+    def test_volume_max_size_fractional(self):
+        """
+        A volume maximum_size config value given as a string specifying a
+        quanity and unit where quantity is not an integer when parsed creates
+        an ``AttachedVolume`` instance with the corresponding maximum_size
+        converted from kilobytes to bytes.
+        """
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'ports': [dict(internal=3306, external=3306)],
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'maximum_size': b'1.5G'},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.maximum_size, 1610612736)
+
+    def test_volume_dataset_id(self):
+        """
+        If a volume has a ``dataset_id`` attribute then it is set on the
+        created ``Dataset`` object.
+        """
+        dataset_id = unicode(uuid4())
+        config = dict(
+            version=1,
+            applications={
+                'mysql-hybridcluster': {
+                    'image': 'clusterhq/mysql:v1.0.0',
+                    'volume': {'mountpoint': '/var/lib/mysql',
+                               'dataset_id': dataset_id},
+                },
+            }
+        )
+        parser = FlockerConfiguration(config)
+        volume_config = config['applications']['mysql-hybridcluster']['volume']
+        volume = parser._parse_volume(volume_config, 'mysql-hybridcluster')
+        self.assertEqual(volume.dataset.dataset_id, dataset_id)
+
+    def test_volume_max_size_parse_valid_unit(self):
+        """
+        ``parse_storage_string`` returns the integer number of bytes
+        converted from a string specifying a quantity and unit in a valid
+        format. Valid format is a number followed by a unit identifier,
+        which is one of K, M, G or T.
+        """
+        ps = parse_storage_string
+        self.assertEqual((1099511627776,) * 4,
+                         (ps("1073741824K"),
+                          ps("1048576M"),
+                          ps("1024G"),
+                          ps("1T")))
 
     def test_ports_missing_internal(self):
         """
@@ -1865,7 +2212,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'/var/mysql/data',
+                volume={'mountpoint': '/var/mysql/data',
                         'bar': 'baz',
                         'foo': 215},
             )}
@@ -1911,7 +2258,7 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
             version=1,
             applications={'mysql-hybridcluster': dict(
                 image='busybox',
-                volume={'mountpoint': b'./.././var//'},
+                volume={'mountpoint': './.././var//'},
             )}
         )
         parser = FlockerConfiguration(config)
@@ -1966,6 +2313,253 @@ class ApplicationsFromConfigurationTests(SynchronousTestCase):
         self.assertEqual(
             "Application 'mysql-hybridcluster' has a config error. "
             "Invalid volume specification. Unexpected value: a random string",
+            exception.message
+        )
+
+
+class FlockerConfigurationRestartPolicyParsingTests(SynchronousTestCase):
+    """
+    Tests for the parsing of Flocker restart policy configuration.
+    """
+
+    def test_parse_restart_policy_identity(self):
+        """
+        ``FlockerConfiguration._parse_restart_policy`` is
+        ``_parse_restart_policy``.
+        """
+        self.assertIs(
+            _parse_restart_policy, FlockerConfiguration._parse_restart_policy)
+
+    def test_parse_restart_policy_is_called(self):
+        """
+        If the supplied application configuration has a ``restart_policy`` key,
+        ``_parse_restart_policy`` is called with the value of that key.
+        """
+        expected_application_name = 'red-fish'
+        expected_restart_policy_configuration = object()
+        expected_restart_policy = object()
+        config = {
+            'applications': {
+                expected_application_name: {
+                    'image': 'seuss/one-fish-two-fish',
+                    'restart_policy': expected_restart_policy_configuration,
+                }
+            },
+            'version': 1
+        }
+
+        parser = FlockerConfiguration(config)
+        recorded_arguments = []
+
+        def spy_parse_restart_policy(*args, **kwargs):
+            recorded_arguments.append((args, kwargs))
+            return expected_restart_policy
+        self.patch(parser, '_parse_restart_policy', spy_parse_restart_policy)
+
+        applications = parser.applications()
+
+        self.assertEqual(
+            [(tuple(), dict(application_name=expected_application_name,
+                            config=expected_restart_policy_configuration))],
+            recorded_arguments
+        )
+
+        self.assertEqual(
+            expected_restart_policy,
+            applications[expected_application_name].restart_policy
+        )
+
+    def test_default_restart_policy(self):
+        """
+        ``FlockerConfiguration.applications`` returns an ``Application`` with a
+        restart_policy of ``RestartNever`` if no policy was specified in the
+        configuration.
+        """
+        config = {
+            'applications': {
+                'cube': {
+                    'image': 'twisted/plutonium',
+                }
+            },
+            'version': 1
+        }
+        parser = FlockerConfiguration(config)
+        applications = parser.applications()
+        self.assertEqual(
+            applications['cube'].restart_policy,
+            RestartNever())
+
+    def test_error_on_unknown_restart_policy_name(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        the supplied ``restart_policy`` name is not recognised.
+        """
+        expected_restart_policy_name = 'unknown-restart-policy'
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config={'name': expected_restart_policy_name}
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' name '{}'. "
+            "Use one of: always, never, on-failure".format(
+                expected_restart_policy_name),
+            exception.message
+        )
+
+    def test_restart_policy_never(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartNever`` if that policy was
+        specified in the configuration.
+        """
+        self.assertEqual(
+            RestartNever(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'never')
+            )
+        )
+
+    def test_restart_policy_always(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartAlways`` if that policy
+        was specified in the configuration.
+        """
+        self.assertEqual(
+            RestartAlways(),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'always')
+            )
+        )
+
+    def test_restart_policy_on_failure(self):
+        """
+        ``_parse_restart_policy`` returns an ``RestartOnFailure`` if that
+        policy was specified in the configuration.
+        """
+        self.assertEqual(
+            RestartOnFailure(maximum_retry_count=None),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(name=u'on-failure')
+            )
+        )
+
+    def test_restart_policy_on_failure_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` returns ``RestartOnFailure`` having the same
+        ``maximum_retry_count`` value as supplied in the configuration.
+        """
+        expected_maximum_retry_count = 10
+        self.assertEqual(
+            RestartOnFailure(maximum_retry_count=expected_maximum_retry_count),
+            _parse_restart_policy(
+                application_name='foobar',
+                config=dict(
+                    name=u'on-failure',
+                    maximum_retry_count=expected_maximum_retry_count
+                )
+            )
+        )
+
+    def test_error_on_restart_policy_always_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        ``maximum_retry_count`` is combined with a policy of ``always``.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'always', maximum_retry_count=10)
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartAlways. "
+            "Got {'maximum_retry_count': 10}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_never_with_retry_count(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        ``maximum_retry_count`` is combined with a policy of ``never``.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'never', maximum_retry_count=10)
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartNever. "
+            "Got {'maximum_retry_count': 10}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_with_retry_count_not_integer(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if a
+        maximum retry count is not an integer.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', maximum_retry_count=u'fifty')
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {'maximum_retry_count': u'fifty'}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_with_extra_keys(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError`` if
+        extra keys are specified for a retry policy.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=dict(name=u'on-failure', extra=u'key')
+        )
+        self.assertEqual(
+            "Invalid 'restart_policy' arguments for RestartOnFailure. "
+            "Got {'extra': u'key'}",
+            exception.message
+        )
+
+    def test_error_on_restart_policy_not_a_dictionary(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless the restart_policy value is a dictionary.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config=u'pretend-i-am-a-dictionary')
+        self.assertEqual(
+            "'restart_policy' must be a dict, got pretend-i-am-a-dictionary",
+            exception.message
+        )
+
+    def test_error_on_missing_name(self):
+        """
+        ``_parse_restart_policy`` raises ``ApplicationConfigurationError``
+        unless there is a ``name`` in the supplied configuration.
+        """
+        exception = self.assertRaises(
+            ApplicationConfigurationError,
+            _parse_restart_policy,
+            application_name='foobar',
+            config={}
+        )
+        self.assertEqual(
+            "'restart_policy' must include a 'name'.",
             exception.message
         )
 
@@ -2205,7 +2799,10 @@ class MarshalConfigurationTests(SynchronousTestCase):
         expected = {
             'used_ports': [],
             'applications': {
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'}
+                }
             },
             'version': 1,
         }
@@ -2233,9 +2830,13 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'used_ports': [],
             'applications': {
                 'site-hybridcluster': {
-                    'image': u'flocker/wordpress:v1.0.0'
+                    'image': u'flocker/wordpress:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 },
-                'mysql-hybridcluster': {'image': u'flocker/mysql:v1.0.0'}
+                'mysql-hybridcluster': {
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
             },
             'version': 1,
         }
@@ -2263,7 +2864,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1,
@@ -2294,7 +2896,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
                     'links': [{'local_port': 3306, 'remote_port': 63306,
-                               'alias': 'mysql'}]
+                               'alias': 'mysql'}],
+                    'restart_policy': {'name': 'never'},
                 },
             },
             'version': 1
@@ -2311,8 +2914,11 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 name='mysql-hybridcluster',
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
+                volume=AttachedVolume(manifestation=Manifestation(
+                    dataset=Dataset(
+                        dataset_id=None,
+                        metadata=pmap({'name': 'mysql-hybridcluster'})),
+                    primary=True),
                     mountpoint=FilePath(b'/var/mysql/data'))
             ),
             Application(
@@ -2330,11 +2936,90 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'volume': {'mountpoint': '/var/mysql/data'},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_application_with_volume_includes_max_size(self):
+        """
+        If the supplied applications have a volume, the resulting yaml will
+        also include the volume maximum_size if present in the
+        ``AttachedVolume`` instance.
+        """
+        EXPECTED_MAX_SIZE = 100000000
+        applications = [
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=None,
+                            metadata=pmap({'name': 'mysql-hybridcluster'}),
+                            maximum_size=EXPECTED_MAX_SIZE),
+                        primary=True),
+                    mountpoint=FilePath(b'/var/mysql/data'),
+                ),
+            )
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        expected = {
+            'used_ports': [],
+            'applications': {
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'maximum_size': unicode(EXPECTED_MAX_SIZE)},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
+                }
+            },
+            'version': 1,
+        }
+        self.assertEqual(expected, result)
+
+    def test_application_with_volume_includes_dataset_id(self):
+        """
+        If the supplied applications has a volume with a dataset that has a
+        dataset ID, the resulting yaml will also include this dataset ID.
+        """
+        dataset_id = unicode(uuid4())
+
+        applications = [
+            Application(
+                name='mysql-hybridcluster',
+                image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
+                ports=frozenset(),
+                volume=AttachedVolume(
+                    manifestation=Manifestation(
+                        dataset=Dataset(
+                            dataset_id=dataset_id,
+                            metadata=pmap({'name': 'mysql-hybridcluster'})),
+                        primary=True),
+                    mountpoint=FilePath(b'/var/mysql/data'),
+                ),
+            )
+        ]
+        result = marshal_configuration(
+            NodeState(running=applications, not_running=[]))
+        expected = {
+            'used_ports': [],
+            'applications': {
+                'mysql-hybridcluster': {
+                    'volume': {'mountpoint': '/var/mysql/data',
+                               'dataset_id': dataset_id},
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1,
@@ -2350,10 +3035,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
             name='mysql-hybridcluster',
             image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
             ports=frozenset(),
-            volume=AttachedVolume(
-                name='mysql-hybridcluster',
-                mountpoint=FilePath(b'/var/mysql/data')
-            ),
         )
 
         not_running = Application(
@@ -2371,11 +3052,12 @@ class MarshalConfigurationTests(SynchronousTestCase):
             'applications': {
                 'site-hybridcluster': {
                     'image': u'flocker/wordpress:v1.0.0',
-                    'ports': [{'internal': 80, 'external': 8080}]
+                    'ports': [{'internal': 80, 'external': 8080}],
+                    'restart_policy': {'name': 'never'},
                 },
                 'mysql-hybridcluster': {
-                    'volume': {'mountpoint': b'/var/mysql/data'},
-                    'image': u'flocker/mysql:v1.0.0'
+                    'image': u'flocker/mysql:v1.0.0',
+                    'restart_policy': {'name': 'never'},
                 }
             },
             'version': 1
@@ -2410,9 +3092,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                 image=DockerImage(repository='flocker/mysql', tag='v1.0.0'),
                 ports=frozenset(),
                 links=frozenset(),
-                volume=AttachedVolume(
-                    name='mysql-hybridcluster',
-                    mountpoint=FilePath(b"/var/lib/data"))
             ),
             Application(
                 name='site-hybridcluster',
@@ -2432,10 +3111,6 @@ class MarshalConfigurationTests(SynchronousTestCase):
                                   tag='v1.0.0'),
                 ports=frozenset(),
                 links=frozenset(),
-                volume=AttachedVolume(
-                    name=b'mysql-hybridcluster',
-                    mountpoint=FilePath(b"/var/lib/data")
-                )
             ),
             b'site-hybridcluster': Application(
                 name=b'site-hybridcluster',
@@ -2552,7 +3227,104 @@ class CurrentFromConfigurationTests(SynchronousTestCase):
                               config)
         expected = (
             "Application 'mysql-hybridcluster' has a config error. Invalid "
-            "volume specification. Mountpoint \"None\" contains non-ASCII "
-            "(unsupported)."
+            "volume specification. Mountpoint \"None\" is not a string."
         )
         self.assertEqual(e.message, expected)
+
+
+def marshalled_restart_policy(policy):
+    """
+    :param IRestartPolicy policy: The ``IRestartPolicy`` provider to be
+        converted.
+    :returns: The ``restart_policy`` ``dict`` of an ``Application`` converted
+        using ``ApplicationMarshaller``.
+    """
+    application = Application(
+        name=None, image=None, restart_policy=policy)
+    return ApplicationMarshaller(application).convert()['restart_policy']
+
+
+def check_marshalled_restart_policy(test_case, policy_type, **attributes):
+    """
+    Assert that the supplied ``policy_type`` can be marshalled to a ``dict``
+    and that the ``dict`` contains all the supplied policy ``attributes``.
+
+    :param TestCase test_case: The ``TestCase`` for making assertions.
+    :param IRestartPolicy policy_type: A class implementing ``IRestartPolicy``.
+    :param dict attributes: Optional extra attributes which will be supplied
+         when initialising ``policy_type`` and which will be expected to be
+         included in the marshalled result.
+    """
+    expected_name = FLOCKER_RESTART_POLICY_POLICY_TO_NAME[policy_type]
+    test_case.assertEqual(
+        dict(name=expected_name, **attributes),
+        marshalled_restart_policy(policy_type(**attributes))
+    )
+
+
+class ApplicationMarshallerConvertRestartPolicyTests(SynchronousTestCase):
+    """
+    Tests for ``ApplicationMarshaller.convert_restart_policy``.
+    """
+    def test_never(self):
+        """
+        ``RestartNever`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartNever)
+
+    def test_always(self):
+        """
+        ``RestartAlways`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartAlways)
+
+    def test_onfailure(self):
+        """
+        ``RestartOnFailure`` can be marshalled.
+        """
+        check_marshalled_restart_policy(self, RestartOnFailure)
+
+    def test_onfailure_with_maximum_retry_count(self):
+        """
+        ``RestartOnFailure`` with attributes can be marshalled.
+        """
+        check_marshalled_restart_policy(
+            self, RestartOnFailure, maximum_retry_count=10)
+
+
+class ApplicationConfigurationErrorTests(SynchronousTestCase):
+    """
+    """
+    def test_attributes(self):
+        """
+        ``ApplicationConfigurationError`` is initialised with an
+        ``application_name`` and a ``message`` which are exposed as public
+        attributes.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            (expected_application_name, expected_message),
+            (e.application_name, e.message)
+        )
+
+    def test_unicode(self):
+        """
+        ``ApplicationConfigurationError`` can be converted to unicode.
+        """
+        expected_application_name = 'foobarbaz'
+        expected_message = 'Invalid something-or-other.'
+        e = ApplicationConfigurationError(
+            application_name=expected_application_name,
+            message=expected_message
+        )
+        self.assertEqual(
+            "Application '{}' has a configuration error. {}".format(
+                expected_application_name, expected_message
+            ),
+            unicode(e)
+        )

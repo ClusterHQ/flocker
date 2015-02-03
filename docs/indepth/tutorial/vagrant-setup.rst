@@ -101,9 +101,9 @@ Note that you will need to make the same substitution in commands used throughou
 #. Download the Vagrant configuration file by right clicking on the link below.
    Save it in the *flocker-tutorial* directory and preserve its filename.
 
-   :download:`Vagrantfile <Vagrantfile>`
+   :version-download:`Vagrantfile.template`
 
-   .. literalinclude:: Vagrantfile
+   .. version-literalinclude:: Vagrantfile.template
       :language: ruby
       :lines: 1-8
       :append: ...
@@ -190,8 +190,8 @@ This completes the Vagrant-related setup.
 Upgrading the Vagrant Environment
 =================================
 
-The ``Vagrantfile`` used in this tutorial installs an RPM package called ``flocker-node`` on both the nodes.
-If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``flocker-node`` before continuing with the following tutorials.
+The ``Vagrantfile`` used in this tutorial installs an RPM package called ``clusterhq-flocker-node`` on both the nodes.
+If you already have a tutorial environment from a previous release, you'll need to ensure that both tutorial nodes are running the latest version of ``clusterhq-flocker-node`` before continuing with the following tutorials.
 
 First check the current Flocker version on the nodes.
 You can do this by logging into each node and running the ``flocker-reportstate`` command with a ``--version`` argument.

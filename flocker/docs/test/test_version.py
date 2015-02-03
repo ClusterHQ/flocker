@@ -8,8 +8,8 @@ Tests for :module:`flocker.docs.version`.
 from twisted.trial.unittest import SynchronousTestCase
 
 from .._version import (
-    parse_version, FlockerVersion,
-    get_doc_version, is_release,
+    parse_version, FlockerVersion, UnparseableVersion,
+    get_doc_version, get_installable_version, is_release,
 )
 
 
@@ -88,6 +88,13 @@ class ParseVersionTests(SynchronousTestCase):
                                  documentation_revision='11',
                                  dirty='-dirty')
 
+    def test_invalid_Version(self):
+        """
+        If an invalid vesion is passed to ``parse_version``,
+        ``UnparseableVersion`` is raised.
+        """
+        self.assertRaises(UnparseableVersion, parse_version, 'unparseable')
+
 
 class GetDocVersionTests(SynchronousTestCase):
     """
@@ -146,6 +153,62 @@ class GetDocVersionTests(SynchronousTestCase):
                          '0.3.2+doc1-dirty')
 
 
+class GetInstallableVersionTests(SynchronousTestCase):
+    """
+    Tests for :function:`get_installable_version`.
+    """
+
+    def test_marketing_release(self):
+        """
+        When the version is from a marketing release, the installable version
+        is left unchanged.
+        """
+        self.assertEqual(get_installable_version('0.3.2'), '0.3.2')
+
+    def test_weekly_release(self):
+        """
+        When the version is from a weekly release, the installable version
+        is left unchanged.
+        """
+        self.assertEqual(get_installable_version('0.3.2dev1'), '0.3.2dev1')
+
+    def test_pre_release(self):
+        """
+        When the version is from a pre-release, the installable version
+        is left unchanged.
+        """
+        self.assertEqual(get_installable_version('0.3.2pre1'), '0.3.2pre1')
+
+    def test_development_version(self):
+        """
+        When the version is from a development version, the installable
+        version is changed to the latest marketing release.
+        """
+        self.assertEqual(get_installable_version('0.3.2-1-gf661a6a'), '0.3.2')
+
+    def test_dirty(self):
+        """
+        When the version is dirty, the installable version is changed to the
+        latest marketing release.
+        """
+        self.assertEqual(get_installable_version('0.3.2-1-gf661a6a-dirty'),
+                         '0.3.2')
+
+    def test_doc(self):
+        """
+        When the documentation version is from a documentation release, the
+        trailing '+docX' is stripped.
+        """
+        self.assertEqual(get_installable_version('0.3.2+doc11'), '0.3.2')
+
+    def test_doc_dirty(self):
+        """
+        When the version is from a documentation release but is dirty, the
+        installable version is changed to the latest marketing release.
+        """
+        self.assertEqual(get_installable_version('0.3.2+doc1-dirty'), '0.3.2')
+
+
 class IsReleaseTests(SynchronousTestCase):
     """
     Tests for :function:`is_release`.
@@ -169,7 +232,7 @@ class IsReleaseTests(SynchronousTestCase):
         """
         self.assertFalse(is_release('0.3.2pre1'))
 
-    def test_development_vesion(self):
+    def test_development_version(self):
         """
         When the version is from a development version, it isn't a release.
         """

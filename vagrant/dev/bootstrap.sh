@@ -18,7 +18,8 @@ yum install -y \
 	docker-io \
 	python-devel python-tox python-virtualenv python-pip \
 	python-cffi libffi-devel \
-	yum-utils
+	yum-utils \
+	pypy pypy-devel
 
 # Enable zfs-testing repo
 yum-config-manager --enable zfs-testing

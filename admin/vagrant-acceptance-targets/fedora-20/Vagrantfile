@@ -1,5 +1,5 @@
 # -*- mode: ruby -*-
-# vi: set ft=ruby :
+# vi: set ft=ruby sw=2 :
 
 # This requires Vagrant 1.6.2 or newer (earlier versions can't reliably
 # configure the Fedora 20 network stack).
@@ -10,30 +10,13 @@ VAGRANTFILE_API_VERSION = "2"
 
 ENV['VAGRANT_DEFAULT_PROVIDER'] = 'virtualbox'
 
-# Allow the Docker API to be used over TCP
-# See https://coreos.com/docs/launching-containers/building/customizing-docker/
-# for details
-$bootstrap = <<SCRIPT
-echo "[Unit]
-Description=Docker Socket for the API
-
-[Socket]
-ListenStream=2375
-BindIPv6Only=both
-Service=docker.service
-
-[Install]
-WantedBy=sockets.target" > /etc/systemd/system/docker-tcp.socket
-
-systemctl enable docker-tcp.socket
-systemctl stop docker
-systemctl start docker-tcp.socket
-SCRIPT
-
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "clusterhq/flocker-tutorial"
-  config.vm.box_version = "= 0"
-  config.vm.provision :shell, :inline => $bootstrap, :privileged => true
+
+  begin
+    config.vm.box_version = "= " + ENV.fetch('FLOCKER_BOX_VERSION')
+  rescue KeyError
+  end
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box

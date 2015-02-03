@@ -10,39 +10,36 @@ import socket
 import sys
 import os
 import pwd
-from operator import setitem, delitem
 from collections import namedtuple
 from contextlib import contextmanager
 from random import random
 import shutil
-from signal import SIGKILL
 from subprocess import check_call, check_output
 from functools import wraps
 from unittest import skipIf
+from unittest import skipUnless
 
 from zope.interface import implementer
 from zope.interface.verify import verifyClass, verifyObject
 
-from ipaddr import IPAddress
-
-from twisted.internet.interfaces import IProcessTransport, IReactorProcess
+from twisted.internet.interfaces import (
+    IProcessTransport, IReactorProcess, IReactorCore,
+    )
 from twisted.python.filepath import FilePath, Permissions
 from twisted.internet.task import Clock, deferLater
 from twisted.internet.defer import maybeDeferred, Deferred
 from twisted.internet.error import ConnectionDone
 from twisted.internet import reactor
-from twisted.cred.portal import IRealm, Portal
-from twisted.conch.ssh.keys import Key
-from twisted.conch.checkers import SSHPublicKeyDatabase
-from twisted.conch.openssh_compat.factory import OpenSSHFactory
-from twisted.conch.unix import UnixConchUser
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 from twisted.internet.protocol import Factory, Protocol
+from twisted.test.proto_helpers import MemoryReactor
+from twisted.python.procutils import which
+from twisted.trial.unittest import TestCase
 
 from characteristic import attributes
 
-from . import __version__
-from .common.script import (
+from .. import __version__
+from ..common.script import (
     FlockerScriptRunner, ICommandLineScript)
 
 
@@ -126,6 +123,54 @@ def assertNoFDsLeaked(test_case):
         yield
     finally:
         test_case.assertEqual(process_fds(), fds)
+
+
+def assert_equal_comparison(case, a, b):
+    """
+    Assert that ``a`` equals ``b``.
+
+    :param a: Any object to compare to ``b``.
+    :param b: Any object to compare to ``a``.
+
+    :raise: If ``a == b`` evaluates to ``False`` or if ``a != b`` evaluates to
+        ``True``, ``case.failureException`` is raised.
+    """
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if not equal:
+        messages.append("a == b evaluated to False")
+    if unequal:
+        messages.append("a != b evaluated to True")
+
+    if messages:
+        case.fail(
+            "Expected a and b to be equal: " + "; ".join(messages))
+
+
+def assert_not_equal_comparison(case, a, b):
+    """
+    Assert that ``a`` does not equal ``b``.
+
+    :param a: Any object to compare to ``b``.
+    :param b: Any object to compare to ``a``.
+
+    :raise: If ``a == b`` evaluates to ``True`` or if ``a != b`` evaluates to
+        ``False``, ``case.failureException`` is raised.
+    """
+    equal = a == b
+    unequal = a != b
+
+    messages = []
+    if equal:
+        messages.append("a == b evaluated to True")
+    if not unequal:
+        messages.append("a != b evaluated to False")
+
+    if messages:
+        case.fail(
+            "Expected a and b to be not-equal: " + "; ".join(messages))
 
 
 def loop_until(predicate):
@@ -303,7 +348,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['--verbose'])
@@ -317,7 +362,7 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v'])
@@ -330,234 +375,11 @@ class StandardOptionsTestsMixin(object):
         options = self.options()
         # The command may otherwise give a UsageError
         # "Wrong number of arguments." if there are arguments required.
-        # See https://github.com/ClusterHQ/flocker/issues/184 about a solution
+        # See https://clusterhq.atlassian.net/browse/FLOC-184 about a solution
         # which does not involve patching.
         self.patch(options, "parseArgs", lambda: None)
         options.parseOptions(['-v', '--verbose'])
         self.assertEqual(2, options['verbosity'])
-
-
-class _InMemoryPublicKeyChecker(SSHPublicKeyDatabase):
-    """
-    Check SSH public keys in-memory.
-    """
-
-    def __init__(self, public_key):
-        """
-        :param Key public_key: The public key we will accept.
-        """
-        self._key = public_key
-
-    def checkKey(self, credentials):
-        """
-        Validate some SSH key credentials.
-
-        Access is granted only to root since that is the user we expect
-        for connections from ``flocker-cli`` and ``flocker-changestate``.
-        """
-        return (self._key.blob() == credentials.blob and
-                credentials.username == b"root")
-
-
-class _FixedHomeConchUser(UnixConchUser):
-    """
-    An SSH user with a fixed, configurable home directory.
-
-    This is like a normal UNIX SSH user except the user's home directory is not
-    determined by the ``pwd`` database.
-    """
-    def __init__(self, username, home):
-        """
-        :param FilePath home: The path of the directory to use as this user's
-            home directory.
-        """
-        UnixConchUser.__init__(self, username)
-        self._home = home
-
-    def getHomeDir(self):
-        """
-        Give back the pre-determined home directory.
-        """
-        return self._home.path
-
-    def getUserGroupId(self):
-        """
-        Give back some not-strictly-legal ``None`` UID/GID
-        identifiers.  This prevents the Conch server from trying to
-        switch IDs (which it can't do if it is not running as root).
-        """
-        return None, None
-
-
-@implementer(IRealm)
-class UnixSSHRealm(object):
-    """
-    An ``IRealm`` for a Conch server which gives out ``_FixedHomeConchUser``
-    users.
-    """
-    def __init__(self, home):
-        self.home = home
-
-    def requestAvatar(self, username, mind, *interfaces):
-        user = _FixedHomeConchUser(username, self.home)
-        return interfaces[0], user, user.logout
-
-
-class _ConchServer(object):
-    """
-    A helper for a test fixture to run an SSH server using Twisted Conch.
-
-    :ivar IPv4Address ip: The address the server is listening on.
-    :ivar int port: The port number the server is listening on.
-    :ivar _port: An object which provides ``IListeningPort`` and represents the
-        listening Conch server.
-
-    :ivar FilePath home_path: The path of the home directory of the user which
-        is allowed to authenticate against this server.
-
-    :ivar FilePath key_path: The path of an SSH private key which can be used
-        to authenticate against the server.
-
-    :ivar FilePath host_key_path: The path of the server's private host key.
-    """
-    def __init__(self, base_path):
-        """
-        :param FilePath base_path: The path beneath which all of the temporary
-            SSH server-related files will be created.  An ``ssh`` directory
-            will be created as a child of this directory to hold the key pair
-            that is generated.  An ``sshd`` directory will also be created here
-            to hold the generated host key.  A ``home`` directory is also
-            created here and used as the home directory for shell logins to the
-            server.
-        """
-        self.home = base_path.child(b"home")
-        self.home.makedirs()
-
-        ssh_path = base_path.child(b"ssh")
-        ssh_path.makedirs()
-        self.key_path = ssh_path.child(b"key")
-        check_call(
-            [b"ssh-keygen",
-             # Specify the path where the generated key is written.
-             b"-f", self.key_path.path,
-             # Specify an empty passphrase.
-             b"-N", b"",
-             # Generate as little output as possible.
-             b"-q"])
-        key = Key.fromFile(self.key_path.path)
-
-        sshd_path = base_path.child(b"sshd")
-        sshd_path.makedirs()
-        self.host_key_path = sshd_path.child(b"ssh_host_key")
-        check_call(
-            [b"ssh-keygen",
-             # See above for option explanations.
-             b"-f", self.host_key_path.path,
-             b"-N", b"",
-             b"-q"])
-
-        factory = OpenSSHFactory()
-        realm = UnixSSHRealm(self.home)
-        checker = _InMemoryPublicKeyChecker(public_key=key.public())
-        factory.portal = Portal(realm, [checker])
-        factory.dataRoot = sshd_path.path
-        factory.moduliRoot = b"/etc/ssh"
-
-        self._port = reactor.listenTCP(0, factory, interface=b"127.0.0.1")
-        self.ip = IPAddress(self._port.getHost().host)
-        self.port = self._port.getHost().port
-
-    def restore(self):
-        """
-        Shut down the SSH server.
-
-        :return: A ``Deferred`` that fires when this has been done.
-        """
-        return self._port.stopListening()
-
-
-def create_ssh_server(base_path):
-    """
-    :py:func:`create_ssh_server` is a fixture which creates and runs a new SSH
-    server and stops it later.  Use the :py:meth:`restore` method of the
-    returned object to stop the server.
-
-    :param FilePath base_path: The path to a directory in which key material
-        will be generated.
-    """
-    return _ConchServer(base_path)
-
-
-class _SSHAgent(object):
-    """
-    A helper for a test fixture to run an `ssh-agent` process.
-
-    :ivar FilePath key_path: The path of an SSH private key which can be used
-        to authenticate against the server.
-    """
-    def __init__(self, key_file):
-        """
-        Start an `ssh-agent` and add its socket path and pid to the global
-        environment so that SSH sub-processes can use it for authentication.
-
-        :param FilePath key_file: An SSH private key file which can be used
-            when authenticating with SSH servers.
-        """
-        self._cleanups = []
-
-        output = check_output([b"ssh-agent", b"-c"]).splitlines()
-        # setenv SSH_AUTH_SOCK /tmp/ssh-5EfGti8RPQbQ/agent.6390;
-        # setenv SSH_AGENT_PID 6391;
-        # echo Agent pid 6391;
-        sock = output[0].split()[2][:-1]
-        pid = output[1].split()[2][:-1]
-        self._pid = int(pid)
-
-        def patchdict(k, v):
-            if k in os.environ:
-                self._cleanups.append(
-                    lambda old=os.environ[k]: setitem(os.environ, k, old))
-            else:
-                self._cleanups.append(lambda: delitem(os.environ, k))
-
-            os.environ[k] = v
-
-        patchdict(b"SSH_AUTH_SOCK", sock)
-        patchdict(b"SSH_AGENT_PID", pid)
-
-        with open(os.devnull, "w") as discard:
-            # See https://github.com/clusterhq/flocker/issues/192
-            check_call(
-                [b"ssh-add", key_file.path],
-                stdout=discard, stderr=discard)
-
-    def restore(self):
-        """
-        Shut down the SSH agent and restore the test environment to its
-        previous state.
-        """
-        for cleanup in self._cleanups:
-            cleanup()
-        os.kill(self._pid, SIGKILL)
-
-
-def create_ssh_agent(key_file, testcase=None):
-    """
-    :py:func:`create_ssh_agent` is a fixture which creates and runs a new SSH
-    agent and stops it later.  Use the :py:meth:`restore` method of the
-    returned object to stop the server.
-
-    :param FilePath key_file: The path of an SSH private key which can be
-        used when authenticating with SSH servers.
-    :param TestCase testcase: The ``TestCase`` object requiring the SSH
-        agent. Optional, adds a cleanup if supplied.
-
-    :rtype: _SSHAgent
-    """
-    agent = _SSHAgent(key_file)
-    if testcase:
-        testcase.addCleanup(agent.restore)
-    return agent
 
 
 def make_with_init_tests(record_type, kwargs, expected_defaults=None):
@@ -757,7 +579,7 @@ class DockerImageBuilder(object):
         # XXX: This dumps lots of debug output to stderr which messes up the
         # test results output. It's useful debug info incase of a test failure
         # so it would be better to send it to the test.log file. See
-        # https://github.com/ClusterHQ/flocker/issues/171
+        # https://clusterhq.atlassian.net/browse/FLOC-171
         command = [
             b'docker', b'build',
             # Always clean up intermediate containers in case of failures.
@@ -766,7 +588,7 @@ class DockerImageBuilder(object):
             docker_dir.path
         ]
         check_call(command)
-        # XXX until https://github.com/ClusterHQ/flocker/issues/409 is
+        # XXX until https://clusterhq.atlassian.net/browse/FLOC-409 is
         # fixed we will often have a container lying around which is still
         # using the new image, so removing the image will fail.
         # self.test.addCleanup(check_call, [b"docker", b"rmi", tag])
@@ -853,3 +675,51 @@ def assertContainsAll(haystack, needles, test_case):
 
 # Skip decorator for tests:
 if_root = skipIf(os.getuid() != 0, "Must run as root.")
+
+
+# TODO: This should be provided by Twisted (also it should be more complete
+# instead of 1/3rd done).
+from twisted.internet.base import _ThreePhaseEvent
+
+
+@implementer(IReactorCore)
+class MemoryCoreReactor(MemoryReactor):
+    """
+    Fake reactor with listenTCP and just enough of an implementation of
+    IReactorCore.
+    """
+    def __init__(self):
+        MemoryReactor.__init__(self)
+        self._triggers = {}
+
+    def addSystemEventTrigger(self, phase, eventType, callable, *args, **kw):
+        event = self._triggers.setdefault(eventType, _ThreePhaseEvent())
+        event.addTrigger(phase, callable, *args, **kw)
+        # removeSystemEventTrigger isn't implemented so the return value here
+        # isn't useful.
+        return object()
+
+    def fireSystemEvent(self, eventType):
+        event = self._triggers.get(eventType)
+        if event is not None:
+            event.fireEvent()
+
+
+def make_script_tests(executable):
+    """
+    Generate a test suite which applies to any Flocker-installed node script.
+
+    :param bytes executable: The basename of the script to be tested.
+
+    :return: A ``TestCase`` subclass which defines some tests applied to the
+        given executable.
+    """
+    class ScriptTests(TestCase):
+        @skipUnless(which(executable), executable + " not installed")
+        def test_version(self):
+            """
+            The script is a command available on the system path.
+            """
+            result = check_output([executable] + [b"--version"])
+            self.assertEqual(result, b"%s\n" % (__version__,))
+    return ScriptTests

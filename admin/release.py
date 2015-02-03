@@ -2,15 +2,14 @@
 
 """
 Helper utilities for the Flocker release process.
-
-Since this is imported from setup.py, we need to ensure that it only imports
-things from the stdlib.
 """
 
 from collections import namedtuple
 
 __all__ = ['rpm_version', 'make_rpm_version']
 
+# Use characteristic instead.
+# https://clusterhq.atlassian.net/browse/FLOC-1223
 rpm_version = namedtuple('rpm_version', 'version release')
 
 
@@ -64,7 +63,7 @@ def make_rpm_version(flocker_version):
         # untagged RPM versions, and this branch should probably
         # trigger and error or a warning. But for now we'll add
         # that extra information to the end of release number.
-        # See https://github.com/ClusterHQ/flocker/issues/833
+        # See https://clusterhq.atlassian.net/browse/FLOC-833
         release.extend(remainder)
 
     return rpm_version(version, '.'.join(release))
