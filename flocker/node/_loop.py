@@ -1,3 +1,5 @@
+# Copyright Hybrid Logic Ltd.  See LICENSE file for details.
+
 """
 Convergence loop for a node-specific dataset agent.
 
@@ -42,11 +44,14 @@ If changes finish switch to STOPPED.
 If GO is received switch to CHANGING.
 """
 
+from characteristic import attributes
+
 from machinist import (
     trivialInput, TransitionTable, constructFiniteStateMachine,
     MethodSuffixOutputer,
     )
 
+from twisted.application.service import Service
 from twisted.python.constants import Names, NamedConstant
 
 
@@ -64,29 +69,24 @@ class ClusterStatusInputs(Names):
     SHUTDOWN = NamedConstant()
 
 
+@attributes(["client"])
 class _ClientConnected(trivialInput(ClusterStatusInputs.CLIENT_CONNECTED)):
     """
     A rich input indicating the client has connected.
+
+    :ivar AMP client: An AMP client connected to the control service.
     """
-    def __init__(self, client):
-        """
-        :param AMP client: An AMP client connected to the control service.
-        """
-        self.client = client
 
 
+@attributes(["configuration", "state"])
 class _StatusUpdate(trivialInput(ClusterStatusInputs.STATUS_UPDATE)):
     """
     A rich input indicating the cluster status has been received from the
     control service.
+
+    :ivar Deployment configuration: Desired cluster configuration.
+    :ivar Deployment state: Actual cluster state.
     """
-    def __init__(self, configuration, state):
-        """
-        :param Deployment configuration: Desired cluster configuration.
-        :param Deployment state: Actual cluster state.
-        """
-        self.configuration = configuration
-        self.state = state
 
 
 class ClusterStatusStates(Names):
@@ -96,7 +96,7 @@ class ClusterStatusStates(Names):
     # The client is currently disconnected:
     DISCONNECTED = NamedConstant()
     # The client is connected, we don't know cluster status:
-    CONNECTED = NamedConstant()
+    IGNORANT = NamedConstant()
     # The client is connected and we know the cluster status:
     KNOWLEDGEABLE = NamedConstant()
     # The system is shut down:
@@ -110,7 +110,7 @@ class ClusterStatusOutputs(Names):
     # Store the AMP protocol instance connected to the server:
     STORE_CLIENT = NamedConstant()
     # Notify the agent operation state machine of new cluster status:
-    STATUS_UPDATE = NamedConstant()
+    UPDATE_STATUS = NamedConstant()
     # Stop the agent operation state machine:
     STOP = NamedConstant()
     # Disconnect the AMP client:
@@ -134,18 +134,20 @@ class ClusterStatus(object):
         self.agent_operation_fsm = agent_operation_fsm
         self.client = None
 
-    def output_STORE_CLIENT(self, symbol, context):
+    def output_STORE_CLIENT(self, context):
         self.client = context.client
 
-    def output_UPDATE_STATUS(self, symbol, context):
-        self.agent_operation_fsm.input(
-            _Go(self.client, context.configuration, context.state))
+    def output_UPDATE_STATUS(self, context):
+        self.agent_operation_fsm.receive(
+            _ClientStatusUpdate(client=self.client,
+                                configuration=context.configuration,
+                                state=context.state))
 
-    def output_STOP(self, symbol, context):
-        self.agent_operation_fsm.input(AgentOperationInputs.STOP)
+    def output_STOP(self, context):
+        self.agent_operation_fsm.receive(AgentOperationInputs.STOP)
 
-    def output_DISCONNECT(self, symbol, context):
-        self.client.transport.abortConnection()
+    def output_DISCONNECT(self, context):
+        self.client.transport.loseConnection()
 
 
 def build_cluster_status_fsm(agent_operation_fsm):
@@ -183,12 +185,16 @@ def build_cluster_status_fsm(agent_operation_fsm):
             I.CLIENT_DISCONNECTED: ([O.STOP], S.DISCONNECTED),
             I.SHUTDOWN: ([O.STOP, O.DISCONNECT], S.SHUTDOWN),
         })
+    table = table.addTransitions(
+        S.SHUTDOWN, {
+            I.CLIENT_DISCONNECTED: ([], S.SHUTDOWN),
+            I.STATUS_UPDATE: ([], S.SHUTDOWN),
+            })
 
     return constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, table=table,
-        richInput=[_ClientConnected, _StatusUpdate],
-        inputContext={}, world=MethodSuffixOutputer(
-            ClusterStatus(agent_operation_fsm)))
+        inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
+        richInputs=[_ClientConnected, _StatusUpdate], inputContext={},
+        world=MethodSuffixOutputer(ClusterStatus(agent_operation_fsm)))
 
 
 class AgentOperationInputs(Names):
@@ -198,12 +204,12 @@ class AgentOperationInputs(Names):
     CHANGES_DONE = NamedConstant()
 
 
+@attributes(["client", "configuration", "state"])
 class _ClientStatusUpdate(trivialInput(AgentOperationInputs.STATUS_UPDATE)):
-    def __init__(self, client, configuration, state):
-        pass
+    pass
 
 
-class _DiscoveredStatus(trivialInput(AgentOperationInputs.DiSCOVERED_STATUS)): 
+class _DiscoveredStatus(trivialInput(AgentOperationInputs.DISCOVERED_STATUS)):
     def __init__(self, node_state):
         pass
 
@@ -227,20 +233,20 @@ class AgentOperation(object):
     def __init__(self, deployer):
         self.deployer = deployer
 
-    def output_STORE_INFO(self, symbol, context):
+    def output_STORE_INFO(self, context):
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
 
-    def output_DISCOVER(self, symbol, context):
+    def output_DISCOVER(self, context):
         d = self.deployer.discover_node_configuration()
         d.addCallback(
             lambda node_state: self.input(_DiscoveredStatus(node_state)))
         # XXX error case
 
-    def output_REPORT_NODE_STATE(self, symbol, context):
+    def output_REPORT_NODE_STATE(self, context):
         self.client.callRemote(NodeStateCommand, node_state=context.node_state)
 
-    def output_CHANGE(self, symbol, context):
+    def output_CHANGE(self, context):
         # XXX need to refactor Deployer slightly so you can pass in NodeState...
         d = self.deployer.change_node_state(self.configuration, self.cluster_state,
                                             HOSTNAME)
@@ -280,7 +286,7 @@ def build_agent_operation_fsm(deployer):
         inputs=I, outputs=O, states=S, table=table,
         richInput=[_Go, _DiscoveredStatus],
         inputContext={}, world=MethodSuffixOutputer(
-            AgentOperation(deployer))
+            AgentOperation(deployer)))
 
 
 class AgentLoopService(Service):
