@@ -67,7 +67,7 @@ class ConfigurationPersistenceService(Service):
         """
         Register a function to be called whenever the configuration changes.
 
-        :param change_callback: Callabke that takes no arguments, will be
+        :param change_callback: Callable that takes no arguments, will be
             called when configuration changes.
         """
         self._change_callbacks.append(change_callback)

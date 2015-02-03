@@ -16,6 +16,7 @@ from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.internet.defer import succeed
 from twisted.python.filepath import FilePath
 from twisted.application.internet import StreamServerEndpointService
 
@@ -161,7 +162,8 @@ class ControlAMPTests(SynchronousTestCase):
         """
         sent = []
         self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs)))
+                   lambda *args, **kwargs: sent.append((args, kwargs))
+                   or succeed(None))
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.control_amp_service.cluster_state.update_node_state(
             u"example3", NODE_STATE)
@@ -176,12 +178,13 @@ class ControlAMPTests(SynchronousTestCase):
 
     def test_connection_lost(self):
         """
-        When a connection is lost the ``ControlAMP`` is removed the services
-        set of connections.
+        When a connection is lost the ``ControlAMP`` is removed from the
+        service's set of connections.
         """
         marker = object()
         self.control_amp_service.connections.add(marker)
-        self.patch(self.protocol, "callRemote", lambda *args, **kwargs: None)
+        self.patch(self.protocol, "callRemote",
+                   lambda *args, **kwargs: succeed(None))
         self.protocol.makeConnection(StringTransport())
         self.protocol.connectionLost(Failure(ConnectionLost()))
         self.assertEqual(self.control_amp_service.connections, {marker})
@@ -224,9 +227,11 @@ class ControlAMPTests(SynchronousTestCase):
         sent1 = []
         sent2 = []
         self.patch(self.protocol, "callRemote",
-                   lambda *args, **kwargs: sent1.append((args, kwargs)))
+                   lambda *args, **kwargs: sent1.append((args, kwargs))
+                   or succeed(None))
         self.patch(another_protocol, "callRemote",
-                   lambda *args, **kwargs: sent2.append((args, kwargs)))
+                   lambda *args, **kwargs: sent2.append((args, kwargs))
+                   or succeed(None))
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand, hostname=u"example2",
@@ -295,7 +300,8 @@ class ControlAMPServiceTests(SynchronousTestCase):
         protocol.makeConnection(StringTransport())
         sent = []
         self.patch(protocol, "callRemote",
-                   lambda *args, **kwargs: sent.append((args, kwargs)))
+                   lambda *args, **kwargs: sent.append((args, kwargs))
+                   or succeed(None))
         service.configuration_service.save(TEST_DEPLOYMENT)
 
         self.assertEqual(sent, [((ClusterStatusCommand,),

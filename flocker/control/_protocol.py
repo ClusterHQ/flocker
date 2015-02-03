@@ -168,7 +168,11 @@ class ControlAMPService(Service):
             connection.transport.loseConnection()
 
     def _send_state_to_connections(self, connections):
-        print "sending", connections
+        """
+        Send desired configuration and cluster state to all given connections.
+
+        :param connections: A collection of ``AMP`` instances.
+        """
         configuration = self.configuration_service.get()
         state = self.cluster_state.as_deployment()
         for connection in connections:
@@ -197,7 +201,7 @@ class ControlAMPService(Service):
 
     def node_changed(self, hostname, node_state):
         """
-        We've received a node state updated from a connected client.
+        We've received a node state update from a connected client.
 
         :param bytes hostname: The hostname of the node.
         :param NodeState node_state: The changed state for the node.
