@@ -93,24 +93,6 @@ Preparing For a Release
    The release may require certain changes to be back ported from the master branch.
    See :ref:`back-porting-changes`\ .
 
-#. Update the version numbers in:
-
-   .. note:: Skip this step for a documentation release.
-
-   - the ``pip install`` line in
-     `docs/indepth/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/linux-install.sh>`_,
-   - the ``box_version`` in
-     `docs/indepth/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/tutorial/Vagrantfile>`_,
-   - `docs/indepth/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/installation.rst>`_ (including the sample command output) and
-
-   Commit the changes:
-
-   .. code-block:: console
-
-      $ git commit -am "Bumped version numbers"
-
-   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
-
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
