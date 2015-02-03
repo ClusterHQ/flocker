@@ -66,10 +66,45 @@ class IStateChange(Interface):
         """
 
 
+# XXX will have very minimal set of interface verification tests
+class IDeployer(Interface):
+    """
+    An object that can discover local state and calculate necessary
+    changes to bring local state and desired cluster configuration into
+    alignment.
+    """
+    def discover_local_state(self):
+        """
+        Discover the local state, i.e. the state which is exclusively under
+        the purview of the convergence agent running this instance.
+
+        :return: A ``Deferred`` which fires with an object describing
+             local state.
+        """
+
+    def calculate_necessary_state_changes(local_state,
+                                          desired_configuration,
+                                          current_cluster_state):
+        """
+        Calculate the state changes necessary to make the local state match
+        the desired cluster configuration.
+
+        :param local_state: The recent output of ``discover_local_state``.
+        :param Deployment desired_configuration: The intended
+            configuration of all nodes.
+        :param Deployment current_cluster_state: The current state of all
+            nodes. While technically this may also includes the local
+            state, that information is likely out of date so should be
+            overriden by ``local_state``.
+
+        :return: A ``IStateChange`` provider.
+        """
+
+
 @implementer(IStateChange)
 @attributes(["changes"])
 class Sequentially(object):
-    """
+        """
     Run a series of changes in sequence, one after the other.
 
     Failures in earlier changes stop later changes.
@@ -307,7 +342,8 @@ class SetProxies(object):
         return gather_deferreds(results)
 
 
-class Deployer(object):
+@implementer(IDeployer)
+class P2PNodeDeployer(object):
     """
     Start and stop applications.
 
@@ -317,6 +353,7 @@ class Deployer(object):
     :ivar INetwork network: The network routing API to use in
         deployment operations. Default is iptables-based implementation.
     """
+    # XXX take hostname as argument
     def __init__(self, volume_service, docker_client=None, network=None):
         if docker_client is None:
             docker_client = DockerClient()
@@ -326,7 +363,7 @@ class Deployer(object):
         self.network = network
         self.volume_service = volume_service
 
-    def discover_node_configuration(self):
+    def discover_local_state(self):
         """
         List all the ``Application``\ s running on this node.
 
@@ -483,6 +520,7 @@ class Deployer(object):
                 dataset.dataset_id = unicode(uuid4())
         return desired_state
 
+    # XXX rename, add local state as argument
     def calculate_necessary_state_changes(self, desired_state,
                                           current_cluster_state, hostname):
         """
@@ -640,6 +678,8 @@ class Deployer(object):
         d.addCallback(lambda _: Sequentially(changes=phases))
         return d
 
+    # XXX turn into top-level function that takes Deployer and additional
+    # argument for local_state
     def change_node_state(self, desired_state,
                           current_cluster_state,
                           hostname):
