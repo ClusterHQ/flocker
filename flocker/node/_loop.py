@@ -10,29 +10,6 @@ service. This involves two state machines: ClusterStatus and AgentOperation.
 The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the AgentOperation state machine.
 
-What's below isn't quite accurate anymore; the prose will be turned into
-comments on the state machine setup as part of coding.
-
-ClusterStatus has the following states:
-
-DISCONNECTED:
-
-The agent is not connected to the control service.
-If connected switch to IGNORANT.
-If connection failed try to connect again.
-
-IGNORANT:
-
-The status of the cluster is unknown.
-If desired configuration and cluster state are received send a GO input
-symbol to the AgentOperation state machine. switch to KNOWLEDGEABLE.
-If disconnected then switch to DISCONNECTED.
-
-KNOWLEDGEABLE:
-
-The status of the cluster is known.
-If disconnected send a STOP input to AgentOperation and switch to DISCONNECTED.
-
 
 AgentOperation has the following states:
 
@@ -74,13 +51,23 @@ from twisted.python.constants import Names, NamedConstant
 
 
 class ClusterStatusInputs(Names):
+    """
+    Inputs to the cluster status state machine.
+    """
+    # The client has connected to the control service:
     CLIENT_CONNECTED = NamedConstant()
+    # A status update has been received from the control service:
     STATUS_UPDATE = NamedConstant()
+    # THe client has disconnected from the control service:
     CLIENT_DISCONNECTED = NamedConstant()
+    # The system is shutting down:
     SHUTDOWN = NamedConstant()
 
 
 class _ClientConnected(trivialInput(ClusterStatusInputs.CLIENT_CONNECTED)):
+    """
+    A rich input indicating the client has connected.
+    """
     def __init__(self, client):
         """
         :param AMP client: An AMP client connected to the control service.
@@ -89,6 +76,10 @@ class _ClientConnected(trivialInput(ClusterStatusInputs.CLIENT_CONNECTED)):
 
 
 class _StatusUpdate(trivialInput(ClusterStatusInputs.STATUS_UPDATE)):
+    """
+    A rich input indicating the cluster status has been received from the
+    control service.
+    """
     def __init__(self, configuration, state):
         """
         :param Deployment configuration: Desired cluster configuration.
@@ -99,31 +90,58 @@ class _StatusUpdate(trivialInput(ClusterStatusInputs.STATUS_UPDATE)):
 
 
 class ClusterStatusStates(Names):
+    """
+    States of the cluster status state machine.
+    """
+    # The client is currently disconnected:
     DISCONNECTED = NamedConstant()
-    IGNORANT = NamedConstant()
+    # The client is connected, we don't know cluster status:
+    CONNECTED = NamedConstant()
+    # The client is connected and we know the cluster status:
     KNOWLEDGEABLE = NamedConstant()
+    # The system is shut down:
     SHUTDOWN = NamedConstant()
 
 
 class ClusterStatusOutputs(Names):
+    """
+    Outputs of the cluster status state machine.
+    """
+    # Store the AMP protocol instance connected to the server:
     STORE_CLIENT = NamedConstant()
-    READY = NamedConstant()
-    NOT_READY = NamedConstant()
+    # Notify the agent operation state machine of new cluster status:
+    STATUS_UPDATE = NamedConstant()
+    # Stop the agent operation state machine:
+    STOP = NamedConstant()
+    # Disconnect the AMP client:
     DISCONNECT = NamedConstant()
 
 
 class ClusterStatus(object):
+    """
+    World object for cluster status machine, executing the actions
+    indicated by the outputs.
+
+    :ivar AMP client: The latest AMP protocol instance to connect to the
+        control service. Initially ``None``.
+    """
+
     def __init__(self, agent_operation_fsm):
+        """
+        :param agent_operation_fsm: An agent operation FSM as output by
+            ``build_agent_operation_fsm``.
+        """
         self.agent_operation_fsm = agent_operation_fsm
+        self.client = None
 
     def output_STORE_CLIENT(self, symbol, context):
         self.client = context.client
 
-    def output_READY(self, symbol, context):
+    def output_UPDATE_STATUS(self, symbol, context):
         self.agent_operation_fsm.input(
             _Go(self.client, context.configuration, context.state))
 
-    def output_NOT_READY(self, symbol, context):
+    def output_STOP(self, symbol, context):
         self.agent_operation_fsm.input(AgentOperationInputs.STOP)
 
     def output_DISCONNECT(self, symbol, context):
@@ -131,26 +149,39 @@ class ClusterStatus(object):
 
 
 def build_cluster_status_fsm(agent_operation_fsm):
+    """
+    Create a new cluster status FSM.
+
+    :param agent_operation_fsm: An agent operation FSM as output by
+    ``build_agent_operation_fsm``.
+    """
     S = ClusterStatusStates
     I = ClusterStatusInputs
     O = ClusterStatusOutputs
     table = TransitionTable()
+    # We may be shut down in any state, in which case we disconnect if
+    # necessary.
     table = table.addTransitions(
         S.DISCONNECTED, {
+            # Store the client, then wait for cluster status to be sent
+            # over AMP:
             I.CLIENT_CONNECTED: ([O.STORE_CLIENT], S.IGNORANT),
             I.SHUTDOWN: ([], S.SHUTDOWN),
         })
     table = table.addTransitions(
         S.IGNORANT, {
+            # We never told agent to start, so no need to tell it to stop:
             I.CLIENT_DISCONNECTED: ([], S.DISCONNECTED),
-            I.STATUS_UPDATE: ([O.READY], S.KNOWLEDGEABLE),
+            # Tell agent latest cluster status, implicitly starting it:
+            I.STATUS_UPDATE: ([O.UPDATE_STATUS], S.KNOWLEDGEABLE),
             I.SHUTDOWN: ([O.DISCONNECT], S.SHUTDOWN),
         })
     table = table.addTransitions(
         S.KNOWLEDGEABLE, {
-            I.STATUS_UPDATE: ([], S.KNOWLEDGEABLE),
-            I.CLIENT_DISCONNECTED: ([O.NOT_READY], S.DISCONNECTED),
-            I.SHUTDOWN: ([O.NOT_READY, O.DISCONNECT], S.SHUTDOWN),
+            # Tell agent latest cluster status:
+            I.STATUS_UPDATE: ([O.UPDATE_STATUS], S.KNOWLEDGEABLE),
+            I.CLIENT_DISCONNECTED: ([O.STOP], S.DISCONNECTED),
+            I.SHUTDOWN: ([O.STOP, O.DISCONNECT], S.SHUTDOWN),
         })
 
     return constructFiniteStateMachine(
@@ -161,13 +192,13 @@ def build_cluster_status_fsm(agent_operation_fsm):
 
 
 class AgentOperationInputs(Names):
-    GO = NamedConstant()
+    STATUS_UPDATE = NamedConstant()
     STOP = NamedConstant()
     DISCOVERED_STATUS = NamedConstant()
     CHANGES_DONE = NamedConstant()
 
 
-class _Go(trivialInput(AgentOperationInputs.GO)):
+class _ClientStatusUpdate(trivialInput(AgentOperationInputs.STATUS_UPDATE)):
     def __init__(self, client, configuration, state):
         pass
 
