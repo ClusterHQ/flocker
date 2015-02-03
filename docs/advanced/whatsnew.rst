@@ -9,7 +9,7 @@ What's New
 Next Release
 ============
 
-* New :ref:`REST API<api>`` for managing datasets.
+* New :ref:`REST API<api>` for managing datasets.
 * Applications can now be configured with a :ref:`restart policy<restart configuration>`.
 * Volumes can now be configured with a :ref:`maximum size<volume configuration>`.
 
