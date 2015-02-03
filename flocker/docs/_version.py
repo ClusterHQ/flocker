@@ -112,6 +112,10 @@ def get_doc_version(version):
         return version
 
 def get_installable_version(version):
+    """
+    Get the version string of the latest version of Flocker which can be
+    installed (CLI and node).
+    """
     parsed_version = parse_version(version)
     return parsed_version.installable_release
 
