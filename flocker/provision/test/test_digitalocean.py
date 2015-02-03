@@ -5,6 +5,7 @@ Tests for ``flocker.provision._digitalocean``.
 """
 import copy
 import os
+from unittest import skipUnless
 
 try:
     import pyocean
@@ -13,7 +14,7 @@ except ImportError:
 else:
     PYOCEAN_INSTALLED=True
 
-from twisted.trial.unittest import SynchronousTestCase, SkipTest, skipUnless
+from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
     set_droplet_kernel, retry_if_pending, latest_droplet_kernel,
