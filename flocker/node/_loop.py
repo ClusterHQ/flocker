@@ -8,40 +8,9 @@ is node-specific.
 
 The convergence agent runs a loop that attempts to converge the local
 state with the desired configuration as transmitted by the control
-service. This involves two state machines: ClusterStatus and AgentOperation.
+service. This involves two state machines: ClusterStatus and ConvergenceLoop.
 The ClusterStatus state machine receives inputs from the connection to the
-control service, and sends inputs to the AgentOperation state machine.
-
-
-AgentOperation has the following states:
-
-STOPPED:
-
-Nothing going on.
-When GO is received start discovery and switch to DISCOVERING.
-
-DISCOVERING:
-
-Discovery is ongoing.
-When discovery result is received send it (asynchronously) to control
-service, start changing local state appropriately, switch to CHANGING.
-If STOP is received switch to DISCOVERING_STOPPING.
-
-DISCOVERING_STOPPING:
-
-If discovery result is received switch to STOPPED.
-If GO is received switch to DISCOVERING.
-
-CHANGING:
-
-Change is ongoing.
-If changes finish start discovery and switch to DISCOVERING.
-If STOP is received switch to CHANGING_STOPPING.
-
-CHANGING_STOPPING:
-
-If changes finish switch to STOPPED.
-If GO is received switch to CHANGING.
+control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
 from characteristic import attributes
@@ -109,9 +78,9 @@ class ClusterStatusOutputs(Names):
     """
     # Store the AMP protocol instance connected to the server:
     STORE_CLIENT = NamedConstant()
-    # Notify the agent operation state machine of new cluster status:
+    # Notify the convergence loop state machine of new cluster status:
     UPDATE_STATUS = NamedConstant()
-    # Stop the agent operation state machine:
+    # Stop the convergence loop state machine:
     STOP = NamedConstant()
     # Disconnect the AMP client:
     DISCONNECT = NamedConstant()
@@ -119,7 +88,7 @@ class ClusterStatusOutputs(Names):
 
 class ClusterStatus(object):
     """
-    World object for cluster status machine, executing the actions
+    World object for cluster state machine, executing the actions
     indicated by the outputs.
 
     :ivar AMP client: The latest AMP protocol instance to connect to the
@@ -128,7 +97,7 @@ class ClusterStatus(object):
 
     def __init__(self, agent_operation_fsm):
         """
-        :param agent_operation_fsm: An agent operation FSM as output by
+        :param agent_operation_fsm: An convergence loop FSM as output by
             ``build_agent_operation_fsm``.
         """
         self.agent_operation_fsm = agent_operation_fsm
@@ -144,18 +113,18 @@ class ClusterStatus(object):
                                 state=context.state))
 
     def output_STOP(self, context):
-        self.agent_operation_fsm.receive(AgentOperationInputs.STOP)
+        self.agent_operation_fsm.receive(ConvergenceLoopInputs.STOP)
 
     def output_DISCONNECT(self, context):
         self.client.transport.loseConnection()
 
 
-def build_cluster_status_fsm(agent_operation_fsm):
+def build_cluster_status_fsm(convergence_loop_fsm):
     """
     Create a new cluster status FSM.
 
-    :param agent_operation_fsm: An agent operation FSM as output by
-    ``build_agent_operation_fsm``.
+    :param convergence_loop_fsm: A convergence loop FSM as output by
+    ``build_convergence_loop_fsm``.
     """
     S = ClusterStatusStates
     I = ClusterStatusInputs
@@ -194,106 +163,171 @@ def build_cluster_status_fsm(agent_operation_fsm):
     return constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
         richInputs=[_ClientConnected, _StatusUpdate], inputContext={},
-        world=MethodSuffixOutputer(ClusterStatus(agent_operation_fsm)))
+        world=MethodSuffixOutputer(ClusterStatus(convergence_loop_fsm)))
 
 
-class AgentOperationInputs(Names):
+class ConvergenceLoopInputs(Names):
+    """
+    Inputs for convergence loop FSM.
+    """
+    # Updated references to latest AMP client, desired configuration and
+    # cluster state:
     STATUS_UPDATE = NamedConstant()
+    # Stop the convergence loop:
     STOP = NamedConstant()
+    # Result of discovering local state:
     DISCOVERED_STATUS = NamedConstant()
+    # Result of applying changes to local state:
     CHANGES_DONE = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
-class _ClientStatusUpdate(trivialInput(AgentOperationInputs.STATUS_UPDATE)):
-    pass
+class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
+    """
+    A rich input with a cluster status update - we are currently connected
+    to the control service, and know latest desired configuration and
+    cluster state.
+
+    :ivar AMP client: An AMP client connected to the control service.
+    :ivar Deployment configuration: Desired cluster configuration.
+    :ivar Deployment state: Actual cluster state.
+    """
 
 
-class _DiscoveredStatus(trivialInput(AgentOperationInputs.DISCOVERED_STATUS)):
-    def __init__(self, node_state):
-        pass
+@attributes(["local_state"])
+class _DiscoveredStatus(trivialInput(ConvergenceLoopInputs.DISCOVERED_STATUS)):
+    """
+    A rich input indicating that the local state has been discovered.
+
+    :ivar local_state: The result of ``IDeployer.discover_local_state``.
+    """
 
 
-class AgentOperationStates(Names):
+class ConvergenceLoopStates(Names):
+    """
+    Convergence loop FSM states.
+    """
+    # The loop is stopped:
     STOPPED = NamedConstant()
+    # Local state is being discovered:
     DISCOVERING = NamedConstant()
+    # Local state is being discovered, and once that is done we will
+    # immediately stop:
     DISCOVERING_STOPPING = NamedConstant()
+    # Changes are being applied to the local state:
     CHANGING = NamedConstant()
+    # Changes are being applied to the local state, and once that is done
+    # we will immediately stop:
     CHANGING_STOPPING = NamedConstant()
 
 
-class AgentOperationOutputs(Names):
+class ConvergenceLoopOutputs(Names):
+    """
+    Converence loop FSM outputs.
+    """
+    # Store AMP client, desired configuration and cluster state for later
+    # use:
     STORE_INFO = NamedConstant()
+    # Start discovery of local state:
     DISCOVER = NamedConstant()
+    # Report local state to the control service using the AMP client:
     REPORT_NODE_STATE = NamedConstant()
+    # Start changing local state to match desired configuration:
     CHANGE = NamedConstant()
 
 
-class AgentOperation(object):
+class ConvergenceLoop(object):
+    """
+    World object the convergence loop state machine, executing the actions
+    indicated by the outputs.
+
+    :ivar AMP client: An AMP client connected to the control
+        service. Initially ``None``.
+
+    :ivar Deployment configuration: Desired cluster
+        configuration. Initially ``None``.
+
+    :ivar Deployment state: Actual cluster state.  Initially ``None``.
+    """
     def __init__(self, deployer):
+        """
+        :param IDeployer deployer: Used to discover local state and calcualte
+            necessary changes to match desired configuration.
+        """
         self.deployer = deployer
 
     def output_STORE_INFO(self, context):
-        self.client, self.configuration, self.cluster_state = (
-            context.client, context.configuration, context.state)
+        #self.client, self.configuration, self.cluster_state = (
+        #    context.client, context.configuration, context.state)
+        pass
 
     def output_DISCOVER(self, context):
-        d = self.deployer.discover_node_configuration()
-        d.addCallback(
-            lambda node_state: self.input(_DiscoveredStatus(node_state)))
+        #d = self.deployer.discover_node_configuration()
+        #d.addCallback(
+        #    lambda node_state: self.input(_DiscoveredStatus(node_state)))
         # XXX error case
+        pass
 
     def output_REPORT_NODE_STATE(self, context):
-        self.client.callRemote(NodeStateCommand, node_state=context.node_state)
+        #self.client.callRemote(NodeStateCommand, node_state=context.node_state)
+        pass
 
     def output_CHANGE(self, context):
         # XXX need to refactor Deployer slightly so you can pass in NodeState...
-        d = self.deployer.change_node_state(self.configuration, self.cluster_state,
-                                            HOSTNAME)
-        d.addCallback(lambda _: self.input(AgentOperationInputs.CHANGES_DONE))
+        #d = self.deployer.change_node_state(self.configuration, self.cluster_state,
+        #                                    HOSTNAME)
+        #d.addCallback(lambda _: self.input(ConvergenceLoopInputs.CHANGES_DONE))
         # XXX log error and do same input anyway
+        pass
 
 
-def build_agent_operation_fsm(deployer):
-    I = AgentOperationInputs
-    O = AgentOperationOutputs
-    S = AgentOperationStates
+def build_convergence_loop_fsm(deployer):
+    """
+    Create a convergence loop FSM.
+
+    :param IDeployer deployer: Used to discover local state and calcualte
+        necessary changes to match desired configuration.
+    """
+    I = ConvergenceLoopInputs
+    O = ConvergenceLoopOutputs
+    S = ConvergenceLoopStates
 
     table = TransitionTable()
     table = table.addTransition(
-        S.STOPPED, I.GO, [O.STORE_INFO, O.DISCOVER], S.DISCOVERING)
+        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.DISCOVER], S.DISCOVERING)
     table = table.addTransitions(
         S.DISCOVERING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.DISCOVERING),
             I.STOP: ([], S.DISCOVERING_STOPPING),
             I.DISCOVERED_STATUS: ([O.REPORT_NODE_STATE, O.CHANGE], S.CHANGING),
         })
     table = table.addTransitions(
         S.DISCOVERING_STOPPING, {
-            I.GO: ([O.STORE_INFO], S.DISCOVERING),
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.DISCOVERING),
             I.DISCOVERED_STATUS: ([], S.STOPPED),
         })
     table = table.addTransitions(
         S.CHANGING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CHANGING),
             I.STOP: ([], S.CHANGING_STOPPING),
             I.CHANGES_DONE: ([O.DISCOVER], S.DISCOVERING),
             })
     table = table.addTransitions(
         S.CHANGING_STOPPING, {
-            I.GO: ([], S.CHANGING),
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CHANGING),
             I.CHANGES_DONE: ([], S.STOPPED),
             })
     return constructFiniteStateMachine(
-        inputs=I, outputs=O, states=S, table=table,
-        richInput=[_Go, _DiscoveredStatus],
-        inputContext={}, world=MethodSuffixOutputer(
-            AgentOperation(deployer)))
+        inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
+        richInputs=[_ClientStatusUpdate, _DiscoveredStatus], inputContext={},
+        world=MethodSuffixOutputer(ConvergenceLoop(deployer)))
 
 
 class AgentLoopService(Service):
 
     def __init__(self, deployment, host, port):
-        self.agent_operation = build_agent_operation_fsm(deployment)
-        self.cluster_status = build_cluster_status_fsm(self.agent_operation)
+        self.convergence_loop = build_convergence_loop_fsm(deployment)
+        self.cluster_status = build_cluster_status_fsm(self.convergence_loop)
 
     def startService(self):
         self.factory = ReconnectingClientFactory()
@@ -307,7 +341,7 @@ class AgentLoopService(Service):
         pass
 
     def connected(self, client):
-        # input _ClientConnected to self.agent_operation, pass reference to client in
+        # input _ClientConnected to self.convergence_loop, pass reference to client in
         pass
 
     def disconnected(self):

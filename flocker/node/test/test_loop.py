@@ -10,7 +10,7 @@ from twisted.internet.protocol import Protocol
 
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
-    _StatusUpdate, _ClientConnected, AgentOperationInputs
+    _StatusUpdate, _ClientConnected, ConvergenceLoopInputs
     )
 
 
@@ -42,7 +42,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.agent_operation = StubFSM()
         self.fsm = build_cluster_status_fsm(self.agent_operation)
 
-    def assertAgentOperationInputted(self, expected):
+    def assertConvergenceLoopInputted(self, expected):
         """
         Assert that that given set of symbols were input to the agent
         operation FSM.
@@ -53,7 +53,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         Creating the FSM has no side effects.
         """
-        self.assertAgentOperationInputted([])
+        self.assertConvergenceLoopInputted([])
 
     def test_first_status_update(self):
         """
@@ -65,7 +65,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         state = object()
         self.fsm.receive(_ClientConnected(client=client))
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
-        self.assertAgentOperationInputted(
+        self.assertConvergenceLoopInputted(
             [_ClientStatusUpdate(client=client, configuration=desired,
                                  state=state)])
 
@@ -82,7 +82,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         # Initially some other status:
         self.fsm.receive(_StatusUpdate(configuration=desired1, state=state1))
         self.fsm.receive(_StatusUpdate(configuration=desired2, state=state2))
-        self.assertAgentOperationInputted(
+        self.assertConvergenceLoopInputted(
             [_ClientStatusUpdate(client=client, configuration=desired1,
                                  state=state1),
              _ClientStatusUpdate(client=client, configuration=desired2,
@@ -106,7 +106,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         """
         self.fsm.receive(_ClientConnected(client=build_protocol()))
         self.fsm.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
-        self.assertAgentOperationInputted([])
+        self.assertConvergenceLoopInputted([])
 
     def test_disconnect_after_status_update(self):
         """
@@ -119,10 +119,10 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_ClientConnected(client=client))
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         self.fsm.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
-        self.assertAgentOperationInputted(
+        self.assertConvergenceLoopInputted(
             [_ClientStatusUpdate(client=client, configuration=desired,
                                  state=state),
-             AgentOperationInputs.STOP])
+             ConvergenceLoopInputs.STOP])
 
     def test_status_update_after_reconnect(self):
         """
@@ -140,10 +140,10 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         state2 = object()
         self.fsm.receive(_ClientConnected(client=client2))
         self.fsm.receive(_StatusUpdate(configuration=desired2, state=state2))
-        self.assertAgentOperationInputted(
+        self.assertConvergenceLoopInputted(
             [_ClientStatusUpdate(client=client, configuration=desired,
                                  state=state),
-             AgentOperationInputs.STOP,
+             ConvergenceLoopInputs.STOP,
              _ClientStatusUpdate(client=client2, configuration=desired2,
                                  state=state2)])
 
@@ -152,7 +152,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         If the FSM is shutdown before a connection is made nothing happens.
         """
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
-        self.assertAgentOperationInputted([])
+        self.assertConvergenceLoopInputted([])
 
     def test_shutdown_after_connect(self):
         """
@@ -181,7 +181,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.assertEqual((client.transport.disconnecting,
                           self.agent_operation.inputted[-1]),
-                         (True, AgentOperationInputs.STOP))
+                         (True, ConvergenceLoopInputs.STOP))
 
     def test_shutdown_fsm_ignores_disconnection(self):
         """
@@ -194,12 +194,12 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.fsm.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
-        self.assertAgentOperationInputted([
+        self.assertConvergenceLoopInputted([
             _ClientStatusUpdate(client=client, configuration=desired,
                                 state=state),
             # This is caused by the shutdown... and the disconnect results
             # in no further messages:
-            AgentOperationInputs.STOP])
+            ConvergenceLoopInputs.STOP])
 
     def test_shutdown_fsm_ignores_cluster_status(self):
         """
@@ -212,10 +212,10 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         # We never send anything to agent operation FSM:
-        self.assertAgentOperationInputted([])
+        self.assertConvergenceLoopInputted([])
 
 
-class AgentOperationFSMTests(SynchronousTestCase):
+class ConvergenceLoopFSMTests(SynchronousTestCase):
     """
     Tests for FSM created by ``build_agent_operation_fsm``.
     """
