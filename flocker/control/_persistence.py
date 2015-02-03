@@ -50,6 +50,7 @@ class ConfigurationPersistenceService(Service):
             persisted.
         """
         self._path = path
+        self._change_callbacks = []
 
     def startService(self):
         if not self._path.exists():
@@ -61,6 +62,15 @@ class ConfigurationPersistenceService(Service):
         else:
             self._deployment = Deployment(nodes=frozenset())
             self._sync_save(self._deployment)
+
+    def register(self, change_callback):
+        """
+        Register a function to be called whenever the configuration changes.
+
+        :param change_callback: Callabke that takes no arguments, will be
+            called when configuration changes.
+        """
+        self._change_callbacks.append(change_callback)
 
     def _sync_save(self, deployment):
         """
@@ -79,6 +89,10 @@ class ConfigurationPersistenceService(Service):
         # At some future point this will likely involve talking to a
         # distributed system (e.g. ZooKeeper or etcd), so the API doesn't
         # guarantee immediate saving of the data.
+        for callback in self._change_callbacks:
+            # Handle errors by catching and logging them
+            # https://clusterhq.atlassian.net/browse/FLOC-1311
+            callback()
         return succeed(None)
 
     def get(self):
