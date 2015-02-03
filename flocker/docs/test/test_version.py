@@ -162,36 +162,36 @@ class GetInstallableVersionTests(SynchronousTestCase):
 
     def test_marketing_release(self):
         """
-        When the version is from a marketing release, the documentation version
+        When the version is from a marketing release, the installable version
         is left unchanged.
         """
         self.assertEqual(get_installable_version('0.3.2'), '0.3.2')
 
     def test_weekly_release(self):
         """
-        When the version is from a weekly release, the documentation version
+        When the version is from a weekly release, the installable version
         is left unchanged.
         """
         self.assertEqual(get_installable_version('0.3.2dev1'), '0.3.2dev1')
 
     def test_pre_release(self):
         """
-        When the version is from a pre-release, the documentation version
+        When the version is from a pre-release, the installable version
         is left unchanged.
         """
         self.assertEqual(get_installable_version('0.3.2pre1'), '0.3.2pre1')
 
     def test_development_version(self):
         """
-        When the version is from a development version, the documentation
-        version is left unchanged.
+        When the version is from a development version, the installable
+        version is changed to the latest marketing release.
         """
-        self.assertEqual(get_installable_version('0.3.2-1-gf661a6a'),
-                         '0.3.2')
+        self.assertEqual(get_installable_version('0.3.2-1-gf661a6a'), '0.3.2')
 
     def test_dirty(self):
         """
-        When the version is dirty, the documentation version is left unchanged.
+        When the version is dirty, the installable version is changed to the
+        latest marketing release.
         """
         self.assertEqual(get_installable_version('0.3.2-1-gf661a6a-dirty'),
                          '0.3.2')
@@ -206,7 +206,7 @@ class GetInstallableVersionTests(SynchronousTestCase):
     def test_doc_dirty(self):
         """
         When the version is from a documentation release but is dirty, the
-        documentation version is left unchanged.
+        installable version is changed to the latest marketing release.
         """
         self.assertEqual(get_installable_version('0.3.2+doc1-dirty'), '0.3.2')
 
