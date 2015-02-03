@@ -29,7 +29,7 @@ from ..common.script import (
 from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
-from . import Deployer
+from . import P2PNodeDeployer, change_node_state
 
 
 __all__ = [
@@ -147,12 +147,10 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
-        return deployer.change_node_state(
-            desired_state=options['deployment'],
-            current_cluster_state=options['current'],
-            hostname=options['hostname']
-        )
+        deployer = P2PNodeDeployer(
+            options['hostname'], volume_service, self._docker_client)
+        return change_node_state(deployer, options['deployment'],
+                                 options['current'])
 
 
 def flocker_changestate_main():
