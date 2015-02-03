@@ -73,6 +73,12 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that a maintenance release is in progress:
+
+   .. example::
+
+      @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
+
 #. Create a clean, local Flocker release branch with no modifications:
 
    .. code-block:: console
@@ -210,8 +216,6 @@ Preparing For a Release
          /en/devel/*
 
 #. Make a pull request on GitHub
-
-   .. something about maintence release branches changing under the pull request - will only happen if multiple ones are happening in a row.
 
    The pull request should be for the release branch against ``master``, with a ``[FLOC-123]`` summary prefix, referring to the release issue that it resolves.
 
@@ -537,6 +541,12 @@ Post-Release Review Process
    * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
+
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintence release is in complete.
+
+   .. example::
+
+      @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
 
 Improving the Release Process
