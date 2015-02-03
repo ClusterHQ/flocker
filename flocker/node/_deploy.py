@@ -72,7 +72,7 @@ class IDeployer(Interface):
     changes to bring local state and desired cluster configuration into
     alignment.
     """
-    def discover_local_state(self):
+    def discover_local_state():
         """
         Discover the local state, i.e. the state which is exclusively under
         the purview of the convergence agent running this instance.

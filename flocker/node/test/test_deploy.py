@@ -22,7 +22,7 @@ from ...control import (
 from .._deploy import (
     IStateChange, Sequentially, InParallel, StartApplication, StopApplication,
     CreateDataset, WaitForDataset, HandoffDataset, SetProxies, PushDataset,
-    ResizeDataset, _link_environment, _to_volume_name)
+    ResizeDataset, _link_environment, _to_volume_name, IDeployer)
 from ...control._model import AttachedVolume, Dataset, Manifestation
 from .._docker import (
     FakeDockerClient, AlreadyExists, Unit, PortMap, Environment,
@@ -3219,3 +3219,50 @@ class PushVolumeTests(SynchronousTestCase):
             hostname=b"dest.example.com")
         push_result = push.run(deployer)
         self.assertIs(push_result, result)
+
+
+def ideployer_tests_factory(fixture):
+    """
+    Create test case for IDeployer implementation.
+
+    :param fixture: Callable that takes ``TestCase`` instance and returns
+         a ``IDeployer`` provider.
+
+    :return: ``TestCase`` subclass that will test the given fixture.
+    """
+    class IDeployerTests(TestCase):
+        """
+        Tests for ``IDeployer``.
+        """
+        def test_interface(self):
+            """
+            The object claims to provide the interface.
+            """
+            self.assertTrue(verifyObject(IDeployer, fixture(self)))
+
+        def test_calculate_necessary_state_changes(self):
+            """
+            The object's ``calculate_necessary_state_changes`` method returns a
+            ``IStateChange`` provider.
+            """
+            deployer = fixture(self)
+            d = deployer.discover_local_state()
+            d.addCallback(
+                lambda local: deployer.calculate_necessary_state_changes(
+                    local, EMPTY, EMPTY))
+            d.addCallback(
+                lambda result: self.assertTrue(verifyObject(IStateChange,
+                                                            result)))
+            return d
+    return IDeployerTests
+
+
+class P2PNodeDeployerInterfaceTests(ideployer_tests_factory(
+        lambda test: P2PNodeDeployer(u"localhost",
+                                     create_volume_service(test),
+                                     FakeDockerClient(),
+                                     make_memory_network()))):
+    """
+    ``IDeployer`` tests for ``P2PNodeDeployer``.
+    """
+
