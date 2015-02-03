@@ -81,11 +81,16 @@ Preparing For a Release
 
 #. Create a clean, local Flocker release branch with no modifications:
 
+   .. note::
+
+      For a maintenance release, replace `origin/master` below with ``origin/flocker-${BASE_VERSION}``,
+      where ``${BASE_VERSION}``is the release receiving the maintenance.
+
    .. code-block:: console
 
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
-      git checkout -b release/flocker-${VERSION} origin/{master or release/flocker-${BASE_VERSION} for a doc release}
+      git checkout -b release/flocker-${VERSION} origin/master
       git push origin --set-upstream release/flocker-${VERSION}
 
 #. Back port features from master (optional)
