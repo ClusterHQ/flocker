@@ -43,20 +43,20 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#"><img src="{{ pathto('_static/images/', 1) }}logo@2x.png" alt="ClusterHQ Container Data Management" /></a>
+          <a class="navbar-brand" href="https://clusterhq.com/"><img src="{{ pathto('_static/images/', 1) }}logo@2x.png" alt="ClusterHQ Container Data Management" /></a>
         </div>
         </div>
 
         <div class="collapse navbar-collapse" id="navbar">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Getting Started</a></li>
-            <li><a href="https://docs.clusterhq.com/en/latest/">Docs</a></li>
+            <li class="active"><a href="{{ pathto('gettingstarted/index') }}">Getting Started</a></li>
+            <li><a href="{{ pathto('index') }}">Docs</a></li>
             <li><a href="https://clusterhq.com/storage-solutions-docker/">Solutions</a></li>
             <li><a href="https://clusterhq.com/about/">About</a></li>
             <li><a href="https://clusterhq.com/careers/">Careers</a></li>
           </ul>
             <ul class="nav navbar-nav navbar-right">
-                <li class="button menu tryflocker"><a href="#">Try Flocker</a></li>            
+                <li class="button menu tryflocker"><a href="{{ pathto('gettingstarted/index') }}">Try Flocker</a></li>
             </ul>          
         </div>
 
@@ -87,7 +87,7 @@
       </div>
     </div>
         
-    <h2 class="heading text-center doc-banner">See our <a href="https://docs.clusterhq.com/" title="Flocker documentation">documentation</a> to learn more</h2>
+    <h2 class="heading text-center doc-banner">See our <a href="{{ pathto('index') }}" title="Flocker documentation">documentation</a> to learn more.</h2>
 
     
 	<footer>
@@ -117,8 +117,8 @@
 				<div><span class="widget-title">Documentation</span>			
 				<div class="textwidget">
 				<ul>
-					<li><a href="#">Getting Started</a></li>
-					<li><a href="https://docs.clusterhq.com/en/latest/gettinginvolved/index.html">Collaborate</a></li>
+					<li><a href="{{ pathto('gettingstarted/index') }}">Getting Started</a></li>
+					<li><a href="{{ pathto('gettinginvolved/contributing') }}">Collaborate</a></li>
 					<li><a href="https://github.com/ClusterHQ/flocker">View Flocker on Github</a></li>
 				</ul>
 				</div>
@@ -127,10 +127,11 @@
 				<span class="widget-title">Install Flocker on:</span>			
 				<div class="textwidget">
 				<ul>
-					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-amazon-web-services">AWS</a></li>
-					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-rackspace">Rackspace</a></li>
-					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#using-digitalocean">Digital Ocean</a></li>
-					<li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/installation.html#vagrant">Vagrant Machine</a></li>
+					<!-- https://github.com/sphinx-doc/sphinx/issues/1702 -->
+					<li><a href="{{ pathto('indepth/installation') }}#aws-install">AWS</a></li>
+					<li><a href="{{ pathto('indepth/installation') }}#rackspace-install">Rackspace</a></li>
+					<li><a href="{{ pathto('indepth/installation') }}#digitalocean-install">Digital Ocean</a></li>
+					<li><a href="{{ pathto('indepth/installation') }}#vagrant-install">Vagrant Machine</a></li>
 				</ul>
 				</div>
 				</div>			
