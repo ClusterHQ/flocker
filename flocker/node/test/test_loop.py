@@ -66,7 +66,8 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_ClientConnected(client=client))
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         self.assertAgentOperationInputted(
-            [_ClientStatusUpdate(client=client, configuration=desired, state=state)])
+            [_ClientStatusUpdate(client=client, configuration=desired,
+                                 state=state)])
 
     def test_second_status_update(self):
         """
@@ -194,7 +195,8 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.fsm.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
         self.assertAgentOperationInputted([
-            _ClientStatusUpdate(client=client, configuration=desired, state=state),
+            _ClientStatusUpdate(client=client, configuration=desired,
+                                state=state),
             # This is caused by the shutdown... and the disconnect results
             # in no further messages:
             AgentOperationInputs.STOP])
@@ -211,3 +213,9 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         # We never send anything to agent operation FSM:
         self.assertAgentOperationInputted([])
+
+
+class AgentOperationFSMTests(SynchronousTestCase):
+    """
+    Tests for FSM created by ``build_agent_operation_fsm``.
+    """
