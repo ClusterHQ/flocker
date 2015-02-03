@@ -219,7 +219,7 @@ a.button.rel {
     border: 1px solid #c8c9d4;
     border-radius: 4px;
     height: 45px;
-    background: url(search-icon@2x.png) no-repeat;
+    background: url(../images/search-icon@2x.png) no-repeat;
     background-size: 23px 22px;
     background-position: 99% 50%;
 }
@@ -254,7 +254,7 @@ p {
 
 .admonition {
     padding-top: 15px;
-    background: url(exclamation@2x.png) no-repeat #fff098;
+    background: url(../images/exclamation@2x.png) no-repeat #fff098;
     background-size: 32px 32px;
     background-position: 30px 20px;
     padding-left: 90px;
@@ -266,7 +266,7 @@ p {
 }
 
 .admonition.warning {
-    background: url(warning@2x.png) no-repeat #f99696;
+    background: url(../images/warning@2x.png) no-repeat #f99696;
     background-size: 32px 32px;
     background-position: 30px 20px;
 }
@@ -292,7 +292,7 @@ a.download {
 a.download:before {
     content: "";
     display: block;
-    background: url(download@2x.png) no-repeat;
+    background: url(../images/download@2x.png) no-repeat;
     background-size: 15px 11px;
     background-position-y: 5px;
     width: 15px;

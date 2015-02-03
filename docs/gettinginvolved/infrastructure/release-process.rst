@@ -98,10 +98,10 @@ Preparing For a Release
    .. note:: Skip this step for a documentation release.
 
    - the ``pip install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
+     `docs/indepth/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/linux-install.sh>`_,
    - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
+     `docs/indepth/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/tutorial/Vagrantfile>`_,
+   - `docs/indepth/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/indepth/installation.rst>`_ (including the sample command output) and
 
    Commit the changes:
 
@@ -296,7 +296,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
      .. code-block:: console
 
         $ admin/run-acceptance-tests --distribution fedora-20
-
 
 #. Check documentation.
 
@@ -549,6 +548,9 @@ Post-Release Review Process
         DigitalOcean does not allow fine grained access control.
         Use the dedicated testing account for running acceptance tests.
         See LastPass for account details.
+
+   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
