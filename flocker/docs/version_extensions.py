@@ -65,7 +65,8 @@ class VersionDownload(XRefRole):
 class VersionLiteralInclude(LiteralInclude):
     """
     Similar to LiteralInclude but replaces a placeholder with the latest
-    installable version of Flocker.
+    installable version of Flocker. The filename of the file to be included
+    must end with '.template'.
     """
     def run(self):
         document = self.state.document
