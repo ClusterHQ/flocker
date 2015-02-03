@@ -38,6 +38,7 @@ extensions = [
     'sphinxcontrib.httpdomain',
     'flocker.restapi.docs.publicapi',
     'flocker.restapi.docs.hidden_code_block',
+    'flocker.docs.bootstrap',
 ]
 
 if not on_rtd:
@@ -147,6 +148,8 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+# The HTMLTranslator class
+html_translator_class = 'flocker.docs.bootstrap.HTMLWriter'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'clusterhq'

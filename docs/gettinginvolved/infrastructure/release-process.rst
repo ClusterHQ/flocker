@@ -86,7 +86,7 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Back port features from master (optional)
 
@@ -279,7 +279,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
         $ admin/run-acceptance-tests --distribution fedora-20
 
-
 #. Check documentation.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
@@ -334,7 +333,7 @@ Release
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
       cd homebrew-tap-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
@@ -530,8 +529,8 @@ Post-Release Review Process
      `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
      ).
 
-   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 
