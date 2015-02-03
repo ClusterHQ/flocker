@@ -155,6 +155,9 @@ class ControlAMPService(Service):
         self.configuration_service = configuration_service
         self.endpoint_service = StreamServerEndpointService(
             endpoint, ServerFactory.forProtocol(lambda: ControlAMP(self)))
+        # When configuration changes, notify all connected clients:
+        self.configuration_service.register(
+            lambda: self._send_state_to_connections(self.connections))
 
     def startService(self):
         self.endpoint_service.startService()

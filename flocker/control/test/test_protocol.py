@@ -217,6 +217,7 @@ class ControlAMPTests(SynchronousTestCase):
         connections getting the updated cluster state along with the
         desired configuration.
         """
+        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
         self.protocol.makeConnection(StringTransport())
         another_protocol = ControlAMP(self.control_amp_service)
         another_protocol.makeConnection(StringTransport())
@@ -226,7 +227,6 @@ class ControlAMPTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent1.append((args, kwargs)))
         self.patch(another_protocol, "callRemote",
                    lambda *args, **kwargs: sent2.append((args, kwargs)))
-        self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
 
         self.successResultOf(
             self.client.callRemote(NodeStateCommand, hostname=u"example2",
@@ -283,6 +283,24 @@ class ControlAMPServiceTests(SynchronousTestCase):
             (initial_disconnecting,
              [c.transport.disconnecting for c in connections]),
             ([False] * 3, [True] * 3))
+
+    def test_configuration_change(self):
+        """
+        A configuration change results in connected protocols being notified
+        of new cluster status.
+        """
+        service = build_control_amp_service(self)
+        service.startService()
+        protocol = ControlAMP(service)
+        protocol.makeConnection(StringTransport())
+        sent = []
+        self.patch(protocol, "callRemote",
+                   lambda *args, **kwargs: sent.append((args, kwargs)))
+        service.configuration_service.save(TEST_DEPLOYMENT)
+
+        self.assertEqual(sent, [((ClusterStatusCommand,),
+                                 dict(configuration=TEST_DEPLOYMENT,
+                                      state=Deployment(nodes=frozenset())))])
 
 
 @implementer(IConvergenceAgent)
