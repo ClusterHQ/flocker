@@ -143,3 +143,18 @@
     HTTP/1.1 201 Created
 
     {"dataset_id": "886ed03a-5606-453a-94a9-a1cbaf35164c", "primary": "%(NODE_0)s", "metadata": {"name": "demo", "owner": "alice"}}
+
+-
+  id:
+    "get state datasets"
+
+  doc: |
+    Get a list of all datasets in a deployment.
+
+  request: |
+    GET /v1/state/datasets HTTP/1.1
+
+  response: |
+    HTTP/1.1 200 OK
+
+    [{"dataset_id": "47440eff-e933-4de0-b56c-d3469b61421f", "primary": "%(NODE_0)s", "maximum_size": 1073741824, "metadata": {}}]
