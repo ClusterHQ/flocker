@@ -4,14 +4,20 @@
 Tests for ``flocker.node._loop``.
 """
 
+from zope.interface import implementer
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport
 from twisted.internet.protocol import Protocol
+from twisted.internet.defer import succeed, Deferred
 
+from ...testutils import FakeAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
-    _StatusUpdate, _ClientConnected, ConvergenceLoopInputs
+    _StatusUpdate, _ClientConnected, ConvergenceLoopInputs,
+    ConvergenceLoopStates, build_convergence_loop_fsm,
     )
+from .._deploy import IDeployer
 
 
 def build_protocol():
@@ -215,6 +221,27 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.assertConvergenceLoopInputted([])
 
 
+@implementer(IDeployer)
+class ControllableDeployer(object):
+    """
+    ``IDeployer`` whose results can be controlled.
+    """
+    def __init__(self, local_states, calculated_actions):
+        self.local_states = local_states
+        self.calculated_actions = calculated_actions
+        self.calculate_inputs = []
+
+    def discover_local_state(self):
+        return self.local_states.pop(0)
+
+    def calculate_necessary_state_changes(self, local_state,
+                                          desired_configuration,
+                                          cluster_state):
+        self.calculate_inputs.append(
+            (local_state, desired_configuration, cluster_state))
+        return self.calculated_actions.pop(0)
+
+
 class ConvergenceLoopFSMTests(SynchronousTestCase):
     """
     Tests for FSM created by ``build_convergence_loop_fsm``.
@@ -223,22 +250,33 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         A newly created FSM is stopped.
         """
+        loop = build_convergence_loop_fsm(ControllableDeployer([], []))
+        self.assertEqual(loop.state, ConvergenceLoopStates.STOPPED)
 
     def test_new_status_update_starts_discovery(self):
         """
         A stopped FSM that receives a status update starts discovery.
         """
+        deployer = ControllableDeployer([Deferred()], [])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.input(_ClientStatusUpdate(object(), object(), object()))
+        self.assertTrue(len(deployer.local_states), 0)  # Discovery started
 
-    def test_new_status_update_stores_values(self):
+    def test_discovery_done_notify(self):
         """
-        A stopped FSM that receives a status update stores the client, desired
-        configuration and cluster state.
+        A FSM doing discovery that gets a result notifies the last received
+        client.
         """
+        client = FakeAMPClient()
+        node_state = object()
+        client.register_response(NodeStateCommand, {})
+        # XXX ...
 
-    def test_discovery_done(self):
+    def test_discovery_done_changes(self):
         """
         A FSM doing discovery that gets a result starts applying calculated
-        changes.
+        changes using last received desired configuration and
+        cluster state.
         """
 
     def test_discovery_status_update(self):
