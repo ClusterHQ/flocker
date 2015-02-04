@@ -20,6 +20,11 @@ By the end of the release process we will have:
 - documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_, and
 - an updated Homebrew recipe.
 
+For a documentation release, we will have:
+
+- a tag in version control,
+- documentation on `docs.clusterhq.com <https://docs.clusterhq.com>`_.
+
 
 Prerequisites
 -------------
@@ -51,6 +56,9 @@ Access
 
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
+
+.. note:: For a documentation release, access to Google Cloud Storage and Vagrant Cloud is not required.
+
 
 Preparing For a Release
 -----------------------
@@ -91,28 +99,12 @@ Preparing For a Release
       git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
       cd flocker-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
 
 #. Back port features from master (optional)
 
    The release may require certain changes to be back ported from the master branch.
    See :ref:`back-porting-changes`\ .
-
-#. Update the version numbers in:
-
-   - the ``pip install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
-   - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
-
-   Commit the changes:
-
-   .. code-block:: console
-
-      $ git commit -am "Bumped version numbers"
-
-   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
 
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
@@ -174,6 +166,7 @@ Preparing For a Release
    In addition, review the link-check step of the documentation builder to ensure that all the errors (the links with "[broken]") are expected.
 
 #. Update the staging documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    .. TODO: The following steps should be automated
 
@@ -300,7 +293,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
         $ admin/run-acceptance-tests --distribution fedora-20
 
-
 #. Check documentation.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
@@ -355,7 +347,7 @@ Release
       git clone git@github.com:ClusterHQ/homebrew-tap.git "homebrew-tap-${VERSION}"
       cd homebrew-tap-${VERSION}
       git checkout -b release/flocker-${VERSION} origin/master
-      git push origin --set-upstream release/flocker-${VERSION}
+      git push --set-upstream origin release/flocker-${VERSION}
       cd ../flocker-${VERSION}
       git checkout release/flocker-${VERSION}
 
@@ -386,6 +378,8 @@ Release
 
 #. Build Python packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       python setup.py sdist bdist_wheel
@@ -396,16 +390,22 @@ Release
 
 #. Build RPM packages and upload them to ``archive.clusterhq.com``
 
+   .. note:: Skip this step for a documentation release.
+
    .. code-block:: console
 
       admin/upload-rpms "${VERSION}"
 
 #. Build and upload the tutorial :ref:`Vagrant box <build-vagrant-box>`.
 
+   .. note:: Skip this step for a documentation release.
+
    .. warning:: This step requires ``Vagrant`` and should be performed on your own workstation;
                 **not** on a :doc:`Flocker development machine <vagrant>`.
 
 #. Create a version specific ``Homebrew`` recipe for this release:
+
+   .. note:: Skip this step for a documentation release.
 
    XXX This should be automated https://clusterhq.atlassian.net/browse/FLOC-1150
 
@@ -438,6 +438,7 @@ Release
      Otherwise the documentation will refer to an unavailable ``Homebrew`` recipe.
 
 #. Update the documentation.
+   (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-docs``.
 
@@ -542,8 +543,8 @@ Post-Release Review Process
      `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
      ).
 
-   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 

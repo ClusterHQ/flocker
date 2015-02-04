@@ -87,3 +87,24 @@ class ConfigurationPersistenceServiceTests(TestCase):
             self.assertEqual(new_service.get(), TEST_DEPLOYMENT)
         d.addCallback(retrieve_in_new_service)
         return d
+
+    def test_register_for_callback(self):
+        """
+        Callbacks can be registered that are called every time there is a
+        change saved.
+        """
+        service = self.service(FilePath(self.mktemp()))
+        l = []
+        l2 = []
+        service.register(lambda: l.append(1))
+        d = service.save(TEST_DEPLOYMENT)
+
+        def saved(_):
+            service.register(lambda: l2.append(1))
+            return service.save(TEST_DEPLOYMENT)
+        d.addCallback(saved)
+
+        def saved_again(_):
+            self.assertEqual((l, l2), ([1, 1], [1]))
+        d.addCallback(saved_again)
+        return d

@@ -6,7 +6,7 @@ Tests for ``flocker.control.httpapi``.
 from io import BytesIO
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, thaw
 
 from zope.interface.verify import verifyObject
 
@@ -23,11 +23,18 @@ from twisted.application.service import IService
 from twisted.python.filepath import FilePath
 
 from ...restapi.testtools import (
-    buildIntegrationTests, dumps, loads, goodResult, badResult)
+    buildIntegrationTests, dumps, loads)
 
-from .. import Dataset, Manifestation, Node, Deployment
-from ..httpapi import DatasetAPIUserV1, create_api_service
+from .. import (
+    Application, Dataset, Manifestation, Node, NodeState,
+    Deployment, AttachedVolume
+)
+from ..httpapi import (
+    DatasetAPIUserV1, create_api_service, datasets_from_deployment,
+    api_dataset_from_dataset_and_node
+)
 from .._persistence import ConfigurationPersistenceService
+from .._clusterstate import ClusterStateService
 from ... import __version__
 
 
@@ -42,6 +49,9 @@ class APITestsMixin(object):
         self.persistence_service = ConfigurationPersistenceService(
             reactor, FilePath(self.mktemp()))
         self.persistence_service.startService()
+        self.cluster_state_service = ClusterStateService()
+        self.cluster_state_service.startService()
+        self.addCleanup(self.cluster_state_service.stopService)
         self.addCleanup(self.persistence_service.stopService)
 
     def assertResponseCode(self, method, path, request_body, expected_code):
@@ -83,23 +93,43 @@ class APITestsMixin(object):
 
         :param bytes method: HTTP method to request.
         :param bytes path: HTTP path.
-        :param unicode expected_code: The code expected in the response.
+        :param unicode request_body: Body of HTTP request.
+        :param int expected_code: The code expected in the response.
             response.
-        :param unicode expected_result: The body expected in the response.
-            response.
+        :param list|dict expected_result: The body expected in the response.
 
-        :return Deferred: Fires when test is done.
+        :return: A ``Deferred`` that fires when test is done.
         """
-        if expected_code // 100 in (4, 5):
-            result_wrapper = badResult
-        else:
-            result_wrapper = goodResult
-
         requesting = self.assertResponseCode(
             method, path, request_body, expected_code)
         requesting.addCallback(readBody)
         requesting.addCallback(lambda body: self.assertEqual(
-            result_wrapper(expected_result), loads(body)))
+            expected_result, loads(body)))
+        return requesting
+
+    def assertResultItems(self, method, path, request_body,
+                          expected_code, expected_result):
+        """
+        Assert a JSON array response for the given API request.
+
+        The API returns a JSON array, which matches a Python list, by
+        comparing that matching items exist in each sequence, but may
+        appear in a different order.
+
+        :param bytes method: HTTP method to request.
+        :param bytes path: HTTP path.
+        :param unicode request_body: Body of HTTP request.
+        :param int expected_code: The code expected in the response.
+        :param list expected_result: A list of items expects in a
+            JSON array response.
+
+        :return: A ``Deferred`` that fires when test is done.
+        """
+        requesting = self.assertResponseCode(
+            method, path, request_body, expected_code)
+        requesting.addCallback(readBody)
+        requesting.addCallback(lambda body: self.assertItemsEqual(
+            expected_result, loads(body)))
         return requesting
 
 
@@ -118,10 +148,10 @@ class VersionTestsMixin(APITestsMixin):
 
 def _build_app(test):
     test.initialize()
-    return DatasetAPIUserV1(test.persistence_service).app
-
-RealTestsVersion, MemoryTestsVersion = buildIntegrationTests(
-    VersionTestsMixin, "Version", _build_app)
+    return DatasetAPIUserV1(test.persistence_service,
+                            test.cluster_state_service).app
+RealTestsAPI, MemoryTestsAPI = buildIntegrationTests(
+    VersionTestsMixin, "API", _build_app)
 
 
 class CreateDatasetTestsMixin(APITestsMixin):
@@ -265,7 +295,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
         creating.addCallback(loads)
 
         def got_result(result):
-            result = result[u"result"]
             dataset_id = result.pop(u"dataset_id")
             self.assertEqual(
                 {u"primary": self.NODE_A, u"metadata": {}}, result
@@ -323,8 +352,8 @@ class CreateDatasetTestsMixin(APITestsMixin):
         ])
 
         def created(datasets):
-            first = datasets[0][u"result"]
-            second = datasets[1][u"result"]
+            first = datasets[0]
+            second = datasets[1]
             self.assertNotEqual(first[u"dataset_id"], second[u"dataset_id"])
         creating.addCallback(created)
         return creating
@@ -436,7 +465,7 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        verifyObject(IService, create_api_service(None, endpoint))
+        verifyObject(IService, create_api_service(None, None, endpoint))
 
     def test_listens_endpoint(self):
         """
@@ -445,10 +474,309 @@ class CreateAPIServiceTests(SynchronousTestCase):
         """
         reactor = MemoryReactor()
         endpoint = TCP4ServerEndpoint(reactor, 6789)
-        service = create_api_service(None, endpoint)
+        service = create_api_service(None, None, endpoint)
         self.addCleanup(service.stopService)
         service.startService()
         server = reactor.tcpServers[0]
         port = server[0]
         factory = server[1].__class__
         self.assertEqual((port, factory), (6789, Site))
+
+
+class DatasetsStateTestsMixin(APITestsMixin):
+    """
+    Tests for the service datasets state description endpoint at
+    ``/state/datasets``.
+    """
+    def test_empty(self):
+        """
+        When the cluster state includes no datasets, the endpoint
+        returns an empty list.
+        """
+        response = []
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+    def test_one_dataset(self):
+        """
+        When the cluster state includes one dataset, the endpoint
+        returns a single-element list containing the dataset.
+        """
+        expected_dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation = Manifestation(
+            dataset=expected_dataset, primary=True)
+        expected_hostname = u"192.0.2.101"
+        self.cluster_state_service.update_node_state(
+            expected_hostname, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation])
+            )
+        )
+        expected_dict = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={}
+        )
+        response = [expected_dict]
+        return self.assertResult(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+    def test_two_datasets(self):
+        """
+        When the cluster state includes more than one dataset, the endpoint
+        returns a list containing the datasets in arbitrary order.
+        """
+        expected_dataset1 = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation1 = Manifestation(
+            dataset=expected_dataset1, primary=True)
+        expected_hostname1 = u"192.0.2.101"
+        expected_dataset2 = Dataset(dataset_id=unicode(uuid4()))
+        expected_manifestation2 = Manifestation(
+            dataset=expected_dataset2, primary=True)
+        expected_hostname2 = u"192.0.2.102"
+        self.cluster_state_service.update_node_state(
+            expected_hostname1, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation1])
+            )
+        )
+        self.cluster_state_service.update_node_state(
+            expected_hostname2, NodeState(
+                running=[],
+                not_running=[],
+                other_manifestations=frozenset([expected_manifestation2])
+            )
+        )
+        expected_dict1 = dict(
+            dataset_id=expected_dataset1.dataset_id,
+            primary=expected_hostname1,
+            metadata={}
+        )
+        expected_dict2 = dict(
+            dataset_id=expected_dataset2.dataset_id,
+            primary=expected_hostname2,
+            metadata={}
+        )
+        response = [expected_dict1, expected_dict2]
+        return self.assertResultItems(
+            b"GET", b"/state/datasets", None, OK, response
+        )
+
+RealTestsDatasetsStateAPI, MemoryTestsDatasetsStateAPI = buildIntegrationTests(
+    DatasetsStateTestsMixin, "DatasetsStateAPI", _build_app)
+
+
+class DatasetsFromDeploymentTests(SynchronousTestCase):
+    """
+    Tests for ``datasets_from_deployment``.
+    """
+    def test_empty(self):
+        """
+        ``datasets_from_deployment`` returns an empty list if no Manifestations
+        are found in the supplied Deployment.
+        """
+        deployment = Deployment(nodes=frozenset())
+        expected = []
+        self.assertEqual(expected, list(datasets_from_deployment(deployment)))
+
+    def test_application_volumes(self):
+        """
+        ``datasets_from_deployment`` returns dataset dictionaries for the
+        volumes attached to applications on all nodes.
+        """
+        expected_hostname = u"node1.example.com"
+        expected_dataset = Dataset(dataset_id=u"jalkjlk")
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=expected_dataset,
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+
+        node = Node(
+            hostname=expected_hostname,
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object(),
+                                                volume=volume)}),
+        )
+
+        deployment = Deployment(nodes=frozenset([node]))
+        expected = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            metadata=thaw(expected_dataset.metadata)
+        )
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
+
+    def test_other_manifestations(self):
+        """
+        ``datasets_from_deployment`` returns dataset dictionaries for the
+        other_manifestations on all nodes.
+        """
+        expected_hostname = u"node1.example.com"
+        expected_dataset = Dataset(dataset_id=u"jalkjlk")
+        expected_manifestation = Manifestation(dataset=expected_dataset,
+                                               primary=True)
+        node = Node(
+            hostname=expected_hostname,
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+
+        deployment = Deployment(nodes=frozenset([node]))
+        expected = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            metadata=thaw(expected_dataset.metadata)
+        )
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
+
+    def test_primary_and_replica_manifestations(self):
+        """
+        ``datasets_from_deployment`` does not return replica manifestations
+        on other nodes.
+        """
+
+        expected_hostname = u"node1.example.com"
+        expected_dataset = Dataset(dataset_id=u"jalkjlk")
+        volume = AttachedVolume(
+            manifestation=Manifestation(dataset=expected_dataset,
+                                        primary=True),
+            mountpoint=FilePath(b"/blah"))
+
+        node1 = Node(
+            hostname=expected_hostname,
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object()),
+                                    Application(name=u'site-clusterhq.com',
+                                                image=object(),
+                                                volume=volume)}),
+        )
+        expected_manifestation = Manifestation(dataset=expected_dataset,
+                                               primary=False)
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([expected_manifestation])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+        expected = dict(
+            dataset_id=expected_dataset.dataset_id,
+            primary=expected_hostname,
+            metadata=thaw(expected_dataset.metadata)
+        )
+        self.assertEqual(
+            [expected], list(datasets_from_deployment(deployment)))
+
+    def test_replica_manifestations_only(self):
+        """
+        ``datasets_from_deployment`` does not return datasets if there are only
+        replica manifestations.
+        """
+        manifestation1 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+        manifestation2 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=False
+        )
+
+        node1 = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation1])
+        )
+
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation2])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+
+        self.assertEqual([], list(datasets_from_deployment(deployment)))
+
+    def test_multiple_primary_manifestations(self):
+        """
+        ``datasets_from_deployment`` may return multiple primary datasets.
+        """
+        manifestation1 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=True
+        )
+        manifestation2 = Manifestation(
+            dataset=Dataset(dataset_id=unicode(uuid4())),
+            primary=True
+        )
+
+        node1 = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation1])
+        )
+
+        node2 = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset(),
+            other_manifestations=frozenset([manifestation2])
+        )
+
+        deployment = Deployment(nodes=frozenset([node1, node2]))
+        self.assertEqual(
+            set([manifestation1.dataset.dataset_id,
+                 manifestation2.dataset.dataset_id]),
+            set(d['dataset_id'] for d in datasets_from_deployment(deployment))
+        )
+
+
+class APIDatasetFromDatasetAndNodeTests(SynchronousTestCase):
+    """
+    Tests for ``api_dataset_from_dataset_and_node``.
+    """
+    def test_without_maximum_size(self):
+        """
+        ``maximum_size`` is omitted from the returned dict if the dataset
+        maximum_size is None.
+        """
+        dataset = Dataset(dataset_id=unicode(uuid4()))
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            metadata={},
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )
+
+    def test_with_maximum_size(self):
+        """
+        ``maximum_size`` is included in the returned dict if the dataset
+        maximum_size is set.
+        """
+        expected_size = 1024 * 1024 * 1024 * 42
+        dataset = Dataset(
+            dataset_id=unicode(uuid4()),
+            maximum_size=expected_size,
+        )
+        expected_hostname = u'192.0.2.101'
+        expected = dict(
+            dataset_id=dataset.dataset_id,
+            primary=expected_hostname,
+            maximum_size=expected_size,
+            metadata={},
+        )
+        self.assertEqual(
+            expected,
+            api_dataset_from_dataset_and_node(dataset, expected_hostname)
+        )

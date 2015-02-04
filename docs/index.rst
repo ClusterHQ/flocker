@@ -16,6 +16,7 @@ Contents:
 
    introduction
    gettingstarted/index
+   indepth/index
    advanced/index
    gettinginvolved/index
    roadmap/index
