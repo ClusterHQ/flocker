@@ -168,13 +168,12 @@ Preparing For a Release
 #. Update the staging documentation.
    (For a documentation release ``${VERSION}`` should be the base release version in this step).
 
-   .. TODO: The following steps should be automated
 
    #. Copy release documentation from ``clusterhq-dev-docs`` to ``clusterhq-staging-docs``.
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+         admin/publish-docs --doc-version ${VERSION}
 
    #. Update redirects to point to new documentation.
 
@@ -444,7 +443,7 @@ Release
 
       .. prompt:: bash $
 
-         gsutil -m rsync -d -r s3://clusterhq-dev-docs/$(python setup.py --version)/ s3://clusterhq-staging-docs/en/${VERSION}/
+         admin/publish-docs --bucket clusterhq-docs
 
    #. Update redirects to point to new documentation.
 

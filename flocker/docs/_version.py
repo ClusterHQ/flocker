@@ -129,3 +129,14 @@ def is_release(version):
             and parsed_version.pre_release is None
             and parsed_version.weekly_release is None
             and parsed_version.dirty is None)
+
+
+def is_weekly_release(version):
+    """
+    Return whetehr the version corresponds to a weekly release.
+    """
+    parsed_version = parse_version(version)
+    return (parsed_version.weekly_release is not None
+            and parsed_version.commit_count is None
+            and parsed_version.pre_release is None
+            and parsed_version.dirty is None)
