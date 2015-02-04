@@ -28,9 +28,12 @@ from pickle import dumps, loads
 
 from zope.interface import Interface
 
+from twisted.application.service import Service
 from twisted.protocols.amp import (
     Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
 )
+from twisted.internet.protocol import ServerFactory
+from twisted.application.internet import StreamServerEndpointService
 
 from ._persistence import serialize_deployment, deserialize_deployment
 
@@ -94,12 +97,13 @@ class ControlServiceLocator(CommandLocator):
     """
     Control service side of the protocol.
     """
-    def __init__(self, cluster_state):
+    def __init__(self, control_amp_service):
         """
-        :param ClusterStateService cluster_state: Object that records known
-            cluster state.
+        :param ControlAMPService control_amp_service: The service managing AMP
+             connections to the control service.
         """
-        self.cluster_state = cluster_state
+        CommandLocator.__init__(self)
+        self.control_amp_service = control_amp_service
 
     @VersionCommand.responder
     def version(self):
@@ -107,8 +111,103 @@ class ControlServiceLocator(CommandLocator):
 
     @NodeStateCommand.responder
     def node_changed(self, hostname, node_state):
-        self.cluster_state.update_node_state(hostname, node_state)
+        self.control_amp_service.node_changed(hostname, node_state)
         return {}
+
+
+class ControlAMP(AMP):
+    """
+    AMP protocol for control service server.
+    """
+    def __init__(self, control_amp_service):
+        """
+        :param ControlAMPService control_amp_service: The service managing AMP
+             connections to the control service.
+        """
+        AMP.__init__(self, locator=ControlServiceLocator(control_amp_service))
+        self.control_amp_service = control_amp_service
+
+    def connectionMade(self):
+        AMP.connectionMade(self)
+        self.control_amp_service.connected(self)
+
+    def connectionLost(self, reason):
+        AMP.connectionLost(self, reason)
+        self.control_amp_service.disconnected(self)
+
+
+class ControlAMPService(Service):
+    """
+    Control Service AMP server.
+
+    Convergence agents connect to this server.
+    """
+    def __init__(self, cluster_state, configuration_service, endpoint):
+        """
+        :param ClusterStateService cluster_state: Object that records known
+            cluster state.
+        :param ConfigurationPersistenceService configuration_service:
+            Persistence service for desired cluster configuration.
+        :param endpoint: Endpoint to listen on.
+        """
+        self.connections = set()
+        self.cluster_state = cluster_state
+        self.configuration_service = configuration_service
+        self.endpoint_service = StreamServerEndpointService(
+            endpoint, ServerFactory.forProtocol(lambda: ControlAMP(self)))
+        # When configuration changes, notify all connected clients:
+        self.configuration_service.register(
+            lambda: self._send_state_to_connections(self.connections))
+
+    def startService(self):
+        self.endpoint_service.startService()
+
+    def stopService(self):
+        self.endpoint_service.stopService()
+        for connection in self.connections:
+            connection.transport.loseConnection()
+
+    def _send_state_to_connections(self, connections):
+        """
+        Send desired configuration and cluster state to all given connections.
+
+        :param connections: A collection of ``AMP`` instances.
+        """
+        configuration = self.configuration_service.get()
+        state = self.cluster_state.as_deployment()
+        for connection in connections:
+            connection.callRemote(ClusterStatusCommand,
+                                  configuration=configuration,
+                                  state=state)
+            # Handle errors from callRemote by logging them
+            # https://clusterhq.atlassian.net/browse/FLOC-1311
+
+    def connected(self, connection):
+        """
+        A new connection has been made to the server.
+
+        :param ControlAMP connection: The new connection.
+        """
+        self.connections.add(connection)
+        self._send_state_to_connections([connection])
+
+    def disconnected(self, connection):
+        """
+        An existing connection has been disconnected.
+
+        :param ControlAMP connection: The lost connection.
+        """
+        self.connections.remove(connection)
+
+    def node_changed(self, hostname, node_state):
+        """
+        We've received a node state update from a connected client.
+
+        :param bytes hostname: The hostname of the node.
+        :param NodeState node_state: The changed state for the node.
+        """
+        self.cluster_state.update_node_state(hostname, node_state)
+        self._send_state_to_connections(self.connections)
 
 
 class IConvergenceAgent(Interface):

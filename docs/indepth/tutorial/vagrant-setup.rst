@@ -101,9 +101,9 @@ Note that you will need to make the same substitution in commands used throughou
 #. Download the Vagrant configuration file by right clicking on the link below.
    Save it in the *flocker-tutorial* directory and preserve its filename.
 
-   :download:`Vagrantfile <Vagrantfile>`
+   :version-download:`Vagrantfile.template`
 
-   .. literalinclude:: Vagrantfile
+   .. version-literalinclude:: Vagrantfile.template
       :language: ruby
       :lines: 1-8
       :append: ...

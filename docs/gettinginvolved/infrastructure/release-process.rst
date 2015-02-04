@@ -93,24 +93,6 @@ Preparing For a Release
    The release may require certain changes to be back ported from the master branch.
    See :ref:`back-porting-changes`\ .
 
-#. Update the version numbers in:
-
-   .. note:: Skip this step for a documentation release.
-
-   - the ``pip install`` line in
-     `docs/gettingstarted/linux-install.sh <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/linux-install.sh>`_,
-   - the ``box_version`` in
-     `docs/gettingstarted/tutorial/Vagrantfile <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/tutorial/Vagrantfile>`_,
-   - `docs/gettingstarted/installation.rst <https://github.com/ClusterHQ/flocker/blob/master/docs/gettingstarted/installation.rst>`_ (including the sample command output) and
-
-   Commit the changes:
-
-   .. code-block:: console
-
-      $ git commit -am "Bumped version numbers"
-
-   .. This should be automated. See https://clusterhq.atlassian.net/browse/FLOC-1038
-
 #. Ensure the release notes in :file:`NEWS` are up-to-date:
 
    XXX: Process to be decided.
@@ -296,7 +278,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
      .. code-block:: console
 
         $ admin/run-acceptance-tests --distribution fedora-20
-
 
 #. Check documentation.
 
@@ -548,8 +529,8 @@ Post-Release Review Process
      `FLOC-958 <https://clusterhq.atlassian.net/browse/FLOC-958>`_
      ).
 
-   * Follow the :doc:`../../gettingstarted/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
-   * Follow the :doc:`ELK example documentation<../../gettingstarted/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
+   * Follow the :doc:`../../indepth/tutorial/vagrant-setup` part of the tutorial to make sure that the Vagrant nodes start up correctly.
+   * Follow the :doc:`ELK example documentation<../../indepth/examples/linking>` using a Linux client installation and Rackspace Fedora20 nodes.
 
 #. Merge the release pull request.
 

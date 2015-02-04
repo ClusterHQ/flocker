@@ -6,7 +6,7 @@ A HTTP REST API for controlling the Dataset Manager.
 import yaml
 from uuid import uuid4
 
-from pyrsistent import pmap
+from pyrsistent import pmap, thaw
 
 from twisted.python.filepath import FilePath
 from twisted.web.http import CONFLICT, CREATED
@@ -184,6 +184,73 @@ class DatasetAPIUserV1(object):
             return EndpointResponse(CREATED, result)
         saving.addCallback(saved)
         return saving
+
+    @app.route("/state/datasets", methods=['GET'])
+    @user_documentation("""
+        Get current cluster datasets.
+        """, examples=[u"get state datasets"])
+    @structured(
+        inputSchema={},
+        outputSchema={
+            '$ref': '/v1/endpoints.json#/definitions/datasets_array'
+            },
+        schema_store=SCHEMAS
+    )
+    def datasets(self):
+        """
+        Return the current primary datasets in the cluster.
+
+        :return: A ``list`` containing all datasets in the cluster.
+        """
+        deployment = self.cluster_state_service.as_deployment()
+        return list(datasets_from_deployment(deployment))
+
+
+def datasets_from_deployment(deployment):
+    """
+    Extract the primary datasets from the supplied deployment instance.
+
+    Currently does not support secondary datasets, but this info might be
+    useful to provide.  For ZFS, for example, may show how up-to-date they
+    are with respect to the primary.
+
+    :param Deployment deployment: A ``Deployment`` describing the state
+        of the cluster.
+
+    :return: Iterable returning all datasets.
+    """
+    for node in deployment.nodes:
+        for manifestation in node.manifestations():
+            if manifestation.primary:
+                # There may be multiple datasets marked as primary until we
+                # implement consistency checking when state is reported by each
+                # node.
+                # See https://clusterhq.atlassian.net/browse/FLOC-1303
+                yield api_dataset_from_dataset_and_node(
+                    manifestation.dataset, node.hostname
+                )
+
+
+def api_dataset_from_dataset_and_node(dataset, node_hostname):
+    """
+    Return a dataset dict which conforms to
+    ``/v1/endpoints.json#/definitions/datasets_array``
+
+    :param Dataset dataset: A dataset present in the cluster.
+    :param unicode node_hostname: Hostname of the primary node for the
+        `dataset`.
+    :return: A ``dict`` containing the dataset information and the
+        hostname of the primary node, conforming to
+        ``/v1/endpoints.json#/definitions/datasets_array``.
+    """
+    result = dict(
+        dataset_id=dataset.dataset_id,
+        primary=node_hostname,
+        metadata=thaw(dataset.metadata)
+    )
+    if dataset.maximum_size is not None:
+        result[u'maximum_size'] = dataset.maximum_size
+    return result
 
 
 def create_api_service(persistence_service, cluster_state_service, endpoint):

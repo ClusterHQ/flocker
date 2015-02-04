@@ -74,3 +74,12 @@ definitions:
       # more about what it means to not have a primary manifestation.
       - primary
     additionalProperties: false
+
+  # A sequence of datasets
+  datasets_array:
+    type: array
+    items:
+      description: "The dataset"
+      type: object
+      oneOf:
+        - {"$ref": "#/definitions/datasets" }
