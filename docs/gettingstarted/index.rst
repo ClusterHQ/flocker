@@ -95,7 +95,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
@@ -133,7 +133,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
