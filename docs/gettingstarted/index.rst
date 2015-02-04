@@ -173,7 +173,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
@@ -192,7 +194,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
