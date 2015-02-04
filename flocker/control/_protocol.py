@@ -88,6 +88,7 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
+    # XXX delete hostname argument, no longer necessary
     arguments = [('hostname', String()),
                  ('node_state', NodeStateArgument())]
     response = []
@@ -199,6 +200,7 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
+    # XXX delete hostname argument, no longer necessary
     def node_changed(self, hostname, node_state):
         """
         We've received a node state update from a connected client.

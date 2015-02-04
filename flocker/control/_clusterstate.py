@@ -21,6 +21,7 @@ class ClusterStateService(Service):
     def __init__(self):
         self._nodes = {}
 
+    # XXX delete hostname argument, no longer necessary
     def update_node_state(self, hostname, node_state):
         """
         Update the state of a given node.
