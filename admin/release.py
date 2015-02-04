@@ -6,7 +6,6 @@ Helper utilities for the Flocker release process.
 
 import sys
 from collections import namedtuple
-from subprocess import check_call
 
 import flocker
 
@@ -92,42 +91,98 @@ def configure_s3_routing_rules(doc_version, bucket_name, is_dev):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(bucket_name)
     config = bucket.get_website_configuration_obj()
-    key = 'en/devel/' if is_dev else 'en/latest'
+    key = 'en/devel/' if is_dev else 'en/latest/'
     rule = [rule for rule in config.routing_rules if
             rule.condition.key_prefix == key][0]
-    rule.redirect.replace_key_prefix = '/en/%s/' % (doc_version,)
-    bucket.set_website_configuration()
+    new_prefix = '/en/%s/' % (doc_version,)
+    if rule.redirect.replace_key_prefix == new_prefix:
+        return None
+    else:
+        old_prefix = rule.redirect.replace_key_prefix
+        rule.redirect.replace_key_prefix = new_prefix
+        print "Setting new bucket configuration: %s redirects to %s" % (
+            key, new_prefix)
+        #bucket.set_website_configuration()
+        return old_prefix
 
 
-def create_cloudfront_invalidation(doc_version, bucket_name, is_dev):
+def create_cloudfront_invalidation(doc_version, bucket_name, is_dev,
+                                   changed_keys, old_prefix):
     cf = boto.connect_cloudfront()
+    s3 = boto.connect_s3()
     distribution = [dist for dist in cf.get_all_distributions()
                     if 'docs.staging.clusterhq.com' in dist.cnames][0]
     if is_dev:
-        paths = ["/en/devel/*"]
+        prefixes = ["/en/devel/"]
     else:
-        paths = ["/en/latest/*"]
-    paths += ["/en/%s/" % (doc_version,)]
-    cf.create_invalidation_request(distribution.id, paths)
+        prefixes = ["/en/latest/"]
+    prefixes += ["/en/%s/" % (doc_version,)]
+
+    if old_prefix:
+        changed_keys |= s3_get_relative_keys(s3.get_bucket(bucket_name), old_prefix[1:])
+
+    for index in ['index.html', '/index.html']:
+        changed_keys |= {key_name[:-len(index)]
+                         for key_name in changed_keys
+                         if key_name.endswith(index)}
+
+    paths = [prefix + key_name
+             for key_name in changed_keys
+             for prefix in prefixes]
+    print "Invalidating:"
+    print '\n'.join(sorted(paths))
+    #cf.create_invalidation_request(distribution.id, paths)
+
+
+def s3_get_relative_keys(bucket, prefix):
+    return {key.name[len(prefix):] for key in bucket.list(prefix)}
+
+
+def copy_docs(flocker_version, doc_version, bucket_name):
+    s3 = boto.connect_s3()
+    destination_bucket = s3.get_bucket(bucket_name)
+    source_bucket = s3.get_bucket('clusterhq-dev-docs')
+    source_prefix = '%s/' % (flocker_version,)
+    destination_prefix = 'en/%s/' % (doc_version,)
+
+    source_keys = s3_get_relative_keys(source_bucket, source_prefix)
+    destination_keys = s3_get_relative_keys(destination_bucket,
+                                            destination_prefix)
+
+    keys_to_delete = destination_keys - source_keys
+    print "Deleting"
+    print "\n".join(
+    #destination_bucket.delete_keys(
+        [destination_prefix + key_name
+         for key_name in keys_to_delete])
+
+    print "Copying:"
+    for key_name in source_keys:
+        print dict(dest_bucket=bucket_name,
+        #destination_bucket.copy_key(
+            new_key_name=destination_prefix + key_name,
+            src_bucket_name='clusterhq-dev-docs',
+            src_key_name=source_prefix + key_name)
+
+    changed_keys = destination_keys | source_keys
+
+    return changed_keys
 
 
 def publish_docs(flocker_version, doc_version, bucket_name):
-    ((lambda _: None) or check_call)([
-        'gsutil', '-m',
-        'rsync', '-d', '-r',
-        's3://clusterhq-dev-docs/%s/' % (flocker_version,),
-        's3://%s/en/%s/' % (bucket_name, doc_version),
-    ])
+    changed_keys = copy_docs(flocker_version, doc_version, bucket_name)
 
     # Wether the latest, or the devel link should be updated.
     is_devel = not is_release(doc_version)
-    configure_s3_routing_rules(
+    old_prefix = configure_s3_routing_rules(
         doc_version=doc_version,
         bucket_name=bucket_name,
-        is_devel=is_devel)
+        is_dev=is_devel)
     create_cloudfront_invalidation(
         doc_version=doc_version,
         bucket_name=bucket_name,
+        changed_keys=changed_keys,
+        old_prefix=old_prefix,
         is_dev=is_devel)
 
 
@@ -164,8 +219,8 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    if not (is_release(options['doc_version'])
-            or is_weekly_release(options['doc_version'])):
+    if not (is_release(options['doc-version'])
+            or is_weekly_release(options['doc-version'])):
         sys.stderr.write("%s: Can't publish non-release.")
         raise SystemExit(1)
 
