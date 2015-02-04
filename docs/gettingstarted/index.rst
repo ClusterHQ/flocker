@@ -274,6 +274,7 @@ Getting started with Flocker
    .. tutorial-step-condensed::
 
       Now we are going to use a different deployment configuration to show moving the Redis container with its data volume.
+      The web server will remain deployed on the first host and remain accessible via either host's address.
 
       deployment-node2.yml
       --------------------
