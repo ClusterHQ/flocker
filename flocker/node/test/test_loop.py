@@ -217,5 +217,68 @@ class ClusterStatusFSMTests(SynchronousTestCase):
 
 class ConvergenceLoopFSMTests(SynchronousTestCase):
     """
-    Tests for FSM created by ``build_agent_operation_fsm``.
+    Tests for FSM created by ``build_convergence_loop_fsm``.
     """
+    def test_new_stopped(self):
+        """
+        A newly created FSM is stopped.
+        """
+
+    def test_new_status_update_starts_discovery(self):
+        """
+        A stopped FSM that receives a status update starts discovery.
+        """
+
+    def test_new_status_update_stores_values(self):
+        """
+        A stopped FSM that receives a status update stores the client, desired
+        configuration and cluster state.
+        """
+
+    def test_discovery_done(self):
+        """
+        A FSM doing discovery that gets a result starts applying calculated
+        changes.
+        """
+
+    def test_discovery_status_update(self):
+        """
+        A FSM doing discovery that receives a status update stores the client,
+        desired configuration and cluster state.
+        """
+
+    def test_discovery_stop(self):
+        """
+        A FSM doing discovery that receives a stop input stops when discovery
+        finishes.
+        """
+
+    def test_discovery_stop_then_status_update(self):
+        """
+        A FSM doing discovery that receives a stop input and then a status
+        update applies calculated changes (i.e. stop ends up being
+        ignored).
+        """
+
+    def test_changes_done(self):
+        """
+        A FSM applying changes switches to discovery after changes are done.
+        """
+
+    def test_changes_status_update(self):
+        """
+        A FSM applying changes that receives a status update stores the client,
+        desired configuration and cluster state.
+        """
+
+    def test_changes_stop(self):
+        """
+        A FSM applying changes that receives a stop input stops when changes
+        finishes.
+        """
+
+    def test_changes_stop_then_status_update(self):
+        """
+        A FSM applyings changes that receives a stop input and then a status
+        update continues on to discovery (i.e. stop is ignored).
+        """
