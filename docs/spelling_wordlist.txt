@@ -11,6 +11,7 @@ cli
 CLI
 Copr
 dataset
+datasets
 Deis
 devel
 DigitalOcean
@@ -35,6 +36,7 @@ installable
 internet
 Kubernetes
 libswarm
+lifecycle
 Mesos
 metadata
 microservices
@@ -54,7 +56,9 @@ Redis
 snapshotting
 stateful
 sysadmin
+terabytes
 timestamp
+versioning
 virtualization
 VMware
 webhook
