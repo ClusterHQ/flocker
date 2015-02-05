@@ -463,7 +463,7 @@ class P2PNodeDeployer(object):
                 for (dataset_id, maximum_size) in
                 available_manifestations.values()))
             return NodeState(
-                # XXX hostname=self.hostname,
+                hostname=self.hostname,
                 running=running,
                 not_running=not_running,
                 used_ports=self.network.enumerate_used_ports(),
