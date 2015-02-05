@@ -45,7 +45,7 @@ Flocker is also tested using `continuous integration`_.
 .. _ClusterHQ: https://clusterhq.com/
 .. _Twisted: https://twistedmatrix.com
 .. _installing Flocker: https://docs.clusterhq.com/en/latest/gettingstarted/installation.html
-.. _tutorial: https://docs.clusterhq.com/en/latest/gettingstarted/tutorial/
+.. _tutorial: https://docs.clusterhq.com/en/latest/gettingstarted/
 .. _features of Flocker and its architecture: https://docs.clusterhq.com/en/latest/introduction.html
 .. _areas for potential future development: https://docs.clusterhq.com/en/latest/roadmap/
 .. _unittest: https://docs.python.org/2/library/unittest.html
