@@ -15,197 +15,190 @@ Getting started with Flocker
 
 .. tutorial-step::
 
-   Step 1: Installing Flocker CLI & Node
-   =====================================
+   Step 1: Install Flocker CLI
+   ===========================
 
-   .. parallel::
 
-      .. mobile-label::
+   .. mobile-label::
 
-         Local
+      Local
 
-      .. image:: images/macbook.png
-         :class: center-block img-responsive
-         :alt: Flocker CLI diagram
+   .. image:: images/macbook.png
+      :class: center-block img-responsive
+      :alt: Flocker CLI diagram
 
-      Flocker CLI
-      -----------
+   Flocker CLI
+   -----------
 
-      +--------------------------------------------------------------------------+
-      | Runs on your laptop                                                      |
-      +--------------------------------------------------------------------------+
-      | Uses application and deployment configuration files                      |
-      +--------------------------------------------------------------------------+
-      | Deploys containers to a cluster of servers                               |
-      +--------------------------------------------------------------------------+
+   +--------------------------------------------------------------------------+
+   | Runs on your laptop                                                      |
+   +--------------------------------------------------------------------------+
+   | Uses application and deployment configuration files                      |
+   +--------------------------------------------------------------------------+
+   | Deploys containers to a cluster of servers                               |
+   +--------------------------------------------------------------------------+
 
-      .. empty-div:: arrow-down center-block hidden-xs hidden-sm
+   .. empty-div:: arrow-down center-block hidden-xs hidden-sm
 
-   .. parallel::
 
-      .. mobile-label::
+   .. mobile-label::
 
-         Live
+      Local
 
-      .. image:: images/nodes.png
-         :class: center-block offset-top img-responsive
-         :alt: Flocker Node diagram
+   .. noscript-content::
 
-      Flocker Node
-      ------------
+      OS X
+      ^^^^
 
-      +--------------------------------------------------------------------------+
-      | Runs on each server in a cluster                                         |
-      +--------------------------------------------------------------------------+
-      | Links, ports and volumes work across hosts                               |
-      +--------------------------------------------------------------------------+
-      | After deployment, containers can move around                             |
-      +--------------------------------------------------------------------------+
+      Install the flocker-cli client on your Mac (requires Homebrew):
 
-      .. empty-div:: arrow-down center-block
+      .. code-block:: console
 
-   .. parallel::
+         you@laptop:~$ brew update && \
+           brew tap clusterhq/flocker && \
+           brew install flocker-0.3.2
 
-      Installation
-      ------------
+   .. noscript-content::
 
-      .. mobile-label::
+      Ubuntu / Debian
+      ^^^^^^^^^^^^^^^
 
-         Local
+      Install the flocker-cli client on your Linux machine:
 
-      .. noscript-content::
+      .. code-block:: console
 
-         OS X
-         ^^^^
+         you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+           virtualenv flocker-tutorial && \
+           flocker-tutorial/bin/pip install --upgrade pip && \
+           flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+      Fedora 20
+      ^^^^^^^^^
 
-         .. code-block:: console
+      Install the flocker-cli client on your Linux machine:
 
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+      .. code-block:: console
 
-      .. noscript-content::
+         you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
+           virtualenv flocker-tutorial && \
+           flocker-tutorial/bin/pip install --upgrade pip && \
+           flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
 
-         Install the flocker-cli client on your Linux machine:
+   .. tabs::
 
-         .. code-block:: console
+      OS X
+      ^^^^
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+      Install the flocker-cli client on your Mac (requires Homebrew):
 
-         Fedora 20
-         ^^^^^^^^^
+      .. code-block:: console
 
-         Install the flocker-cli client on your Linux machine:
+         you@laptop:~$ brew update && \
+           brew tap clusterhq/flocker && \
+           brew install flocker-0.3.2
 
-         .. code-block:: console
+      Ubuntu / Debian
+      ^^^^^^^^^^^^^^^
 
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+      Install the flocker-cli client on your Linux machine:
 
+      .. code-block:: console
 
-      .. tabs::
+         you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+           virtualenv flocker-tutorial && \
+           flocker-tutorial/bin/pip install --upgrade pip && \
+           flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
 
-         OS X
-         ^^^^
+      Fedora 20
+      ^^^^^^^^^
 
-         Install the flocker-cli client on your Mac (requires Homebrew):
+      Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+      .. code-block:: console
 
-            you@laptop:~$ brew update && \
-              brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+         you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
+           virtualenv flocker-tutorial && \
+           flocker-tutorial/bin/pip install --upgrade pip && \
+           flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
 
-         Ubuntu / Debian
-         ^^^^^^^^^^^^^^^
-
-         Install the flocker-cli client on your Linux machine:
-
-         .. code-block:: console
-
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
-
-         Fedora 20
-         ^^^^^^^^^
-
-         Install the flocker-cli client on your Linux machine:
-
-         .. code-block:: console
-
-            you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
-              virtualenv flocker-tutorial && \
-              flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
-
-      .. empty-div:: arrow-down center-block invisible
-
-   .. parallel::
-
-      Installation
-      ------------
-
-      .. mobile-label::
-
-         Live
-
-      .. noscript-content::
-
-         Vagrant
-         ^^^^^^^
-
-         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
-
-         .. code-block:: console
-
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
-              cd vagrant-flocker && \
-              vagrant up
-
-         AWS
-         ^^^
-
-         Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
-
-      .. tabs::
-
-         Vagrant
-         ^^^^^^^
-
-         Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
-
-         .. code-block:: console
-
-            you@laptop:~$ git clone \
-              https://github.com/clusterhq/vagrant-flocker && \
-              cd vagrant-flocker && \
-              vagrant up
-
-         AWS
-         ^^^
-
-         Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
-
-
-      .. empty-div:: arrow-down arrow-offset center-block
+   .. empty-div:: arrow-down center-block invisible
 
 .. tutorial-step::
 
-   Step 2: Deploying a demo app
+   Step 2: Install Flocker Node
    ============================
+
+   .. mobile-label::
+
+      Live
+
+   .. image:: images/nodes.png
+      :class: center-block offset-top img-responsive
+      :alt: Flocker Node diagram
+
+   Flocker Node
+   ------------
+
+   +--------------------------------------------------------------------------+
+   | Runs on each server in a cluster                                         |
+   +--------------------------------------------------------------------------+
+   | Links, ports and volumes work across hosts                               |
+   +--------------------------------------------------------------------------+
+   | After deployment, containers can move around                             |
+   +--------------------------------------------------------------------------+
+
+   .. empty-div:: arrow-down center-block
+
+   .. mobile-label::
+
+      Live
+
+   .. noscript-content::
+
+      Vagrant
+      ^^^^^^^
+
+      Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
+
+      .. code-block:: console
+
+         you@laptop:~$ git clone \
+           https://github.com/clusterhq/vagrant-flocker && \
+           cd vagrant-flocker && \
+           vagrant up
+
+      AWS
+      ^^^
+
+      Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
+
+   .. tabs::
+
+      Vagrant
+      ^^^^^^^
+
+      Simulate a Flocker cluster with virtual machines on your laptop (requires `Vagrant <http://www.vagrantup.com/downloads>`_, `VirtualBox <https://www.virtualbox.org/wiki/Downloads>`_):
+
+      .. code-block:: console
+
+         you@laptop:~$ git clone \
+           https://github.com/clusterhq/vagrant-flocker && \
+           cd vagrant-flocker && \
+           vagrant up
+
+      AWS
+      ^^^
+
+      Please see our separate :ref:`AWS install instructions <aws-install>` to get started.
+
+
+   .. empty-div:: arrow-down arrow-offset center-block
+
+.. tutorial-step::
+
+   Step 3: Deploy an application with a persistent volume
+   ======================================================
 
    .. tutorial-step-condensed::
 
@@ -264,8 +257,8 @@ Getting started with Flocker
 
 .. tutorial-step::
 
-   Step 3: Migrating a container
-   =============================
+   Step 4: Migrate an application and its volume
+   =============================================
 
    .. tutorial-step-condensed::
 
