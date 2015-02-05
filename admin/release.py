@@ -7,14 +7,10 @@ Helper utilities for the Flocker release process.
 
 import sys
 from collections import namedtuple
-from characteristic import attributes, Attribute
 from effect import (
-    Effect,
-    sync_perform, sync_performer,
-    TypeDispatcher, ComposedDispatcher, base_dispatcher)
+    Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do, do_return
 
-import boto
 
 from twisted.python.usage import Options, UsageError
 
@@ -23,6 +19,15 @@ import flocker
 
 # TODO: Get this from https://github.com/ClusterHQ/flocker/pull/1092
 from flocker.docs import get_doc_version, is_release, is_weekly_release
+
+from ..aws import (
+    boto_dispatcher,
+    UpdateS3RoutingRule,
+    ListS3Keys,
+    DeleteS3Keys,
+    CopyS3Keys,
+    CreateCloudFrontInvalidation,
+)
 
 
 __all__ = ['rpm_version', 'make_rpm_version']
@@ -94,40 +99,6 @@ class NotARelease(Exception):
     """
 
 
-@attributes([
-    "bucket",
-    "prefix",
-    "target_prefix",
-])
-class UpdateS3RoutingRule(object):
-    """
-    Update a routing rule for an S3 bucket website endpoint to point to a new
-    path.
-
-    If the path is changed, return the old path.
-
-    :ivar bytes bucket: Name of bucket to change routing rule for.
-    :ivar bytes prefix: Prefix to change routing rule for.
-    :ivar bytes target_prefix: Target prefix to redirect to.
-    """
-
-
-@sync_performer
-def perform_update_s3_routing_rule(dispatcher, intent):
-    s3 = boto.connect_s3()
-    bucket = s3.get_bucket(intent.bucket)
-    config = bucket.get_website_configuration_obj()
-    rule = [rule for rule in config.routing_rules if
-            rule.condition.key_prefix == intent.prefix][0]
-    if rule.redirect.replace_key_prefix == intent.target_prefix:
-        return None
-    else:
-        old_prefix = rule.redirect.replace_key_prefix
-        rule.redirect.replace_key_prefix = intent.target_prefix
-        bucket.set_website_configuration()
-        return old_prefix
-
-
 def configure_s3_routing_rules(doc_version, bucket, is_dev):
     prefix = 'en/devel/' if is_dev else 'en/latest/'
     target_prefix = '/en/%s/' % (doc_version,)
@@ -164,106 +135,6 @@ def create_cloudfront_invalidation(doc_version, bucket, is_dev,
     yield do_return(
         Effect(CreateCloudFrontInvalidation(cname=cname, paths=paths))
     )
-
-
-@attributes([
-    "cname",
-    "paths",
-])
-class CreateCloudFrontInvalidation(object):
-    """
-    Crete a CloudFront invalidation request.
-
-    :ivar bytes cname: A CNAME associated to the distribution to create an
-        invalidation for.
-    :ivar list paths: List of paths to invalidate.
-    """
-
-
-@sync_performer
-def perform_create_cloudfront_invalidation(dispatcher, intent):
-    cf = boto.connect_cloudfront()
-    distribution = [dist for dist in cf.get_all_distributions()
-                    if intent.cname in dist.cnames][0]
-    cf.create_invalidation_request(distribution.id, intent.paths)
-
-
-@attributes([
-    "bucket",
-    Attribute("prefix", default_value=""),
-    "keys",
-])
-class DeleteS3Keys(object):
-    """
-    Delete a list of keys from an S3 bucket.
-    :ivar bytes bucket: Name of bucket to delete keys from.
-    :ivar bytes prefix: Prefix to add to each key to delete.
-    :ivar list keys: List of keys to be deleted.
-    """
-
-
-@sync_performer
-def perform_delete_s3_keys(dispatcher, intent):
-    s3 = boto.connect_s3()
-    bucket = s3.get_bucket(intent.bucket)
-    bucket.delete_keys(
-        [intent.prefix + key
-         for key in intent.keys])
-
-
-@attributes([
-    "source_bucket",
-    Attribute("source_prefix", default_value=""),
-    "destination_bucket",
-    Attribute("destination_prefix", default_value=""),
-    "keys",
-])
-class CopyS3Keys(object):
-    """
-    Copy a list of keys from one S3 bucket to another.
-
-    :ivar bytes source_bucket: Name of bucket to copy keys from.
-    :ivar bytes source_prefix: Prefix to add to each key to in
-        ``source_bucket``.
-    :ivar bytes destination_bucket: Name of bucket to copy keys to.
-    :ivar bytes destination_prefix: Prefix to add to each key to in
-        ``destination_bucket``.
-    :ivar list keys: List of keys to be copied.
-    """
-
-
-@sync_performer
-def perform_copy_s3_keys(dispatcher, intent):
-    s3 = boto.connect_s3()
-    destination_bucket = s3.get_bucket(intent.destination_bucket)
-    for key in intent.keys:
-        destination_bucket.copy_key(
-            new_key_name=intent.destination_prefix + key,
-            src_bucket_name=intent.source_bucket,
-            src_key_name=intent.source_prefix + key)
-
-
-@attributes([
-    "bucket",
-    "prefix",
-])
-class ListS3Keys(object):
-    """
-    List the S3 keys in a bucket.
-
-    Note that returns a list with the prefixes stripped.
-
-    :ivar bytes bucket: Name of bucket to list keys from.
-    :ivar bytes prefix: Prefix of keys to be listed.
-    """
-
-
-@sync_performer
-def perform_list_s3_keys(dispatcher, intent):
-    s3 = boto.connect_s3()
-    bucket = s3.get_bucket(intent.bucket)
-    return [key.name[len(intent.prefix):]
-            for key in bucket.list(intent.prefix)]
 
 
 @do
@@ -314,14 +185,6 @@ def publish_docs(flocker_version, doc_version, bucket):
         changed_keys=changed_keys,
         old_prefix=old_prefix,
         is_dev=is_devel)
-
-boto_dispatcher = TypeDispatcher({
-    UpdateS3RoutingRule: perform_update_s3_routing_rule,
-    ListS3Keys: perform_list_s3_keys,
-    DeleteS3Keys: perform_delete_s3_keys,
-    CopyS3Keys: perform_copy_s3_keys,
-    CreateCloudFrontInvalidation: perform_create_cloudfront_invalidation,
-})
 
 
 class PublishDocsOptions(Options):

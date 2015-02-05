@@ -5,20 +5,13 @@ Tests for ``admin.release``.
 """
 
 from unittest import TestCase
-from characteristic import attributes, Attribute
-from effect import (
-    sync_perform, sync_performer,
-    TypeDispatcher, ComposedDispatcher, base_dispatcher)
+from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
 from ..release import (
     rpm_version, make_rpm_version,
     publish_docs,
-    UpdateS3RoutingRule,
-    ListS3Keys,
-    DeleteS3Keys,
-    CopyS3Keys,
-    CreateCloudFrontInvalidation,
 )
+from ..aws import FakeAWS
 
 
 class MakeRpmVersionTests(TestCase):
@@ -66,56 +59,6 @@ class MakeRpmVersionTests(TestCase):
             u'Non-integer value "X" for "pre". Supplied version 0.1.2preX',
             unicode(exception.exception)
         )
-
-
-@attributes([
-    Attribute('routing_rules'),
-    Attribute('s3_buckets')
-])
-class FakeAWS(object):
-    def __init__(self):
-        self.cloudfront_invalidations = []
-
-    @sync_performer
-    def _perform_update_s3_routing_rule(self, dispatcher, intent):
-        old_target = self.routing_rules[intent.bucket][intent.prefix]
-        self.routing_rules[intent.bucket][intent.prefix] = intent.target_prefix
-        return old_target
-
-    @sync_performer
-    def _perform_create_cloudfront_invalidation(self, dispathcer, intent):
-        self.cloudfront_invalidations.append(intent)
-
-    @sync_performer
-    def _perform_delete_s3_keys(self, dispathcer, intent):
-        bucket = self.s3_buckets[intent.bucket]
-        for key in intent.keys:
-            del bucket[intent.prefix + key]
-
-    @sync_performer
-    def _perform_copy_s3_keys(self, dispathcer, intent):
-        source_bucket = self.s3_buckets[intent.source_bucket]
-        destination_bucket = self.s3_buckets[intent.source_bucket]
-        for key in intent.keys:
-            destination_bucket[intent.destination_prefix + key] = (
-                source_bucket[intent.source_prefix + key])
-
-    @sync_performer
-    def _perform_list_s3_keys(self, dispathcer, intent):
-        bucket = self.s3_buckets[intent.bucket]
-        return [key.name[len(intent.prefix):]
-                for key in bucket
-                if key.startswith(intent.prefix)]
-
-    def get_dispatcher(self):
-        return TypeDispatcher({
-            UpdateS3RoutingRule: self._perform_update_s3_routing_rule,
-            ListS3Keys: self._perform_list_s3_keys,
-            DeleteS3Keys: self._perform_delete_s3_keys,
-            CopyS3Keys: self._perform_copy_s3_keys,
-            CreateCloudFrontInvalidation:
-                self._perform_create_cloudfront_invalidation,
-        })
 
 
 class PublishDocsTests(TestCase):
