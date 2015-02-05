@@ -171,6 +171,7 @@ setup(
             "PyCrypto",
             "pyasn1",
             "tl.eggdeps",
+            "effect==0.1a13",
             ],
         },
 
