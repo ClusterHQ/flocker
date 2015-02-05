@@ -11,13 +11,14 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.internet.protocol import Protocol
 from twisted.internet.defer import succeed, Deferred
 
-from ...testutils import FakeAMPClient
+from ...testtools import FakeAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ClientConnected, ConvergenceLoopInputs,
     ConvergenceLoopStates, build_convergence_loop_fsm,
     )
-from .._deploy import IDeployer
+from .._deploy import IDeployer, IStateChange
+from ...control._protocol import NodeStateCommand
 
 
 def build_protocol():
@@ -221,6 +222,22 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.assertConvergenceLoopInputted([])
 
 
+@implementer(IStateChange)
+class ControllableAction(object):
+    """
+    ``IStateChange`` whose results can be controlled.
+    """
+    def __init__(self, result):
+        self.result = result
+        self.called = False
+        self.deployer = None
+
+    def run(self, deployer):
+        self.called = True
+        self.deployer = deployer
+        return self.result
+
+
 @implementer(IDeployer)
 class ControllableDeployer(object):
     """
@@ -259,18 +276,41 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         """
         deployer = ControllableDeployer([Deferred()], [])
         loop = build_convergence_loop_fsm(deployer)
-        loop.input(_ClientStatusUpdate(object(), object(), object()))
-        self.assertTrue(len(deployer.local_states), 0)  # Discovery started
+        loop.receive(_ClientStatusUpdate(client=object(),
+                                         configuration=object(),
+                                         state=object()))
+        self.assertEqual(len(deployer.local_states), 0)  # Discovery started
+
+    def successful_amp_client(self, local_state):
+        """
+        Create AMP client that can respond successfully to a
+        ``NodeStateCommand``.
+
+        :param local_state: The node state to return.
+
+        :return FakeAMPClient: Fake AMP client appropriately setup.
+        """
+        client = FakeAMPClient()
+        client.register_response(
+            NodeStateCommand, dict(node_state=local_state),
+            {"result": None})
+        return client
 
     def test_discovery_done_notify(self):
         """
         A FSM doing discovery that gets a result notifies the last received
         client.
         """
-        client = FakeAMPClient()
-        node_state = object()
-        client.register_response(NodeStateCommand, {})
-        # XXX ...
+        local_state = object()
+        client = self.successful_amp_client(local_state)
+        action = ControllableAction(Deferred())
+        deployer = ControllableDeployer([succeed(local_state)], [action])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(_ClientStatusUpdate(client=client,
+                                         configuration=object(),
+                                         state=object()))
+        self.assertEqual(client.calls, [(NodeStateCommand,
+                                         dict(node_state=local_state))])
 
     def test_discovery_done_changes(self):
         """
@@ -278,6 +318,18 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         changes using last received desired configuration and
         cluster state.
         """
+        local_state = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(Deferred())
+        deployer = ControllableDeployer([succeed(local_state)], [action])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(
+            _ClientStatusUpdate(client=self.successful_amp_client(local_state),
+                                configuration=configuration, state=state))
+        # Calculating actions happened, and result was run:
+        self.assertEqual((deployer.calculate_inputs, action.called),
+                         ([(local_state, configuration, state)], True))
 
     def test_discovery_status_update(self):
         """

@@ -732,10 +732,14 @@ class FakeAMPClient(object):
 
     A minimal amount of validation is done on registered responses and sent
     requests, but this should not be relied upon.
+
+    :ivar list calls: ``(command, kwargs)`` tuples of commands that have
+        been sent using ``callRemote``.
     """
 
     def __init__(self):
         self._responses = {}
+        self.calls = []
 
     def _makeKey(self, command, kwargs):
         """
@@ -776,5 +780,6 @@ class FakeAMPClient(object):
         @return: A C{Deferred} that fires with the registered response for
             this particular combination of command and arguments.
         """
+        self.calls.append((command, kwargs))
         command.makeArguments(kwargs, AMP())
         return succeed(self._responses[self._makeKey(command, kwargs)])

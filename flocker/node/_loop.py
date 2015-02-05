@@ -23,6 +23,8 @@ from machinist import (
 from twisted.application.service import Service
 from twisted.python.constants import Names, NamedConstant
 
+from ..control._protocol import NodeStateCommand
+
 
 class ClusterStatusInputs(Names):
     """
@@ -248,6 +250,8 @@ class ConvergenceLoop(object):
         configuration. Initially ``None``.
 
     :ivar Deployment state: Actual cluster state.  Initially ``None``.
+
+    :ivar fsm: The finite state machine this is part of.
     """
     def __init__(self, deployer):
         """
@@ -257,28 +261,27 @@ class ConvergenceLoop(object):
         self.deployer = deployer
 
     def output_STORE_INFO(self, context):
-        #self.client, self.configuration, self.cluster_state = (
-        #    context.client, context.configuration, context.state)
-        pass
+        self.client, self.configuration, self.cluster_state = (
+            context.client, context.configuration, context.state)
 
     def output_DISCOVER(self, context):
-        #d = self.deployer.discover_node_configuration()
-        #d.addCallback(
-        #    lambda node_state: self.input(_DiscoveredStatus(node_state)))
+        d = self.deployer.discover_local_state()
+        d.addCallback(
+            lambda local_state: self.fsm.receive(
+                _DiscoveredStatus(local_state=local_state)))
         # XXX error case
-        pass
 
     def output_REPORT_NODE_STATE(self, context):
-        #self.client.callRemote(NodeStateCommand, node_state=context.node_state)
-        pass
+        self.client.callRemote(NodeStateCommand,
+                               node_state=context.local_state)
 
     def output_CHANGE(self, context):
-        # XXX need to refactor Deployer slightly so you can pass in NodeState...
-        #d = self.deployer.change_node_state(self.configuration, self.cluster_state,
-        #                                    HOSTNAME)
+        action = self.deployer.calculate_necessary_state_changes(
+            context.local_state, self.configuration, self.cluster_state)
+        action.run(self.deployer)
         #d.addCallback(lambda _: self.input(ConvergenceLoopInputs.CHANGES_DONE))
         # XXX log error and do same input anyway
-        pass
+
 
 
 def build_convergence_loop_fsm(deployer):
@@ -317,10 +320,13 @@ def build_convergence_loop_fsm(deployer):
             I.STATUS_UPDATE: ([O.STORE_INFO], S.CHANGING),
             I.CHANGES_DONE: ([], S.STOPPED),
             })
-    return constructFiniteStateMachine(
+    loop = ConvergenceLoop(deployer)
+    fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
         richInputs=[_ClientStatusUpdate, _DiscoveredStatus], inputContext={},
-        world=MethodSuffixOutputer(ConvergenceLoop(deployer)))
+        world=MethodSuffixOutputer(loop))
+    loop.fsm = fsm
+    return fsm
 
 
 class AgentLoopService(Service):
