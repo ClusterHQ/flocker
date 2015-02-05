@@ -281,19 +281,20 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
                                          state=object()))
         self.assertEqual(len(deployer.local_states), 0)  # Discovery started
 
-    def successful_amp_client(self, local_state):
+    def successful_amp_client(self, local_states):
         """
         Create AMP client that can respond successfully to a
         ``NodeStateCommand``.
 
-        :param local_state: The node state to return.
+        :param local_states: The node states we expect to be able to send.
 
         :return FakeAMPClient: Fake AMP client appropriately setup.
         """
         client = FakeAMPClient()
-        client.register_response(
-            NodeStateCommand, dict(node_state=local_state),
-            {"result": None})
+        for local_state in local_states:
+            client.register_response(
+                NodeStateCommand, dict(node_state=local_state),
+                {"result": None})
         return client
 
     def test_convergence_done_notify(self):
@@ -302,7 +303,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         received client.
         """
         local_state = object()
-        client = self.successful_amp_client(local_state)
+        client = self.successful_amp_client([local_state])
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(deployer)
@@ -324,9 +325,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(deployer)
-        loop.receive(
-            _ClientStatusUpdate(client=self.successful_amp_client(local_state),
-                                configuration=configuration, state=state))
+        loop.receive(_ClientStatusUpdate(
+            client=self.successful_amp_client([local_state]),
+            configuration=configuration, state=state))
         # Calculating actions happened, and result was run:
         self.assertEqual((deployer.calculate_inputs, action.called),
                          ([(local_state, configuration, state)], True))
@@ -336,11 +337,32 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         A FSM doing a convergence iteration does another iteration when
         applying changes is done.
         """
+        local_state = object()
+        local_state2 = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(succeed(None))
+        action2 = ControllableAction(Deferred())
+        deployer = ControllableDeployer(
+            [succeed(local_state), succeed(local_state2)],
+            [action, action2])
+        client = self.successful_amp_client([local_state, local_state2])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+        # Calculating actions happened, result was run... and then we did
+        # whole thing again:
+        self.assertEqual((deployer.calculate_inputs, client.calls),
+                         ([(local_state, configuration, state),
+                           (local_state2, configuration, state)],
+                          [(NodeStateCommand, dict(node_state=local_state)),
+                           (NodeStateCommand, dict(node_state=local_state2))]))
 
     def test_convergence_status_update(self):
         """
         A FSM doing convergence that receives a status update stores the
-        client, desired configuration and cluster state.
+        client, desired configuration and cluster state, which are then
+        used in next convergence iteration.
         """
 
     def test_convergence_stop(self):

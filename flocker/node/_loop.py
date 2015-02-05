@@ -252,9 +252,10 @@ class ConvergenceLoop(object):
             self.client.callRemote(NodeStateCommand, node_state=local_state)
             action = self.deployer.calculate_necessary_state_changes(
                 local_state, self.configuration, self.cluster_state)
-            action.run(self.deployer)
-            #d.addCallback(lambda _: self.fsm.input(ConvergenceLoopInputs.ITERATION_DONE))
+            return action.run(self.deployer)
         d.addCallback(got_local_state)
+        d.addCallback(lambda _: self.fsm.receive(
+            ConvergenceLoopInputs.ITERATION_DONE))
 
 
 def build_convergence_loop_fsm(deployer):
