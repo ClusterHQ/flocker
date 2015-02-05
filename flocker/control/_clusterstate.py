@@ -21,18 +21,16 @@ class ClusterStateService(Service):
     def __init__(self):
         self._nodes = {}
 
-    # XXX delete hostname argument, no longer necessary
-    def update_node_state(self, hostname, node_state):
+    def update_node_state(self, node_state):
         """
         Update the state of a given node.
 
         XXX: Multiple nodes may report being primary for a dataset. Enforce
         consistency here. See https://clusterhq.atlassian.net/browse/FLOC-1303
 
-        :param unicode hostname: The node's identifier.
         :param NodeState node_state: The state of the node.
         """
-        self._nodes[hostname] = node_state
+        self._nodes[node_state.hostname] = node_state
 
     def as_deployment(self):
         """

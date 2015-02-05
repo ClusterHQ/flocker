@@ -2773,7 +2773,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         A dict with a version and empty applications list are returned if no
         applications are supplied.
         """
-        result = marshal_configuration(NodeState(running=[], not_running=[]))
+        result = marshal_configuration(NodeState(
+            hostname=u"example", running=[], not_running=[]))
         expected = {
             'applications': {},
             'used_ports': [],
@@ -2795,7 +2796,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2825,7 +2827,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2858,7 +2861,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2889,7 +2893,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2930,7 +2935,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -2973,7 +2979,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -3011,7 +3018,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         ]
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example", running=applications,
+                      not_running=[]))
         expected = {
             'used_ports': [],
             'applications': {
@@ -3045,7 +3053,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         )
 
         result = marshal_configuration(
-            NodeState(running=[running], not_running=[not_running]))
+            NodeState(hostname=u"example", running=[running],
+                      not_running=[not_running]))
 
         expected = {
             'used_ports': [],
@@ -3070,7 +3079,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
         ``marshal_configuration``.
         """
         used_ports = frozenset({1, 20, 250, 15020, 65000})
-        state = NodeState(running=[], not_running=[], used_ports=used_ports)
+        state = NodeState(hostname=u"host",
+                          running=[], not_running=[], used_ports=used_ports)
         expected = {
             'used_ports': sorted(used_ports),
             'applications': {},
@@ -3124,7 +3134,8 @@ class MarshalConfigurationTests(SynchronousTestCase):
             )
         }
         result = marshal_configuration(
-            NodeState(running=applications, not_running=[]))
+            NodeState(hostname=u"example",
+                      running=applications, not_running=[]))
         config = FlockerConfiguration(result)
         apps = config.applications()
         self.assertEqual(expected_applications, apps)

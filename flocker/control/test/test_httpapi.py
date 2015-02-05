@@ -508,7 +508,8 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset=expected_dataset, primary=True)
         expected_hostname = u"192.0.2.101"
         self.cluster_state_service.update_node_state(
-            expected_hostname, NodeState(
+            NodeState(
+                hostname=expected_hostname,
                 running=[],
                 not_running=[],
                 other_manifestations=frozenset([expected_manifestation])
@@ -538,14 +539,16 @@ class DatasetsStateTestsMixin(APITestsMixin):
             dataset=expected_dataset2, primary=True)
         expected_hostname2 = u"192.0.2.102"
         self.cluster_state_service.update_node_state(
-            expected_hostname1, NodeState(
+            NodeState(
+                hostname=expected_hostname1,
                 running=[],
                 not_running=[],
                 other_manifestations=frozenset([expected_manifestation1])
             )
         )
         self.cluster_state_service.update_node_state(
-            expected_hostname2, NodeState(
+            NodeState(
+                hostname=expected_hostname2,
                 running=[],
                 not_running=[],
                 other_manifestations=frozenset([expected_manifestation2])
