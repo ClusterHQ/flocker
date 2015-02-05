@@ -26,6 +26,8 @@ Interactions:
 
 from pickle import dumps, loads
 
+from characteristic import with_cmp
+
 from zope.interface import Interface
 
 from twisted.application.service import Service
@@ -242,6 +244,7 @@ class IConvergenceAgent(Interface):
         """
 
 
+@with_cmp(["agent"])
 class _AgentLocator(CommandLocator):
     """
     Command locator for convergence agent.

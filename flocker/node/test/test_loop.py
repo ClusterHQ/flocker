@@ -7,9 +7,10 @@ Tests for ``flocker.node._loop``.
 from zope.interface import implementer
 
 from twisted.trial.unittest import SynchronousTestCase
-from twisted.test.proto_helpers import StringTransport
-from twisted.internet.protocol import Protocol
+from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
+from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred
+from twisted.protocols.amp import AMP
 
 from ...testtools import FakeAMPClient
 from .._loop import (
@@ -19,7 +20,7 @@ from .._loop import (
     ClusterStatus, ConvergenceLoop,
     )
 from .._deploy import IDeployer, IStateChange
-from ...control._protocol import NodeStateCommand
+from ...control._protocol import NodeStateCommand, _AgentLocator
 
 
 def build_protocol():
@@ -481,7 +482,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
         """
         deployer = object()
         service = AgentLoopService(
-            deployer=deployer, host=u"example.com", port=1234)
+            reactor=None, deployer=deployer, host=u"example.com", port=1234)
         cluster_status_fsm_world = service.cluster_status._fsm._world.original
         convergence_loop_fsm_world = (
             cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
@@ -493,15 +494,34 @@ class AgentLoopServiceTests(SynchronousTestCase):
     def test_start_service(self):
         """
         Starting the service starts a reconnecting TCP client to given host
-        and port which calls ``build_agent_client`` with the servie when
+        and port which calls ``build_agent_client`` with the service when
         connected.
         """
+        reactor = MemoryReactorClock()
+        service = AgentLoopService(
+            reactor=reactor, deployer=object(), host=u"example.com", port=1234)
+        service.startService()
+        host, port, factory = reactor.tcpClients[0][:3]
+        protocol = factory.buildProtocol(None)
+        self.assertEqual((host, port, factory.__class__,
+                          factory.continueTrying,
+                          protocol.__class__, protocol.locator),
+                         (u"example.com", 1234, ReconnectingClientFactory,
+                          True, AMP, _AgentLocator(service)))
 
     def test_stop_service(self):
         """
         Stopping the service stops the reconnecting TCP client and inputs
         shutdown event to the cluster status FSM.
         """
+        reactor = MemoryReactorClock()
+        service = AgentLoopService(
+            reactor=reactor, deployer=object(), host=u"example.com", port=1234)
+        service.cluster_status = fsm = StubFSM()
+        service.startService()
+        service.stopService()
+        self.assertEqual((service.factory.continueTrying, fsm.inputted),
+                         (False, [ClusterStatusInputs.SHUTDOWN]))
 
     def test_connected(self):
         """

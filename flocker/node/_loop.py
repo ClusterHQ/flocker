@@ -26,7 +26,9 @@ from twisted.application.service import Service
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
 
-from ..control._protocol import NodeStateCommand, IConvergenceAgent
+from ..control._protocol import (
+    NodeStateCommand, IConvergenceAgent, build_agent_client,
+    )
 
 
 class ClusterStatusInputs(Names):
@@ -299,11 +301,12 @@ def build_convergence_loop_fsm(deployer):
 
 
 @implementer(IConvergenceAgent)
-@attributes(["deployer", "host", "port"])
+@attributes(["reactor", "deployer", "host", "port"])
 class AgentLoopService(Service):
     """
     Service in charge of running the convergence loop.
 
+    :ivar reactor: The reactor.
     :ivar IDeployer deployer: Deployer for discovering local state and
             then changing it.
     :ivar host: Host to connect to.
@@ -316,16 +319,13 @@ class AgentLoopService(Service):
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
 
     def startService(self):
-        #self.factory = ReconnectingClientFactory()
-        #self.factory.protocol = lambda: AgentClient(self)
-        #reactor.connectTCP(self.host, self.port)
-        pass
+        self.factory = ReconnectingClientFactory()
+        self.factory.protocol = lambda: build_agent_client(self)
+        self.reactor.connectTCP(self.host, self.port, self.factory)
 
     def stopService(self):
-        # stop factory
-        # input SHUTDOWN to self.cluster_status
-        # return Defererd that fires when everything has been closed
-        pass
+        self.factory.stopTrying()
+        self.cluster_status.receive(ClusterStatusInputs.SHUTDOWN)
 
     def connected(self, client):
         # input _ClientConnected to self.convergence_loop, pass reference to client in
