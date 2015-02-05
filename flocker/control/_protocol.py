@@ -276,7 +276,7 @@ class _AgentBoxReceiver(BoxDispatcher):
 
     def startReceivingBoxes(self, box_sender):
         BoxDispatcher.startReceivingBoxes(self, box_sender)
-        self.agent.connected(self) # XXX FLOC-1255 added this
+        self.agent.connected(self)
 
     def stopReceivingBoxes(self, reason):
         BoxDispatcher.stopReceivingBoxes(self, reason)
