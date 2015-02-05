@@ -21,6 +21,7 @@ from .._loop import (
     )
 from .._deploy import IDeployer, IStateChange
 from ...control._protocol import NodeStateCommand, _AgentLocator
+from ...control.test.test_protocol import iconvergence_agent_tests_factory
 
 
 def build_protocol():
@@ -561,3 +562,20 @@ class AgentLoopServiceTests(SynchronousTestCase):
         service.cluster_updated(config, state)
         self.assertEqual(fsm.inputted, [_StatusUpdate(configuration=config,
                                                       state=state)])
+
+
+def _build_service(test):
+    """
+    Fixture for creating ``AgentLoopService``.
+    """
+    service = AgentLoopService(
+        reactor=None, deployer=object(), host=u"example.com", port=1234)
+    service.cluster_status = StubFSM()
+    return service
+
+
+class AgentLoopServiceInterfaceTests(
+        iconvergence_agent_tests_factory(_build_service)):
+    """
+    ``IConvergenceAgent`` tests for ``AgentLoopService``.
+    """

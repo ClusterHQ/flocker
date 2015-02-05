@@ -7,12 +7,13 @@ Tests for ``flocker.control._protocol``.
 from uuid import uuid4
 
 from zope.interface import implementer
+from zope.interface.verify import verifyObject
 
 from characteristic import attributes, Attribute
 
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactor
-from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError
+from twisted.protocols.amp import UnknownRemoteError, RemoteAmpError, AMP
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionLost
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -322,7 +323,7 @@ class FakeAgent(object):
     https://clusterhq.atlassian.net/browse/FLOC-1255 may change this a
     little.
     """
-    def connected(self):
+    def connected(self, client):
         self.is_connected = True
 
     def disconnected(self):
@@ -383,3 +384,69 @@ class AgentClientTests(SynchronousTestCase):
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
                                                desired=TEST_DEPLOYMENT,
                                                actual=actual))
+
+
+def iconvergence_agent_tests_factory(fixture):
+    """
+    Create tests that verify basic ``IConvergenceAgent`` compliance.
+
+    :param fixture: Callable that takes ``SynchronousTestCase`` instance
+        and returns a ``IConvergenceAgent`` provider.
+
+    :return: ``SynchronousTestCase`` subclass.
+    """
+    class IConvergenceAgentTests(SynchronousTestCase):
+        """
+        Tests for ``IConvergenceAgent``.
+        """
+        def test_connected(self):
+            """
+            ``IConvergenceAgent.connected()`` takes an AMP instance.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+
+        def test_disconnected(self):
+            """
+            ``IConvergenceAgent.disconnected()`` can be called after
+            ``IConvergenceAgent.connected()``.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.disconnected()
+
+        def test_reconnected(self):
+            """
+            ``IConvergenceAgent.connected()`` can be called after
+            ``IConvergenceAgent.disconnected()``.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.disconnected()
+            agent.connected(AMP())
+
+        def test_cluster_updated(self):
+            """
+            ``IConvergenceAgent.cluster_updated()`` takes two ``Deployment``
+            instances.
+            """
+            agent = fixture(self)
+            agent.connected(AMP())
+            agent.cluster_updated(
+                Deployment(nodes=frozenset()), Deployment(nodes=frozenset()))
+
+        def test_interface(self):
+            """
+            The object provides ``IConvergenceAgent``.
+            """
+            agent = fixture(self)
+            self.assertTrue(verifyObject(IConvergenceAgent, agent))
+
+    return IConvergenceAgentTests
+
+
+class FakeAgentInterfaceTests(iconvergence_agent_tests_factory(
+        lambda test: FakeAgent())):
+    """
+    ``IConvergenceAgent`` tests for ``FakeAgent``.
+    """
