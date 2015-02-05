@@ -364,12 +364,69 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         client, desired configuration and cluster state, which are then
         used in next convergence iteration.
         """
+        local_state = object()
+        local_state2 = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(Deferred())
+        action2 = ControllableAction(Deferred())
+        deployer = ControllableDeployer(
+            [succeed(local_state), succeed(local_state2)],
+            [action, action2])
+        client = self.successful_amp_client([local_state])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+
+        # Calculating actions happened, action is run, but waits for
+        # Deferred to be fired... Meanwhile a new status update appears!
+        client2 = self.successful_amp_client([local_state2])
+        configuration2 = object()
+        state2 = object()
+        loop.receive(_ClientStatusUpdate(
+            client=client2, configuration=configuration2, state=state2))
+        # Action finally finishes, and we can move on to next iteration,
+        # which happens with second set of client, desired configuration
+        # and cluster state:
+        action.result.callback(None)
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls, client2.calls),
+            ([(local_state, configuration, state),
+              (local_state2, configuration2, state2)],
+             [(NodeStateCommand, dict(node_state=local_state))],
+             [(NodeStateCommand, dict(node_state=local_state2))]))
 
     def test_convergence_stop(self):
         """
         A FSM doing convergence that receives a stop input stops when the
         convergence iteration finishes.
         """
+        local_state = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(Deferred())
+        # Only one discovery result is configured, so a second attempt at
+        # discovery would fail:
+        deployer = ControllableDeployer([succeed(local_state)],
+                                        [action])
+        client = self.successful_amp_client([local_state])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+
+        # Calculating actions happened, action is run, but waits for
+        # Deferred to be fired... Meanwhile a stop input is received!
+        loop.receive(ConvergenceLoopInputs.STOP)
+        # Action finally finishes, and nothing more happens; if another
+        # iteration did happen the loop would attempt discovery, which
+        # would make deployer.discover_local_state() to fail since it was
+        # only configured with one result.
+        action.result.callback(None)
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls, loop.state),
+            ([(local_state, configuration, state)],
+             [(NodeStateCommand, dict(node_state=local_state))],
+             ConvergenceLoopStates.STOPPED))
 
     def test_convergence_stop_then_status_update(self):
         """
@@ -377,3 +434,36 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         update continues on to to next convergence iteration (i.e. stop
         ends up being ignored).
         """
+        local_state = object()
+        local_state2 = object()
+        configuration = object()
+        state = object()
+        action = ControllableAction(Deferred())
+        action2 = ControllableAction(Deferred())
+        deployer = ControllableDeployer(
+            [succeed(local_state), succeed(local_state2)],
+            [action, action2])
+        client = self.successful_amp_client([local_state])
+        loop = build_convergence_loop_fsm(deployer)
+        loop.receive(_ClientStatusUpdate(
+            client=client, configuration=configuration, state=state))
+
+        # Calculating actions happened, action is run, but waits for
+        # Deferred to be fired... Meanwhile a new status update appears!
+        client2 = self.successful_amp_client([local_state2])
+        configuration2 = object()
+        state2 = object()
+        loop.receive(ConvergenceLoopInputs.STOP)
+        # And then another status update!
+        loop.receive(_ClientStatusUpdate(
+            client=client2, configuration=configuration2, state=state2))
+        # Action finally finishes, and we can move on to next iteration,
+        # which happens with second set of client, desired configuration
+        # and cluster state:
+        action.result.callback(None)
+        self.assertEqual(
+            (deployer.calculate_inputs, client.calls, client2.calls),
+            ([(local_state, configuration, state),
+              (local_state2, configuration2, state2)],
+             [(NodeStateCommand, dict(node_state=local_state))],
+             [(NodeStateCommand, dict(node_state=local_state2))]))
