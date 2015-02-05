@@ -80,7 +80,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
@@ -93,7 +93,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
@@ -105,7 +105,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
@@ -120,7 +120,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
@@ -131,7 +131,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
@@ -143,7 +143,7 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
