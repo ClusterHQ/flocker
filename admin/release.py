@@ -1,3 +1,4 @@
+# -*- test-case-name: admin.test.test_release -*-
 # Copyright Hybrid Logic Ltd.  See LICENSE file for details.
 
 """
@@ -7,8 +8,11 @@ Helper utilities for the Flocker release process.
 import sys
 from collections import namedtuple
 from characteristic import attributes, Attribute
-from effect import sync_performer, Effect, sync_perform, TypeDispatcher
-from effect import do, do_return
+from effect import (
+    Effect,
+    sync_perform, sync_performer,
+    TypeDispatcher, ComposedDispatcher, base_dispatcher)
+from effect.do import do, do_return
 
 import boto
 
@@ -109,7 +113,7 @@ class UpdateS3RoutingRule(object):
 
 
 @sync_performer
-def perform_update_s3_routing_rule(intent):
+def perform_update_s3_routing_rule(dispatcher, intent):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     config = bucket.get_website_configuration_obj()
@@ -130,7 +134,7 @@ def configure_s3_routing_rules(doc_version, bucket, is_dev):
     return Effect(UpdateS3RoutingRule(
         bucket=bucket,
         prefix=prefix,
-        target_path=target_prefix))
+        target_prefix=target_prefix))
 
 
 @do
@@ -144,7 +148,7 @@ def create_cloudfront_invalidation(doc_version, bucket, is_dev,
 
     if old_prefix:
         list_old_keys = Effect(ListS3Keys(
-            bucket=bucket, perfix=old_prefix[1:])).on(success=set)
+            bucket=bucket, prefix=old_prefix[1:])).on(success=set)
         changed_keys |= yield list_old_keys
 
     for index in ['index.html', '/index.html']:
@@ -157,7 +161,7 @@ def create_cloudfront_invalidation(doc_version, bucket, is_dev,
              for prefix in prefixes]
 
     cname = 'from_bucket' + bucket
-    do_return(
+    yield do_return(
         Effect(CreateCloudFrontInvalidation(cname=cname, paths=paths))
     )
 
@@ -177,7 +181,7 @@ class CreateCloudFrontInvalidation(object):
 
 
 @sync_performer
-def perform_create_cloudfront_invalidation(intent):
+def perform_create_cloudfront_invalidation(dispatcher, intent):
     cf = boto.connect_cloudfront()
     distribution = [dist for dist in cf.get_all_distributions()
                     if intent.cname in dist.cnames][0]
@@ -199,7 +203,7 @@ class DeleteS3Keys(object):
 
 
 @sync_performer
-def perform_delete_s3_keys(intent):
+def perform_delete_s3_keys(dispatcher, intent):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     bucket.delete_keys(
@@ -229,7 +233,7 @@ class CopyS3Keys(object):
 
 
 @sync_performer
-def perform_copy_s3_keys(intent):
+def perform_copy_s3_keys(dispatcher, intent):
     s3 = boto.connect_s3()
     destination_bucket = s3.get_bucket(intent.destination_bucket)
     for key in intent.keys:
@@ -255,7 +259,7 @@ class ListS3Keys(object):
 
 
 @sync_performer
-def perform_list_s3_keys(intent):
+def perform_list_s3_keys(dispatcher, intent):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
     return [key.name[len(intent.prefix):]
@@ -263,8 +267,8 @@ def perform_list_s3_keys(intent):
 
 
 @do
-def copy_docs(flocker_version, doc_version, bucket_name):
-    destination_bucket = bucket_name
+def copy_docs(flocker_version, doc_version, bucket):
+    destination_bucket = bucket
     source_bucket = 'clusterhq-dev-docs'
     source_prefix = '%s/' % (flocker_version,)
     destination_prefix = 'en/%s/' % (doc_version,)
@@ -289,24 +293,24 @@ def copy_docs(flocker_version, doc_version, bucket_name):
 
     changed_keys = destination_keys | source_keys
 
-    do_return(
+    yield do_return(
         changed_keys
     )
 
 
 @do
-def publish_docs(flocker_version, doc_version, bucket_name):
-    changed_keys = yield copy_docs(flocker_version, doc_version, bucket_name)
+def publish_docs(flocker_version, doc_version, bucket):
+    changed_keys = yield copy_docs(flocker_version, doc_version, bucket)
 
     # Wether the latest, or the devel link should be updated.
     is_devel = not is_release(doc_version)
     old_prefix = yield configure_s3_routing_rules(
         doc_version=doc_version,
-        bucket_name=bucket_name,
+        bucket=bucket,
         is_dev=is_devel)
     yield create_cloudfront_invalidation(
         doc_version=doc_version,
-        bucket_name=bucket_name,
+        bucket=bucket,
         changed_keys=changed_keys,
         old_prefix=old_prefix,
         is_dev=is_devel)
@@ -359,7 +363,7 @@ def publish_docs_main(args, base_path, top_level):
         raise SystemExit(1)
 
     sync_perform(
-        dispatcher=boto_dispatcher,
+        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
         effect=publish_docs(
             flocker_version=options['flocker-version'],
             doc_version=options['doc-version'],
