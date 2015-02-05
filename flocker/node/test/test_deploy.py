@@ -731,7 +731,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(NodeState(running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[], not_running=[]),
                          self.successResultOf(d))
 
     def test_discover_one(self):
@@ -757,7 +758,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         )
         d = api.discover_local_state()
 
-        self.assertEqual(NodeState(running=[application], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[application], not_running=[]),
                          self.successResultOf(d))
 
     def test_discover_multiple(self):
@@ -1097,7 +1099,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         result = self.successResultOf(d)
         result.not_running.sort()
 
-        self.assertEqual(NodeState(running=[], not_running=applications),
+        self.assertEqual(NodeState(hostname=u'example.com',
+                                   running=[], not_running=applications),
                          result)
 
     def test_discover_used_ports(self):
@@ -1118,7 +1121,8 @@ class DeployerDiscoverNodeConfigurationTests(SynchronousTestCase):
         state = self.successResultOf(discovering)
 
         self.assertEqual(
-            NodeState(running=[], not_running=[], used_ports=used_ports),
+            NodeState(hostname=u'example.com',
+                      running=[], not_running=[], used_ports=used_ports),
             state
         )
 
@@ -2873,7 +2877,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                               current_cluster_state=EMPTY)
         d.addCallback(lambda _: api.discover_local_state())
 
-        self.assertEqual(NodeState(running=[], not_running=[]),
+        self.assertEqual(NodeState(hostname=u'node.example.com',
+                                   running=[], not_running=[]),
                          self.successResultOf(d))
 
     def test_applications_started(self):
@@ -2910,7 +2915,8 @@ class DeployerChangeNodeStateTests(SynchronousTestCase):
                                                repository=u'clusterhq/flocker',
                                                tag=u'release-14.0'),)
         self.assertEqual(
-            NodeState(running=[expected_application], not_running=[]),
+            NodeState(hostname=u'node.example.com',
+                      running=[expected_application], not_running=[]),
             self.successResultOf(d))
 
     def test_result(self):
