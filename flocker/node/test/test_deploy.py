@@ -2844,9 +2844,9 @@ class SetProxiesTests(SynchronousTestCase):
         self.assertEqual(3, len(failures))
 
 
-class DeployerChangeNodeStateTests(SynchronousTestCase):
+class ChangeNodeStateTests(SynchronousTestCase):
     """
-    Tests for ``P2PNodeDeployer.change_node_state``.
+    Tests for ``change_node_state``.
 
     XXX: Some of these tests are exercising code which has now been
     refactored into ``IStateChange`` objects. As such they can be
