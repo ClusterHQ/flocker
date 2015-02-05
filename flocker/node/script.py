@@ -29,7 +29,7 @@ from ..common.script import (
 from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
-from . import Deployer
+from . import P2PNodeDeployer, change_node_state
 
 
 __all__ = [
@@ -147,12 +147,10 @@ class ChangeStateScript(object):
         self._docker_client = docker_client
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client)
-        return deployer.change_node_state(
-            desired_state=options['deployment'],
-            current_cluster_state=options['current'],
-            hostname=options['hostname']
-        )
+        deployer = P2PNodeDeployer(
+            options['hostname'], volume_service, self._docker_client)
+        return change_node_state(deployer, options['deployment'],
+                                 options['current'])
 
 
 def flocker_changestate_main():
@@ -198,8 +196,13 @@ class ReportStateScript(object):
         self._network = network
 
     def main(self, reactor, options, volume_service):
-        deployer = Deployer(volume_service, self._docker_client, self._network)
-        d = deployer.discover_node_configuration()
+        # Discovery doesn't actually care about hostname, so don't bother
+        # figuring out correct one. Especially since this code is going
+        # away someday soon: https://clusterhq.atlassian.net/browse/FLOC-1353
+        deployer = P2PNodeDeployer(
+            u"localhost",
+            volume_service, self._docker_client, self._network)
+        d = deployer.discover_local_state()
         d.addCallback(marshal_configuration)
         d.addCallback(safe_dump)
         d.addCallback(self._stdout.write)
