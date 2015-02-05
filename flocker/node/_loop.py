@@ -312,29 +312,30 @@ class AgentLoopService(Service):
     :ivar host: Host to connect to.
     :ivar port: Port to connect to.
     :ivar cluster_status: A cluster status FSM.
+    :ivar factory: The factory used to connect to the control service.
     """
 
     def __init__(self):
         convergence_loop = build_convergence_loop_fsm(self.deployer)
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
-
-    def startService(self):
         self.factory = ReconnectingClientFactory()
         self.factory.protocol = lambda: build_agent_client(self)
+
+    def startService(self):
         self.reactor.connectTCP(self.host, self.port, self.factory)
 
     def stopService(self):
         self.factory.stopTrying()
         self.cluster_status.receive(ClusterStatusInputs.SHUTDOWN)
 
+    # IConvergenceAgent methods:
+
     def connected(self, client):
-        # input _ClientConnected to self.convergence_loop, pass reference to client in
-        pass
+        self.cluster_status.receive(_ClientConnected(client=client))
 
     def disconnected(self):
-        # input DISCONNECTED to self.cluster_status
-        pass
+        self.cluster_status.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
 
-    def cluster_updated(configuration, cluster_state):
-        # input _StatusUpdate with config and state to self.cluster_status
-        pass
+    def cluster_updated(self, configuration, cluster_state):
+        self.cluster_status.receive(_StatusUpdate(configuration=configuration,
+                                                  state=cluster_state))

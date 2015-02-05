@@ -528,6 +528,12 @@ class AgentLoopServiceTests(SynchronousTestCase):
         When ``connnected()`` is called a ``_ClientConnected`` input is passed
         to the cluster status FSM.
         """
+        service = AgentLoopService(
+            reactor=None, deployer=object(), host=u"example.com", port=1234)
+        service.cluster_status = fsm = StubFSM()
+        client = object()
+        service.connected(client)
+        self.assertEqual(fsm.inputted, [_ClientConnected(client=client)])
 
     def test_disconnected(self):
         """
@@ -535,9 +541,23 @@ class AgentLoopServiceTests(SynchronousTestCase):
         ``ClusterStatusInputs.CLIENT_DISCONNECTED`` input is passed to the
         cluster status FSM.
         """
+        service = AgentLoopService(
+            reactor=None, deployer=object(), host=u"example.com", port=1234)
+        service.cluster_status = fsm = StubFSM()
+        service.disconnected()
+        self.assertEqual(fsm.inputted,
+                         [ClusterStatusInputs.CLIENT_DISCONNECTED])
 
     def test_cluster_updated(self):
         """
         When ``cluster_updated()`` is called a ``_StatusUpdate`` input is
         passed to the cluster status FSM.
         """
+        service = AgentLoopService(
+            reactor=None, deployer=object(), host=u"example.com", port=1234)
+        service.cluster_status = fsm = StubFSM()
+        config = object()
+        state = object()
+        service.cluster_updated(config, state)
+        self.assertEqual(fsm.inputted, [_StatusUpdate(configuration=config,
+                                                      state=state)])
