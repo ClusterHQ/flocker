@@ -214,9 +214,6 @@ class ControlAMPService(Service):
 class IConvergenceAgent(Interface):
     """
     The agent that will receive notifications from control service.
-
-    This is a little sketchy; it will be solidified in
-    https://clusterhq.atlassian.net/browse/FLOC-1255
     """
     def connected(client):
         """

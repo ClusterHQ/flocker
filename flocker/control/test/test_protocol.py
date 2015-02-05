@@ -318,10 +318,6 @@ class ControlAMPServiceTests(SynchronousTestCase):
 class FakeAgent(object):
     """
     Fake agent for testing.
-
-    Not a full verified fake since
-    https://clusterhq.atlassian.net/browse/FLOC-1255 may change this a
-    little.
     """
     def connected(self, client):
         self.is_connected = True
