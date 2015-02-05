@@ -296,10 +296,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
             {"result": None})
         return client
 
-    def test_discovery_done_notify(self):
+    def test_convergence_done_notify(self):
         """
-        A FSM doing discovery that gets a result notifies the last received
-        client.
+        A FSM doing convergence that gets a discovery result notifies the last
+        received client.
         """
         local_state = object()
         client = self.successful_amp_client(local_state)
@@ -312,10 +312,10 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual(client.calls, [(NodeStateCommand,
                                          dict(node_state=local_state))])
 
-    def test_discovery_done_changes(self):
+    def test_convergence_done_changes(self):
         """
-        A FSM doing discovery that gets a result starts applying calculated
-        changes using last received desired configuration and
+        A FSM doing convergence that gets a discovery result starts applying
+        calculated changes using last received desired configuration and
         cluster state.
         """
         local_state = object()
@@ -331,44 +331,27 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         self.assertEqual((deployer.calculate_inputs, action.called),
                          ([(local_state, configuration, state)], True))
 
-    def test_discovery_status_update(self):
+    def test_convergence_done_start_new_iteration(self):
         """
-        A FSM doing discovery that receives a status update stores the client,
-        desired configuration and cluster state.
-        """
-
-    def test_discovery_stop(self):
-        """
-        A FSM doing discovery that receives a stop input stops when discovery
-        finishes.
+        A FSM doing a convergence iteration does another iteration when
+        applying changes is done.
         """
 
-    def test_discovery_stop_then_status_update(self):
+    def test_convergence_status_update(self):
         """
-        A FSM doing discovery that receives a stop input and then a status
-        update applies calculated changes (i.e. stop ends up being
-        ignored).
-        """
-
-    def test_changes_done(self):
-        """
-        A FSM applying changes switches to discovery after changes are done.
+        A FSM doing convergence that receives a status update stores the
+        client, desired configuration and cluster state.
         """
 
-    def test_changes_status_update(self):
+    def test_convergence_stop(self):
         """
-        A FSM applying changes that receives a status update stores the client,
-        desired configuration and cluster state.
-        """
-
-    def test_changes_stop(self):
-        """
-        A FSM applying changes that receives a stop input stops when changes
-        finishes.
+        A FSM doing convergence that receives a stop input stops when the
+        convergence iteration finishes.
         """
 
-    def test_changes_stop_then_status_update(self):
+    def test_convergence_stop_then_status_update(self):
         """
-        A FSM applyings changes that receives a stop input and then a status
-        update continues on to discovery (i.e. stop is ignored).
+        A FSM doing convergence that receives a stop input and then a status
+        update continues on to to next convergence iteration (i.e. stop
+        ends up being ignored).
         """

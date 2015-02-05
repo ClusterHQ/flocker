@@ -177,10 +177,9 @@ class ConvergenceLoopInputs(Names):
     STATUS_UPDATE = NamedConstant()
     # Stop the convergence loop:
     STOP = NamedConstant()
-    # Result of discovering local state:
-    DISCOVERED_STATUS = NamedConstant()
-    # Result of applying changes to local state:
-    CHANGES_DONE = NamedConstant()
+    # Finished applying necessary changes to local state, a single
+    # iteration of the convergence loop:
+    ITERATION_DONE = NamedConstant()
 
 
 @attributes(["client", "configuration", "state"])
@@ -196,31 +195,17 @@ class _ClientStatusUpdate(trivialInput(ConvergenceLoopInputs.STATUS_UPDATE)):
     """
 
 
-@attributes(["local_state"])
-class _DiscoveredStatus(trivialInput(ConvergenceLoopInputs.DISCOVERED_STATUS)):
-    """
-    A rich input indicating that the local state has been discovered.
-
-    :ivar local_state: The result of ``IDeployer.discover_local_state``.
-    """
-
-
 class ConvergenceLoopStates(Names):
     """
     Convergence loop FSM states.
     """
     # The loop is stopped:
     STOPPED = NamedConstant()
-    # Local state is being discovered:
-    DISCOVERING = NamedConstant()
-    # Local state is being discovered, and once that is done we will
+    # Local state is being discovered and changes applied:
+    CONVERGING = NamedConstant()
+    # Local state is being converged, and once that is done we will
     # immediately stop:
-    DISCOVERING_STOPPING = NamedConstant()
-    # Changes are being applied to the local state:
-    CHANGING = NamedConstant()
-    # Changes are being applied to the local state, and once that is done
-    # we will immediately stop:
-    CHANGING_STOPPING = NamedConstant()
+    CONVERGING_STOPPING = NamedConstant()
 
 
 class ConvergenceLoopOutputs(Names):
@@ -230,12 +215,8 @@ class ConvergenceLoopOutputs(Names):
     # Store AMP client, desired configuration and cluster state for later
     # use:
     STORE_INFO = NamedConstant()
-    # Start discovery of local state:
-    DISCOVER = NamedConstant()
-    # Report local state to the control service using the AMP client:
-    REPORT_NODE_STATE = NamedConstant()
-    # Start changing local state to match desired configuration:
-    CHANGE = NamedConstant()
+    # Start an iteration of the covergence loop:
+    CONVERGE = NamedConstant()
 
 
 class ConvergenceLoop(object):
@@ -264,24 +245,16 @@ class ConvergenceLoop(object):
         self.client, self.configuration, self.cluster_state = (
             context.client, context.configuration, context.state)
 
-    def output_DISCOVER(self, context):
+    def output_CONVERGE(self, context):
         d = self.deployer.discover_local_state()
-        d.addCallback(
-            lambda local_state: self.fsm.receive(
-                _DiscoveredStatus(local_state=local_state)))
-        # XXX error case
 
-    def output_REPORT_NODE_STATE(self, context):
-        self.client.callRemote(NodeStateCommand,
-                               node_state=context.local_state)
-
-    def output_CHANGE(self, context):
-        action = self.deployer.calculate_necessary_state_changes(
-            context.local_state, self.configuration, self.cluster_state)
-        action.run(self.deployer)
-        #d.addCallback(lambda _: self.input(ConvergenceLoopInputs.CHANGES_DONE))
-        # XXX log error and do same input anyway
-
+        def got_local_state(local_state):
+            self.client.callRemote(NodeStateCommand, node_state=local_state)
+            action = self.deployer.calculate_necessary_state_changes(
+                local_state, self.configuration, self.cluster_state)
+            action.run(self.deployer)
+            #d.addCallback(lambda _: self.fsm.input(ConvergenceLoopInputs.ITERATION_DONE))
+        d.addCallback(got_local_state)
 
 
 def build_convergence_loop_fsm(deployer):
@@ -297,33 +270,23 @@ def build_convergence_loop_fsm(deployer):
 
     table = TransitionTable()
     table = table.addTransition(
-        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.DISCOVER], S.DISCOVERING)
+        S.STOPPED, I.STATUS_UPDATE, [O.STORE_INFO, O.CONVERGE], S.CONVERGING)
     table = table.addTransitions(
-        S.DISCOVERING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.DISCOVERING),
-            I.STOP: ([], S.DISCOVERING_STOPPING),
-            I.DISCOVERED_STATUS: ([O.REPORT_NODE_STATE, O.CHANGE], S.CHANGING),
+        S.CONVERGING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.STOP: ([], S.CONVERGING_STOPPING),
+            I.ITERATION_DONE: ([O.CONVERGE], S.CONVERGING),
         })
     table = table.addTransitions(
-        S.DISCOVERING_STOPPING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.DISCOVERING),
-            I.DISCOVERED_STATUS: ([], S.STOPPED),
+        S.CONVERGING_STOPPING, {
+            I.STATUS_UPDATE: ([O.STORE_INFO], S.CONVERGING),
+            I.ITERATION_DONE: ([], S.STOPPED),
         })
-    table = table.addTransitions(
-        S.CHANGING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CHANGING),
-            I.STOP: ([], S.CHANGING_STOPPING),
-            I.CHANGES_DONE: ([O.DISCOVER], S.DISCOVERING),
-            })
-    table = table.addTransitions(
-        S.CHANGING_STOPPING, {
-            I.STATUS_UPDATE: ([O.STORE_INFO], S.CHANGING),
-            I.CHANGES_DONE: ([], S.STOPPED),
-            })
+
     loop = ConvergenceLoop(deployer)
     fsm = constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.STOPPED, table=table,
-        richInputs=[_ClientStatusUpdate, _DiscoveredStatus], inputContext={},
+        richInputs=[_ClientStatusUpdate], inputContext={},
         world=MethodSuffixOutputer(loop))
     loop.fsm = fsm
     return fsm
