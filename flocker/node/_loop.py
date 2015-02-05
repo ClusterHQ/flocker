@@ -13,6 +13,8 @@ The ClusterStatus state machine receives inputs from the connection to the
 control service, and sends inputs to the ConvergenceLoop state machine.
 """
 
+from zope.interface import implementer
+
 from characteristic import attributes
 
 from machinist import (
@@ -22,8 +24,9 @@ from machinist import (
 
 from twisted.application.service import Service
 from twisted.python.constants import Names, NamedConstant
+from twisted.internet.protocol import ReconnectingClientFactory
 
-from ..control._protocol import NodeStateCommand
+from ..control._protocol import NodeStateCommand, IConvergenceAgent
 
 
 class ClusterStatusInputs(Names):
@@ -97,25 +100,25 @@ class ClusterStatus(object):
         control service. Initially ``None``.
     """
 
-    def __init__(self, agent_operation_fsm):
+    def __init__(self, convergence_loop_fsm):
         """
-        :param agent_operation_fsm: An convergence loop FSM as output by
-            ``build_agent_operation_fsm``.
+        :param convergence_loop_fsm: An convergence loop FSM as output by
+            ``build_convergence_loop_fsm``.
         """
-        self.agent_operation_fsm = agent_operation_fsm
+        self.convergence_loop_fsm = convergence_loop_fsm
         self.client = None
 
     def output_STORE_CLIENT(self, context):
         self.client = context.client
 
     def output_UPDATE_STATUS(self, context):
-        self.agent_operation_fsm.receive(
+        self.convergence_loop_fsm.receive(
             _ClientStatusUpdate(client=self.client,
                                 configuration=context.configuration,
                                 state=context.state))
 
     def output_STOP(self, context):
-        self.agent_operation_fsm.receive(ConvergenceLoopInputs.STOP)
+        self.convergence_loop_fsm.receive(ConvergenceLoopInputs.STOP)
 
     def output_DISCONNECT(self, context):
         self.client.transport.loseConnection()
@@ -256,6 +259,8 @@ class ConvergenceLoop(object):
         d.addCallback(got_local_state)
         d.addCallback(lambda _: self.fsm.receive(
             ConvergenceLoopInputs.ITERATION_DONE))
+        # This needs error handling:
+        # https://clusterhq.atlassian.net/browse/FLOC-1357
 
 
 def build_convergence_loop_fsm(deployer):
@@ -293,16 +298,28 @@ def build_convergence_loop_fsm(deployer):
     return fsm
 
 
+@implementer(IConvergenceAgent)
+@attributes(["deployer", "host", "port"])
 class AgentLoopService(Service):
+    """
+    Service in charge of running the convergence loop.
 
-    def __init__(self, deployment, host, port):
-        self.convergence_loop = build_convergence_loop_fsm(deployment)
-        self.cluster_status = build_cluster_status_fsm(self.convergence_loop)
+    :ivar IDeployer deployer: Deployer for discovering local state and
+            then changing it.
+    :ivar host: Host to connect to.
+    :ivar port: Port to connect to.
+    :ivar cluster_status: A cluster status FSM.
+    """
+
+    def __init__(self):
+        convergence_loop = build_convergence_loop_fsm(self.deployer)
+        self.cluster_status = build_cluster_status_fsm(convergence_loop)
 
     def startService(self):
-        self.factory = ReconnectingClientFactory()
-        self.factory.protocol = lambda: AgentClient(self)
-        reactor.connectTCP(self.host, self.port)
+        #self.factory = ReconnectingClientFactory()
+        #self.factory.protocol = lambda: AgentClient(self)
+        #reactor.connectTCP(self.host, self.port)
+        pass
 
     def stopService(self):
         # stop factory

@@ -15,7 +15,8 @@ from ...testtools import FakeAMPClient
 from .._loop import (
     build_cluster_status_fsm, ClusterStatusInputs, _ClientStatusUpdate,
     _StatusUpdate, _ClientConnected, ConvergenceLoopInputs,
-    ConvergenceLoopStates, build_convergence_loop_fsm,
+    ConvergenceLoopStates, build_convergence_loop_fsm, AgentLoopService,
+    ClusterStatus, ConvergenceLoop,
     )
 from .._deploy import IDeployer, IStateChange
 from ...control._protocol import NodeStateCommand
@@ -467,3 +468,56 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
               (local_state2, configuration2, state2)],
              [(NodeStateCommand, dict(node_state=local_state))],
              [(NodeStateCommand, dict(node_state=local_state2))]))
+
+
+class AgentLoopServiceTests(SynchronousTestCase):
+    """
+    Tests for ``AgentLoopService``.
+    """
+    def test_initialization(self):
+        """
+        A newly created service has a cluster status FSM pointing at a
+        convergence loop FSM configured with the given deployer.
+        """
+        deployer = object()
+        service = AgentLoopService(
+            deployer=deployer, host=u"example.com", port=1234)
+        cluster_status_fsm_world = service.cluster_status._fsm._world.original
+        convergence_loop_fsm_world = (
+            cluster_status_fsm_world.convergence_loop_fsm._fsm._world.original)
+        self.assertEqual((cluster_status_fsm_world.__class__,
+                          convergence_loop_fsm_world.__class__,
+                          convergence_loop_fsm_world.deployer),
+                         (ClusterStatus, ConvergenceLoop, deployer))
+
+    def test_start_service(self):
+        """
+        Starting the service starts a reconnecting TCP client to given host
+        and port which calls ``build_agent_client`` with the servie when
+        connected.
+        """
+
+    def test_stop_service(self):
+        """
+        Stopping the service stops the reconnecting TCP client and inputs
+        shutdown event to the cluster status FSM.
+        """
+
+    def test_connected(self):
+        """
+        When ``connnected()`` is called a ``_ClientConnected`` input is passed
+        to the cluster status FSM.
+        """
+
+    def test_disconnected(self):
+        """
+        When ``connnected()`` is called a
+        ``ClusterStatusInputs.CLIENT_DISCONNECTED`` input is passed to the
+        cluster status FSM.
+        """
+
+    def test_cluster_updated(self):
+        """
+        When ``cluster_updated()`` is called a ``_StatusUpdate`` input is
+        passed to the cluster status FSM.
+        """
