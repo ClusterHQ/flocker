@@ -117,7 +117,8 @@ def get_node_state(node):
     return FlockerConfiguration(state).applications()
 
 
-def _run_SSH(port, user, node, command, input, key=None):
+def _run_SSH(port, user, node, command, input, key=None,
+             background=False):
     """
     Run a command via SSH.
 
@@ -136,6 +137,8 @@ def _run_SSH(port, user, node, command, input, key=None):
         b'ssh',
         b'-p', b'%d' % (port,),
         ]
+    if background:
+        command.append(b"-f")
     if key is not None:
         command.extend([
             b"-i",
@@ -145,6 +148,9 @@ def _run_SSH(port, user, node, command, input, key=None):
         quotedCommand
     ])
     process = Popen(command, stdout=PIPE, stdin=PIPE)
+
+    if background:
+        return process
 
     result = process.communicate(input)
     if process.returncode != 0:
