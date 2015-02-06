@@ -9,7 +9,7 @@ Getting started with Flocker
 .. intro-text::
 
    Flocker lets you run microservices apps with database containers and move them around between servers.
-   It comes in two pieces and you?ll need both.
+   It comes in two pieces and you'll need both.
 
 .. contents::
    :local:
