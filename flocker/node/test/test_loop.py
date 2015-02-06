@@ -48,15 +48,15 @@ class ClusterStatusFSMTests(SynchronousTestCase):
     Tests for the cluster status FSM.
     """
     def setUp(self):
-        self.agent_operation = StubFSM()
-        self.fsm = build_cluster_status_fsm(self.agent_operation)
+        self.convergence_loop = StubFSM()
+        self.fsm = build_cluster_status_fsm(self.convergence_loop)
 
     def assertConvergenceLoopInputted(self, expected):
         """
         Assert that that given set of symbols were input to the agent
         operation FSM.
         """
-        self.assertEqual(self.agent_operation.inputted, expected)
+        self.assertEqual(self.convergence_loop.inputted, expected)
 
     def test_creation_no_side_effects(self):
         """
@@ -67,7 +67,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
     def test_first_status_update(self):
         """
         Once the client has been connected and a status update received it
-        notifies the agent operation FSM of this.
+        notifies the convergence loop FSM of this.
         """
         client = object()
         desired = object()
@@ -80,7 +80,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
 
     def test_second_status_update(self):
         """
-        Further status updates are also passed to the agent operation FSM.
+        Further status updates are also passed to the convergence loop FSM.
         """
         client = object()
         desired1 = object()
@@ -111,7 +111,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
     def test_disconnect_before_status_update(self):
         """
         If the client disconnects before a status update is received then no
-        notification is needed for agent operation FSM.
+        notification is needed for convergence loop FSM.
         """
         self.fsm.receive(_ConnectedToControlService(client=build_protocol()))
         self.fsm.receive(ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
@@ -120,7 +120,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
     def test_disconnect_after_status_update(self):
         """
         If the client disconnects after a status update is received then the
-        agent operation is FSM is notified.
+        convergence loop FSM is notified.
         """
         client = object()
         desired = object()
@@ -136,7 +136,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
     def test_status_update_after_reconnect(self):
         """
         If the client disconnects, reconnects, and a new status update is
-        received then the agent operation FSM is notified.
+        received then the convergence loop FSM is notified.
         """
         client = object()
         desired = object()
@@ -173,13 +173,13 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.assertEqual((client.transport.disconnecting,
-                          self.agent_operation.inputted),
+                          self.convergence_loop.inputted),
                          (True, []))
 
     def test_shutdown_after_status_update(self):
         """
         If the FSM is shutdown after connection and status update is received
-        then it disconnects and also notifys the agent operation FSM that
+        then it disconnects and also notifys the convergence loop FSM that
         is should stop.
         """
         client = build_protocol()
@@ -189,7 +189,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.assertEqual((client.transport.disconnecting,
-                          self.agent_operation.inputted[-1]),
+                          self.convergence_loop.inputted[-1]),
                          (True, ConvergenceLoopInputs.STOP))
 
     def test_shutdown_fsm_ignores_disconnection(self):
@@ -220,7 +220,7 @@ class ClusterStatusFSMTests(SynchronousTestCase):
         self.fsm.receive(_ConnectedToControlService(client=client))
         self.fsm.receive(ClusterStatusInputs.SHUTDOWN)
         self.fsm.receive(_StatusUpdate(configuration=desired, state=state))
-        # We never send anything to agent operation FSM:
+        # We never send anything to convergence loop FSM:
         self.assertConvergenceLoopInputted([])
 
 
