@@ -259,35 +259,24 @@ class _AgentLocator(CommandLocator):
         return {}
 
 
-class _AgentBoxReceiver(BoxDispatcher):
+class AgentAMP(AMP):
     """
-    Box receiver for convergence agent.
+    AMP protocol for convergence agent side of the protocol.
+
+    This is the client protocol that will connect to the control service.
     """
-    def __init__(self, agent, locator):
+    def __init__(self, agent):
         """
         :param IConvergenceAgent agent: Convergence agent to notify of changes.
-        :param _AgentLocator locator: The locator.
         """
-        BoxDispatcher.__init__(self, locator)
+        locator = _AgentLocator(agent)
+        AMP.__init__(self, locator=locator)
         self.agent = agent
 
-    def startReceivingBoxes(self, box_sender):
-        BoxDispatcher.startReceivingBoxes(self, box_sender)
+    def connectionMade(self):
+        AMP.connectionMade(self)
         self.agent.connected(self)
 
-    def stopReceivingBoxes(self, reason):
-        BoxDispatcher.stopReceivingBoxes(self, reason)
+    def connectionLost(self, reason):
+        AMP.connectionLost(self, reason)
         self.agent.disconnected()
-
-
-def build_agent_client(agent):
-    """
-    Create convergence agent side of the protocol.
-
-    :param IConvergenceAgent agent: Convergence agent to notify of changes.
-
-    :return AMP: protocol instance setup for client.
-    """
-    locator = _AgentLocator(agent)
-    return AMP(boxReceiver=_AgentBoxReceiver(agent, locator),
-               locator=locator)

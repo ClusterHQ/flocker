@@ -24,7 +24,7 @@ from twisted.application.internet import StreamServerEndpointService
 from .._protocol import (
     NodeStateArgument, DeploymentArgument,
     VersionCommand, ClusterStatusCommand, NodeStateCommand, IConvergenceAgent,
-    build_agent_client, ControlAMPService, ControlAMP
+    AgentAMP, ControlAMPService, ControlAMP
 )
 from .._clusterstate import ClusterStateService
 from .._model import (
@@ -314,16 +314,19 @@ class ControlAMPServiceTests(SynchronousTestCase):
 @attributes([Attribute("is_connected", default_value=False),
              Attribute("is_disconnected", default_value=False),
              Attribute("desired", default_value=None),
-             Attribute("actual", default_value=None)])
+             Attribute("actual", default_value=None),
+             Attribute("client", default_value=None)])
 class FakeAgent(object):
     """
     Fake agent for testing.
     """
     def connected(self, client):
         self.is_connected = True
+        self.client = client
 
     def disconnected(self):
         self.is_disconnected = True
+        self.client = None
 
     def cluster_updated(self, configuration, cluster_state):
         self.desired = configuration
@@ -332,11 +335,11 @@ class FakeAgent(object):
 
 class AgentClientTests(SynchronousTestCase):
     """
-    Tests for ``build_agent_client``.
+    Tests for ``AgentAMP``.
     """
     def setUp(self):
         self.agent = FakeAgent()
-        self.client = build_agent_client(self.agent)
+        self.client = AgentAMP(self.agent)
         # The server needs to send commands to the client, so it acts as
         # an AMP client in that regard. Due to https://tm.tl/7761 we need
         # to access the passed in locator directly.
@@ -355,7 +358,8 @@ class AgentClientTests(SynchronousTestCase):
         Connection made events are passed on to the agent.
         """
         self.client.makeConnection(StringTransport())
-        self.assertEqual(self.agent, FakeAgent(is_connected=True))
+        self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client))
 
     def test_connection_lost(self):
         """
@@ -378,6 +382,7 @@ class AgentClientTests(SynchronousTestCase):
                                    state=actual)
         self.successResultOf(d)
         self.assertEqual(self.agent, FakeAgent(is_connected=True,
+                                               client=self.client,
                                                desired=TEST_DEPLOYMENT,
                                                actual=actual))
 

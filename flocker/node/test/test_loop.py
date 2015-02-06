@@ -10,7 +10,6 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.test.proto_helpers import StringTransport, MemoryReactorClock
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 from twisted.internet.defer import succeed, Deferred
-from twisted.protocols.amp import AMP
 
 from ...testtools import FakeAMPClient
 from .._loop import (
@@ -20,7 +19,7 @@ from .._loop import (
     ClusterStatus, ConvergenceLoop,
     )
 from .._deploy import IDeployer, IStateChange
-from ...control._protocol import NodeStateCommand, _AgentLocator
+from ...control._protocol import NodeStateCommand, _AgentLocator, AgentAMP
 from ...control.test.test_protocol import iconvergence_agent_tests_factory
 
 
@@ -509,7 +508,7 @@ class AgentLoopServiceTests(SynchronousTestCase):
                           protocol.__class__, protocol.locator,
                           service.running),
                          (u"example.com", 1234, ReconnectingClientFactory,
-                          True, AMP, _AgentLocator(service), True))
+                          True, AgentAMP, _AgentLocator(service), True))
 
     def test_stop_service(self):
         """

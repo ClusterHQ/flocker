@@ -27,7 +27,7 @@ from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
 
 from ..control._protocol import (
-    NodeStateCommand, IConvergenceAgent, build_agent_client,
+    NodeStateCommand, IConvergenceAgent, AgentAMP,
     )
 
 
@@ -326,7 +326,7 @@ class AgentLoopService(MultiService):
         convergence_loop = build_convergence_loop_fsm(self.deployer)
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.factory = ReconnectingClientFactory.forProtocol(
-            lambda: build_agent_client(self))
+            lambda: AgentAMP(self))
 
     def startService(self):
         MultiService.startService(self)
