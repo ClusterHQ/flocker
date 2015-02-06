@@ -125,6 +125,7 @@ class ClusterStatus(object):
 
     def output_DISCONNECT(self, context):
         self.client.transport.loseConnection()
+        self.client = None
 
 
 def build_cluster_status_fsm(convergence_loop_fsm):
@@ -320,8 +321,8 @@ class AgentLoopService(MultiService):
         MultiService.__init__(self)
         convergence_loop = build_convergence_loop_fsm(self.deployer)
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
-        self.factory = ReconnectingClientFactory()
-        self.factory.protocol = lambda: build_agent_client(self)
+        self.factory = ReconnectingClientFactory.forProtocol(
+            lambda: build_agent_client(self))
 
     def startService(self):
         MultiService.startService(self)
