@@ -1,5 +1,5 @@
- Error 404
-===========
+Error 404
+=========
 
 The page you requested does not exist.
 
