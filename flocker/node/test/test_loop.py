@@ -345,6 +345,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         configuration = object()
         state = object()
         action = ControllableAction(succeed(None))
+        # Because the second action result is unfired Deferred, the second
+        # iteration will never finish; applying its changes waits for this
+        # Deferred to fire.
         action2 = ControllableAction(Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
@@ -371,7 +374,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state2 = object()
         configuration = object()
         state = object()
+        # Until this Deferred fires the first iteration won't finish:
         action = ControllableAction(Deferred())
+        # Until this Deferred fires the second iteration won't finish:
         action2 = ControllableAction(Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
@@ -407,6 +412,7 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = object()
         configuration = object()
         state = object()
+        # Until this Deferred fires the first iteration won't finish:
         action = ControllableAction(Deferred())
         # Only one discovery result is configured, so a second attempt at
         # discovery would fail:
@@ -441,7 +447,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state2 = object()
         configuration = object()
         state = object()
+        # Until this Deferred fires the first iteration won't finish:
         action = ControllableAction(Deferred())
+        # Until this Deferred fires the second iteration won't finish:
         action2 = ControllableAction(Deferred())
         deployer = ControllableDeployer(
             [succeed(local_state), succeed(local_state2)],
