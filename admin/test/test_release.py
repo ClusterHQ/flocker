@@ -174,7 +174,9 @@ class PublishDocsTests(TestCase):
         self.assertEqual(
             aws.routing_rules, {
                 'clusterhq-staging-docs': {
-                    # CHECKME: Does there need to be a leading `/`?
+                    # TODO: Check if there needs to be a leading `/`?
+                    # That is what the existing deployment has, but this makes
+                    # the code easier.
                     'en/latest/': 'en/0.3.1/',
                     'en/devel/': 'en/0.3.1.dev4/',
                 },
@@ -191,6 +193,7 @@ class PublishDocsTests(TestCase):
         - in the version that was previously en/latest/
         and for each '`index.html`' the path without ``index.html``.
         """
+        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -237,3 +240,5 @@ class PublishDocsTests(TestCase):
                         'en/0.3.1/old-version.html',
                     }),
             ])
+
+    # TODO: Add some tests for production=True
