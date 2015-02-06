@@ -230,55 +230,6 @@ This review step is to ensure that all acceptance tests pass on the release bran
 
       export VERSION=0.1.2
 
-#. Do the acceptance tests:
-
-   - Add the tutorial vagrant box that BuildBot has created from the release branch.
-
-     .. code-block:: console
-
-        vagrant box add http://build.clusterhq.com/results/vagrant/release/flocker-${VERSION}/flocker-tutorial.json
-
-     You should now see the ``flocker-tutorial`` box listed:
-
-     .. code-block:: console
-        :emphasize-lines: 4
-
-        $ vagrant box list
-        clusterhq/fedora20-updated (virtualbox, 2014.09.19)
-        clusterhq/flocker-dev      (virtualbox, 0.2.1.263.g572d20f)
-        clusterhq/flocker-tutorial (virtualbox, <RELEASE_BRANCH_VERSION>)
-
-   - Clone Flocker on your local workstation and install all ``dev`` requirements:
-
-     .. note:: The following instructions use `virtualenvwrapper`_ but you can use `virtualenv`_ directly if you prefer.
-
-     .. code-block:: console
-
-        git clone git@github.com:ClusterHQ/flocker.git "flocker-${VERSION}"
-        cd "flocker-${VERSION}"
-        git checkout "release/flocker-${VERSION}"
-        mkvirtualenv "flocker-release-${VERSION}"
-        pip install --editable .[dev]
-
-   - Install `PhantomJS`_:
-
-     On Linux you will need to ensure that that the ``phantomjs`` binary is on your ``PATH`` before running the acceptance tests below.
-
-   - Add the Vagrant key to your agent:
-
-     .. code-block:: console
-
-        ssh-add ~/.vagrant.d/insecure_private_key
-
-   - Run the automated acceptance tests.
-
-     They will start the appropriate VMs.
-     Ensure that they all pass, with no skips:
-
-     .. code-block:: console
-
-        $ admin/run-acceptance-tests --distribution fedora-20
-
 #. Check documentation.
 
    - The documentation should be available at https://docs.staging.clusterhq.com/en/${VERSION}/.
