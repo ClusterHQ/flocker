@@ -13,6 +13,6 @@ RUN ["apt-get", "install", "--no-install-recommends", "-y", "git", "ruby-dev", "
 # https://github.com/jordansissel/fpm/issues/657
 RUN ["gem", "install", "fpm"]
 
-RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5"]
+RUN ["pip", "install", "twisted==14.0.2", "characteristic==14.1.0", "virtualenv==12.0.5", "effect=0.1a13"]
 VOLUME /flocker
 ENTRYPOINT ["/flocker/admin/build-package-entrypoint", "--destination-path=/output"]
