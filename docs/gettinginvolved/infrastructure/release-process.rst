@@ -81,9 +81,9 @@ Preparing For a Release
    This should be an "Improvement" in the current sprint, with "Release Flocker $VERSION" as the title, and it should be assigned to yourself.
    The issue does not need a design, so move the issue to the "Coding" state.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that a maintenance release is in progress:
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that a maintenance release is in progress.
 
-   .. example::
+   ::
 
       @engineering I am releasing from release/flocker-0.3.2. Please don't land anything on that branch until the release is complete.
 
@@ -91,8 +91,8 @@ Preparing For a Release
 
    .. note::
 
-      For a maintenance release, replace `origin/master` below with ``origin/flocker-${BASE_VERSION}``,
-      where ``${BASE_VERSION}``is the release receiving the maintenance.
+      For a maintenance release, replace ``origin/master`` below with ``origin/flocker-${BASE_VERSION}``,
+      where ``${BASE_VERSION}`` is the release receiving the maintenance.
 
    .. code-block:: console
 
@@ -468,7 +468,7 @@ Post-Release Review Process
 
 #. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintenance release is in complete.
 
-   .. example::
+   ::
 
       @engineering The release from release/flocker-0.3.2 is complete. Branches targeting it can now land.
 
