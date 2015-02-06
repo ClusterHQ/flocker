@@ -301,8 +301,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
 
     def test_convergence_done_notify(self):
         """
-        A FSM doing convergence that gets a discovery result notifies the last
-        received client.
+        A FSM doing convergence that gets a discovery result send the
+        discovered state to the control service using the last received
+        client.
         """
         local_state = object()
         client = self.successful_amp_client([local_state])
