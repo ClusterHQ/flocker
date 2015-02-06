@@ -140,8 +140,8 @@ class ListS3Keys(object):
 def perform_list_s3_keys(dispatcher, intent):
     s3 = boto.connect_s3()
     bucket = s3.get_bucket(intent.bucket)
-    return [key.name[len(intent.prefix):]
-            for key in bucket.list(intent.prefix)]
+    return {key.name[len(intent.prefix):]
+            for key in bucket.list(intent.prefix)}
 
 
 boto_dispatcher = TypeDispatcher({
@@ -188,9 +188,9 @@ class FakeAWS(object):
     @sync_performer
     def _perform_list_s3_keys(self, dispathcer, intent):
         bucket = self.s3_buckets[intent.bucket]
-        return [key[len(intent.prefix):]
+        return {key[len(intent.prefix):]
                 for key in bucket
-                if key.startswith(intent.prefix)]
+                if key.startswith(intent.prefix)}
 
     def get_dispatcher(self):
         return TypeDispatcher({

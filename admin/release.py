@@ -9,7 +9,7 @@ import sys
 from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
-from effect.do import do, do_return
+from effect.do import do
 
 
 from twisted.python.usage import Options, UsageError
@@ -99,92 +99,83 @@ class NotARelease(Exception):
     """
 
 
-def configure_s3_routing_rules(doc_version, bucket, is_dev):
-    prefix = 'en/devel/' if is_dev else 'en/latest/'
-    target_prefix = 'en/%s/' % (doc_version,)
-    return Effect(UpdateS3RoutingRule(
-        bucket=bucket,
-        prefix=prefix,
-        target_prefix=target_prefix))
-
-
 @do
-def create_cloudfront_invalidation(doc_version, bucket, is_dev,
-                                   changed_keys, old_prefix):
+def publish_docs(flocker_version, doc_version, production=False):
+    # TODO: Sanity check when production == True
+    # TODO: Constants
+    dev_bucket = 'clusterhq-dev-docs'
+    doc_bucket = 'clusterhq-staging-docs'
+    cname = 'docs.staging.clusterhq.com'
+
+    dev_prefix = '%s/' % (flocker_version,)
+    version_prefix = 'en/%s/' % (doc_version,)
+
+    is_dev = not is_release(doc_version)
     if is_dev:
-        prefixes = ["en/devel/"]
+        stable_prefix = "en/devel/"
     else:
-        prefixes = ["en/latest/"]
-    prefixes += ["en/%s/" % (doc_version,)]
+        stable_prefix = "en/latest/"
 
+    # Get the list of keys in the new documentation.
+    new_version_keys = yield Effect(
+        ListS3Keys(bucket=dev_bucket,
+                   prefix=dev_prefix))
+    # Get the list of keys already existing for the given version.
+    # This should only be non-empty for documentation releases.
+    existing_version_keys = yield Effect(
+        ListS3Keys(bucket=doc_bucket,
+                   prefix=version_prefix))
+
+    # Copy the new documentation to the documentation bucket.
+    yield Effect(
+        CopyS3Keys(source_bucket=dev_bucket,
+                   source_prefix=dev_prefix,
+                   destination_bucket=doc_bucket,
+                   destination_prefix=version_prefix,
+                   keys=new_version_keys))
+
+    # Delete any keys that aren't in the new documentation.
+    yield Effect(
+        DeleteS3Keys(bucket=doc_bucket,
+                     prefix=version_prefix,
+                     keys=existing_version_keys - new_version_keys))
+
+    # Update the redirect for the stable URL (en/latest/ or en/devel/)
+    # to point to the new version. Returns the old target.
+    old_prefix = yield Effect(
+        UpdateS3RoutingRule(bucket=doc_bucket,
+                            prefix=stable_prefix,
+                            target_prefix=version_prefix))
+
+    # If we have changed versions, get all the keys from the old version
     if old_prefix:
-        list_old_keys = Effect(ListS3Keys(
-            bucket=bucket, prefix=old_prefix)).on(success=set)
-        changed_keys |= yield list_old_keys
+        previous_version_keys = yield Effect(
+            ListS3Keys(bucket=doc_bucket,
+                       prefix=old_prefix))
+    else:
+        previous_version_keys = set()
 
+    # The changed keys are the new keys, the keys that were deleted from this
+    # version, and the keys for the previous version.
+    changed_keys = (new_version_keys |
+                    existing_version_keys |
+                    previous_version_keys)
+
+    # S3 serves /index.html when given /, so any changed /index.html means
+    # that / changed as well.
     changed_keys |= {key_name[:-len('index.html')]
                      for key_name in changed_keys
                      if key_name.endswith('index.html')}
 
-    paths = {prefix + key_name
-             for key_name in changed_keys
-             for prefix in prefixes}
+    # The full paths are all the changed keys under the stable prefix, and
+    # the new version prefix. This set is slightly bigger than necessary.
+    changed_paths = {prefix + key_name
+                     for key_name in changed_keys
+                     for prefix in [stable_prefix, version_prefix]}
 
-    cname = 'docs.staging.clusterhq.com'
-    yield do_return(
-        Effect(CreateCloudFrontInvalidation(cname=cname, paths=paths))
-    )
-
-
-@do
-def copy_docs(flocker_version, doc_version, bucket):
-    destination_bucket = bucket
-    source_bucket = 'clusterhq-dev-docs'
-    source_prefix = '%s/' % (flocker_version,)
-    destination_prefix = 'en/%s/' % (doc_version,)
-
-    source_keys = yield Effect(ListS3Keys(bucket=source_bucket,
-                                          prefix=source_prefix)
-                               ).on(success=set)
-    destination_keys = yield Effect(ListS3Keys(bucket=destination_bucket,
-                                               prefix=destination_prefix)
-                                    ).on(success=set)
-
-    keys_to_delete = destination_keys - source_keys
-    yield Effect(DeleteS3Keys(bucket=destination_bucket,
-                              prefix=destination_prefix,
-                              keys=keys_to_delete))
-
-    yield Effect(CopyS3Keys(source_bucket=source_bucket,
-                            source_prefix=source_prefix,
-                            destination_bucket=destination_bucket,
-                            destination_prefix=destination_prefix,
-                            keys=source_keys))
-
-    changed_keys = destination_keys | source_keys
-
-    yield do_return(
-        changed_keys
-    )
-
-
-@do
-def publish_docs(flocker_version, doc_version, production=False):
-    bucket = 'clusterhq-staging-docs'
-    changed_keys = yield copy_docs(flocker_version, doc_version, bucket)
-
-    # Wether the latest, or the devel link should be updated.
-    is_devel = not is_release(doc_version)
-    old_prefix = yield configure_s3_routing_rules(
-        doc_version=doc_version,
-        bucket=bucket,
-        is_dev=is_devel)
-    yield create_cloudfront_invalidation(
-        doc_version=doc_version,
-        bucket=bucket,
-        changed_keys=changed_keys,
-        old_prefix=old_prefix,
-        is_dev=is_devel)
+    # Invalidate all the changed paths in cloudfront.
+    yield Effect(
+        CreateCloudFrontInvalidation(cname=cname, paths=changed_paths))
 
 
 class PublishDocsOptions(Options):
