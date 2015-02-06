@@ -20,7 +20,7 @@ import flocker
 # TODO: Get this from https://github.com/ClusterHQ/flocker/pull/1092
 from flocker.docs import get_doc_version, is_release, is_weekly_release
 
-from ..aws import (
+from .aws import (
     boto_dispatcher,
     UpdateS3RoutingRule,
     ListS3Keys,
@@ -101,7 +101,7 @@ class NotARelease(Exception):
 
 def configure_s3_routing_rules(doc_version, bucket, is_dev):
     prefix = 'en/devel/' if is_dev else 'en/latest/'
-    target_prefix = '/en/%s/' % (doc_version,)
+    target_prefix = 'en/%s/' % (doc_version,)
     return Effect(UpdateS3RoutingRule(
         bucket=bucket,
         prefix=prefix,
@@ -112,26 +112,25 @@ def configure_s3_routing_rules(doc_version, bucket, is_dev):
 def create_cloudfront_invalidation(doc_version, bucket, is_dev,
                                    changed_keys, old_prefix):
     if is_dev:
-        prefixes = ["/en/devel/"]
+        prefixes = ["en/devel/"]
     else:
-        prefixes = ["/en/latest/"]
-    prefixes += ["/en/%s/" % (doc_version,)]
+        prefixes = ["en/latest/"]
+    prefixes += ["en/%s/" % (doc_version,)]
 
     if old_prefix:
         list_old_keys = Effect(ListS3Keys(
-            bucket=bucket, prefix=old_prefix[1:])).on(success=set)
+            bucket=bucket, prefix=old_prefix)).on(success=set)
         changed_keys |= yield list_old_keys
 
-    for index in ['index.html', '/index.html']:
-        changed_keys |= {key_name[:-len(index)]
-                         for key_name in changed_keys
-                         if key_name.endswith(index)}
+    changed_keys |= {key_name[:-len('index.html')]
+                     for key_name in changed_keys
+                     if key_name.endswith('index.html')}
 
-    paths = [prefix + key_name
+    paths = {prefix + key_name
              for key_name in changed_keys
-             for prefix in prefixes]
+             for prefix in prefixes}
 
-    cname = 'from_bucket' + bucket
+    cname = 'docs.staging.clusterhq.com'
     yield do_return(
         Effect(CreateCloudFrontInvalidation(cname=cname, paths=paths))
     )
@@ -160,7 +159,7 @@ def copy_docs(flocker_version, doc_version, bucket):
                             source_prefix=source_prefix,
                             destination_bucket=destination_bucket,
                             destination_prefix=destination_prefix,
-                            keys=keys_to_delete))
+                            keys=source_keys))
 
     changed_keys = destination_keys | source_keys
 
@@ -170,7 +169,8 @@ def copy_docs(flocker_version, doc_version, bucket):
 
 
 @do
-def publish_docs(flocker_version, doc_version, bucket):
+def publish_docs(flocker_version, doc_version, production=False):
+    bucket = 'clusterhq-staging-docs'
     changed_keys = yield copy_docs(flocker_version, doc_version, bucket)
 
     # Wether the latest, or the devel link should be updated.
@@ -196,9 +196,10 @@ class PublishDocsOptions(Options):
          "The version to publush the documentation as.\n"
          "This will differ from \"flocker-version\" for staging uploads and "
          "documentation releases."],
-        ["bucket", None,
-         b'clusterhq-staging-docs',
-         "The s3 bucket to upload to."]
+    ]
+
+    optFlags = [
+        ["production", None, "Publish documentation to production."],
     ]
 
     def parseArgs(self):

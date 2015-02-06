@@ -180,7 +180,7 @@ class FakeAWS(object):
     @sync_performer
     def _perform_copy_s3_keys(self, dispathcer, intent):
         source_bucket = self.s3_buckets[intent.source_bucket]
-        destination_bucket = self.s3_buckets[intent.source_bucket]
+        destination_bucket = self.s3_buckets[intent.destination_bucket]
         for key in intent.keys:
             destination_bucket[intent.destination_prefix + key] = (
                 source_bucket[intent.source_prefix + key])
@@ -188,7 +188,7 @@ class FakeAWS(object):
     @sync_performer
     def _perform_list_s3_keys(self, dispathcer, intent):
         bucket = self.s3_buckets[intent.bucket]
-        return [key.name[len(intent.prefix):]
+        return [key[len(intent.prefix):]
                 for key in bucket
                 if key.startswith(intent.prefix)]
 
