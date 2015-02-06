@@ -12,7 +12,6 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
-from twisted.internet import reactor
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
