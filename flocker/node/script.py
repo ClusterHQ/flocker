@@ -30,12 +30,13 @@ from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
 from . import P2PNodeDeployer, change_node_state
+from ._loop import AgentLoopService
 
 
 __all__ = [
     "flocker_changestate_main",
     "flocker_reportstate_main",
-    "flocker_volume_main",
+    "flocker_zfs_agent_main",
 ]
 
 
@@ -244,9 +245,14 @@ class ZFSAgentScript(object):
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        # XXX Create Deployer instance, and instead of running
-        # volume_service run AgentLoopService.
-        return main_for_service(reactor, volume_service)
+        host = options["destination-host"]
+        port = options["destination-port"]
+        loop = AgentLoopService(reactor=reactor,
+                                deployer=P2PNodeDeployer(host, volume_service),
+                                host=host,
+                                port=port)
+        volume_service.setServiceParent(loop)
+        return main_for_service(reactor, loop)
 
 
 def flocker_zfs_agent_main():

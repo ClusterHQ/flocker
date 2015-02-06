@@ -12,6 +12,7 @@ from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.application.service import Service
+from twisted.internet import reactor
 
 from yaml import safe_dump, safe_load
 from ...testtools import StandardOptionsTestsMixin, MemoryCoreReactor
@@ -27,6 +28,8 @@ from .._docker import FakeDockerClient, Unit
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
+from .._loop import AgentLoopService
+from .._deploy import P2PNodeDeployer
 
 from ...volume.testtools import create_volume_service
 
@@ -413,7 +416,9 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
-        ZFSAgentScript().main(MemoryCoreReactor(), None, service)
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        ZFSAgentScript().main(MemoryCoreReactor(), options, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
@@ -421,7 +426,33 @@ class ZFSAgentScriptTests(SynchronousTestCase):
         The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
         script = ZFSAgentScript()
-        self.assertNoResult(script.main(MemoryCoreReactor(), None, Service()))
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        self.assertNoResult(script.main(MemoryCoreReactor(), options,
+                                        Service()))
+
+    def test_starts_convergence_loop(self):
+        """
+        ``ZFSAgentScript.main`` starts a convergence loop service.
+        """
+        service = Service()
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        test_reactor = MemoryCoreReactor()
+        ZFSAgentScript().main(test_reactor, options, service)
+        parent_service = service.parent
+        # P2PNodeDeployer is difficult to compare automatically, so do so
+        # manually:
+        deployer = parent_service.deployer
+        parent_service.deployer = None
+        self.assertEqual((parent_service, deployer.__class__,
+                          deployer.hostname, deployer.volume_service,
+                          parent_service.running),
+                         (AgentLoopService(reactor=test_reactor,
+                                           deployer=None,
+                                           host=u"example.com",
+                                           port=1234),
+                          P2PNodeDeployer, u"example.com", service, True))
 
 
 class ZFSAgentOptionsTests(

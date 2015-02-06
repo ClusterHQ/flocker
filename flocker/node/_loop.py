@@ -22,7 +22,7 @@ from machinist import (
     MethodSuffixOutputer,
     )
 
-from twisted.application.service import Service
+from twisted.application.service import MultiService
 from twisted.python.constants import Names, NamedConstant
 from twisted.internet.protocol import ReconnectingClientFactory
 
@@ -302,7 +302,7 @@ def build_convergence_loop_fsm(deployer):
 
 @implementer(IConvergenceAgent)
 @attributes(["reactor", "deployer", "host", "port"])
-class AgentLoopService(Service):
+class AgentLoopService(MultiService):
     """
     Service in charge of running the convergence loop.
 
@@ -316,15 +316,18 @@ class AgentLoopService(Service):
     """
 
     def __init__(self):
+        MultiService.__init__(self)
         convergence_loop = build_convergence_loop_fsm(self.deployer)
         self.cluster_status = build_cluster_status_fsm(convergence_loop)
         self.factory = ReconnectingClientFactory()
         self.factory.protocol = lambda: build_agent_client(self)
 
     def startService(self):
+        MultiService.startService(self)
         self.reactor.connectTCP(self.host, self.port, self.factory)
 
     def stopService(self):
+        MultiService.stopService(self)
         self.factory.stopTrying()
         self.cluster_status.receive(ClusterStatusInputs.SHUTDOWN)
 

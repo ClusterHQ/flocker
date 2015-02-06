@@ -506,9 +506,10 @@ class AgentLoopServiceTests(SynchronousTestCase):
         protocol = factory.buildProtocol(None)
         self.assertEqual((host, port, factory.__class__,
                           factory.continueTrying,
-                          protocol.__class__, protocol.locator),
+                          protocol.__class__, protocol.locator,
+                          service.running),
                          (u"example.com", 1234, ReconnectingClientFactory,
-                          True, AMP, _AgentLocator(service)))
+                          True, AMP, _AgentLocator(service), True))
 
     def test_stop_service(self):
         """
@@ -521,8 +522,9 @@ class AgentLoopServiceTests(SynchronousTestCase):
         service.cluster_status = fsm = StubFSM()
         service.startService()
         service.stopService()
-        self.assertEqual((service.factory.continueTrying, fsm.inputted),
-                         (False, [ClusterStatusInputs.SHUTDOWN]))
+        self.assertEqual((service.factory.continueTrying, fsm.inputted,
+                          service.running),
+                         (False, [ClusterStatusInputs.SHUTDOWN], False))
 
     def test_connected(self):
         """
