@@ -22,8 +22,8 @@ from ..script import (
     VolumeServeOptions, VolumeServeScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
+from .. import script as script_module
 from .._docker import FakeDockerClient, Unit
-from .._deploy import Deployer
 from ...control._model import (
     Application, Deployment, DockerImage, Node, AttachedVolume, Dataset,
     Manifestation)
@@ -49,24 +49,25 @@ class ChangeStateScriptMainTests(SynchronousTestCase):
     """
     def test_main_calls_deployer_change_node_state(self):
         """
-        ``ChangeStateScript.main`` calls ``Deployer.change_node_state`` with
+        ``ChangeStateScript.main`` calls ``change_node_state`` with
         the ``Deployment`` and `hostname` supplied on the command line.
         """
         script = ChangeStateScript()
 
         change_node_state_calls = []
 
-        def spy_change_node_state(self, desired_state, current_cluster_state,
-                                  hostname):
+        def spy_change_node_state(
+                deployer, desired_state, current_cluster_state):
             """
             A stand in for ``Deployer.change_node_state`` which records calls
             made to it.
             """
             change_node_state_calls.append((desired_state,
-                                            current_cluster_state, hostname))
+                                            current_cluster_state,
+                                            deployer.hostname))
 
         self.patch(
-            Deployer, 'change_node_state', spy_change_node_state)
+            script_module, 'change_node_state', spy_change_node_state)
 
         expected_deployment = object()
         expected_current = object()

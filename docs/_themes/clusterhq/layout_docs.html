@@ -9,10 +9,10 @@
     <link href="{{ pathto('_static/css/bootstrap.min.css', 1) }}" rel="stylesheet">
     <link href="{{ pathto('_static/css/' + style, 1) }}" rel="stylesheet">
     <link href="{{ pathto('_static/css/pygments.css', 1) }}" rel="stylesheet">
-    
+
     <script type="text/javascript" src="https://fast.fonts.net/jsapi/b20e6cd5-c1a4-4878-9d69-da3806cb86b8.js"></script>
     <link href='https://fonts.googleapis.com/css?family=Lato&subset=latin,latin-ext' rel='stylesheet' type='text/css'>
-    
+
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
@@ -29,7 +29,7 @@
         };
     </script>
     <link rel="top" title="{{ docstitle|e }}" href="{{ pathto('index') }}"/>
-    
+
     {% if theme_analytics_code %}
         <script type="text/javascript">
             var _gaq = _gaq || [];
@@ -51,7 +51,7 @@
     {% endif %}
 </head>
 <body>
-    
+
     <!-- Menu -->
     <div class="menubar">
         <div class="container">
@@ -69,19 +69,19 @@
                 <nav class="clearfix">
                     <div class="col-sm-12 col-md-9">
                         <ul class="menu hidden-xs">
-                            <li><a href="https://docs.clusterhq.com/en/latest/gettingstarted/index.html">Getting Started</a></li>
-                            <li class="current-menu-item"><a href="https://docs.clusterhq.com/en/latest/">Docs</a></li>
-                            <li><a href="https://clusterhq.com/solutions/">Solutions</a></li>
+                            <li><a href="{{ pathto('gettingstarted/index') }}">Getting Started</a></li>
+                            <li class="current-menu-item"><a href="{{ pathto('index') }}">Docs</a></li>
+                            <li><a href="https://clusterhq.com/storage-solutions-docker/">Solutions</a></li>
                             <li><a href="https://clusterhq.com/about/">About</a></li>
                             <li><a href="https://clusterhq.com/careers/">Careers</a></li>
-                            <li class="button menu hidden-xs"><a href="https://docs.clusterhq.com/en/latest/gettingstarted/index.html">Try Flocker</a></li>
+                            <li class="button menu hidden-xs"><a href="{{ pathto('gettingstarted/index') }}">Try Flocker</a></li>
                         </ul>
                     </div>
                 </nav>
             </div>
         </div>
     </div>
-    
+
     <!-- Contents -->
     <div class="container contents">
         <div class="row">
@@ -97,7 +97,7 @@
                 {{ toctree(collapse=false, maxdepth=4) }}
                 <!-- Menu area end -->
             </div>
-            
+
             <!-- Main contents area -->
             <div class="col-sm-8 col-sm-offset-1 page white-bg">
                 {%- if pagename != "search" %}
@@ -136,7 +136,7 @@
                         {%- endif %}
                     </div>
                 </div>
-                
+
                 <!-- Disqus -->
                 {% if theme_disqus_shortname %}
                     <div id="disqus_thread"></div>
@@ -146,7 +146,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Footer area -->
     <div class="footer">
         <div class="container">
@@ -172,7 +172,7 @@
                 $('.contents-menu>ul').show();
             }
         });
-        
+
         $(function() {
             if($( window ).width() < 768){
                 $('.contents-menu>ul').hide();
