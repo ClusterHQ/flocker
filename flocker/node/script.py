@@ -218,7 +218,7 @@ def flocker_reportstate_main():
 
 @flocker_standard_options
 @flocker_volume_options
-class VolumeServeOptions(Options):
+class ZFSAgentOptions(Options):
     """
     Command line options for ``flocker-zfs-agent`` cluster management process.
     """
@@ -227,7 +227,7 @@ class VolumeServeOptions(Options):
 
 
 @implementer(ICommandLineVolumeScript)
-class VolumeServeScript(object):
+class ZFSAgentScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
@@ -238,8 +238,8 @@ class VolumeServeScript(object):
         return main_for_service(reactor, volume_service)
 
 
-def flocker_volume_main():
+def flocker_zfs_agent_main():
     return FlockerScriptRunner(
-        script=VolumeScript(VolumeServeScript()),
-        options=VolumeServeOptions()
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
     ).main()

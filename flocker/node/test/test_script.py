@@ -19,7 +19,7 @@ from ...volume.testtools import make_volume_options_tests
 from ...route import make_memory_network
 
 from ..script import (
-    VolumeServeOptions, VolumeServeScript,
+    ZFSAgentOptions, ZFSAgentScript,
     ChangeStateOptions, ChangeStateScript,
     ReportStateOptions, ReportStateScript)
 from .. import script as script_module
@@ -404,28 +404,28 @@ class ReportStateScriptMainTests(SynchronousTestCase):
         self.assertEqual(safe_load(content.getvalue()), expected)
 
 
-class VolumeServeScriptOptions(SynchronousTestCase):
+class ZFSAgentScriptTests(SynchronousTestCase):
     """
-    Tests for ``VolumeServeScript``.
+    Tests for ``ZFSAgentScript``.
     """
     def test_main_starts_service(self):
         """
-        ``VolumeServeScript.main`` starts the given service.
+        ``ZFSAgentScript.main`` starts the given service.
         """
         service = Service()
-        VolumeServeScript().main(MemoryCoreReactor(), None, service)
+        ZFSAgentScript().main(MemoryCoreReactor(), None, service)
         self.assertTrue(service.running)
 
     def test_no_immediate_stop(self):
         """
-        The ``Deferred`` returned from ``VolumeServeScript`` is not fired.
+        The ``Deferred`` returned from ``ZFSAgentScript`` is not fired.
         """
-        script = VolumeServeScript()
+        script = ZFSAgentScript()
         self.assertNoResult(script.main(MemoryCoreReactor(), None, Service()))
 
 
-class StandardServeOptionsTests(
-        make_volume_options_tests(VolumeServeOptions)):
+class ZFSAgentOptionsTests(
+        make_volume_options_tests(ZFSAgentOptions)):
     """
-    Tests for the volume configuration arguments of ``VolumeServeOptions``.
+    Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
