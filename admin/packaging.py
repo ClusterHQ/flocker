@@ -618,6 +618,11 @@ IGNORED_WARNINGS = {
         # https://github.com/mitsuhiko/werkzeug/issues/629
         # Fixed upstream, but not released.
         'executable-not-elf-or-script',
+
+        # Our omnibus packages are never going to be used by upstream so
+        # there's no bug to close.
+        # https://lintian.debian.org/tags/new-package-should-close-itp-bug.html
+        'new-package-should-close-itp-bug'
     ),
 }
 
