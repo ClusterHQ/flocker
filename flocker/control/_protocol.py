@@ -32,7 +32,7 @@ from zope.interface import Interface
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, CommandLocator, BoxDispatcher, AMP,
+    Argument, Command, Integer, CommandLocator, AMP,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService

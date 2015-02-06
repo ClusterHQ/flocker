@@ -175,7 +175,8 @@ def build_cluster_status_fsm(convergence_loop_fsm):
 
     return constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
-        richInputs=[_ConnectedToControlService, _StatusUpdate], inputContext={},
+        richInputs=[_ConnectedToControlService, _StatusUpdate],
+        inputContext={},
         world=MethodSuffixOutputer(ClusterStatus(convergence_loop_fsm)))
 
 
