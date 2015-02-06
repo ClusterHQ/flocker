@@ -199,7 +199,7 @@ class ReportStateScript(object):
     def main(self, reactor, options, volume_service):
         # Discovery doesn't actually care about hostname, so don't bother
         # figuring out correct one. Especially since this code is going
-        # away someday soon.
+        # away someday soon: https://clusterhq.atlassian.net/browse/FLOC-1353
         deployer = P2PNodeDeployer(
             u"localhost",
             volume_service, self._docker_client, self._network)

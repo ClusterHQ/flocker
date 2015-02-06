@@ -80,11 +80,11 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+              brew install flocker-|latest-installable|
 
       .. noscript-content::
 
@@ -93,24 +93,24 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
 
       .. tabs::
@@ -120,35 +120,35 @@ Getting started with Flocker
 
          Install the flocker-cli client on your Mac (requires Homebrew):
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ brew update && \
               brew tap clusterhq/flocker && \
-              brew install flocker-0.3.2
+              brew install flocker-|latest-installable|
 
          Ubuntu / Debian
          ^^^^^^^^^^^^^^^
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
          Fedora 20
          ^^^^^^^^^
 
          Install the flocker-cli client on your Linux machine:
 
-         .. code-block:: console
+         .. version-code-block:: console
 
             you@laptop:~$ sudo yum install -y @buildsys-build python python-devel python-virtualenv && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
-              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
+              flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-|latest-installable|-py2-none-any.whl && source flocker-tutorial/bin/activate
 
       .. empty-div:: arrow-down center-block invisible
 
@@ -173,7 +173,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
@@ -192,7 +194,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
@@ -270,6 +274,7 @@ Getting started with Flocker
    .. tutorial-step-condensed::
 
       Now we are going to use a different deployment configuration to show moving the Redis container with its data volume.
+      The web server will remain deployed on the first host and remain accessible via either host's address.
 
       deployment-node2.yml
       --------------------
@@ -290,4 +295,3 @@ Getting started with Flocker
          :alt: Flocker migration diagram
 
       In just a few seconds, you'll see that the Redis container is migrated to the other host, network traffic is re-routed, and your application is still online on both IPs!
-
