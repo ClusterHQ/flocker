@@ -48,9 +48,12 @@ class IStateChange(Interface):
     """
     def run(deployer):
         """
-        Run the change.
+        Apply the change to local state.
 
-        :param IDeployer deployer: The ``IDeployer`` to use.
+        :param IDeployer deployer: The ``IDeployer`` to use. Specific
+            ``IStateChange`` providers may require specific ``IDeployer``
+            providers that provide relevant functionality for applying the
+            change.
 
         :return: ``Deferred`` firing when the change is done.
         """
@@ -78,7 +81,10 @@ class IDeployer(Interface):
         the purview of the convergence agent running this instance.
 
         :return: A ``Deferred`` which fires with an object describing
-             local state.
+             local state. This object will be passed to the control
+             service (see ``flocker.control._protocol``) and may also be
+             passed to this object's
+             ``calculate_necessary_state_changes()`` method.
         """
 
     def calculate_necessary_state_changes(local_state,

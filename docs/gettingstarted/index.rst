@@ -95,7 +95,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
@@ -133,7 +133,7 @@ Getting started with Flocker
 
          .. code-block:: console
 
-            you@laptop:~$ sudo apt-get update && apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
+            you@laptop:~$ sudo apt-get update && sudo apt-get install -y gcc python2.7 python-virtualenv python2.7-dev && \
               virtualenv flocker-tutorial && \
               flocker-tutorial/bin/pip install --upgrade pip && \
               flocker-tutorial/bin/pip install --quiet https://storage.googleapis.com/archive.clusterhq.com/downloads/flocker/Flocker-0.3.2-py2-none-any.whl && source flocker-tutorial/bin/activate
@@ -173,7 +173,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
@@ -192,7 +194,9 @@ Getting started with Flocker
             you@laptop:~$ git clone \
               https://github.com/clusterhq/vagrant-flocker && \
               cd vagrant-flocker && \
-              vagrant up
+              vagrant up && \
+              [ -e "${SSH_AUTH_SOCK}" ] || eval $(ssh-agent) && \
+              ssh-add ~/.vagrant.d/insecure_private_key
 
          AWS
          ^^^
@@ -270,6 +274,7 @@ Getting started with Flocker
    .. tutorial-step-condensed::
 
       Now we are going to use a different deployment configuration to show moving the Redis container with its data volume.
+      The web server will remain deployed on the first host and remain accessible via either host's address.
 
       deployment-node2.yml
       --------------------
