@@ -325,6 +325,9 @@ class ConvergenceLoopFSMTests(SynchronousTestCase):
         local_state = object()
         configuration = object()
         state = object()
+        # Since this Deferred is unfired we never proceed to next
+        # iteration; if we did we'd get exception from discovery since we
+        # only configured one discovery result.
         action = ControllableAction(Deferred())
         deployer = ControllableDeployer([succeed(local_state)], [action])
         loop = build_convergence_loop_fsm(deployer)
