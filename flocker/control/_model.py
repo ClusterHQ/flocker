@@ -319,13 +319,14 @@ class DatasetChanges(object):
     """
 
 
-@attributes(["running", "not_running",
+@attributes(["hostname", "running", "not_running",
              Attribute("used_ports", default_value=frozenset()),
              Attribute("other_manifestations", default_value=frozenset())])
 class NodeState(object):
     """
     The current state of a node.
 
+    :ivar unicode hostname: The hostname of the node.
     :ivar running: A ``list`` of ``Application`` instances on this node
         that are currently running or starting up.
     :ivar not_running: A ``list`` of ``Application`` instances on this

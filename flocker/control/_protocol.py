@@ -30,7 +30,7 @@ from zope.interface import Interface
 
 from twisted.application.service import Service
 from twisted.protocols.amp import (
-    Argument, Command, Integer, String, CommandLocator, BoxDispatcher, AMP,
+    Argument, Command, Integer, CommandLocator, BoxDispatcher, AMP,
 )
 from twisted.internet.protocol import ServerFactory
 from twisted.application.internet import StreamServerEndpointService
@@ -88,8 +88,7 @@ class NodeStateCommand(Command):
     Used by a convergence agent to update the control service about the
     status of a particular node.
     """
-    arguments = [('hostname', String()),
-                 ('node_state', NodeStateArgument())]
+    arguments = [('node_state', NodeStateArgument())]
     response = []
 
 
@@ -110,8 +109,8 @@ class ControlServiceLocator(CommandLocator):
         return {"major": 1}
 
     @NodeStateCommand.responder
-    def node_changed(self, hostname, node_state):
-        self.control_amp_service.node_changed(hostname, node_state)
+    def node_changed(self, node_state):
+        self.control_amp_service.node_changed(node_state)
         return {}
 
 
@@ -199,14 +198,14 @@ class ControlAMPService(Service):
         """
         self.connections.remove(connection)
 
-    def node_changed(self, hostname, node_state):
+    def node_changed(self, node_state):
         """
         We've received a node state update from a connected client.
 
         :param bytes hostname: The hostname of the node.
         :param NodeState node_state: The changed state for the node.
         """
-        self.cluster_state.update_node_state(hostname, node_state)
+        self.cluster_state.update_node_state(node_state)
         self._send_state_to_connections(self.connections)
 
 
