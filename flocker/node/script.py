@@ -222,8 +222,19 @@ class ZFSAgentOptions(Options):
     """
     Command line options for ``flocker-zfs-agent`` cluster management process.
     """
-    # XXX add options for accessing host and port of control service AMP
-    # protocol
+    longdesc = """\
+    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
+    """
+
+    synopsis = "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>"
+
+    optParameters = [
+        ["destination-port", "p", 4524,
+         "The port on the control service to connect to.", int],
+    ]
+
+    def parseArgs(self, host):
+        self["destination-host"] = unicode(host, "ascii")
 
 
 @implementer(ICommandLineVolumeScript)

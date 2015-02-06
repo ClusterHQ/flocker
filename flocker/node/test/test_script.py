@@ -425,7 +425,33 @@ class ZFSAgentScriptTests(SynchronousTestCase):
 
 
 class ZFSAgentOptionsTests(
-        make_volume_options_tests(ZFSAgentOptions)):
+        make_volume_options_tests(ZFSAgentOptions, [b"example.com"])):
     """
     Tests for the volume configuration arguments of ``ZFSAgentOptions``.
     """
+    def test_default_port(self):
+        """
+        The default AMP destination port configured by ``ZFSAgentOptions`` is
+        4524.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"example.com"])
+        self.assertEqual(options["destination-port"], 4524)
+
+    def test_custom_port(self):
+        """
+        The ``--destination-port`` command-line option allows configuring the
+        destination port.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"--destination-port", b"1234", b"example.com"])
+        self.assertEqual(options["destination-port"], 1234)
+
+    def test_host(self):
+        """
+        The required command-line argument allows configuring the
+        destination host.
+        """
+        options = ZFSAgentOptions()
+        options.parseOptions([b"control.example.com"])
+        self.assertEqual(options["destination-host"], u"control.example.com")
