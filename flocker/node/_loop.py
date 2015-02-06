@@ -36,17 +36,18 @@ class ClusterStatusInputs(Names):
     Inputs to the cluster status state machine.
     """
     # The client has connected to the control service:
-    CLIENT_CONNECTED = NamedConstant()
+    CONNECTED_TO_CONTROL_SERVICE = NamedConstant()
     # A status update has been received from the control service:
     STATUS_UPDATE = NamedConstant()
     # THe client has disconnected from the control service:
-    CLIENT_DISCONNECTED = NamedConstant()
+    DISCONNECTED_FROM_CONTROL_SERVICE = NamedConstant()
     # The system is shutting down:
     SHUTDOWN = NamedConstant()
 
 
 @attributes(["client"])
-class _ClientConnected(trivialInput(ClusterStatusInputs.CLIENT_CONNECTED)):
+class _ConnectedToControlService(
+        trivialInput(ClusterStatusInputs.CONNECTED_TO_CONTROL_SERVICE)):
     """
     A rich input indicating the client has connected.
 
@@ -143,13 +144,13 @@ def build_cluster_status_fsm(convergence_loop_fsm):
         S.DISCONNECTED, {
             # Store the client, then wait for cluster status to be sent
             # over AMP:
-            I.CLIENT_CONNECTED: ([O.STORE_CLIENT], S.IGNORANT),
+            I.CONNECTED_TO_CONTROL_SERVICE: ([O.STORE_CLIENT], S.IGNORANT),
             I.SHUTDOWN: ([], S.SHUTDOWN),
         })
     table = table.addTransitions(
         S.IGNORANT, {
             # We never told agent to start, so no need to tell it to stop:
-            I.CLIENT_DISCONNECTED: ([], S.DISCONNECTED),
+            I.DISCONNECTED_FROM_CONTROL_SERVICE: ([], S.DISCONNECTED),
             # Tell agent latest cluster status, implicitly starting it:
             I.STATUS_UPDATE: ([O.UPDATE_STATUS], S.KNOWLEDGEABLE),
             I.SHUTDOWN: ([O.DISCONNECT], S.SHUTDOWN),
@@ -158,18 +159,18 @@ def build_cluster_status_fsm(convergence_loop_fsm):
         S.KNOWLEDGEABLE, {
             # Tell agent latest cluster status:
             I.STATUS_UPDATE: ([O.UPDATE_STATUS], S.KNOWLEDGEABLE),
-            I.CLIENT_DISCONNECTED: ([O.STOP], S.DISCONNECTED),
+            I.DISCONNECTED_FROM_CONTROL_SERVICE: ([O.STOP], S.DISCONNECTED),
             I.SHUTDOWN: ([O.STOP, O.DISCONNECT], S.SHUTDOWN),
         })
     table = table.addTransitions(
         S.SHUTDOWN, {
-            I.CLIENT_DISCONNECTED: ([], S.SHUTDOWN),
+            I.DISCONNECTED_FROM_CONTROL_SERVICE: ([], S.SHUTDOWN),
             I.STATUS_UPDATE: ([], S.SHUTDOWN),
             })
 
     return constructFiniteStateMachine(
         inputs=I, outputs=O, states=S, initial=S.DISCONNECTED, table=table,
-        richInputs=[_ClientConnected, _StatusUpdate], inputContext={},
+        richInputs=[_ConnectedToControlService, _StatusUpdate], inputContext={},
         world=MethodSuffixOutputer(ClusterStatus(convergence_loop_fsm)))
 
 
@@ -334,10 +335,11 @@ class AgentLoopService(MultiService):
     # IConvergenceAgent methods:
 
     def connected(self, client):
-        self.cluster_status.receive(_ClientConnected(client=client))
+        self.cluster_status.receive(_ConnectedToControlService(client=client))
 
     def disconnected(self):
-        self.cluster_status.receive(ClusterStatusInputs.CLIENT_DISCONNECTED)
+        self.cluster_status.receive(
+            ClusterStatusInputs.DISCONNECTED_FROM_CONTROL_SERVICE)
 
     def cluster_updated(self, configuration, cluster_state):
         self.cluster_status.receive(_StatusUpdate(configuration=configuration,
