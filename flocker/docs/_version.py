@@ -111,6 +111,7 @@ def get_doc_version(version):
     else:
         return version
 
+
 def get_installable_version(version):
     """
     Get the version string of the latest version of Flocker which can be
@@ -118,6 +119,7 @@ def get_installable_version(version):
     """
     parsed_version = parse_version(version)
     return parsed_version.installable_release
+
 
 def is_release(version):
     """
