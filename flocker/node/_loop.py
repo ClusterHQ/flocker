@@ -232,8 +232,8 @@ class ConvergenceLoopOutputs(Names):
 
 class ConvergenceLoop(object):
     """
-    World object the convergence loop state machine, executing the actions
-    indicated by the outputs.
+    World object for the convergence loop state machine, executing the actions
+    indicated by the outputs from the state machine.
 
     :ivar AMP client: An AMP client connected to the control
         service. Initially ``None``.
