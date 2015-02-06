@@ -132,6 +132,10 @@ def build_cluster_status_fsm(convergence_loop_fsm):
     """
     Create a new cluster status FSM.
 
+    The automatic reconnection logic is handled by the
+    ``AgentLoopService``; the world object here just gets notified of
+    disconnects, it need schedule the reconnect itself.
+
     :param convergence_loop_fsm: A convergence loop FSM as output by
     ``build_convergence_loop_fsm``.
     """
