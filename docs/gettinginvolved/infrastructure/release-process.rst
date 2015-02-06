@@ -52,7 +52,7 @@ Access
 - Access to Amazon `S3`_ using `gsutil`_ on your :doc:`Flocker development machine <vagrant>`.
   Set ``aws_access_key_id`` and ``aws_secret_access_key`` in the ``[Credentials]`` section of ``~/.boto``.
 
-- Access to `S3` and cloudfront via web.
+- Access to `S3` and CloudFront via web.
 
 - A member of a `ClusterHQ team on Vagrant Cloud <https://vagrantcloud.com/settings/organizations/clusterhq/teams>`_.
 - An OS X (most recent release) system.
@@ -466,7 +466,7 @@ Post-Release Review Process
 
 #. Merge the release pull request.
 
-#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintence release is in complete.
+#. If this is a maintenance release, announce on Zulip's Engineering > Maintenance Release stream that the maintenance release is in complete.
 
    .. example::
 
