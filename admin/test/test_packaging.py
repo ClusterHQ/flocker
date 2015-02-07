@@ -492,8 +492,15 @@ def canned_package(root):
         setup(
             name="{package_name}",
             version="{package_version}",
+            py_modules=["{package_name}"],
         )
         """).format(package_name=name, package_version=version)
+    )
+    package_module = root.child(name + ".py")
+    package_module.setContent(
+        dedent("""
+        __version__ = "{package_version}"
+        """).format(package_version=version)
     )
 
     return PythonPackage(name=name, version=version)
