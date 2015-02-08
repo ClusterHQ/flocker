@@ -10,9 +10,10 @@ from collections import namedtuple
 from effect import (
     Effect, sync_perform, ComposedDispatcher, base_dispatcher)
 from effect.do import do
-
+from characteristic import attributes
 
 from twisted.python.usage import Options, UsageError
+from twisted.python.constants import Names, NamedConstant
 
 import flocker
 
@@ -93,19 +94,49 @@ def make_rpm_version(flocker_version):
     return rpm_version(version, '.'.join(release))
 
 
-class NotARelease(Exception):
+class NotTagged(Exception):
     """
     Raised when trying
     """
 
 
+class Environments(Names):
+    """
+    """
+    PRODUCTION = NamedConstant()
+    STAGING = NamedConstant()
+
+
+@attributes([
+    'documentation_bucket',
+    'cloudfront_cname',
+    'dev_bucket',
+])
+class DocumentationConfiguration(object):
+    """
+    """
+
+DOCUMENTATION_CONFIGURATIONS = {
+    Environments.PRODUCTION:
+        DocumentationConfiguration(
+            documentation_bucket="clusterhq-docs",
+            cloudfront_cname="docs.clusterhq.com",
+            dev_bucket="clusterhq-dev-docs"),
+    Environments.STAGING:
+        DocumentationConfiguration(
+            documentation_bucket="clusterhq-staging-docs",
+            cloudfront_cname="docs.staging.clusterhq.com",
+            dev_bucket="clusterhq-dev-docs"),
+}
+
+
 @do
-def publish_docs(flocker_version, doc_version, production=False):
+def publish_docs(flocker_version, doc_version, environment):
     # TODO: Sanity check when production == True
-    # TODO: Constants
-    dev_bucket = 'clusterhq-dev-docs'
-    doc_bucket = 'clusterhq-staging-docs'
-    cname = 'docs.staging.clusterhq.com'
+    if environment == Environments.PRODUCTION:
+        if get_doc_version(flocker_version) != doc_version:
+            raise NotTagged
+    configuration = DOCUMENTATION_CONFIGURATIONS[environment]
 
     dev_prefix = '%s/' % (flocker_version,)
     version_prefix = 'en/%s/' % (doc_version,)
@@ -118,39 +149,39 @@ def publish_docs(flocker_version, doc_version, production=False):
 
     # Get the list of keys in the new documentation.
     new_version_keys = yield Effect(
-        ListS3Keys(bucket=dev_bucket,
+        ListS3Keys(bucket=configuration.dev_bucket,
                    prefix=dev_prefix))
     # Get the list of keys already existing for the given version.
     # This should only be non-empty for documentation releases.
     existing_version_keys = yield Effect(
-        ListS3Keys(bucket=doc_bucket,
+        ListS3Keys(bucket=configuration.documentation_bucket,
                    prefix=version_prefix))
 
     # Copy the new documentation to the documentation bucket.
     yield Effect(
-        CopyS3Keys(source_bucket=dev_bucket,
+        CopyS3Keys(source_bucket=configuration.dev_bucket,
                    source_prefix=dev_prefix,
-                   destination_bucket=doc_bucket,
+                   destination_bucket=configuration.documentation_bucket,
                    destination_prefix=version_prefix,
                    keys=new_version_keys))
 
     # Delete any keys that aren't in the new documentation.
     yield Effect(
-        DeleteS3Keys(bucket=doc_bucket,
+        DeleteS3Keys(bucket=configuration.documentation_bucket,
                      prefix=version_prefix,
                      keys=existing_version_keys - new_version_keys))
 
     # Update the redirect for the stable URL (en/latest/ or en/devel/)
     # to point to the new version. Returns the old target.
     old_prefix = yield Effect(
-        UpdateS3RoutingRule(bucket=doc_bucket,
+        UpdateS3RoutingRule(bucket=configuration.documentation_bucket,
                             prefix=stable_prefix,
                             target_prefix=version_prefix))
 
     # If we have changed versions, get all the keys from the old version
     if old_prefix:
         previous_version_keys = yield Effect(
-            ListS3Keys(bucket=doc_bucket,
+            ListS3Keys(bucket=configuration.documentation_bucket,
                        prefix=old_prefix))
     else:
         previous_version_keys = set()
@@ -175,7 +206,8 @@ def publish_docs(flocker_version, doc_version, production=False):
 
     # Invalidate all the changed paths in cloudfront.
     yield Effect(
-        CreateCloudFrontInvalidation(cname=cname, paths=changed_paths))
+        CreateCloudFrontInvalidation(cname=configuration.cloudfront_cname,
+                                     paths=changed_paths))
 
 
 class PublishDocsOptions(Options):

@@ -9,7 +9,8 @@ from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
 from ..release import (
     rpm_version, make_rpm_version,
-    publish_docs,
+    publish_docs, NotTagged,
+    Environments,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 
@@ -64,7 +65,7 @@ class MakeRpmVersionTests(TestCase):
 class PublishDocsTests(TestCase):
 
     def publish_docs(self, aws,
-                     flocker_version, doc_version, production=False):
+                     flocker_version, doc_version, environment):
         """
         Call ``publish_docs``, interacting with a fake AWS.
 
@@ -75,7 +76,8 @@ class PublishDocsTests(TestCase):
         """
         sync_perform(
             ComposedDispatcher([aws.get_dispatcher(), base_dispatcher]),
-            publish_docs(flocker_version, doc_version, production=production))
+            publish_docs(flocker_version, doc_version,
+                         environment=environment))
 
     def test_copies_documentation(self):
         """
@@ -104,9 +106,49 @@ class PublishDocsTests(TestCase):
                     '0.3.0-392-gd50b558/other.html': 'bad-other',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
+                'index.html': '',
+                'en/index.html': '',
+                'en/latest/index.html': '',
+                'en/0.3.1/index.html': 'index-content',
+                'en/0.3.1/sub/index.html': 'sub-index-content',
+                'en/0.3.1/other.html': 'other-content',
+            })
+
+    def test_copies_documentation_production(self):
+        """
+        Calling :func:`publish_docs` in production copies documentation from
+        ``s3://clusterhq-dev-docs/<flocker_version/`` to
+        ``s3://clusterhq-docs/en/<doc_version>/``.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                },
+                'clusterhq-dev-docs': {
+                    '0.3.1/index.html': 'index-content',
+                    '0.3.1/sub/index.html': 'sub-index-content',
+                    '0.3.1/other.html': 'other-content',
+                    '0.3.0-392-gd50b558/index.html': 'bad-index',
+                    '0.3.0-392-gd50b558/sub/index.html': 'bad-sub-index',
+                    '0.3.0-392-gd50b558/other.html': 'bad-other',
+                },
+            })
+        self.publish_docs(aws, '0.3.1', '0.3.1',
+                          environment=Environments.PRODUCTION)
+        self.assertEqual(
+            aws.s3_buckets['clusterhq-docs'], {
                 'index.html': '',
                 'en/index.html': '',
                 'en/latest/index.html': '',
@@ -143,7 +185,8 @@ class PublishDocsTests(TestCase):
                     '0.3.0-444-gf05215b/sub/index.html': 'sub-index-content',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.s3_buckets['clusterhq-staging-docs'], {
                 'index.html': '',
@@ -170,7 +213,8 @@ class PublishDocsTests(TestCase):
                 'clusterhq-staging-docs': {},
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
                 'clusterhq-staging-docs': {
@@ -185,7 +229,7 @@ class PublishDocsTests(TestCase):
     def test_updates_redirects_devel(self):
         """
         Calling :func:`publish_docs` for a development version updates the
-        redirect for ``en/latest/*`` to point at ``en/<doc_version>/*``. Any
+        redirect for ``en/devel/*`` to point at ``en/<doc_version>/*``. Any
         other redirects are left untouched.
         """
         aws = FakeAWS(
@@ -200,7 +244,7 @@ class PublishDocsTests(TestCase):
                 'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0-444-gf01215b', '0.3.1dev5',
-                          production=False)
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.routing_rules, {
                 'clusterhq-staging-docs': {
@@ -212,6 +256,36 @@ class PublishDocsTests(TestCase):
                 },
             })
 
+    def test_updates_redirects_production(self):
+        """
+        Calling :func:`publish_docs` with a release or documentation version
+        and in production updates the redirect for the
+        ``clusterhq-docs`` S3 bucket.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.1', '0.3.1',
+                          environment=Environments.PRODUCTION)
+        self.assertEqual(
+            aws.routing_rules, {
+                'clusterhq-docs': {
+                    # TODO: Check if there needs to be a leading `/`?
+                    # That is what the existing deployment has, but this makes
+                    # the code easier.
+                    'en/latest/': 'en/0.3.1/',
+                    'en/devel/': 'en/0.3.1.dev4/',
+                },
+            })
+
     def test_creates_cloudfront_invalidation_new_files(self):
         """
         Calling :func:`publish_docs` with a release or documentation version
@@ -220,7 +294,6 @@ class PublishDocsTests(TestCase):
         - en/<doc_version>/
         each for every path in the new documentation for <doc_version>.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -241,7 +314,8 @@ class PublishDocsTests(TestCase):
                     '0.3.0-444-gf05215b/sub/other.html': '',
                 },
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -268,7 +342,6 @@ class PublishDocsTests(TestCase):
         - en/<doc_version>/
         each for every path in the old documentation for <doc_version>.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -285,7 +358,8 @@ class PublishDocsTests(TestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -311,7 +385,6 @@ class PublishDocsTests(TestCase):
         each for every path in the documentation for version that was
         previously `en/latest/`.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -328,7 +401,8 @@ class PublishDocsTests(TestCase):
                 },
                 'clusterhq-dev-docs': {},
             })
-        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -353,7 +427,6 @@ class PublishDocsTests(TestCase):
         - en/<doc_version>/
         each for every path in the new documentation for <doc_version>.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -375,7 +448,7 @@ class PublishDocsTests(TestCase):
                 },
             })
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
-                          production=False)
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -402,7 +475,6 @@ class PublishDocsTests(TestCase):
         - en/<doc_version>/
         each for every path in the old documentation for <doc_version>.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -420,7 +492,7 @@ class PublishDocsTests(TestCase):
                 'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
-                          production=False)
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -446,7 +518,6 @@ class PublishDocsTests(TestCase):
         each for every path in the documentation for version that was
         previously `en/devel/`.
         """
-        # TODO: Split this test up.
         aws = FakeAWS(
             routing_rules={
                 'clusterhq-staging-docs': {
@@ -464,7 +535,7 @@ class PublishDocsTests(TestCase):
                 'clusterhq-dev-docs': {},
             })
         self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
-                          production=False)
+                          environment=Environments.STAGING)
         self.assertEqual(
             aws.cloudfront_invalidations, [
                 CreateCloudFrontInvalidation(
@@ -481,4 +552,72 @@ class PublishDocsTests(TestCase):
                     }),
             ])
 
-    # TODO: Add some tests for production=True
+    def test_creates_cloudfront_invalidation_production(self):
+        """
+        Calling :func:`publish_docs` in production creates an invalidation for
+        ``docs.clusterhq.com``.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                    'en/0.3.1/index.html': '',
+                    'en/0.3.1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.1', '0.3.1',
+                          environment=Environments.PRODUCTION)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.clusterhq.com',
+                    paths={
+                        'en/latest/',
+                        'en/latest/index.html',
+                        'en/latest/sub/',
+                        'en/latest/sub/index.html',
+                        'en/0.3.1/',
+                        'en/0.3.1/index.html',
+                        'en/0.3.1/sub/',
+                        'en/0.3.1/sub/index.html',
+                    }),
+            ])
+
+    def test_production_gets_tagged_version(self):
+        """
+        Trying to publish to production, when the version being pushed isn't
+        tagged raises an exception.
+        """
+        aws = FakeAWS(routing_rules={}, s3_buckets={})
+        self.assertRaises(
+            NotTagged,
+            self.publish_docs,
+            aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+            environment=Environments.PRODUCTION)
+
+    def test_production_can_publish_doc_version(self):
+        """
+        Publishing a documentation version to the version of the latest full
+        release in production succeeds.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        # Does not raise:
+        self.publish_docs(
+            aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
