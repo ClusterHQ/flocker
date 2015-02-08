@@ -223,9 +223,13 @@ def publish_docs(flocker_version, doc_version, environment):
 
     # S3 serves /index.html when given /, so any changed /index.html means
     # that / changed as well.
+    # Note that we check for '/index.html' but remove 'index.html'
     changed_keys |= {key_name[:-len('index.html')]
                      for key_name in changed_keys
-                     if key_name.endswith('index.html')}
+                     if key_name.endswith('/index.html')}
+
+    # Always update the root.
+    changed_keys |= {''}
 
     # The full paths are all the changed keys under the stable prefix, and
     # the new version prefix. This set is slightly bigger than necessary.

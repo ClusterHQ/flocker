@@ -325,6 +325,41 @@ class PublishDocsTests(TestCase):
                     }),
             ])
 
+    def test_creates_cloudfront_invalidation_trailing_index(self):
+        """
+        Calling :func:`publish_docs` with a release or documentation version
+        doesn't creates an invalidation for files that end in ``index.html``.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                },
+                'clusterhq-dev-docs': {
+                    '0.3.0-444-gf05215b/sub_index.html': '',
+                },
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1',
+                          environment=Environments.STAGING)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/latest/',
+                        'en/latest/sub_index.html',
+                        'en/0.3.1/',
+                        'en/0.3.1/sub_index.html',
+                    }),
+            ])
+
     def test_creates_cloudfront_invalidation_removed_files(self):
         """
         Calling :func:`publish_docs` with a release or documentation version
