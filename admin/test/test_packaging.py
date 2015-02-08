@@ -859,7 +859,7 @@ class OmnibusPackageBuilderTests(TestCase):
         expected_package_uri = b'https://www.example.com/foo/Bar-1.2.3.whl'
         expected_package_version_step = GetPackageVersion(
             virtualenv=VirtualEnv(root=expected_virtualenv_path),
-            package_name='Flocker'
+            package_name='flocker'
         )
         expected_version = DelayedRpmVersion(
             package_version_step=expected_package_version_step

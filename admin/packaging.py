@@ -761,7 +761,7 @@ def omnibus_package_builder(
     virtualenv = VirtualEnv(root=virtualenv_dir)
 
     get_package_version_step = GetPackageVersion(
-        virtualenv=virtualenv, package_name='Flocker')
+        virtualenv=virtualenv, package_name='flocker')
     rpm_version = DelayedRpmVersion(
         package_version_step=get_package_version_step)
 
