@@ -155,9 +155,9 @@ class PublishDocsTests(TestCase):
 
     def test_updates_redirects(self):
         """
-        Calling :func:`publish_docs` updates the redirect for ``en/latest/*``
-        to point at ``en/<doc_version>/*``. Any other redirects are left
-        untouched.
+        Calling :func:`publish_docs` with a release or documentation version
+        updates the redirect for ``en/latest/*`` to point at
+        ``en/<doc_version>/*``. Any other redirects are left untouched.
         """
         aws = FakeAWS(
             routing_rules={
@@ -182,16 +182,43 @@ class PublishDocsTests(TestCase):
                 },
             })
 
-    def test_creates_cloudfront_invalidation(self):
+    def test_updates_redirects_devel(self):
         """
-        Calling :func:`publish_docs` creates an invalidation for
+        Calling :func:`publish_docs` for a development version updates the
+        redirect for ``en/latest/*`` to point at ``en/<doc_version>/*``. Any
+        other redirects are left untouched.
+        """
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                    'en/devel/': 'en/0.3.1dev4/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {},
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.0-444-gf01215b', '0.3.1dev5',
+                          production=False)
+        self.assertEqual(
+            aws.routing_rules, {
+                'clusterhq-staging-docs': {
+                    # TODO: Check if there needs to be a leading `/`?
+                    # That is what the existing deployment has, but this makes
+                    # the code easier.
+                    'en/latest/': 'en/0.3.0/',
+                    'en/devel/': 'en/0.3.1dev5/',
+                },
+            })
+
+    def test_creates_cloudfront_invalidation_new_files(self):
+        """
+        Calling :func:`publish_docs` with a release or documentation version
+        creates an invalidation for
         - en/latest/
         - en/<doc_version>/
-        each for every path
-        - in the new documentation for <doc_version>
-        - in the old documentation for <doc_version>
-        - in the version that was previously en/latest/
-        and for each '`index.html`' the path without ``index.html``.
+        each for every path in the new documentation for <doc_version>.
         """
         # TODO: Split this test up.
         aws = FakeAWS(
@@ -207,10 +234,6 @@ class PublishDocsTests(TestCase):
                     'en/latest/index.html': '',
                     'en/0.3.1/index.html': '',
                     'en/0.3.1/sub/index.html': '',
-                    'en/0.3.1/missing.html': '',
-                    'en/0.3.0/index.html': '',
-                    'en/0.3.0/sub/index.html': '',
-                    'en/0.3.0/old-version.html': '',
                 },
                 'clusterhq-dev-docs': {
                     '0.3.0-444-gf05215b/index.html': '',
@@ -229,15 +252,232 @@ class PublishDocsTests(TestCase):
                         'en/latest/sub/',
                         'en/latest/sub/index.html',
                         'en/latest/sub/other.html',
-                        'en/latest/missing.html',
-                        'en/latest/old-version.html',
                         'en/0.3.1/',
                         'en/0.3.1/index.html',
                         'en/0.3.1/sub/',
                         'en/0.3.1/sub/index.html',
                         'en/0.3.1/sub/other.html',
-                        'en/0.3.1/missing.html',
-                        'en/0.3.1/old-version.html',
+                    }),
+            ])
+
+    def test_creates_cloudfront_invalidation_removed_files(self):
+        """
+        Calling :func:`publish_docs` with a release or documentation version
+        creates an invalidation for
+        - en/latest/
+        - en/<doc_version>/
+        each for every path in the old documentation for <doc_version>.
+        """
+        # TODO: Split this test up.
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                    'en/0.3.1/index.html': '',
+                    'en/0.3.1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/latest/',
+                        'en/latest/index.html',
+                        'en/latest/sub/',
+                        'en/latest/sub/index.html',
+                        'en/0.3.1/',
+                        'en/0.3.1/index.html',
+                        'en/0.3.1/sub/',
+                        'en/0.3.1/sub/index.html',
+                    }),
+            ])
+
+    def test_creates_cloudfront_invalidation_previous_version(self):
+        """
+        Calling :func:`publish_docs` with a release or documentation version
+        creates an invalidation for
+        - en/latest/
+        - en/<doc_version>/
+        each for every path in the documentation for version that was
+        previously `en/latest/`.
+        """
+        # TODO: Split this test up.
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/latest/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/latest/index.html': '',
+                    'en/0.3.0/index.html': '',
+                    'en/0.3.0/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1', production=False)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/latest/',
+                        'en/latest/index.html',
+                        'en/latest/sub/',
+                        'en/latest/sub/index.html',
+                        'en/0.3.1/',
+                        'en/0.3.1/index.html',
+                        'en/0.3.1/sub/',
+                        'en/0.3.1/sub/index.html',
+                    }),
+            ])
+
+    def test_creates_cloudfront_invalidation_devel_new_files(self):
+        """
+        Calling :func:`publish_docs` with a development version creates an
+        invalidation for
+        - en/devel/
+        - en/<doc_version>/
+        each for every path in the new documentation for <doc_version>.
+        """
+        # TODO: Split this test up.
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/devel/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/devel/index.html': '',
+                    'en/0.3.1dev1/index.html': '',
+                    'en/0.3.1dev1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {
+                    '0.3.0-444-gf05215b/index.html': '',
+                    '0.3.0-444-gf05215b/sub/index.html': '',
+                    '0.3.0-444-gf05215b/sub/other.html': '',
+                },
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+                          production=False)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/devel/',
+                        'en/devel/index.html',
+                        'en/devel/sub/',
+                        'en/devel/sub/index.html',
+                        'en/devel/sub/other.html',
+                        'en/0.3.1dev1/',
+                        'en/0.3.1dev1/index.html',
+                        'en/0.3.1dev1/sub/',
+                        'en/0.3.1dev1/sub/index.html',
+                        'en/0.3.1dev1/sub/other.html',
+                    }),
+            ])
+
+    def test_creates_cloudfront_invalidation_devel_removed_files(self):
+        """
+        Calling :func:`publish_docs` with a development version creates an
+        invalidation for
+        - en/devel/
+        - en/<doc_version>/
+        each for every path in the old documentation for <doc_version>.
+        """
+        # TODO: Split this test up.
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/devel/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/devel/index.html': '',
+                    'en/0.3.1dev1/index.html': '',
+                    'en/0.3.1dev1/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+                          production=False)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/devel/',
+                        'en/devel/index.html',
+                        'en/devel/sub/',
+                        'en/devel/sub/index.html',
+                        'en/0.3.1dev1/',
+                        'en/0.3.1dev1/index.html',
+                        'en/0.3.1dev1/sub/',
+                        'en/0.3.1dev1/sub/index.html',
+                    }),
+            ])
+
+    def test_creates_cloudfront_invalidation_devel_previous_version(self):
+        """
+        Calling :func:`publish_docs` with a development version creates an
+        invalidation for
+        - en/devel/
+        - en/<doc_version>/
+        each for every path in the documentation for version that was
+        previously `en/devel/`.
+        """
+        # TODO: Split this test up.
+        aws = FakeAWS(
+            routing_rules={
+                'clusterhq-staging-docs': {
+                    'en/devel/': 'en/0.3.0/',
+                },
+            },
+            s3_buckets={
+                'clusterhq-staging-docs': {
+                    'index.html': '',
+                    'en/index.html': '',
+                    'en/devel/index.html': '',
+                    'en/0.3.0/index.html': '',
+                    'en/0.3.0/sub/index.html': '',
+                },
+                'clusterhq-dev-docs': {},
+            })
+        self.publish_docs(aws, '0.3.0-444-gf05215b', '0.3.1dev1',
+                          production=False)
+        self.assertEqual(
+            aws.cloudfront_invalidations, [
+                CreateCloudFrontInvalidation(
+                    cname='docs.staging.clusterhq.com',
+                    paths={
+                        'en/devel/',
+                        'en/devel/index.html',
+                        'en/devel/sub/',
+                        'en/devel/sub/index.html',
+                        'en/0.3.1dev1/',
+                        'en/0.3.1dev1/index.html',
+                        'en/0.3.1dev1/sub/',
+                        'en/0.3.1dev1/sub/index.html',
                     }),
             ])
 
