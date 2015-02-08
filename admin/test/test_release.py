@@ -9,8 +9,8 @@ from effect import sync_perform, ComposedDispatcher, base_dispatcher
 
 from ..release import (
     rpm_version, make_rpm_version,
-    publish_docs, NotTagged,
-    Environments,
+    publish_docs, Environments,
+    NotTagged, NotARelease,
 )
 from ..aws import FakeAWS, CreateCloudFrontInvalidation
 
@@ -621,3 +621,14 @@ class PublishDocsTests(TestCase):
         # Does not raise:
         self.publish_docs(
             aws, '0.3.1+doc1', '0.3.1', environment=Environments.PRODUCTION)
+
+    def test_publish_non_release_fails(self):
+        """
+        Trying to publish to version that isn't a release fails.
+        """
+        aws = FakeAWS(routing_rules={}, s3_buckets={})
+        self.assertRaises(
+            NotARelease,
+            self.publish_docs,
+            aws, '0.3.0-444-gf05215b', '0.3.0-444-gf05215b',
+            environment=Environments.STAGING)

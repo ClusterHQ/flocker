@@ -96,12 +96,17 @@ def make_rpm_version(flocker_version):
 
 class NotTagged(Exception):
     """
-    Raised when trying
+    """
+
+
+class NotARelease(Exception):
+    """
     """
 
 
 class Environments(Names):
     """
+    The environments that documentation can be published to.
     """
     PRODUCTION = NamedConstant()
     STAGING = NamedConstant()
@@ -114,6 +119,12 @@ class Environments(Names):
 ])
 class DocumentationConfiguration(object):
     """
+    The configuration for publishing documentation.
+
+    :ivar bytes documentation_bucket: The bucket to publish documentation to.
+    :ivar bytes cloudfront_cname: a CNAME associated to the cloudfront
+        distribution pointing at the documentation bucket.
+    :ivar bytes dev_bucket: The bucket buildbot uploads documentation to.
     """
 
 DOCUMENTATION_CONFIGURATIONS = {
@@ -133,6 +144,10 @@ DOCUMENTATION_CONFIGURATIONS = {
 @do
 def publish_docs(flocker_version, doc_version, environment):
     # TODO: Sanity check when production == True
+    if not (is_release(doc_version)
+            or is_weekly_release(doc_version)):
+        raise NotARelease
+
     if environment == Environments.PRODUCTION:
         if get_doc_version(flocker_version) != doc_version:
             raise NotTagged
@@ -225,9 +240,14 @@ class PublishDocsOptions(Options):
         ["production", None, "Publish documentation to production."],
     ]
 
+    environment = Environments.STAGING
+
     def parseArgs(self):
         if self['doc-version'] is None:
             self['doc-version'] = get_doc_version(self['flocker-version'])
+
+        if self['production']:
+            self.environment = Environments.PRODUCTION
 
 
 def publish_docs_main(args, base_path, top_level):
@@ -244,14 +264,17 @@ def publish_docs_main(args, base_path, top_level):
         sys.stderr.write("%s: %s\n" % (base_path.basename(), e))
         raise SystemExit(1)
 
-    if not (is_release(options['doc-version'])
-            or is_weekly_release(options['doc-version'])):
+    try:
+        sync_perform(
+            dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
+            effect=publish_docs(
+                flocker_version=options['flocker-version'],
+                doc_version=options['doc-version'],
+                environment=options.environment,
+                ))
+    except NotARelease:
         sys.stderr.write("%s: Can't publish non-release.")
         raise SystemExit(1)
-
-    sync_perform(
-        dispatcher=ComposedDispatcher([boto_dispatcher, base_dispatcher]),
-        effect=publish_docs(
-            flocker_version=options['flocker-version'],
-            doc_version=options['doc-version'],
-            bucket_name=options['bucket']))
+    except NotTagged:
+        sys.stderr.write("%s: Can't non-tagged version to production.")
+        raise SystemExit(1)
