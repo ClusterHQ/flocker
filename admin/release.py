@@ -96,11 +96,13 @@ def make_rpm_version(flocker_version):
 
 class NotTagged(Exception):
     """
+    Raised if publising to production and the published version isn't tagged.
     """
 
 
 class NotARelease(Exception):
     """
+    Raised if trying to publish to a version that isn't a release.
     """
 
 
@@ -143,7 +145,19 @@ DOCUMENTATION_CONFIGURATIONS = {
 
 @do
 def publish_docs(flocker_version, doc_version, environment):
-    # TODO: Sanity check when production == True
+    """
+    Publish the flocker documentation.
+
+    :param bytes flocker_version: The version of flocker to publish the
+        documentation for.
+    :param bytes doc_version: The version to publish the documentation as.
+    :param Environments environemnt: The environment to publish the
+        documentation to.
+    :raises NotARelease: Raised if trying to publish to a version that isn't a
+        release.
+    :raises NotTagged: Raised if publising to production and the published
+        version isn't tagged.
+    """
     if not (is_release(doc_version)
             or is_weekly_release(doc_version)):
         raise NotARelease
