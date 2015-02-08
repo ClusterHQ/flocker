@@ -562,7 +562,7 @@ class P2PNodeDeployer(object):
         # logic below takes no account of that and instead uses current
         # cluster state rather than the given local state. This is
         # temporary hack to fix that, correct solution is changing the
-        # algorithm.
+        # algorithm. FLOC-389 will cover implementing a real solution.
         from flocker.control._clusterstate import ClusterStateService
         svc = ClusterStateService()
         svc.update_node_state(local_state)
