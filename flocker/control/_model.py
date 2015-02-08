@@ -251,10 +251,21 @@ class Deployment(object):
             for application in node.applications:
                 yield application
 
+    def update_node(self, node):
+        """
+        Replace existing ``Node`` with updated version.
+
+        :param Node node: An update for ``Node`` with same hostname in
+             this ``Deployment``.
+
+        :return Deployment: Updated with new ``Node``.
+        """
+        # XXX implement, test
+
 
 @attributes(['internal_port', 'external_port'])
 class Port(object):
-    """
+        """
     A record representing the mapping between a port exposed internally by an
     application and the corresponding port exposed to the outside world.
 
@@ -337,3 +348,13 @@ class NodeState(object):
         are present on the node but are not attached as volumes to any
         applications.
     """
+    def to_node(self):
+        """
+        Convert into a ``Node`` instance.
+
+        :return Node: Equivalent ``Node`` object.
+        """
+        # XXX will need tests
+        return Node(hostname=self.hostname,
+                    other_manifestations=self.other_manifestations,
+                    application=frozenset(self.running + self.not_running))
