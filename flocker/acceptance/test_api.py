@@ -5,6 +5,8 @@ Tests for the control service REST API.
 """
 
 import time
+from signal import SIGINT
+from os import kill
 from uuid import uuid4
 from json import dumps, loads
 
@@ -25,10 +27,15 @@ class DatasetAPITests(TestCase):
         """
         # This is blocking for now, may as well due this the succinct way:
         node_1, = self.successResultOf(get_nodes(self, 1))
-        # Start servers:1
-        _run_SSH(22, 'root', node_1, [b"flocker-control"], b"", None, True)
-        _run_SSH(22, 'root', node_1, [b"flocker-zfs-agent", b"localhost"],
-                 b"", None, True)
+        # Start servers; eventually we will have these already running on
+        # nodes, but for now needs to be done manually.
+        p1 = _run_SSH(22, 'root', node_1, [b"flocker-control"],
+                      b"", None, True)
+        p2 = _run_SSH(22, 'root', node_1,
+                      [b"flocker-zfs-agent", node_1, b"localhost"],
+                      b"", None, True)
+        self.addCleanup(kill, p1.pid, SIGINT)
+        self.addCleanup(kill, p2.pid, SIGINT)
 
         # XXX loop until REST service is up.
         time.sleep(3)

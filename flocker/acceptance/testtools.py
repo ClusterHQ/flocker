@@ -137,8 +137,7 @@ def _run_SSH(port, user, node, command, input, key=None,
         b'ssh',
         b'-p', b'%d' % (port,),
         ]
-    if background:
-        command.append(b"-f")
+
     if key is not None:
         command.extend([
             b"-i",
@@ -147,10 +146,12 @@ def _run_SSH(port, user, node, command, input, key=None,
         b'@'.join([user, node]),
         quotedCommand
     ])
-    process = Popen(command, stdout=PIPE, stdin=PIPE)
-
     if background:
+        process = Popen(command, stdin=PIPE)
+        process.stdin.write(input)
         return process
+    else:
+        process = Popen(command, stdout=PIPE, stdin=PIPE)
 
     result = process.communicate(input)
     if process.returncode != 0:

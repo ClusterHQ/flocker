@@ -7,6 +7,7 @@ tools.
 """
 
 import sys
+from socket import getfqdn
 
 from twisted.python.usage import Options, UsageError
 
@@ -234,7 +235,8 @@ class ZFSAgentOptions(Options):
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, host):
+    def parseArgs(self, localhost, host):
+        self["localhost"] = unicode(localhost, "ascii")
         self["destination-host"] = unicode(host, "ascii")
 
 
@@ -248,7 +250,7 @@ class ZFSAgentScript(object):
         host = options["destination-host"]
         port = options["destination-port"]
         loop = AgentLoopService(reactor=reactor,
-                                deployer=P2PNodeDeployer(host, volume_service),
+                                deployer=P2PNodeDeployer(options["localhost"], volume_service),
                                 host=host,
                                 port=port)
         volume_service.setServiceParent(loop)
