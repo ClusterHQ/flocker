@@ -135,7 +135,7 @@ def is_release(version):
 
 def is_weekly_release(version):
     """
-    Return whetehr the version corresponds to a weekly release.
+    Return whether the version corresponds to a weekly release.
     """
     parsed_version = parse_version(version)
     return (parsed_version.weekly_release is not None

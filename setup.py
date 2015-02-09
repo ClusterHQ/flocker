@@ -14,8 +14,6 @@ versioneer.versionfile_build = "flocker/_version.py"
 versioneer.tag_prefix = ""
 versioneer.parentdir_prefix = "flocker-"
 
-from distutils.core import Command
-
 cmdclass = {}
 
 # Let versioneer hook into the various distutils commands so it can rewrite
@@ -172,6 +170,7 @@ setup(
             "pyasn1",
             "tl.eggdeps",
             "effect==0.1a13",
+            "boto==2.30.0",
             ],
         },
 

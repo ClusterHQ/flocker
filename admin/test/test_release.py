@@ -63,11 +63,14 @@ class MakeRpmVersionTests(TestCase):
 
 
 class PublishDocsTests(TestCase):
+    """
+    Tests for :func:``publish_docs``.
+    """
 
     def publish_docs(self, aws,
                      flocker_version, doc_version, environment):
         """
-        Call ``publish_docs``, interacting with a fake AWS.
+        Call :func:``publish_docs``, interacting with a fake AWS.
 
         :param FakeAWS aws: Fake AWS to interact with.
         :param flocker_version: See :py:func:`flocker_version`.

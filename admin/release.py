@@ -96,7 +96,7 @@ def make_rpm_version(flocker_version):
 
 class NotTagged(Exception):
     """
-    Raised if publising to production and the published version isn't tagged.
+    Raised if publishing to production and the published version isn't tagged.
     """
 
 
@@ -151,11 +151,11 @@ def publish_docs(flocker_version, doc_version, environment):
     :param bytes flocker_version: The version of flocker to publish the
         documentation for.
     :param bytes doc_version: The version to publish the documentation as.
-    :param Environments environemnt: The environment to publish the
+    :param Environments environment: The environment to publish the
         documentation to.
     :raises NotARelease: Raised if trying to publish to a version that isn't a
         release.
-    :raises NotTagged: Raised if publising to production and the published
+    :raises NotTagged: Raised if publishing to production and the published
         version isn't tagged.
     """
     if not (is_release(doc_version)
@@ -244,12 +244,15 @@ def publish_docs(flocker_version, doc_version, environment):
 
 
 class PublishDocsOptions(Options):
+    """
+    Arguments for ``publish-docs`` script.
+    """
 
     optParameters = [
         ["flocker-version", None, flocker.__version__,
-         "The version of flocker from which the documetnation was built."],
+         "The version of flocker from which the documentation was built."],
         ["doc-version", None, None,
-         "The version to publush the documentation as.\n"
+         "The version to publish the documentation as.\n"
          "This will differ from \"flocker-version\" for staging uploads and "
          "documentation releases."],
     ]
@@ -291,8 +294,10 @@ def publish_docs_main(args, base_path, top_level):
                 environment=options.environment,
                 ))
     except NotARelease:
-        sys.stderr.write("%s: Can't publish non-release.")
+        sys.stderr.write("%s: Can't publish non-release."
+                         % (base_path.basename(),))
         raise SystemExit(1)
     except NotTagged:
-        sys.stderr.write("%s: Can't non-tagged version to production.")
+        sys.stderr.write("%s: Can't non-tagged version to production."
+                         % (base_path.basename(),))
         raise SystemExit(1)
