@@ -4,7 +4,8 @@
 Tests for the control service REST API.
 """
 
-import time
+import socket
+
 from signal import SIGINT
 from os import kill
 from uuid import uuid4
@@ -15,6 +16,23 @@ from twisted.trial.unittest import TestCase
 from treq import get, post, content
 
 from .testtools import get_nodes, _run_SSH
+from ..testtools import loop_until
+
+
+def wait_for_api(hostname):
+    """
+    Wait until REST API is available.
+
+    :return Deferred: Fires when REST API is available.
+    """
+    def api_available():
+        try:
+            s = socket.socket()
+            s.connect((hostname, 4523))
+            return True
+        except socket.error:
+            return False
+    return loop_until(api_available)
 
 
 class DatasetAPITests(TestCase):
@@ -36,20 +54,24 @@ class DatasetAPITests(TestCase):
         p2 = _run_SSH(22, 'root', node_1,
                       [b"flocker-zfs-agent", node_1, b"localhost"],
                       b"", None, True)
-        self.addCleanup(kill, p1.pid, SIGINT)
-        self.addCleanup(kill, p2.pid, SIGINT)
 
-        # XXX loop until REST service is up.
-        time.sleep(3)
+        def close(process):
+            process.stdin.close()
+            kill(process.pid, SIGINT)
+        self.addCleanup(close, p1)
+        self.addCleanup(close, p2)
+
+        d = wait_for_api(node_1)
 
         uuid = unicode(uuid4())
         dataset = {u"primary": node_1,
                    u"dataset_id": uuid,
                    u"metadata": {u"name": u"myvolume"}}
-        d = post("http://{}:4523/v1/datasets".format(node_1),
-                 data=dumps(dataset),
-                 headers={"content-type": "application/json"},
-                 persistent=False)
+        d.addCallback(
+            lambda _: post("http://{}:4523/v1/datasets".format(node_1),
+                           data=dumps(dataset),
+                           headers={"content-type": "application/json"},
+                           persistent=False))
         d.addCallback(content)
 
         def got_result(result):
@@ -57,22 +79,18 @@ class DatasetAPITests(TestCase):
             self.assertEqual(dataset, result)
         d.addCallback(got_result)
 
-        def created(_):
-            # XXX loop until this succeeds
-            time.sleep(5)
-            return get("http://{}:4523/v1/state/datasets".format(node_1),
-                       persistent=False)
-        d.addCallback(created)
-        d.addCallback(content)
+        def created():
+            result = get("http://{}:4523/v1/state/datasets".format(node_1),
+                         persistent=False)
+            result.addCallback(content)
 
-        def got_result2(result):
-            print result
-            result = loads(result)
-            # XXX current state listing doesn't include metadata. this is
-            # perhaps the correct thing to do?
-            expected_dataset = dataset.copy()
-            expected_dataset["metadata"].clear()
-            self.assertIn(expected_dataset, result)
-
-        d.addCallback(got_result2)
+            def got_body(body):
+                body = loads(body)
+                # Current state listing doesn't include metadata.
+                expected_dataset = dataset.copy()
+                expected_dataset["metadata"].clear()
+                return expected_dataset in body
+            result.addCallback(got_body)
+            return result
+        d.addCallback(lambda _: loop_until(created))
         return d
