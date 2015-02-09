@@ -66,7 +66,7 @@ class DatasetAPITests(TestCase):
         uuid = unicode(uuid4())
         dataset = {u"primary": node_1,
                    u"dataset_id": uuid,
-                   u"metadata": {u"name": u"myvolume"}}
+                   u"metadata": {u"name": u"my_volume"}}
         d.addCallback(
             lambda _: post("http://{}:4523/v1/datasets".format(node_1),
                            data=dumps(dataset),
