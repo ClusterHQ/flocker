@@ -87,7 +87,8 @@ TEST_DEPLOYMENT = Deployment(nodes=frozenset([
          applications=frozenset([APP1, APP2]))]))
 MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
                               primary=True)
-NODE_STATE = NodeState(running=[APP1], not_running=[APP2],
+NODE_STATE = NodeState(hostname=u'node1.example.com',
+                       running=[APP1], not_running=[APP2],
                        used_ports=[1, 2],
                        other_manifestations=frozenset([MANIFESTATION]))
 
@@ -165,8 +166,7 @@ class ControlAMPTests(SynchronousTestCase):
                    lambda *args, **kwargs: sent.append((args, kwargs))
                    or succeed(None))
         self.control_amp_service.configuration_service.save(TEST_DEPLOYMENT)
-        self.control_amp_service.cluster_state.update_node_state(
-            u"example3", NODE_STATE)
+        self.control_amp_service.cluster_state.update_node_state(NODE_STATE)
 
         self.protocol.makeConnection(StringTransport())
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
@@ -203,13 +203,13 @@ class ControlAMPTests(SynchronousTestCase):
         ``NodeStateCommand`` updates the node state.
         """
         self.successResultOf(
-            self.client.callRemote(NodeStateCommand, hostname=u"example1",
+            self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE))
         self.assertEqual(
             self.control_amp_service.cluster_state.as_deployment(),
             Deployment(
                 nodes=frozenset([
-                    Node(hostname=u'example1',
+                    Node(hostname=u'node1.example.com',
                          applications=frozenset([APP1, APP2]),
                          other_manifestations=frozenset(
                              [MANIFESTATION]))])))
@@ -234,7 +234,7 @@ class ControlAMPTests(SynchronousTestCase):
                    or succeed(None))
 
         self.successResultOf(
-            self.client.callRemote(NodeStateCommand, hostname=u"example2",
+            self.client.callRemote(NodeStateCommand,
                                    node_state=NODE_STATE))
         cluster_state = self.control_amp_service.cluster_state.as_deployment()
         self.assertListEqual(
