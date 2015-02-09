@@ -29,8 +29,10 @@ class DatasetAPITests(TestCase):
         node_1, = self.successResultOf(get_nodes(self, 1))
         # Start servers; eventually we will have these already running on
         # nodes, but for now needs to be done manually.
+        # https://clusterhq.atlassian.net/browse/FLOC-1383
         p1 = _run_SSH(22, 'root', node_1, [b"flocker-control"],
                       b"", None, True)
+        # https://clusterhq.atlassian.net/browse/FLOC-1382
         p2 = _run_SSH(22, 'root', node_1,
                       [b"flocker-zfs-agent", node_1, b"localhost"],
                       b"", None, True)
