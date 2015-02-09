@@ -7,7 +7,6 @@ tools.
 """
 
 import sys
-from socket import getfqdn
 
 from twisted.python.usage import Options, UsageError
 
@@ -228,15 +227,20 @@ class ZFSAgentOptions(Options):
     flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
     """
 
-    synopsis = "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>"
+    synopsis = (
+        "Usage: flocker-zfs-agent [OPTIONS] <local-hostname> "
+        "<control-service-hostname>")
 
     optParameters = [
         ["destination-port", "p", 4524,
          "The port on the control service to connect to.", int],
     ]
 
-    def parseArgs(self, localhost, host):
-        self["localhost"] = unicode(localhost, "ascii")
+    def parseArgs(self, hostname, host):
+        # Passing in the 'hostname' (really node identity) via command
+        # line is a hack.  See
+        # https://clusterhq.atlassian.net/browse/FLOC-1381 for solution.
+        self["hostname"] = unicode(hostname, "ascii")
         self["destination-host"] = unicode(host, "ascii")
 
 
@@ -249,10 +253,9 @@ class ZFSAgentScript(object):
     def main(self, reactor, options, volume_service):
         host = options["destination-host"]
         port = options["destination-port"]
-        loop = AgentLoopService(reactor=reactor,
-                                deployer=P2PNodeDeployer(options["localhost"], volume_service),
-                                host=host,
-                                port=port)
+        deployer = P2PNodeDeployer(options["hostname"], volume_service)
+        loop = AgentLoopService(reactor=reactor, deployer=deployer,
+                                host=host, port=port)
         volume_service.setServiceParent(loop)
         return main_for_service(reactor, loop)
 
