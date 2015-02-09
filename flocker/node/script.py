@@ -30,12 +30,13 @@ from ..control import (
     ConfigurationError, current_from_configuration, model_from_configuration,
 )
 from . import P2PNodeDeployer, change_node_state
+from ._loop import AgentLoopService
 
 
 __all__ = [
     "flocker_changestate_main",
     "flocker_reportstate_main",
-    "flocker_volume_main",
+    "flocker_zfs_agent_main",
 ]
 
 
@@ -218,24 +219,44 @@ def flocker_reportstate_main():
 
 @flocker_standard_options
 @flocker_volume_options
-class VolumeServeOptions(Options):
+class ZFSAgentOptions(Options):
     """
     Command line options for ``flocker-zfs-agent`` cluster management process.
     """
+    longdesc = """\
+    flocker-zfs-agent runs a ZFS-backed convergence agent on a node.
+    """
+
+    synopsis = "Usage: flocker-zfs-agent [OPTIONS] <control-service-hostname>"
+
+    optParameters = [
+        ["destination-port", "p", 4524,
+         "The port on the control service to connect to.", int],
+    ]
+
+    def parseArgs(self, host):
+        self["destination-host"] = unicode(host, "ascii")
 
 
 @implementer(ICommandLineVolumeScript)
-class VolumeServeScript(object):
+class ZFSAgentScript(object):
     """
     A command to start a long-running process to manage volumes on one node of
     a Flocker cluster.
     """
     def main(self, reactor, options, volume_service):
-        return main_for_service(reactor, volume_service)
+        host = options["destination-host"]
+        port = options["destination-port"]
+        loop = AgentLoopService(reactor=reactor,
+                                deployer=P2PNodeDeployer(host, volume_service),
+                                host=host,
+                                port=port)
+        volume_service.setServiceParent(loop)
+        return main_for_service(reactor, loop)
 
 
-def flocker_volume_main():
+def flocker_zfs_agent_main():
     return FlockerScriptRunner(
-        script=VolumeScript(VolumeServeScript()),
-        options=VolumeServeOptions()
+        script=VolumeScript(ZFSAgentScript()),
+        options=ZFSAgentOptions()
     ).main()

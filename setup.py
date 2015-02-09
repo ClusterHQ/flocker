@@ -81,7 +81,7 @@ setup(
             'flocker-deploy = flocker.cli.script:flocker_deploy_main',
             'flocker-changestate = flocker.node.script:flocker_changestate_main',
             'flocker-reportstate = flocker.node.script:flocker_reportstate_main',
-            'flocker-zfs-agent = flocker.node.script:flocker_volume_main',
+            'flocker-zfs-agent = flocker.node.script:flocker_zfs_agent_main',
             'flocker-control = flocker.control.script:flocker_control_main',
         ],
     },
@@ -90,6 +90,7 @@ setup(
         "setuptools >= 1.4",
 
         "eliot == 0.4.0",
+        "machinist == 0.2.0",
         "zope.interface >= 4.0.5",
         "pytz",
         "characteristic >= 14.1.0",
