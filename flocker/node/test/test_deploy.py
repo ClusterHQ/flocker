@@ -2360,8 +2360,7 @@ class DeployerCalculateNecessaryStateChangesTests(SynchronousTestCase):
         # which is why a resize is happening:
         self.assertEqual(result.changes[0].changes[0],
                          ResizeDataset(
-                             dataset=APPLICATION_WITH_VOLUME.volume.dataset,
-                         ))
+                             dataset=APPLICATION_WITH_VOLUME.volume.dataset))
 
     def test_dataset_id_generated(self):
         """
