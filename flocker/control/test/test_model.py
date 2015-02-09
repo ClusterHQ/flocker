@@ -243,6 +243,53 @@ class DeploymentTests(SynchronousTestCase):
                          sorted(list(node.applications) +
                                 list(another_node.applications)))
 
+    def test_update_node_new(self):
+        """
+        When donig ``update_node()``, if the given ``Node`` has hostname not
+        in existing ``Deployment`` then just add new ``Node`` to new
+        ``Deployment``.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object())}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        original = Deployment(nodes=frozenset([node]))
+        updated = original.update_node(another_node)
+        self.assertEqual((original, updated),
+                         (Deployment(nodes=frozenset([node])),
+                          Deployment(nodes=frozenset([node, another_node]))))
+
+    def test_update_node_replace(self):
+        """
+        When donig ``update_node()``, if the given ``Node`` has hostname in
+        existing ``Deployment`` node then replace that ``Node`` in the new
+        ``Deployment``.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object())}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        updated_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset())
+
+        original = Deployment(nodes=frozenset([node, another_node]))
+        updated = original.update_node(updated_node)
+        self.assertEqual((original, updated),
+                         (Deployment(nodes=frozenset([node, another_node])),
+                          Deployment(nodes=frozenset([
+                              updated_node, another_node]))))
+
 
 class RestartOnFailureTests(SynchronousTestCase):
     """

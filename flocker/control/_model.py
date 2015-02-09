@@ -260,7 +260,9 @@ class Deployment(object):
 
         :return Deployment: Updated with new ``Node``.
         """
-        # XXX implement, test
+        return Deployment(nodes=frozenset(
+            list(n for n in self.nodes if n.hostname != node.hostname) +
+            [node]))
 
 
 @attributes(['internal_port', 'external_port'])
