@@ -142,6 +142,12 @@ def _run_SSH(port, user, node, command, input, key=None,
         command.extend([
             b"-i",
             key.path])
+
+    if background:
+        # Force pseudo-tty so that remote process exists when the ssh
+        # client does:
+        command.extend([b"-t", b"-t"])
+
     command.extend([
         b'@'.join([user, node]),
         quotedCommand
