@@ -13,6 +13,7 @@ from zope.interface import Interface, implementer
 from characteristic import attributes
 from twisted.python.usage import Options, UsageError
 from twisted.python.filepath import FilePath
+from twisted.python import log
 
 from admin.vagrant import vagrant_version
 from admin.release import make_rpm_version
@@ -364,6 +365,8 @@ def main(args, base_path, top_level):
     # In particular, we will kill any processes we spawned
     # and cleanup and VMs we created.
     signal.signal(signal.SIGTERM, signal_handler)
+
+    log.startLogging(sys.stdout)
 
     try:
         nodes = runner.start_nodes()

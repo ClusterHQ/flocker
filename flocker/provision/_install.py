@@ -10,6 +10,7 @@ import posixpath
 from textwrap import dedent
 from urlparse import urljoin
 from characteristic import attributes
+from twisted.python import log
 
 from ._common import PackageSource
 
@@ -17,6 +18,12 @@ ZFS_REPO = ("https://s3.amazonaws.com/archive.zfsonlinux.org/"
             "fedora/zfs-release$(rpm -E %dist).noarch.rpm")
 CLUSTERHQ_REPO = ("https://storage.googleapis.com/archive.clusterhq.com/"
                   "fedora/clusterhq-release$(rpm -E %dist).noarch.rpm")
+from effect import (
+    sync_performer, TypeDispatcher, ComposedDispatcher, Effect)
+from effect.twisted import (
+    perform, deferred_performer, make_twisted_dispatcher)
+from twisted.conch.endpoints import (
+    SSHCommandClientEndpoint, _NewConnectionHelper, _ReadFile, ConsoleUI)
 
 
 @attributes(["command"])
@@ -62,6 +69,89 @@ class Comment(object):
     """
 
 
+def run_with_crochet(username, address, commands):
+    from crochet import setup
+    setup()
+    from twisted.internet import reactor
+    from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
+    import os
+    from crochet import run_in_reactor
+    connection_helper = _NewConnectionHelper(
+        reactor, address, 22, None, username, None, None,
+        UNIXClientEndpoint(reactor, os.environ["SSH_AUTH_SOCK"]),
+        None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
+    connection = run_in_reactor(connection_helper.secureConnection)().wait()
+
+    from twisted.protocols.basic import LineOnlyReceiver
+    from twisted.internet.defer import Deferred
+    from twisted.internet.error import ConnectionDone
+
+    @attributes(['deferred'])
+    class CommandProtocol(LineOnlyReceiver, object):
+        delimiter = b'\n'
+
+        def connectionMade(self):
+            self.transport.disconnecting = False
+
+        def connectionLost(self, reason):
+            if reason.check(ConnectionDone):
+                self.deferred.callback(None)
+            else:
+                self.deferred.errback(reason)
+
+        def lineReceived(self, line):
+            log.msg(format="%(line)s",
+                    system="SSH[%s@%s]" % (username, address),
+                    username=username, address=address, line=line)
+
+    def do_remote(endpoint):
+        d = Deferred()
+        return connectProtocol(
+            endpoint, CommandProtocol(deferred=d)
+            ).addCallback(lambda _: d)
+
+    @deferred_performer
+    def run(_, intent):
+        log.msg(format="%(command)s",
+                system="SSH[%s@%s]" % (username, address),
+                username=username, address=address,
+                command=intent.command)
+        endpoint = SSHCommandClientEndpoint.existingConnection(
+            connection, intent.command)
+        return do_remote(endpoint)
+
+    @sync_performer
+    def sudo(_, intent):
+        return Effect(Run(command='sudo ' + intent.command))
+
+    @sync_performer
+    def put(_, intent):
+        return Effect(Run(command='echo -n %s > %s'
+                                  % (shell_quote(intent.content),
+                                     shell_quote(intent.path))))
+
+    @sync_performer
+    def comment(_, intent):
+        pass
+
+    dispatcher = ComposedDispatcher([
+        TypeDispatcher({
+            Run: run,
+            Sudo: sudo,
+            Put: put,
+            Comment: comment,
+        }),
+        make_twisted_dispatcher(reactor),
+    ])
+
+    from crochet import run_in_reactor
+    for command in commands:
+        run_in_reactor(perform)(dispatcher, Effect(command)).wait()
+
+    run_in_reactor(connection_helper.cleanupConnection)(
+        connection, False).wait()
+
+
 def run_with_fabric(username, address, commands):
     """
     Run a series of commands on a remote host.
@@ -93,7 +183,7 @@ def run_with_fabric(username, address, commands):
     disconnect_all()
 
 
-run = run_with_fabric
+run = run_with_crochet
 
 
 def task_install_ssh_key():
@@ -227,7 +317,10 @@ def task_pull_docker_images(images=ACCEPTANCE_IMAGES):
     :param list images: List of images to pull. Defaults to images used in
         acceptance tests.
     """
-    return [Run.from_args(['docker', 'pull', image]) for image in images]
+    from effect import ParallelEffects
+    return [ParallelEffects(
+        [Effect(Run.from_args(['docker', 'pull', image])) for image in images]
+    )]
 
 
 def provision(distribution, package_source):
