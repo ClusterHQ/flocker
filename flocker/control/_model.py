@@ -354,7 +354,6 @@ class NodeState(object):
 
         :return Node: Equivalent ``Node`` object.
         """
-        # XXX will need tests
         return Node(hostname=self.hostname,
                     other_manifestations=self.other_manifestations,
-                    application=frozenset(self.running + self.not_running))
+                    applications=frozenset(self.running + self.not_running))
