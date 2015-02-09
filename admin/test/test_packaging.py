@@ -473,7 +473,7 @@ class CreateLinksTests(TestCase):
         )
 
 
-def canned_package(root, version):
+def canned_package(root, version=b'0.3.2'):
     """
     Create a directory containing an empty Python package which can be
     installed and with a name and version which can later be tested.
