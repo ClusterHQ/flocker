@@ -558,15 +558,10 @@ class P2PNodeDeployer(object):
 
         :return: A ``IStateChange`` provider.
         """
-        # XXX current cluster state is out of date re local state, but the
-        # logic below takes no account of that and instead uses current
-        # cluster state rather than the given local state. This is
-        # temporary hack to fix that, correct solution is changing the
-        # algorithm. FLOC-389 will cover implementing a real solution.
-        from flocker.control._clusterstate import ClusterStateService
-        svc = ClusterStateService()
-        svc.update_node_state(local_state)
-        current_cluster_state = svc.as_deployment()
+        # Current cluster state is likely out of date as regards the
+        # local state, so update it accordingly:
+        current_cluster_state = current_cluster_state.update_node(
+            local_state.to_node())
 
         desired_configuration = self._add_dataset_ids(desired_configuration,
                                                       current_cluster_state)

@@ -4,6 +4,8 @@
 Tests for ``flocker.node._model``.
 """
 
+from uuid import uuid4
+
 from twisted.trial.unittest import SynchronousTestCase
 from twisted.python.filepath import FilePath
 
@@ -11,7 +13,16 @@ from ...testtools import make_with_init_tests
 from .._model import (
     Application, DockerImage, Node, Deployment, AttachedVolume, Dataset,
     RestartOnFailure, RestartAlways, RestartNever, Manifestation,
+    NodeState,
 )
+
+
+APP1 = Application(
+    name=u"webserver", image=DockerImage.from_string(u"apache"))
+APP2 = Application(
+    name=u"database", image=DockerImage.from_string(u"postgresql"))
+MANIFESTATION = Manifestation(dataset=Dataset(dataset_id=unicode(uuid4())),
+                              primary=True)
 
 
 class DockerImageInitTests(make_with_init_tests(
@@ -164,6 +175,37 @@ class NodeTests(SynchronousTestCase):
         self.assertEqual(node.manifestations(), frozenset([m1, m2]))
 
 
+class NodeStateTests(SynchronousTestCase):
+    """
+    Tests for ``NodeState``.
+    """
+    def test_running_and_not_running_applications(self):
+        """
+        ``NodeState.to_node`` combines both running and not running
+        applications from the given node state.
+        """
+        node_state = NodeState(hostname=u"host1",
+                               running=[APP1],
+                               not_running=[APP2])
+        self.assertEqual(node_state.to_node(),
+                         Node(hostname=u"host1",
+                              applications=frozenset([APP1, APP2])))
+
+    def test_other_manifestations(self):
+        """
+        ``NodeState.to_node`` copies over other manifestations to the ``Node``
+        instances it creates.
+        """
+        node_state = NodeState(
+            hostname=u"host2", running=[], not_running=[],
+            other_manifestations=frozenset([MANIFESTATION]))
+        self.assertEqual(node_state.to_node(),
+                         Node(hostname=u"host2",
+                              applications=frozenset(),
+                              other_manifestations=frozenset(
+                                  [MANIFESTATION])))
+
+
 class DeploymentInitTests(make_with_init_tests(
         record_type=Deployment,
         kwargs=dict(nodes=frozenset([
@@ -200,6 +242,53 @@ class DeploymentTests(SynchronousTestCase):
         self.assertEqual(sorted(list(deployment.applications())),
                          sorted(list(node.applications) +
                                 list(another_node.applications)))
+
+    def test_update_node_new(self):
+        """
+        When donig ``update_node()``, if the given ``Node`` has hostname not
+        in existing ``Deployment`` then just add new ``Node`` to new
+        ``Deployment``.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object())}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        original = Deployment(nodes=frozenset([node]))
+        updated = original.update_node(another_node)
+        self.assertEqual((original, updated),
+                         (Deployment(nodes=frozenset([node])),
+                          Deployment(nodes=frozenset([node, another_node]))))
+
+    def test_update_node_replace(self):
+        """
+        When donig ``update_node()``, if the given ``Node`` has hostname in
+        existing ``Deployment`` node then replace that ``Node`` in the new
+        ``Deployment``.
+        """
+        node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset({Application(name=u'mysql-clusterhq',
+                                                image=object())}))
+        another_node = Node(
+            hostname=u"node2.example.com",
+            applications=frozenset({Application(name=u'site-clusterhq.com',
+                                                image=object())}),
+        )
+        updated_node = Node(
+            hostname=u"node1.example.com",
+            applications=frozenset())
+
+        original = Deployment(nodes=frozenset([node, another_node]))
+        updated = original.update_node(updated_node)
+        self.assertEqual((original, updated),
+                         (Deployment(nodes=frozenset([node, another_node])),
+                          Deployment(nodes=frozenset([
+                              updated_node, another_node]))))
 
 
 class RestartOnFailureTests(SynchronousTestCase):
