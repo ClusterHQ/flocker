@@ -71,44 +71,6 @@ def droplet_for_test(test_case, client):
     return droplet
 
 
-class SetDropletKernelTests(SynchronousTestCase):
-    """
-    Tests for ``set_droplet_kernel``.
-
-    These tests are designed to interact with live DigitalOcean droplets.
-
-    You must supply a DigitalOcean V2 API token by setting
-    ``DIGITALOCEAN_TOKEN`` in the environment before running these tests.
-    """
-    def setUp(self):
-        """
-        Set up a test droplet and destroy it after the test.
-        """
-        self.client = client_from_environment()
-        self.droplet = droplet_for_test(self, self.client)
-
-    def test_success(self):
-        """
-        ``set_droplet_kernel`` assigns the supplied kernel to the droplet.
-        to the droplet, returning the selected DigitalOcean kernel instance.
-        """
-        expected_kernel = DIGITALOCEAN_KERNEL
-        set_droplet_kernel(self.droplet, expected_kernel)
-
-        # Need to query again for the droplet after updating its kernel
-        updated_droplet = self.client.droplet.get(self.droplet.id)
-        # Pyocean wraps kernel attributes in its ``Image`` class...which makes
-        # no sense and then uses a ``dict`` for the ``droplet.kernel``
-        # attribute, so they can't be directly compared. It would be better if
-        # both used a dedicated ``Kernel`` type which could easily be
-        # compared.
-        # See: https://github.com/flowfree/pyocean/issues/2
-        actual_kernel = kernel_from_digitalocean_version(
-            updated_droplet.kernel['version']
-        )
-        self.assertEqual(expected_kernel, actual_kernel)
-
-
 class LatestDropletKernelTests(SynchronousTestCase):
     """
     Tests for ``latest_droplet_kernel``.

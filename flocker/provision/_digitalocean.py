@@ -161,17 +161,6 @@ def get_droplet_kernel(droplet, required_kernel):
         raise ValueError('Unknown kernel', required_kernel)
 
 
-def set_droplet_kernel(droplet, required_kernel):
-    """
-    Change the kernel of the droplet with ``droplet_id``.
-
-    :param pyocean.Droplet droplet: The droplet whose kernel will be
-        configured.
-    :param pyocean.Kernel required_kernel: The kernel to be installed.
-    :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
-    """
-
-
 def latest_droplet_kernel(droplet,
                           required_distribution, required_architecture):
     """
