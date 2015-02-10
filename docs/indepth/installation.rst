@@ -288,12 +288,6 @@ You'll probably want to setup at least two nodes.
 
       * On the "Power" administration page, click "Boot".
 
-   #. SSH back in and check the running kernel
-
-      .. code-block:: sh
-
-         [root@digitalocean]# uname -r
-         3.17.8-200.fc20.x86_64
 
 #. Follow the :ref:`generic Fedora 20 installation instructions <fedora-20-install>` below.
 
