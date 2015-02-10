@@ -29,7 +29,7 @@ TESTING_DROPLET_ATTRIBUTES = {
 }
 
 
-@skipUnless(PYOCEAN_INSTALLED, "pyocean not installed")
+@skipUnless(PYOCEAN_INSTALLED, "digitalocean-python not installed")
 def client_from_environment():
     token = os.environ.get('DIGITALOCEAN_TOKEN')
     if token is None:
