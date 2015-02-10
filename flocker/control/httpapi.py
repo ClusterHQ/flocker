@@ -185,6 +185,31 @@ class DatasetAPIUserV1(object):
         saving.addCallback(saved)
         return saving
 
+    @app.route("/datasets/<dataset_id>", methods=['POST'])
+    @user_documentation(
+        """
+        Update an existing dataset
+        """,
+        examples=[
+            u"update dataset",
+        ]
+    )
+    @structured(
+        inputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        outputSchema={'$ref': '/v1/endpoints.json#/definitions/datasets'},
+        schema_store=SCHEMAS
+    )
+    def update_dataset(self, primary):
+        """
+        Update an existing dataset in the cluster configuration.
+
+        :param unicode primary: The address of the node on which the primary
+            manifestation of the dataset will be created.
+
+        :return: A ``dict`` describing the updated dataset configuration or
+            giving error information if this is not possible.
+        """
+
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
         Get current cluster datasets.
