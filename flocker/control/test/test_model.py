@@ -245,7 +245,7 @@ class DeploymentTests(SynchronousTestCase):
 
     def test_update_node_new(self):
         """
-        When donig ``update_node()``, if the given ``Node`` has hostname not
+        When doing ``update_node()``, if the given ``Node`` has hostname not
         in existing ``Deployment`` then just add new ``Node`` to new
         ``Deployment``.
         """
