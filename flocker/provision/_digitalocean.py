@@ -57,6 +57,10 @@ def pending_event(exception):
     returns a ``droplet`` instance instead whose status is difficult to check.
 
     See https://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/4842992-allow-api-cal # noqa
+
+    :param Exception exception: The exception that will be checked for type and
+        message
+    :return: ``True`` if ``exception`` matches else ``False``.
     """
     # Import here, so that this can be added to ``flocker.provision`` without
     # having to install ``pyocean``.
@@ -86,6 +90,10 @@ def droplet_still_on(exception):
 
     But it still seems to require some time before powering on, so catch the
     "currently on" exception and retry in that case.
+
+    :param Exception exception: The exception that will be checked for type and
+        message
+    :return: ``True`` if ``exception`` matches else ``False``.
     """
     # Import here, so that this can be added to ``flocker.provision`` without
     # having to install ``pyocean``.
