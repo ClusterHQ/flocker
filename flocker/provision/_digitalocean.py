@@ -148,6 +148,23 @@ def kernel_to_digitalocean_version(kernel):
     )
 
 
+def get_droplet_kernel(droplet, required_kernel):
+    """
+    Search a droplet for a certain kernel and return a ``pyocean.Kernel`` which
+    can then be used to reset the droplet's kernel.
+
+    :param Kernel required_kernel: The kernel version to search for.
+    :returns: A ``pyocean.Kernel`` instance corresponding to the supplied
+        ``required_kernel``.
+    """
+    full_version = kernel_to_digitalocean_version(required_kernel)
+    for do_kernel in droplet.get_available_kernels():
+        if do_kernel.version == full_version:
+            return do_kernel
+    else:
+        raise ValueError('Unknown kernel', required_kernel)
+
+
 def set_droplet_kernel(droplet, required_kernel):
     """
     Change the kernel of the droplet with ``droplet_id``.
@@ -157,13 +174,7 @@ def set_droplet_kernel(droplet, required_kernel):
     :param Kernel required_kernel: The kernel version to be installed.
     :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
     """
-    full_version = kernel_to_digitalocean_version(required_kernel)
-    for do_kernel in droplet.get_available_kernels():
-        if do_kernel.version == full_version:
-            break
-    else:
-        raise ValueError('Unknown kernel', required_kernel)
-
+    do_kernel = get_droplet_kernel(droplet, required_kernel)
     retry_if_pending(droplet.change_kernel, do_kernel.id)
     return do_kernel
 
