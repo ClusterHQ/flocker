@@ -219,18 +219,22 @@ class DatasetAPIUserV1(object):
 
         # deployment = self.persistence_service.get()
         # primary_nodes = list(
-        #     node for node in deployment.nodes if expected_manifestation in node.manifestations()
+        #     node for node in deployment.nodes if node.hostname == primary
         # )
         # if len(primary_nodes) == 0:
         #     # No primary node
-        #     # What to do here?
-        #     current_primary_node
+        #     # raise something here?
+        #     # Spec says not
+        #     # "ie, don't accept non-IP addresses but do accept IP addresses that aren't part of the cluster"
+        #     new_primary_node = None
         # else:
-        #     # Primary was found.
+        #     # New primary was found.
         #     # There should only be one.
-        #     (current_primary_node,) = primary_nodes
-        # if current_primary_node.hostname == primary:
+        #     (new_primary_node,) = primary_nodes
+        # if expected_manifestation in new_primary_node.manifestations():
         #     # No change needed. return early?
+        #     pass
+
 
 
     # def _get_dataset(self, dataset_id):
