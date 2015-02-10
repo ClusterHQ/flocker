@@ -17,8 +17,7 @@ else:
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
-    set_droplet_kernel, retry_on_error, pending_event, latest_droplet_kernel,
-    kernel_from_digitalocean_version, DIGITALOCEAN_KERNEL)
+    retry_on_error, pending_event, latest_droplet_kernel, DIGITALOCEAN_KERNEL)
 from flocker.testtools import random_name
 
 
