@@ -46,7 +46,6 @@ class APITestsMixin(object):
     NODE_A = u"192.0.2.1"
     NODE_B = u"192.0.2.2"
 
-
     def initialize(self):
         """
         Create initial objects for the ``DatasetAPIUserV1``.
@@ -496,6 +495,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
             failure if there is a problem.
         """
         saving = self.persistence_service.save(deployment)
+
         def saved(ignored):
             return self.assertResultItems(
                 b"GET", b"/datasets", None, OK, expected
@@ -583,8 +583,12 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         return self._dataset_test(deployment, expected)
 
 
-RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = buildIntegrationTests(
-    GetDatasetConfigurationTestsMixin, "GetDatasetConfiguration", _build_app)
+RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = (
+    buildIntegrationTests(
+        GetDatasetConfigurationTestsMixin, "GetDatasetConfiguration",
+        _build_app
+    )
+)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):

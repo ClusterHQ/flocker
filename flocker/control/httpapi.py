@@ -74,7 +74,6 @@ class DatasetAPIUserV1(object):
         """
         return {u"flocker":  __version__}
 
-
     @app.route("/datasets", methods=['GET'])
     @user_documentation(
         """
@@ -97,7 +96,6 @@ class DatasetAPIUserV1(object):
             that is configured to exist anywhere on the cluster.
         """
         return list(datasets_from_deployment(self.persistence_service.get()))
-
 
     @app.route("/datasets", methods=['POST'])
     @user_documentation(
