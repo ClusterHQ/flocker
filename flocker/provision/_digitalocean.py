@@ -131,6 +131,10 @@ DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE = (
 def kernel_to_digitalocean_version(kernel):
     """
     Return a DigitalOcean style kernel string for the supplied ``Kernel``.
+
+    :param Kernel kernel: The ``Kernel`` from which to get attributes for
+        filling the template.
+    :returns: A ``bytes`` DigitalOcean kernel label.
     """
     return DIGITAL_OCEAN_KERNEL_VERSION_TEMPLATE.format(
         version=kernel.version,
