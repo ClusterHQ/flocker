@@ -300,11 +300,9 @@ def size_by_slug(driver, size_slug):
     result = driver.connection.request('/sizes')
     for size_dict in result.object['sizes']:
         if size_dict['slug'] == size_slug:
-            break
+            return driver._to_size(size_dict)
     else:
         raise ValueError("Unknown size slug.", size_slug)
-
-    return driver._to_size(size_dict)
 
 
 def ssh_key_by_name(driver, ssh_key_name):
