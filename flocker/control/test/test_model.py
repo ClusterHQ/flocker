@@ -266,7 +266,7 @@ class DeploymentTests(SynchronousTestCase):
 
     def test_update_node_replace(self):
         """
-        When donig ``update_node()``, if the given ``Node`` has hostname in
+        When doing ``update_node()``, if the given ``Node`` has hostname in
         existing ``Deployment`` node then replace that ``Node`` in the new
         ``Deployment``.
         """
