@@ -139,7 +139,7 @@ class VagrantRunner(object):
         box_version = vagrant_version(self.package_source.version)
         # Boot the VMs
         check_safe_call(
-            ['vagrant', 'up'],
+            ['vagrant', 'up', '--parallel'],
             cwd=self.vagrant_path.path,
             env=extend_environ(FLOCKER_BOX_VERSION=box_version))
 
