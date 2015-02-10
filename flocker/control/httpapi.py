@@ -209,6 +209,9 @@ class DatasetAPIUserV1(object):
         :return: A ``dict`` describing the updated dataset configuration or
             giving error information if this is not possible.
         """
+        # if dataset_id is None:
+        #     raise NotFound('no dataset with the specified id')
+
 
     @app.route("/state/datasets", methods=['GET'])
     @user_documentation("""
