@@ -209,9 +209,28 @@ class DatasetAPIUserV1(object):
         :return: A ``dict`` describing the updated dataset configuration or
             giving error information if this is not possible.
         """
+        # Lookup the dataset, it may exist but only as a replica
         # dataset = self._get_dataset(dataset_id)
         # if dataset is None:
         #     raise NotFound('no dataset with the specified id')
+
+        # Lookup the node that has a primary Manifestation (if any)
+        # expected_manifestation = Manifestation(dataset=dataset, primary=True)
+
+        # deployment = self.persistence_service.get()
+        # primary_nodes = list(
+        #     node for node in deployment.nodes if expected_manifestation in node.manifestations()
+        # )
+        # if len(primary_nodes) == 0:
+        #     # No primary node
+        #     # What to do here?
+        #     current_primary_node
+        # else:
+        #     # Primary was found.
+        #     # There should only be one.
+        #     (current_primary_node,) = primary_nodes
+        # if current_primary_node.hostname == primary:
+        #     # No change needed. return early?
 
 
     # def _get_dataset(self, dataset_id):
