@@ -47,6 +47,16 @@ def client_from_environment():
 
 
 def droplet_for_test(test_case, client):
+    """
+    Update a prototype set of droplet attributes with a random name and make
+    API calls to create the droplet.
+
+    :param TestCase test_case: The test for which to build and cleanup the
+        droplet.
+    :param pyocean.DigitalOcean client: The client with which to make
+         DigitalOcean v2 API calls.
+    :returns: A ``pyocean.Droplet`` instance.
+    """
     droplet_attributes = copy.deepcopy(TESTING_DROPLET_ATTRIBUTES)
     droplet_attributes['name'] = (
         test_case.id().replace('_', '-')
