@@ -258,6 +258,22 @@ class DatasetAPIUserV1(object):
         # )
         # saving = self.persistence_service.save(new_deployment)
 
+        # Construct the return dictionary from the supplied dataset_id, primary
+        # and the found existing primary manifestation.
+        # What if there wasn't an existing primary manifestation?
+        # Should the returned and maximum size be that found on a lone replica?
+        # def saved(ignored):
+        #     result = {
+        #         u"dataset_id": dataset_id,
+        #         u"primary": primary,
+        #         u"metadata": metadata,
+        #     }
+        #     if maximum_size is not None:
+        #         result[u"maximum_size"] = maximum_size
+        #     return EndpointResponse(CREATED, result)
+        # saving.addCallback(saved)
+        # return saving
+
 
     # def _get_dataset(self, dataset_id):
     #     deployment = self.persistence_service.get()
