@@ -317,11 +317,9 @@ def ssh_key_by_name(driver, ssh_key_name):
     """
     for ssh_key in driver.ex_list_ssh_keys():
         if ssh_key.name == ssh_key_name:
-            break
+            return ssh_key
     else:
         raise ValueError("Unknown SSH key name.", ssh_key_name)
-
-    return ssh_key
 
 
 def digitalocean_provisioner(client_id, api_key, token, location, keyname):
