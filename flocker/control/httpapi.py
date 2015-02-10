@@ -226,6 +226,10 @@ class DatasetAPIUserV1(object):
         #     # raise something here?
         #     # Spec says not
         #     # "ie, don't accept non-IP addresses but do accept IP addresses that aren't part of the cluster"
+              # Ah there's already a comment about that....
+              # XXX Check cluster state to determine if the given primary node
+              # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
+              # See FLOC-1278
         #     new_primary_node = None
         # else:
         #     # New primary was found.
@@ -234,7 +238,6 @@ class DatasetAPIUserV1(object):
         # if expected_manifestation in new_primary_node.manifestations():
         #     # No change needed. return early?
         #     pass
-
 
 
     # def _get_dataset(self, dataset_id):
