@@ -209,8 +209,17 @@ class DatasetAPIUserV1(object):
         :return: A ``dict`` describing the updated dataset configuration or
             giving error information if this is not possible.
         """
-        # if dataset_id is None:
+        # dataset = self._get_dataset(dataset_id)
+        # if dataset is None:
         #     raise NotFound('no dataset with the specified id')
+
+
+    # def _get_dataset(self, dataset_id):
+    #     deployment = self.persistence_service.get()
+    #     for node in deployment.nodes:
+    #         for manifestation in node.manifestations():
+    #             if manifestation.dataset.dataset_id == dataset_id:
+    #                 return manifestation.dataset
 
 
     @app.route("/state/datasets", methods=['GET'])
