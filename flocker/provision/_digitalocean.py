@@ -194,7 +194,14 @@ def latest_droplet_kernel(droplet,
 
 def provision_digitalocean(node, package_source, distribution, token):
     """
-    Provision flocker on this node.
+    Provision Flocker on this node.
+
+    :param LibcloudNode node: The node to be provisioned.
+    :param PackageSource package_source: The URL of the distribution package
+        repository.
+    :param bytes distribution: The label of the distribution to be installed on
+        the node.
+    :param bytes token: A DigitalOcean v2 API token.
     """
     # DO doesn't support booting the droplet's own kernel.
     # * http://digitalocean.uservoice.com/forums/136585-digitalocean/suggestions/2814988-give-option-to-use-the-droplet-s-own-bootloader # noqa
