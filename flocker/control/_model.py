@@ -269,7 +269,7 @@ class Deployment(object):
 
 @attributes(['internal_port', 'external_port'])
 class Port(object):
-        """
+    """
     A record representing the mapping between a port exposed internally by an
     application and the corresponding port exposed to the outside world.
 
