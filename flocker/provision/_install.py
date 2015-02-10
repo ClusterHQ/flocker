@@ -76,10 +76,24 @@ def run_with_crochet(username, address, commands):
     from twisted.internet.endpoints import UNIXClientEndpoint, connectProtocol
     import os
     from crochet import run_in_reactor
+    from twisted.conch.ssh.keys import Key
+    from twisted.python.filepath import FilePath
+    key_path = FilePath(os.path.expanduser('~/.ssh/id_rsa'))
+    if key_path.exists():
+        keys = [Key.fromString(key_path.getContent())]
+    else:
+        keys = None
+    try:
+        agentEndpoint = UNIXClientEndpoint(
+            reactor, os.environ["SSH_AUTH_SOCK"])
+    except KeyError:
+        agentEndpoint = None
     connection_helper = _NewConnectionHelper(
-        reactor, address, 22, None, username, None, None,
-        UNIXClientEndpoint(reactor, os.environ["SSH_AUTH_SOCK"]),
-        None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
+        reactor, address, 22, None, username,
+        keys=keys,
+        password=None,
+        agentEndpoint=agentEndpoint,
+        knownHosts=None, ui=ConsoleUI(lambda: _ReadFile(b"yes")))
     connection = run_in_reactor(connection_helper.secureConnection)().wait()
 
     from twisted.protocols.basic import LineOnlyReceiver
