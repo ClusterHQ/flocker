@@ -194,7 +194,6 @@ class LibcloudNode(object):
 ], apply_immutable=True)
 class LibcloudProvisioner(object):
     """
-    # XXX: Should be _driver
     :ivar libcloud.compute.base.NodeDriver driver: The libcloud driver to use.
     :ivar bytes _keyname: The name of an existing ssh public key configured
         with the cloud provider. The provision step assumes the corresponding
