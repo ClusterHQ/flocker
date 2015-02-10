@@ -42,6 +42,11 @@ class APITestsMixin(object):
     """
     Helpers for writing integration tests for the Dataset Manager API.
     """
+    # These addresses taken from RFC 5737 (TEST-NET-1)
+    NODE_A = u"192.0.2.1"
+    NODE_B = u"192.0.2.2"
+
+
     def initialize(self):
         """
         Create initial objects for the ``DatasetAPIUserV1``.
@@ -158,10 +163,6 @@ class CreateDatasetTestsMixin(APITestsMixin):
     """
     Tests for the dataset creation endpoint at ``/datasets``.
     """
-    # These addresses taken from RFC 5737 (TEST-NET-1)
-    NODE_A = u"192.0.2.1"
-    NODE_B = u"192.0.2.2"
-
     def test_wrong_schema(self):
         """
         If a ``POST`` request made to the endpoint includes a body which
@@ -451,8 +452,139 @@ def get_dataset_ids(deployment):
         for manifestation in node.manifestations():
             yield manifestation.dataset.dataset_id
 
+
 RealTestsCreateDataset, MemoryTestsCreateDataset = buildIntegrationTests(
     CreateDatasetTestsMixin, "CreateDataset", _build_app)
+
+
+class GetDatasetConfigurationTestsMixin(APITestsMixin):
+    """
+    Tests for the dataset configuration retrieval endpoint at
+    ``/datasets``.
+    """
+    def _manifestation(self):
+        """
+        :return: A primary ``Manifestation`` for a dataset with a new
+            random identifier.
+        """
+        dataset_id = unicode(uuid4())
+        existing_dataset = Dataset(dataset_id=dataset_id)
+        return Manifestation(dataset=existing_dataset, primary=True)
+
+    def test_empty(self):
+        """
+        When the cluster configuration includes no datasets, the
+        endpoint returns an empty list.
+        """
+        self.assertResult(b"GET", b"/datasets", None, OK, [])
+
+    def _dataset_test(self, deployment, expected):
+        """
+        Verify that when the control service has ``deployment``
+        persisted as its configuration, the response from the
+        configuration listing endpoint includes the items in
+        ``expected``.
+
+        :param Deployment deployment: The deployment configuration to
+            use.
+
+        :param list expected: The objects expected to be returned by
+            the endpoint, disregarding order.
+
+        :return: A ``Deferred`` that fires successfully if the
+            expected results are received or which fires with a
+            failure if there is a problem.
+        """
+        saving = self.persistence_service.save(deployment)
+        def saved(ignored):
+            return self.assertResultItems(
+                b"GET", b"/datasets", None, OK, expected
+            )
+        saving.addCallback(saved)
+        return saving
+
+    def test_one_dataset(self):
+        """
+        When the cluster configuration includes one dataset, the
+        endpoint returns a single-element list containing the dataset.
+        """
+        manifestation = self._manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({manifestation}),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation.dataset, self.NODE_A
+            )
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_several_nodes(self):
+        """
+        When the cluster configuration includes several nodes, each
+        with a dataset, the endpoint returns a list containing
+        information for the dataset on each node.
+        """
+        manifestation_a = self._manifestation()
+        manifestation_b = self._manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({manifestation_a}),
+                ),
+                Node(
+                    hostname=self.NODE_B,
+                    other_manifestations=frozenset({manifestation_b}),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_B
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+    def test_several_datasets(self):
+        """
+        When the cluster configuration includes a node with several
+        datasets, the endpoint returns a list containing information
+        for each dataset.
+        """
+        manifestation_a = self._manifestation()
+        manifestation_b = self._manifestation()
+        deployment = Deployment(
+            nodes={
+                Node(
+                    hostname=self.NODE_A,
+                    other_manifestations=frozenset({
+                        manifestation_a, manifestation_b
+                    }),
+                ),
+            },
+        )
+        expected = [
+            api_dataset_from_dataset_and_node(
+                manifestation_a.dataset, self.NODE_A
+            ),
+            api_dataset_from_dataset_and_node(
+                manifestation_b.dataset, self.NODE_A
+            ),
+        ]
+        return self._dataset_test(deployment, expected)
+
+
+RealTestsGetDatasetConfiguration, MemoryTestsGetDatasetConfiguration = buildIntegrationTests(
+    GetDatasetConfigurationTestsMixin, "GetDatasetConfiguration", _build_app)
 
 
 class CreateAPIServiceTests(SynchronousTestCase):
