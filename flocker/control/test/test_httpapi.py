@@ -476,7 +476,7 @@ class GetDatasetConfigurationTestsMixin(APITestsMixin):
         When the cluster configuration includes no datasets, the
         endpoint returns an empty list.
         """
-        self.assertResult(b"GET", b"/datasets", None, OK, [])
+        return self.assertResult(b"GET", b"/datasets", None, OK, [])
 
     def _dataset_test(self, deployment, expected):
         """
