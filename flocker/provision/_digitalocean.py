@@ -98,22 +98,6 @@ def droplet_still_on(exception):
     return False
 
 
-def retry_if_pending(callable, *args, **kwargs):
-    """
-    Repeats the API call if another API event is currently in progress.
-
-    It returns the result if the call eventually succeeds.
-
-    :param error_checkers: A ``list`` of ``callables`` which will check for
-        expected exceptions.
-    :param callable: The API function to call.
-    :param args: Positional arguments to supply when calling it.
-    :param kwargs: Keyword arguments to supply when calling it.
-    :return: The result of calling  ``callable``.
-    """
-    return retry_on_error([pending_event], callable, *args, **kwargs)
-
-
 def kernel_from_digitalocean_version(version):
     """
     Parse a DigitalOcean kernel version string into its component parts.
@@ -171,12 +155,9 @@ def set_droplet_kernel(droplet, required_kernel):
 
     :param pyocean.Droplet droplet: The droplet whose kernel will be
         configured.
-    :param Kernel required_kernel: The kernel version to be installed.
+    :param pyocean.Kernel required_kernel: The kernel to be installed.
     :returns: A ``pyocean.Kernel`` instance which was assigned to the droplet.
     """
-    do_kernel = get_droplet_kernel(droplet, required_kernel)
-    retry_if_pending(droplet.change_kernel, do_kernel.id)
-    return do_kernel
 
 
 def latest_droplet_kernel(droplet,
@@ -236,8 +217,12 @@ def provision_digitalocean(node, package_source, distribution, token):
 
     v2client = pyocean.DigitalOcean(access_token=token)
     v2droplet = v2client.droplet.get(node._node.id)
+    do_kernel = get_droplet_kernel(v2droplet, DIGITALOCEAN_KERNEL)
 
-    set_droplet_kernel(v2droplet, DIGITALOCEAN_KERNEL)
+    retry_on_error(
+        [pending_event],
+        v2droplet.change_kernel, do_kernel.id)
+
     run(
         username='root',
         address=node.address,
@@ -246,7 +231,9 @@ def provision_digitalocean(node, package_source, distribution, token):
 
     # Libcloud doesn't support shutting down DO vms.
     # See https://issues.apache.org/jira/browse/LIBCLOUD-655
-    retry_if_pending(v2droplet.shutdown)
+    retry_on_error(
+        [pending_event],
+        v2droplet.shutdown)
 
     # Libcloud doesn't support powering up DO vms.
     # See https://issues.apache.org/jira/browse/LIBCLOUD-655

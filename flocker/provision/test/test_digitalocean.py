@@ -17,7 +17,7 @@ else:
 from twisted.trial.unittest import SynchronousTestCase, SkipTest
 
 from flocker.provision._digitalocean import (
-    set_droplet_kernel, retry_if_pending, latest_droplet_kernel,
+    set_droplet_kernel, retry_on_error, pending_event, latest_droplet_kernel,
     kernel_from_digitalocean_version, DIGITALOCEAN_KERNEL)
 from flocker.testtools import random_name
 
@@ -47,8 +47,11 @@ def droplet_for_test(test_case, client):
         + '-'
         + random_name()
     )
-    droplet = retry_if_pending(client.droplet.create, droplet_attributes)
-    test_case.addCleanup(retry_if_pending, droplet.destroy)
+    droplet = retry_on_error(
+        [pending_event],
+        client.droplet.create, droplet_attributes
+    )
+    test_case.addCleanup(retry_on_error, [pending_event], droplet.destroy)
     return droplet
 
 
