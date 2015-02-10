@@ -31,6 +31,12 @@ TESTING_DROPLET_ATTRIBUTES = {
 
 @skipUnless(PYOCEAN_INSTALLED, "digitalocean-python not installed")
 def client_from_environment():
+    """
+    Search the process environment for a DigitalOcean v2 API token and use it
+    to build an API client instance.
+
+    :returns: A ``pyocean.DigitalOcean`` client instance.
+    """
     token = os.environ.get('DIGITALOCEAN_TOKEN')
     if token is None:
         raise SkipTest(
