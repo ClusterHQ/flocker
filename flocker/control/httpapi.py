@@ -230,14 +230,33 @@ class DatasetAPIUserV1(object):
               # XXX Check cluster state to determine if the given primary node
               # actually exists.  If not, raise PRIMARY_NODE_NOT_FOUND.
               # See FLOC-1278
-        #     new_primary_node = None
+        #     primary_node = None
         # else:
         #     # New primary was found.
         #     # There should only be one.
-        #     (new_primary_node,) = primary_nodes
-        # if expected_manifestation in new_primary_node.manifestations():
+        #     (primary_node,) = primary_nodes
+        # if expected_manifestation in primary_node.manifestations():
         #     # No change needed. return early?
         #     pass
+
+        # Now construct a new_deployment where the primary manifestation of the dataset is on the requested primary node
+        # But what if the dataset is associated with an Application? Should the Application be moved to the new node too?
+        # And do we need to mark the manifestation as a replica on the existing primary node?
+        # Or will that be up to the convergence agent and state API
+        # new_node_config = Node(
+        #     hostname=primary_node.hostname,
+        #     applications=primary_node.applications,
+        #     other_manifestations=(
+        #         primary_node.other_manifestations | frozenset({manifestation})
+        #     )
+        # )
+        # other_nodes = frozenset(
+        #     node for node in deployment.nodes if node is not primary_node
+        # )
+        # new_deployment = Deployment(
+        #     nodes=other_nodes | frozenset({new_node_config})
+        # )
+        # saving = self.persistence_service.save(new_deployment)
 
 
     # def _get_dataset(self, dataset_id):
