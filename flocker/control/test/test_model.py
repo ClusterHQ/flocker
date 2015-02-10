@@ -251,7 +251,7 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
+            applications=frozenset({Application(name=u'postgresql-clusterhq',
                                                 image=object())}))
         another_node = Node(
             hostname=u"node2.example.com",
@@ -272,7 +272,7 @@ class DeploymentTests(SynchronousTestCase):
         """
         node = Node(
             hostname=u"node1.example.com",
-            applications=frozenset({Application(name=u'mysql-clusterhq',
+            applications=frozenset({Application(name=u'postgresql-clusterhq',
                                                 image=object())}))
         another_node = Node(
             hostname=u"node2.example.com",
